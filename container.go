@@ -53,7 +53,7 @@ type Container struct {
 	Name           string
 	Driver         string
 
-	process   *execdriver.Process
+	command   *execdriver.Command
 	stdout    *utils.WriteBroadcaster
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
@@ -305,8 +305,8 @@ func (container *Container) setupPty() error {
 		return err
 	}
 	container.ptyMaster = ptyMaster
-	container.process.Stdout = ptySlave
-	container.process.Stderr = ptySlave
+	container.command.Stdout = ptySlave
+	container.command.Stderr = ptySlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
@@ -318,8 +318,8 @@ func (container *Container) setupPty() error {
 
 	// stdin
 	if container.Config.OpenStdin {
-		container.process.Stdin = ptySlave
-		container.process.SysProcAttr.Setctty = true
+		container.command.Stdin = ptySlave
+		container.command.SysProcAttr.Setctty = true
 		go func() {
 			defer container.stdin.Close()
 			utils.Debugf("startPty: begin of stdin pipe")
@@ -331,10 +331,10 @@ func (container *Container) setupPty() error {
 }
 
 func (container *Container) setupStd() error {
-	container.process.Stdout = container.stdout
-	container.process.Stderr = container.stderr
+	container.command.Stdout = container.stdout
+	container.command.Stderr = container.stderr
 	if container.Config.OpenStdin {
-		stdin, err := container.process.StdinPipe()
+		stdin, err := container.command.StdinPipe()
 		if err != nil {
 			return err
 		}
@@ -676,7 +676,7 @@ func (container *Container) Start() (err error) {
 		CpuShares:  container.Config.CpuShares,
 	}
 
-	container.process = &execdriver.Process{
+	container.command = &execdriver.Command{
 		ID:         container.ID,
 		Privileged: container.hostConfig.Privileged,
 		Rootfs:     root,
@@ -690,7 +690,7 @@ func (container *Container) Start() (err error) {
 		Config:     driverConfig,
 		Resources:  resources,
 	}
-	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	container.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -713,13 +713,13 @@ func (container *Container) Start() (err error) {
 	}
 
 	callbackLock := make(chan struct{})
-	callback := func(process *execdriver.Process) {
-		container.State.SetRunning(process.Pid())
-		if process.Tty {
+	callback := func(command *execdriver.Command) {
+		container.State.SetRunning(command.Pid())
+		if command.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
 			// which we close here.
-			if c, ok := process.Stdout.(io.Closer); ok {
+			if c, ok := command.Stdout.(io.Closer); ok {
 				c.Close()
 			}
 		}
@@ -1118,7 +1118,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		exitCode int
 	)
 
-	if container.process == nil {
+	if container.command == nil {
 		// This happends when you have a GHOST container with lxc
 		err = container.runtime.WaitGhost(container)
 	} else {
@@ -1210,7 +1210,7 @@ func (container *Container) Kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		if container.process == nil {
+		if container.command == nil {
 			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))

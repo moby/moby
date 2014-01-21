@@ -50,14 +50,16 @@ func SysInit() {
 		os.Exit(1)
 	}
 
-	// Get cmdline arguments
-	user := flag.String("u", "", "username or uid")
-	gateway := flag.String("g", "", "gateway address")
-	ip := flag.String("i", "", "ip address")
-	workDir := flag.String("w", "", "workdir")
-	privileged := flag.Bool("privileged", false, "privileged mode")
-	mtu := flag.Int("mtu", 1500, "interface mtu")
-	driver := flag.String("driver", "", "exec driver")
+	var (
+		// Get cmdline arguments
+		user       = flag.String("u", "", "username or uid")
+		gateway    = flag.String("g", "", "gateway address")
+		ip         = flag.String("i", "", "ip address")
+		workDir    = flag.String("w", "", "workdir")
+		privileged = flag.Bool("privileged", false, "privileged mode")
+		mtu        = flag.Int("mtu", 1500, "interface mtu")
+		driver     = flag.String("driver", "", "exec driver")
+	)
 	flag.Parse()
 
 	// Get env

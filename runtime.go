@@ -802,11 +802,11 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 }
 
 func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {
-	return runtime.execDriver.Run(c.process, startCallback)
+	return runtime.execDriver.Run(c.command, startCallback)
 }
 
 func (runtime *Runtime) Kill(c *Container, sig int) error {
-	return runtime.execDriver.Kill(c.process, sig)
+	return runtime.execDriver.Kill(c.command, sig)
 }
 
 func (runtime *Runtime) WaitGhost(c *Container) error {

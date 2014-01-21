@@ -37,14 +37,14 @@ func TestLXCConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	process := &execdriver.Process{
+	command := &execdriver.Command{
 		ID: "1",
 		Resources: &execdriver.Resources{
 			Memory:    int64(mem),
 			CpuShares: int64(cpu),
 		},
 	}
-	p, err := driver.generateLXCConfig(process)
+	p, err := driver.generateLXCConfig(command)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestCustomLxcConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	process := &execdriver.Process{
+	command := &execdriver.Command{
 		ID:         "1",
 		Privileged: false,
 		Config: []string{
@@ -77,7 +77,7 @@ func TestCustomLxcConfig(t *testing.T) {
 		},
 	}
 
-	p, err := driver.generateLXCConfig(process)
+	p, err := driver.generateLXCConfig(command)
 	if err != nil {
 		t.Fatal(err)
 	}
