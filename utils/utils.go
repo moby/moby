@@ -560,7 +560,7 @@ func (k *KernelVersionInfo) String() string {
 }
 
 // Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, = if a == b, 1 it a > b
+// Returns -1 if a < b, 0 if a == b, 1 it a > b
 func CompareKernelVersion(a, b *KernelVersionInfo) int {
 	if a.Kernel < b.Kernel {
 		return -1
