@@ -6,21 +6,22 @@
 Learn Basic Commands
 ====================
 
-Starting Docker
----------------
+Check your docker install
+-------------------------
 
-If you have used one of the quick install paths, Docker may have been
-installed with upstart, Ubuntu's system for starting processes at boot
-time. You should be able to run ``sudo docker help`` and get output.
-
-If you get ``docker: command not found`` or something like
-``/var/lib/docker/repositories: permission denied`` you will need to
-specify the path to it and manually start it.
+This guide assumes you have a working installation of Docker. To check
+your docker install, run the following command:
 
 .. code-block:: bash
 
-    # Run docker in daemon mode
-    sudo <path to>/docker -d &
+    # Check that you have a working install
+    docker info
+
+If you get ``docker: command not found`` or something like
+``/var/lib/docker/repositories: permission denied`` you have an incomplete
+docker installation. Please refer to :ref:`installation_list` for installation
+instructions.
+
 
 Download a pre-built image
 --------------------------
