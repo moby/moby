@@ -462,9 +462,15 @@ func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 		job.Errorf("Usage: %s TERM", job.Name)
 		return engine.StatusErr
 	}
-	term := job.Args[0]
+        var (
+                term        = job.Args[0]
+                metaHeaders = map[string][]string{}
+                authConfig  = &auth.AuthConfig{}
+        )
+        job.GetenvJson("authConfig", authConfig)
+        job.GetenvJson("metaHeaders", metaHeaders)
 
-	r, err := registry.NewRegistry(nil, srv.HTTPRequestFactory(nil), auth.IndexServerAddress())
+	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), auth.IndexServerAddress())
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
