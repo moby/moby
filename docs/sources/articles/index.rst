@@ -11,3 +11,4 @@ Contents:
 
    security
    baseimages
+   cfengine_process_management
