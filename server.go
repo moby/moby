@@ -95,6 +95,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"search":           srv.ImagesSearch,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
+		"load":             srv.ImageLoad,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -355,10 +356,11 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.
 // The input stream is an uncompressed tar ball containing images and metadata.
-func (srv *Server) ImageLoad(in io.Reader) error {
+func (srv *Server) ImageLoad(job *engine.Job) engine.Status {
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	defer os.RemoveAll(tmpImageDir)
 
@@ -369,33 +371,40 @@ func (srv *Server) ImageLoad(in io.Reader) error {
 
 	tarFile, err := os.Create(repoTarFile)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
-	if _, err := io.Copy(tarFile, in); err != nil {
-		return err
+	if _, err := io.Copy(tarFile, job.Stdin); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
 	tarFile.Close()
 
 	repoFile, err := os.Open(repoTarFile)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 	if err := archive.Untar(repoFile, repoDir, nil); err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	dirs, err := ioutil.ReadDir(repoDir)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	for _, d := range dirs {
 		if d.IsDir() {
 			if err := srv.recursiveLoad(d.Name(), tmpImageDir); err != nil {
-				return err
+				job.Error(err)
+				return engine.StatusErr
 			}
 		}
 	}
@@ -404,21 +413,24 @@ func (srv *Server) ImageLoad(in io.Reader) error {
 	if err == nil {
 		repositories := map[string]Repository{}
 		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
-			return err
+			job.Error(err)
+			return engine.StatusErr
 		}
 
 		for imageName, tagMap := range repositories {
 			for tag, address := range tagMap {
 				if err := srv.runtime.repositories.Set(imageName, tag, address, true); err != nil {
-					return err
+					job.Error(err)
+					return engine.StatusErr
 				}
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
-	return nil
+	return engine.StatusOK
 }
 
 func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
