@@ -492,6 +492,49 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
+func populateCommand(c *Container) {
+	var (
+		en           *execdriver.Network
+		driverConfig []string
+	)
+	if !c.Config.NetworkDisabled {
+		network := c.NetworkSettings
+		en = &execdriver.Network{
+			Gateway:     network.Gateway,
+			Bridge:      network.Bridge,
+			IPAddress:   network.IPAddress,
+			IPPrefixLen: network.IPPrefixLen,
+			Mtu:         c.runtime.config.Mtu,
+		}
+	}
+
+	if lxcConf := c.hostConfig.LxcConf; lxcConf != nil {
+		for _, pair := range lxcConf {
+			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
+		}
+	}
+	resources := &execdriver.Resources{
+		Memory:     c.Config.Memory,
+		MemorySwap: c.Config.MemorySwap,
+		CpuShares:  c.Config.CpuShares,
+	}
+	c.command = &execdriver.Command{
+		ID:         c.ID,
+		Privileged: c.hostConfig.Privileged,
+		Rootfs:     c.RootfsPath(),
+		InitPath:   "/.dockerinit",
+		Entrypoint: c.Path,
+		Arguments:  c.Args,
+		WorkingDir: c.Config.WorkingDir,
+		Network:    en,
+		Tty:        c.Config.Tty,
+		User:       c.Config.User,
+		Config:     driverConfig,
+		Resources:  resources,
+	}
+	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+}
+
 func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
@@ -603,15 +646,15 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	var workingDir string
+	root := container.RootfsPath()
+
 	if container.Config.WorkingDir != "" {
-		workingDir = path.Clean(container.Config.WorkingDir)
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
+		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
+		if err := os.MkdirAll(path.Join(root, container.Config.WorkingDir), 0755); err != nil {
 			return nil
 		}
 	}
 
-	root := container.RootfsPath()
 	envPath, err := container.EnvConfigPath()
 	if err != nil {
 		return err
@@ -649,48 +692,7 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
-	var (
-		en           *execdriver.Network
-		driverConfig []string
-	)
-
-	if !container.Config.NetworkDisabled {
-		network := container.NetworkSettings
-		en = &execdriver.Network{
-			Gateway:     network.Gateway,
-			Bridge:      network.Bridge,
-			IPAddress:   network.IPAddress,
-			IPPrefixLen: network.IPPrefixLen,
-			Mtu:         container.runtime.config.Mtu,
-		}
-	}
-
-	if lxcConf := container.hostConfig.LxcConf; lxcConf != nil {
-		for _, pair := range lxcConf {
-			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
-		}
-	}
-	resources := &execdriver.Resources{
-		Memory:     container.Config.Memory,
-		MemorySwap: container.Config.MemorySwap,
-		CpuShares:  container.Config.CpuShares,
-	}
-
-	container.command = &execdriver.Command{
-		ID:         container.ID,
-		Privileged: container.hostConfig.Privileged,
-		Rootfs:     root,
-		InitPath:   "/.dockerinit",
-		Entrypoint: container.Path,
-		Arguments:  container.Args,
-		WorkingDir: workingDir,
-		Network:    en,
-		Tty:        container.Config.Tty,
-		User:       container.Config.User,
-		Config:     driverConfig,
-		Resources:  resources,
-	}
-	container.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	populateCommand(container)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {

@@ -61,9 +61,9 @@ type Info interface {
 type Driver interface {
 	Run(c *Command, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Command, sig int) error
-	Wait(id string) error // Wait on an out of process...process - lxc ghosts TODO: Rename to reattach, reconnect
-	Name() string         // Driver name
-	Info(id string) Info  // "temporary" hack (until we move state from core to plugins)
+	Restore(id string) (*Command, error) // Wait and try to re-attach on an out of process...process (lxc ghosts)
+	Name() string                        // Driver name
+	Info(id string) Info                 // "temporary" hack (until we move state from core to plugins)
 }
 
 // Network settings of the container
