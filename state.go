@@ -52,6 +52,13 @@ func (s *State) GetExitCode() int {
 	return s.ExitCode
 }
 
+func (s *State) GetPid() int {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.Pid
+}
+
 func (s *State) SetGhost(val bool) {
 	s.Lock()
 	defer s.Unlock()

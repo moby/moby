@@ -1188,11 +1188,34 @@ func (container *Container) cleanup() {
 	}
 }
 
+func (container *Container) EnsureGhostRunning() error {
+	container.Lock()
+	defer container.Unlock()
+
+	proc, err := os.FindProcess(container.State.GetPid())
+	if err != nil {
+		container.State.SetStopped(-127)
+		container.ToDisk()
+		return err
+	}
+	err = proc.Signal(syscall.Signal(0))
+	if err != nil {
+		container.State.SetStopped(-127)
+		container.ToDisk()
+		return err
+	}
+	return nil
+}
+
 func (container *Container) kill(sig int) error {
 	container.Lock()
 	defer container.Unlock()
 
 	if !container.State.IsRunning() {
+		return nil
+	}
+	if err := container.EnsureGhostRunning(); err != nil {
+		log.Print("ghost container has already exited")
 		return nil
 	}
 	return container.runtime.Kill(container, sig)

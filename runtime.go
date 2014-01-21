@@ -112,7 +112,9 @@ func (runtime *Runtime) load(id string) (*Container, error) {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
 	if container.State.IsRunning() {
-		container.State.SetGhost(true)
+		if err := container.EnsureGhostRunning(); err == nil {
+			container.State.SetGhost(true)
+		}
 	}
 	return container, nil
 }
