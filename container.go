@@ -17,6 +17,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -644,7 +645,14 @@ func (container *Container) Start() (err error) {
 			mountAs = "rw"
 		}
 
-		if err := mount.Mount(v, path.Join(root, r), "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
+		r = path.Join(root, r)
+		if p, err := utils.FollowSymlinkInScope(r, root); err != nil {
+			return err
+		} else {
+			r = p
+		}
+
+		if err := mount.Mount(v, r, "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
 			return err
 		}
 	}
@@ -805,7 +813,7 @@ func (container *Container) createVolumes() error {
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
 			}
-			if stat, err := os.Lstat(bindMap.SrcPath); err != nil {
+			if stat, err := os.Stat(bindMap.SrcPath); err != nil {
 				return err
 			} else {
 				volIsDir = stat.IsDir()
@@ -826,6 +834,13 @@ func (container *Container) createVolumes() error {
 			}
 			srcRW = true // RW by default
 		}
+
+		if p, err := filepath.EvalSymlinks(srcPath); err != nil {
+			return err
+		} else {
+			srcPath = p
+		}
+
 		container.Volumes[volPath] = srcPath
 		container.VolumesRW[volPath] = srcRW
 
