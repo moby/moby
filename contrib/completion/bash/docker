@@ -21,57 +21,61 @@
 # If the docker daemon is using a unix socket for communication your user
 # must have access to the socket for the completions to function correctly
 
+__docker_q() {
+	docker 2>/dev/null "$@"
+}
+
 __docker_containers_all()
 {
-	local containers="$( docker ps -a -q )"
-	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local containers="$( __docker_q ps -a -q )"
+	local names="$( __docker_q inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_containers_running()
 {
-	local containers="$( docker ps -q )"
-	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local containers="$( __docker_q ps -q )"
+	local names="$( __docker_q inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_containers_stopped()
 {
-	local containers="$( { docker ps -a -q; docker ps -q; } | sort | uniq -u )"
-	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local containers="$( { __docker_q ps -a -q; __docker_q ps -q; } | sort | uniq -u )"
+	local names="$( __docker_q inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
 __docker_image_repos()
 {
-	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local repos="$( __docker_q images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
 	COMPREPLY=( $( compgen -W "$repos" -- "$cur" ) )
 }
 
 __docker_image_repos_and_tags()
 {
-	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
-	local images="$( docker images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
+	local repos="$( __docker_q images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local images="$( __docker_q images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
 	COMPREPLY=( $( compgen -W "$repos $images" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
 }
 
 __docker_image_repos_and_tags_and_ids()
 {
-	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
-	local images="$( docker images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
-	local ids="$( docker images -a -q )"
+	local repos="$( __docker_q images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local images="$( __docker_q images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
+	local ids="$( __docker_q images -a -q )"
 	COMPREPLY=( $( compgen -W "$repos $images $ids" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
 }
 
 __docker_containers_and_images()
 {
-	local containers="$( docker ps -a -q )"
-	local names="$( docker inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
-	local repos="$( docker images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
-	local images="$( docker images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
-	local ids="$( docker images -a -q )"
+	local containers="$( __docker_q ps -a -q )"
+	local names="$( __docker_q inspect --format '{{.Name}}' $containers | sed 's,^/,,' )"
+	local repos="$( __docker_q images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
+	local images="$( __docker_q images | awk 'NR>1{print $1":"$2}' | grep -v '^<none>:' )"
+	local ids="$( __docker_q images -a -q )"
 	COMPREPLY=( $( compgen -W "$containers $names $repos $images $ids" -- "$cur" ) )
 	__ltrim_colon_completions "$cur"
 }
@@ -389,7 +393,7 @@ _docker_ps()
 {
 	case "$prev" in
 		--since-id|--before-id)
-			COMPREPLY=( $( compgen -W "$(docker ps -a -q)" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$( __docker_q ps -a -q )" -- "$cur" ) )
 			# TODO replace this with __docker_containers_all
 			# see https://github.com/dotcloud/docker/issues/3565
 			return
