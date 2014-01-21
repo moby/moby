@@ -61,7 +61,7 @@ func TestGetInfo(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 
 	job := eng.Job("images")
-	initialImages, err := job.Stdout.AddTable()
+	initialImages, err := job.Stdout.AddListTable()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestGetImagesJSON(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 
 	job := eng.Job("images")
-	initialImages, err := job.Stdout.AddTable()
+	initialImages, err := job.Stdout.AddListTable()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestGetImagesJSON(t *testing.T) {
 	assertHttpNotError(r, t)
 
 	images := engine.NewTable("Created", 0)
-	if _, err := images.ReadFrom(r.Body); err != nil {
+	if _, err := images.ReadListFrom(r.Body); err != nil {
 		t.Fatal(err)
 	}
 
@@ -205,7 +205,7 @@ func TestGetImagesJSON(t *testing.T) {
 	assertHttpNotError(r2, t)
 
 	images2 := engine.NewTable("ID", 0)
-	if _, err := images2.ReadFrom(r2.Body); err != nil {
+	if _, err := images2.ReadListFrom(r2.Body); err != nil {
 		t.Fatal(err)
 	}
 
@@ -238,7 +238,7 @@ func TestGetImagesJSON(t *testing.T) {
 	assertHttpNotError(r3, t)
 
 	images3 := engine.NewTable("ID", 0)
-	if _, err := images3.ReadFrom(r3.Body); err != nil {
+	if _, err := images3.ReadListFrom(r3.Body); err != nil {
 		t.Fatal(err)
 	}
 
@@ -264,7 +264,7 @@ func TestGetImagesHistory(t *testing.T) {
 	assertHttpNotError(r, t)
 
 	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadFrom(r.Body); err != nil {
+	if _, err := outs.ReadListFrom(r.Body); err != nil {
 		t.Fatal(err)
 	}
 	if len(outs.Data) != 1 {
@@ -409,7 +409,7 @@ func TestGetContainersChanges(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 	outs := engine.NewTable("", 0)
-	if _, err := outs.ReadFrom(r.Body); err != nil {
+	if _, err := outs.ReadListFrom(r.Body); err != nil {
 		t.Fatal(err)
 	}
 

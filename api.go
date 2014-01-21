@@ -192,40 +192,35 @@ func getImagesJSON(srv *Server, version float64, w http.ResponseWriter, r *http.
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
 
-	if version >= 1.9 {
+	if version > 1.8 {
 		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
+	} else if outs, err = job.Stdout.AddListTable(); err != nil {
 		return err
 	}
 
-	if err = job.Run(); err != nil {
+	if err := job.Run(); err != nil {
 		return err
 	}
 
-	if version < 1.9 { // Send as a valid JSON array
-		if version < 1.8 { // Convert to legacy format
-			outsLegacy := engine.NewTable("Created", 0)
-			for _, out := range outs.Data {
-				for _, repoTag := range out.GetList("RepoTags") {
-					parts := strings.Split(repoTag, ":")
-					outLegacy := &engine.Env{}
-					outLegacy.Set("Repository", parts[0])
-					outLegacy.Set("Tag", parts[1])
-					outLegacy.Set("ID", out.Get("ID"))
-					outLegacy.SetInt64("Created", out.GetInt64("Created"))
-					outLegacy.SetInt64("Size", out.GetInt64("Size"))
-					outLegacy.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
-					outsLegacy.Add(outLegacy)
-				}
+	if version < 1.8 && outs != nil { // Convert to legacy format
+		outsLegacy := engine.NewTable("Created", 0)
+		for _, out := range outs.Data {
+			for _, repoTag := range out.GetList("RepoTags") {
+				parts := strings.Split(repoTag, ":")
+				outLegacy := &engine.Env{}
+				outLegacy.Set("Repository", parts[0])
+				outLegacy.Set("Tag", parts[1])
+				outLegacy.Set("ID", out.Get("ID"))
+				outLegacy.SetInt64("Created", out.GetInt64("Created"))
+				outLegacy.SetInt64("Size", out.GetInt64("Size"))
+				outLegacy.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
+				outsLegacy.Add(outLegacy)
 			}
-			if _, err = outsLegacy.WriteListTo(w); err != nil {
-				return err
-			}
-		} else if _, err = outs.WriteListTo(w); err != nil {
+		}
+		if _, err := outsLegacy.WriteListTo(w); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -307,24 +302,11 @@ func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *ht
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("history", vars["name"])
-	)
+	var job = srv.Eng.Job("history", vars["name"])
+	job.Stdout.Add(w)
 
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
+	if err := job.Run(); err != nil {
 		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version < 1.9 { // Send as a valid JSON array
-		if _, err = outs.WriteListTo(w); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -333,26 +315,10 @@ func getContainersChanges(srv *Server, version float64, w http.ResponseWriter, r
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("changes", vars["name"])
-	)
+	var job = srv.Eng.Job("changes", vars["name"])
+	job.Stdout.Add(w)
 
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version < 1.9 { // Send as a valid JSON array
-		if _, err = outs.WriteListTo(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	return job.Run()
 }
 
 func getContainersTop(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -501,25 +467,10 @@ func getImagesSearch(srv *Server, version float64, w http.ResponseWriter, r *htt
 		return err
 	}
 
-	var (
-		err  error
-		outs *engine.Table
-		job  = srv.Eng.Job("search", r.Form.Get("term"))
-	)
-	if version >= 1.9 {
-		job.Stdout.Add(w)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version < 1.9 { // Send as a valid JSON array
-		if _, err = outs.WriteListTo(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	var job = srv.Eng.Job("search", r.Form.Get("term"))
+	job.Stdout.Add(w)
+
+	return job.Run()
 }
 
 func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

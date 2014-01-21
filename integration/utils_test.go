@@ -335,7 +335,7 @@ func getImages(eng *engine.Engine, t *testing.T, all bool, filter string) *engin
 	job := eng.Job("images")
 	job.SetenvBool("all", all)
 	job.Setenv("filter", filter)
-	images, err := job.Stdout.AddTable()
+	images, err := job.Stdout.AddListTable()
 	if err != nil {
 		t.Fatal(err)
 	}

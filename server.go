@@ -493,7 +493,7 @@ func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 		outs.Add(out)
 	}
 	outs.ReverseSort()
-	if _, err := outs.WriteTo(job.Stdout); err != nil {
+	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
@@ -658,7 +658,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 	}
 
 	outs.ReverseSort()
-	if _, err := outs.WriteTo(job.Stdout); err != nil {
+	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
@@ -744,7 +744,7 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 		return nil
 	})
 	outs.ReverseSort()
-	if _, err := outs.WriteTo(job.Stdout); err != nil {
+	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
@@ -849,7 +849,7 @@ func (srv *Server) ContainerChanges(job *engine.Job) engine.Status {
 			}
 			outs.Add(out)
 		}
-		if _, err := outs.WriteTo(job.Stdout); err != nil {
+		if _, err := outs.WriteListTo(job.Stdout); err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}

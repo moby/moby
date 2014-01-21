@@ -317,18 +317,20 @@ Inspect changes on a container's filesystem
            HTTP/1.1 200 OK
            Content-Type: application/json
 
-           {
+           [
+                {
                         "Path":"/dev",
                         "Kind":0
-           }
-           {
+                },
+                {
                         "Path":"/dev/kmsg",
                         "Kind":1
-           }
-           {
+                },
+                {
                         "Path":"/test",
                         "Kind":1
-           }
+                }
+           ]
 
         :statuscode 200: no error
         :statuscode 404: no such container
@@ -654,7 +656,8 @@ List Images
            HTTP/1.1 200 OK
            Content-Type: application/json
 
-           {
+           [
+             {
                 "RepoTags": [
                   "ubuntu:12.04",
                   "ubuntu:precise",
@@ -664,8 +667,8 @@ List Images
                 "Created": 1365714795,
                 "Size": 131506275,
                 "VirtualSize": 131506275
-           }
-           {
+             },
+             {
                 "RepoTags": [
                   "ubuntu:12.10",
                   "ubuntu:quantal"
@@ -675,7 +678,8 @@ List Images
                 "Created": 1364102658,
                 "Size": 24653,
                 "VirtualSize": 180116135
-           }
+             }
+           ]
 
 
 Create an image
@@ -821,16 +825,18 @@ Get the history of an image
            HTTP/1.1 200 OK
            Content-Type: application/json
 
-           {
+           [
+                {
                         "Id":"b750fe79269d",
                         "Created":1364102658,
                         "CreatedBy":"/bin/bash"
-           }
-           {
+                },
+                {
                         "Id":"27cf78414709",
                         "Created":1364068391,
                         "CreatedBy":""
-           }
+                }
+           ]
 
         :statuscode 200: no error
         :statuscode 404: no such image
@@ -954,28 +960,30 @@ Search images
            HTTP/1.1 200 OK
            Content-Type: application/json
 
-           {
+           [
+                   {
                        "description": "",
                        "is_official": false,
                        "is_trusted": false,
                        "name": "wma55/u1210sshd",
                        "star_count": 0
-           }
-           {
+                   },
+                   {
                        "description": "",
                        "is_official": false,
                        "is_trusted": false,
                        "name": "jdswinbank/sshd",
                        "star_count": 0
-           }
-           {
+                   },
+                   {
                        "description": "",
                        "is_official": false,
                        "is_trusted": false,
                        "name": "vgauthier/sshd",
                        "star_count": 0
-           }
+                   }
            ...
+           ]
 
         :query term: term to search
         :statuscode 200: no error
