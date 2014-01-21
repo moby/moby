@@ -111,6 +111,9 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 		params = append(params, "-w", c.WorkingDir)
 	}
 
+	params = append(params, "--", c.Entrypoint)
+	params = append(params, c.Arguments...)
+
 	if d.sharedRoot {
 		// lxc-start really needs / to be non-shared, or all kinds of stuff break
 		// when lxc-start unmount things and those unmounts propagate to the main
@@ -126,9 +129,6 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
 		}
 	}
-
-	params = append(params, "--", c.Entrypoint)
-	params = append(params, c.Arguments...)
 
 	var (
 		name = params[0]
