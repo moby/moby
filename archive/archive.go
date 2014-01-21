@@ -145,6 +145,10 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 		return err
 	}
 
+	if fi.IsDir() && !strings.HasSuffix(name, "/") {
+		name = name + "/"
+	}
+
 	hdr.Name = name
 
 	stat, ok := fi.Sys().(*syscall.Stat_t)
