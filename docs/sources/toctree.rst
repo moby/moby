@@ -18,5 +18,6 @@ This documentation has the following resources:
    commandline/index
    contributing/index
    terms/index
-   faq
    articles/index
+   faq
+   
