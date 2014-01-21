@@ -24,6 +24,10 @@ PACKAGE_LICENSE="Apache-2.0"
 bundle_ubuntu() {
 	DIR=$DEST/build
 
+	# Include our udev rules
+	mkdir -p $DIR/etc/udev/rules.d
+	cp contrib/udev/80-docker.rules $DIR/etc/udev/rules.d/
+
 	# Include our init scripts
 	mkdir -p $DIR/etc
 	cp -R contrib/init/upstart $DIR/etc/init
@@ -122,6 +126,7 @@ EOF
 		    --replaces lxc-docker-virtual-package \
 		    --url "$PACKAGE_URL" \
 		    --license "$PACKAGE_LICENSE" \
+		    --config-files /etc/udev/rules.d/80-docker.rules \
 		    --config-files /etc/init/docker.conf \
 		    --config-files /etc/init.d/docker \
 		    --config-files /etc/default/docker \
