@@ -27,7 +27,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     Usage of docker:
       -D, --debug=false: Enable debug mode
-      -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise
+      -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
@@ -62,6 +62,8 @@ the ``-H`` flag for the client.
         docker ps
         # both are equal
 
+
+To run the daemon with socket activation, use ``docker -d -H fd://*``. Individual sockets can also be specified ``docker -d -H fd://3``.
 
 .. _cli_attach:
 
