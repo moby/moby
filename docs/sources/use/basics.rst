@@ -1,10 +1,10 @@
-:title: Learn Basic Commands
+:title: First steps with Docker
 :description: Common usage and commands
 :keywords: Examples, Usage, basic commands, docker, documentation, examples
 
 
-Learn Basic Commands
-====================
+First steps with Docker
+=======================
 
 Check your docker install
 -------------------------
