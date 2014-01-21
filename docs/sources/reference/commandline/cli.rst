@@ -857,7 +857,10 @@ Running ``docker ps`` showing 2 linked containers.
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
     4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
-    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db     
+    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
+    fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
+
+The last container is marked as a ``Ghost`` container. It is a container that was running when the docker daemon was restarted (upgraded, or ``-H`` settings changed). The container is still running, but as this docker daemon process is not able to manage it, you can't attach to it. To bring them out of ``Ghost`` Status, you need to use ``docker kill`` or ``docker restart``.
 
 .. _cli_pull:
 
