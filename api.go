@@ -413,11 +413,11 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 		return err
 	}
 
-	src := r.Form.Get("fromSrc")
-	image := r.Form.Get("fromImage")
-	tag := r.Form.Get("tag")
-	repo := r.Form.Get("repo")
-
+	var (
+		image = r.Form.Get("fromImage")
+		tag   = r.Form.Get("tag")
+		job   *engine.Job
+	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &auth.AuthConfig{}
 	if authEncoded != "" {
@@ -431,7 +431,6 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/json")
 	}
-	sf := utils.NewStreamFormatter(version > 1.0)
 	if image != "" { //pull
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
@@ -439,22 +438,25 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 				metaHeaders[k] = v
 			}
 		}
-		if err := srv.ImagePull(image, tag, w, sf, authConfig, metaHeaders, version > 1.3); err != nil {
-			if sf.Used() {
-				w.Write(sf.FormatError(err))
-				return nil
-			}
-			return err
-		}
+		job = srv.Eng.Job("pull", r.Form.Get("fromImage"), tag)
+		job.SetenvBool("parallel", version > 1.3)
+		job.SetenvJson("metaHeaders", metaHeaders)
+		job.SetenvJson("authConfig", authConfig)
 	} else { //import
-		if err := srv.ImageImport(src, repo, tag, r.Body, w, sf); err != nil {
-			if sf.Used() {
-				w.Write(sf.FormatError(err))
-				return nil
-			}
+		job = srv.Eng.Job("import", r.Form.Get("fromSrc"), r.Form.Get("repo"), tag)
+		job.Stdin.Add(r.Body)
+	}
+
+	job.SetenvBool("json", version > 1.0)
+	job.Stdout.Add(w)
+	if err := job.Run(); err != nil {
+		if !job.Stdout.Used() {
 			return err
 		}
+		sf := utils.NewStreamFormatter(version > 1.0)
+		w.Write(sf.FormatError(err))
 	}
+
 	return nil
 }
 

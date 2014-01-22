@@ -2,8 +2,6 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -53,5 +51,8 @@ func generateImage(name string, srv *docker.Server) error {
 	if err != nil {
 		return err
 	}
-	return srv.ImageImport("-", "repo", name, archive, ioutil.Discard, utils.NewStreamFormatter(true))
+	job := srv.Eng.Job("import", "-", "repo", name)
+	job.Stdin.Add(archive)
+	job.SetenvBool("json", true)
+	return job.Run()
 }

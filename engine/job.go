@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 )
@@ -176,8 +177,11 @@ func (job *Job) Environ() map[string]string {
 }
 
 func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {
-	prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(job.Stderr, prefixedFormat, args...)
+	if os.Getenv("TEST") == "" {
+		prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
+		return fmt.Fprintf(job.Stderr, prefixedFormat, args...)
+	}
+	return 0, nil
 }
 
 func (job *Job) Printf(format string, args ...interface{}) (n int, err error) {

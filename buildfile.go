@@ -84,7 +84,12 @@ func (b *buildFile) CmdFrom(name string) error {
 				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
 				pullRegistryAuth = &resolvedAuth
 			}
-			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, pullRegistryAuth, nil, true); err != nil {
+			job := b.srv.Eng.Job("pull", remote, tag)
+			job.SetenvBool("json", b.sf.Json())
+			job.SetenvBool("parallel", true)
+			job.SetenvJson("authConfig", pullRegistryAuth)
+			job.Stdout.Add(b.outOld)
+			if err := job.Run(); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
