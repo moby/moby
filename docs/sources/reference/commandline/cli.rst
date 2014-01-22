@@ -1017,7 +1017,7 @@ image is removed.
       -t, --tty=false: Allocate a pseudo-tty
       -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
-      -v, --volume=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
+      -v, --volume=[]: Create a bind mount to a directory or file with: [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
@@ -1102,12 +1102,20 @@ using the container, but inside the current working directory.
 
 .. code-block:: bash
 
-    $ sudo docker run -v /dont/exist:/foo -w /foo -i -t ubuntu bash
+    $ sudo docker run -v /doesnt/exist:/foo -w /foo -i -t ubuntu bash
 
 When the host directory of a bind-mounted volume doesn't exist, Docker
 will automatically create this directory on the host for you. In the
-example above, Docker will create the ``/dont/exist`` folder before
+example above, Docker will create the ``/doesnt/exist`` folder before
 starting your container.
+
+.. code-block:: bash
+
+   $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
+
+By bind-mounting the docker unix socket and statically linked docker binary 
+(such as that provided by https://get.docker.io), you give the container 
+the full access to create and manipulate the host's docker daemon.
 
 .. code-block:: bash
 
