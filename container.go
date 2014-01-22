@@ -68,6 +68,7 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW  map[string]bool
+	VolumesMerge	map[string]bool
 	hostConfig *HostConfig
 
 	activeLinks map[string]*Link
@@ -535,6 +536,7 @@ func (container *Container) Start() (err error) {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
+		container.VolumesMerge = make(map[string]bool)
 	}
 
 	// Apply volumes from another container if requested
@@ -546,6 +548,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	if err := container.mergeVolumes(); err != nil {
+		return err
+	}
 	// Setup environment
 	env := []string{
 		"HOME=/",
@@ -640,6 +645,10 @@ func (container *Container) Start() (err error) {
 
 	// Mount user specified volumes
 	for r, v := range container.Volumes {
+		if merge := container.VolumesMerge[r]; merge {
+			continue
+		}
+
 		mountAs := "ro"
 		if container.VolumesRW[r] {
 			mountAs = "rw"
@@ -820,7 +829,6 @@ func (container *Container) createVolumes() error {
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
 		} else {
-
 			// Do not pass a container as the parameter for the volume creation.
 			// The graph driver using the container's information ( Image ) to
 			// create the parent.
@@ -909,12 +917,38 @@ func (container *Container) createVolumes() error {
 	return nil
 }
 
+func (container *Container) mergeVolumes() error {
+	for volPath, _ := range container.VolumesMerge {
+
+		srcPath := container.Volumes[volPath]
+
+		volPath = path.Join(container.RootfsPath(), volPath)
+		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
+		if err != nil { return err }
+
+		//the merge operation will copy the host dir content into the container rootfs's dir
+        var stat syscall.Stat_t
+        if err := syscall.Stat(rootVolPath, &stat); err != nil {
+            return err
+        }
+        if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+            return err
+        }
+        //the source volumes's ownership maybe different from rootfs
+        if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+            return err
+        }
+	}
+	return nil
+}
+
 func (container *Container) applyExternalVolumes() error {
 	if container.Config.VolumesFrom != "" {
 		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
 		for _, containerSpec := range containerSpecs {
 			mountRW := true
-			specParts := strings.SplitN(containerSpec, ":", 2)
+			merge := false
+			specParts := strings.SplitN(containerSpec, ":", 3)
 			switch len(specParts) {
 			case 0:
 				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
@@ -926,23 +960,44 @@ func (container *Container) applyExternalVolumes() error {
 				default:
 					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
 				}
-			}
-			c := container.runtime.Get(specParts[0])
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-			}
-			for volPath, id := range c.Volumes {
-				if _, exists := container.Volumes[volPath]; exists {
-					continue
-				}
-				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-					return err
-				}
-				container.Volumes[volPath] = id
-				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW && mountRW
+			case 3:
+				merge = true
+				switch specParts[2] {
+				case "ro":
+					mountRW = false
+				case "rw": // mountRW is already true
+				default:
+					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
 				}
 			}
+
+			if !merge {
+				c := container.runtime.Get(specParts[0])
+				if c == nil {
+					return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
+				}
+				for volPath, id := range c.Volumes {
+					if _, exists := container.Volumes[volPath]; exists {
+						continue
+					}
+					if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+						return err
+					}
+					container.Volumes[volPath] = id
+					if isRW, exists := c.VolumesRW[volPath]; exists {
+						container.VolumesRW[volPath] = isRW && mountRW
+					}
+				}
+			} else {
+                volPath := specParts[0]
+                container.Volumes[volPath] = specParts[1]
+                container.VolumesRW[volPath] = mountRW
+                container.VolumesMerge[volPath] = true
+
+                if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil { 
+                    return err
+                }
+           }
 
 		}
 	}
