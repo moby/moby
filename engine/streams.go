@@ -31,12 +31,20 @@ func (o *Output) Used() bool {
 // Add attaches a new destination to the Output. Any data subsequently written
 // to the output will be written to the new destination in addition to all the others.
 // This method is thread-safe.
-// FIXME: Add cannot fail
-func (o *Output) Add(dst io.Writer) error {
+func (o *Output) Add(dst io.Writer) {
 	o.Mutex.Lock()
 	defer o.Mutex.Unlock()
 	o.dests = append(o.dests, dst)
-	return nil
+}
+
+// Set closes and remove existing destination and then attaches a new destination to
+// the Output. Any data subsequently written to the output will be written to the new
+// destination in addition to all the others. This method is thread-safe.
+func (o *Output) Set(dst io.Writer) {
+	o.Close()
+	o.Mutex.Lock()
+	defer o.Mutex.Unlock()
+	o.dests = []io.Writer{dst}
 }
 
 // AddPipe creates an in-memory pipe with io.Pipe(), adds its writing end as a destination,
