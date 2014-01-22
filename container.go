@@ -916,11 +916,11 @@ func (container *Container) createVolumes() error {
 func (container *Container) mergeVolumes() error {
 	for volPath, _ := range container.VolumesMerge {
 
-		srcPath = container.Volumes[volPath]
+		srcPath := container.Volumes[volPath]
 
 		volPath = path.Join(container.RootfsPath(), volPath)
 		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
-
+		if err != nil { return err }
 
 		//the merge operation will copy the host dir content into the container rootfs's dir
         var stat syscall.Stat_t
@@ -935,6 +935,7 @@ func (container *Container) mergeVolumes() error {
             return err
         }
 	}
+	return nil
 }
 
 func (container *Container) applyExternalVolumes() error {

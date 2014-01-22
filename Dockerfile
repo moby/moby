@@ -28,7 +28,15 @@ FROM	stackbrew/ubuntu:12.04
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Add precise-backports to get s3cmd >= 1.1.0 (so we get ENV variable support in our .s3cfg)
-RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise-backports main universe' > /etc/apt/sources.list.d/backports.list
+# RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise-backports main universe' > /etc/apt/sources.list.d/backports.list
+RUN echo 'deb http://mirrors.sohu.com/ubuntu/ precise main restricted universe multiverse' > /etc/apt/sources.list
+RUN echo 'deb http://mirrors.sohu.com/ubuntu/ precise-updates main restricted universe multiverse' >> /etc/apt/sources.list
+RUN echo 'deb http://mirrors.sohu.com/ubuntu/ precise-proposed main restricted universe multiverse' >> /etc/apt/sources.list
+RUN echo 'deb http://mirrors.sohu.com/ubuntu/ precise-backports main restricted universe multiverse' >> /etc/apt/sources.list
+RUN echo 'deb-src http://mirrors.sohu.com/ubuntu/ precise main restricted universe multiverse' >> /etc/apt/sources.list
+RUN echo 'deb-src http://mirrors.sohu.com/ubuntu/ precise-updates main restricted universe multiverse' >> /etc/apt/sources.list
+RUN echo 'deb-src http://mirrors.sohu.com/ubuntu/ precise-proposed main restricted universe multiverse' >> /etc/apt/sources.list
+RUN echo 'deb-src http://mirrors.sohu.com/ubuntu/ precise-backports main restricted universe multiverse' >> /etc/apt/sources.list
 
 # Packaged dependencies
 RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
