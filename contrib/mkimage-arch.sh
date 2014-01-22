@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Generate a minimal filesystem for archlinux and load it into the local
 # docker as "archlinux"
 # requires root

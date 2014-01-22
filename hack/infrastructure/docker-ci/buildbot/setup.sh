@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Setup of buildbot configuration. Package installation is being done by
 # Vagrantfile
