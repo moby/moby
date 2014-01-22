@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"index/suffixarray"
 	"io"
@@ -556,15 +557,11 @@ type KernelVersionInfo struct {
 }
 
 func (k *KernelVersionInfo) String() string {
-	flavor := ""
-	if len(k.Flavor) > 0 {
-		flavor = fmt.Sprintf("-%s", k.Flavor)
-	}
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
+	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
 }
 
 // Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, = if a == b, 1 it a > b
+// Returns -1 if a < b, 0 if a == b, 1 it a > b
 func CompareKernelVersion(a, b *KernelVersionInfo) int {
 	if a.Kernel < b.Kernel {
 		return -1
@@ -613,41 +610,15 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
-		flavor               string
-		kernel, major, minor int
-		err                  error
+		kernel, major, minor, parsed int
+		flavor                       string
 	)
 
-	tmp := strings.SplitN(release, "-", 2)
-	tmp2 := strings.Split(tmp[0], ".")
-
-	if len(tmp2) > 0 {
-		kernel, err = strconv.Atoi(tmp2[0])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 1 {
-		major, err = strconv.Atoi(tmp2[1])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 2 {
-		// Removes "+" because git kernels might set it
-		minorUnparsed := strings.Trim(tmp2[2], "+")
-		minor, err = strconv.Atoi(minorUnparsed)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp) == 2 {
-		flavor = tmp[1]
-	} else {
-		flavor = ""
+	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
+	// make sure we got all the version numbers.
+	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
+	if parsed < 3 {
+		return nil, errors.New("Can't parse kernel version " + release)
 	}
 
 	return &KernelVersionInfo{
