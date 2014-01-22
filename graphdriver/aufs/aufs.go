@@ -225,7 +225,6 @@ func (a *Driver) Get(id string) (string, error) {
 // Returns an archive of the contents for the id
 func (a *Driver) Diff(id string) (archive.Archive, error) {
 	return archive.TarFilter(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
-		Recursive:   true,
 		Compression: archive.Uncompressed,
 	})
 }

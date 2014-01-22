@@ -1473,7 +1473,6 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 	return archive.TarFilter(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
-		Recursive:   true,
 	})
 }
 
