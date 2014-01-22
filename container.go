@@ -1141,9 +1141,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	}
 
 	if err != nil {
-		if container.runtime != nil && container.runtime.srv != nil {
-			container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
-		}
+		utils.Errorf("Error running container: %s", err)
 	}
 
 	// Cleanup
@@ -1155,6 +1153,10 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	}
 
 	container.State.SetStopped(exitCode)
+
+	if container.runtime != nil && container.runtime.srv != nil {
+		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
+	}
 
 	close(container.waitLock)
 
