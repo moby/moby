@@ -161,6 +161,40 @@ func (v *simpleVersionInfo) Version() string {
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
+	signalMap := map[string]syscall.Signal{
+		"HUP":  syscall.SIGHUP,
+		"INT":  syscall.SIGINT,
+		"QUIT": syscall.SIGQUIT,
+		"ILL":  syscall.SIGILL,
+		"TRAP": syscall.SIGTRAP,
+		"ABRT": syscall.SIGABRT,
+		"BUS":  syscall.SIGBUS,
+		"FPE":  syscall.SIGFPE,
+		"KILL": syscall.SIGKILL,
+		"USR1": syscall.SIGUSR1,
+		"SEGV": syscall.SIGSEGV,
+		"USR2": syscall.SIGUSR2,
+		"PIPE": syscall.SIGPIPE,
+		"ALRM": syscall.SIGALRM,
+		"TERM": syscall.SIGTERM,
+		//"STKFLT": syscall.SIGSTKFLT,
+		"CHLD":   syscall.SIGCHLD,
+		"CONT":   syscall.SIGCONT,
+		"STOP":   syscall.SIGSTOP,
+		"TSTP":   syscall.SIGTSTP,
+		"TTIN":   syscall.SIGTTIN,
+		"TTOU":   syscall.SIGTTOU,
+		"URG":    syscall.SIGURG,
+		"XCPU":   syscall.SIGXCPU,
+		"XFSZ":   syscall.SIGXFSZ,
+		"VTALRM": syscall.SIGVTALRM,
+		"PROF":   syscall.SIGPROF,
+		"WINCH":  syscall.SIGWINCH,
+		"IO":     syscall.SIGIO,
+		//"PWR":    syscall.SIGPWR,
+		"SYS": syscall.SIGSYS,
+	}
+
 	if n := len(job.Args); n < 1 || n > 2 {
 		job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
 		return engine.StatusErr
@@ -168,17 +202,20 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	var sig uint64
 	if len(job.Args) == 2 && job.Args[1] != "" {
-		var err error
-		// The largest legal signal is 31, so let's parse on 5 bits
-		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
-		if err != nil {
-			job.Errorf("Invalid signal: %s", job.Args[1])
-			return engine.StatusErr
+		sig = uint64(signalMap[job.Args[1]])
+		if sig == 0 {
+			var err error
+			// The largest legal signal is 31, so let's parse on 5 bits
+			sig, err = strconv.ParseUint(job.Args[1], 10, 5)
+			if err != nil {
+				job.Errorf("Invalid signal: %s", job.Args[1])
+				return engine.StatusErr
+			}
 		}
 	}
 	if container := srv.runtime.Get(name); container != nil {
-		// If no signal is passed, perform regular Kill (SIGKILL + wait())
-		if sig == 0 {
+		// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
+		if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
 			if err := container.Kill(); err != nil {
 				job.Errorf("Cannot kill container %s: %s", name, err)
 				return engine.StatusErr
