@@ -1909,8 +1909,11 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 			// ensure the source exists on the host
 			_, err := os.Stat(source)
 			if err != nil && os.IsNotExist(err) {
-				job.Errorf("Invalid bind mount '%s' : source doesn't exist", bind)
-				return engine.StatusErr
+				err = os.MkdirAll(source, 0755)
+				if err != nil {
+					job.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
+					return engine.StatusErr
+				}
 			}
 		}
 		// Register any links from the host config before starting the container
