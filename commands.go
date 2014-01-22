@@ -1925,6 +1925,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
+		VolumesMerge:    strings.Join(flVolumesMerge.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 	}
