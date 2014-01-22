@@ -136,7 +136,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	config, _, _, err := ParseRun(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
 	if err != nil {
 		return err
 	}

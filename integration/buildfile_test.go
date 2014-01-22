@@ -223,6 +223,31 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		},
 		nil,
 	},
+
+	// JSON!
+	{
+		`
+FROM {IMAGE}
+RUN ["/bin/echo","hello","world"]
+CMD ["/bin/true"]
+ENTRYPOINT ["/bin/echo","your command -->"]
+`,
+		nil,
+		nil,
+	},
+	{
+		`
+FROM {IMAGE}
+ADD test /test
+RUN ["chmod","+x","/test"]
+RUN ["/test"]
+RUN [ "$(cat /testfile)" = 'test!' ]
+`,
+		[][2]string{
+			{"test", "#!/bin/sh\necho 'test!' > /testfile"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
