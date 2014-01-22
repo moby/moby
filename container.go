@@ -645,6 +645,10 @@ func (container *Container) Start() (err error) {
 
 	// Mount user specified volumes
 	for r, v := range container.Volumes {
+		if merge := container.VolumesMerge[r]; merge {
+			continue
+		}
+
 		mountAs := "ro"
 		if container.VolumesRW[r] {
 			mountAs = "rw"
