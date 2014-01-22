@@ -31,11 +31,11 @@ itself for this purpose. Thus, when the Docker daemon starts it :
 
 
 At runtime, a :ref:`specific kind of virtual
-interface<vethxxxx-device>` is given to each containers which is then
-bonded to the ``docker0`` bridge.  Each containers also receives a
+interface<vethxxxx-device>` is given to each container which is then
+bonded to the ``docker0`` bridge.  Each container also receives a
 dedicated IP address from the same range as ``docker0``. The
 ``docker0`` IP address is then used as the default gateway for the
-containers.
+container.
 
 .. code-block:: bash
 
@@ -135,7 +135,7 @@ What's about the vethXXXX device?
 Well. Things get complicated here.
 
 The ``vethXXXX`` interface is the host side of a point-to-point link
-between the host and the corresponding container, the other side of
+between the host and the corresponding container; the other side of
 the link being materialized by the container's ``eth0``
 interface. This pair (host ``vethXXX`` and container ``eth0``) are
 connected like a tube. Everything that comes in one side will come out
