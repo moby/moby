@@ -1016,7 +1016,8 @@ image is removed.
       -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
       -v, --volume=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. If "container-dir" is missing, then docker creates a new volume.
-      --volumes-from="": Mount all volumes from the given container(s)
+      --volumes-from="": Mount all volumes from the given container(s) with: [containerID1]:[ro|rw],[containerID2]:[ro|rw]
+      --volumes-merge="": Merge host directory with the given directory in container with: [host-dir]:[container-dir].
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
       --lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
