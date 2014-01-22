@@ -2,8 +2,10 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestImageTagImageDelete(t *testing.T) {
@@ -152,6 +154,65 @@ func TestCommit(t *testing.T) {
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestRestartKillWait(t *testing.T) {
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+
+	config, hostConfig, _, err := docker.ParseRun([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createTestContainer(eng, config, t)
+
+	if c := srv.Containers(true, false, -1, "", ""); len(c) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(c))
+	}
+
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	job = eng.Job("kill", id)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	eng, err = engine.New(eng.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("initapi")
+	job.Setenv("Root", eng.Root())
+	job.SetenvBool("AutoRestart", false)
+	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
+	job.SetenvBool("EnableCors", true)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	srv = mkServerFromEngine(eng, t)
+	c := srv.Containers(true, false, -1, "", "")
+	if len(c) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(c))
+	}
+
+	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
+		job = srv.Eng.Job("wait", c[0].ID)
+		var statusStr string
+		job.Stdout.AddString(&statusStr)
+		if err := job.Run(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
