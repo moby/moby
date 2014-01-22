@@ -5,6 +5,7 @@ import (
 	"container/ring"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sync"
 )
 
@@ -228,7 +229,11 @@ func (o *Output) AddListTable() (dst *Table, err error) {
 	o.tasks.Add(1)
 	go func() {
 		defer o.tasks.Done()
-		if _, err := dst.ReadListFrom(src); err != nil {
+		content, err := ioutil.ReadAll(src)
+		if err != nil {
+			return
+		}
+		if _, err := dst.ReadListFrom(content); err != nil {
 			return
 		}
 	}()

@@ -823,13 +823,13 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		stream, _, err := cli.call("DELETE", "/images/"+name, nil, false)
+		body, _, err := readBody(cli.call("DELETE", "/images/"+name, nil, false))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
 			outs := engine.NewTable("Created", 0)
-			if _, err := outs.ReadListFrom(stream); err != nil {
+			if _, err := outs.ReadListFrom(body); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 				continue
@@ -859,16 +859,13 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		return nil
 	}
 
-	stream, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, false)
-	if stream != nil {
-		defer stream.Close()
-	}
+	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, false))
 	if err != nil {
 		return err
 	}
 
 	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadListFrom(stream); err != nil {
+	if _, err := outs.ReadListFrom(body); err != nil {
 		return err
 	}
 
@@ -1139,16 +1136,13 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	filter := cmd.Arg(0)
 
 	if *flViz || *flTree {
-		stream, _, err := cli.call("GET", "/images/json?all=1", nil, false)
-		if stream != nil {
-			defer stream.Close()
-		}
+		body, _, err := readBody(cli.call("GET", "/images/json?all=1", nil, false))
 		if err != nil {
 			return err
 		}
 
 		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadListFrom(stream); err != nil {
+		if _, err := outs.ReadListFrom(body); err != nil {
 			return err
 		}
 
@@ -1211,16 +1205,14 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			v.Set("all", "1")
 		}
 
-		stream, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, false)
-		if stream != nil {
-			defer stream.Close()
-		}
+		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
+
 		if err != nil {
 			return err
 		}
 
 		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadListFrom(stream); err != nil {
+		if _, err := outs.ReadListFrom(body); err != nil {
 			return err
 		}
 
@@ -1532,16 +1524,14 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return nil
 	}
 
-	stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, false)
-	if stream != nil {
-		defer stream.Close()
-	}
+	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, false))
+
 	if err != nil {
 		return err
 	}
 
 	outs := engine.NewTable("", 0)
-	if _, err := outs.ReadListFrom(stream); err != nil {
+	if _, err := outs.ReadListFrom(body); err != nil {
 		return err
 	}
 	for _, change := range outs.Data {
@@ -1674,15 +1664,14 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	v := url.Values{}
 	v.Set("term", cmd.Arg(0))
-	stream, _, err := cli.call("GET", "/images/search?"+v.Encode(), nil, true)
-	if stream != nil {
-		defer stream.Close()
-	}
+
+	body, _, err := readBody(cli.call("GET", "/images/search?"+v.Encode(), nil, false))
+
 	if err != nil {
 		return err
 	}
 	outs := engine.NewTable("star_count", 0)
-	if _, err := outs.ReadListFrom(stream); err != nil {
+	if _, err := outs.ReadListFrom(body); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
