@@ -937,7 +937,7 @@ func (container *Container) applyExternalVolumes() error {
 		for _, containerSpec := range containerSpecs {
 			mountRW := true
 			merge := false
-			specParts := strings.SplitN(containerSpec, ":", 2)
+			specParts := strings.SplitN(containerSpec, ":", 3)
 			switch len(specParts) {
 			case 0:
 				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
