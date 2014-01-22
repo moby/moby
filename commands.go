@@ -2168,9 +2168,18 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 	} else {
-		// No Autoremove: Simply retrieve the exit code
-		if _, status, err = getExitCode(cli, runResult.ID); err != nil {
-			return err
+		if !config.Tty {
+			// In non-tty mode, we can't dettach, so we know we need to wait.
+			if status, err = waitForExit(cli, runResult.ID); err != nil {
+				return err
+			}
+		} else {
+			// In TTY mode, there is a race. If the process dies too slowly, the state can be update after the getExitCode call
+			// and result in a wrong exit code.
+			// No Autoremove: Simply retrieve the exit code
+			if _, status, err = getExitCode(cli, runResult.ID); err != nil {
+				return err
+			}
 		}
 	}
 	if status != 0 {
