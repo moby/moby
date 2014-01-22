@@ -22,3 +22,5 @@ bundles/
 .git/
 vendor/pkg/
 pyenv
+.tags
+cscope.*

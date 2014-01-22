@@ -808,6 +808,7 @@ func (container *Container) createVolumes() error {
 		var srcPath string
 		var isBindMount bool
 		srcRW := false
+		merge := false
 		// If an external bind is defined for this volume, use that as a source
 		if bindMap, exists := binds[volPath]; exists {
 			isBindMount = true
@@ -821,7 +822,7 @@ func (container *Container) createVolumes() error {
 				volIsDir = stat.IsDir()
 			}
 			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
+		} else if merge := container.VolumesMerge[volPath]; !merge {
 
 			// Do not pass a container as the parameter for the volume creation.
 			// The graph driver using the container's information ( Image ) to
@@ -835,6 +836,10 @@ func (container *Container) createVolumes() error {
 				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
 			}
 			srcRW = true // RW by default
+		} else {
+			srcPath = container.Volumes[volPath]
+            srcRW = container.VolumesRW[volPath]
+            merge = true
 		}
 
 		if p, err := filepath.EvalSymlinks(srcPath); err != nil {
@@ -878,33 +883,48 @@ func (container *Container) createVolumes() error {
 			if err != nil {
 				return err
 			}
-			if len(volList) > 0 {
-				srcList, err := ioutil.ReadDir(srcPath)
-				if err != nil {
-					return err
-				}
-				if len(srcList) == 0 {
-					// If the source volume is empty copy files from the root into the volume
-					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
+			if !merge {
+				if len(volList) > 0 {
+					srcList, err := ioutil.ReadDir(srcPath)
+					if err != nil {
 						return err
 					}
-
-					var stat syscall.Stat_t
-					if err := syscall.Stat(rootVolPath, &stat); err != nil {
-						return err
-					}
-					var srcStat syscall.Stat_t
-					if err := syscall.Stat(srcPath, &srcStat); err != nil {
-						return err
-					}
-					// Change the source volume's ownership if it differs from the root
-					// files that where just copied
-					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+					if len(srcList) == 0 {
+						// If the source volume is empty copy files from the root into the volume
+						if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
 							return err
+						}
+
+						var stat syscall.Stat_t
+						if err := syscall.Stat(rootVolPath, &stat); err != nil {
+							return err
+						}
+						var srcStat syscall.Stat_t
+						if err := syscall.Stat(srcPath, &srcStat); err != nil {
+							return err
+						}
+						// Change the source volume's ownership if it differs from the root
+						// files that where just copied
+						if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+							if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+								return err
+							}
 						}
 					}
 				}
+			} else {
+				//the merge operation will copy the host dir content into the container rootfs's dir
+                var stat syscall.Stat_t
+                if err := syscall.Stat(rootVolPath, &stat); err != nil {
+                    return err
+                }
+                if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+                    return err
+                }
+                //the source volumes's ownership maybe different from rootfs
+                if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+                    return err
+                }
 			}
 		}
 	}
@@ -916,6 +936,7 @@ func (container *Container) applyExternalVolumes() error {
 		containerSpecs := strings.Split(container.Config.VolumesFrom, ",")
 		for _, containerSpec := range containerSpecs {
 			mountRW := true
+			merge := false
 			specParts := strings.SplitN(containerSpec, ":", 2)
 			switch len(specParts) {
 			case 0:
@@ -929,6 +950,7 @@ func (container *Container) applyExternalVolumes() error {
 					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
 				}
 			case 3:
+				merge = true
 				switch specParts[2] {
 				case "ro":
 					mountRW = false
@@ -953,6 +975,18 @@ func (container *Container) applyExternalVolumes() error {
 					container.VolumesRW[volPath] = isRW && mountRW
 				}
 			}
+
+			if merge {
+				log.Println("merge create")
+                volPath := specParts[0]
+                container.Volumes[volPath] = specParts[1]
+                container.VolumesRW[volPath] = mountRW
+                container.VolumesMerge[volPath] = true
+
+                if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil { 
+                    return err
+                }
+           }
 
 		}
 	}
