@@ -754,11 +754,13 @@ we ask for the ``HostPort`` field to get the public address.
 
 ::
 
-    Usage: docker kill CONTAINER [CONTAINER...]
+    Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
 
-    Kill a running container (Send SIGKILL)
+    Kill a running container (send SIGKILL, or specified signal)
 
-The main process inside the container will be sent SIGKILL.
+      -s, --signal="KILL": Signal to send to the container
+
+The main process inside the container will be sent SIGKILL, or any signal specified with option ``--signal``.
 
 Known Issues (kill)
 ~~~~~~~~~~~~~~~~~~~
