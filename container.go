@@ -201,9 +201,10 @@ func (settings *NetworkSettings) PortMappingAPI() []APIPort {
 
 // Inject the io.Reader at the given path. Note: do not close the reader
 func (container *Container) Inject(file io.Reader, pth string) error {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return fmt.Errorf("inject: error mounting container %s: %s", container.ID, err)
 	}
+	defer container.Unmount()
 
 	// Return error if path exists
 	destPath := path.Join(container.RootfsPath(), pth)
@@ -505,7 +506,7 @@ func (container *Container) Start() (err error) {
 			container.cleanup()
 		}
 	}()
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return err
 	}
 	if container.runtime.networkManager.disabled {
@@ -1287,21 +1288,27 @@ func (container *Container) Resize(h, w int) error {
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 	if container.runtime == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
 	}
+	defer container.Unmount()
 
 	return container.runtime.Diff(container)
 }
 
 func (container *Container) Export() (archive.Archive, error) {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
-	return archive.Tar(container.RootfsPath(), archive.Uncompressed)
+
+	archive, err := archive.Tar(container.RootfsPath(), archive.Uncompressed)
+	if err != nil {
+		return nil, err
+	}
+	return EofReader(archive, func() { container.Unmount() }), nil
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -1317,12 +1324,6 @@ func (container *Container) WaitTimeout(timeout time.Duration) error {
 	case <-done:
 		return nil
 	}
-}
-
-func (container *Container) EnsureMounted() error {
-	// FIXME: EnsureMounted is deprecated because drivers are now responsible
-	// for re-entrant mounting in their Get() method.
-	return container.Mount()
 }
 
 func (container *Container) Mount() error {
@@ -1422,10 +1423,11 @@ func (container *Container) GetSize() (int64, int64) {
 		driver             = container.runtime.driver
 	)
 
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
+	defer container.Unmount()
 
 	if differ, ok := container.runtime.driver.(graphdriver.Differ); ok {
 		sizeRw, err = differ.DiffSize(container.ID)
@@ -1453,13 +1455,14 @@ func (container *Container) GetSize() (int64, int64) {
 }
 
 func (container *Container) Copy(resource string) (archive.Archive, error) {
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 	var filter []string
 	basePath := path.Join(container.RootfsPath(), resource)
 	stat, err := os.Stat(basePath)
 	if err != nil {
+		container.Unmount()
 		return nil, err
 	}
 	if !stat.IsDir() {
@@ -1470,10 +1473,15 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-	return archive.TarFilter(basePath, &archive.TarOptions{
+
+	archive, err := archive.TarFilter(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return EofReader(archive, func() { container.Unmount() }), nil
 }
 
 // Returns true if the container exposes a certain port

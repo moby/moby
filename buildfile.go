@@ -488,7 +488,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	b.tmpContainers[container.ID] = struct{}{}
 
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return err
 	}
 	defer container.Unmount()
@@ -610,7 +610,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		b.tmpContainers[container.ID] = struct{}{}
 		fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
-		if err := container.EnsureMounted(); err != nil {
+		if err := container.Mount(); err != nil {
 			return err
 		}
 		defer container.Unmount()

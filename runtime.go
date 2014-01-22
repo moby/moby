@@ -134,6 +134,7 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err != nil {
 		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
 	}
+	defer runtime.driver.Put(container.ID)
 	container.rootfs = rootfs
 
 	container.runtime = runtime
@@ -466,6 +467,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	if err != nil {
 		return nil, nil, err
 	}
+	defer runtime.driver.Put(initID)
+
 	if err := setupInitLayer(initPath); err != nil {
 		return nil, nil, err
 	}
@@ -523,9 +526,10 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+	defer container.Unmount()
 
 	rwTar, err := container.ExportRw()
 	if err != nil {
@@ -769,8 +773,7 @@ func (runtime *Runtime) Mount(container *Container) error {
 }
 
 func (runtime *Runtime) Unmount(container *Container) error {
-	// FIXME: Unmount is deprecated because drivers are responsible for mounting
-	// and unmounting when necessary. Use driver.Remove() instead.
+	runtime.driver.Put(container.ID)
 	return nil
 }
 
@@ -782,10 +785,12 @@ func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) 
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
+	defer runtime.driver.Put(container.ID)
 	initDir, err := runtime.driver.Get(container.ID + "-init")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
+	defer runtime.driver.Put(container.ID + "-init")
 	return archive.ChangesDirs(cDir, initDir)
 }
 
@@ -804,7 +809,11 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
 
-	return archive.ExportChanges(cDir, changes)
+	archive, err := archive.ExportChanges(cDir, changes)
+	if err != nil {
+		return nil, err
+	}
+	return EofReader(archive, func() { runtime.driver.Put(container.ID) }), nil
 }
 
 func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {

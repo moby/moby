@@ -71,9 +71,10 @@ func containerRun(eng *engine.Engine, id string, t utils.Fataler) {
 
 func containerFileExists(eng *engine.Engine, id, dir string, t utils.Fataler) bool {
 	c := getContainer(eng, id, t)
-	if err := c.EnsureMounted(); err != nil {
+	if err := c.Mount(); err != nil {
 		t.Fatal(err)
 	}
+	defer c.Unmount()
 	if _, err := os.Stat(path.Join(c.RootfsPath(), dir)); err != nil {
 		if os.IsNotExist(err) {
 			return false
