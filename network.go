@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/iptables"
@@ -24,61 +23,6 @@ const (
 	portRangeEnd         = 65535
 	siocBRADDBR          = 0x89a0
 )
-
-// Calculates the first and last IP addresses in an IPNet
-func networkRange(network *net.IPNet) (net.IP, net.IP) {
-	netIP := network.IP.To4()
-	firstIP := netIP.Mask(network.Mask)
-	lastIP := net.IPv4(0, 0, 0, 0).To4()
-	for i := 0; i < len(lastIP); i++ {
-		lastIP[i] = netIP[i] | ^network.Mask[i]
-	}
-	return firstIP, lastIP
-}
-
-// Detects overlap between one IPNet and another
-func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	firstIP, _ := networkRange(netX)
-	if netY.Contains(firstIP) {
-		return true
-	}
-	firstIP, _ = networkRange(netY)
-	if netX.Contains(firstIP) {
-		return true
-	}
-	return false
-}
-
-// Converts a 4 bytes IP into a 32 bit integer
-func ipToInt(ip net.IP) int32 {
-	return int32(binary.BigEndian.Uint32(ip.To4()))
-}
-
-// Converts 32 bit integer into a 4 bytes IP address
-func intToIP(n int32) net.IP {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, uint32(n))
-	return net.IP(b)
-}
-
-// Given a netmask, calculates the number of available hosts
-func networkSize(mask net.IPMask) int32 {
-	m := net.IPv4Mask(0, 0, 0, 0)
-	for i := 0; i < net.IPv4len; i++ {
-		m[i] = ^mask[i]
-	}
-
-	return int32(binary.BigEndian.Uint32(m)) + 1
-}
-
-func checkRouteOverlaps(networks []netlink.Route, dockerNetwork *net.IPNet) error {
-	for _, network := range networks {
-		if network.IPNet != nil && networkOverlaps(dockerNetwork, network.IPNet) {
-			return fmt.Errorf("Network %s is already routed: '%s'", dockerNetwork, network)
-		}
-	}
-	return nil
-}
 
 func checkNameserverOverlaps(nameservers []string, dockerNetwork *net.IPNet) error {
 	if len(nameservers) > 0 {
@@ -142,10 +86,7 @@ func CreateBridgeIface(config *DaemonConfig) error {
 			if err != nil {
 				return err
 			}
-			routes, err := netlink.NetworkGetRoutes()
-			if err != nil {
-				return err
-			}
+			// TODO: @crosbymichael register route
 			if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
 				if err := checkNameserverOverlaps(nameservers, dockerNetwork); err == nil {
 					ifaceAddr = addr
@@ -441,67 +382,6 @@ type allocatedIP struct {
 }
 
 func (alloc *IPAllocator) run() {
-	firstIP, _ := networkRange(alloc.network)
-	ipNum := ipToInt(firstIP)
-	ownIP := ipToInt(alloc.network.IP)
-	size := networkSize(alloc.network.Mask)
-
-	pos := int32(1)
-	max := size - 2 // -1 for the broadcast address, -1 for the gateway address
-	for {
-		var (
-			newNum int32
-			inUse  bool
-		)
-
-		// Find first unused IP, give up after one whole round
-		for attempt := int32(0); attempt < max; attempt++ {
-			newNum = ipNum + pos
-
-			pos = pos%max + 1
-
-			// The network's IP is never okay to use
-			if newNum == ownIP {
-				continue
-			}
-
-			if _, inUse = alloc.inUse[newNum]; !inUse {
-				// We found an unused IP
-				break
-			}
-		}
-
-		ip := allocatedIP{ip: intToIP(newNum)}
-		if inUse {
-			ip.err = errors.New("No unallocated IP available")
-		}
-
-		select {
-		case quit := <-alloc.quit:
-			if quit {
-				return
-			}
-		case alloc.queueAlloc <- ip:
-			alloc.inUse[newNum] = struct{}{}
-		case released := <-alloc.queueReleased:
-			r := ipToInt(released)
-			delete(alloc.inUse, r)
-
-			if inUse {
-				// If we couldn't allocate a new IP, the released one
-				// will be the only free one now, so instantly use it
-				// next time
-				pos = r - ipNum
-			} else {
-				// Use same IP as last time
-				if pos == 1 {
-					pos = max
-				} else {
-					pos--
-				}
-			}
-		}
-	}
 }
 
 func (alloc *IPAllocator) Acquire() (net.IP, error) {
