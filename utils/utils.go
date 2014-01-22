@@ -614,6 +614,8 @@ func ParseRelease(release string) (*KernelVersionInfo, error) {
 		flavor                       string
 	)
 
+	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
+	// make sure we got all the version numbers.
 	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
 	if parsed < 3 {
 		return nil, errors.New("Can't parse kernel version " + release)
