@@ -959,24 +959,25 @@ func (container *Container) applyExternalVolumes() error {
 					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
 				}
 			}
-			c := container.runtime.Get(specParts[0])
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-			}
-			for volPath, id := range c.Volumes {
-				if _, exists := container.Volumes[volPath]; exists {
-					continue
-				}
-				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-					return err
-				}
-				container.Volumes[volPath] = id
-				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW && mountRW
-				}
-			}
 
-			if merge {
+			if !merge {
+				c := container.runtime.Get(specParts[0])
+				if c == nil {
+					return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
+				}
+				for volPath, id := range c.Volumes {
+					if _, exists := container.Volumes[volPath]; exists {
+						continue
+					}
+					if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+						return err
+					}
+					container.Volumes[volPath] = id
+					if isRW, exists := c.VolumesRW[volPath]; exists {
+						container.VolumesRW[volPath] = isRW && mountRW
+					}
+				}
+			} else {
 				log.Println("merge create")
                 volPath := specParts[0]
                 container.Volumes[volPath] = specParts[1]
