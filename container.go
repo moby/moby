@@ -67,9 +67,9 @@ type Container struct {
 	Volumes  map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
-	VolumesRW  map[string]bool
-	VolumesMerge	map[string]bool
-	hostConfig *HostConfig
+	VolumesRW    map[string]bool
+	VolumesMerge map[string]bool
+	hostConfig   *HostConfig
 
 	activeLinks map[string]*Link
 }
@@ -924,20 +924,22 @@ func (container *Container) mergeVolumes() error {
 
 		volPath = path.Join(container.RootfsPath(), volPath)
 		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 
 		//the merge operation will copy the host dir content into the container rootfs's dir
-        var stat syscall.Stat_t
-        if err := syscall.Stat(rootVolPath, &stat); err != nil {
-            return err
-        }
-        if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
-            return err
-        }
-        //the source volumes's ownership maybe different from rootfs
-        if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-            return err
-        }
+		var stat syscall.Stat_t
+		if err := syscall.Stat(rootVolPath, &stat); err != nil {
+			return err
+		}
+		if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+			return err
+		}
+		//the source volumes's ownership maybe different from rootfs
+		if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -989,15 +991,15 @@ func (container *Container) applyExternalVolumes() error {
 					}
 				}
 			} else {
-                volPath := specParts[0]
-                container.Volumes[volPath] = specParts[1]
-                container.VolumesRW[volPath] = mountRW
-                container.VolumesMerge[volPath] = true
+				volPath := specParts[0]
+				container.Volumes[volPath] = specParts[1]
+				container.VolumesRW[volPath] = mountRW
+				container.VolumesMerge[volPath] = true
 
-                if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil { 
-                    return err
-                }
-           }
+				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+					return err
+				}
+			}
 
 		}
 	}
