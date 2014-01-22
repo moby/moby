@@ -68,6 +68,7 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW  map[string]bool
+	VolumesMerge	map[string]bool
 	hostConfig *HostConfig
 
 	activeLinks map[string]*Link
@@ -535,6 +536,7 @@ func (container *Container) Start() (err error) {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
+		container.VolumesMerge = make(map[string]bool)
 	}
 
 	// Apply volumes from another container if requested
@@ -920,6 +922,14 @@ func (container *Container) applyExternalVolumes() error {
 				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
 			case 2:
 				switch specParts[1] {
+				case "ro":
+					mountRW = false
+				case "rw": // mountRW is already true
+				default:
+					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
+				}
+			case 3:
+				switch specParts[2] {
 				case "ro":
 					mountRW = false
 				case "rw": // mountRW is already true
