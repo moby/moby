@@ -975,12 +975,12 @@ func (container *Container) mergeVolumes() error {
 					return err
 				}
 			} else {
-				c, err := container.runtime.Get(source)
-				if err != nil {
+				c := container.runtime.Get(source)
+				if c == nil {
 					return fmt.Errorf("Container %s not found. Impossible to merge its volumes", source)
 				}
 
-				for vpath, id := range c.Volumes {
+				for vpath, _ := range c.Volumes {
 					srcPath = path.Join(c.RootfsPath(), vpath)
 					if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
 						return err
