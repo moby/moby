@@ -1019,7 +1019,7 @@ image is removed.
       --dns=[]: Set custom dns servers for the container
       -v, --volume=[]: Create a bind mount to a directory or file with: [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s) with: [containerID1]:[ro|rw],[containerID2]:[ro|rw].
-      --volumes-merge="": Merge host directory with the given directory in container with: [host-dir]:[container-dir].
+      --volumes-merge="": Merge host contents or other containers' volumes with the given directory: [host-path|containerID]:[container-path]:[dir|container].
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
       --lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
