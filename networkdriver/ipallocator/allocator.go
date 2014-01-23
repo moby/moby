@@ -4,11 +4,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/dotcloud/docker/networkdriver"
+	"github.com/dotcloud/docker/pkg/collections"
+	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
 	"sync"
 )
 
-type networkSet map[string]*iPSet
+type networkSet map[iPNet]*collections.OrderedIntSet
 
 var (
 	ErrNoAvailableIPs     = errors.New("no available ip addresses on network")
