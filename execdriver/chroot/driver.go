@@ -36,7 +36,7 @@ func NewDriver() (*driver, error) {
 	return &driver{}, nil
 }
 
-func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallback) (int, error) {
 	params := []string{
 		"chroot",
 		c.Rootfs,
@@ -70,11 +70,11 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 	return c.GetExitCode(), err
 }
 
-func (d *driver) Kill(p *execdriver.Process, sig int) error {
+func (d *driver) Kill(p *execdriver.Command, sig int) error {
 	return p.Process.Kill()
 }
 
-func (d *driver) Wait(id string) error {
+func (d *driver) Restore(c *execdriver.Command) error {
 	panic("Not Implemented")
 }
 

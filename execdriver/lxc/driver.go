@@ -30,6 +30,7 @@ func init() {
 		if err := setupCapabilities(args); err != nil {
 			return err
 		}
+
 		if err := setupWorkingDirectory(args); err != nil {
 			return err
 		}
@@ -37,6 +38,7 @@ func init() {
 		if err := changeUser(args); err != nil {
 			return err
 		}
+
 		path, err := exec.LookPath(args.Args[0])
 		if err != nil {
 			log.Printf("Unable to locate %v", args.Args[0])
@@ -72,7 +74,7 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
-func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallback) (int, error) {
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
 		return -1, err
@@ -170,13 +172,13 @@ func (d *driver) Run(c *execdriver.Process, startCallback execdriver.StartCallba
 	return c.GetExitCode(), waitErr
 }
 
-func (d *driver) Kill(c *execdriver.Process, sig int) error {
+func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return d.kill(c, sig)
 }
 
-func (d *driver) Wait(id string) error {
+func (d *driver) Restore(c *execdriver.Command) error {
 	for {
-		output, err := exec.Command("lxc-info", "-n", id).CombinedOutput()
+		output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
 		if err != nil {
 			return err
 		}
@@ -198,7 +200,7 @@ func (d *driver) version() string {
 	return version
 }
 
-func (d *driver) kill(c *execdriver.Process, sig int) error {
+func (d *driver) kill(c *execdriver.Command, sig int) error {
 	output, err := exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)
@@ -206,7 +208,7 @@ func (d *driver) kill(c *execdriver.Process, sig int) error {
 	return nil
 }
 
-func (d *driver) waitForStart(c *execdriver.Process, waitLock chan struct{}) error {
+func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) error {
 	var (
 		err    error
 		output []byte
@@ -302,8 +304,8 @@ func rootIsShared() bool {
 	return true
 }
 
-func (d *driver) generateLXCConfig(p *execdriver.Process) (string, error) {
-	root := path.Join(d.root, "containers", p.ID, "config.lxc")
+func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
+	root := path.Join(d.root, "containers", c.ID, "config.lxc")
 	fo, err := os.Create(root)
 	if err != nil {
 		return "", err
@@ -311,10 +313,10 @@ func (d *driver) generateLXCConfig(p *execdriver.Process) (string, error) {
 	defer fo.Close()
 
 	if err := LxcTemplateCompiled.Execute(fo, struct {
-		*execdriver.Process
+		*execdriver.Command
 		AppArmor bool
 	}{
-		Process:  p,
+		Command:  c,
 		AppArmor: d.apparmor,
 	}); err != nil {
 		return "", err

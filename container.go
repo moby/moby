@@ -54,7 +54,7 @@ type Container struct {
 	Name           string
 	Driver         string
 
-	process   *execdriver.Process
+	command   *execdriver.Command
 	stdout    *utils.WriteBroadcaster
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
@@ -307,8 +307,8 @@ func (container *Container) setupPty() error {
 		return err
 	}
 	container.ptyMaster = ptyMaster
-	container.process.Stdout = ptySlave
-	container.process.Stderr = ptySlave
+	container.command.Stdout = ptySlave
+	container.command.Stderr = ptySlave
 
 	// Copy the PTYs to our broadcasters
 	go func() {
@@ -320,8 +320,8 @@ func (container *Container) setupPty() error {
 
 	// stdin
 	if container.Config.OpenStdin {
-		container.process.Stdin = ptySlave
-		container.process.SysProcAttr.Setctty = true
+		container.command.Stdin = ptySlave
+		container.command.SysProcAttr.Setctty = true
 		go func() {
 			defer container.stdin.Close()
 			utils.Debugf("startPty: begin of stdin pipe")
@@ -333,10 +333,10 @@ func (container *Container) setupPty() error {
 }
 
 func (container *Container) setupStd() error {
-	container.process.Stdout = container.stdout
-	container.process.Stderr = container.stderr
+	container.command.Stdout = container.stdout
+	container.command.Stderr = container.stderr
 	if container.Config.OpenStdin {
-		stdin, err := container.process.StdinPipe()
+		stdin, err := container.command.StdinPipe()
 		if err != nil {
 			return err
 		}
@@ -494,6 +494,49 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
+func populateCommand(c *Container) {
+	var (
+		en           *execdriver.Network
+		driverConfig []string
+	)
+	if !c.Config.NetworkDisabled {
+		network := c.NetworkSettings
+		en = &execdriver.Network{
+			Gateway:     network.Gateway,
+			Bridge:      network.Bridge,
+			IPAddress:   network.IPAddress,
+			IPPrefixLen: network.IPPrefixLen,
+			Mtu:         c.runtime.config.Mtu,
+		}
+	}
+
+	if lxcConf := c.hostConfig.LxcConf; lxcConf != nil {
+		for _, pair := range lxcConf {
+			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
+		}
+	}
+	resources := &execdriver.Resources{
+		Memory:     c.Config.Memory,
+		MemorySwap: c.Config.MemorySwap,
+		CpuShares:  c.Config.CpuShares,
+	}
+	c.command = &execdriver.Command{
+		ID:         c.ID,
+		Privileged: c.hostConfig.Privileged,
+		Rootfs:     c.RootfsPath(),
+		InitPath:   "/.dockerinit",
+		Entrypoint: c.Path,
+		Arguments:  c.Args,
+		WorkingDir: c.Config.WorkingDir,
+		Network:    en,
+		Tty:        c.Config.Tty,
+		User:       c.Config.User,
+		Config:     driverConfig,
+		Resources:  resources,
+	}
+	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+}
+
 func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
@@ -605,15 +648,15 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	var workingDir string
+	root := container.RootfsPath()
+
 	if container.Config.WorkingDir != "" {
-		workingDir = path.Clean(container.Config.WorkingDir)
-		if err := os.MkdirAll(path.Join(container.RootfsPath(), workingDir), 0755); err != nil {
+		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
+		if err := os.MkdirAll(path.Join(root, container.Config.WorkingDir), 0755); err != nil {
 			return nil
 		}
 	}
 
-	root := container.RootfsPath()
 	envPath, err := container.EnvConfigPath()
 	if err != nil {
 		return err
@@ -658,48 +701,7 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
-	var (
-		en           *execdriver.Network
-		driverConfig []string
-	)
-
-	if !container.Config.NetworkDisabled {
-		network := container.NetworkSettings
-		en = &execdriver.Network{
-			Gateway:     network.Gateway,
-			Bridge:      network.Bridge,
-			IPAddress:   network.IPAddress,
-			IPPrefixLen: network.IPPrefixLen,
-			Mtu:         container.runtime.config.Mtu,
-		}
-	}
-
-	if lxcConf := container.hostConfig.LxcConf; lxcConf != nil {
-		for _, pair := range lxcConf {
-			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
-		}
-	}
-	resources := &execdriver.Resources{
-		Memory:     container.Config.Memory,
-		MemorySwap: container.Config.MemorySwap,
-		CpuShares:  container.Config.CpuShares,
-	}
-
-	container.process = &execdriver.Process{
-		ID:         container.ID,
-		Privileged: container.hostConfig.Privileged,
-		Rootfs:     root,
-		InitPath:   "/.dockerinit",
-		Entrypoint: container.Path,
-		Arguments:  container.Args,
-		WorkingDir: workingDir,
-		Network:    en,
-		Tty:        container.Config.Tty,
-		User:       container.Config.User,
-		Config:     driverConfig,
-		Resources:  resources,
-	}
-	container.process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	populateCommand(container)
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -722,13 +724,13 @@ func (container *Container) Start() (err error) {
 	}
 
 	callbackLock := make(chan struct{})
-	callback := func(process *execdriver.Process) {
-		container.State.SetRunning(process.Pid())
-		if process.Tty {
+	callback := func(command *execdriver.Command) {
+		container.State.SetRunning(command.Pid())
+		if command.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
 			// which we close here.
-			if c, ok := process.Stdout.(io.Closer); ok {
+			if c, ok := command.Stdout.(io.Closer); ok {
 				c.Close()
 			}
 		}
@@ -1134,9 +1136,10 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		exitCode int
 	)
 
-	if container.process == nil {
+	if container.command == nil {
 		// This happends when you have a GHOST container with lxc
-		err = container.runtime.WaitGhost(container)
+		populateCommand(container)
+		err = container.runtime.RestoreCommand(container)
 	} else {
 		exitCode, err = container.runtime.Run(container, callback)
 	}
@@ -1228,7 +1231,7 @@ func (container *Container) Kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		if container.process == nil {
+		if container.command == nil {
 			return fmt.Errorf("lxc-kill failed, impossible to kill the container %s", utils.TruncateID(container.ID))
 		}
 		log.Printf("Container %s failed to exit within 10 seconds of lxc-kill %s - trying direct SIGKILL", "SIGKILL", utils.TruncateID(container.ID))

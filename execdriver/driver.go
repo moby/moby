@@ -16,7 +16,7 @@ var (
 var dockerInitFcts map[string]InitFunc
 
 type (
-	StartCallback func(*Process)
+	StartCallback func(*Command)
 	InitFunc      func(i *InitArgs) error
 )
 
@@ -59,11 +59,11 @@ type Info interface {
 }
 
 type Driver interface {
-	Run(c *Process, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
-	Kill(c *Process, sig int) error
-	Wait(id string) error // Wait on an out of process...process - lxc ghosts TODO: Rename to reattach, reconnect
-	Name() string         // Driver name
-	Info(id string) Info  // "temporary" hack (until we move state from core to plugins)
+	Run(c *Command, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
+	Kill(c *Command, sig int) error
+	Restore(c *Command) error // Wait and try to re-attach on an out of process command
+	Name() string             // Driver name
+	Info(id string) Info      // "temporary" hack (until we move state from core to plugins)
 }
 
 // Network settings of the container
@@ -83,8 +83,8 @@ type Resources struct {
 
 // Process wrapps an os/exec.Cmd to add more metadata
 // TODO: Rename to Command
-type Process struct {
-	exec.Cmd
+type Command struct {
+	exec.Cmd `json:"-"`
 
 	ID         string     `json:"id"`
 	Privileged bool       `json:"privileged"`
@@ -103,7 +103,7 @@ type Process struct {
 
 // Return the pid of the process
 // If the process is nil -1 will be returned
-func (c *Process) Pid() int {
+func (c *Command) Pid() int {
 	if c.Process == nil {
 		return -1
 	}
@@ -112,7 +112,7 @@ func (c *Process) Pid() int {
 
 // Return the exit code of the process
 // if the process has not exited -1 will be returned
-func (c *Process) GetExitCode() int {
+func (c *Command) GetExitCode() int {
 	if c.ProcessState == nil {
 		return -1
 	}
