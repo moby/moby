@@ -30,8 +30,8 @@ func Generate(input ...string) (Archive, error) {
 	for _, file := range files {
 		name, content := file[0], file[1]
 		hdr := &tar.Header{
-			Name: name,
-			Size: int64(len(content)),
+			Name:    name,
+			Size:    int64(len(content)),
 			ModTime: time.Now(),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
