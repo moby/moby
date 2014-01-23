@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-type networkSet map[iPNet]iPSet
+type networkSet map[iPNet]*iPSet
 
 type iPNet struct {
 	IP   string
@@ -44,8 +44,8 @@ func RegisterNetwork(network *net.IPNet) error {
 	}
 	n := newIPNet(network)
 
-	allocatedIPs[n] = iPSet{}
-	availableIPS[n] = iPSet{}
+	allocatedIPs[n] = &iPSet{}
+	availableIPS[n] = &iPSet{}
 
 	return nil
 }
@@ -72,13 +72,18 @@ func ReleaseIP(network *net.IPNet, ip *net.IP) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	n := newIPNet(network)
-	existing := allocatedIPs[n]
+	var (
+		first, _  = networkRange(network)
+		base      = ipToInt(&first)
+		n         = newIPNet(network)
+		existing  = allocatedIPs[n]
+		available = availableIPS[n]
+		i         = ipToInt(ip)
+		pos       = i - base
+	)
 
-	i := ipToInt(ip)
-	existing.Remove(int(i))
-	available := availableIPS[n]
-	available.Push(int(i))
+	existing.Remove(int(pos))
+	available.Push(int(pos))
 
 	return nil
 }
@@ -86,29 +91,43 @@ func ReleaseIP(network *net.IPNet, ip *net.IP) error {
 func getNextIp(network *net.IPNet) (*net.IP, error) {
 	var (
 		n         = newIPNet(network)
+		ownIP     = ipToInt(&network.IP)
 		available = availableIPS[n]
-		next      = available.Pop()
 		allocated = allocatedIPs[n]
-		ownIP     = int(ipToInt(&network.IP))
+
+		first, _ = networkRange(network)
+		base     = ipToInt(&first)
+
+		pos = int32(available.Pop())
 	)
 
-	if next != 0 {
-		ip := intToIP(int32(next))
-		allocated.Push(int(next))
+	// We pop and push the position not the ip
+	if pos != 0 {
+		ip := intToIP(int32(base + pos))
+		allocated.Push(int(pos))
+
 		return ip, nil
 	}
-	size := int(networkSize(network.Mask))
-	next = allocated.PullBack() + 1
 
-	// size -1 for the broadcast address, -1 for the gateway address
-	for i := 0; i < size-2; i++ {
+	var (
+		size = int(networkSize(network.Mask))
+		max  = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
+	)
+
+	if pos = int32(allocated.PullBack()); pos == 0 {
+		pos = 1
+	}
+
+	for i := int32(0); i < max; i++ {
+		next := int32(base + pos)
+		pos = pos%max + 1
+
 		if next == ownIP {
-			next++
 			continue
 		}
 
-		ip := intToIP(int32(next))
-		allocated.Push(next)
+		ip := intToIP(next)
+		allocated.Push(int(pos))
 
 		return ip, nil
 	}
@@ -117,6 +136,7 @@ func getNextIp(network *net.IPNet) (*net.IP, error) {
 
 func registerIP(network *net.IPNet, ip *net.IP) error {
 	existing := allocatedIPs[newIPNet(network)]
+	// checking position not ip
 	if existing.Exists(int(ipToInt(ip))) {
 		return ErrIPAlreadyAllocated
 	}

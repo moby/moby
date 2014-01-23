@@ -82,8 +82,3 @@ func (s *iPSet) Remove(elem int) {
 		}
 	}
 }
-
-// Len returns the length of the list.
-func (s *iPSet) Len() int {
-	return len(s.set)
-}
