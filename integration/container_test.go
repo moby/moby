@@ -1712,7 +1712,7 @@ func TestVolumesMerge(t *testing.T) {
 		&docker.Config{
 			Image:        GetTestImage(runtime).ID,
 			Cmd:          []string{"/bin/echo", "-n", "foobar"},
-			VolumesMerge: mergeSourceDir + ":" + "/",
+			VolumesMerge: mergeSourceDir + ":/",
 		},
 		"",
 	)
