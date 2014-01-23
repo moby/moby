@@ -28,9 +28,14 @@ func (s *iPSet) Push(elem string) {
 	s.Unlock()
 }
 
+// Pop is an alias to PopFront()
+func (s *iPSet) Pop() string {
+	return s.PopFront()
+}
+
 // Pop returns the first elemen from the list and removes it.
 // If the list is empty, it returns an empty string
-func (s *iPSet) Pop() string {
+func (s *iPSet) PopFront() string {
 	s.RLock()
 
 	for i, e := range s.set {
@@ -43,6 +48,16 @@ func (s *iPSet) Pop() string {
 	}
 	s.RUnlock()
 	return ""
+}
+
+// PullBack retrieve the last element of the list.
+// The element is not removed.
+// If the list is empty, an empty element is returned.
+func (s *iPSet) PullBack() string {
+	if len(s.set) == 0 {
+		return ""
+	}
+	return s.set[len(s.set)-1]
 }
 
 // Exists checks if the given element present in the list.
