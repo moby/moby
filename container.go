@@ -897,7 +897,7 @@ func (container *Container) createVolumes() error {
 						return err
 					}
 					// Change the source volume's ownership if it differs from the root
-					// files that where just copied
+					// files that were just copied
 					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
 						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
 							return err
@@ -925,7 +925,7 @@ func (container *Container) applyExternalVolumes() error {
 					mountRW = false
 				case "rw": // mountRW is already true
 				default:
-					return fmt.Errorf("Malformed volumes-from speficication: %s", containerSpec)
+					return fmt.Errorf("Malformed volumes-from specification: %s", containerSpec)
 				}
 			}
 			c := container.runtime.Get(specParts[0])
