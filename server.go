@@ -101,6 +101,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"import":           srv.ImageImport,
 		"image_delete":     srv.ImageDelete,
 		"inspect":          srv.JobInspect,
+		"events":           srv.Events,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -237,6 +238,65 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	} else {
 		job.Errorf("No such container: %s", name)
 		return engine.StatusErr
+	}
+	return engine.StatusOK
+}
+func (srv *Server) Events(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		job.Errorf("Usage: %s FROM", job.Name)
+		return engine.StatusErr
+	}
+
+	var (
+		from  = job.Args[0]
+		since = job.GetenvInt64("since")
+	)
+	sendEvent := func(event *utils.JSONMessage) error {
+		b, err := json.Marshal(event)
+		if err != nil {
+			return fmt.Errorf("JSON error")
+		}
+		_, err = job.Stdout.Write(b)
+		if err != nil {
+			// On error, evict the listener
+			utils.Errorf("%s", err)
+			srv.Lock()
+			delete(srv.listeners, from)
+			srv.Unlock()
+			return err
+		}
+		return nil
+	}
+
+	listener := make(chan utils.JSONMessage)
+	srv.Lock()
+	srv.listeners[from] = listener
+	srv.Unlock()
+	job.Stdout.Write(nil) // flush
+	if since != 0 {
+		// If since, send previous events that happened after the timestamp
+		for _, event := range srv.GetEvents() {
+			if event.Time >= since {
+				err := sendEvent(&event)
+				if err != nil && err.Error() == "JSON error" {
+					continue
+				}
+				if err != nil {
+					job.Error(err)
+					return engine.StatusErr
+				}
+			}
+		}
+	}
+	for event := range listener {
+		err := sendEvent(&event)
+		if err != nil && err.Error() == "JSON error" {
+			continue
+		}
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
 	}
 	return engine.StatusOK
 }
