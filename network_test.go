@@ -7,50 +7,6 @@ import (
 	"testing"
 )
 
-func TestPortAllocation(t *testing.T) {
-	ip := net.ParseIP("192.168.0.1")
-	ip2 := net.ParseIP("192.168.0.2")
-	allocator, err := newPortAllocator()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if port, err := allocator.Acquire(ip, 80); err != nil {
-		t.Fatal(err)
-	} else if port != 80 {
-		t.Fatalf("Acquire(80) should return 80, not %d", port)
-	}
-	port, err := allocator.Acquire(ip, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if port <= 0 {
-		t.Fatalf("Acquire(0) should return a non-zero port")
-	}
-	if _, err := allocator.Acquire(ip, port); err == nil {
-		t.Fatalf("Acquiring a port already in use should return an error")
-	}
-	if newPort, err := allocator.Acquire(ip, 0); err != nil {
-		t.Fatal(err)
-	} else if newPort == port {
-		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
-	}
-	if _, err := allocator.Acquire(ip, 80); err == nil {
-		t.Fatalf("Acquiring a port already in use should return an error")
-	}
-	if _, err := allocator.Acquire(ip2, 80); err != nil {
-		t.Fatalf("It should be possible to allocate the same port on a different interface")
-	}
-	if _, err := allocator.Acquire(ip2, 80); err == nil {
-		t.Fatalf("Acquiring a port already in use should return an error")
-	}
-	if err := allocator.Release(ip, 80); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := allocator.Acquire(ip, 80); err != nil {
-		t.Fatal(err)
-	}
-}
-
 type StubProxy struct {
 	frontendAddr *net.Addr
 	backendAddr  *net.Addr

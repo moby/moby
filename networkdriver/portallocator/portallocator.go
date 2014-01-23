@@ -7,18 +7,14 @@ import (
 	"sync"
 )
 
-type portMappings map[string]*collections.OrderedIntSet
-
-type ipData struct {
-	allocatedPorts portMappings
-	availablePorts portMappings
-}
-
-type ipMapping map[net.IP]*ipData
-
 const (
 	BeginPortRange = 49153
 	EndPortRange   = 65535
+)
+
+type (
+	portMappings map[string]*collections.OrderedIntSet
+	ipMapping    map[string]portMappings
 )
 
 var (
@@ -28,56 +24,19 @@ var (
 )
 
 var (
-	defaultIPData *ipData
-
-	lock      = sync.Mutex{}
-	ips       = ipMapping{}
-	defaultIP = net.ParseIP("0.0.0.0")
+	currentDynamicPort = map[string]int{
+		"tcp": BeginPortRange - 1,
+		"udp": BeginPortRange - 1,
+	}
+	defaultIP             = net.ParseIP("0.0.0.0")
+	defaultAllocatedPorts = portMappings{}
+	otherAllocatedPorts   = ipMapping{}
+	lock                  = sync.Mutex{}
 )
 
 func init() {
-	defaultIPData = newIpData()
-	ips[defaultIP] = defaultIP
-}
-
-func newIpData() {
-	data := &ipData{
-		allocatedPorts: portMappings{},
-		availablePorts: portMappings{},
-	}
-
-	data.allocatedPorts["udp"] = collections.NewOrderedIntSet()
-	data.availablePorts["udp"] = collections.NewOrderedIntSet()
-	data.allocatedPorts["tcp"] = collections.NewOrderedIntSet()
-	data.availablePorts["tcp"] = collections.NewOrderedIntSet()
-
-	return data
-}
-
-func getData(ip net.IP) *ipData {
-	data, exists := ips[ip]
-	if !exists {
-		data = newIpData()
-		ips[ip] = data
-	}
-	return data
-}
-
-func validateMapping(data *ipData, proto string, port int) error {
-	allocated := data.allocatedPorts[proto]
-	if allocated.Exists(proto) {
-		return ErrPortAlreadyAllocated
-	}
-	return nil
-}
-
-func usePort(data *ipData, proto string, port int) {
-	allocated, available := data.allocatedPorts[proto], data.availablePorts[proto]
-	for i := 0; i < 2; i++ {
-		allocated.Push(port)
-		available.Remove(port)
-		allocated, available = defaultIPData.allocatedPorts[proto], defaultIPData.availablePorts[proto]
-	}
+	defaultAllocatedPorts["tcp"] = collections.NewOrderedIntSet()
+	defaultAllocatedPorts["udp"] = collections.NewOrderedIntSet()
 }
 
 // RequestPort returns an available port if the port is 0
@@ -91,43 +50,14 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 		return 0, err
 	}
 
-	data := getData(ip)
-	allocated, available := data.allocatedPorts[proto], data.availablePorts[proto]
-
 	// If the user requested a specific port to be allocated
 	if port != 0 {
-		if err := validateMapping(defaultIP, proto, port); err != nil {
+		if err := registerSetPort(ip, proto, port); err != nil {
 			return 0, err
 		}
-
-		if !defaultIP.Equal(ip) {
-			if err := validateMapping(data, proto, port); err != nil {
-				return 0, err
-			}
-		}
-
-		available.Remove(port)
-		allocated.Push(port)
-
 		return port, nil
 	}
-
-	// Dynamic allocation
-	next := available.Pop()
-	if next == 0 {
-		next = allocated.PullBack()
-		if next == 0 {
-			next = BeginPortRange
-		} else {
-			next++
-		}
-		if next > EndPortRange {
-			return 0, ErrPortExceedsRange
-		}
-	}
-
-	allocated.Push(next)
-	return next, nil
+	return registerDynamicPort(ip, proto)
 }
 
 // ReleasePort will return the provided port back into the
@@ -140,16 +70,95 @@ func ReleasePort(ip net.IP, proto string, port int) error {
 		return err
 	}
 
-	allocated, available := getCollection(ip, proto)
-
+	allocated := defaultAllocatedPorts[proto]
 	allocated.Remove(port)
-	available.Push(port)
+
+	if !equalsDefault(ip) {
+		registerIP(ip)
+
+		// Remove the port for the specific ip address
+		allocated = otherAllocatedPorts[ip.String()][proto]
+		allocated.Remove(port)
+	}
+	return nil
+}
+
+func ReleaseAll() error {
+	lock.Lock()
+	defer lock.Unlock()
+
+	currentDynamicPort["tcp"] = BeginPortRange - 1
+	currentDynamicPort["udp"] = BeginPortRange - 1
+
+	defaultAllocatedPorts = portMappings{}
+	defaultAllocatedPorts["tcp"] = collections.NewOrderedIntSet()
+	defaultAllocatedPorts["udp"] = collections.NewOrderedIntSet()
+
+	otherAllocatedPorts = ipMapping{}
 
 	return nil
 }
 
+func registerDynamicPort(ip net.IP, proto string) (int, error) {
+	allocated := defaultAllocatedPorts[proto]
+
+	port := nextPort(proto)
+	if port > EndPortRange {
+		return 0, ErrPortExceedsRange
+	}
+
+	if !equalsDefault(ip) {
+		registerIP(ip)
+
+		ipAllocated := otherAllocatedPorts[ip.String()][proto]
+		ipAllocated.Push(port)
+	} else {
+		allocated.Push(port)
+	}
+	return port, nil
+}
+
+func registerSetPort(ip net.IP, proto string, port int) error {
+	allocated := defaultAllocatedPorts[proto]
+	if allocated.Exists(port) {
+		return ErrPortAlreadyAllocated
+	}
+
+	if !equalsDefault(ip) {
+		registerIP(ip)
+
+		ipAllocated := otherAllocatedPorts[ip.String()][proto]
+		if ipAllocated.Exists(port) {
+			return ErrPortAlreadyAllocated
+		}
+		ipAllocated.Push(port)
+	} else {
+		allocated.Push(port)
+	}
+	return nil
+}
+
+func equalsDefault(ip net.IP) bool {
+	return ip == nil || ip.Equal(defaultIP)
+}
+
+func nextPort(proto string) int {
+	c := currentDynamicPort[proto] + 1
+	currentDynamicPort[proto] = c
+	return c
+}
+
+func registerIP(ip net.IP) {
+	if _, exists := otherAllocatedPorts[ip.String()]; !exists {
+		otherAllocatedPorts[ip.String()] = portMappings{
+			"tcp": collections.NewOrderedIntSet(),
+			"udp": collections.NewOrderedIntSet(),
+		}
+	}
+}
+
 func validateProtocol(proto string) error {
-	if _, exists := allocatedPorts[proto]; !exists {
+	if _, exists := defaultAllocatedPorts[proto]; !exists {
 		return ErrUnknownProtocol
 	}
 	return nil

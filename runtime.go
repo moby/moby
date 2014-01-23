@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/utils"
@@ -740,8 +741,8 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 
 func (runtime *Runtime) Close() error {
 	errorsStrings := []string{}
-	if err := runtime.networkManager.Close(); err != nil {
-		utils.Errorf("runtime.networkManager.Close(): %s", err.Error())
+	if err := portallocator.ReleaseAll(); err != nil {
+		utils.Errorf("portallocator.ReleaseAll(): %s", err)
 		errorsStrings = append(errorsStrings, err.Error())
 	}
 	if err := runtime.driver.Cleanup(); err != nil {

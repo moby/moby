@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"strconv"
-	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -282,76 +281,6 @@ func newPortMapper(config *DaemonConfig) (*PortMapper, error) {
 	return mapper, nil
 }
 
-// Port allocator: Automatically allocate and release networking ports
-type PortAllocator struct {
-	sync.Mutex
-	inUse    map[string]struct{}
-	fountain chan int
-	quit     chan bool
-}
-
-func (alloc *PortAllocator) runFountain() {
-	for {
-		for port := portRangeStart; port < portRangeEnd; port++ {
-			select {
-			case alloc.fountain <- port:
-			case quit := <-alloc.quit:
-				if quit {
-					return
-				}
-			}
-		}
-	}
-}
-
-// FIXME: Release can no longer fail, change its prototype to reflect that.
-func (alloc *PortAllocator) Release(addr net.IP, port int) error {
-	mapKey := (&net.TCPAddr{Port: port, IP: addr}).String()
-	utils.Debugf("Releasing %d", port)
-	alloc.Lock()
-	delete(alloc.inUse, mapKey)
-	alloc.Unlock()
-	return nil
-}
-
-func (alloc *PortAllocator) Acquire(addr net.IP, port int) (int, error) {
-	mapKey := (&net.TCPAddr{Port: port, IP: addr}).String()
-	utils.Debugf("Acquiring %s", mapKey)
-	if port == 0 {
-		// Allocate a port from the fountain
-		for port := range alloc.fountain {
-			if _, err := alloc.Acquire(addr, port); err == nil {
-				return port, nil
-			}
-		}
-		return -1, fmt.Errorf("Port generator ended unexpectedly")
-	}
-	alloc.Lock()
-	defer alloc.Unlock()
-	if _, inUse := alloc.inUse[mapKey]; inUse {
-		return -1, fmt.Errorf("Port already in use: %d", port)
-	}
-	alloc.inUse[mapKey] = struct{}{}
-	return port, nil
-}
-
-func (alloc *PortAllocator) Close() error {
-	alloc.quit <- true
-	close(alloc.quit)
-	close(alloc.fountain)
-	return nil
-}
-
-func newPortAllocator() (*PortAllocator, error) {
-	allocator := &PortAllocator{
-		inUse:    make(map[string]struct{}),
-		fountain: make(chan int),
-		quit:     make(chan bool),
-	}
-	go allocator.runFountain()
-	return allocator, nil
-}
-
 // Network interface represents the networking stack of a container
 type NetworkInterface struct {
 	IPNet   net.IPNet
@@ -389,30 +318,24 @@ func (iface *NetworkInterface) AllocatePort(port Port, binding PortBinding) (*Na
 
 	hostPort, _ := parsePort(nat.Binding.HostPort)
 
-	if nat.Port.Proto() == "tcp" {
-		extPort, err := iface.manager.tcpPortAllocator.Acquire(ip, hostPort)
-		if err != nil {
-			return nil, err
-		}
-
-		backend := &net.TCPAddr{IP: iface.IPNet.IP, Port: containerPort}
-		if err := iface.manager.portMapper.Map(ip, extPort, backend); err != nil {
-			iface.manager.tcpPortAllocator.Release(ip, extPort)
-			return nil, err
-		}
-		nat.Binding.HostPort = strconv.Itoa(extPort)
-	} else {
-		extPort, err := iface.manager.udpPortAllocator.Acquire(ip, hostPort)
-		if err != nil {
-			return nil, err
-		}
-		backend := &net.UDPAddr{IP: iface.IPNet.IP, Port: containerPort}
-		if err := iface.manager.portMapper.Map(ip, extPort, backend); err != nil {
-			iface.manager.udpPortAllocator.Release(ip, extPort)
-			return nil, err
-		}
-		nat.Binding.HostPort = strconv.Itoa(extPort)
+	extPort, err := portallocator.RequestPort(ip, nat.Port.Proto(), hostPort)
+	if err != nil {
+		return nil, err
 	}
+
+	var backend net.Addr
+	if nat.Port.Proto() == "tcp" {
+		backend = &net.TCPAddr{IP: iface.IPNet.IP, Port: containerPort}
+	} else {
+		backend = &net.UDPAddr{IP: iface.IPNet.IP, Port: containerPort}
+	}
+
+	if err := iface.manager.portMapper.Map(ip, extPort, backend); err != nil {
+		portallocator.ReleasePort(ip, nat.Port.Proto(), extPort)
+		return nil, err
+	}
+
+	nat.Binding.HostPort = strconv.Itoa(extPort)
 	iface.extPorts = append(iface.extPorts, nat)
 
 	return nat, nil
@@ -445,14 +368,8 @@ func (iface *NetworkInterface) Release() {
 			log.Printf("Unable to unmap port %s: %s", nat, err)
 		}
 
-		if nat.Port.Proto() == "tcp" {
-			if err := iface.manager.tcpPortAllocator.Release(ip, hostPort); err != nil {
-				log.Printf("Unable to release port %s", nat)
-			}
-		} else if nat.Port.Proto() == "udp" {
-			if err := iface.manager.udpPortAllocator.Release(ip, hostPort); err != nil {
-				log.Printf("Unable to release port %s: %s", nat, err)
-			}
+		if err := portallocator.ReleasePort(ip, nat.Port.Proto(), hostPort); err != nil {
+			log.Printf("Unable to release port %s", nat)
 		}
 	}
 
@@ -467,9 +384,7 @@ type NetworkManager struct {
 	bridgeIface   string
 	bridgeNetwork *net.IPNet
 
-	tcpPortAllocator *PortAllocator
-	udpPortAllocator *PortAllocator
-	portMapper       *PortMapper
+	portMapper *PortMapper
 
 	disabled bool
 }
@@ -495,21 +410,6 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		manager: manager,
 	}
 	return iface, nil
-}
-
-func (manager *NetworkManager) Close() error {
-	if manager.disabled {
-		return nil
-	}
-	err1 := manager.tcpPortAllocator.Close()
-	err2 := manager.udpPortAllocator.Close()
-	if err1 != nil {
-		return err1
-	}
-	if err2 != nil {
-		return err2
-	}
-	return nil
 }
 
 func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
@@ -599,27 +499,15 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		}
 	}
 
-	tcpPortAllocator, err := newPortAllocator()
-	if err != nil {
-		return nil, err
-	}
-
-	udpPortAllocator, err := newPortAllocator()
-	if err != nil {
-		return nil, err
-	}
-
 	portMapper, err := newPortMapper(config)
 	if err != nil {
 		return nil, err
 	}
 
 	manager := &NetworkManager{
-		bridgeIface:      config.BridgeIface,
-		bridgeNetwork:    network,
-		tcpPortAllocator: tcpPortAllocator,
-		udpPortAllocator: udpPortAllocator,
-		portMapper:       portMapper,
+		bridgeIface:   config.BridgeIface,
+		bridgeNetwork: network,
+		portMapper:    portMapper,
 	}
 
 	return manager, nil
