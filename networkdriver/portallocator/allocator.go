@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
-	"sort"
 	"sync"
 )
 
@@ -20,9 +19,11 @@ var (
 	ErrNetworkAlreadyAllocated = errors.New("requested network overlaps with existing network")
 	ErrNetworkAlreadyRegisterd = errors.New("requested network is already registered")
 	ErrNoAvailableIps          = errors.New("no available ips on network")
-	lock                       = sync.Mutex{}
-	allocatedIPs               = networkSet{}
-	availableIPS               = networkSet{}
+	ErrIPAlreadyAllocated      = errors.New("ip already allocated")
+
+	lock         = sync.Mutex{}
+	allocatedIPs = networkSet{}
+	availableIPS = networkSet{}
 )
 
 func RegisterNetwork(network *net.IPNet) error {
@@ -41,12 +42,15 @@ func RegisterNetwork(network *net.IPNet) error {
 	if err := checkExistingNetworkOverlaps(network); err != nil {
 		return err
 	}
-	allocatedIPs[newIPNet(network)] = iPSet{}
+	n := newIPNet(network)
+
+	allocatedIPs[n] = iPSet{}
+	availableIPS[n] = iPSet{}
 
 	return nil
 }
 
-func RequestIP(network *net.IPNet, ip *net.IPAddr) (*net.IPAddr, error) {
+func RequestIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -58,71 +62,65 @@ func RequestIP(network *net.IPNet, ip *net.IPAddr) (*net.IPAddr, error) {
 		return next, nil
 	}
 
-	if err := validateIP(network, ip); err != nil {
+	if err := registerIP(network, ip); err != nil {
 		return nil, err
 	}
 	return ip, nil
 }
 
-func ReleaseIP(network *net.IPNet, ip *net.IPAddr) error {
+func ReleaseIP(network *net.IPNet, ip *net.IP) error {
 	lock.Lock()
 	defer lock.Unlock()
 
 	n := newIPNet(network)
 	existing := allocatedIPs[n]
 
-	delete(existing, ip.String())
-	availableIPS[n][ip.String()] = struct{}{}
+	i := ipToInt(ip)
+	existing.Remove(int(i))
+	available := availableIPS[n]
+	available.Push(int(i))
 
 	return nil
 }
 
-func getNextIp(network *net.IPNet) (net.IPAddr, error) {
-	if available, exists := availableIPS[network]; exists {
-		return nil, nil
-	}
-
+func getNextIp(network *net.IPNet) (*net.IP, error) {
 	var (
-		firstIP, _ = networkRange(network)
-		ipNum      = ipToInt(firstIP)
-		ownIP      = ipToInt(network.IP)
-		size       = networkSize(network.Mask)
-		n          = newIPNet(network)
-		allocated  = allocatedIPs[n]
-
-		pos    = int32(1)
-		max    = size - 2 // -1 for the broadcast address, -1 for the gateway address
-		ip     *net.IP
-		newNum int32
-		inUse  bool
+		n         = newIPNet(network)
+		available = availableIPS[n]
+		next      = available.Pop()
+		allocated = allocatedIPs[n]
+		ownIP     = int(ipToInt(&network.IP))
 	)
 
-	// Find first unused IP, give up after one whole round
-	for attempt := int32(0); attempt < max; attempt++ {
-		newNum = ipNum + pos
-		pos = pos%max + 1
-		// The network's IP is never okay to use
-		if newNum == ownIP {
+	if next != 0 {
+		ip := intToIP(int32(next))
+		allocated.Push(int(next))
+		return ip, nil
+	}
+	size := int(networkSize(network.Mask))
+	next = allocated.PullBack() + 1
+
+	// size -1 for the broadcast address, -1 for the gateway address
+	for i := 0; i < size-2; i++ {
+		if next == ownIP {
+			next++
 			continue
 		}
 
-		ip = intToIP(newNum)
-		if _, inUse = allocated[ip.String()]; !inUse {
-			// We found an unused IP
-			break
-		}
-	}
+		ip := intToIP(int32(next))
+		allocated.Push(next)
 
-	if ip == nil {
-		return nil, ErrNoAvailableIps
+		return ip, nil
 	}
-	allocated[ip.String()] = struct{}{}
-
-	return ip, nil
+	return nil, ErrNoAvailableIps
 }
 
-func validateIP(network *net.IPNet, ip *net.IPAddr) error {
-
+func registerIP(network *net.IPNet, ip *net.IP) error {
+	existing := allocatedIPs[newIPNet(network)]
+	if existing.Exists(int(ipToInt(ip))) {
+		return ErrIPAlreadyAllocated
+	}
+	return nil
 }
 
 func checkRouteOverlaps(networks []netlink.Route, toCheck *net.IPNet) error {
@@ -150,7 +148,9 @@ func checkExistingNetworkOverlaps(network *net.IPNet) error {
 		if newIPNet(network) == existing {
 			return ErrNetworkAlreadyRegisterd
 		}
-		if networkOverlaps(network, existing) {
+
+		ex := newNetIPNet(existing)
+		if networkOverlaps(network, ex) {
 			return ErrNetworkAlreadyAllocated
 		}
 	}
@@ -186,15 +186,16 @@ func newNetIPNet(network iPNet) *net.IPNet {
 }
 
 // Converts a 4 bytes IP into a 32 bit integer
-func ipToInt(ip net.IP) int32 {
+func ipToInt(ip *net.IP) int32 {
 	return int32(binary.BigEndian.Uint32(ip.To4()))
 }
 
 // Converts 32 bit integer into a 4 bytes IP address
-func intToIP(n int32) net.IP {
+func intToIP(n int32) *net.IP {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(n))
-	return net.IP(b)
+	ip := net.IP(b)
+	return &ip
 }
 
 // Given a netmask, calculates the number of available hosts
