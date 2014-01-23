@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"code.google.com/p/go/src/pkg/archive/tar"
 	"io/ioutil"
+	"time"
 )
 
 // Generate generates a new archive from the content provided
@@ -31,6 +32,7 @@ func Generate(input ...string) (Archive, error) {
 		hdr := &tar.Header{
 			Name: name,
 			Size: int64(len(content)),
+			ModTime: time.Now(),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
 			return nil, err
