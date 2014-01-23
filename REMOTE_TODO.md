@@ -19,9 +19,9 @@ ok      "/containers/{name:.*}/top":            getContainersTop,       N
 ok      "/containers/{name:.*}/attach/ws":      wsContainersAttach,     0                                       yes
 
 **POST**
-TODO    "/auth":                                postAuth,               0                       yes
+N/A     "/auth":                                postAuth,               0                       yes
 ok      "/commit":                              postCommit,             0
-TODO    "/build":                               postBuild,              0                       yes
+#3741   "/build":                               postBuild,              0                       yes
 #3725   "/images/create":                       postImagesCreate,       N                       yes             yes (pull)
 ok      "/images/{name:.*}/insert":             postImagesInsert,       N                       yes             yes
 ok      "/images/load":                         postImagesLoad,         1                                       yes (stdin)
@@ -42,5 +42,5 @@ ok      "/containers/{name:.*}":                deleteContainers,       0
 #3645   "/images/{name:.*}":                    deleteImages,           N
 
 **OPTIONS**
-ok      "":                                     optionsHandler,         0
+N/A     "":                                     optionsHandler,         0
 ```
