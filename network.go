@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/networkdriver"
 	"github.com/dotcloud/docker/networkdriver/ipallocator"
+	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/proxy"
@@ -20,8 +21,6 @@ const (
 	DefaultNetworkBridge = "docker0"
 	DisableNetworkBridge = "none"
 	DefaultNetworkMtu    = 1500
-	portRangeStart       = 49153
-	portRangeEnd         = 65535
 	siocBRADDBR          = 0x89a0
 )
 
