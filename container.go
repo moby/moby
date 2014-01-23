@@ -982,7 +982,7 @@ func (container *Container) mergeVolumes() error {
 				}
 
 				for vpath, _ := range c.Volumes {
-					srcPath = path.Join(c.RootfsPath(), vpath)
+					srcPath = vpath
 					if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
 						return err
 					}
