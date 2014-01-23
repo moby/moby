@@ -5,11 +5,11 @@ import (
 	"errors"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
+	"sort"
 	"sync"
 )
 
 type networkSet map[iPNet]iPSet
-type iPSet map[string]struct{}
 
 type iPNet struct {
 	IP   string
