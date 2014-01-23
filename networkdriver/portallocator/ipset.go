@@ -45,6 +45,16 @@ func (s *iPSet) Pop() string {
 	return ""
 }
 
+// Exists checks if the given element present in the list.
+func (s *iPSet) Exists(elem string) bool {
+	for _, e := range s.set {
+		if e == elem {
+			return true
+		}
+	}
+	return false
+}
+
 // Remove removes an element from the list.
 // If the element is not found, it has no effect.
 func (s *iPSet) Remove(elem string) {
