@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/networkdriver"
 	"github.com/dotcloud/docker/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
@@ -60,11 +61,8 @@ func CreateBridgeIface(config *DaemonConfig) error {
 
 	var ifaceAddr string
 	if len(config.BridgeIp) != 0 {
-		_, dockerNetwork, err := net.ParseCIDR(config.BridgeIp)
+		_, _, err := net.ParseCIDR(config.BridgeIp)
 		if err != nil {
-			return err
-		}
-		if err := ipallocator.RegisterNetwork(dockerNetwork, nameservers); err != nil {
 			return err
 		}
 		ifaceAddr = config.BridgeIp
@@ -74,12 +72,13 @@ func CreateBridgeIface(config *DaemonConfig) error {
 			if err != nil {
 				return err
 			}
-
-			if err := ipallocator.RegisterNetwork(dockerNetwork, nameservers); err == nil {
-				ifaceAddr = addr
-				break
-			} else {
-				utils.Debugf("%s: %s", addr, err)
+			if err := networkdriver.CheckNameserverOverlaps(nameservers, dockerNetwork); err == nil {
+				if err := networkdriver.CheckRouteOverlaps(dockerNetwork); err == nil {
+					ifaceAddr = addr
+					break
+				} else {
+					utils.Debugf("%s %s", addr, err)
+				}
 			}
 		}
 	}
@@ -491,21 +490,6 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		return nil, err
 	}
 
-	// TODO: @crosbymichael why are we doing this ?
-	/*
-		// avoid duplicate IP
-		ipNum := ipToInt(ip)
-		firstIP := manager.ipAllocator.network.IP.To4().Mask(manager.ipAllocator.network.Mask)
-		firstIPNum := ipToInt(firstIP) + 1
-
-		if firstIPNum == ipNum {
-			ip, err = manager.ipAllocator.Acquire()
-			if err != nil {
-				return nil, err
-			}
-		}
-	*/
-
 	iface := &NetworkInterface{
 		IPNet:   net.IPNet{IP: *ip, Mask: manager.bridgeNetwork.Mask},
 		Gateway: manager.bridgeNetwork.IP,
@@ -551,9 +535,6 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		network = addr.(*net.IPNet)
 	} else {
 		network = addr.(*net.IPNet)
-		if err := ipallocator.RegisterExistingNetwork(network); err != nil {
-			return nil, err
-		}
 	}
 
 	// Configure iptables for link support
