@@ -102,6 +102,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"image_delete":     srv.ImageDelete,
 		"inspect":          srv.JobInspect,
 		"events":           srv.Events,
+		"push":             srv.ImagePush,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -1595,44 +1596,60 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
-func (srv *Server) ImagePush(localName string, out io.Writer, sf *utils.StreamFormatter, authConfig *auth.AuthConfig, metaHeaders map[string][]string) error {
-	if _, err := srv.poolAdd("push", localName); err != nil {
-		return err
+func (srv *Server) ImagePush(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		job.Errorf("Usage: %s IMAGE", job.Name)
+		return engine.StatusErr
 	}
-	defer srv.poolRemove("push", localName)
+	var (
+		localName   = job.Args[0]
+		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
+		authConfig  = &auth.AuthConfig{}
+		metaHeaders map[string][]string
+	)
 
+	job.GetenvJson("authConfig", authConfig)
+	job.GetenvJson("metaHeaders", metaHeaders)
+	if _, err := srv.poolAdd("push", localName); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	// Resolve the Repository name from fqn to endpoint + name
 	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
 	if err != nil {
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
-	out = utils.NewWriteFlusher(out)
 	img, err := srv.runtime.graph.Get(localName)
 	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
-		return err2
+		job.Error(err2)
+		return engine.StatusErr
 	}
 
 	if err != nil {
 		reposLen := len(srv.runtime.repositories.Repositories[localName])
-		out.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
+		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[localName]; exists {
-			if err := srv.pushRepository(r, out, localName, remoteName, localRepo, sf); err != nil {
-				return err
+			if err := srv.pushRepository(r, job.Stdout, localName, remoteName, localRepo, sf); err != nil {
+				job.Error(err)
+				return engine.StatusErr
 			}
-			return nil
+			return engine.StatusOK
 		}
-		return err
+		job.Error(err)
+		return engine.StatusErr
 	}
 
 	var token []string
-	out.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := srv.pushImage(r, out, remoteName, img.ID, endpoint, token, sf); err != nil {
-		return err
+	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
+	if _, err := srv.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
-	return nil
+	return engine.StatusOK
 }
 
 func (srv *Server) ImageImport(job *engine.Job) engine.Status {

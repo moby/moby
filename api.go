@@ -472,6 +472,10 @@ func postImagesInsert(srv *Server, version float64, w http.ResponseWriter, r *ht
 }
 
 func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -496,23 +500,23 @@ func postImagesPush(srv *Server, version float64, w http.ResponseWriter, r *http
 		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
 			return err
 		}
-
 	}
 
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	name := vars["name"]
 	if version > 1.0 {
 		w.Header().Set("Content-Type", "application/json")
 	}
-	sf := utils.NewStreamFormatter(version > 1.0)
-	if err := srv.ImagePush(name, w, sf, authConfig, metaHeaders); err != nil {
-		if sf.Used() {
-			w.Write(sf.FormatError(err))
-			return nil
+	job := srv.Eng.Job("push", vars["name"])
+	job.SetenvJson("metaHeaders", metaHeaders)
+	job.SetenvJson("authConfig", authConfig)
+	job.SetenvBool("json", version > 1.0)
+	job.Stdout.Add(utils.NewWriteFlusher(w))
+
+	if err := job.Run(); err != nil {
+		if !job.Stdout.Used() {
+			return err
 		}
-		return err
+		sf := utils.NewStreamFormatter(version > 1.0)
+		w.Write(sf.FormatError(err))
 	}
 	return nil
 }
