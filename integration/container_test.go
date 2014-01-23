@@ -1732,7 +1732,7 @@ func TestVolumesMergeHostPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat(path.Join(container.RootfsPath, "/test_volumes")); err != nil {
+	if _, err := os.Stat(path.Join(container.RootfsPath(), "/test_volumes")); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1745,7 +1745,7 @@ func TestVolumesMergeVolumes(t *testing.T) {
 		&docker.Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"/bin/echo", "-n", "foobar"},
-			Volumes: "/tmp",
+			Volumes: map[string]struct{}{"/tmp": {}},
 		},
 		"",
 	)
@@ -1763,16 +1763,16 @@ func TestVolumesMergeVolumes(t *testing.T) {
 
 	if id, exist := container.Volumes["/tmp"]; !exist {
 		t.Fatal("expect volume /tmp but not")
+	} else {
+		//create a new file in the volume and merge it into container2 later
+		volumefile := path.Join(id, "test_volumes")
+		if _, err := os.OpenFile(volumefile, os.O_CREATE|os.O_RDWR, 0700); err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			os.RemoveAll(volumefile)
+		}()
 	}
-
-	//create a new file in the volume and merge it into container2 later
-	volumefile := path.Join(id, "test_volumes")
-	if _, err := os.OpenFile(volumefile, os.O_CREATE|os.O_RDWR, 0700); err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		os.RemoveAll(volumefile)
-	}()
 
 	container2, _, err := runtime.Create(
 		&docker.Config{
@@ -1798,7 +1798,7 @@ func TestVolumesMergeVolumes(t *testing.T) {
 		t.Fatal("expected volumes merge into / from " + container.ID + " but not")
 	}
 
-	if _, err := os.Stat(path.Join(container2.RootfsPath, "test_volumes")); err != nil {
+	if _, err := os.Stat(path.Join(container2.RootfsPath(), "test_volumes")); err != nil {
 		t.Fatal(err)
 	}
 }
