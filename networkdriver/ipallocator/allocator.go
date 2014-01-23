@@ -21,12 +21,16 @@ var (
 	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
 	ErrNoAvailableIPs                 = errors.New("no available ip addresses on network")
 	ErrIPAlreadyAllocated             = errors.New("ip already allocated")
+	ErrNetworkNotRegistered           = errors.New("network not registered")
 
 	lock         = sync.Mutex{}
 	allocatedIPs = networkSet{}
 	availableIPS = networkSet{}
 )
 
+// RegisterNetwork registers a new network with the allocator
+// and validates that it contains a valid ip that does not overlap
+// with existing routes and nameservers
 func RegisterNetwork(network *net.IPNet, nameservers []string) error {
 	lock.Lock()
 	defer lock.Unlock()
@@ -47,18 +51,35 @@ func RegisterNetwork(network *net.IPNet, nameservers []string) error {
 	if err := checkNameserverOverlaps(nameservers, network); err != nil {
 		return err
 	}
+	return RegisterExistingNetwork(network)
+}
 
+// RegisterExistingNetwork registers an exising network created
+// for use with the allocator but does not perform any validation
+func RegisterExistingNetwork(network *net.IPNet) error {
 	n := newIPNet(network)
 
-	allocatedIPs[n] = &iPSet{}
-	availableIPS[n] = &iPSet{}
+	if _, exists := allocatedIPs[n]; !exists {
+		allocatedIPs[n] = &iPSet{}
+	}
+	if _, exists := availableIPS[n]; !exists {
+		availableIPS[n] = &iPSet{}
+	}
 
 	return nil
 }
 
+// RequestIP requests an available ip from the given network.  It
+// will return the next available ip if the ip provided is nil.  If the
+// ip provided is not nil it will validate that the provided ip is available
+// for use or return an error
 func RequestIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
 	lock.Lock()
 	defer lock.Unlock()
+
+	if !networkExists(network) {
+		return nil, ErrNetworkNotRegistered
+	}
 
 	if ip == nil {
 		next, err := getNextIp(network)
@@ -74,18 +95,21 @@ func RequestIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
 	return ip, nil
 }
 
+// ReleaseIP adds the provided ip back into the pool of
+// available ips to be returned for use.
 func ReleaseIP(network *net.IPNet, ip *net.IP) error {
 	lock.Lock()
 	defer lock.Unlock()
 
+	if !networkExists(network) {
+		return ErrNetworkNotRegistered
+	}
+
 	var (
-		first, _  = networkRange(network)
-		base      = ipToInt(&first)
 		n         = newIPNet(network)
 		existing  = allocatedIPs[n]
 		available = availableIPS[n]
-		i         = ipToInt(ip)
-		pos       = i - base
+		pos       = getPosition(network, ip)
 	)
 
 	existing.Remove(int(pos))
@@ -94,6 +118,19 @@ func ReleaseIP(network *net.IPNet, ip *net.IP) error {
 	return nil
 }
 
+// convert the ip into the position in the subnet.  Only
+// position are saved in the set
+func getPosition(network *net.IPNet, ip *net.IP) int32 {
+	var (
+		first, _ = networkRange(network)
+		base     = ipToInt(&first)
+		i        = ipToInt(ip)
+	)
+	return i - base
+}
+
+// return an available ip if one is currently available.  If not,
+// return the next available ip for the nextwork
 func getNextIp(network *net.IPNet) (*net.IP, error) {
 	var (
 		n         = newIPNet(network)
@@ -134,11 +171,18 @@ func getNextIp(network *net.IPNet) (*net.IP, error) {
 }
 
 func registerIP(network *net.IPNet, ip *net.IP) error {
-	existing := allocatedIPs[newIPNet(network)]
-	// checking position not ip
-	if existing.Exists(int(ipToInt(ip))) {
+	var (
+		n         = newIPNet(network)
+		existing  = allocatedIPs[n]
+		available = availableIPS[n]
+		pos       = getPosition(network, ip)
+	)
+
+	if existing.Exists(int(pos)) {
 		return ErrIPAlreadyAllocated
 	}
+	available.Remove(int(pos))
+
 	return nil
 }
 
@@ -240,4 +284,10 @@ func checkNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
 		}
 	}
 	return nil
+}
+
+func networkExists(network *net.IPNet) bool {
+	n := newIPNet(network)
+	_, exists := allocatedIPs[n]
+	return exists
 }

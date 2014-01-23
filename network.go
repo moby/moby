@@ -60,8 +60,11 @@ func CreateBridgeIface(config *DaemonConfig) error {
 
 	var ifaceAddr string
 	if len(config.BridgeIp) != 0 {
-		_, _, err := net.ParseCIDR(config.BridgeIp)
+		_, dockerNetwork, err := net.ParseCIDR(config.BridgeIp)
 		if err != nil {
+			return err
+		}
+		if err := ipallocator.RegisterNetwork(dockerNetwork, nameservers); err != nil {
 			return err
 		}
 		ifaceAddr = config.BridgeIp
@@ -534,6 +537,7 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		return manager, nil
 	}
 
+	var network *net.IPNet
 	addr, err := getIfaceAddr(config.BridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it
@@ -544,8 +548,13 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		if err != nil {
 			return nil, err
 		}
+		network = addr.(*net.IPNet)
+	} else {
+		network = addr.(*net.IPNet)
+		if err := ipallocator.RegisterExistingNetwork(network); err != nil {
+			return nil, err
+		}
 	}
-	network := addr.(*net.IPNet)
 
 	// Configure iptables for link support
 	if config.EnableIptables {

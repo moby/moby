@@ -386,6 +386,8 @@ func TestIPAllocator(t *testing.T) {
 	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u)
 	//                       ↑
 
+	// Reordered these because the new set will always return the
+	// lowest ips first and not in the order that they were released
 	assertIPEquals(t, &expectedIPs[2], newIPs[0])
 	assertIPEquals(t, &expectedIPs[3], newIPs[1])
 	assertIPEquals(t, &expectedIPs[4], newIPs[2])
