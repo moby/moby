@@ -19,7 +19,7 @@ var (
 	ErrNetworkAlreadyAllocated        = errors.New("requested network overlaps with existing network")
 	ErrNetworkAlreadyRegisterd        = errors.New("requested network is already registered")
 	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
-	ErrNoAvailableIps                 = errors.New("no available ips on network")
+	ErrNoAvailableIPs                 = errors.New("no available ip addresses on network")
 	ErrIPAlreadyAllocated             = errors.New("ip already allocated")
 
 	lock         = sync.Mutex{}
@@ -100,11 +100,11 @@ func getNextIp(network *net.IPNet) (*net.IP, error) {
 		ownIP     = ipToInt(&network.IP)
 		available = availableIPS[n]
 		allocated = allocatedIPs[n]
-
-		first, _ = networkRange(network)
-		base     = ipToInt(&first)
-
-		pos = int32(available.Pop())
+		first, _  = networkRange(network)
+		base      = ipToInt(&first)
+		size      = int(networkSize(network.Mask))
+		max       = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
+		pos       = int32(available.Pop())
 	)
 
 	// We pop and push the position not the ip
@@ -115,29 +115,22 @@ func getNextIp(network *net.IPNet) (*net.IP, error) {
 		return ip, nil
 	}
 
-	var (
-		size = int(networkSize(network.Mask))
-		max  = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
-	)
-
-	if pos = int32(allocated.PullBack()); pos == 0 {
-		pos = 1
-	}
-
+	pos = int32(allocated.PullBack())
 	for i := int32(0); i < max; i++ {
-		next := int32(base + pos)
 		pos = pos%max + 1
+		next := int32(base + pos)
 
 		if next == ownIP {
 			continue
 		}
 
-		ip := intToIP(next)
-		allocated.Push(int(pos))
-
-		return ip, nil
+		if !allocated.Exists(int(pos)) {
+			ip := intToIP(next)
+			allocated.Push(int(pos))
+			return ip, nil
+		}
 	}
-	return nil, ErrNoAvailableIps
+	return nil, ErrNoAvailableIPs
 }
 
 func registerIP(network *net.IPNet, ip *net.IP) error {

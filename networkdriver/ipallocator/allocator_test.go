@@ -386,9 +386,9 @@ func TestIPAllocator(t *testing.T) {
 	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u)
 	//                       ↑
 
-	assertIPEquals(t, &expectedIPs[3], newIPs[0])
-	assertIPEquals(t, &expectedIPs[4], newIPs[1])
-	assertIPEquals(t, &expectedIPs[2], newIPs[2])
+	assertIPEquals(t, &expectedIPs[2], newIPs[0])
+	assertIPEquals(t, &expectedIPs[3], newIPs[1])
+	assertIPEquals(t, &expectedIPs[4], newIPs[2])
 
 	_, err = RequestIP(network, nil)
 	if err == nil {
