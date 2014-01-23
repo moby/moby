@@ -981,8 +981,8 @@ func (container *Container) mergeVolumes() error {
 					return fmt.Errorf("Container %s not found. Impossible to merge its volumes", source)
 				}
 
-				for vpath, _ := range c.Volumes {
-					srcPath = vpath
+				for _, id := range c.Volumes {
+					srcPath = id
 					if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
 						return err
 					}
