@@ -957,6 +957,7 @@ func (container *Container) mergeVolumes() error {
 		}
 
 		for volPath, source := range container.VolumesMerge {
+			shortVolPath := volPath
 			volPath = path.Join(container.RootfsPath(), volPath)
 			rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
 			if err != nil {
@@ -970,7 +971,7 @@ func (container *Container) mergeVolumes() error {
 			}
 
 			srcPath := source
-			if !mergeContainer[volPath] {
+			if !mergeContainer[shortVolPath] {
 				if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
 					return err
 				}
