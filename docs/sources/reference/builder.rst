@@ -147,16 +147,22 @@ the generated images.
 3.3 RUN
 -------
 
-    ``RUN <command>``
+RUN has 2 forms:
 
-The ``RUN`` instruction will execute any commands on the current image
-and commit the results. The resulting committed image will be used for
-the next step in the Dockerfile.
+* ``RUN <command>`` (the command is run in a shell - ``/bin/sh -c``)
+* ``RUN ["executable", "param1", "param2"]`` (*exec* form)
+
+The ``RUN`` instruction will execute any commands in a new layer on top
+of the current image and commit the results. The resulting committed image
+will be used for the next step in the Dockerfile.
 
 Layering ``RUN`` instructions and generating commits conforms to the
 core concepts of Docker where commits are cheap and containers can be
 created from any point in an image's history, much like source
 control.
+
+The *exec* form makes it possible to avoid shell string munging, and to ``RUN``
+commands using a base image that does not contain ``/bin/sh``.
 
 Known Issues (RUN)
 ..................
