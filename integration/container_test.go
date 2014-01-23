@@ -1695,7 +1695,7 @@ func TestVolumesMerge(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	mergeSourceDir = "/tmp/mergevolumes"
+	mergeSourceDir := "/tmp/mergevolumes"
 	if err := os.MkdirAll(mergeSourceDir, 0700); err != nil {
 		t.Fatal(err)
 	} else {
@@ -1704,8 +1704,7 @@ func TestVolumesMerge(t *testing.T) {
 		}
 	}
 	defer func() {
-		os.Unlink(mergeSourceDir + "test")
-		os.Unlink(mergeSourceDir)
+		os.RemoveAll(mergeSourceDir)
 	}()
 
 	//merge into "/"
@@ -1713,7 +1712,7 @@ func TestVolumesMerge(t *testing.T) {
 		&docker.Config{
 			Image:        GetTestImage(runtime).ID,
 			Cmd:          []string{"/bin/echo", "-n", "foobar"},
-			Volumesmerge: mergeSourceDir + ":" + "/",
+			VolumesMerge: mergeSourceDir + ":" + "/",
 		},
 		"",
 	)
@@ -1722,7 +1721,7 @@ func TestVolumesMerge(t *testing.T) {
 	}
 	defer runtime.Destroy(container)
 
-	out, err = container.Output()
+	out, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
 	} else if string(out) != "foobar" {
