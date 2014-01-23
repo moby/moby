@@ -16,19 +16,24 @@ type iPNet struct {
 }
 
 var (
-	ErrNetworkAlreadyAllocated = errors.New("requested network overlaps with existing network")
-	ErrNetworkAlreadyRegisterd = errors.New("requested network is already registered")
-	ErrNoAvailableIps          = errors.New("no available ips on network")
-	ErrIPAlreadyAllocated      = errors.New("ip already allocated")
+	ErrNetworkAlreadyAllocated        = errors.New("requested network overlaps with existing network")
+	ErrNetworkAlreadyRegisterd        = errors.New("requested network is already registered")
+	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
+	ErrNoAvailableIps                 = errors.New("no available ips on network")
+	ErrIPAlreadyAllocated             = errors.New("ip already allocated")
 
 	lock         = sync.Mutex{}
 	allocatedIPs = networkSet{}
 	availableIPS = networkSet{}
 )
 
-func RegisterNetwork(network *net.IPNet) error {
+func RegisterNetwork(network *net.IPNet, nameservers []string) error {
 	lock.Lock()
 	defer lock.Unlock()
+
+	if err := checkExistingNetworkOverlaps(network); err != nil {
+		return err
+	}
 
 	routes, err := netlink.NetworkGetRoutes()
 	if err != nil {
@@ -39,9 +44,10 @@ func RegisterNetwork(network *net.IPNet) error {
 		return err
 	}
 
-	if err := checkExistingNetworkOverlaps(network); err != nil {
+	if err := checkNameserverOverlaps(nameservers, network); err != nil {
 		return err
 	}
+
 	n := newIPNet(network)
 
 	allocatedIPs[n] = &iPSet{}
@@ -226,4 +232,19 @@ func networkSize(mask net.IPMask) int32 {
 	}
 
 	return int32(binary.BigEndian.Uint32(m)) + 1
+}
+
+func checkNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
+	if len(nameservers) > 0 {
+		for _, ns := range nameservers {
+			_, nsNetwork, err := net.ParseCIDR(ns)
+			if err != nil {
+				return err
+			}
+			if networkOverlaps(toCheck, nsNetwork) {
+				return ErrNetworkOverlapsWithNameservers
+			}
+		}
+	}
+	return nil
 }

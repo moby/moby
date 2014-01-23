@@ -1,8 +1,8 @@
 package docker
 
 import (
-	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/proxy"
@@ -23,21 +23,6 @@ const (
 	portRangeEnd         = 65535
 	siocBRADDBR          = 0x89a0
 )
-
-func checkNameserverOverlaps(nameservers []string, dockerNetwork *net.IPNet) error {
-	if len(nameservers) > 0 {
-		for _, ns := range nameservers {
-			_, nsNetwork, err := net.ParseCIDR(ns)
-			if err != nil {
-				return err
-			}
-			if networkOverlaps(dockerNetwork, nsNetwork) {
-				return fmt.Errorf("%s overlaps nameserver %s", dockerNetwork, nsNetwork)
-			}
-		}
-	}
-	return nil
-}
 
 // CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
 // and attempts to configure it with an address which doesn't conflict with any other interface on the host.
@@ -86,17 +71,16 @@ func CreateBridgeIface(config *DaemonConfig) error {
 			if err != nil {
 				return err
 			}
-			// TODO: @crosbymichael register route
-			if err := checkRouteOverlaps(routes, dockerNetwork); err == nil {
-				if err := checkNameserverOverlaps(nameservers, dockerNetwork); err == nil {
-					ifaceAddr = addr
-					break
-				}
+
+			if err := ipallocator.RegisterNetwork(dockerNetwork, nameservers); err == nil {
+				ifaceAddr = addr
+				break
 			} else {
 				utils.Debugf("%s: %s", addr, err)
 			}
 		}
 	}
+
 	if ifaceAddr == "" {
 		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", config.BridgeIface, config.BridgeIface)
 	}
@@ -367,54 +351,6 @@ func newPortAllocator() (*PortAllocator, error) {
 	return allocator, nil
 }
 
-// IP allocator: Automatically allocate and release networking ports
-type IPAllocator struct {
-	network       *net.IPNet
-	queueAlloc    chan allocatedIP
-	queueReleased chan net.IP
-	inUse         map[int32]struct{}
-	quit          chan bool
-}
-
-type allocatedIP struct {
-	ip  net.IP
-	err error
-}
-
-func (alloc *IPAllocator) run() {
-}
-
-func (alloc *IPAllocator) Acquire() (net.IP, error) {
-	ip := <-alloc.queueAlloc
-	return ip.ip, ip.err
-}
-
-func (alloc *IPAllocator) Release(ip net.IP) {
-	alloc.queueReleased <- ip
-}
-
-func (alloc *IPAllocator) Close() error {
-	alloc.quit <- true
-	close(alloc.quit)
-	close(alloc.queueAlloc)
-	close(alloc.queueReleased)
-	return nil
-}
-
-func newIPAllocator(network *net.IPNet) *IPAllocator {
-	alloc := &IPAllocator{
-		network:       network,
-		queueAlloc:    make(chan allocatedIP),
-		queueReleased: make(chan net.IP),
-		inUse:         make(map[int32]struct{}),
-		quit:          make(chan bool),
-	}
-
-	go alloc.run()
-
-	return alloc
-}
-
 // Network interface represents the networking stack of a container
 type NetworkInterface struct {
 	IPNet   net.IPNet
@@ -519,7 +455,9 @@ func (iface *NetworkInterface) Release() {
 		}
 	}
 
-	iface.manager.ipAllocator.Release(iface.IPNet.IP)
+	if err := ipallocator.ReleaseIP(iface.manager.bridgeNetwork, &iface.IPNet.IP); err != nil {
+		log.Printf("Unable to release ip %s\n", err)
+	}
 }
 
 // Network Manager manages a set of network interfaces
@@ -528,7 +466,6 @@ type NetworkManager struct {
 	bridgeIface   string
 	bridgeNetwork *net.IPNet
 
-	ipAllocator      *IPAllocator
 	tcpPortAllocator *PortAllocator
 	udpPortAllocator *PortAllocator
 	portMapper       *PortMapper
@@ -543,27 +480,31 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		return &NetworkInterface{disabled: true}, nil
 	}
 
-	var ip net.IP
+	var ip *net.IP
 	var err error
 
-	ip, err = manager.ipAllocator.Acquire()
+	ip, err = ipallocator.RequestIP(manager.bridgeNetwork, nil)
 	if err != nil {
 		return nil, err
 	}
-	// avoid duplicate IP
-	ipNum := ipToInt(ip)
-	firstIP := manager.ipAllocator.network.IP.To4().Mask(manager.ipAllocator.network.Mask)
-	firstIPNum := ipToInt(firstIP) + 1
 
-	if firstIPNum == ipNum {
-		ip, err = manager.ipAllocator.Acquire()
-		if err != nil {
-			return nil, err
+	// TODO: @crosbymichael why are we doing this ?
+	/*
+		// avoid duplicate IP
+		ipNum := ipToInt(ip)
+		firstIP := manager.ipAllocator.network.IP.To4().Mask(manager.ipAllocator.network.Mask)
+		firstIPNum := ipToInt(firstIP) + 1
+
+		if firstIPNum == ipNum {
+			ip, err = manager.ipAllocator.Acquire()
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
+	*/
 
 	iface := &NetworkInterface{
-		IPNet:   net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
+		IPNet:   net.IPNet{IP: *ip, Mask: manager.bridgeNetwork.Mask},
 		Gateway: manager.bridgeNetwork.IP,
 		manager: manager,
 	}
@@ -576,14 +517,13 @@ func (manager *NetworkManager) Close() error {
 	}
 	err1 := manager.tcpPortAllocator.Close()
 	err2 := manager.udpPortAllocator.Close()
-	err3 := manager.ipAllocator.Close()
 	if err1 != nil {
 		return err1
 	}
 	if err2 != nil {
 		return err2
 	}
-	return err3
+	return nil
 }
 
 func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
@@ -670,8 +610,6 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		}
 	}
 
-	ipAllocator := newIPAllocator(network)
-
 	tcpPortAllocator, err := newPortAllocator()
 	if err != nil {
 		return nil, err
@@ -690,7 +628,6 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 	manager := &NetworkManager{
 		bridgeIface:      config.BridgeIface,
 		bridgeNetwork:    network,
-		ipAllocator:      ipAllocator,
 		tcpPortAllocator: tcpPortAllocator,
 		udpPortAllocator: udpPortAllocator,
 		portMapper:       portMapper,

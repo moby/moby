@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
@@ -1039,8 +1040,9 @@ func (container *Container) allocateNetwork() error {
 				manager: manager,
 			}
 			if iface != nil && iface.IPNet.IP != nil {
-				ipNum := ipToInt(iface.IPNet.IP)
-				manager.ipAllocator.inUse[ipNum] = struct{}{}
+				if _, err := ipallocator.RequestIP(manager.bridgeNetwork, &iface.IPNet.IP); err != nil {
+					return err
+				}
 			} else {
 				iface, err = container.runtime.networkManager.Allocate()
 				if err != nil {
