@@ -67,8 +67,9 @@ type Container struct {
 	Volumes  map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
-	VolumesRW  map[string]bool
-	hostConfig *HostConfig
+	VolumesRW    map[string]bool
+	VolumesMerge map[string]string
+	hostConfig   *HostConfig
 
 	activeLinks map[string]*Link
 }
@@ -97,6 +98,7 @@ type Config struct {
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
 	VolumesFrom     string
+	VolumesMerge    string
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
@@ -536,6 +538,7 @@ func (container *Container) Start() (err error) {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
+		container.VolumesMerge = make(map[string]string)
 	}
 
 	// Apply volumes from another container if requested
@@ -544,6 +547,10 @@ func (container *Container) Start() (err error) {
 	}
 
 	if err := container.createVolumes(); err != nil {
+		return err
+	}
+
+	if err := container.mergeVolumes(); err != nil {
 		return err
 	}
 
@@ -904,6 +911,86 @@ func (container *Container) createVolumes() error {
 						}
 					}
 				}
+			}
+		}
+	}
+	return nil
+}
+
+func (container *Container) mergeVolumes() error {
+	if container.Config.VolumesMerge != "" {
+		binds, err := container.getBindMap()
+		if err != nil {
+			return err
+		}
+
+		mergeContainer := make(map[string]bool)
+		mergeSpecs := strings.Split(container.Config.VolumesMerge, ",")
+		for _, mergeSpec := range mergeSpecs {
+			mergeParts := strings.SplitN(mergeSpec, ":", 3)
+			switch len(mergeParts) {
+			case 0:
+				return fmt.Errorf("Malformed volumes-merge specification: %s", container.Config.VolumesMerge)
+			case 3:
+				source := mergeParts[0]
+				volPath := mergeParts[1]
+				mode := mergeParts[2]
+
+				if _, bindExist := binds[volPath]; bindExist {
+					return fmt.Errorf("Conflict volumes already exists in bind: %s", volPath)
+				}
+
+				mergeContainer[volPath] = false
+				switch mode {
+				case "dir":
+				case "container":
+					mergeContainer[volPath] = true
+				default:
+					return fmt.Errorf("Malformed volumes-merge specification: %s", container.Config.VolumesMerge)
+				}
+
+				container.VolumesMerge[volPath] = source
+				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+					return err
+				}
+			}
+		}
+
+		for volPath, source := range container.VolumesMerge {
+			shortVolPath := volPath
+			volPath = path.Join(container.RootfsPath(), volPath)
+			rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
+			if err != nil {
+				return err
+			}
+
+			//the merge operation will copy the host dir content into the container rootfs's dir
+			var stat syscall.Stat_t
+			if err := syscall.Stat(rootVolPath, &stat); err != nil {
+				return err
+			}
+
+			srcPath := source
+			if !mergeContainer[shortVolPath] {
+				if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+					return err
+				}
+			} else {
+				c := container.runtime.Get(source)
+				if c == nil {
+					return fmt.Errorf("Container %s not found. Impossible to merge its volumes", source)
+				}
+
+				for _, id := range c.Volumes {
+					srcPath = id
+					if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+						return err
+					}
+				}
+			}
+			//the source volumes's ownership maybe different from rootfs
+			if err := os.Chown(rootVolPath, int(stat.Uid), int(stat.Gid)); err != nil {
+				return err
 			}
 		}
 	}

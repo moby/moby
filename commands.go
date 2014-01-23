@@ -1765,11 +1765,12 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flLinks   = NewListOpts(ValidateLink)
 		flEnv     = NewListOpts(ValidateEnv)
 
-		flPublish     ListOpts
-		flExpose      ListOpts
-		flDns         ListOpts
-		flVolumesFrom ListOpts
-		flLxcOpts     ListOpts
+		flPublish      ListOpts
+		flExpose       ListOpts
+		flDns          ListOpts
+		flVolumesFrom  ListOpts
+		flVolumesMerge ListOpts
+		flLxcOpts      ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -1800,6 +1801,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
+	cmd.Var(&flVolumesMerge, []string{"#volumes-merge", "-volumes-merge"}, "Merge host directory and container directory")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
@@ -1925,6 +1927,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
+		VolumesMerge:    strings.Join(flVolumesMerge.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 	}

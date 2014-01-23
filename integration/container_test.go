@@ -1691,6 +1691,118 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	}
 }
 
+func TestVolumesMergeHostPath(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	mergeSourceDir := "/tmp/test_volumes_merge/"
+	if err := os.MkdirAll(mergeSourceDir, 0700); err != nil {
+		t.Fatal(err)
+	} else {
+		if _, err := os.OpenFile(mergeSourceDir+"test_volumes", os.O_CREATE|os.O_RDWR, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func() {
+		os.RemoveAll(mergeSourceDir)
+	}()
+
+	//merge into "/"
+	container, _, err := runtime.Create(
+		&docker.Config{
+			Image:        GetTestImage(runtime).ID,
+			Cmd:          []string{"/bin/echo", "-n", "foobar"},
+			VolumesMerge: mergeSourceDir + ":/:dir",
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	out, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	} else if string(out) != "foobar" {
+		t.Fail()
+	}
+
+	if container.VolumesMerge["/"] != mergeSourceDir {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path.Join(container.RootfsPath(), "/test_volumes")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVolumesMergeVolumes(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	container, _, err := runtime.Create(
+		&docker.Config{
+			Image:   GetTestImage(runtime).ID,
+			Cmd:     []string{"/bin/echo", "-n", "foobar"},
+			Volumes: map[string]struct{}{"/tmp": {}},
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	out, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	} else if string(out) != "foobar" {
+		t.Fatal("exec expected success but not")
+	}
+
+	if id, exist := container.Volumes["/tmp"]; !exist {
+		t.Fatal("expect volume /tmp but not")
+	} else {
+		//create a new file in the volume and merge it into container2 later
+		volumefile := path.Join(id, "test_volumes")
+		if _, err := os.OpenFile(volumefile, os.O_CREATE|os.O_RDWR, 0700); err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			os.RemoveAll(volumefile)
+		}()
+	}
+
+	container2, _, err := runtime.Create(
+		&docker.Config{
+			Image:        GetTestImage(runtime).ID,
+			Cmd:          []string{"/bin/echo", "-n", "foobar"},
+			VolumesMerge: container.ID + ":" + "/:container",
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container2)
+
+	out, err = container2.Output()
+	if err != nil {
+		t.Fatal(err)
+	} else if string(out) != "foobar" {
+		t.Fatal("exec not as expected")
+	}
+
+	if container2.VolumesMerge["/"] != container.ID {
+		t.Fatal("expected volumes merge into / from " + container.ID + " but not")
+	}
+
+	if _, err := os.Stat(path.Join(container2.RootfsPath(), "test_volumes")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRestartGhost(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
