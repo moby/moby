@@ -924,29 +924,39 @@ func (container *Container) mergeVolumes() error {
 			return err
 		}
 
+		mergeContainer := make(map[string]bool)
 		mergeSpecs := strings.Split(container.Config.VolumesMerge, ",")
 		for _, mergeSpec := range mergeSpecs {
-			mergeParts := strings.SplitN(mergeSpec, ":", 2)
+			mergeParts := strings.SplitN(mergeSpec, ":", 3)
 			switch len(mergeParts) {
 			case 0:
 				return fmt.Errorf("Malformed volumes-merge specification: %s", container.Config.VolumesMerge)
-			case 2:
+			case 3:
+				source := mergeParts[0]
 				volPath := mergeParts[1]
-				srcPath := mergeParts[0]
+				mode := mergeParts[2]
 
 				if _, bindExist := binds[volPath]; bindExist {
 					return fmt.Errorf("Conflict volumes already exists in bind: %s", volPath)
 				}
 
-				container.VolumesMerge[volPath] = srcPath
+				mergeContainer[volPath] = false
+				switch mode {
+				case "dir":
+				case "container":
+					mergeContainer[volPath] = true
+				default:
+					return fmt.Errorf("Malformed volumes-merge specification: %s", container.Config.VolumesMerge)
+				}
+
+				container.VolumesMerge[volPath] = source
 				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
 					return err
 				}
 			}
 		}
 
-		//TODO::srcPath could be the directory in the container
-		for volPath, srcPath := range container.VolumesMerge {
+		for volPath, source := range container.VolumesMerge {
 			volPath = path.Join(container.RootfsPath(), volPath)
 			rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
 			if err != nil {
@@ -958,11 +968,27 @@ func (container *Container) mergeVolumes() error {
 			if err := syscall.Stat(rootVolPath, &stat); err != nil {
 				return err
 			}
-			if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
-				return err
+
+			srcPath := source
+			if !mergeContainer[volPath] {
+				if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+					return err
+				}
+			} else {
+				c, err := container.runtime.Get(source)
+				if err != nil {
+					return fmt.Errorf("Container %s not found. Impossible to merge its volumes", source)
+				}
+
+				for vpath, id := range c.Volumes {
+					srcPath = path.Join(c.RootfsPath(), vpath)
+					if err := archive.CopyWithTar(srcPath, rootVolPath); err != nil {
+						return err
+					}
+				}
 			}
 			//the source volumes's ownership maybe different from rootfs
-			if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+			if err := os.Chown(rootVolPath, int(stat.Uid), int(stat.Gid)); err != nil {
 				return err
 			}
 		}
