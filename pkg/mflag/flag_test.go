@@ -15,6 +15,13 @@ import (
 	"time"
 )
 
+// ResetForTesting clears all flag state and sets the usage function as directed.
+// After calling ResetForTesting, parse errors in flag handling will not
+// exit the program.
+func ResetForTesting(usage func()) {
+	CommandLine = NewFlagSet(os.Args[0], ContinueOnError)
+	Usage = usage
+}
 func boolString(s string) string {
 	if s == "0" {
 		return "false"
