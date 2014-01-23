@@ -917,6 +917,11 @@ func (container *Container) createVolumes() error {
 
 func (container *Container) mergeVolumes() error {
 	if container.Config.VolumesMerge != "" {
+		binds, err := container.getBindMap()
+		if err != nil {
+			return err
+		}
+
 		mergeSpecs := strings.Split(container.Config.VolumesMerge, ",")
 		for _, mergeSpec := range mergeSpecs {
 			mountRW := true
@@ -927,8 +932,12 @@ func (container *Container) mergeVolumes() error {
 			case 2:
 				volPath := mergeParts[1]
 				srcPath := mergeParts[0]
-				container.VolumesMerge[volPath] = srcPath
 
+				if _, bindExist := binds[volPath]; bindExist {
+					return fmt.Errorf("Conflict volumes already exists in bind: %s", volPath)
+				}
+
+				container.VolumesMerge[volPath] = srcPath
 				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
 					return err
 				}
