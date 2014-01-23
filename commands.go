@@ -1769,7 +1769,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flExpose       ListOpts
 		flDns          ListOpts
 		flVolumesFrom  ListOpts
-		flVolumesMerge = ListOpts
+		flVolumesMerge ListOpts
 		flLxcOpts      ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
