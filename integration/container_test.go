@@ -1691,6 +1691,48 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	}
 }
 
+func TestVolumesMerge(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+
+	mergeSourceDir := "/tmp/mergevolumes"
+	if err := os.MkdirAll(mergeSourceDir, 0700); err != nil {
+		t.Fatal(err)
+	} else {
+		if _, err := os.OpenFile(mergeSourceDir+"test", os.O_CREATE|os.O_RDWR, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func() {
+		os.RemoveAll(mergeSourceDir)
+	}()
+
+	//merge into "/"
+	container, _, err := runtime.Create(
+		&docker.Config{
+			Image:        GetTestImage(runtime).ID,
+			Cmd:          []string{"/bin/echo", "-n", "foobar"},
+			VolumesMerge: mergeSourceDir + ":" + "/",
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+
+	out, err := container.Output()
+	if err != nil {
+		t.Fatal(err)
+	} else if string(out) != "foobar" {
+		t.Fail()
+	}
+
+	if container.VolumesMerge["/"] != mergeSourceDir {
+		t.Fail()
+	}
+}
+
 func TestRestartGhost(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
