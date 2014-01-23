@@ -19,6 +19,7 @@ type iPNet struct {
 var (
 	ErrNetworkAlreadyAllocated = errors.New("requested network overlaps with existing network")
 	ErrNetworkAlreadyRegisterd = errors.New("requested network is already registered")
+	ErrNoAvailableIps          = errors.New("no available ips on network")
 	lock                       = sync.Mutex{}
 	allocatedIPs               = networkSet{}
 	availableIPS               = networkSet{}
@@ -40,109 +41,87 @@ func RegisterNetwork(network *net.IPNet) error {
 	if err := checkExistingNetworkOverlaps(network); err != nil {
 		return err
 	}
-
 	allocatedIPs[newIPNet(network)] = iPSet{}
 
 	return nil
 }
 
-func RequestIP(ip *net.IPAddr) (*net.IPAddr, error) {
+func RequestIP(network *net.IPNet, ip *net.IPAddr) (*net.IPAddr, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	if ip == nil {
-		next, err := getNextIp()
+		next, err := getNextIp(network)
 		if err != nil {
 			return nil, err
 		}
 		return next, nil
 	}
 
-	if err := validateIP(ip); err != nil {
+	if err := validateIP(network, ip); err != nil {
 		return nil, err
 	}
 	return ip, nil
 }
 
-func ReleaseIP(ip *net.IPAddr) error {
+func ReleaseIP(network *net.IPNet, ip *net.IPAddr) error {
 	lock.Lock()
 	defer lock.Unlock()
 
+	n := newIPNet(network)
+	existing := allocatedIPs[n]
+
+	delete(existing, ip.String())
+	availableIPS[n][ip.String()] = struct{}{}
+
+	return nil
 }
 
-func getNextIp(network iPNet) (net.IPAddr, error) {
+func getNextIp(network *net.IPNet) (net.IPAddr, error) {
 	if available, exists := availableIPS[network]; exists {
+		return nil, nil
 	}
 
 	var (
-		netNetwork = newNetIPNet(network)
-		firstIP, _ = networkRange(netNetwork)
+		firstIP, _ = networkRange(network)
 		ipNum      = ipToInt(firstIP)
-		ownIP      = ipToInt(netNetwork.IP)
-		size       = networkSize(netNetwork.Mask)
+		ownIP      = ipToInt(network.IP)
+		size       = networkSize(network.Mask)
+		n          = newIPNet(network)
+		allocated  = allocatedIPs[n]
 
-		pos = int32(1)
-		max = size - 2 // -1 for the broadcast address, -1 for the gateway address
+		pos    = int32(1)
+		max    = size - 2 // -1 for the broadcast address, -1 for the gateway address
+		ip     *net.IP
+		newNum int32
+		inUse  bool
 	)
 
-	for {
-		var (
-			newNum int32
-			inUse  bool
-		)
-
-		// Find first unused IP, give up after one whole round
-		for attempt := int32(0); attempt < max; attempt++ {
-			newNum = ipNum + pos
-
-			pos = pos%max + 1
-
-			// The network's IP is never okay to use
-			if newNum == ownIP {
-				continue
-			}
-
-			if _, inUse = alloc.inUse[newNum]; !inUse {
-				// We found an unused IP
-				break
-			}
+	// Find first unused IP, give up after one whole round
+	for attempt := int32(0); attempt < max; attempt++ {
+		newNum = ipNum + pos
+		pos = pos%max + 1
+		// The network's IP is never okay to use
+		if newNum == ownIP {
+			continue
 		}
 
-		ip := allocatedIP{ip: intToIP(newNum)}
-		if inUse {
-			ip.err = errors.New("No unallocated IP available")
-		}
-
-		select {
-		case quit := <-alloc.quit:
-			if quit {
-				return
-			}
-		case alloc.queueAlloc <- ip:
-			alloc.inUse[newNum] = struct{}{}
-		case released := <-alloc.queueReleased:
-			r := ipToInt(released)
-			delete(alloc.inUse, r)
-
-			if inUse {
-				// If we couldn't allocate a new IP, the released one
-				// will be the only free one now, so instantly use it
-				// next time
-				pos = r - ipNum
-			} else {
-				// Use same IP as last time
-				if pos == 1 {
-					pos = max
-				} else {
-					pos--
-				}
-			}
+		ip = intToIP(newNum)
+		if _, inUse = allocated[ip.String()]; !inUse {
+			// We found an unused IP
+			break
 		}
 	}
 
+	if ip == nil {
+		return nil, ErrNoAvailableIps
+	}
+	allocated[ip.String()] = struct{}{}
+
+	return ip, nil
 }
 
-func validateIP(ip *net.IPAddr) error {
+func validateIP(network *net.IPNet, ip *net.IPAddr) error {
 
 }
 
