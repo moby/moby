@@ -68,7 +68,7 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW    map[string]bool
-	VolumesMerge map[string]bool
+	VolumesMerge map[string]string
 	hostConfig   *HostConfig
 
 	activeLinks map[string]*Link
@@ -537,7 +537,7 @@ func (container *Container) Start() (err error) {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
-		container.VolumesMerge = make(map[string]bool)
+		container.VolumesMerge = make(map[string]string)
 	}
 
 	// Apply volumes from another container if requested
@@ -924,7 +924,6 @@ func (container *Container) mergeVolumes() error {
 
 		mergeSpecs := strings.Split(container.Config.VolumesMerge, ",")
 		for _, mergeSpec := range mergeSpecs {
-			mountRW := true
 			mergeParts := strings.SplitN(mergeSpec, ":", 2)
 			switch len(mergeParts) {
 			case 0:
