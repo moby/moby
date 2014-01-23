@@ -1324,7 +1324,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
 		out         = utils.NewWriteFlusher(job.Stdout)
-		authConfig  *auth.AuthConfig
+		authConfig  = &auth.AuthConfig{}
 		metaHeaders map[string][]string
 	)
 	if len(job.Args) > 1 {
