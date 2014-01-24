@@ -96,6 +96,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
 		"load":             srv.ImageLoad,
+		"build":            srv.Build,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -389,6 +390,92 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 		}
 	}
 	return nil
+}
+
+func (srv *Server) Build(job *engine.Job) engine.Status {
+	if len(job.Args) != 0 {
+		job.Errorf("Usage: %s\n", job.Name)
+		return engine.StatusErr
+	}
+	var (
+		remoteURL      = job.Getenv("remote")
+		repoName       = job.Getenv("t")
+		suppressOutput = job.GetenvBool("q")
+		noCache        = job.GetenvBool("nocache")
+		rm             = job.GetenvBool("rm")
+		authConfig     = &auth.AuthConfig{}
+		configFile     = &auth.ConfigFile{}
+		tag            string
+		context        io.Reader
+	)
+	job.GetenvJson("authConfig", authConfig)
+	job.GetenvJson("configFile", configFile)
+	repoName, tag = utils.ParseRepositoryTag(repoName)
+
+	if remoteURL == "" {
+		context = job.Stdin
+	} else if utils.IsGIT(remoteURL) {
+		if !strings.HasPrefix(remoteURL, "git://") {
+			remoteURL = "https://" + remoteURL
+		}
+		root, err := ioutil.TempDir("", "docker-build-git")
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		defer os.RemoveAll(root)
+
+		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
+			job.Errorf("Error trying to use git: %s (%s)", err, output)
+			return engine.StatusErr
+		}
+
+		c, err := archive.Tar(root, archive.Uncompressed)
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		context = c
+	} else if utils.IsURL(remoteURL) {
+		f, err := utils.Download(remoteURL)
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		defer f.Body.Close()
+		dockerFile, err := ioutil.ReadAll(f.Body)
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		c, err := MkBuildContext(string(dockerFile), nil)
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		context = c
+	}
+
+	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
+	b := NewBuildFile(srv,
+		&StdoutFormater{
+			Writer:          job.Stdout,
+			StreamFormatter: sf,
+		},
+		&StderrFormater{
+			Writer:          job.Stdout,
+			StreamFormatter: sf,
+		},
+		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile)
+	id, err := b.Build(context)
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	if repoName != "" {
+		srv.runtime.repositories.Set(repoName, tag, id, false)
+	}
+	return engine.StatusOK
 }
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"expvar"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/systemd"
@@ -22,7 +21,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -888,18 +886,12 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
 	var (
-		remoteURL         = r.FormValue("remote")
-		repoName          = r.FormValue("t")
-		rawSuppressOutput = r.FormValue("q")
-		rawNoCache        = r.FormValue("nocache")
-		rawRm             = r.FormValue("rm")
 		authEncoded       = r.Header.Get("X-Registry-Auth")
 		authConfig        = &auth.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &auth.ConfigFile{}
-		tag               string
+		job               = srv.Eng.Job("build")
 	)
-	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	// This block can be removed when API versions prior to 1.9 are deprecated.
 	// Both headers will be parsed and sent along to the daemon, but if a non-empty
@@ -923,83 +915,25 @@ func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	var context io.Reader
-
-	if remoteURL == "" {
-		context = r.Body
-	} else if utils.IsGIT(remoteURL) {
-		if !strings.HasPrefix(remoteURL, "git://") {
-			remoteURL = "https://" + remoteURL
-		}
-		root, err := ioutil.TempDir("", "docker-build-git")
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(root)
-
-		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
-			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
-		}
-
-		c, err := archive.Tar(root, archive.Uncompressed)
-		if err != nil {
-			return err
-		}
-		context = c
-	} else if utils.IsURL(remoteURL) {
-		f, err := utils.Download(remoteURL)
-		if err != nil {
-			return err
-		}
-		defer f.Body.Close()
-		dockerFile, err := ioutil.ReadAll(f.Body)
-		if err != nil {
-			return err
-		}
-		c, err := MkBuildContext(string(dockerFile), nil)
-		if err != nil {
-			return err
-		}
-		context = c
-	}
-
-	suppressOutput, err := getBoolParam(rawSuppressOutput)
-	if err != nil {
-		return err
-	}
-	noCache, err := getBoolParam(rawNoCache)
-	if err != nil {
-		return err
-	}
-	rm, err := getBoolParam(rawRm)
-	if err != nil {
-		return err
-	}
-
 	if version >= 1.8 {
 		w.Header().Set("Content-Type", "application/json")
+		job.SetenvBool("json", true)
 	}
-	sf := utils.NewStreamFormatter(version >= 1.8)
-	b := NewBuildFile(srv,
-		&StdoutFormater{
-			Writer:          utils.NewWriteFlusher(w),
-			StreamFormatter: sf,
-		},
-		&StderrFormater{
-			Writer:          utils.NewWriteFlusher(w),
-			StreamFormatter: sf,
-		},
-		!suppressOutput, !noCache, rm, utils.NewWriteFlusher(w), sf, authConfig, configFile)
-	id, err := b.Build(context)
-	if err != nil {
-		if sf.Used() {
-			w.Write(sf.FormatError(err))
-			return nil
+
+	job.Stdout.Add(utils.NewWriteFlusher(w))
+	job.Stdin.Add(r.Body)
+	job.Setenv("remote", r.FormValue("remote"))
+	job.Setenv("t", r.FormValue("t"))
+	job.Setenv("q", r.FormValue("q"))
+	job.Setenv("nocache", r.FormValue("nocache"))
+	job.Setenv("rm", r.FormValue("rm"))
+
+	if err := job.Run(); err != nil {
+		if !job.Stdout.Used() {
+			return err
 		}
-		return fmt.Errorf("Error build: %s", err)
-	}
-	if repoName != "" {
-		srv.runtime.repositories.Set(repoName, tag, id, false)
+		sf := utils.NewStreamFormatter(version >= 1.8)
+		w.Write(sf.FormatError(err))
 	}
 	return nil
 }
