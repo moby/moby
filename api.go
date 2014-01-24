@@ -23,6 +23,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -90,11 +91,45 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
-func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
-	b, err := json.Marshal(v)
+var (
+	emptySlice  = []byte("[]")
+	emptyObject = []byte("{}")
+)
 
-	if err != nil {
-		return err
+func isNil(v interface{}) bool {
+	return reflect.ValueOf(v).IsNil()
+}
+
+func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
+	var (
+		b   []byte
+		err error
+		t   = reflect.TypeOf(v)
+	)
+
+	if t == nil {
+		b = emptyObject
+	} else {
+		switch reflect.TypeOf(v).Kind() {
+		case reflect.Array, reflect.Slice:
+			if isNil(v) {
+				b = emptySlice
+			}
+		case reflect.Ptr:
+			if isNil(v) {
+				b = emptyObject
+			}
+		}
+	}
+
+	// if b is still nil,
+	// then the val of v must not be nil
+	if b == nil {
+		// marshal the data
+		b, err = json.Marshal(v)
+		if err != nil {
+			return err
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -294,7 +329,8 @@ func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Requ
 			return err
 		}
 	}
-	return nil
+
+	return writeJSON(w, http.StatusOK, wf)
 }
 
 func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
