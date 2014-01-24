@@ -131,18 +131,6 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error toggle iptables forward: %s", output)
 		}
-
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
-			"-p", p.Proto(),
-			"-s", l.ChildIP,
-			"--sport", p.Port(),
-			"-d", l.ParentIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return err
-		} else if len(output) != 0 {
-			return fmt.Errorf("Error toggle iptables forward: %s", output)
-		}
 	}
 	return nil
 }
