@@ -4,7 +4,8 @@
 
 .. _articles_list:
 
-Contents:
+Articles
+========
 
 .. toctree::
    :maxdepth: 1
