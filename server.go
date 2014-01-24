@@ -100,6 +100,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"pull":             srv.ImagePull,
 		"import":           srv.ImageImport,
 		"image_delete":     srv.ImageDelete,
+		"inspect":          srv.JobInspect,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -2308,6 +2309,56 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 		return image, nil
 	}
 	return nil, fmt.Errorf("No such image: %s", name)
+}
+
+func (srv *Server) JobInspect(job *engine.Job) engine.Status {
+	// TODO: deprecate KIND/conflict
+	if n := len(job.Args); n != 2 {
+		job.Errorf("Usage: %s CONTAINER|IMAGE KIND", job.Name)
+		return engine.StatusErr
+	}
+	var (
+		name                    = job.Args[0]
+		kind                    = job.Args[1]
+		object                  interface{}
+		conflict                = job.GetenvBool("conflict") //should the job detect conflict between containers and images
+		image, errImage         = srv.ImageInspect(name)
+		container, errContainer = srv.ContainerInspect(name)
+	)
+
+	if conflict && image != nil && container != nil {
+		job.Errorf("Conflict between containers and images")
+		return engine.StatusErr
+	}
+
+	switch kind {
+	case "image":
+		if errImage != nil {
+			job.Error(errImage)
+			return engine.StatusErr
+		}
+		object = image
+	case "container":
+		if errContainer != nil {
+			job.Error(errContainer)
+			return engine.StatusErr
+		}
+		object = &struct {
+			*Container
+			HostConfig *HostConfig
+		}{container, container.hostConfig}
+	default:
+		job.Errorf("Unknown kind: %s", kind)
+		return engine.StatusErr
+	}
+
+	b, err := json.Marshal(object)
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	job.Stdout.Write(b)
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {

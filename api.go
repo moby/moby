@@ -751,8 +751,18 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 
-	c, err := srv.ContainerInspect(vars["name"])
-	if err != nil {
+	// TODO: replace the buffer by job.AddEnv()
+	var (
+		job    = srv.Eng.Job("inspect", vars["name"], "container")
+		buffer = bytes.NewBuffer(nil)
+		c      Container
+	)
+	job.Stdout.Add(buffer)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(buffer.Bytes(), &c); err != nil {
 		return err
 	}
 
@@ -786,7 +796,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		errStream = outStream
 	}
 
-	job := srv.Eng.Job("attach", vars["name"])
+	job = srv.Eng.Job("attach", vars["name"])
 	job.Setenv("logs", r.Form.Get("logs"))
 	job.Setenv("stream", r.Form.Get("stream"))
 	job.Setenv("stdin", r.Form.Get("stdin"))
@@ -810,7 +820,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if _, err := srv.ContainerInspect(vars["name"]); err != nil {
+	if err := srv.Eng.Job("inspect", vars["name"], "container").Run(); err != nil {
 		return err
 	}
 
@@ -838,41 +848,20 @@ func getContainersByName(srv *Server, version float64, w http.ResponseWriter, r 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	container, err := srv.ContainerInspect(name)
-	if err != nil {
-		return err
-	}
-
-	_, err = srv.ImageInspect(name)
-	if err == nil {
-		return fmt.Errorf("Conflict between containers and images")
-	}
-
-	container.readHostConfig()
-	c := APIContainer{container, container.hostConfig}
-
-	return writeJSON(w, http.StatusOK, c)
+	var job = srv.Eng.Job("inspect", vars["name"], "container")
+	job.Stdout.Add(w)
+	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
+	return job.Run()
 }
 
 func getImagesByName(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-
-	image, err := srv.ImageInspect(name)
-	if err != nil {
-		return err
-	}
-
-	_, err = srv.ContainerInspect(name)
-	if err == nil {
-		return fmt.Errorf("Conflict between containers and images")
-	}
-
-	return writeJSON(w, http.StatusOK, image)
+	var job = srv.Eng.Job("inspect", vars["name"], "image")
+	job.Stdout.Add(w)
+	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
+	return job.Run()
 }
 
 func postBuild(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

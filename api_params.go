@@ -67,10 +67,6 @@ type (
 		Resource string
 		HostPath string
 	}
-	APIContainer struct {
-		*Container
-		HostConfig *HostConfig
-	}
 )
 
 func (api APIContainers) ToLegacy() *APIContainersOld {
