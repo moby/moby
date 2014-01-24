@@ -236,61 +236,15 @@ func getInfo(srv *Server, version float64, w http.ResponseWriter, r *http.Reques
 }
 
 func getEvents(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	sendEvent := func(wf *utils.WriteFlusher, event *utils.JSONMessage) error {
-		b, err := json.Marshal(event)
-		if err != nil {
-			return fmt.Errorf("JSON error")
-		}
-		_, err = wf.Write(b)
-		if err != nil {
-			// On error, evict the listener
-			utils.Errorf("%s", err)
-			srv.Lock()
-			delete(srv.listeners, r.RemoteAddr)
-			srv.Unlock()
-			return err
-		}
-		return nil
-	}
-
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	listener := make(chan utils.JSONMessage)
-	srv.Lock()
-	srv.listeners[r.RemoteAddr] = listener
-	srv.Unlock()
-	since, err := strconv.ParseInt(r.Form.Get("since"), 10, 0)
-	if err != nil {
-		since = 0
-	}
+
 	w.Header().Set("Content-Type", "application/json")
-	wf := utils.NewWriteFlusher(w)
-	wf.Flush()
-	if since != 0 {
-		// If since, send previous events that happened after the timestamp
-		for _, event := range srv.GetEvents() {
-			if event.Time >= since {
-				err := sendEvent(wf, &event)
-				if err != nil && err.Error() == "JSON error" {
-					continue
-				}
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	for event := range listener {
-		err := sendEvent(wf, &event)
-		if err != nil && err.Error() == "JSON error" {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	var job = srv.Eng.Job("events", r.RemoteAddr)
+	job.Stdout.Add(utils.NewWriteFlusher(w))
+	job.Setenv("since", r.Form.Get("since"))
+	return job.Run()
 }
 
 func getImagesHistory(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
