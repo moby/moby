@@ -448,7 +448,7 @@ func postImagesCreate(srv *Server, version float64, w http.ResponseWriter, r *ht
 	}
 
 	job.SetenvBool("json", version > 1.0)
-	job.Stdout.Add(w)
+	job.Stdout.Add(utils.NewWriteFlusher(w))
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
 			return err

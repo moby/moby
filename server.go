@@ -1323,7 +1323,6 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName   = job.Args[0]
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		out         = utils.NewWriteFlusher(job.Stdout)
 		authConfig  = &auth.AuthConfig{}
 		metaHeaders map[string][]string
 	)
@@ -1338,7 +1337,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	if err != nil {
 		if c != nil {
 			// Another pull of the same repository is already taking place; just wait for it to finish
-			out.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", localName))
+			job.Stdout.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", localName))
 			<-c
 			return engine.StatusOK
 		}
@@ -1365,7 +1364,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName = remoteName
 	}
 
-	if err = srv.pullRepository(r, out, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
+	if err = srv.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
 		job.Error(err)
 		return engine.StatusErr
 	}
@@ -1584,7 +1583,6 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 		repo    = job.Args[1]
 		tag     string
 		sf      = utils.NewStreamFormatter(job.GetenvBool("json"))
-		out     = utils.NewWriteFlusher(job.Stdout)
 		archive io.Reader
 		resp    *http.Response
 	)
@@ -1605,7 +1603,7 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 			u.Host = src
 			u.Path = ""
 		}
-		out.Write(sf.FormatStatus("", "Downloading from %s", u))
+		job.Stdout.Write(sf.FormatStatus("", "Downloading from %s", u))
 		// Download with curl (pretty progress bar)
 		// If curl is not available, fallback to http.Get()
 		resp, err = utils.Download(u.String())
@@ -1613,7 +1611,7 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 			job.Error(err)
 			return engine.StatusErr
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), out, sf, true, "", "Importing")
+		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), job.Stdout, sf, true, "", "Importing")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
@@ -1627,7 +1625,7 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 			return engine.StatusErr
 		}
 	}
-	out.Write(sf.FormatStatus("", img.ID))
+	job.Stdout.Write(sf.FormatStatus("", img.ID))
 	return engine.StatusOK
 }
 
