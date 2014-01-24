@@ -169,9 +169,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Missing parameter")
 	}
 	job := srv.Eng.Job("export", vars["name"])
-	if err := job.Stdout.Add(w); err != nil {
-		return err
-	}
+	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
 		return err
 	}
@@ -573,9 +571,7 @@ func getImagesGet(srv *Server, version float64, w http.ResponseWriter, r *http.R
 		w.Header().Set("Content-Type", "application/x-tar")
 	}
 	job := srv.Eng.Job("image_export", vars["name"])
-	if err := job.Stdout.Add(w); err != nil {
-		return err
-	}
+	job.Stdout.Add(w)
 	return job.Run()
 }
 
@@ -806,7 +802,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 	job.Setenv("stderr", r.Form.Get("stderr"))
 	job.Stdin.Add(inStream)
 	job.Stdout.Add(outStream)
-	job.Stderr.Add(errStream)
+	job.Stderr.Set(errStream)
 	if err := job.Run(); err != nil {
 		fmt.Fprintf(outStream, "Error: %s\n", err)
 
@@ -836,7 +832,7 @@ func wsContainersAttach(srv *Server, version float64, w http.ResponseWriter, r *
 		job.Setenv("stderr", r.Form.Get("stderr"))
 		job.Stdin.Add(ws)
 		job.Stdout.Add(ws)
-		job.Stderr.Add(ws)
+		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
 			utils.Errorf("Error: %s", err)
 		}

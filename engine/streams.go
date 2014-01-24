@@ -23,20 +23,28 @@ func NewOutput() *Output {
 
 // Return true if something was written on this output
 func (o *Output) Used() bool {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+	o.Lock()
+	defer o.Unlock()
 	return o.used
 }
 
 // Add attaches a new destination to the Output. Any data subsequently written
 // to the output will be written to the new destination in addition to all the others.
 // This method is thread-safe.
-// FIXME: Add cannot fail
-func (o *Output) Add(dst io.Writer) error {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+func (o *Output) Add(dst io.Writer) {
+	o.Lock()
+	defer o.Unlock()
 	o.dests = append(o.dests, dst)
-	return nil
+}
+
+// Set closes and remove existing destination and then attaches a new destination to
+// the Output. Any data subsequently written to the output will be written to the new
+// destination in addition to all the others. This method is thread-safe.
+func (o *Output) Set(dst io.Writer) {
+	o.Close()
+	o.Lock()
+	defer o.Unlock()
+	o.dests = []io.Writer{dst}
 }
 
 // AddPipe creates an in-memory pipe with io.Pipe(), adds its writing end as a destination,
@@ -88,8 +96,8 @@ func (o *Output) AddString(dst *string) error {
 // Write writes the same data to all registered destinations.
 // This method is thread-safe.
 func (o *Output) Write(p []byte) (n int, err error) {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+	o.Lock()
+	defer o.Unlock()
 	o.used = true
 	var firstErr error
 	for _, dst := range o.dests {
@@ -105,8 +113,8 @@ func (o *Output) Write(p []byte) (n int, err error) {
 // AddTail and AddString tasks to complete.
 // The Close method of each destination is called if it exists.
 func (o *Output) Close() error {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+	o.Lock()
+	defer o.Unlock()
 	var firstErr error
 	for _, dst := range o.dests {
 		if closer, ok := dst.(io.WriteCloser); ok {
