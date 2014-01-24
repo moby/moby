@@ -82,3 +82,7 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgr
 func (sf *StreamFormatter) Used() bool {
 	return sf.used
 }
+
+func (sf *StreamFormatter) Json() bool {
+	return sf.json
+}

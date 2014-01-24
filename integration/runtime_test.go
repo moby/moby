@@ -137,7 +137,9 @@ func setupBaseImage() {
 	// If the unit test is not found, try to download it.
 	if img, err := srv.ImageInspect(unitTestImageName); err != nil || img.ID != unitTestImageID {
 		// Retrieve the Image
-		if err := srv.ImagePull(unitTestImageName, "", os.Stdout, utils.NewStreamFormatter(false), nil, nil, true); err != nil {
+		job = eng.Job("pull", unitTestImageName)
+		job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
+		if err := job.Run(); err != nil {
 			log.Fatalf("Unable to pull the test image: %s", err)
 		}
 	}
