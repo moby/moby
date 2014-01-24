@@ -1,7 +1,6 @@
 package collections
 
 import (
-	"sort"
 	"sync"
 )
 
@@ -28,9 +27,17 @@ func (s *OrderedIntSet) Push(elem int) {
 	s.RUnlock()
 
 	s.Lock()
-	s.set = append(s.set, elem)
+
 	// Make sure the list is always sorted
-	sort.Ints(s.set)
+	for i, e := range s.set {
+		if elem < e {
+			s.set = append(s.set[:i], append([]int{elem}, s.set[i:]...)...)
+			s.Unlock()
+			return
+		}
+	}
+	// If we reach here, then elem is the biggest elem of the list.
+	s.set = append(s.set, elem)
 	s.Unlock()
 }
 
