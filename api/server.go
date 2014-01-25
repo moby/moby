@@ -1104,10 +1104,34 @@ func ServeFd(addr string, handle http.Handler) error {
 	return nil
 }
 
+func lookupGidByName(nameOrGid string) (int, error) {
+	groups, err := user.ParseGroupFilter(func(g *user.Group) bool {
+		return g.Name == nameOrGid || strconv.Itoa(g.Gid) == nameOrGid
+	})
+	if err != nil {
+		return -1, err
+	}
+	if groups != nil && len(groups) > 0 {
+		return groups[0].Gid, nil
+	}
+	return -1, fmt.Errorf("Group %s not found", nameOrGid)
+}
+
+func changeGroup(addr string, nameOrGid string) error {
+	gid, err := lookupGidByName(nameOrGid)
+	if err != nil {
+		return err
+	}
+
+	utils.Debugf("%s group found. gid: %d", nameOrGid, gid)
+	return os.Chown(addr, 0, gid)
+}
+
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion string) error {
+func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion string, socketGroup string) error {
 	r, err := createRouter(eng, logging, enableCors, dockerVersion)
+
 	if err != nil {
 		return err
 	}
@@ -1138,16 +1162,14 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 			return err
 		}
 
-		groups, err := user.ParseGroupFilter(func(g *user.Group) bool {
-			return g.Name == "docker"
-		})
-		if err != nil {
-			return err
-		}
-		if len(groups) > 0 {
-			utils.Debugf("docker group found. gid: %d", groups[0].Gid)
-			if err := os.Chown(addr, 0, groups[0].Gid); err != nil {
-				return err
+		if socketGroup != "" {
+			if err := changeGroup(addr, socketGroup); err != nil {
+				if socketGroup == "docker" {
+					// if the user hasn't explicitly specified the group ownership, don't fail on errors.
+					utils.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
+				} else {
+					return err
+				}
 			}
 		}
 	default:
@@ -1175,7 +1197,7 @@ func ServeApi(job *engine.Job) engine.Status {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"), job.Getenv("SocketGroup"))
 		}()
 	}
 
