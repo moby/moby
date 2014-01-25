@@ -8,10 +8,14 @@ import (
 
 const LxcTemplate = `
 {{if .Network}}
+{{if .Network.NetUseHost}}
+# using host network (-hostnetwork=true)
+{{else}}
 # network configuration
 lxc.network.type = veth
 lxc.network.link = {{.Network.Bridge}}
 lxc.network.name = eth0
+{{end}}
 {{else}}
 # network is disabled (-n=false)
 lxc.network.type = empty

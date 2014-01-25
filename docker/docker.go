@@ -29,7 +29,7 @@ func main() {
 		flDaemon             = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 		flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 		flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
-		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
+		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking; use 'host' to inhibit network namespace")
 		bridgeIp             = flag.String([]string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
 		pidfile              = flag.String([]string{"p", "-pidfile"}, "/var/run/docker.pid", "Path to use for daemon PID file")
 		flRoot               = flag.String([]string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the docker runtime")

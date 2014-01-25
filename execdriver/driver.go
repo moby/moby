@@ -43,6 +43,7 @@ type InitArgs struct {
 	User       string
 	Gateway    string
 	Ip         string
+	NetUseHost bool
 	WorkDir    string
 	Privileged bool
 	Env        []string
@@ -73,6 +74,7 @@ type Network struct {
 	Bridge      string `json:"bridge"`
 	IPPrefixLen int    `json:"ip_prefix_len"`
 	Mtu         int    `json:"mtu"`
+	NetUseHost  bool   `json:"netusehost"`
 }
 
 type Resources struct {

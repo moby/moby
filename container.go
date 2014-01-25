@@ -102,6 +102,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
+	NetworkUseHost  bool
 }
 
 type HostConfig struct {
@@ -508,6 +509,7 @@ func populateCommand(c *Container) {
 			IPAddress:   network.IPAddress,
 			IPPrefixLen: network.IPPrefixLen,
 			Mtu:         c.runtime.config.Mtu,
+			NetUseHost:  c.Config.NetworkUseHost,
 		}
 	}
 
@@ -555,6 +557,17 @@ func (container *Container) Start() (err error) {
 	}
 	if container.runtime.networkManager.disabled {
 		container.Config.NetworkDisabled = true
+	}
+	if container.runtime.networkManager.usehost {
+		container.Config.NetworkUseHost = true
+	}
+
+	if container.Config.NetworkUseHost {
+		container.Config.Hostname = ""
+		container.Config.Domainname = ""
+		container.HostnamePath = "/etc/hostname"
+		container.HostsPath = "/etc/hosts"
+	} else if container.runtime.networkManager.disabled {
 		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
@@ -1024,7 +1037,7 @@ ff02::2		ip6-allrouters
 }
 
 func (container *Container) allocateNetwork() error {
-	if container.Config.NetworkDisabled {
+	if container.Config.NetworkDisabled || container.Config.NetworkUseHost {
 		return nil
 	}
 

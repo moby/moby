@@ -21,7 +21,12 @@ func setupEnv(args *execdriver.InitArgs) {
 		if len(parts) == 1 {
 			parts = append(parts, "")
 		}
-		os.Setenv(parts[0], parts[1])
+		if parts[0] == "HOSTNAME" && parts[1] == "" {
+			hostname, _ := os.Hostname()
+			os.Setenv("HOSTNAME", hostname)
+		} else {
+			os.Setenv(parts[0], parts[1])
+		}
 	}
 }
 
@@ -55,6 +60,7 @@ func SysInit() {
 		user       = flag.String("u", "", "username or uid")
 		gateway    = flag.String("g", "", "gateway address")
 		ip         = flag.String("i", "", "ip address")
+		netusehost = flag.Bool("hostnetwork", false, "use host networking")
 		workDir    = flag.String("w", "", "workdir")
 		privileged = flag.Bool("privileged", false, "privileged mode")
 		mtu        = flag.Int("mtu", 1500, "interface mtu")
@@ -79,6 +85,7 @@ func SysInit() {
 		User:       *user,
 		Gateway:    *gateway,
 		Ip:         *ip,
+		NetUseHost: *netusehost,
 		WorkDir:    *workDir,
 		Privileged: *privileged,
 		Env:        env,
