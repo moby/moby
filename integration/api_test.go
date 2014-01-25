@@ -485,26 +485,29 @@ func TestGetContainersTop(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	procs := docker.APITop{}
-	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
+	var procs engine.Env
+	if err := procs.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(procs.Titles) != 11 {
-		t.Fatalf("Expected 11 titles, found %d.", len(procs.Titles))
+	if len(procs.GetList("Titles")) != 11 {
+		t.Fatalf("Expected 11 titles, found %d.", len(procs.GetList("Titles")))
 	}
-	if procs.Titles[0] != "USER" || procs.Titles[10] != "COMMAND" {
-		t.Fatalf("Expected Titles[0] to be USER and Titles[10] to be COMMAND, found %s and %s.", procs.Titles[0], procs.Titles[10])
+	if procs.GetList("Titles")[0] != "USER" || procs.GetList("Titles")[10] != "COMMAND" {
+		t.Fatalf("Expected Titles[0] to be USER and Titles[10] to be COMMAND, found %s and %s.", procs.GetList("Titles")[0], procs.GetList("Titles")[10])
 	}
-
-	if len(procs.Processes) != 2 {
-		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
+	processes := [][]string{}
+	if err := procs.GetJson("Processes", &processes); err != nil {
+		t.Fatal(err)
 	}
-	if procs.Processes[0][10] != "/bin/sh -c cat" {
-		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", procs.Processes[0][10])
+	if len(processes) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(processes))
 	}
-	if procs.Processes[1][10] != "/bin/sh -c cat" {
-		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", procs.Processes[1][10])
+	if processes[0][10] != "/bin/sh -c cat" {
+		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", processes[0][10])
+	}
+	if processes[1][10] != "/bin/sh -c cat" {
+		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", processes[1][10])
 	}
 }
 
@@ -570,11 +573,11 @@ func TestPostCommit(t *testing.T) {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
 	}
 
-	apiID := &docker.APIID{}
-	if err := json.Unmarshal(r.Body.Bytes(), apiID); err != nil {
+	var env engine.Env
+	if err := env.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := srv.ImageInspect(apiID.ID); err != nil {
+	if _, err := srv.ImageInspect(env.Get("Id")); err != nil {
 		t.Fatalf("The image has not been committed")
 	}
 }
@@ -607,11 +610,11 @@ func TestPostContainersCreate(t *testing.T) {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
 	}
 
-	apiRun := &docker.APIRun{}
-	if err := json.Unmarshal(r.Body.Bytes(), apiRun); err != nil {
+	var apiRun engine.Env
+	if err := apiRun.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
-	containerID := apiRun.ID
+	containerID := apiRun.Get("Id")
 
 	containerAssertExists(eng, containerID, t)
 	containerRun(eng, containerID, t)
@@ -863,12 +866,12 @@ func TestPostContainersWait(t *testing.T) {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r, t)
-		apiWait := &docker.APIWait{}
-		if err := json.Unmarshal(r.Body.Bytes(), apiWait); err != nil {
+		var apiWait engine.Env
+		if err := apiWait.Decode(r.Body); err != nil {
 			t.Fatal(err)
 		}
-		if apiWait.StatusCode != 0 {
-			t.Fatalf("Non zero exit code for sleep: %d\n", apiWait.StatusCode)
+		if apiWait.GetInt("StatusCode") != 0 {
+			t.Fatalf("Non zero exit code for sleep: %d\n", apiWait.GetInt("StatusCode"))
 		}
 	})
 
@@ -1160,12 +1163,12 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	var outs []docker.APIRmi
-	if err := json.Unmarshal(r2.Body.Bytes(), &outs); err != nil {
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(r2.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
-	if len(outs) != 1 {
-		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs))
+	if len(outs.Data) != 1 {
+		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs.Data))
 	}
 	images = getImages(eng, t, false, "")
 
@@ -1190,14 +1193,17 @@ func TestPostContainersCopy(t *testing.T) {
 	containerRun(eng, containerID, t)
 
 	r := httptest.NewRecorder()
-	copyData := docker.APICopy{HostPath: ".", Resource: "/test.txt"}
 
-	jsonData, err := json.Marshal(copyData)
-	if err != nil {
+	var copyData engine.Env
+	copyData.Set("Resource", "/test.txt")
+	copyData.Set("HostPath", ".")
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := copyData.Encode(jsonData); err != nil {
 		t.Fatal(err)
 	}
 
-	req, err := http.NewRequest("POST", "/containers/"+containerID+"/copy", bytes.NewReader(jsonData))
+	req, err := http.NewRequest("POST", "/containers/"+containerID+"/copy", jsonData)
 	if err != nil {
 		t.Fatal(err)
 	}

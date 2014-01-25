@@ -755,18 +755,21 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
 	}
 
-	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, false))
+	stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, false)
 	if err != nil {
 		return err
 	}
-	procs := APITop{}
-	err = json.Unmarshal(body, &procs)
-	if err != nil {
+	var procs engine.Env
+	if err := procs.Decode(stream); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, strings.Join(procs.Titles, "\t"))
-	for _, proc := range procs.Processes {
+	fmt.Fprintln(w, strings.Join(procs.GetList("Titles"), "\t"))
+	processes := [][]string{}
+	if err := procs.GetJson("Processes", &processes); err != nil {
+		return err
+	}
+	for _, proc := range processes {
 		fmt.Fprintln(w, strings.Join(proc, "\t"))
 	}
 	w.Flush()
@@ -1451,25 +1454,25 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
 	v.Set("author", *flAuthor)
-	var config *Config
+	var (
+		config *Config
+		env    engine.Env
+	)
 	if *flConfig != "" {
 		config = &Config{}
 		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
 			return err
 		}
 	}
-	body, _, err := readBody(cli.call("POST", "/commit?"+v.Encode(), config, false))
+	stream, _, err := cli.call("POST", "/commit?"+v.Encode(), config, false)
 	if err != nil {
 		return err
 	}
-
-	apiID := &APIID{}
-	err = json.Unmarshal(body, apiID)
-	if err != nil {
+	if err := env.Decode(stream); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cli.out, "%s\n", apiID.ID)
+	fmt.Fprintf(cli.out, "%s\n", env.Get("ID"))
 	return nil
 }
 
@@ -1989,7 +1992,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//create the container
-	body, statusCode, err := readBody(cli.call("POST", "/containers/create?"+containerValues.Encode(), config, false))
+	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), config, false)
 	//if image not found try to pull it
 	if statusCode == 404 {
 		_, tag := utils.ParseRepositoryTag(config.Image)
@@ -2026,30 +2029,30 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
 			return err
 		}
-		if body, _, err = readBody(cli.call("POST", "/containers/create?"+containerValues.Encode(), config, false)); err != nil {
+		if stream, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config, false); err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
 	}
 
-	var runResult APIRun
-	if err := json.Unmarshal(body, &runResult); err != nil {
+	var runResult engine.Env
+	if err := runResult.Decode(stream); err != nil {
 		return err
 	}
 
-	for _, warning := range runResult.Warnings {
+	for _, warning := range runResult.GetList("Warnings") {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
 
 	if len(hostConfig.ContainerIDFile) > 0 {
-		if _, err = containerIDFile.Write([]byte(runResult.ID)); err != nil {
+		if _, err = containerIDFile.Write([]byte(runResult.Get("Id"))); err != nil {
 			return fmt.Errorf("failed to write the container ID to the file: %s", err)
 		}
 	}
 
 	if sigProxy {
-		sigc := cli.forwardAllSignals(runResult.ID)
+		sigc := cli.forwardAllSignals(runResult.Get("Id"))
 		defer utils.StopCatch(sigc)
 	}
 
@@ -2063,7 +2066,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		waitDisplayId = make(chan struct{})
 		go func() {
 			defer close(waitDisplayId)
-			fmt.Fprintf(cli.out, "%s\n", runResult.ID)
+			fmt.Fprintf(cli.out, "%s\n", runResult.Get("Id"))
 		}()
 	}
 
@@ -2105,7 +2108,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		errCh = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.ID+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked)
+			return cli.hijack("POST", "/containers/"+runResult.Get("Id")+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked)
 		})
 	} else {
 		close(hijacked)
@@ -2127,12 +2130,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.ID+"/start", hostConfig, false)); err != nil {
+	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/start", hostConfig, false)); err != nil {
 		return err
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
-		if err := cli.monitorTtySize(runResult.ID); err != nil {
+		if err := cli.monitorTtySize(runResult.Get("Id")); err != nil {
 			utils.Errorf("Error monitoring TTY size: %s\n", err)
 		}
 	}
@@ -2157,26 +2160,26 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if autoRemove {
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
-		if _, _, err := readBody(cli.call("POST", "/containers/"+runResult.ID+"/wait", nil, false)); err != nil {
+		if _, _, err := readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/wait", nil, false)); err != nil {
 			return err
 		}
-		if _, status, err = getExitCode(cli, runResult.ID); err != nil {
+		if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
 			return err
 		}
-		if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.ID+"?v=1", nil, false)); err != nil {
+		if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
 			return err
 		}
 	} else {
 		if !config.Tty {
 			// In non-tty mode, we can't dettach, so we know we need to wait.
-			if status, err = waitForExit(cli, runResult.ID); err != nil {
+			if status, err = waitForExit(cli, runResult.Get("Id")); err != nil {
 				return err
 			}
 		} else {
 			// In TTY mode, there is a race. If the process dies too slowly, the state can be update after the getExitCode call
 			// and result in a wrong exit code.
 			// No Autoremove: Simply retrieve the exit code
-			if _, status, err = getExitCode(cli, runResult.ID); err != nil {
+			if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
 				return err
 			}
 		}
@@ -2198,15 +2201,15 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		return nil
 	}
 
-	var copyData APICopy
+	var copyData engine.Env
 	info := strings.Split(cmd.Arg(0), ":")
 
 	if len(info) != 2 {
 		return fmt.Errorf("Error: Path not specified")
 	}
 
-	copyData.Resource = info[1]
-	copyData.HostPath = cmd.Arg(1)
+	copyData.Set("Resource", info[1])
+	copyData.Set("HostPath", cmd.Arg(1))
 
 	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, false)
 	if stream != nil {
@@ -2217,7 +2220,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 
 	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.HostPath, nil); err != nil {
+		if err := archive.Untar(stream, copyData.Get("HostPath"), nil); err != nil {
 			return err
 		}
 	}
@@ -2260,13 +2263,21 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 }
 
 func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {
-	var params io.Reader
+	params := bytes.NewBuffer(nil)
 	if data != nil {
-		buf, err := json.Marshal(data)
-		if err != nil {
-			return nil, -1, err
+		if env, ok := data.(engine.Env); ok {
+			if err := env.Encode(params); err != nil {
+				return nil, -1, err
+			}
+		} else {
+			buf, err := json.Marshal(data)
+			if err != nil {
+				return nil, -1, err
+			}
+			if _, err := params.Write(buf); err != nil {
+				return nil, -1, err
+			}
 		}
-		params = bytes.NewBuffer(buf)
 	}
 	// fixme: refactor client to support redirect
 	re := regexp.MustCompile("/+")
@@ -2569,16 +2580,16 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 }
 
 func waitForExit(cli *DockerCli, containerId string) (int, error) {
-	body, _, err := readBody(cli.call("POST", "/containers/"+containerId+"/wait", nil, false))
+	stream, _, err := cli.call("POST", "/containers/"+containerId+"/wait", nil, false)
 	if err != nil {
 		return -1, err
 	}
 
-	var out APIWait
-	if err := json.Unmarshal(body, &out); err != nil {
+	var out engine.Env
+	if err := out.Decode(stream); err != nil {
 		return -1, err
 	}
-	return out.StatusCode, nil
+	return out.GetInt("StatusCode"), nil
 }
 
 // getExitCode perform an inspect on the container. It returns
