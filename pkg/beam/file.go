@@ -18,9 +18,10 @@ func (f *File) Send(data []byte, s Stream) (err error) {
 }
 
 func (f *File) Receive() (data []byte, s Stream, err error) {
+	var n int
 	data = make([]byte, 4096)
-	_, err = f.f.Read(data)
-	return data, nil, err
+	n, err = f.f.Read(data)
+	return data[:n], nil, err
 }
 
 func (f *File) File() (*os.File, error) {
