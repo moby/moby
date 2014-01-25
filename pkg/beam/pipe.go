@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 type pipe struct {
 	r chan *pipeMsg
 	w chan *pipeMsg
 	err error
+	// We need a mutex to synchronize Send() and Close()
+	// Send() doesn't need the mutex because it's legal to
+	// receive from a closed channel, so we use a failed receive
+	// as a thread-safe "close" message.
+	lock sync.Mutex
 }
 
 type pipeMsg struct {
@@ -34,6 +40,8 @@ func (p *pipe) Receive() (data []byte, stream Stream, err error) {
 }
 
 func (p *pipe) Send(data []byte, stream Stream) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if p.err != nil {
 		return fmt.Errorf("send: pipe closed")
 	}
@@ -46,6 +54,8 @@ func (p *pipe) File() (*os.File, error) {
 }
 
 func (p *pipe) Close() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if p.err != nil {
 		return fmt.Errorf("close: pipe already closed")
 	}
