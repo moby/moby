@@ -122,17 +122,23 @@ func matchesContentType(contentType, expectedType string) bool {
 }
 
 func postAuth(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	authConfig := &auth.AuthConfig{}
-	err := json.NewDecoder(r.Body).Decode(authConfig)
+	var (
+		authConfig, err = ioutil.ReadAll(r.Body)
+		job             = srv.Eng.Job("auth")
+		status          string
+	)
 	if err != nil {
 		return err
 	}
-	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
-	if err != nil {
+	job.Setenv("authConfig", string(authConfig))
+	job.Stdout.AddString(&status)
+	if err = job.Run(); err != nil {
 		return err
 	}
 	if status != "" {
-		return writeJSON(w, http.StatusOK, &APIAuth{Status: status})
+		var env engine.Env
+		env.Set("Status", status)
+		return writeJSON(w, http.StatusOK, env)
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
