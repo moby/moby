@@ -35,12 +35,19 @@ func TestOverlapingNameservers(t *testing.T) {
 }
 
 func TestCheckRouteOverlaps(t *testing.T) {
-	routesData := []string{"10.0.2.0/32", "10.0.3.0/24", "10.0.42.0/24", "172.16.42.0/24", "192.168.142.0/24"}
+	orig := networkGetRoutesFct
+	defer func() {
+		networkGetRoutesFct = orig
+	}()
+	networkGetRoutesFct = func() ([]netlink.Route, error) {
+		routesData := []string{"10.0.2.0/32", "10.0.3.0/24", "10.0.42.0/24", "172.16.42.0/24", "192.168.142.0/24"}
 
-	routes := []netlink.Route{}
-	for _, addr := range routesData {
-		_, netX, _ := net.ParseCIDR(addr)
-		routes = append(routes, netlink.Route{IPNet: netX})
+		routes := []netlink.Route{}
+		for _, addr := range routesData {
+			_, netX, _ := net.ParseCIDR(addr)
+			routes = append(routes, netlink.Route{IPNet: netX})
+		}
+		return routes, nil
 	}
 
 	_, netX, _ := net.ParseCIDR("172.16.0.1/24")

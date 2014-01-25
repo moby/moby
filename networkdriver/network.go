@@ -12,6 +12,10 @@ var (
 	ErrNetworkOverlaps                = errors.New("requested network overlaps with existing network")
 )
 
+var (
+	networkGetRoutesFct = netlink.NetworkGetRoutes
+)
+
 func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
 	if len(nameservers) > 0 {
 		for _, ns := range nameservers {
@@ -28,7 +32,7 @@ func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
 }
 
 func CheckRouteOverlaps(toCheck *net.IPNet) error {
-	networks, err := netlink.NetworkGetRoutes()
+	networks, err := networkGetRoutesFct()
 	if err != nil {
 		return err
 	}
