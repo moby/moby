@@ -302,7 +302,16 @@ func TestGetContainersJSON(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
 
-	beginLen := len(srv.Containers(true, false, -1, "", ""))
+	job := eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	beginLen := len(outs.Data)
 
 	containerID := createTestContainer(eng, &docker.Config{
 		Image: unitTestImageID,
@@ -323,15 +332,15 @@ func TestGetContainersJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	containers := []docker.APIContainers{}
-	if err := json.Unmarshal(r.Body.Bytes(), &containers); err != nil {
+	containers := engine.NewTable("", 0)
+	if _, err := containers.ReadListFrom(r.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
-	if len(containers) != beginLen+1 {
-		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers), beginLen)
+	if len(containers.Data) != beginLen+1 {
+		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers.Data), beginLen)
 	}
-	if containers[0].ID != containerID {
-		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", containerID, containers[0].ID)
+	if id := containers.Data[0].Get("ID"); id != containerID {
+		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", containerID, id)
 	}
 }
 

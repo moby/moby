@@ -103,6 +103,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"inspect":          srv.JobInspect,
 		"events":           srv.Events,
 		"push":             srv.ImagePush,
+		"containers":       srv.Containers,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -1055,10 +1056,17 @@ func (srv *Server) ContainerChanges(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) Containers(all, size bool, n int, since, before string) []APIContainers {
-	var foundBefore bool
-	var displayed int
-	out := []APIContainers{}
+func (srv *Server) Containers(job *engine.Job) engine.Status {
+	var (
+		foundBefore bool
+		displayed   int
+		all         = job.GetenvBool("all")
+		since       = job.Getenv("since")
+		before      = job.Getenv("before")
+		n           = job.GetenvInt("limit")
+		size        = job.GetenvBool("size")
+	)
+	outs := engine.NewTable("Created", 0)
 
 	names := map[string][]string{}
 	srv.runtime.containerGraph.Walk("/", func(p string, e *graphdb.Entity) error {
@@ -1083,27 +1091,34 @@ func (srv *Server) Containers(all, size bool, n int, since, before string) []API
 			break
 		}
 		displayed++
-		c := createAPIContainer(names[container.ID], container, size, srv.runtime)
-		out = append(out, c)
+		out := &engine.Env{}
+		out.Set("ID", container.ID)
+		out.SetList("Names", names[container.ID])
+		out.Set("Image", srv.runtime.repositories.ImageName(container.Image))
+		out.Set("Command", fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")))
+		out.SetInt64("Created", container.Created.Unix())
+		out.Set("Status", container.State.String())
+		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		out.Set("Ports", str)
+		if size {
+			sizeRw, sizeRootFs := container.GetSize()
+			out.SetInt64("SizeRw", sizeRw)
+			out.SetInt64("SizeRootFs", sizeRootFs)
+		}
+		outs.Add(out)
 	}
-	return out
+	outs.ReverseSort()
+	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	return engine.StatusOK
 }
 
-func createAPIContainer(names []string, container *Container, size bool, runtime *Runtime) APIContainers {
-	c := APIContainers{
-		ID: container.ID,
-	}
-	c.Names = names
-	c.Image = runtime.repositories.ImageName(container.Image)
-	c.Command = fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " "))
-	c.Created = container.Created.Unix()
-	c.Status = container.State.String()
-	c.Ports = container.NetworkSettings.PortMappingAPI()
-	if size {
-		c.SizeRw, c.SizeRootFs = container.GetSize()
-	}
-	return c
-}
 func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)

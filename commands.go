@@ -1310,13 +1310,13 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 	}
 }
 
-func displayablePorts(ports []APIPort) string {
+func displayablePorts(ports *engine.Table) string {
 	result := []string{}
-	for _, port := range ports {
-		if port.IP == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
+	for _, port := range ports.Data {
+		if port.Get("IP") == "" {
+			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))
 		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.IP, port.PublicPort, port.PrivatePort, port.Type))
+			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
 		}
 	}
 	sort.Strings(result)
@@ -1362,9 +1362,8 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return err
 	}
 
-	var outs []APIContainers
-	err = json.Unmarshal(body, &outs)
-	if err != nil {
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
@@ -1377,32 +1376,42 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
-	for _, out := range outs {
+	for _, out := range outs.Data {
+		var (
+			outID    = out.Get("ID")
+			outNames = out.GetList("Names")
+		)
+
 		if !*noTrunc {
-			out.ID = utils.TruncateID(out.ID)
+			outID = utils.TruncateID(outID)
 		}
 
 		// Remove the leading / from the names
-		for i := 0; i < len(out.Names); i++ {
-			out.Names[i] = out.Names[i][1:]
+		for i := 0; i < len(outNames); i++ {
+			outNames[i] = outNames[i][1:]
 		}
 
 		if !*quiet {
+			var (
+				outCommand = out.Get("Command")
+				ports      = engine.NewTable("", 0)
+			)
 			if !*noTrunc {
-				out.Command = utils.Trunc(out.Command, 20)
+				outCommand = utils.Trunc(outCommand, 20)
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", out.ID, out.Image, out.Command, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.Created, 0))), out.Status, displayablePorts(out.Ports), strings.Join(out.Names, ","))
+			ports.ReadListFrom([]byte(out.Get("Ports")))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), displayablePorts(ports), strings.Join(outNames, ","))
 			if *size {
-				if out.SizeRootFs > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.SizeRw), utils.HumanSize(out.SizeRootFs))
+				if out.GetInt("SizeRootFs") > 0 {
+					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.GetInt64("SizeRw")), utils.HumanSize(out.GetInt64("SizeRootFs")))
 				} else {
-					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.SizeRw))
+					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.GetInt64("SizeRw")))
 				}
 			} else {
 				fmt.Fprint(w, "\n")
 			}
 		} else {
-			fmt.Fprintln(w, out.ID)
+			fmt.Fprintln(w, outID)
 		}
 	}
 
