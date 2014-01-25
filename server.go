@@ -104,6 +104,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"events":           srv.Events,
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
+		"auth":             srv.Auth,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			job.Error(err)
@@ -243,6 +244,19 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	}
 	return engine.StatusOK
 }
+
+func (srv *Server) Auth(job *engine.Job) engine.Status {
+	authConfig := &auth.AuthConfig{}
+	job.GetenvJson("authConfig", authConfig)
+	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	job.Printf("%s\n", status)
+	return engine.StatusOK
+}
+
 func (srv *Server) Events(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		job.Errorf("Usage: %s FROM", job.Name)

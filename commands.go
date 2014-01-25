@@ -345,15 +345,15 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	var out2 APIAuth
+	var out2 engine.Env
 	err = json.Unmarshal(body, &out2)
 	if err != nil {
 		cli.configFile, _ = auth.LoadConfig(os.Getenv("HOME"))
 		return err
 	}
 	auth.SaveConfig(cli.configFile)
-	if out2.Status != "" {
-		fmt.Fprintf(cli.out, "%s\n", out2.Status)
+	if out2.Get("Status") != "" {
+		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
 	}
 	return nil
 }

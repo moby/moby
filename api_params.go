@@ -31,10 +31,6 @@ type (
 		StatusCode int
 	}
 
-	APIAuth struct {
-		Status string
-	}
-
 	APIImageConfig struct {
 		ID string `json:"Id"`
 		*Config
