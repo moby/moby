@@ -27,6 +27,10 @@ func setupEnv(args *execdriver.InitArgs) {
 
 func executeProgram(args *execdriver.InitArgs) error {
 	setupEnv(args)
+	//After setting the Environment, evaluate env variables in args
+	for i, arg := range args.Args {
+		args.Args[i] = os.ExpandEnv(arg)
+	}
 	dockerInitFct, err := execdriver.GetInitFunc(args.Driver)
 	if err != nil {
 		panic(err)
