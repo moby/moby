@@ -73,7 +73,7 @@ data volumes from multiple containers.
 Interestingly, you can mount the volumes that came from the ``DATA`` container in 
 yet another container via the ``client1`` middleman container::
 
-  $ docker run -t -i -rm -volumes-from client1 ubuntu -name client2 bash
+  $ docker run -t -i -rm -volumes-from client1 -name client2 ubuntu bash
 
 This allows you to abstract the actual data source from users of that data, 
 similar to :ref:`ambassador_pattern_linking <ambassador_pattern_linking>`.
