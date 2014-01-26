@@ -22,7 +22,7 @@ hundreds of thousands of applications and databases.
 
 ## Better than VMs
 
-A common method for distributing applications and sandbox their
+A common method for distributing applications and sandboxing their
 execution is to use virtual machines, or VMs. Typical VM formats are
 VMWare's vmdk, Oracle Virtualbox's vdi, and Amazon EC2's ami. In
 theory these formats should allow every developer to automatically
