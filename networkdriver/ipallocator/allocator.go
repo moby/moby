@@ -4,11 +4,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/dotcloud/docker/networkdriver"
+	"github.com/dotcloud/docker/pkg/collections"
 	"net"
 	"sync"
 )
 
-type networkSet map[string]*iPSet
+type networkSet map[string]*collections.OrderedIntSet
 
 var (
 	ErrNoAvailableIPs     = errors.New("no available ip addresses on network")
@@ -147,7 +148,7 @@ func intToIP(n int32) *net.IP {
 func checkAddress(address *net.IPNet) {
 	key := address.String()
 	if _, exists := allocatedIPs[key]; !exists {
-		allocatedIPs[key] = &iPSet{}
-		availableIPS[key] = &iPSet{}
+		allocatedIPs[key] = collections.NewOrderedIntSet()
+		availableIPS[key] = collections.NewOrderedIntSet()
 	}
 }
