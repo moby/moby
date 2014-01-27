@@ -39,7 +39,7 @@ download the source.
 Usage
 -----
 
-The module provides a puppet class for installing docker and two defined types
+The module provides a puppet class for installing Docker and two defined types
 for managing images and containers.
 
 Installation
@@ -52,7 +52,7 @@ Installation
 Images
 ~~~~~~
 
-The next step is probably to install a docker image. For this, we have a
+The next step is probably to install a Docker image. For this, we have a
 defined type which can be used like so:
 
 .. code-block:: ruby
@@ -68,8 +68,8 @@ This is equivalent to running:
 Note that it will only be downloaded if an image of that name does 
 not already exist. This is downloading a large binary so on first 
 run can take a while. For that reason this define turns off the 
-default 5 minute timeout for exec. Note that you can also remove 
-images you no longer need with:
+default 5 minute timeout for the exec type. Note that you can also
+remove images you no longer need with:
 
 .. code-block:: ruby
 
@@ -81,7 +81,7 @@ Containers
 ~~~~~~~~~~
 
 Now you have an image where you can run commands within a container
-managed by docker.
+managed by Docker.
 
 .. code-block:: ruby
 
