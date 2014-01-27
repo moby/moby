@@ -846,7 +846,6 @@ func getContainersByName(eng *engine.Engine, version float64, w http.ResponseWri
 	}
 	var job = eng.Job("inspect", vars["name"], "container")
 	streamJSON(job, w, false)
-	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
 
@@ -856,7 +855,15 @@ func getImagesByName(eng *engine.Engine, version float64, w http.ResponseWriter,
 	}
 	var job = eng.Job("inspect", vars["name"], "image")
 	streamJSON(job, w, false)
-	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
+	return job.Run()
+}
+
+func getInspect(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	var job = eng.Job("inspect", vars["name"])
+	streamJSON(job, w, false)
 	return job.Run()
 }
 
@@ -1030,6 +1037,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 		"GET": {
 			"/events":                         getEvents,
 			"/info":                           getInfo,
+			"/inspect/{name:.*}/json":         getInspect,
 			"/version":                        getVersion,
 			"/images/json":                    getImagesJSON,
 			"/images/viz":                     getImagesViz,

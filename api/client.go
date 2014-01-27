@@ -652,18 +652,11 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	status := 0
 
 	for _, name := range cmd.Args() {
-		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, false))
+		obj, _, err := readBody(cli.call("GET", "/inspect/"+name+"/json", nil, false))
 		if err != nil {
-			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, false))
-			if err != nil {
-				if strings.Contains(err.Error(), "No such") {
-					fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
-				}
-				status = 1
-				continue
-			}
+			fmt.Fprintf(cli.err, "%s", err)
+			status = 1
+			continue
 		}
 
 		if tmpl == nil {

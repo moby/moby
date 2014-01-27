@@ -1247,6 +1247,60 @@ Load a tarball with a set of images and tags into docker
    :statuscode 200: no error
    :statuscode 500: server error
 
+Inspect a container or an image
+*******************************
+
+.. http:get:: /inspect/(name)/json
+
+  Return low-level information on the container or image ``name``
+
+  **Example request**
+
+  .. sourcecode:: http
+
+     GET /inspect/ubuntu/json
+
+  **Example response**:
+
+  .. sourcecode:: http
+  
+     HTTP/1.1 200 OK
+     Content-Type: application/json
+
+     {
+          "id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+          "parent":"27cf784147099545",
+          "created":"2013-03-23T22:24:18.818426-07:00",
+          "container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+          "container_config":
+                  {
+                          "Hostname":"",
+                          "User":"",
+                          "Memory":0,
+                          "MemorySwap":0,
+                          "AttachStdin":false,
+                          "AttachStdout":false,
+                          "AttachStderr":false,
+                          "PortSpecs":null,
+                          "Tty":true,
+                          "OpenStdin":true,
+                          "StdinOnce":false,
+                          "Env":null,
+                          "Cmd": ["/bin/bash"],
+                          "Dns":null,
+                          "Image":"base",
+                          "Volumes":null,
+                          "VolumesFrom":"",
+                          "WorkingDir":""
+                  },
+          "Size": 6824592
+     }
+
+  :statuscode 200: no error
+  :statuscode 404: no such element
+  :statuscode 409: conflict
+  :statuscode 500: server error
+
 3. Going further
 ================
 

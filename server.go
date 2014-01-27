@@ -2288,21 +2288,29 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 }
 
 func (srv *Server) JobInspect(job *engine.Job) engine.Status {
-	// TODO: deprecate KIND/conflict
-	if n := len(job.Args); n != 2 {
-		return job.Errorf("Usage: %s CONTAINER|IMAGE KIND", job.Name)
+	if n := len(job.Args); n != 1 && n != 2 {
+		return job.Errorf("Usage: %s CONTAINER|IMAGE [KIND]", job.Name)
 	}
 	var (
 		name                    = job.Args[0]
-		kind                    = job.Args[1]
+		kind                    string
 		object                  interface{}
-		conflict                = job.GetenvBool("conflict") //should the job detect conflict between containers and images
 		image, errImage         = srv.ImageInspect(name)
 		container, errContainer = srv.ContainerInspect(name)
 	)
+	if len(job.Args) > 1 {
+		kind = job.Args[1]
+	}
 
-	if conflict && image != nil && container != nil {
-		return job.Errorf("Conflict between containers and images")
+	if kind == "" {
+		if image != nil && container != nil {
+			job.Errorf("Conflict between containers and images")
+			return engine.StatusErr
+		} else if image != nil {
+			kind = "image"
+		} else if container != nil {
+			kind = "container"
+		}
 	}
 
 	switch kind {
@@ -2320,7 +2328,7 @@ func (srv *Server) JobInspect(job *engine.Job) engine.Status {
 			HostConfig *runconfig.HostConfig
 		}{container, container.hostConfig}
 	default:
-		return job.Errorf("Unknown kind: %s", kind)
+		return job.Errorf("No such element: %s", name)
 	}
 
 	b, err := json.Marshal(object)
