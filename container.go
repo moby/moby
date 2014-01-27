@@ -1365,9 +1365,9 @@ func (container *Container) Unmount() error {
 		mounts = append(mounts, path.Join(root, r))
 	}
 
-	for _, m := range mounts {
-		if lastError := mount.Unmount(m); lastError != nil {
-			err = lastError
+	for i := len(mounts) - 1; i >= 0; i-- {
+		if lastError := mount.Unmount(mounts[i]); lastError != nil {
+			err = fmt.Errorf("Failed to umount %v: %v", mounts[i], lastError)
 		}
 	}
 	if err != nil {
