@@ -34,7 +34,7 @@ It can be as simple as this to create an Ubuntu base image::
   DISTRIB_DESCRIPTION="Ubuntu 13.04"
 
 There are more example scripts for creating base images in the
-Docker Github Repo:
+Docker GitHub Repo:
 
 * `BusyBox <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-busybox.sh>`_
 * `CentOS / Scientific Linux CERN (SLC)
