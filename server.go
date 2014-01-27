@@ -1643,6 +1643,8 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	defer srv.poolRemove("push", localName)
+
 	// Resolve the Repository name from fqn to endpoint + name
 	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
 	if err != nil {
