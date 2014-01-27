@@ -96,6 +96,7 @@ type Config struct {
 	Env             []string
 	Cmd             []string
 	Dns             []string
+	Shm             int64  // Size of /dev/shm (in bytes)
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
 	VolumesFrom     string
