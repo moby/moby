@@ -192,20 +192,17 @@ func (a *Driver) Remove(id string) error {
 		"diff",
 	}
 
-	// Remove the dirs atomically
+	// Atomically remove each directory in turn by first moving it out of the
+	// way (so that docker doesn't find it anymore) before doing removal of
+	// the whole tree.
 	for _, p := range tmpDirs {
-		// We need to use a temp dir in the same dir as the driver so Rename
-		// does not fall back to the slow copy if /tmp and the driver dir
-		// are on different devices
-		tmp := path.Join(a.rootPath(), "tmp", p, id)
-		if err := os.MkdirAll(tmp, 0755); err != nil {
-			return err
-		}
+
 		realPath := path.Join(a.rootPath(), p, id)
-		if err := os.Rename(realPath, tmp); err != nil && !os.IsNotExist(err) {
+		tmpPath := path.Join(a.rootPath(), p, fmt.Sprintf("%s-removing", id))
+		if err := os.Rename(realPath, tmpPath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		defer os.RemoveAll(tmp)
+		defer os.RemoveAll(tmpPath)
 	}
 
 	// Remove the layers file for the id
