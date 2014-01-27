@@ -113,7 +113,7 @@ pass it on as an open-source patch.  The rules are pretty simple: if you
 can certify the below:
 
 ```
-Docker Developer Grant and Certificate of Origin 1.1
+Docker Developer Certificate of Origin 1.1
 
 By making a contribution to the Docker Project ("Project"), I represent and
 warrant that:
