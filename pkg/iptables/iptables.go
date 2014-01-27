@@ -15,6 +15,7 @@ type Action string
 const (
 	Add    Action = "-A"
 	Delete Action = "-D"
+	InternalNetwork string = "10.0.0.0/16"
 )
 
 var (
@@ -123,13 +124,13 @@ func CreateNetworkMetricRules(ip string) error {
 		return fmt.Errorf("Error when creating metrics rules for %s", ip)
 	}
 
-	if input, err := Raw("-I", "FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip); err != nil {
+	if input, err := Raw("-I", "FORWARD", "-o", "docker0", "-d", ip, "!", "-s", InternalNetwork); err != nil {
 		return err
 	} else if len(input) != 0 {
 		return fmt.Errorf("Error when creating metrics input rule: %s", input)
 	}
 
-	if output, err := Raw("-I", "FORWARD", "-o", "docker0", "-d", ip); err != nil {
+	if output, err := Raw("-I", "FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip, "!", "-d", InternalNetwork); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error when creating metrics output rule: %s", output)
@@ -143,14 +144,14 @@ func DeleteNetworkMetricRules(ip string) error {
 	if ExistsNetworkMetricRule(ip) == false {
 		return fmt.Errorf("Error when deleting metrics rules for %s", ip)
 	}
-	
-	if input, err := Raw("-D", "FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip); err != nil {
+
+	if input, err := Raw("-D", "FORWARD", "-o", "docker0", "-d", ip, "!", "-s", InternalNetwork); err != nil {
 		return err
 	} else if len(input) != 0 {
 		return fmt.Errorf("Error when deleting metrics input rule: %s", input)
 	}
 
-	if output, err := Raw("-D", "FORWARD", "-o", "docker0", "-d", ip); err != nil {
+	if output, err := Raw("-D", "FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip, "!", "-d", InternalNetwork); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error when deleting metrics output rule: %s", output)
@@ -161,8 +162,8 @@ func DeleteNetworkMetricRules(ip string) error {
 
 func ExistsNetworkMetricRule(ip string) bool {
 
-	input := Exists("FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip)
-	output := Exists("FORWARD", "-o", "docker0", "-d", ip)
+	input := Exists("FORWARD", "-o", "docker0", "-d", ip, "!", "-s", InternalNetwork)
+	output := Exists("FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip, "!", "-d", InternalNetwork)
 	fmt.Println("EXISTS INPUT:", input)
 	fmt.Println("EXISTS OUTPUT:", output)
 	fmt.Println("EXISTS:", ((input == output) && (input == true)))
