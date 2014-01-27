@@ -24,23 +24,23 @@
 #
 
 docker-version	0.6.1
-FROM	stackbrew/ubuntu:12.04
+FROM	stackbrew/ubuntu:13.10
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
-
-# Add precise-backports to get s3cmd >= 1.1.0 (so we get ENV variable support in our .s3cfg)
-RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise-backports main universe' > /etc/apt/sources.list.d/backports.list
 
 # Packaged dependencies
 RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	apt-utils \
 	aufs-tools \
+	automake \
 	build-essential \
 	curl \
 	dpkg-sig \
 	git \
 	iptables \
+	libapparmor-dev \
+	libcap-dev \
 	libsqlite3-dev \
-	lxc \
+	linux-libc-dev \
 	mercurial \
 	reprepro \
 	ruby1.9.1 \
@@ -48,10 +48,14 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	s3cmd=1.1.0* \
 	--no-install-recommends
 
+# Get and compile LXC 0.8 (since it is the most stable)
+RUN	git clone --no-checkout https://github.com/lxc/lxc.git /usr/local/lxc && cd /usr/local/lxc && git checkout -q lxc-0.8.0
+RUN	cd /usr/local/lxc && ./autogen.sh && ./configure --disable-docs && make && make install
+
 # Get lvm2 source for compiling statically
-RUN	git clone https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103
+RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103
 # see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
-# note: we can't use "git clone -b" above because it requires at least git 1.7.10 to be able to use that on a tag instead of a branch and we only have 1.7.9.5
+# note: we don't use "git clone -b" above because it then spews big nasty warnings about 'detached HEAD' state that we can't silence as easily as we can silence them using "git checkout" directly
 
 # Compile and install lvm2
 RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
