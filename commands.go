@@ -2319,6 +2319,18 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 		return nil, -1, err
 	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, -1, err
+		}
+		if len(body) == 0 {
+			return nil, resp.StatusCode, fmt.Errorf("Error :%s", http.StatusText(resp.StatusCode))
+		}
+		return nil, resp.StatusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
+	}
+
 	wrapper := utils.NewReadCloserWrapper(resp.Body, func() error {
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
@@ -2597,12 +2609,6 @@ func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, err
 	body, err := ioutil.ReadAll(stream)
 	if err != nil {
 		return nil, -1, err
-	}
-	if statusCode < 200 || statusCode >= 400 {
-		if len(body) == 0 {
-			return nil, statusCode, fmt.Errorf("Error: %s", http.StatusText(statusCode))
-		}
-		return nil, statusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 	return body, statusCode, nil
 }
