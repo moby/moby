@@ -39,6 +39,7 @@ type Engine struct {
 	Stdout   io.Writer
 	Stderr   io.Writer
 	Stdin    io.Reader
+	Env      Env
 }
 
 func (eng *Engine) Root() string {
