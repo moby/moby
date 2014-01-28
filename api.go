@@ -345,11 +345,11 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 		return err
 	}
 	var (
-		config = &Config{}
+		config engine.Env
 		env    engine.Env
 		job    = srv.Eng.Job("commit", r.Form.Get("container"))
 	)
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
+	if err := config.Import(r.Body); err != nil {
 		utils.Errorf("%s", err)
 	}
 
@@ -357,7 +357,7 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	job.Setenv("tag", r.Form.Get("tag"))
 	job.Setenv("author", r.Form.Get("author"))
 	job.Setenv("comment", r.Form.Get("comment"))
-	job.SetenvJson("config", config)
+	job.SetenvSubEnv("config", &config)
 
 	var id string
 	job.Stdout.AddString(&id)
@@ -704,18 +704,14 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 
-	// TODO: replace the buffer by job.AddEnv()
 	var (
 		job    = srv.Eng.Job("inspect", vars["name"], "container")
-		buffer = bytes.NewBuffer(nil)
-		c      Container
+		c, err = job.Stdout.AddEnv()
 	)
-	job.Stdout.Add(buffer)
-	if err := job.Run(); err != nil {
+	if err != nil {
 		return err
 	}
-
-	if err := json.Unmarshal(buffer.Bytes(), &c); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 
@@ -742,7 +738,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 
 	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 
-	if !c.Config.Tty && version >= 1.6 {
+	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version >= 1.6 {
 		errStream = utils.NewStdWriter(outStream, utils.Stderr)
 		outStream = utils.NewStdWriter(outStream, utils.Stdout)
 	} else {
