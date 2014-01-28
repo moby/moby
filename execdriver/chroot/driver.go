@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/pkg/mount"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 const (
@@ -67,7 +68,16 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 	}
 
 	err = c.Wait()
-	return c.GetExitCode(), err
+	return getExitCode(c), err
+}
+
+/// Return the exit code of the process
+// if the process has not exited -1 will be returned
+func getExitCode(c *execdriver.Command) int {
+	if c.ProcessState == nil {
+		return -1
+	}
+	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
