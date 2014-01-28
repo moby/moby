@@ -188,10 +188,12 @@ func (job *Job) Printf(format string, args ...interface{}) (n int, err error) {
 	return fmt.Fprintf(job.Stdout, format, args...)
 }
 
-func (job *Job) Errorf(format string, args ...interface{}) (n int, err error) {
-	return fmt.Fprintf(job.Stderr, format, args...)
+func (job *Job) Errorf(format string, args ...interface{}) Status {
+	fmt.Fprintf(job.Stderr, format, args...)
+	return StatusErr
 }
 
-func (job *Job) Error(err error) (int, error) {
-	return fmt.Fprintf(job.Stderr, "%s", err)
+func (job *Job) Error(err error) Status {
+	fmt.Fprintf(job.Stderr, "%s", err)
+	return StatusErr
 }
