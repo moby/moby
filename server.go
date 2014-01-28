@@ -45,8 +45,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 	// FIXME: ImportEnv deprecates ConfigFromJob
 	srv, err := NewServer(job.Eng, ConfigFromJob(job))
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if srv.runtime.config.Pidfile != "" {
 		job.Logf("Creating pidfile")
@@ -107,8 +106,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"auth":             srv.Auth,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 	return engine.StatusOK
@@ -131,8 +129,7 @@ func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 
@@ -200,8 +197,7 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	}
 
 	if n := len(job.Args); n < 1 || n > 2 {
-		job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
 	}
 	name := job.Args[0]
 	var sig uint64
@@ -212,8 +208,7 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 			// The largest legal signal is 31, so let's parse on 5 bits
 			sig, err = strconv.ParseUint(job.Args[1], 10, 5)
 			if err != nil {
-				job.Errorf("Invalid signal: %s", job.Args[1])
-				return engine.StatusErr
+				return job.Errorf("Invalid signal: %s", job.Args[1])
 			}
 		}
 	}
@@ -221,21 +216,18 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 		// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 		if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
 			if err := container.Kill(); err != nil {
-				job.Errorf("Cannot kill container %s: %s", name, err)
-				return engine.StatusErr
+				return job.Errorf("Cannot kill container %s: %s", name, err)
 			}
 			srv.LogEvent("kill", container.ID, srv.runtime.repositories.ImageName(container.Image))
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.kill(int(sig)); err != nil {
-				job.Errorf("Cannot kill container %s: %s", name, err)
-				return engine.StatusErr
+				return job.Errorf("Cannot kill container %s: %s", name, err)
 			}
 			// FIXME: Add event for signals
 		}
 	} else {
-		job.Errorf("No such container: %s", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s", name)
 	}
 	return engine.StatusOK
 }
@@ -245,8 +237,7 @@ func (srv *Server) Auth(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	job.Printf("%s\n", status)
 	return engine.StatusOK
@@ -254,8 +245,7 @@ func (srv *Server) Auth(job *engine.Job) engine.Status {
 
 func (srv *Server) Events(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s FROM", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s FROM", job.Name)
 	}
 
 	var (
@@ -305,8 +295,7 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 			continue
 		}
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 	return engine.StatusOK
@@ -314,28 +303,24 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s container_id", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s container_id", job.Name)
 	}
 	name := job.Args[0]
 	if container := srv.runtime.Get(name); container != nil {
 		data, err := container.Export()
 		if err != nil {
-			job.Errorf("%s: %s", name, err)
-			return engine.StatusErr
+			return job.Errorf("%s: %s", name, err)
 		}
 
 		// Stream the entire contents of the container (basically a volatile snapshot)
 		if _, err := io.Copy(job.Stdout, data); err != nil {
-			job.Errorf("%s: %s", name, err)
-			return engine.StatusErr
+			return job.Errorf("%s: %s", name, err)
 		}
 		// FIXME: factor job-specific LogEvent to engine.Job.Run()
 		srv.LogEvent("export", container.ID, srv.runtime.repositories.ImageName(container.Image))
 		return engine.StatusOK
 	}
-	job.Errorf("No such container: %s", name)
-	return engine.StatusErr
+	return job.Errorf("No such container: %s", name)
 }
 
 // ImageExport exports all images with the given tag. All versions
@@ -345,15 +330,13 @@ func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 // out is the writer where the images are written to.
 func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s CONTAINER\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	defer os.RemoveAll(tempdir)
 
@@ -361,20 +344,17 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 
 	rootRepo, err := srv.runtime.repositories.Get(name)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if rootRepo != nil {
 		for _, id := range rootRepo {
 			image, err := srv.ImageInspect(id)
 			if err != nil {
-				job.Error(err)
-				return engine.StatusErr
+				return job.Error(err)
 			}
 
 			if err := srv.exportImage(image, tempdir); err != nil {
-				job.Error(err)
-				return engine.StatusErr
+				return job.Error(err)
 			}
 		}
 
@@ -384,30 +364,25 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
 		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	} else {
 		image, err := srv.ImageInspect(name)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		if err := srv.exportImage(image, tempdir); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
@@ -469,8 +444,7 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 
 func (srv *Server) Build(job *engine.Job) engine.Status {
 	if len(job.Args) != 0 {
-		job.Errorf("Usage: %s\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s\n", job.Name)
 	}
 	var (
 		remoteURL      = job.Getenv("remote")
@@ -495,38 +469,32 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		}
 		root, err := ioutil.TempDir("", "docker-build-git")
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		defer os.RemoveAll(root)
 
 		if output, err := exec.Command("git", "clone", remoteURL, root).CombinedOutput(); err != nil {
-			job.Errorf("Error trying to use git: %s (%s)", err, output)
-			return engine.StatusErr
+			return job.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
 		c, err := archive.Tar(root, archive.Uncompressed)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		context = c
 	} else if utils.IsURL(remoteURL) {
 		f, err := utils.Download(remoteURL)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		defer f.Body.Close()
 		dockerFile, err := ioutil.ReadAll(f.Body)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		c, err := MkBuildContext(string(dockerFile), nil)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		context = c
 	}
@@ -544,8 +512,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile)
 	id, err := b.Build(context)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if repoName != "" {
 		srv.runtime.repositories.Set(repoName, tag, id, false)
@@ -558,8 +525,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 func (srv *Server) ImageLoad(job *engine.Job) engine.Status {
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	defer os.RemoveAll(tmpImageDir)
 
@@ -570,40 +536,33 @@ func (srv *Server) ImageLoad(job *engine.Job) engine.Status {
 
 	tarFile, err := os.Create(repoTarFile)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if _, err := io.Copy(tarFile, job.Stdin); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	tarFile.Close()
 
 	repoFile, err := os.Open(repoTarFile)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if err := archive.Untar(repoFile, repoDir, nil); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	dirs, err := ioutil.ReadDir(repoDir)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	for _, d := range dirs {
 		if d.IsDir() {
 			if err := srv.recursiveLoad(d.Name(), tmpImageDir); err != nil {
-				job.Error(err)
-				return engine.StatusErr
+				return job.Error(err)
 			}
 		}
 	}
@@ -612,21 +571,18 @@ func (srv *Server) ImageLoad(job *engine.Job) engine.Status {
 	if err == nil {
 		repositories := map[string]Repository{}
 		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 
 		for imageName, tagMap := range repositories {
 			for tag, address := range tagMap {
 				if err := srv.runtime.repositories.Set(imageName, tag, address, true); err != nil {
-					job.Error(err)
-					return engine.StatusErr
+					return job.Error(err)
 				}
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	return engine.StatusOK
@@ -670,8 +626,7 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 
 func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s TERM", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s TERM", job.Name)
 	}
 	var (
 		term        = job.Args[0]
@@ -683,13 +638,11 @@ func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 
 	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), auth.IndexServerAddress())
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	results, err := r.SearchRepositories(term)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	outs := engine.NewTable("star_count", 0)
 	for _, result := range results.Results {
@@ -699,16 +652,14 @@ func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 	}
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 	if len(job.Args) != 3 {
-		job.Errorf("Usage: %s IMAGE URL PATH\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s IMAGE URL PATH\n", job.Name)
 	}
 
 	var (
@@ -722,32 +673,27 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 	out := utils.NewWriteFlusher(job.Stdout)
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	file, err := utils.Download(url)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	defer file.Body.Close()
 
 	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.sysInfo)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	c, _, err := srv.runtime.Create(config, "")
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, utils.TruncateID(img.ID), "Downloading"), path); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	// FIXME: Handle custom repo, tag comment, author
 	img, err = srv.runtime.Commit(c, "", "", img.Comment, img.Author, nil)
@@ -773,8 +719,7 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 	for _, image := range images {
 		parentImage, err = image.GetParent()
 		if err != nil {
-			job.Errorf("Error while getting parent image: %v", err)
-			return engine.StatusErr
+			return job.Errorf("Error while getting parent image: %v", err)
 		}
 		if parentImage != nil {
 			job.Stdout.Write([]byte(" \"" + parentImage.ID + "\" -> \"" + image.ID + "\"\n"))
@@ -809,8 +754,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		allImages, err = srv.runtime.graph.Heads()
 	}
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	lookup := make(map[string]*engine.Env)
 	for name, repository := range srv.runtime.repositories.Repositories {
@@ -864,8 +808,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
@@ -908,22 +851,19 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("InitSha1", utils.INITSHA1)
 	v.Set("InitPath", initPath)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s IMAGE", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	name := job.Args[0]
 	image, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	lookupMap := make(map[string][]string)
@@ -950,16 +890,14 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 	})
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 && len(job.Args) != 2 {
-		job.Errorf("Not enough arguments. Usage: %s CONTAINER [PS_ARGS]\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Not enough arguments. Usage: %s CONTAINER [PS_ARGS]\n", job.Name)
 	}
 	var (
 		name   = job.Args[0]
@@ -972,18 +910,15 @@ func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
 
 	if container := srv.runtime.Get(name); container != nil {
 		if !container.State.IsRunning() {
-			job.Errorf("Container %s is not running", name)
-			return engine.StatusErr
+			return job.Errorf("Container %s is not running", name)
 		}
 		pids, err := srv.runtime.execDriver.GetPidsForContainer(container.ID)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		output, err := exec.Command("ps", psArgs).Output()
 		if err != nil {
-			job.Errorf("Error running ps: %s", err)
-			return engine.StatusErr
+			return job.Errorf("Error running ps: %s", err)
 		}
 
 		lines := strings.Split(string(output), "\n")
@@ -998,8 +933,7 @@ func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
 			}
 		}
 		if pidIndex == -1 {
-			job.Errorf("Couldn't find PID field in ps output")
-			return engine.StatusErr
+			return job.Errorf("Couldn't find PID field in ps output")
 		}
 
 		processes := [][]string{}
@@ -1010,8 +944,7 @@ func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
 			fields := strings.Fields(line)
 			p, err := strconv.Atoi(fields[pidIndex])
 			if err != nil {
-				job.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
-				return engine.StatusErr
+				return job.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 			}
 
 			for _, pid := range pids {
@@ -1029,38 +962,32 @@ func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
 		return engine.StatusOK
 
 	}
-	job.Errorf("No such container: %s", name)
-	return engine.StatusErr
+	return job.Errorf("No such container: %s", name)
 }
 
 func (srv *Server) ContainerChanges(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s CONTAINER", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER", job.Name)
 	}
 	name := job.Args[0]
 	if container := srv.runtime.Get(name); container != nil {
 		outs := engine.NewTable("", 0)
 		changes, err := container.Changes()
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		for _, change := range changes {
 			out := &engine.Env{}
 			if err := out.Import(change); err != nil {
-				job.Error(err)
-				return engine.StatusErr
+				return job.Error(err)
 			}
 			outs.Add(out)
 		}
 		if _, err := outs.WriteListTo(job.Stdout); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	} else {
-		job.Errorf("No such container: %s", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s", name)
 	}
 	return engine.StatusOK
 }
@@ -1109,8 +1036,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out.Set("Status", container.State.String())
 		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		out.Set("Ports", str)
 		if size {
@@ -1122,34 +1048,29 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 	}
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 
 	container := srv.runtime.Get(name)
 	if container == nil {
-		job.Errorf("No such container: %s", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s", name)
 	}
 	var config Config
 	if err := job.GetenvJson("config", &config); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	job.Printf("%s\n", img.ID)
 	return engine.StatusOK
@@ -1157,16 +1078,14 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 
 func (srv *Server) ImageTag(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 && len(job.Args) != 3 {
-		job.Errorf("Usage: %s IMAGE REPOSITORY [TAG]\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s IMAGE REPOSITORY [TAG]\n", job.Name)
 	}
 	var tag string
 	if len(job.Args) == 3 {
 		tag = job.Args[2]
 	}
 	if err := srv.runtime.repositories.Set(job.Args[1], tag, job.Args[0], job.GetenvBool("force")); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
@@ -1403,8 +1322,7 @@ func (srv *Server) poolRemove(kind, key string) error {
 
 func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
-		job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
 	}
 	var (
 		localName   = job.Args[0]
@@ -1428,22 +1346,19 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 			<-c
 			return engine.StatusOK
 		}
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	defer srv.poolRemove("pull", localName+":"+tag)
 
 	// Resolve the Repository name from fqn to endpoint + name
 	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	if endpoint == auth.IndexServerAddress() {
@@ -1452,8 +1367,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	}
 
 	if err = srv.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	return engine.StatusOK
@@ -1622,8 +1536,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 // FIXME: Allow to interrupt current push when new push of same image is done.
 func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s IMAGE", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	var (
 		localName   = job.Args[0]
@@ -1635,23 +1548,20 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 	if _, err := srv.poolAdd("push", localName); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	defer srv.poolRemove("push", localName)
 
 	// Resolve the Repository name from fqn to endpoint + name
 	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	img, err := srv.runtime.graph.Get(localName)
 	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
-		job.Error(err2)
-		return engine.StatusErr
+		return job.Error(err2)
 	}
 
 	if err != nil {
@@ -1660,28 +1570,24 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.repositories.Repositories[localName]; exists {
 			if err := srv.pushRepository(r, job.Stdout, localName, remoteName, localRepo, sf); err != nil {
-				job.Error(err)
-				return engine.StatusErr
+				return job.Error(err)
 			}
 			return engine.StatusOK
 		}
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	var token []string
 	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
 	if _, err := srv.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 2 && n != 3 {
-		job.Errorf("Usage: %s SRC REPO [TAG]", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s SRC REPO [TAG]", job.Name)
 	}
 	var (
 		src     = job.Args[0]
@@ -1700,8 +1606,7 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		if u.Scheme == "" {
 			u.Scheme = "http"
@@ -1713,21 +1618,18 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 		// If curl is not available, fallback to http.Get()
 		resp, err = utils.Download(u.String())
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), job.Stdout, sf, true, "", "Importing")
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	// Optionally register the image at REPO/TAG
 	if repo != "" {
 		if err := srv.runtime.repositories.Set(repo, tag, img.ID, true); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 	job.Stdout.Write(sf.FormatStatus("", img.ID))
@@ -1739,17 +1641,14 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	if len(job.Args) == 1 {
 		name = job.Args[0]
 	} else if len(job.Args) > 1 {
-		job.Printf("Usage: %s", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s", job.Name)
 	}
 	var config Config
 	if err := job.ExportEnv(&config); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if config.Memory != 0 && config.Memory < 524288 {
-		job.Errorf("Minimum memory limit allowed is 512k")
-		return engine.StatusErr
+		return job.Errorf("Minimum memory limit allowed is 512k")
 	}
 	if config.Memory > 0 && !srv.runtime.sysInfo.MemoryLimit {
 		job.Errorf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
@@ -1776,11 +1675,9 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 			if tag == "" {
 				tag = DEFAULTTAG
 			}
-			job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
-			return engine.StatusErr
+			return job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if !container.Config.NetworkDisabled && srv.runtime.sysInfo.IPv4ForwardingDisabled {
 		job.Errorf("WARNING: IPv4 forwarding is disabled.\n")
@@ -1793,15 +1690,14 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		job.Printf("%s\n", container.ID)
 	}
 	for _, warning := range buildWarnings {
-		job.Errorf("%s\n", warning)
+		return job.Errorf("%s\n", warning)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ContainerRestart(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s CONTAINER\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 	t := job.GetenvInt("t")
@@ -1810,22 +1706,18 @@ func (srv *Server) ContainerRestart(job *engine.Job) engine.Status {
 	}
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(int(t)); err != nil {
-			job.Errorf("Cannot restart container %s: %s\n", name, err)
-			return engine.StatusErr
+			return job.Errorf("Cannot restart container %s: %s\n", name, err)
 		}
 		srv.LogEvent("restart", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	} else {
-		job.Errorf("No such container: %s\n", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s\n", name)
 	}
 	return engine.StatusOK
-
 }
 
 func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 	removeVolume := job.GetenvBool("removeVolume")
@@ -1835,23 +1727,19 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 
 	if removeLink {
 		if container == nil {
-			job.Errorf("No such link: %s", name)
-			return engine.StatusErr
+			return job.Errorf("No such link: %s", name)
 		}
 		name, err := getFullName(name)
 		if err != nil {
 			job.Error(err)
-			return engine.StatusErr
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
-			job.Errorf("Conflict, cannot remove the default name of the container")
-			return engine.StatusErr
+			return job.Errorf("Conflict, cannot remove the default name of the container")
 		}
 		pe := srv.runtime.containerGraph.Get(parent)
 		if pe == nil {
-			job.Errorf("Cannot get parent %s for name %s", parent, name)
-			return engine.StatusErr
+			return job.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
 		parentContainer := srv.runtime.Get(pe.ID())
 
@@ -1864,16 +1752,14 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 		}
 
 		if err := srv.runtime.containerGraph.Delete(name); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		return engine.StatusOK
 	}
 
 	if container != nil {
 		if container.State.IsRunning() {
-			job.Errorf("Impossible to remove a running container, please stop it first")
-			return engine.StatusErr
+			return job.Errorf("Impossible to remove a running container, please stop it first")
 		}
 		volumes := make(map[string]struct{})
 
@@ -1898,8 +1784,7 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 			volumes[volumeId] = struct{}{}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
-			job.Errorf("Cannot destroy container %s: %s", name, err)
-			return engine.StatusErr
+			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
 		srv.LogEvent("destroy", container.ID, srv.runtime.repositories.ImageName(container.Image))
 
@@ -1919,14 +1804,12 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 					continue
 				}
 				if err := srv.runtime.volumes.Delete(volumeId); err != nil {
-					job.Errorf("Error calling volumes.Delete(%q): %v", volumeId, err)
-					return engine.StatusErr
+					return job.Errorf("Error calling volumes.Delete(%q): %v", volumeId, err)
 				}
 			}
 		}
 	} else {
-		job.Errorf("No such container: %s", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s", name)
 	}
 	return engine.StatusOK
 }
@@ -2078,22 +1961,18 @@ func (srv *Server) DeleteImage(name string, autoPrune bool) (*engine.Table, erro
 
 func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
-		job.Errorf("Usage: %s IMAGE", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 
 	imgs, err := srv.DeleteImage(job.Args[0], job.GetenvBool("autoPrune"))
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if len(imgs.Data) == 0 {
-		job.Errorf("Conflict, %s wasn't deleted", job.Args[0])
-		return engine.StatusErr
+		return job.Errorf("Conflict, %s wasn't deleted", job.Args[0])
 	}
 	if _, err := imgs.WriteListTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
@@ -2183,23 +2062,20 @@ func (srv *Server) RegisterLinks(container *Container, hostConfig *HostConfig) e
 
 func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
-		job.Errorf("Usage: %s container_id", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s container_id", job.Name)
 	}
 	name := job.Args[0]
 	runtime := srv.runtime
 	container := runtime.Get(name)
 
 	if container == nil {
-		job.Errorf("No such container: %s", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s", name)
 	}
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		var hostConfig HostConfig
 		if err := job.ExportEnv(&hostConfig); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		// Validate the HostConfig binds. Make sure that:
 		// 1) the source of a bind mount isn't /
@@ -2212,8 +2088,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 
 			// refuse to bind mount "/" to the container
 			if source == "/" {
-				job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
-				return engine.StatusErr
+				return job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
 			}
 
 			// ensure the source exists on the host
@@ -2221,22 +2096,19 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 			if err != nil && os.IsNotExist(err) {
 				err = os.MkdirAll(source, 0755)
 				if err != nil {
-					job.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
-					return engine.StatusErr
+					return job.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
 				}
 			}
 		}
 		// Register any links from the host config before starting the container
 		if err := srv.RegisterLinks(container, &hostConfig); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		container.hostConfig = &hostConfig
 		container.ToDisk()
 	}
 	if err := container.Start(); err != nil {
-		job.Errorf("Cannot start container %s: %s", name, err)
-		return engine.StatusErr
+		return job.Errorf("Cannot start container %s: %s", name, err)
 	}
 	srv.LogEvent("start", container.ID, runtime.repositories.ImageName(container.Image))
 
@@ -2245,8 +2117,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s CONTAINER\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 	t := job.GetenvInt("t")
@@ -2255,21 +2126,18 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 	}
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Stop(int(t)); err != nil {
-			job.Errorf("Cannot stop container %s: %s\n", name, err)
-			return engine.StatusErr
+			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
 		srv.LogEvent("stop", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	} else {
-		job.Errorf("No such container: %s\n", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s\n", name)
 	}
 	return engine.StatusOK
 }
 
 func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s", job.Name)
 	}
 	name := job.Args[0]
 	if container := srv.runtime.Get(name); container != nil {
@@ -2277,41 +2145,34 @@ func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 		job.Printf("%d\n", status)
 		return engine.StatusOK
 	}
-	job.Errorf("%s: no such container: %s", job.Name, name)
-	return engine.StatusErr
+	return job.Errorf("%s: no such container: %s", job.Name, name)
 }
 
 func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
 	if len(job.Args) != 3 {
-		job.Errorf("Not enough arguments. Usage: %s CONTAINER HEIGHT WIDTH\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Not enough arguments. Usage: %s CONTAINER HEIGHT WIDTH\n", job.Name)
 	}
 	name := job.Args[0]
 	height, err := strconv.Atoi(job.Args[1])
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	width, err := strconv.Atoi(job.Args[2])
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Resize(height, width); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		return engine.StatusOK
 	}
-	job.Errorf("No such container: %s", name)
-	return engine.StatusErr
+	return job.Errorf("No such container: %s", name)
 }
 
 func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		job.Errorf("Usage: %s CONTAINER\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
 	}
 
 	var (
@@ -2325,8 +2186,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 
 	container := srv.runtime.Get(name)
 	if container == nil {
-		job.Errorf("No such container: %s", name)
-		return engine.StatusErr
+		return job.Errorf("No such container: %s", name)
 	}
 
 	//logs
@@ -2377,8 +2237,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 	//stream
 	if stream {
 		if container.State.IsGhost() {
-			job.Errorf("Impossible to attach to a ghost container")
-			return engine.StatusErr
+			return job.Errorf("Impossible to attach to a ghost container")
 		}
 
 		var (
@@ -2432,8 +2291,7 @@ func (srv *Server) ImageInspect(name string) (*Image, error) {
 func (srv *Server) JobInspect(job *engine.Job) engine.Status {
 	// TODO: deprecate KIND/conflict
 	if n := len(job.Args); n != 2 {
-		job.Errorf("Usage: %s CONTAINER|IMAGE KIND", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER|IMAGE KIND", job.Name)
 	}
 	var (
 		name                    = job.Args[0]
@@ -2445,35 +2303,30 @@ func (srv *Server) JobInspect(job *engine.Job) engine.Status {
 	)
 
 	if conflict && image != nil && container != nil {
-		job.Errorf("Conflict between containers and images")
-		return engine.StatusErr
+		return job.Errorf("Conflict between containers and images")
 	}
 
 	switch kind {
 	case "image":
 		if errImage != nil {
-			job.Error(errImage)
-			return engine.StatusErr
+			return job.Error(errImage)
 		}
 		object = image
 	case "container":
 		if errContainer != nil {
-			job.Error(errContainer)
-			return engine.StatusErr
+			return job.Error(errContainer)
 		}
 		object = &struct {
 			*Container
 			HostConfig *HostConfig
 		}{container, container.hostConfig}
 	default:
-		job.Errorf("Unknown kind: %s", kind)
-		return engine.StatusErr
+		return job.Errorf("Unknown kind: %s", kind)
 	}
 
 	b, err := json.Marshal(object)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	job.Stdout.Write(b)
 	return engine.StatusOK
@@ -2481,8 +2334,7 @@ func (srv *Server) JobInspect(job *engine.Job) engine.Status {
 
 func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 {
-		job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
-		return engine.StatusErr
+		return job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
 	}
 
 	var (
@@ -2494,19 +2346,15 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 
 		data, err := container.Copy(resource)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 
 		if _, err := io.Copy(job.Stdout, data); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		return engine.StatusOK
 	}
-	job.Errorf("No such container: %s", name)
-	return engine.StatusErr
-
+	return job.Errorf("No such container: %s", name)
 }
 
 func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
