@@ -13,6 +13,7 @@ type DaemonConfig struct {
 	EnableCors                  bool
 	Dns                         []string
 	EnableIptables              bool
+	EnableIpForward             bool
 	BridgeIface                 string
 	BridgeIp                    string
 	DefaultIp                   net.IP
@@ -33,6 +34,7 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 		config.Dns = dns
 	}
 	config.EnableIptables = job.GetenvBool("EnableIptables")
+	config.EnableIpForward = job.GetenvBool("EnableIpForward")
 	if br := job.Getenv("BridgeIface"); br != "" {
 		config.BridgeIface = br
 	} else {
