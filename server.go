@@ -7,7 +7,6 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
@@ -980,7 +979,7 @@ func (srv *Server) ContainerTop(job *engine.Job) engine.Status {
 			job.Errorf("Container %s is not running", name)
 			return engine.StatusErr
 		}
-		pids, err := cgroups.GetPidsForContainer(container.ID)
+		pids, err := srv.runtime.execDriver.GetPidsForContainer(container.ID)
 		if err != nil {
 			job.Error(err)
 			return engine.StatusErr

@@ -85,3 +85,7 @@ func (d *driver) Info(id string) execdriver.Info {
 func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, Version)
 }
+
+func (d *driver) GetPidsForContainer(id string) ([]int, error) {
+	return nil, fmt.Errorf("Not supported")
+}
