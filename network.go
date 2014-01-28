@@ -5,9 +5,9 @@ import (
 	"github.com/dotcloud/docker/networkdriver"
 	"github.com/dotcloud/docker/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/networkdriver/portallocator"
+	"github.com/dotcloud/docker/networkdriver/portmapper"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
-	"github.com/dotcloud/docker/proxy"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
@@ -159,129 +159,6 @@ func getIfaceAddr(name string) (net.Addr, error) {
 	return addrs4[0], nil
 }
 
-// Port mapper takes care of mapping external ports to containers by setting
-// up iptables rules.
-// It keeps track of all mappings and is able to unmap at will
-type PortMapper struct {
-	tcpMapping map[string]*net.TCPAddr
-	tcpProxies map[string]proxy.Proxy
-	udpMapping map[string]*net.UDPAddr
-	udpProxies map[string]proxy.Proxy
-
-	iptables         *iptables.Chain
-	defaultIp        net.IP
-	proxyFactoryFunc func(net.Addr, net.Addr) (proxy.Proxy, error)
-}
-
-func (mapper *PortMapper) Map(ip net.IP, port int, backendAddr net.Addr) error {
-
-	if _, isTCP := backendAddr.(*net.TCPAddr); isTCP {
-		mapKey := (&net.TCPAddr{Port: port, IP: ip}).String()
-		if _, exists := mapper.tcpProxies[mapKey]; exists {
-			return fmt.Errorf("TCP Port %s is already in use", mapKey)
-		}
-		backendPort := backendAddr.(*net.TCPAddr).Port
-		backendIP := backendAddr.(*net.TCPAddr).IP
-		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Add, ip, port, "tcp", backendIP.String(), backendPort); err != nil {
-				return err
-			}
-		}
-		mapper.tcpMapping[mapKey] = backendAddr.(*net.TCPAddr)
-		proxy, err := mapper.proxyFactoryFunc(&net.TCPAddr{IP: ip, Port: port}, backendAddr)
-		if err != nil {
-			mapper.Unmap(ip, port, "tcp")
-			return err
-		}
-		mapper.tcpProxies[mapKey] = proxy
-		go proxy.Run()
-	} else {
-		mapKey := (&net.UDPAddr{Port: port, IP: ip}).String()
-		if _, exists := mapper.udpProxies[mapKey]; exists {
-			return fmt.Errorf("UDP: Port %s is already in use", mapKey)
-		}
-		backendPort := backendAddr.(*net.UDPAddr).Port
-		backendIP := backendAddr.(*net.UDPAddr).IP
-		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Add, ip, port, "udp", backendIP.String(), backendPort); err != nil {
-				return err
-			}
-		}
-		mapper.udpMapping[mapKey] = backendAddr.(*net.UDPAddr)
-		proxy, err := mapper.proxyFactoryFunc(&net.UDPAddr{IP: ip, Port: port}, backendAddr)
-		if err != nil {
-			mapper.Unmap(ip, port, "udp")
-			return err
-		}
-		mapper.udpProxies[mapKey] = proxy
-		go proxy.Run()
-	}
-	return nil
-}
-
-func (mapper *PortMapper) Unmap(ip net.IP, port int, proto string) error {
-	if proto == "tcp" {
-		mapKey := (&net.TCPAddr{Port: port, IP: ip}).String()
-		backendAddr, ok := mapper.tcpMapping[mapKey]
-		if !ok {
-			return fmt.Errorf("Port tcp/%s is not mapped", mapKey)
-		}
-		if proxy, exists := mapper.tcpProxies[mapKey]; exists {
-			proxy.Close()
-			delete(mapper.tcpProxies, mapKey)
-		}
-		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Delete, ip, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
-				return err
-			}
-		}
-		delete(mapper.tcpMapping, mapKey)
-	} else {
-		mapKey := (&net.UDPAddr{Port: port, IP: ip}).String()
-		backendAddr, ok := mapper.udpMapping[mapKey]
-		if !ok {
-			return fmt.Errorf("Port udp/%s is not mapped", mapKey)
-		}
-		if proxy, exists := mapper.udpProxies[mapKey]; exists {
-			proxy.Close()
-			delete(mapper.udpProxies, mapKey)
-		}
-		if mapper.iptables != nil {
-			if err := mapper.iptables.Forward(iptables.Delete, ip, port, proto, backendAddr.IP.String(), backendAddr.Port); err != nil {
-				return err
-			}
-		}
-		delete(mapper.udpMapping, mapKey)
-	}
-	return nil
-}
-
-func newPortMapper(config *DaemonConfig) (*PortMapper, error) {
-	// We can always try removing the iptables
-	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
-		return nil, err
-	}
-	var chain *iptables.Chain
-	if config.EnableIptables {
-		var err error
-		chain, err = iptables.NewChain("DOCKER", config.BridgeIface)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to create DOCKER chain: %s", err)
-		}
-	}
-
-	mapper := &PortMapper{
-		tcpMapping:       make(map[string]*net.TCPAddr),
-		tcpProxies:       make(map[string]proxy.Proxy),
-		udpMapping:       make(map[string]*net.UDPAddr),
-		udpProxies:       make(map[string]proxy.Proxy),
-		iptables:         chain,
-		defaultIp:        config.DefaultIp,
-		proxyFactoryFunc: proxy.NewProxy,
-	}
-	return mapper, nil
-}
-
 // Network interface represents the networking stack of a container
 type NetworkInterface struct {
 	IPNet   net.IPNet
@@ -299,7 +176,7 @@ func (iface *NetworkInterface) AllocatePort(port Port, binding PortBinding) (*Na
 		return nil, fmt.Errorf("Trying to allocate port for interface %v, which is disabled", iface) // FIXME
 	}
 
-	ip := iface.manager.portMapper.defaultIp
+	ip := iface.manager.defaultBindingIP
 
 	if binding.HostIp != "" {
 		ip = net.ParseIP(binding.HostIp)
@@ -331,7 +208,7 @@ func (iface *NetworkInterface) AllocatePort(port Port, binding PortBinding) (*Na
 		backend = &net.UDPAddr{IP: iface.IPNet.IP, Port: containerPort}
 	}
 
-	if err := iface.manager.portMapper.Map(ip, extPort, backend); err != nil {
+	if err := portmapper.Map(backend, ip, extPort); err != nil {
 		portallocator.ReleasePort(ip, nat.Port.Proto(), extPort)
 		return nil, err
 	}
@@ -365,7 +242,15 @@ func (iface *NetworkInterface) Release() {
 		}
 		ip := net.ParseIP(nat.Binding.HostIp)
 		utils.Debugf("Unmaping %s/%s:%s", nat.Port.Proto, ip.String(), nat.Binding.HostPort)
-		if err := iface.manager.portMapper.Unmap(ip, hostPort, nat.Port.Proto()); err != nil {
+
+		var host net.Addr
+		if nat.Port.Proto() == "tcp" {
+			host = &net.TCPAddr{IP: ip, Port: hostPort}
+		} else {
+			host = &net.UDPAddr{IP: ip, Port: hostPort}
+		}
+
+		if err := portmapper.Unmap(host); err != nil {
 			log.Printf("Unable to unmap port %s: %s", nat, err)
 		}
 
@@ -382,12 +267,10 @@ func (iface *NetworkInterface) Release() {
 // Network Manager manages a set of network interfaces
 // Only *one* manager per host machine should be used
 type NetworkManager struct {
-	bridgeIface   string
-	bridgeNetwork *net.IPNet
-
-	portMapper *PortMapper
-
-	disabled bool
+	bridgeIface      string
+	bridgeNetwork    *net.IPNet
+	defaultBindingIP net.IP
+	disabled         bool
 }
 
 // Allocate a network interface
@@ -508,16 +391,21 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 		}
 	}
 
-	portMapper, err := newPortMapper(config)
-	if err != nil {
+	// We can always try removing the iptables
+	if err := portmapper.RemoveIpTablesChain("DOCKER"); err != nil {
 		return nil, err
 	}
 
-	manager := &NetworkManager{
-		bridgeIface:   config.BridgeIface,
-		bridgeNetwork: network,
-		portMapper:    portMapper,
+	if config.EnableIptables {
+		if err := portmapper.RegisterIpTablesChain("DOCKER", config.BridgeIface); err != nil {
+			return nil, err
+		}
 	}
 
+	manager := &NetworkManager{
+		bridgeIface:      config.BridgeIface,
+		bridgeNetwork:    network,
+		defaultBindingIP: config.DefaultIp,
+	}
 	return manager, nil
 }
