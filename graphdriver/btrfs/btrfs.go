@@ -206,6 +206,8 @@ func (d *Driver) Get(id string) (string, error) {
 }
 
 func (d *Driver) Put(id string) {
+	// Get() creates no runtime resources (like e.g. mounts)
+	// so this doesn't need to do anything.
 }
 
 func (d *Driver) Exists(id string) bool {
