@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/proxy"
 	"github.com/dotcloud/docker/utils"
+	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -498,6 +499,13 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 			}
 		}
 
+	}
+
+	if config.EnableIpForward {
+		// Enable IPv4 forwarding
+		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+			log.Printf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+		}
 	}
 
 	portMapper, err := newPortMapper(config)
