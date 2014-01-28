@@ -71,21 +71,3 @@ To start on system boot:
 ::
 
     sudo systemctl enable docker
-    
-Network Configuration
----------------------
-
-IPv4 packet forwarding is disabled by default on Arch, so internet access from inside
-the container may not work.
-
-To enable the forwarding, run as root on the host system:
-
-::
-
-    sysctl net.ipv4.ip_forward=1
-    
-And, to make it persistent across reboots, enable it on the host's **/etc/sysctl.d/docker.conf**:
-
-::
-
-    net.ipv4.ip_forward=1
