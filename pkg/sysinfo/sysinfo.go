@@ -36,12 +36,6 @@ func New(quiet bool) *SysInfo {
 		}
 	}
 
-	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-	sysInfo.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
-	if sysInfo.IPv4ForwardingDisabled && !quiet {
-		log.Printf("WARNING: IPv4 forwarding is disabled.")
-	}
-
 	// Check if AppArmor seems to be enabled on this system.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
 		sysInfo.AppArmor = false
