@@ -1909,7 +1909,7 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 					continue
 				}
 				if err := srv.runtime.volumes.Delete(volumeId); err != nil {
-					job.Error(err)
+					job.Errorf("Error calling volumes.Delete(%q): %v", volumeId, err)
 					return engine.StatusErr
 				}
 			}
