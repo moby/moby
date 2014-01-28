@@ -169,7 +169,16 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 
 	<-waitLock
 
-	return c.GetExitCode(), waitErr
+	return getExitCode(c), waitErr
+}
+
+/// Return the exit code of the process
+// if the process has not exited -1 will be returned
+func getExitCode(c *execdriver.Command) int {
+	if c.ProcessState == nil {
+		return -1
+	}
+	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {

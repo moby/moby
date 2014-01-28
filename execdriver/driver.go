@@ -3,7 +3,6 @@ package execdriver
 import (
 	"errors"
 	"os/exec"
-	"syscall"
 )
 
 var (
@@ -108,13 +107,4 @@ func (c *Command) Pid() int {
 		return -1
 	}
 	return c.Process.Pid
-}
-
-// Return the exit code of the process
-// if the process has not exited -1 will be returned
-func (c *Command) GetExitCode() int {
-	if c.ProcessState == nil {
-		return -1
-	}
-	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
