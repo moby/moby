@@ -86,6 +86,28 @@ func (env *Env) GetList(key string) []string {
 	return l
 }
 
+func (env *Env) GetSubEnv(key string) *Env {
+	sval := env.Get(key)
+	if sval == "" {
+		return nil
+	}
+	buf := bytes.NewBufferString(sval)
+	var sub Env
+	if err := sub.Decode(buf); err != nil {
+		return nil
+	}
+	return &sub
+}
+
+func (env *Env) SetSubEnv(key string, sub *Env) error {
+	var buf bytes.Buffer
+	if err := sub.Encode(&buf); err != nil {
+		return err
+	}
+	env.Set(key, string(buf.Bytes()))
+	return nil
+}
+
 func (env *Env) GetJson(key string, iface interface{}) error {
 	sval := env.Get(key)
 	if sval == "" {

@@ -114,6 +114,14 @@ func (job *Job) SetenvBool(key string, value bool) {
 	job.env.SetBool(key, value)
 }
 
+func (job *Job) GetenvSubEnv(key string) *Env {
+	return job.env.GetSubEnv(key)
+}
+
+func (job *Job) SetenvSubEnv(key string, value *Env) error {
+	return job.env.SetSubEnv(key, value)
+}
+
 func (job *Job) GetenvInt64(key string) int64 {
 	return job.env.GetInt64(key)
 }
