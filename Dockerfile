@@ -81,6 +81,9 @@ RUN	gem install --no-rdoc --no-ri fpm --version 1.0.2
 # Setup s3cmd config
 RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > /.s3cfg
 
+# Set user.email so crosbymichael's in-container merge commits go smoothly
+RUN	git config --global user.email 'docker-dummy@example.com'
+
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
 
