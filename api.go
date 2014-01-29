@@ -564,7 +564,7 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
-	if !job.GetenvBool("NetworkDisabled") && len(job.Getenv("Dns")) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+	if !job.GetenvBool("NetworkDisabled") && len(job.Getenv("Dns")) == 0 && len(srv.Eng.Env.GetList("config.Dns")) == 0 && utils.CheckLocalDns(resolvConf) {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
 		job.SetenvList("Dns", defaultDns)
 	}
@@ -581,16 +581,16 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	for scanner.Scan() {
 		out.Warnings = append(out.Warnings, scanner.Text())
 	}
-	if job.GetenvInt("Memory") > 0 && !srv.runtime.sysInfo.MemoryLimit {
+	if job.GetenvInt("Memory") > 0 && !srv.Eng.Env.GetBool("sysInfo.MemoryLimit") {
 		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 	}
-	if job.GetenvInt("Memory") > 0 && !srv.runtime.sysInfo.SwapLimit {
+	if job.GetenvInt("Memory") > 0 && !srv.Eng.Env.GetBool("sysInfo.SwapLimit") {
 		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
 	}
 
-	if !job.GetenvBool("NetworkDisabled") && srv.runtime.sysInfo.IPv4ForwardingDisabled {
+	if !job.GetenvBool("NetworkDisabled") && srv.Eng.Env.GetBool("sysInfo.IPv4ForwardingDisabled") {
 		log.Println("Warning: IPv4 forwarding is disabled.")
 		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
 	}
@@ -950,7 +950,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		if err != nil {
 			version = APIVERSION
 		}
-		if srv.runtime.config.EnableCors {
+		if srv.Eng.Env.GetBool("config.EnableCors") {
 			writeCorsHeaders(w, r)
 		}
 

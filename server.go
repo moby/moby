@@ -66,8 +66,18 @@ func jobInitApi(job *engine.Job) engine.Status {
 		srv.Close()
 		os.Exit(0)
 	}()
+
+	//Variables used by the api endpoints
+	job.Eng.Env.SetList("config.Dns", srv.runtime.config.Dns)
+	job.Eng.Env.SetBool("sysInfo.MemoryLimit", srv.runtime.sysInfo.MemoryLimit)
+	job.Eng.Env.SetBool("sysInfo.SwapLimit", srv.runtime.sysInfo.SwapLimit)
+	job.Eng.Env.SetBool("sysInfo.IPv4ForwardingDisabled", srv.runtime.sysInfo.IPv4ForwardingDisabled)
+	job.Eng.Env.SetBool("config.EnableCors", srv.runtime.config.EnableCors)
+
+	//Only used my tests, TODO: remove
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
+
 	// https://github.com/dotcloud/docker/issues/2768
 	if srv.runtime.networkManager.bridgeNetwork != nil {
 		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
