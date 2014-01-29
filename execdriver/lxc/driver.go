@@ -3,12 +3,14 @@ package lxc
 import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -279,6 +281,45 @@ func (d *driver) Info(id string) execdriver.Info {
 		ID:     id,
 		driver: d,
 	}
+}
+
+func (d *driver) GetPidsForContainer(id string) ([]int, error) {
+	pids := []int{}
+
+	// memory is chosen randomly, any cgroup used by docker works
+	subsystem := "memory"
+
+	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
+	if err != nil {
+		return pids, err
+	}
+
+	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
+	if err != nil {
+		return pids, err
+	}
+
+	filename := filepath.Join(cgroupRoot, cgroupDir, id, "tasks")
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// With more recent lxc versions use, cgroup will be in lxc/
+		filename = filepath.Join(cgroupRoot, cgroupDir, "lxc", id, "tasks")
+	}
+
+	output, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return pids, err
+	}
+	for _, p := range strings.Split(string(output), "\n") {
+		if len(p) == 0 {
+			continue
+		}
+		pid, err := strconv.Atoi(p)
+		if err != nil {
+			return pids, fmt.Errorf("Invalid pid '%s': %s", p, err)
+		}
+		pids = append(pids, pid)
+	}
+	return pids, nil
 }
 
 func linkLxcStart(root string) error {

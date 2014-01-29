@@ -60,9 +60,10 @@ type Info interface {
 type Driver interface {
 	Run(c *Command, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Command, sig int) error
-	Restore(c *Command) error // Wait and try to re-attach on an out of process command
-	Name() string             // Driver name
-	Info(id string) Info      // "temporary" hack (until we move state from core to plugins)
+	Restore(c *Command) error                     // Wait and try to re-attach on an out of process command
+	Name() string                                 // Driver name
+	Info(id string) Info                          // "temporary" hack (until we move state from core to plugins)
+	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 }
 
 // Network settings of the container
