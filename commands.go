@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
@@ -79,7 +80,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTUNIXSOCKET)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", api.DEFAULTUNIXSOCKET)
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
@@ -2283,7 +2284,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", api.APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -2360,7 +2361,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", api.APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -2405,7 +2406,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 
-	if matchesContentType(resp.Header.Get("Content-Type"), "application/json") {
+	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
 		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.terminalFd, cli.isTerminal)
 	}
 	if _, err := io.Copy(out, resp.Body); err != nil {
@@ -2424,7 +2425,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", api.APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
