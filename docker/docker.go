@@ -86,7 +86,6 @@ func main() {
 		job.Setenv("Pidfile", *pidfile)
 		job.Setenv("Root", *flRoot)
 		job.SetenvBool("AutoRestart", *flAutoRestart)
-		job.SetenvBool("EnableCors", *flEnableCors)
 		job.SetenvList("Dns", flDns.GetAll())
 		job.SetenvBool("EnableIptables", *flEnableIptables)
 		job.SetenvBool("EnableIpForward", *flEnableIpForward)
@@ -102,6 +101,7 @@ func main() {
 		// Serve api
 		job = eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
+		job.SetenvBool("EnableCors", *flEnableCors)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

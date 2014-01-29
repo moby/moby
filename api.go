@@ -931,7 +931,7 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
-func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc) http.HandlerFunc {
+func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, enableCors bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
 		utils.Debugf("Calling %s %s", localMethod, localRoute)
@@ -950,7 +950,7 @@ func makeHttpHandler(srv *Server, logging bool, localMethod string, localRoute s
 		if err != nil {
 			version = APIVERSION
 		}
-		if srv.runtime.config.EnableCors {
+		if enableCors {
 			writeCorsHeaders(w, r)
 		}
 
@@ -992,7 +992,7 @@ func AttachProfiler(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 }
 
-func createRouter(srv *Server, logging bool) (*mux.Router, error) {
+func createRouter(srv *Server, logging, enableCors bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 	if os.Getenv("DEBUG") != "" {
 		AttachProfiler(r)
@@ -1053,7 +1053,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 			localMethod := method
 
 			// build the handler function
-			f := makeHttpHandler(srv, logging, localMethod, localRoute, localFct)
+			f := makeHttpHandler(srv, logging, localMethod, localRoute, localFct, enableCors)
 
 			// add the new route
 			if localRoute == "" {
@@ -1072,7 +1072,7 @@ func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 // FIXME: refactor this to be part of Server and not require re-creating a new
 // router each time. This requires first moving ListenAndServe into Server.
 func ServeRequest(srv *Server, apiversion float64, w http.ResponseWriter, req *http.Request) error {
-	router, err := createRouter(srv, false)
+	router, err := createRouter(srv, false, true)
 	if err != nil {
 		return err
 	}
@@ -1114,8 +1114,8 @@ func ServeFd(addr string, handle http.Handler) error {
 
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, srv *Server, logging bool) error {
-	r, err := createRouter(srv, logging)
+func ListenAndServe(proto, addr string, srv *Server, logging, enableCors bool) error {
+	r, err := createRouter(srv, logging, enableCors)
 	if err != nil {
 		return err
 	}

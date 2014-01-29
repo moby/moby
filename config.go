@@ -10,7 +10,6 @@ type DaemonConfig struct {
 	Pidfile                     string
 	Root                        string
 	AutoRestart                 bool
-	EnableCors                  bool
 	Dns                         []string
 	EnableIptables              bool
 	EnableIpForward             bool
@@ -29,7 +28,6 @@ func ConfigFromJob(job *engine.Job) *DaemonConfig {
 	config.Pidfile = job.Getenv("Pidfile")
 	config.Root = job.Getenv("Root")
 	config.AutoRestart = job.GetenvBool("AutoRestart")
-	config.EnableCors = job.GetenvBool("EnableCors")
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns
 	}
