@@ -392,14 +392,16 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 	}
 
 	// We can always try removing the iptables
-	if err := portmapper.RemoveIpTablesChain("DOCKER"); err != nil {
+	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
 		return nil, err
 	}
 
 	if config.EnableIptables {
-		if err := portmapper.RegisterIpTablesChain("DOCKER", config.BridgeIface); err != nil {
+		chain, err := iptables.NewChain("DOCKER", config.BridgeIface)
+		if err != nil {
 			return nil, err
 		}
+		portmapper.SetIptablesChain(chain)
 	}
 
 	manager := &NetworkManager{

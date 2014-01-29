@@ -22,6 +22,7 @@ var (
 
 	// udp:ip:port
 	currentMappings = make(map[string]*mapping)
+	newProxy        = proxy.NewProxy
 )
 
 var (
@@ -30,21 +31,8 @@ var (
 	ErrPortNotMapped             = errors.New("port is not mapped")
 )
 
-func RegisterIpTablesChain(name, bridge string) error {
-	c, err := iptables.NewChain(name, bridge)
-	if err != nil {
-		return fmt.Errorf("failed to create %s chain: %s", name, err)
-	}
+func SetIptablesChain(c *iptables.Chain) {
 	chain = c
-	return nil
-}
-
-func RemoveIpTablesChain(name string) error {
-	if err := iptables.RemoveExistingChain(name); err != nil {
-		return err
-	}
-	chain = nil
-	return nil
 }
 
 func Map(container net.Addr, hostIP net.IP, hostPort int) error {
@@ -79,7 +67,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) error {
 		return err
 	}
 
-	p, err := proxy.NewProxy(m.host, m.container)
+	p, err := newProxy(m.host, m.container)
 	if err != nil {
 		// need to undo the iptables rules before we reutrn
 		forward(iptables.Delete, m.proto, hostIP, hostPort, containerIP.String(), containerPort)
