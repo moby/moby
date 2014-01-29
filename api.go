@@ -560,14 +560,6 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
-	resolvConf, err := utils.GetResolvConf()
-	if err != nil {
-		return err
-	}
-	if !job.GetenvBool("NetworkDisabled") && len(job.Getenv("Dns")) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		out.Warnings = append(out.Warnings, fmt.Sprintf("Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns))
-		job.SetenvList("Dns", defaultDns)
-	}
 	// Read container ID from the first line of stdout
 	job.Stdout.AddString(&out.ID)
 	// Read warnings from stderr
@@ -581,20 +573,6 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	for scanner.Scan() {
 		out.Warnings = append(out.Warnings, scanner.Text())
 	}
-	if job.GetenvInt("Memory") > 0 && !srv.runtime.sysInfo.MemoryLimit {
-		log.Println("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
-		out.Warnings = append(out.Warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
-	}
-	if job.GetenvInt("Memory") > 0 && !srv.runtime.sysInfo.SwapLimit {
-		log.Println("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
-		out.Warnings = append(out.Warnings, "Your kernel does not support memory swap capabilities. Limitation discarded.")
-	}
-
-	if !job.GetenvBool("NetworkDisabled") && srv.runtime.sysInfo.IPv4ForwardingDisabled {
-		log.Println("Warning: IPv4 forwarding is disabled.")
-		out.Warnings = append(out.Warnings, "IPv4 forwarding is disabled.")
-	}
-
 	return writeJSON(w, http.StatusCreated, out)
 }
 
