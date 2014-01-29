@@ -833,7 +833,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 				delete(allImages, id)
 				out.Set("ParentId", image.Parent)
 				out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
-				out.Set("ID", image.ID)
+				out.Set("Id", image.ID)
 				out.SetInt64("Created", image.Created.Unix())
 				out.SetInt64("Size", image.Size)
 				out.SetInt64("VirtualSize", image.getParentsSize(0)+image.Size)
@@ -854,7 +854,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 			out := &engine.Env{}
 			out.Set("ParentId", image.Parent)
 			out.SetList("RepoTags", []string{"<none>:<none>"})
-			out.Set("ID", image.ID)
+			out.Set("Id", image.ID)
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)
 			out.SetInt64("VirtualSize", image.getParentsSize(0)+image.Size)
@@ -940,7 +940,7 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 	outs := engine.NewTable("Created", 0)
 	err = image.WalkHistory(func(img *Image) error {
 		out := &engine.Env{}
-		out.Set("ID", img.ID)
+		out.Set("Id", img.ID)
 		out.SetInt64("Created", img.Created.Unix())
 		out.Set("CreatedBy", strings.Join(img.ContainerConfig.Cmd, " "))
 		out.SetList("Tags", lookupMap[img.ID])
@@ -1101,7 +1101,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		}
 		displayed++
 		out := &engine.Env{}
-		out.Set("ID", container.ID)
+		out.Set("Id", container.ID)
 		out.SetList("Names", names[container.ID])
 		out.Set("Image", srv.runtime.repositories.ImageName(container.Image))
 		out.Set("Command", fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")))

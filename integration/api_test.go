@@ -204,7 +204,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 	assertHttpNotError(r2, t)
 
-	images2 := engine.NewTable("ID", 0)
+	images2 := engine.NewTable("Id", 0)
 	if _, err := images2.ReadListFrom(r2.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestGetImagesJSON(t *testing.T) {
 
 	found = false
 	for _, img := range images2.Data {
-		if img.Get("ID") == unitTestImageID {
+		if img.Get("Id") == unitTestImageID {
 			found = true
 			break
 		}
@@ -237,7 +237,7 @@ func TestGetImagesJSON(t *testing.T) {
 	}
 	assertHttpNotError(r3, t)
 
-	images3 := engine.NewTable("ID", 0)
+	images3 := engine.NewTable("Id", 0)
 	if _, err := images3.ReadListFrom(r3.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +339,7 @@ func TestGetContainersJSON(t *testing.T) {
 	if len(containers.Data) != beginLen+1 {
 		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers.Data), beginLen)
 	}
-	if id := containers.Data[0].Get("ID"); id != containerID {
+	if id := containers.Data[0].Get("Id"); id != containerID {
 		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", containerID, id)
 	}
 }
