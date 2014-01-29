@@ -61,7 +61,7 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 	}
 	for _, image := range images.Data {
 		if image.Get("ID") != unitTestImageID {
-			mkServerFromEngine(eng, t).DeleteImage(image.Get("ID"), false)
+			eng.Job("image_delete", image.Get("ID")).Run()
 		}
 	}
 	return nil
@@ -132,10 +132,11 @@ func setupBaseImage() {
 	if err := job.Run(); err != nil {
 		log.Fatalf("Unable to create a runtime for tests: %s", err)
 	}
-	srv := mkServerFromEngine(eng, log.New(os.Stderr, "", 0))
 
+	job = eng.Job("inspect", unitTestImageName, "image")
+	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
-	if img, err := srv.ImageInspect(unitTestImageName); err != nil || img.ID != unitTestImageID {
+	if err := job.Run(); err != nil || img.Get("id") != unitTestImageID {
 		// Retrieve the Image
 		job = eng.Job("pull", unitTestImageName)
 		job.Stdout.Add(utils.NopWriteCloser(os.Stdout))

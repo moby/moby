@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
 	"testing"
 	"time"
 )
@@ -9,9 +9,8 @@ import (
 func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	if err := generateImage("", srv); err != nil {
+	if err := generateImage("", eng); err != nil {
 		t.Fatal(err)
 	}
 
@@ -25,16 +24,15 @@ func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	err := generateImage("bar", srv)
+	err := generateImage("bar", eng)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(time.Second)
 
-	err = generateImage("zed", srv)
+	err = generateImage("zed", eng)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,12 +44,12 @@ func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 	}
 }
 
-func generateImage(name string, srv *docker.Server) error {
+func generateImage(name string, eng *engine.Engine) error {
 	archive, err := fakeTar()
 	if err != nil {
 		return err
 	}
-	job := srv.Eng.Job("import", "-", "repo", name)
+	job := eng.Job("import", "-", "repo", name)
 	job.Stdin.Add(archive)
 	job.SetenvBool("json", true)
 	return job.Run()
