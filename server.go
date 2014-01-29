@@ -125,7 +125,7 @@ func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"))
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"))
 		}()
 	}
 
@@ -1753,11 +1753,23 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return engine.StatusErr
 	}
 	if config.Memory > 0 && !srv.runtime.sysInfo.MemoryLimit {
+		job.Errorf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		config.Memory = 0
 	}
 	if config.Memory > 0 && !srv.runtime.sysInfo.SwapLimit {
+		job.Errorf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
+	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+		job.Errorf("WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v\n", defaultDns)
+		config.Dns = defaultDns
+	}
+
 	container, buildWarnings, err := srv.runtime.Create(&config, name)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
@@ -1770,6 +1782,9 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		}
 		job.Error(err)
 		return engine.StatusErr
+	}
+	if !container.Config.NetworkDisabled && srv.runtime.sysInfo.IPv4ForwardingDisabled {
+		job.Errorf("WARNING: IPv4 forwarding is disabled.\n")
 	}
 	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	// FIXME: this is necessary because runtime.Create might return a nil container
