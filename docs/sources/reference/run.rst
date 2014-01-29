@@ -21,6 +21,7 @@ Every one of the :ref:`example_list` shows running containers, and so
 here we try to give more in-depth guidance.
 
 .. contents:: Table of Contents
+   :depth: 2
 
 .. _run_running:
 
@@ -37,24 +38,33 @@ To learn how to interpret the types of ``[OPTIONS]``, see
 
 The list of ``[OPTIONS]`` breaks down into two groups: 
 
-* options that define the runtime behavior or environment, and 
-* options that override image defaults. 
+1. Settings exclusive to operators, including:
 
-Since image defaults usually get set in :ref:`Dockerfiles
-<dockerbuilder>` (though they could also be set at :ref:`cli_commit`
-time too), we will group the runtime options here by their related
-Dockerfile commands so that it is easier to see how to override image
-defaults and set new behavior.
+   * Detached or Foreground running,
+   * Container Identification,
+   * Network settings, and
+   * Runtime Constraints on CPU and Memory
+   * Privileges and LXC Configuration
 
-We'll start, though, with the options that are unique to ``docker
-run``, the options which define the runtime behavior or the container
-environment.
+2. Setting shared between operators and developers, where operators
+   can override defaults developers set in images at build time.
 
-.. note:: The runtime operator always has final control over the
-   behavior of a Docker container.
+Together, the ``docker run [OPTIONS]`` give complete control over
+runtime behavior to the operator, allowing them to override all
+defaults set by the developer during ``docker build`` and nearly all
+the defaults set by the Docker runtime itself.
 
-Detached or Foreground
-======================
+Operator Exclusive Options
+==========================
+
+Only the operator (the person executing ``docker run``) can set the
+following options.
+
+.. contents::
+   :local:
+
+Detached vs Foreground
+----------------------
 
 When starting a Docker container, you must first decide if you want to
 run the container in the background in a "detached" mode or in the
@@ -65,7 +75,7 @@ default foreground mode::
 Detached (-d)
 .............
 
-In detached mode (``-d=true`` or just ``-d``), all IO should be done
+In detached mode (``-d=true`` or just ``-d``), all I/O should be done
 through network connections or shared volumes because the container is
 no longer listening to the commandline where you executed ``docker
 run``. You can reattach to a detached container with ``docker``
@@ -82,22 +92,68 @@ error. It can even pretend to be a TTY (this is what most commandline
 executables expect) and pass along signals. All of that is
 configurable::
 
-   -a=[]          : Attach to stdin, stdout and/or stderr
+   -a=[]          : Attach to ``stdin``, ``stdout`` and/or ``stderr``
    -t=false       : Allocate a pseudo-tty
    -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
-   -i=false       : Keep stdin open even if not attached
+   -i=false       : Keep STDIN open even if not attached
 
 If you do not specify ``-a`` then Docker will `attach everything
 (stdin,stdout,stderr)
-<https://github.com/dotcloud/docker/blob/master/commands.go#L1797>`_. You
-can specify which of the three standard streams (stdin, stdout,
-stderr) you'd like to connect between your  instead, as in::
+<https://github.com/dotcloud/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797>`_. You
+can specify to which of the three standard streams (``stdin``, ``stdout``,
+``stderr``) you'd like to connect instead, as in::
 
    docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 For interactive processes (like a shell) you will typically want a tty
-as well as persistent standard in, so you'll use ``-i -t`` together in
-most interactive cases.
+as well as persistent standard input (``stdin``), so you'll use ``-i
+-t`` together in most interactive cases.
+
+Container Identification
+------------------------
+
+Name (-name)
+............
+
+The operator can identify a container in three ways:
+
+* UUID long identifier ("f78375b1c487e03c9438c729345e54db9d20cfa2ac1fc3494b6eb60872e74778")
+* UUID short identifier ("f78375b1c487")
+* Name ("evil_ptolemy")
+
+The UUID identifiers come from the Docker daemon, and if you do not
+assign a name to the container with ``-name`` then the daemon will
+also generate a random string name too. The name can become a handy
+way to add meaning to a container since you can use this name when
+defining :ref:`links <working_with_links_names>` (or any other place
+you need to identify a container). This works for both background and
+foreground Docker containers.
+
+PID Equivalent
+..............
+
+And finally, to help with automation, you can have Docker write the
+container ID out to a file of your choosing. This is similar to how
+some programs might write out their process ID to a file (you've seen
+them as PID files)::
+
+      -cidfile="": Write the container ID to the file
+
+Network Settings
+----------------
+
+::
+   -n=true   : Enable networking for this container
+   -dns=[]   : Set custom dns servers for the container
+
+By default, all containers have networking enabled and they can make
+any outgoing connections. The operator can completely disable
+networking with ``docker run -n`` which disables all incoming and outgoing
+networking. In cases like this, you would perform I/O through files or
+STDIN/STDOUT only.
+
+Your container will use the same DNS servers as the host by default,
+but you can override this with ``-dns``.
 
 Clean Up (-rm)
 --------------
@@ -112,57 +168,84 @@ the container exits**, you can add the ``-rm`` flag::
 
    -rm=false: Automatically remove the container when it exits (incompatible with -d)
 
-Name (-name)
-============
 
-The operator can identify a container in three ways:
+Runtime Constraints on CPU and Memory
+-------------------------------------
 
-* UUID long identifier ("f78375b1c487e03c9438c729345e54db9d20cfa2ac1fc3494b6eb60872e74778")
-* UUID short identifier ("f78375b1c487")
-* name ("evil_ptolemy")
+The operator can also adjust the performance parameters of the container::
 
-The UUID identifiers come from the Docker daemon, and if you do not
-assign a name to the container with ``-name`` then the daemon will
-also generate a random string name too. The name can become a handy
-way to add meaning to a container since you can use this name when
-defining :ref:`links <working_with_links_names>` (or any other place
-you need to identify a container). This works for both background and
-foreground Docker containers.
+   -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+   -c=0 : CPU shares (relative weight)
 
-PID Equivalent
-==============
+The operator can constrain the memory available to a container easily
+with ``docker run -m``. If the host supports swap memory, then the
+``-m`` memory setting can be larger than physical RAM.
 
-And finally, to help with automation, you can have Docker write the
-container id out to a file of your choosing. This is similar to how
-some programs might write out their process ID to a file (you've seen
-them as .pid files)::
+Similarly the operator can increase the priority of this container
+with the ``-c`` option. By default, all containers run at the same
+priority and get the same proportion of CPU cycles, but you can tell
+the kernel to give more shares of CPU time to one or more containers
+when you start them via Docker.
 
-      -cidfile="": Write the container ID to the file
+Runtime Privilege and LXC Configuration
+---------------------------------------
 
-Overriding Dockerfile Image Defaults
-====================================
+::
+
+   -privileged=false: Give extended privileges to this container
+   -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+
+By default, Docker containers are "unprivileged" and cannot, for
+example, run a Docker daemon inside a Docker container. This is
+because by default a container is not allowed to access any devices,
+but a "privileged" container is given access to all devices (see
+lxc-template.go_ and documentation on `cgroups devices
+<https://www.kernel.org/doc/Documentation/cgroups/devices.txt>`_).
+
+When the operator executes ``docker run -privileged``, Docker will
+enable to access to all devices on the host as well as set some
+configuration in AppArmor to allow the container nearly all the same
+access to the host as processes running outside containers on the
+host. Additional information about running with ``-privileged`` is
+available on the `Docker Blog
+<http://blog.docker.io/2013/09/docker-can-now-run-within-docker/>`_.
+
+An operator can also specify LXC options using one or more
+``-lxc-conf`` parameters. These can be new parameters or override
+existing parameters from the lxc-template.go_. Note that in the
+future, a given host's Docker daemon may not use LXC, so this is an
+implementation-specific configuration meant for operators already
+familiar with using LXC directly.
+
+.. _lxc-template.go: https://github.com/dotcloud/docker/blob/master/execdriver/lxc/lxc_template.go
+
+
+Overriding ``Dockerfile`` Image Defaults
+========================================
 
 When a developer builds an image from a :ref:`Dockerfile
 <dockerbuilder>` or when she commits it, the developer can set a
 number of default parameters that take effect when the image starts up
 as a container.
 
-Four of the Dockerfile commands cannot be overridden at runtime:
+Four of the ``Dockerfile`` commands cannot be overridden at runtime:
 ``FROM, MAINTAINER, RUN``, and ``ADD``. Everything else has a
 corresponding override in ``docker run``. We'll go through what the
-developer might have set in each Dockerfile instruction and how the
+developer might have set in each ``Dockerfile`` instruction and how the
 operator can override that setting.
 
+.. contents::
+   :local:
 
-CMD
-...
+CMD (Default Command or Options)
+--------------------------------
 
-Remember the optional ``COMMAND`` in the Docker commandline::
+Recall the optional ``COMMAND`` in the Docker commandline::
 
   docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 This command is optional because the person who created the ``IMAGE``
-may have already provided a default ``COMMAND`` using the Dockerfile
+may have already provided a default ``COMMAND`` using the ``Dockerfile``
 ``CMD``. As the operator (the person running a container from the
 image), you can override that ``CMD`` just by specifying a new
 ``COMMAND``.
@@ -171,22 +254,22 @@ If the image also specifies an ``ENTRYPOINT`` then the ``CMD`` or
 ``COMMAND`` get appended as arguments to the ``ENTRYPOINT``.
 
 
-ENTRYPOINT
-..........
+ENTRYPOINT (Default Command to Execute at Runtime
+-------------------------------------------------
 
 ::
 
    -entrypoint="": Overwrite the default entrypoint set by the image
 
-The ENTRYPOINT of an image is similar to a COMMAND because it
+The ENTRYPOINT of an image is similar to a ``COMMAND`` because it
 specifies what executable to run when the container starts, but it is
-(purposely) more difficult to override. The ENTRYPOINT gives a
+(purposely) more difficult to override. The ``ENTRYPOINT`` gives a
 container its default nature or behavior, so that when you set an
-ENTRYPOINT you can run the container *as if it were that binary*,
+``ENTRYPOINT`` you can run the container *as if it were that binary*,
 complete with default options, and you can pass in more options via
-the COMMAND. But, sometimes an operator may want to run something else
-inside the container, so you can override the default ENTRYPOINT at
-runtime by using a string to specify the new ENTRYPOINT. Here is an
+the ``COMMAND``. But, sometimes an operator may want to run something else
+inside the container, so you can override the default ``ENTRYPOINT`` at
+runtime by using a string to specify the new ``ENTRYPOINT``. Here is an
 example of how to run a shell in a container that has been set up to
 automatically run something else (like ``/usr/bin/redis-server``)::
 
@@ -198,16 +281,14 @@ or two examples of how to pass more parameters to that ENTRYPOINT::
   docker run -i -t -entrypoint /usr/bin/redis-cli example/redis --help
 
 
-EXPOSE (``run`` Networking Options)
-...................................
+EXPOSE (Incoming Ports)
+-----------------------
 
-The *Dockerfile* doesn't give much control over networking, only
-providing the EXPOSE instruction to give a hint to the operator about
-what incoming ports might provide services. At runtime, however,
-Docker provides a number of ``run`` options related to networking::
+The ``Dockerfile`` doesn't give much control over networking, only
+providing the ``EXPOSE`` instruction to give a hint to the operator
+about what incoming ports might provide services. The following
+options work with or override the ``Dockerfile``'s exposed defaults::
 
-   -n=true   : Enable networking for this container
-   -dns=[]   : Set custom dns servers for the container
    -expose=[]: Expose a port from the container 
                without publishing it to your host
    -P=false  : Publish all exposed ports to the host interfaces
@@ -217,25 +298,16 @@ Docker provides a number of ``run`` options related to networking::
                (use 'docker port' to see the actual mapping)
    -link=""  : Add link to another container (name:alias)
 
-By default, all containers have networking enabled and they can make
-any outgoing connections. The operator can completely disable
-networking with ``run -n`` which disables all incoming and outgoing
-networking. In cases like this, you would perform IO through files or
-stdin/stdout only.
-
-Your container will use the same DNS servers as the host by default,
-but you can override this with ``-dns``.
-
 As mentioned previously, ``EXPOSE`` (and ``-expose``) make a port
 available **in** a container for incoming connections. The port number
 on the inside of the container (where the service listens) does not
 need to be the same number as the port exposed on the outside of the
 container (where clients connect), so inside the container you might
 have an HTTP service listening on port 80 (and so you ``EXPOSE 80`` in
-the Dockerfile), but outside the container the port might be 42800.
+the ``Dockerfile``), but outside the container the port might be 42800.
 
 To help a new client container reach the server container's internal
-port operator ``-expose'd`` by the operator or ``EXPOSE'd`` by the
+port operator ``-expose``'d by the operator or ``EXPOSE``'d by the
 developer, the operator has three choices: start the server container
 with ``-P`` or ``-p,`` or start the client container with ``-link``.
 
@@ -250,10 +322,10 @@ networking interface. Docker will set some environment variables in
 the client container to help indicate which interface and port to use.
 
 ENV (Environment Variables)
-...........................
+---------------------------
 
 The operator can **set any environment variable** in the container by
-using one or more ``-e``, even overriding those already defined by the
+using one or more ``-e`` flags, even overriding those already defined by the
 developer with a Dockefile ``ENV``::
 
    $ docker run -e "deep=purple" -rm ubuntu /bin/bash -c export
@@ -287,7 +359,9 @@ container. Let's imagine we have a container running Redis::
    2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 
 
-Yet we can get information about the redis container's exposed ports with ``-link``. Choose an alias that will form a valid environment variable!
+Yet we can get information about the Redis container's exposed ports
+with ``-link``. Choose an alias that will form a valid environment
+variable!
 
 ::
 
@@ -312,7 +386,7 @@ And we can use that information to connect from another container as a client::
    172.17.0.32:6379>
 
 VOLUME (Shared Filesystems)
-...........................
+---------------------------
 
 ::
 
@@ -322,32 +396,24 @@ VOLUME (Shared Filesystems)
 
 The volumes commands are complex enough to have their own
 documentation in section :ref:`volume_def`. A developer can define one
-or more VOLUMEs associated with an image, but only the operator can
+or more ``VOLUME``\s associated with an image, but only the operator can
 give access from one container to another (or from a container to a
 volume mounted on the host).
 
 USER
-....
+----
 
-::
+The default user within a container is ``root`` (id = 0), but if the
+developer created additional users, those are accessible too. The
+developer can set a default user to run the first process with the
+``Dockerfile USER`` command, but the operator can override it ::
 
    -u="": Username or UID
 
 WORKDIR
-.......
+-------
 
-::
+The default working directory for running binaries within a container is the root directory (``/``), but the developer can set a different default with the ``Dockerfile WORKDIR`` command. The operator can override this with::
 
    -w="": Working directory inside the container
-
-Performance
-===========
-
-The operator can also adjust the performance parameters of the container::
-
-   -c=0 : CPU shares (relative weight)
-   -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-
-   -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-   -privileged=false: Give extended privileges to this container
 

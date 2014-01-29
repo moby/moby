@@ -37,8 +37,8 @@ To figure out where your control groups are mounted, you can run:
 
 .. _run_findpid:
 
-Ennumerating Cgroups
---------------------
+Enumerating Cgroups
+-------------------
 
 You can look into ``/proc/cgroups`` to see the different control group
 subsystems known to the system, the hierarchy they belong to, and how
@@ -71,7 +71,7 @@ container, take a look at ``/sys/fs/cgroup/memory/lxc/<longid>/``.
 Metrics from Cgroups: Memory, CPU, Block IO
 -------------------------------------------
 
-For each subsystem (memory, cpu, and block i/o), you will find one or
+For each subsystem (memory, CPU, and block I/O), you will find one or
 more pseudo-files containing statistics.
 
 Memory Metrics: ``memory.stat``
@@ -79,7 +79,7 @@ Memory Metrics: ``memory.stat``
 
 Memory metrics are found in the "memory" cgroup. Note that the memory
 control group adds a little overhead, because it does very
-fine-grained accounting of the memory usage on your system. Therefore,
+fine-grained accounting of the memory usage on your host. Therefore,
 many distros chose to not enable it by default. Generally, to enable
 it, all you have to do is to add some kernel command-line parameters:
 ``cgroup_enable=memory swapaccount=1``.
@@ -133,7 +133,7 @@ creation of the cgroup; this number can never decrease).
 cache 
   the amount of memory used by the processes of this control group
   that can be associated precisely with a block on a block
-  device. When you read and write files from and to disk, this amount
+  device. When you read from and write to files on disk, this amount
   will increase. This will be the case if you use "conventional" I/O
   (``open``, ``read``, ``write`` syscalls) as well as mapped files
   (with ``mmap``). It also accounts for the memory used by ``tmpfs``
@@ -148,17 +148,11 @@ mapped_file
   control group. It doesn't give you information about *how much*
   memory is used; it rather tells you *how* it is used.
 
-pgpgin and pgpgout
-  correspond to *charging events*. Each time a page is "charged"
-  (=added to the accounting) to a cgroup, pgpgin increases. When a
-  page is "uncharged" (=no longer "billed" to a cgroup), pgpgout
-  increases.
-
 pgfault and pgmajfault 
   indicate the number of times that a process of the cgroup triggered
   a "page fault" and a "major fault", respectively. A page fault
   happens when a process accesses a part of its virtual memory space
-  which is inexistent or protected. The former can happen if the
+  which is nonexistent or protected. The former can happen if the
   process is buggy and tries to access an invalid address (it will
   then be sent a ``SIGSEGV`` signal, typically killing it with the
   famous ``Segmentation fault`` message). The latter can happen when
@@ -237,7 +231,7 @@ the processes were in direct control of the CPU (i.e. executing
 process code), and ``system`` is the time during which the CPU was
 executing system calls on behalf of those processes.
 
-Those times are expressed in ticks of 1/100th of second. Actually,
+Those times are expressed in ticks of 1/100th of a second. Actually,
 they are expressed in "user jiffies". There are ``USER_HZ``
 *"jiffies"* per second, and on x86 systems, ``USER_HZ`` is 100. This
 used to map exactly to the number of scheduler "ticks" per second; but
@@ -383,11 +377,11 @@ pseudo-files. (Symlinks are accepted.)
 In other words, to execute a command within the network namespace of a
 container, we need to:
 
-* find out the PID of any process within the container that we want to
+* Find out the PID of any process within the container that we want to
   investigate;
-* create a symlink from ``/var/run/netns/<somename>`` to
+* Create a symlink from ``/var/run/netns/<somename>`` to
   ``/proc/<thepid>/ns/net``
-* execute ``ip netns exec <somename> ....``
+* Execute ``ip netns exec <somename> ....``
 
 Please review :ref:`run_findpid` to learn how to find the cgroup of a
 pprocess running in the container of which you want to measure network
