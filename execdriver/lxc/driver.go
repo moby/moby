@@ -155,7 +155,9 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 	)
 	go func() {
 		if err := c.Wait(); err != nil {
-			waitErr = err
+			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
+				waitErr = err
+			}
 		}
 		close(waitLock)
 	}()
