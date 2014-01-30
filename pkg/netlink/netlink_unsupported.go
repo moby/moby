@@ -1,3 +1,4 @@
+// +build: !linux !amd64
 package netlink
 
 import (

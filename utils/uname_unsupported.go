@@ -1,3 +1,4 @@
+// +build: !linux !amd64
 package utils
 
 import (
@@ -9,5 +10,5 @@ type Utsname struct {
 }
 
 func uname() (*Utsname, error) {
-	return nil, errors.New("Kernel version detection is not available on darwin")
+	return nil, errors.New("Kernel version detection is available only on linux")
 }
