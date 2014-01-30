@@ -224,7 +224,7 @@ Docker and UFW
 ^^^^^^^^^^^^^^
 
 Docker uses a bridge to manage container networking. By default, UFW drops all
-`forwarding` traffic. As a result will you need to enable UFW forwarding:
+`forwarding` traffic. As a result you will need to enable UFW forwarding:
 
 .. code-block:: bash
 
