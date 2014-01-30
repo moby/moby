@@ -416,7 +416,17 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err != nil {
 			return err
 		}
-		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
+
+		tarSum := utils.TarSum{Reader: r, DisableCompression: true, IgnoreHeaders: true}
+		tmpDirPath, err := ioutil.TempDir("", "docker-remote-probe")
+		if err != nil {
+			return err
+		}
+		if err := archive.Untar(&tarSum, tmpDirPath, nil); err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmpDirPath)
+
 		remoteHash = tarSum.Sum(nil)
 
 		// If the destination is a directory, figure out the filename.
