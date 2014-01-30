@@ -523,6 +523,28 @@ func checkCacheBehaviorFromEngime(t *testing.T, template testContextTemplate, ex
 	return
 }
 
+func checkCacheBehaviorForMultiplesTemplates(t *testing.T, template testContextTemplate, templateNew testContextTemplate, expectHit bool) (imageId string) {
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
+
+	img, err := buildImage(template, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imageId = img.ID
+
+	img, err = buildImage(templateNew, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if hit := imageId == img.ID; hit != expectHit {
+		t.Fatalf("Cache misbehavior, got hit=%t, expected hit=%t: (first: %s, second %s)", hit, expectHit, imageId, img.ID)
+	}
+	return
+}
+
 func TestBuildImageWithCache(t *testing.T) {
 	template := testContextTemplate{`
         from {IMAGE}
@@ -661,6 +683,50 @@ func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
 		nil,
 		[][2]string{{"/baz", "world!"}}}
 	checkCacheBehavior(t, template, false)
+}
+
+func TestBuildADDSameRemoteFileWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add http://{SERVERADDR}/baz /usr/lib/baz/quux
+        run echo "second"
+        `,
+		nil,
+		[][2]string{{"/baz", "world!"}}}
+	templateNew := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add http://{SERVERADDR}/baz /usr/lib/baz/quux
+        run echo "second"
+        `,
+		nil,
+		[][2]string{{"/baz", "world!"}}}
+	checkCacheBehaviorForMultiplesTemplates(t, template, templateNew, true)
+}
+
+func TestBuildADDDifferentRemoteFileWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add http://{SERVERADDR}/fooz /usr/lib/fooz/quux
+        run echo "second"
+        `,
+		nil,
+		[][2]string{{"/fooz", "world!"}}}
+	templateNew := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        run echo "first"
+        add http://{SERVERADDR}/fooz /usr/lib/fooz/quux
+        run echo "second"
+        `,
+		nil,
+		[][2]string{{"/fooz", "aliens!"}}}
+	checkCacheBehaviorForMultiplesTemplates(t, template, templateNew, false)
 }
 
 func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
