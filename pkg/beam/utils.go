@@ -1,9 +1,47 @@
 package beam
 
 import (
+	"bytes"
 	"sync"
 	"io"
 )
+
+func NewReader(s Stream) io.Reader {
+	return &streamReader{s}
+}
+
+type streamReader struct {
+	Stream
+}
+
+// FIXME: group data + stream into a Msg struct
+func (r *streamReader) Read(data []byte) (n int, err error) {
+	var msg []byte
+	msg, _, err = r.Receive()
+	if err != nil {
+		return 0, err
+	}
+	return bytes.NewReader(msg).Read(data)
+}
+
+func NewWriter(s Stream) io.Writer {
+	return &streamWriter{s}
+}
+
+type streamWriter struct {
+	Stream
+}
+
+func (w *streamWriter) Write(data []byte) (n int, err error) {
+	err = w.Send(data, nil)
+	if err != nil {
+		n = 0
+	} else {
+		n = len(data)
+	}
+	return
+}
+
 
 func Splice(a, b Stream) (firstErr error) {
 	var wg sync.WaitGroup
