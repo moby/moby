@@ -152,6 +152,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 
+	container.execDriver = runtime.execDriver
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
@@ -901,14 +902,6 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 		runtime.driver.Put(container.ID)
 		return err
 	}), nil
-}
-
-func (runtime *Runtime) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	return runtime.execDriver.Run(c.command, pipes, startCallback)
-}
-
-func (runtime *Runtime) Kill(c *Container, sig int) error {
-	return runtime.execDriver.Kill(c.command, sig)
 }
 
 // Nuke kills all containers then removes all content
