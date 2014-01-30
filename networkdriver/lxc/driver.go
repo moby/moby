@@ -50,10 +50,10 @@ var (
 		"192.168.44.1/24",
 	}
 
-	bridgeIface      string
-	defaultBindingIP net.IP
-	bridgeNetwork    *net.IPNet
+	bridgeIface   string
+	bridgeNetwork *net.IPNet
 
+	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = make(map[string]*networkInterface)
 )
 
@@ -72,7 +72,9 @@ func InitDriver(job *engine.Job) engine.Status {
 		bridgeIP       = job.Getenv("BridgeIP")
 	)
 
-	defaultBindingIP = net.ParseIP(job.Getenv("DefaultBindingIP"))
+	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
+		defaultBindingIP = net.ParseIP(defaultIP)
+	}
 
 	bridgeIface = job.Getenv("BridgeIface")
 	if bridgeIface == "" {
@@ -382,6 +384,8 @@ func Release(job *engine.Job) engine.Status {
 // Allocate an external port and map it to the interface
 func AllocatePort(job *engine.Job) engine.Status {
 	var (
+		err error
+
 		ip            = defaultBindingIP
 		id            = job.Args[0]
 		hostIP        = job.Getenv("HostIP")
@@ -396,7 +400,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 	}
 
 	// host ip, proto, and host port
-	hostPort, err := portallocator.RequestPort(ip, proto, hostPort)
+	hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
@@ -423,6 +427,14 @@ func AllocatePort(job *engine.Job) engine.Status {
 	}
 	network.PortMappings = append(network.PortMappings, host)
 
+	out := engine.Env{}
+	out.Set("HostIP", ip.String())
+	out.SetInt("HostPort", hostPort)
+
+	if _, err := out.WriteTo(job.Stdout); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 	return engine.StatusOK
 }
 

@@ -1188,10 +1188,18 @@ func (container *Container) allocateNetwork() error {
 			portJob.Setenv("Proto", port.Proto())
 			portJob.Setenv("ContainerPort", port.Port())
 
+			portEnv, err := portJob.Stdout.AddEnv()
+			if err != nil {
+				return err
+			}
 			if err := portJob.Run(); err != nil {
 				eng.Job("release_interface", container.ID).Run()
 				return err
 			}
+			b.HostIp = portEnv.Get("HostIP")
+			b.HostPort = portEnv.Get("HostPort")
+
+			binding[i] = b
 		}
 		bindings[port] = binding
 	}

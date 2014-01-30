@@ -51,7 +51,7 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	}
 
 	// If the user requested a specific port to be allocated
-	if port != 0 {
+	if port > 0 {
 		if err := registerSetPort(ip, proto, port); err != nil {
 			return 0, err
 		}
