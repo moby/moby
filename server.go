@@ -1742,7 +1742,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return engine.StatusErr
 	}
 	config := ContainerConfigFromJob(job)
-	if config.Memory != 0 && config.Memory < 524288 {
+	if config.Memory > 0 && config.Memory < 524288 {
 		job.Errorf("Minimum memory limit allowed is 512k")
 		return engine.StatusErr
 	}
