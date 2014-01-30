@@ -71,6 +71,8 @@ func InitDriver(job *engine.Job) engine.Status {
 		bridgeIP       = job.Getenv("BridgeIP")
 	)
 
+	defaultBindingIP = net.ParseIP(job.Getenv("DefaultBindingIP"))
+
 	bridgeIface = job.Getenv("BridgeIface")
 	if bridgeIface == "" {
 		bridgeIface = DefaultNetworkBridge
@@ -311,9 +313,9 @@ func Allocate(job *engine.Job) engine.Status {
 	}
 
 	out := engine.Env{}
-	out.Set("IP", string(*ip))
-	out.Set("Mask", string(bridgeNetwork.Mask))
-	out.Set("Gateway", string(bridgeNetwork.IP))
+	out.Set("IP", ip.String())
+	out.Set("Mask", bridgeNetwork.Mask.String())
+	out.Set("Gateway", bridgeNetwork.IP.String())
 	out.Set("Bridge", bridgeIface)
 
 	size, _ := bridgeNetwork.Mask.Size()

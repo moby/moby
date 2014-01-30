@@ -1212,7 +1212,6 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.IPAddress = env.Get("IP")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
-	fmt.Printf("\n-----> %#v\n", container.NetworkSettings)
 
 	return nil
 }
