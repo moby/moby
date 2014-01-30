@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"github.com/dotcloud/docker/pkg/beam"
 	"os"
 	"strings"
@@ -11,54 +12,69 @@ import (
 )
 
 func main() {
-	runCommand := beam.Func(RunCommand)
-	input := bufio.NewScanner(os.Stdin)
 	var wg sync.WaitGroup
 	defer wg.Wait()
+	runCommand := beam.Func(RunCommand)
+	input := bufio.NewScanner(os.Stdin)
 	for input.Scan() {
 		wg.Add(1)
 		go func(cmd []byte) {
-			if err := runCommand.Send(cmd, beam.DevNull); err != nil {
+			defer wg.Done()
+			local, remote := beam.Pipe()
+			defer local.Close()
+			// Send the command
+			if err := runCommand.Send(cmd, remote); err != nil {
+				remote.Close()
 				die("runcommand: %s", err)
 			}
-			wg.Done()
+			// Communicate with the command
+			for {
+				data, st, err := local.Receive()
+				if err != nil {
+					return
+				}
+				if st != nil {
+					wg.Add(1)
+					go func(data []byte, st beam.Stream) {
+						defer wg.Done()
+						if st == nil {
+							return
+						}
+						defer st.Close()
+						if name := string(data); name == "stdout" {
+							io.Copy(os.Stdout, beam.NewReader(st))
+						} else if name == "stderr" {
+							io.Copy(os.Stdout, beam.NewReader(st))
+						}
+					}(data, st)
+				}
+			}
 		}(input.Bytes())
 	}
 }
 
 func RunCommand(header []byte, stream beam.Stream) (err error) {
-	fmt.Printf("RunCommand(%s)\n", header)
-	defer fmt.Printf("RunCommand(%s) = %#v\n", header, err)
 	parts := strings.Split(string(header), " ")
 	// Setup stdout
-	stdoutRemote, stdoutLocal := beam.Pipe()
-	defer stdoutLocal.Close()
-	fmt.Printf("Sending stdout\n")
-	if err := stream.Send([]byte("stdout"), stdoutRemote); err != nil {
+	stdoutRemote, stdout := io.Pipe()
+	defer stdout.Close()
+	if err := stream.Send([]byte("stdout"), beam.WrapIO(stdoutRemote, 0)); err != nil {
 		return err
 	}
-	fmt.Printf("Sending stdout -> Done\n")
-	stdout := beam.NewWriter(stdoutLocal)
 	// Setup stderr
-	stderrRemote, stderrLocal := beam.Pipe()
-	defer stderrLocal.Close()
-	fmt.Printf("Sending stderr\n")
-	if err := stream.Send([]byte("stderr"), stderrRemote); err != nil {
+	stderrRemote, stderr := io.Pipe()
+	defer stderr.Close()
+	if err := stream.Send([]byte("stderr"), beam.WrapIO(stderrRemote, 0)); err != nil {
 		return err
 	}
-	fmt.Printf("Sending stderr: done\n")
-	stderr := beam.NewWriter(stderrLocal)
 	if parts[0] == "echo" {
-		fmt.Printf("Writing to stdout\n")
 		fmt.Fprintf(stdout, "%s\n", strings.Join(parts[1:], " "))
-		fmt.Printf("Writing to stdout: done\n")
 	} else if parts[0] == "die" {
-		fmt.Fprintf(stderr, "%s\n", strings.Join(parts[1:], " "))
 		os.Exit(1)
 	} else if parts[0] == "sleep" {
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	} else {
-		fmt.Fprintf(stderr, "%s: command not found", parts[0])
+		fmt.Fprintf(stderr, "%s: command not found\n", parts[0])
 	}
 	return nil
 }
