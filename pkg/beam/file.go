@@ -1,7 +1,6 @@
 package beam
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -9,9 +8,13 @@ type File struct {
 	f *os.File
 }
 
+func NewFile(f *os.File) *File {
+	return &File{f}
+}
+
 func (f *File) Send(data []byte, s Stream) (err error) {
 	if s != nil {
-		return fmt.Errorf("Operation not supported")
+		Splice(s, DevNull)
 	}
 	_, err = f.f.Write(data)
 	return
