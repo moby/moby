@@ -1109,36 +1109,32 @@ func (container *Container) allocateNetwork() error {
 
 	var (
 		env *engine.Env
+		err error
 		eng = container.runtime.eng
 	)
+
 	if container.State.IsGhost() {
 		if container.runtime.config.DisableNetwork {
 			env = &engine.Env{}
 		} else {
-			// TODO: @crosbymichael
-			panic("not implemented")
-			/*
-				iface = &NetworkInterface{
-					IPNet:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
-					Gateway: manager.bridgeNetwork.IP,
-				}
+			currentIP := container.NetworkSettings.IPAddress
 
-				// request an existing ip
-				if iface != nil && iface.IPNet.IP != nil {
-					if _, err := ipallocator.RequestIP(manager.bridgeNetwork, &iface.IPNet.IP); err != nil {
-						return err
-					}
-				} else {
-					job = eng.Job("allocate_interface", container.ID)
-					if err := job.Run(); err != nil {
-						return err
-					}
-				}
-			*/
+			job := eng.Job("allocate_interface", container.ID)
+			if currentIP != "" {
+				job.Setenv("RequestIP", currentIP)
+			}
+
+			env, err = job.Stdout.AddEnv()
+			if err != nil {
+				return err
+			}
+
+			if err := job.Run(); err != nil {
+				return err
+			}
 		}
 	} else {
 		job := eng.Job("allocate_interface", container.ID)
-		var err error
 		env, err = job.Stdout.AddEnv()
 		if err != nil {
 			return err

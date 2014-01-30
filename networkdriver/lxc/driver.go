@@ -304,9 +304,18 @@ func createBridgeIface(name string) error {
 
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
-	id := job.Args[0]
+	var (
+		ip          *net.IP
+		err         error
+		id          = job.Args[0]
+		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+	)
 
-	ip, err := ipallocator.RequestIP(bridgeNetwork, nil)
+	if requestedIP != nil {
+		ip, err = ipallocator.RequestIP(bridgeNetwork, &requestedIP)
+	} else {
+		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
+	}
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
