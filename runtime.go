@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
+	_ "github.com/dotcloud/docker/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	"github.com/dotcloud/docker/networkdriver/portallocator"
