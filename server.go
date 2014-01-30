@@ -42,8 +42,7 @@ func init() {
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func jobInitApi(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	// FIXME: ImportEnv deprecates ConfigFromJob
-	srv, err := NewServer(job.Eng, ConfigFromJob(job))
+	srv, err := NewServer(job.Eng, DaemonConfigFromJob(job))
 	if err != nil {
 		job.Error(err)
 		return engine.StatusErr
