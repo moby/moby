@@ -4,52 +4,100 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"github.com/dotcloud/docker/pkg/beam"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
 )
 
 func main() {
-	var wg sync.WaitGroup
-	defer wg.Wait()
 	runCommand := beam.Func(RunCommand)
-	input := bufio.NewScanner(os.Stdin)
-	for input.Scan() {
-		wg.Add(1)
-		go func(cmd []byte) {
-			defer wg.Done()
-			local, remote := beam.Pipe()
+	cli := NewCLI(os.Stdin, os.Stdout, os.Stderr)
+	if err := beam.Splice(cli, runCommand); err != nil {
+		die("splice: %s", err)
+	}
+}
+
+type CLI struct {
+	input *bufio.Scanner
+	stdin io.ReadCloser
+	stdout io.Writer
+	stderr io.Writer
+	tasks sync.WaitGroup
+}
+
+func (cli *CLI) Receive() (data []byte, stream beam.Stream, err error) {
+	for {
+		if !cli.input.Scan() {
+			fmt.Printf("done!\n")
+			return nil, nil, io.EOF
+		}
+		data = cli.input.Bytes()
+		err = cli.input.Err()
+		if len(data) == 0 && err == nil {
+			continue
+		}
+		local, remote := beam.Pipe()
+		cli.tasks.Add(1)
+		go func() {
+			defer cli.tasks.Done()
 			defer local.Close()
-			// Send the command
-			if err := runCommand.Send(cmd, remote); err != nil {
-				remote.Close()
-				die("runcommand: %s", err)
-			}
-			// Communicate with the command
 			for {
 				data, st, err := local.Receive()
 				if err != nil {
 					return
 				}
-				if st != nil {
-					wg.Add(1)
-					go func(data []byte, st beam.Stream) {
-						defer wg.Done()
-						if st == nil {
-							return
-						}
-						defer st.Close()
-						if name := string(data); name == "stdout" {
-							io.Copy(os.Stdout, beam.NewReader(st))
-						} else if name == "stderr" {
-							io.Copy(os.Stdout, beam.NewReader(st))
-						}
-					}(data, st)
+				if st == nil {
+					continue
 				}
+				name := string(data)
+				var output io.Writer
+				if name == "stdout" {
+					output = cli.stdout
+				} else if name == "stderr" {
+					output = cli.stderr
+				} else {
+					output = ioutil.Discard
+				}
+				cli.tasks.Add(1)
+				go func() {
+					io.Copy(output, beam.NewReader(st))
+					cli.tasks.Done()
+				}()
 			}
-		}(input.Bytes())
+		}()
+		stream = remote
+		break
+	}
+	return
+}
+
+func (cli *CLI) Send(data []byte, stream beam.Stream) (err error) {
+	if stream == nil {
+		return nil
+	}
+	go beam.Splice(stream, beam.DevNull)
+	return nil
+}
+
+func (cli *CLI) Close() error {
+	cli.tasks.Wait()
+	return nil
+}
+
+func (cli *CLI) File() (*os.File, error) {
+	return nil, fmt.Errorf("no file descriptor available for this stream")
+}
+
+func NewCLI(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) *CLI {
+	return &CLI{
+		stdin: stdin,
+		input: bufio.NewScanner(stdin),
+		stdout: stdout,
+		stderr: stderr,
 	}
 }
 
@@ -73,6 +121,13 @@ func RunCommand(header []byte, stream beam.Stream) (err error) {
 		os.Exit(1)
 	} else if parts[0] == "sleep" {
 		time.Sleep(1 * time.Second)
+	} else if parts[0] == "exec" {
+		cmd := exec.Command("/bin/sh", "-c", strings.Join(parts[1:], " "))
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(stderr, "exec: %s\n", err)
+		}
 	} else {
 		fmt.Fprintf(stderr, "%s: command not found\n", parts[0])
 	}
