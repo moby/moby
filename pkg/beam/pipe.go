@@ -45,7 +45,14 @@ func (p *pipe) Send(data []byte, stream Stream) error {
 	if p.err != nil {
 		return fmt.Errorf("send: pipe closed")
 	}
-	p.w <- &pipeMsg{data: data, stream: stream}
+	msg := &pipeMsg{data: data}
+	if stream != nil {
+		local, remote := Pipe()
+		go Splice(local, remote)
+		go Splice(local, stream)
+		msg.stream = remote
+	}
+	p.w <- msg
 	return nil
 }
 
