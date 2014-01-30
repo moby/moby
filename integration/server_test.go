@@ -219,6 +219,63 @@ func TestCommit(t *testing.T) {
 	}
 }
 
+func TestMergeConfigOnCommit(t *testing.T) {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+
+	container1, _, _ := mkContainer(runtime, []string{"-e", "FOO=bar", unitTestImageID, "echo test > /tmp/foo"}, t)
+	defer runtime.Destroy(container1)
+
+	config, _, _, err := runconfig.Parse([]string{container1.ID, "cat /tmp/foo"}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	job := eng.Job("commit", container1.ID)
+	job.Setenv("repo", "testrepo")
+	job.Setenv("tag", "testtag")
+	job.SetenvJson("config", config)
+	var newId string
+	job.Stdout.AddString(&newId)
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	container2, _, _ := mkContainer(runtime, []string{newId}, t)
+	defer runtime.Destroy(container2)
+
+	job = eng.Job("inspect", container1.Name, "container")
+	baseContainer, _ := job.Stdout.AddEnv()
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	job = eng.Job("inspect", container2.Name, "container")
+	commitContainer, _ := job.Stdout.AddEnv()
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	baseConfig := baseContainer.GetSubEnv("Config")
+	commitConfig := commitContainer.GetSubEnv("Config")
+
+	if commitConfig.Get("Env") != baseConfig.Get("Env") {
+		t.Fatalf("Env config in committed container should be %v, was %v",
+			baseConfig.Get("Env"), commitConfig.Get("Env"))
+	}
+
+	if baseConfig.Get("Cmd") != "[\"echo test \\u003e /tmp/foo\"]" {
+		t.Fatalf("Cmd in base container should be [\"echo test \\u003e /tmp/foo\"], was %s",
+			baseConfig.Get("Cmd"))
+	}
+
+	if commitConfig.Get("Cmd") != "[\"cat /tmp/foo\"]" {
+		t.Fatalf("Cmd in committed container should be [\"cat /tmp/foo\"], was %s",
+			commitConfig.Get("Cmd"))
+	}
+}
+
 func TestRestartKillWait(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)

@@ -1043,12 +1043,17 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config runconfig.Config
-	if err := job.GetenvJson("config", &config); err != nil {
+	var config = container.Config
+	var newConfig runconfig.Config
+	if err := job.GetenvJson("config", &newConfig); err != nil {
 		return job.Error(err)
 	}
 
-	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
+	if err := runconfig.Merge(&newConfig, config); err != nil {
+		return job.Error(err)
+	}
+
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
 	if err != nil {
 		return job.Error(err)
 	}
