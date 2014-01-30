@@ -38,6 +38,7 @@ func parseOptions(options string) (int, string) {
 		"nodiratime":    {false, syscall.MS_NODIRATIME},
 		"bind":          {false, syscall.MS_BIND},
 		"rbind":         {false, syscall.MS_BIND | syscall.MS_REC},
+		"private":       {false, syscall.MS_PRIVATE},
 		"relatime":      {false, syscall.MS_RELATIME},
 		"norelatime":    {true, syscall.MS_RELATIME},
 		"strictatime":   {false, syscall.MS_STRICTATIME},
