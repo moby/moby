@@ -5,6 +5,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/docker -d -H fd://
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
