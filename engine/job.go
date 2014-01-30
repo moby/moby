@@ -164,10 +164,6 @@ func (job *Job) EncodeEnv(dst io.Writer) error {
 	return job.env.Encode(dst)
 }
 
-func (job *Job) ExportEnv(dst interface{}) (err error) {
-	return job.env.Export(dst)
-}
-
 func (job *Job) ImportEnv(src interface{}) (err error) {
 	return job.env.Import(src)
 }

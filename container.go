@@ -104,6 +104,44 @@ type Config struct {
 	NetworkDisabled bool
 }
 
+func ContainerConfigFromJob(job *engine.Job) *Config {
+	var config Config
+	config.Hostname = job.Getenv("Hostname")
+	config.Domainname = job.Getenv("Domainname")
+	config.User = job.Getenv("User")
+	config.Memory = job.GetenvInt64("Memory")
+	config.MemorySwap = job.GetenvInt64("MemorySwap")
+	config.CpuShares = job.GetenvInt64("CpuShares")
+	config.AttachStdin = job.GetenvBool("AttachStdin")
+	config.AttachStdout = job.GetenvBool("AttachStdout")
+	config.AttachStderr = job.GetenvBool("AttachStderr")
+	if PortSpecs := job.GetenvList("PortSpecs"); PortSpecs != nil {
+		config.PortSpecs = PortSpecs
+	}
+	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
+	config.Tty = job.GetenvBool("Tty")
+	config.OpenStdin = job.GetenvBool("OpenStdin")
+	config.StdinOnce = job.GetenvBool("StdinOnce")
+	if Env := job.GetenvList("Env"); Env != nil {
+		config.Env = Env
+	}
+	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
+		config.Cmd = Cmd
+	}
+	if Dns := job.GetenvList("Dns"); Dns != nil {
+		config.Dns = Dns
+	}
+	config.Image = job.Getenv("Image")
+	job.GetenvJson("Volumes", &config.Volumes)
+	config.VolumesFrom = job.Getenv("VolumesFrom")
+	config.WorkingDir = job.Getenv("WorkingDir")
+	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
+		config.Entrypoint = Entrypoint
+	}
+	config.NetworkDisabled = job.GetenvBool("NetworkDisabled")
+	return &config
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
@@ -112,6 +150,22 @@ type HostConfig struct {
 	PortBindings    map[Port][]PortBinding
 	Links           []string
 	PublishAllPorts bool
+}
+
+func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
+	var hostConfig HostConfig
+	if Binds := job.GetenvList("Binds"); Binds != nil {
+		hostConfig.Binds = Binds
+	}
+	hostConfig.ContainerIDFile = job.Getenv("ContainerIDFile")
+	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
+	hostConfig.Privileged = job.GetenvBool("Privileged")
+	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
+	if Links := job.GetenvList("Links"); Links != nil {
+		hostConfig.Links = Links
+	}
+	hostConfig.PublishAllPorts = job.GetenvBool("PublishAllPorts")
+	return &hostConfig
 }
 
 type BindMap struct {

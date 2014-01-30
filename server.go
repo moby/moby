@@ -1742,11 +1742,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		job.Printf("Usage: %s", job.Name)
 		return engine.StatusErr
 	}
-	var config Config
-	if err := job.ExportEnv(&config); err != nil {
-		job.Error(err)
-		return engine.StatusErr
-	}
+	config := ContainerConfigFromJob(job)
 	if config.Memory != 0 && config.Memory < 524288 {
 		job.Errorf("Minimum memory limit allowed is 512k")
 		return engine.StatusErr
@@ -1769,7 +1765,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		config.Dns = defaultDns
 	}
 
-	container, buildWarnings, err := srv.runtime.Create(&config, name)
+	container, buildWarnings, err := srv.runtime.Create(config, name)
 	if err != nil {
 		if srv.runtime.graph.IsNotExist(err) {
 			_, tag := utils.ParseRepositoryTag(config.Image)
@@ -2196,11 +2192,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	}
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
-		var hostConfig HostConfig
-		if err := job.ExportEnv(&hostConfig); err != nil {
-			job.Error(err)
-			return engine.StatusErr
-		}
+		hostConfig := ContainerHostConfigFromJob(job)
 		// Validate the HostConfig binds. Make sure that:
 		// 1) the source of a bind mount isn't /
 		//         The bind mount "/:/foo" isn't allowed.
@@ -2227,11 +2219,11 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 			}
 		}
 		// Register any links from the host config before starting the container
-		if err := srv.RegisterLinks(container, &hostConfig); err != nil {
+		if err := srv.RegisterLinks(container, hostConfig); err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
-		container.hostConfig = &hostConfig
+		container.hostConfig = hostConfig
 		container.ToDisk()
 	}
 	if err := container.Start(); err != nil {
