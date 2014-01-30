@@ -34,7 +34,7 @@ var (
 type Container struct {
 	sync.Mutex
 	root   string // Path to the "home" of the container, including metadata.
-	rootfs string // Path to the root filesystem of the container.
+	basefs string // Path to the graphdriver mountpoint
 
 	ID string
 
@@ -208,7 +208,7 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	defer container.Unmount()
 
 	// Return error if path exists
-	destPath := path.Join(container.RootfsPath(), pth)
+	destPath := path.Join(container.basefs, pth)
 	if _, err := os.Stat(destPath); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
@@ -220,7 +220,7 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	}
 
 	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.RootfsPath(), path.Dir(pth)), 0755); err != nil {
+	if err := os.MkdirAll(path.Join(container.basefs, path.Dir(pth)), 0755); err != nil {
 		return err
 	}
 
@@ -649,17 +649,32 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	root := container.RootfsPath()
-
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
-		if err := os.MkdirAll(path.Join(root, container.Config.WorkingDir), 0755); err != nil {
+		if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
 			return nil
 		}
 	}
 
 	envPath, err := container.EnvConfigPath()
 	if err != nil {
+		return err
+	}
+
+	// Setup the root fs as a bind mount of the base fs
+	root := container.RootfsPath()
+	if err := os.MkdirAll(root, 0755); err != nil && !os.IsExist(err) {
+		return nil
+	}
+
+	// Create a bind mount of the base fs as a place where we can add mounts
+	// without affecting the ability to access the base fs
+	if err := mount.Mount(container.basefs, root, "none", "bind,rw"); err != nil {
+		return err
+	}
+
+	// Make sure the root fs is private so the mounts here don't propagate to basefs
+	if err := mount.ForceMount(root, root, "none", "private"); err != nil {
 		return err
 	}
 
@@ -849,8 +864,8 @@ func (container *Container) createVolumes() error {
 		container.VolumesRW[volPath] = srcRW
 
 		// Create the mountpoint
-		volPath = path.Join(container.RootfsPath(), volPath)
-		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.RootfsPath())
+		volPath = path.Join(container.basefs, volPath)
+		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.basefs)
 		if err != nil {
 			return err
 		}
@@ -939,7 +954,7 @@ func (container *Container) applyExternalVolumes() error {
 				if _, exists := container.Volumes[volPath]; exists {
 					continue
 				}
-				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				if err := os.MkdirAll(path.Join(container.basefs, volPath), 0755); err != nil {
 					return err
 				}
 				container.Volumes[volPath] = id
@@ -1206,6 +1221,30 @@ func (container *Container) cleanup() {
 		}
 	}
 
+	var (
+		root   = container.RootfsPath()
+		mounts = []string{
+			root,
+			path.Join(root, "/.dockerinit"),
+			path.Join(root, "/.dockerenv"),
+			path.Join(root, "/etc/resolv.conf"),
+		}
+	)
+
+	if container.HostnamePath != "" && container.HostsPath != "" {
+		mounts = append(mounts, path.Join(root, "/etc/hostname"), path.Join(root, "/etc/hosts"))
+	}
+
+	for r := range container.Volumes {
+		mounts = append(mounts, path.Join(root, r))
+	}
+
+	for i := len(mounts) - 1; i >= 0; i-- {
+		if lastError := mount.Unmount(mounts[i]); lastError != nil {
+			log.Printf("Failed to umount %v: %v", mounts[i], lastError)
+		}
+	}
+
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
@@ -1309,7 +1348,7 @@ func (container *Container) Export() (archive.Archive, error) {
 		return nil, err
 	}
 
-	archive, err := archive.Tar(container.RootfsPath(), archive.Uncompressed)
+	archive, err := archive.Tar(container.basefs, archive.Uncompressed)
 	if err != nil {
 		return nil, err
 	}
@@ -1347,32 +1386,6 @@ func (container *Container) GetImage() (*Image, error) {
 }
 
 func (container *Container) Unmount() error {
-	var (
-		err    error
-		root   = container.RootfsPath()
-		mounts = []string{
-			path.Join(root, "/.dockerinit"),
-			path.Join(root, "/.dockerenv"),
-			path.Join(root, "/etc/resolv.conf"),
-		}
-	)
-
-	if container.HostnamePath != "" && container.HostsPath != "" {
-		mounts = append(mounts, path.Join(root, "/etc/hostname"), path.Join(root, "/etc/hosts"))
-	}
-
-	for r := range container.Volumes {
-		mounts = append(mounts, path.Join(root, r))
-	}
-
-	for i := len(mounts) - 1; i >= 0; i-- {
-		if lastError := mount.Unmount(mounts[i]); lastError != nil {
-			err = fmt.Errorf("Failed to umount %v: %v", mounts[i], lastError)
-		}
-	}
-	if err != nil {
-		return err
-	}
 	return container.runtime.Unmount(container)
 }
 
@@ -1409,8 +1422,15 @@ func (container *Container) EnvConfigPath() (string, error) {
 }
 
 // This method must be exported to be used from the lxc template
+// This directory is only usable when the container is running
 func (container *Container) RootfsPath() string {
-	return container.rootfs
+	return path.Join(container.root, "root")
+}
+
+// This is the stand-alone version of the root fs, without any additional mounts.
+// This directory is usable whenever the container is mounted (and not unmounted)
+func (container *Container) BasefsPath() string {
+	return container.basefs
 }
 
 func validateID(id string) error {
@@ -1445,14 +1465,14 @@ func (container *Container) GetSize() (int64, int64) {
 	} else {
 		changes, _ := container.Changes()
 		if changes != nil {
-			sizeRw = archive.ChangesSize(container.RootfsPath(), changes)
+			sizeRw = archive.ChangesSize(container.basefs, changes)
 		} else {
 			sizeRw = -1
 		}
 	}
 
-	if _, err = os.Stat(container.RootfsPath()); err != nil {
-		if sizeRootfs, err = utils.TreeSize(container.RootfsPath()); err != nil {
+	if _, err = os.Stat(container.basefs); err != nil {
+		if sizeRootfs, err = utils.TreeSize(container.basefs); err != nil {
 			sizeRootfs = -1
 		}
 	}
@@ -1464,7 +1484,7 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 		return nil, err
 	}
 	var filter []string
-	basePath := path.Join(container.RootfsPath(), resource)
+	basePath := path.Join(container.basefs, resource)
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		container.Unmount()

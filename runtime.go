@@ -131,12 +131,12 @@ func (runtime *Runtime) Register(container *Container) error {
 	}
 
 	// Get the root filesystem from the driver
-	rootfs, err := runtime.driver.Get(container.ID)
+	basefs, err := runtime.driver.Get(container.ID)
 	if err != nil {
 		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
 	}
 	defer runtime.driver.Put(container.ID)
-	container.rootfs = rootfs
+	container.basefs = basefs
 
 	container.runtime = runtime
 
@@ -764,11 +764,11 @@ func (runtime *Runtime) Mount(container *Container) error {
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, runtime.driver, err)
 	}
-	if container.rootfs == "" {
-		container.rootfs = dir
-	} else if container.rootfs != dir {
+	if container.basefs == "" {
+		container.basefs = dir
+	} else if container.basefs != dir {
 		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-			runtime.driver, container.ID, container.rootfs, dir)
+			runtime.driver, container.ID, container.basefs, dir)
 	}
 	return nil
 }

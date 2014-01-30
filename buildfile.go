@@ -328,7 +328,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	var (
 		origPath = path.Join(b.contextPath, orig)
-		destPath = path.Join(container.RootfsPath(), dest)
+		destPath = path.Join(container.BasefsPath(), dest)
 	)
 	// Preserve the trailing '/'
 	if strings.HasSuffix(dest, "/") {
