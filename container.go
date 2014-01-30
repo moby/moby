@@ -670,39 +670,34 @@ func (container *Container) Start() (err error) {
 	}
 
 	if len(children) > 0 {
-		panic("todo crosbymichael")
-		/*
-			            linking is specific to iptables and the bridge we need to move this to a job
+		container.activeLinks = make(map[string]*Link, len(children))
 
-						container.activeLinks = make(map[string]*Link, len(children))
+		// If we encounter an error make sure that we rollback any network
+		// config and ip table changes
+		rollback := func() {
+			for _, link := range container.activeLinks {
+				link.Disable()
+			}
+			container.activeLinks = nil
+		}
 
-						// If we encounter an error make sure that we rollback any network
-						// config and ip table changes
-						rollback := func() {
-							for _, link := range container.activeLinks {
-								link.Disable()
-							}
-							container.activeLinks = nil
-						}
+		for p, child := range children {
+			link, err := NewLink(container, child, p, runtime.eng)
+			if err != nil {
+				rollback()
+				return err
+			}
 
-						for p, child := range children {
-							link, err := NewLink(container, child, p, runtime.networkManager.bridgeIface)
-							if err != nil {
-								rollback()
-								return err
-							}
+			container.activeLinks[link.Alias()] = link
+			if err := link.Enable(); err != nil {
+				rollback()
+				return err
+			}
 
-							container.activeLinks[link.Alias()] = link
-							if err := link.Enable(); err != nil {
-								rollback()
-								return err
-							}
-
-							for _, envVar := range link.ToEnv() {
-								env = append(env, envVar)
-							}
-						}
-		*/
+			for _, envVar := range link.ToEnv() {
+				env = append(env, envVar)
+			}
+		}
 	}
 
 	for _, elem := range container.Config.Env {

@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -137,6 +138,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		"allocate_interface": Allocate,
 		"release_interface":  Release,
 		"allocate_port":      AllocatePort,
+		"link":               LinkContainers,
 	} {
 		if err := job.Eng.Register(name, f); err != nil {
 			job.Error(err)
@@ -421,5 +423,37 @@ func AllocatePort(job *engine.Job) engine.Status {
 	}
 	network.PortMappings = append(network.PortMappings, host)
 
+	return engine.StatusOK
+}
+
+func LinkContainers(job *engine.Job) engine.Status {
+	var (
+		action       = job.Args[0]
+		childIP      = job.Getenv("ChildIP")
+		parentIP     = job.Getenv("ParentIP")
+		ignoreErrors = job.GetenvBool("IgnoreErrors")
+		ports        = job.GetenvList("Ports")
+	)
+	split := func(p string) (string, string) {
+		parts := strings.Split(p, "/")
+		return parts[0], parts[1]
+	}
+
+	for _, p := range ports {
+		port, proto := split(p)
+		if output, err := iptables.Raw(action, "FORWARD",
+			"-i", bridgeIface, "-o", bridgeIface,
+			"-p", proto,
+			"-s", parentIP,
+			"--dport", port,
+			"-d", childIP,
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle iptables forward: %s", output)
+			return engine.StatusErr
+		}
+	}
 	return engine.StatusOK
 }
