@@ -46,3 +46,12 @@ func Copy(dst, src Stream) error {
 	}
 	return nil
 }
+
+func devNull(data []byte, stream Stream) error {
+	if stream != nil {
+		go Copy(Func(devNull), stream)
+	}
+	return nil
+}
+
+var DevNull Func = devNull
