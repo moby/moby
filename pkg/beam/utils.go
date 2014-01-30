@@ -51,6 +51,7 @@ func Splice(a, b Stream) (firstErr error) {
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
+		dst.Close()
 		wg.Done()
 	}
 	go halfSplice(a, b)
