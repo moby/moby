@@ -1674,7 +1674,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	v := url.Values{}
 	v.Set("term", cmd.Arg(0))
 
-	body, _, err := readBody(cli.call("GET", "/images/search?"+v.Encode(), nil, false))
+	body, _, err := readBody(cli.call("GET", "/images/search?"+v.Encode(), nil, true))
 
 	if err != nil {
 		return err
