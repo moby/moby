@@ -20,6 +20,6 @@ func (f Func) File() (*os.File, error) {
 	return nil, fmt.Errorf("no file descriptor associated with stream")
 }
 
-func Close() error {
+func (f Func) Close() error {
 	return fmt.Errorf("receive: operation not supported")
 }
