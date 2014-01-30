@@ -23,7 +23,8 @@ func WrapIO(obj interface{}, blocksize int) Stream {
 func (w ioWrapper) Receive() (data []byte, s Stream, err error) {
 	reader, ok := w.obj.(io.Reader)
 	if !ok {
-		return nil, nil, fmt.Errorf("receive: operation not supported")
+		// Return EOF if Read is not implemented
+		return nil, nil, io.EOF
 	}
 	data = make([]byte, w.blocksize)
 	n, err := reader.Read(data)
@@ -33,7 +34,8 @@ func (w ioWrapper) Receive() (data []byte, s Stream, err error) {
 func (w ioWrapper) Send(data []byte, s Stream) error {
 	writer, ok := w.obj.(io.Writer)
 	if !ok {
-		return fmt.Errorf("send: operation not supported")
+		// Silently discard the data if Write is not implemented
+		return nil
 	}
 	if s != nil {
 		return fmt.Errorf("send stream: operation not supported")

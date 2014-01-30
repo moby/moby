@@ -1,6 +1,9 @@
 package beam
 
 import (
+	"bufio"
+	"io"
+	"io/ioutil"
 	"testing"
 	"bytes"
 )
@@ -26,5 +29,21 @@ func TestWrapBufferReceive(t *testing.T) {
 	}
 	if string(data) != "hi there" {
 		t.Fatalf("received wrong data from buffer: '%v'", data)
+	}
+}
+
+func TestWrapSendNoWrite(t *testing.T) {
+	r := bytes.NewReader([]byte("foobar"))
+	err := WrapIO(r, 0).Send([]byte("something"), nil)
+	if err != nil {
+		t.Fatalf("IOWrapper.Send must silently discard when Write is not implemented (err=%s)", err)
+	}
+}
+
+func TestWrapReceiveNoRead(t *testing.T) {
+	w := bufio.NewWriter(ioutil.Discard)
+	_, _, err := WrapIO(w, 0).Receive()
+	if err != io.EOF {
+		t.Fatalf("IOWrapper.Receive must return EOF when Read is not implemented (err=%s)", err)
 	}
 }
