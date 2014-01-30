@@ -114,6 +114,30 @@ func TestCreateRm(t *testing.T) {
 
 }
 
+func TestCreateNumberHostname(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, _, _, err := docker.ParseRun([]string{"-h", "web.0", unitTestImageID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createTestContainer(eng, config, t)
+}
+
+func TestCreateNumberUsername(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, _, _, err := docker.ParseRun([]string{"-u", "1002", unitTestImageID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createTestContainer(eng, config, t)
+}
+
 func TestCreateRmVolumes(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
