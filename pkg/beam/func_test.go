@@ -1,7 +1,7 @@
 package beam
 
 import (
-	"fmt"
+	"io"
 	"testing"
 )
 

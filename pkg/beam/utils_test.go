@@ -1,6 +1,7 @@
 package beam
 
 import (
+	"bytes"
 	"io"
 	"sync"
 	"testing"
@@ -56,6 +57,61 @@ func TestSplice(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+}
+
+func TestDevNullReceive(t *testing.T) {
+	data, s, err := DevNull.Receive()
+	if err != io.EOF {
+		t.Fatalf("DevNull.Receive() should return io.EOF")
+	}
+	if data != nil && len(data) != 0 {
+		t.Fatalf("DevNull.Receive() should not return data")
+	}
+	if s != nil {
+		t.Fatalf("DevNull.Receive() should not return a stream")
+	}
+}
+
+
+func TestCopyLines(t *testing.T) {
+	timer := time.AfterFunc(1 * time.Second, func() { t.Fatalf("timeout") })
+	defer timer.Stop()
+	input := getTestData(10)
+	output := new(bytes.Buffer)
+	err := Copy(WrapIO(output, 0), WrapIO(bytes.NewReader(input), 0))
+	if err != nil {
+		t.Fatalf("copy: %s", err)
+	}
+	if string(input) != output.String() {
+		t.Fatalf("input != output: %v bytes vs %v", len(input), output.Len())
+	}
+}
+
+func TestSpliceLines(t *testing.T) {
+	timer := time.AfterFunc(1 * time.Second, func() { t.Fatalf("timeout") })
+	defer timer.Stop()
+	input := getTestData(10)
+	output := new(bytes.Buffer)
+	err := Splice(WrapIO(output, 0), WrapIO(bytes.NewReader(input), 0))
+	if err != nil {
+		t.Fatalf("splice: %s", err)
+	}
+	if string(input) != output.String() {
+		t.Fatalf("input != output: %v bytes vs %v", len(input), output.Len())
+	}
+}
+
+func TestSpliceClose(t *testing.T) {
+	a1, a2 := Pipe()
+	b1, b2 := Pipe()
+	go func() {
+		a1.Send([]byte("hello world!"), nil)
+		a1.Close()
+	}()
+	go Splice(a2, b1)
+	if err := Copy(DevNull, b2); err != nil {
+		t.Fatalf("copy: %s", err)
+	}
 }
 
 func sendExpect(s Stream, send, expect string, t *testing.T) {
