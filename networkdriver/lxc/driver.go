@@ -19,8 +19,6 @@ import (
 
 const (
 	DefaultNetworkBridge = "docker0"
-	DisableNetworkBridge = "none"
-	DefaultNetworkMtu    = 1500
 	siocBRADDBR          = 0x89a0
 )
 
@@ -70,17 +68,24 @@ func InitDriver(job *engine.Job) engine.Status {
 		enableIPTables = job.GetenvBool("EnableIptables")
 		icc            = job.GetenvBool("InterContainerCommunication")
 		ipForward      = job.GetenvBool("EnableIpForward")
+		bridgeIP       = job.Getenv("BridgeIP")
 	)
+
 	bridgeIface = job.Getenv("BridgeIface")
+	if bridgeIface == "" {
+		bridgeIface = DefaultNetworkBridge
+	}
 
 	addr, err := networkdriver.GetIfaceAddr(bridgeIface)
 	if err != nil {
 		// If the iface is not found, try to create it
-		if err := createBridgeIface(bridgeIface); err != nil {
+		job.Logf("creating new bridge for %s", bridgeIface)
+		if err := createBridge(bridgeIP); err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
 
+		job.Logf("getting iface addr")
 		addr, err = networkdriver.GetIfaceAddr(bridgeIface)
 		if err != nil {
 			job.Error(err)
@@ -122,9 +127,14 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	bridgeNetwork = network
+
+	// https://github.com/dotcloud/docker/issues/2768
+	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeNetwork.IP)
+
 	for name, f := range map[string]engine.Handler{
 		"allocate_interface": Allocate,
 		"release_interface":  Release,
+		"allocate_port":      AllocatePort,
 	} {
 		if err := job.Eng.Register(name, f); err != nil {
 			job.Error(err)
@@ -304,6 +314,10 @@ func Allocate(job *engine.Job) engine.Status {
 	out.Set("IP", string(*ip))
 	out.Set("Mask", string(bridgeNetwork.Mask))
 	out.Set("Gateway", string(bridgeNetwork.IP))
+	out.Set("Bridge", bridgeIface)
+
+	size, _ := bridgeNetwork.Mask.Size()
+	out.SetInt("IPPrefixLen", size)
 
 	currentInterfaces[id] = &networkInterface{
 		IP: *ip,

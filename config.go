@@ -5,6 +5,11 @@ import (
 	"net"
 )
 
+const (
+	DefaultNetworkMtu    = 1500
+	DisableNetworkBridge = "none"
+)
+
 // FIXME: separate runtime configuration from http api configuration
 type DaemonConfig struct {
 	Pidfile                     string
@@ -13,12 +18,13 @@ type DaemonConfig struct {
 	Dns                         []string
 	EnableIptables              bool
 	EnableIpForward             bool
-	BridgeIface                 string
-	BridgeIp                    string
 	DefaultIp                   net.IP
+	BridgeIface                 string
+	BridgeIP                    string
 	InterContainerCommunication bool
 	GraphDriver                 string
 	Mtu                         int
+	DisableNetwork              bool
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -30,7 +36,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 		AutoRestart:                 job.GetenvBool("AutoRestart"),
 		EnableIptables:              job.GetenvBool("EnableIptables"),
 		EnableIpForward:             job.GetenvBool("EnableIpForward"),
-		BridgeIp:                    job.Getenv("BridgeIp"),
+		BridgeIP:                    job.Getenv("BridgeIp"),
 		DefaultIp:                   net.ParseIP(job.Getenv("DefaultIp")),
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
@@ -38,16 +44,12 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns
 	}
-	if br := job.Getenv("BridgeIface"); br != "" {
-		config.BridgeIface = br
-	} else {
-		config.BridgeIface = DefaultNetworkBridge
-	}
 	if mtu := job.GetenvInt("Mtu"); mtu != 0 {
 		config.Mtu = mtu
 	} else {
 		config.Mtu = DefaultNetworkMtu
 	}
+	config.DisableNetwork = job.Getenv("BridgeIface") == DisableNetworkBridge
 
 	return config
 }

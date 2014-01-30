@@ -65,10 +65,7 @@ func jobInitApi(job *engine.Job) engine.Status {
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
-	// https://github.com/dotcloud/docker/issues/2768
-	if srv.runtime.networkManager.bridgeNetwork != nil {
-		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", srv.runtime.networkManager.bridgeNetwork.IP)
-	}
+
 	for name, handler := range map[string]engine.Handler{
 		"export":           srv.ContainerExport,
 		"create":           srv.ContainerCreate,
@@ -2354,7 +2351,7 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 }
 
 func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
-	runtime, err := NewRuntime(config)
+	runtime, err := NewRuntime(config, eng)
 	if err != nil {
 		return nil, err
 	}
