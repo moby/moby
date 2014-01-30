@@ -1109,7 +1109,7 @@ func (container *Container) allocateNetwork() error {
 
 	var (
 		env *engine.Env
-		eng = container.runtime.srv.Eng
+		eng = container.runtime.eng
 	)
 	if container.State.IsGhost() {
 		if container.runtime.config.DisableNetwork {
@@ -1220,7 +1220,7 @@ func (container *Container) releaseNetwork() {
 	if container.Config.NetworkDisabled {
 		return
 	}
-	eng := container.runtime.srv.Eng
+	eng := container.runtime.eng
 
 	eng.Job("release_interface", container.ID).Run()
 	container.NetworkSettings = &NetworkSettings{}

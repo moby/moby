@@ -34,7 +34,13 @@ func mkRuntime(f utils.Fataler) *docker.Runtime {
 		AutoRestart: false,
 		Mtu:         docker.DefaultNetworkMtu,
 	}
-	r, err := docker.NewRuntimeFromDirectory(config)
+
+	eng, err := engine.New(root)
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	r, err := docker.NewRuntimeFromDirectory(config, eng)
 	if err != nil {
 		f.Fatal(err)
 	}

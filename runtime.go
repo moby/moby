@@ -50,6 +50,7 @@ type Runtime struct {
 	sysInfo        *sysinfo.SysInfo
 	volumes        *Graph
 	srv            *Server
+	eng            *engine.Engine
 	config         *DaemonConfig
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
@@ -740,6 +741,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		driver:         driver,
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
+		eng:            eng,
 	}
 
 	if err := runtime.restore(); err != nil {
