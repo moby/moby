@@ -1030,12 +1030,16 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config Config
-	if err := job.GetenvJson("config", &config); err != nil {
+	var config = container.Config
+	var newConfig Config
+	if err := job.GetenvJson("config", &newConfig); err != nil {
 		return job.Error(err)
 	}
+	if newConfig != (Config{}) { // doesn't work; can't compare slices for equality
+		config = &newConfig
+	}
 
-	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), config)
 	if err != nil {
 		return job.Error(err)
 	}
