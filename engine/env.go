@@ -191,24 +191,6 @@ func (env *Env) WriteTo(dst io.Writer) (n int64, err error) {
 	return 0, env.Encode(dst)
 }
 
-func (env *Env) Export(dst interface{}) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("ExportEnv %s", err)
-		}
-	}()
-	var buf bytes.Buffer
-	// step 1: encode/marshal the env to an intermediary json representation
-	if err := env.Encode(&buf); err != nil {
-		return err
-	}
-	// step 2: decode/unmarshal the intermediary json into the destination object
-	if err := json.NewDecoder(&buf).Decode(dst); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (env *Env) Import(src interface{}) (err error) {
 	defer func() {
 		if err != nil {
