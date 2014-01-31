@@ -75,7 +75,7 @@ func containerFileExists(eng *engine.Engine, id, dir string, t utils.Fataler) bo
 		t.Fatal(err)
 	}
 	defer c.Unmount()
-	if _, err := os.Stat(path.Join(c.RootfsPath(), dir)); err != nil {
+	if _, err := os.Stat(path.Join(c.BasefsPath(), dir)); err != nil {
 		if os.IsNotExist(err) {
 			return false
 		}
