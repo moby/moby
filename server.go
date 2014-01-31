@@ -1035,7 +1035,8 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if err := job.GetenvJson("config", &newConfig); err != nil {
 		return job.Error(err)
 	}
-	if newConfig != (Config{}) { // doesn't work; can't compare slices for equality
+
+	if false { // What to do here?
 		config = &newConfig
 	}
 
