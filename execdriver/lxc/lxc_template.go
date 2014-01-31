@@ -15,6 +15,7 @@ lxc.network.name = eth0
 {{else}}
 # network is disabled (-n=false)
 lxc.network.type = empty
+lxc.network.flags = up
 {{end}}
 
 # root filesystem
