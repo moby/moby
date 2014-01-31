@@ -12,3 +12,4 @@ Articles
 
    security
    baseimages
+   runmetrics

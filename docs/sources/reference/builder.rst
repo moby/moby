@@ -1,12 +1,12 @@
-:title: Build Images (Dockerfile Reference)
+:title: Dockerfile Reference
 :description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
 :keywords: builder, docker, Dockerfile, automation, image creation
 
 .. _dockerbuilder:
 
-===================================
-Build Images (Dockerfile Reference)
-===================================
+====================
+Dockerfile Reference
+====================
 
 **Docker can act as a builder** and read instructions from a text
 ``Dockerfile`` to automate the steps you would otherwise take manually

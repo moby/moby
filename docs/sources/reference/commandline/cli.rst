@@ -18,6 +18,45 @@ To list available commands, either run ``docker`` with no parameters or execute
 
     ...
 
+.. _cli_options:
+
+Types of Options
+----------------
+
+Boolean
+~~~~~~~
+
+Boolean options look like ``-d=false``. The value you see is the
+default value which gets set if you do **not** use the boolean
+flag. If you do call ``run -d``, that sets the opposite boolean value,
+so in this case, ``true``, and so ``docker run -d`` **will** run in
+"detached" mode, in the background. Other boolean options are similar
+-- specifying them will set the value to the opposite of the default
+value.
+
+Multi
+~~~~~
+
+Options like ``-a=[]`` indicate they can be specified multiple times::
+
+  docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
+
+Sometimes this can use a more complex value string, as for ``-v``::
+
+  docker run -v /host:/container example/mysql
+
+Strings and Integers
+~~~~~~~~~~~~~~~~~~~~
+
+Options like ``-name=""`` expect a string, and they can only be
+specified once. Options like ``-c=0`` expect an integer, and they can
+only be specified once.
+
+----
+
+Commands
+--------
+
 .. _cli_daemon:
 
 ``daemon``
