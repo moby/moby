@@ -43,7 +43,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 	} else {
 		config.BridgeIface = DefaultNetworkBridge
 	}
-	if mtu := job.GetenvInt("Mtu"); mtu != -1 {
+	if mtu := job.GetenvInt("Mtu"); mtu != 0 {
 		config.Mtu = mtu
 	} else {
 		config.Mtu = DefaultNetworkMtu

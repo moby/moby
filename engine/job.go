@@ -102,6 +102,10 @@ func (job *Job) String() string {
 	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
 }
 
+func (job *Job) EnvExists(key string) (value bool) {
+	return job.env.Exists(key)
+}
+
 func (job *Job) Getenv(key string) (value string) {
 	return job.env.Get(key)
 }
