@@ -400,6 +400,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job.SetenvBool("parallel", version.GreaterThan("1.3"))
 		job.SetenvJson("metaHeaders", metaHeaders)
 		job.SetenvJson("authConfig", authConfig)
+		job.Setenv("q", r.FormValue("q"))
 	} else { //import
 		job = eng.Job("import", r.Form.Get("fromSrc"), r.Form.Get("repo"), tag)
 		job.Stdin.Add(r.Body)
@@ -519,6 +520,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
+	job.Setenv("q", r.FormValue("q"))
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
