@@ -214,7 +214,16 @@ func (d *driver) version() string {
 }
 
 func (d *driver) kill(c *execdriver.Command, sig int) error {
-	output, err := exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+	var (
+		err    error
+		output []byte
+	)
+	_, err = exec.LookPath("lxc-kill")
+	if err == nil {
+		output, err = exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+	} else {
+		output, err = exec.Command("lxc-stop", "-k", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+	}
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)
 	}
