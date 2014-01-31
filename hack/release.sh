@@ -151,7 +151,8 @@ release_build() {
 			S3ARCH=i386
 			;;
 		arm)
-			# GOARCH is fine
+			S3ARCH=armel
+			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
 			;;
 		*)
 			echo >&2 "error: can't convert $S3ARCH to an appropriate value for 'uname -m'"
