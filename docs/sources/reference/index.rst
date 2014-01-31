@@ -14,4 +14,5 @@ Contents:
 
    commandline/index
    builder
+   run
    api/index

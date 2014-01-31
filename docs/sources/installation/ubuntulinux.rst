@@ -217,6 +217,15 @@ To install the latest version of docker, use the standard ``apt-get`` method:
    # install the latest
    sudo apt-get install lxc-docker
 
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+On Linux Mint, the ``cgroups-lite`` package is not installed by default.
+Before Docker will work correctly, you will need to install this via:
+
+.. code-block:: bash
+
+    sudo apt-get update && sudo apt-get install cgroups-lite
 
 .. _ufw:
 
@@ -224,7 +233,7 @@ Docker and UFW
 ^^^^^^^^^^^^^^
 
 Docker uses a bridge to manage container networking. By default, UFW drops all
-`forwarding` traffic. As a result will you need to enable UFW forwarding:
+`forwarding` traffic. As a result you will need to enable UFW forwarding:
 
 .. code-block:: bash
 

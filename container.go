@@ -104,6 +104,46 @@ type Config struct {
 	NetworkDisabled bool
 }
 
+func ContainerConfigFromJob(job *engine.Job) *Config {
+	config := &Config{
+		Hostname:        job.Getenv("Hostname"),
+		Domainname:      job.Getenv("Domainname"),
+		User:            job.Getenv("User"),
+		Memory:          job.GetenvInt64("Memory"),
+		MemorySwap:      job.GetenvInt64("MemorySwap"),
+		CpuShares:       job.GetenvInt64("CpuShares"),
+		AttachStdin:     job.GetenvBool("AttachStdin"),
+		AttachStdout:    job.GetenvBool("AttachStdout"),
+		AttachStderr:    job.GetenvBool("AttachStderr"),
+		Tty:             job.GetenvBool("Tty"),
+		OpenStdin:       job.GetenvBool("OpenStdin"),
+		StdinOnce:       job.GetenvBool("StdinOnce"),
+		Image:           job.Getenv("Image"),
+		VolumesFrom:     job.Getenv("VolumesFrom"),
+		WorkingDir:      job.Getenv("WorkingDir"),
+		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
+	}
+	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
+	job.GetenvJson("Volumes", &config.Volumes)
+	if PortSpecs := job.GetenvList("PortSpecs"); PortSpecs != nil {
+		config.PortSpecs = PortSpecs
+	}
+	if Env := job.GetenvList("Env"); Env != nil {
+		config.Env = Env
+	}
+	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
+		config.Cmd = Cmd
+	}
+	if Dns := job.GetenvList("Dns"); Dns != nil {
+		config.Dns = Dns
+	}
+	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
+		config.Entrypoint = Entrypoint
+	}
+
+	return config
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
@@ -112,6 +152,24 @@ type HostConfig struct {
 	PortBindings    map[Port][]PortBinding
 	Links           []string
 	PublishAllPorts bool
+}
+
+func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
+	hostConfig := &HostConfig{
+		ContainerIDFile: job.Getenv("ContainerIDFile"),
+		Privileged:      job.GetenvBool("Privileged"),
+		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
+	}
+	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
+	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
+	if Binds := job.GetenvList("Binds"); Binds != nil {
+		hostConfig.Binds = Binds
+	}
+	if Links := job.GetenvList("Links"); Links != nil {
+		hostConfig.Links = Links
+	}
+
+	return hostConfig
 }
 
 type BindMap struct {

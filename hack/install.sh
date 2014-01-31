@@ -37,8 +37,10 @@ if command_exists docker || command_exists lxc-docker; then
 	( set -x; sleep 20 )
 fi
 
+user="$(id -un 2>/dev/null || true)"
+
 sh_c='sh -c'
-if [ "$(whoami 2>/dev/null || true)" != 'root' ]; then
+if [ "$user" != 'root' ]; then
 	if command_exists sudo; then
 		sh_c='sudo sh -c'
 	elif command_exists su; then
@@ -124,6 +126,16 @@ case "$lsb_dist" in
 				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
 			) || true
 		fi
+		your_user=your-user
+		[ "$user" != 'root' ] && your_user="$user"
+		echo
+		echo 'If you would like to use Docker as a non-root user, you should now consider'
+		echo 'adding your user to the "docker" group with something like:'
+		echo
+		echo '  sudo usermod -aG docker' $your_user
+		echo
+		echo 'Remember that you will have to log out and back in for this to take effect!'
+		echo
 		exit 0
 		;;
 		

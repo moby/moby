@@ -60,7 +60,7 @@ func (env *Env) GetInt64(key string) int64 {
 	s := strings.Trim(env.Get(key), " \t")
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return -1
+		return 0
 	}
 	return val
 }
@@ -211,24 +211,6 @@ func (env *Env) Encode(dst io.Writer) error {
 func (env *Env) WriteTo(dst io.Writer) (n int64, err error) {
 	// FIXME: return the number of bytes written to respect io.WriterTo
 	return 0, env.Encode(dst)
-}
-
-func (env *Env) Export(dst interface{}) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("ExportEnv %s", err)
-		}
-	}()
-	var buf bytes.Buffer
-	// step 1: encode/marshal the env to an intermediary json representation
-	if err := env.Encode(&buf); err != nil {
-		return err
-	}
-	// step 2: decode/unmarshal the intermediary json into the destination object
-	if err := json.NewDecoder(&buf).Decode(dst); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (env *Env) Import(src interface{}) (err error) {

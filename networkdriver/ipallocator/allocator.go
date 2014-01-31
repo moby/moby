@@ -99,12 +99,17 @@ func getNextIp(address *net.IPNet) (*net.IP, error) {
 		return ip, nil
 	}
 
+	var (
+		firstNetIP = address.IP.To4().Mask(address.Mask)
+		firstAsInt = ipToInt(&firstNetIP) + 1
+	)
+
 	pos = int32(allocated.PullBack())
 	for i := int32(0); i < max; i++ {
 		pos = pos%max + 1
 		next := int32(base + pos)
 
-		if next == ownIP {
+		if next == ownIP || next == firstAsInt {
 			continue
 		}
 

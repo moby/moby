@@ -102,6 +102,10 @@ func (job *Job) String() string {
 	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
 }
 
+func (job *Job) EnvExists(key string) (value bool) {
+	return job.env.Exists(key)
+}
+
 func (job *Job) Getenv(key string) (value string) {
 	return job.env.Get(key)
 }
@@ -170,10 +174,6 @@ func (job *Job) DecodeEnv(src io.Reader) error {
 
 func (job *Job) EncodeEnv(dst io.Writer) error {
 	return job.env.Encode(dst)
-}
-
-func (job *Job) ExportEnv(dst interface{}) (err error) {
-	return job.env.Export(dst)
 }
 
 func (job *Job) ImportEnv(src interface{}) (err error) {

@@ -1,4 +1,4 @@
-.PHONY: all binary build cross default docs docs-build docs-shell shell test
+.PHONY: all binary build cross default docs docs-build docs-shell shell test test-integration
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 DOCKER_IMAGE := docker:$(GIT_BRANCH)
@@ -24,6 +24,9 @@ docs-shell: docs-build
 
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test test-integration
+
+test-integration: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh test-integration
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash
