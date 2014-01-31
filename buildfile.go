@@ -472,7 +472,6 @@ func (b *buildFile) CmdAdd(args string) error {
 		defer os.RemoveAll(tmpDirName)
 		buf := make([]byte, 65536)
 		h := sha256.New()
-		resp, err = utils.Download(orig)
 		if err != nil {
 			return err
 		}
