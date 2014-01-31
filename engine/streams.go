@@ -40,7 +40,7 @@ func (o *Output) Add(dst io.Writer) {
 
 // Set closes and remove existing destination and then attaches a new destination to
 // the Output. Any data subsequently written to the output will be written to the new
-// destination in addition to all the others. This method is thread-safe.
+// destination only. This method is thread-safe.
 func (o *Output) Set(dst io.Writer) {
 	o.Close()
 	o.Lock()
