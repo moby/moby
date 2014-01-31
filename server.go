@@ -8,7 +8,6 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -34,13 +33,13 @@ func (srv *Server) Close() error {
 }
 
 func init() {
-	engine.Register("initapi", jobInitApi)
+	engine.Register("initserver", jobInitServer)
 }
 
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
-func jobInitApi(job *engine.Job) engine.Status {
+func jobInitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
 	srv, err := NewServer(job.Eng, DaemonConfigFromJob(job))
 	if err != nil {
@@ -76,7 +75,6 @@ func jobInitApi(job *engine.Job) engine.Status {
 		"restart":          srv.ContainerRestart,
 		"start":            srv.ContainerStart,
 		"kill":             srv.ContainerKill,
-		"serveapi":         srv.ListenAndServe,
 		"wait":             srv.ContainerWait,
 		"tag":              srv.ImageTag,
 		"resize":           srv.ContainerResize,
@@ -108,33 +106,6 @@ func jobInitApi(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 	}
-	return engine.StatusOK
-}
-
-// ListenAndServe loops through all of the protocols sent in to docker and spawns
-// off a go routine to setup a serving http.Server for each.
-func (srv *Server) ListenAndServe(job *engine.Job) engine.Status {
-	protoAddrs := job.Args
-	chErrors := make(chan error, len(protoAddrs))
-
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		go func() {
-			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], srv, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"))
-		}()
-	}
-
-	for i := 0; i < len(protoAddrs); i += 1 {
-		err := <-chErrors
-		if err != nil {
-			return job.Error(err)
-		}
-	}
-
-	// Tell the init daemon we are accepting requests
-	go systemd.SdNotify("READY=1")
-
 	return engine.StatusOK
 }
 

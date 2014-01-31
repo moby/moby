@@ -262,7 +262,7 @@ func TestRestartKillWait(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job = eng.Job("initapi")
+	job = eng.Job("initserver")
 	job.Setenv("Root", eng.Root())
 	job.SetenvBool("AutoRestart", false)
 	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"path/filepath"
@@ -129,7 +130,7 @@ func ValidateEnv(val string) (string, error) {
 }
 
 func ValidateHost(val string) (string, error) {
-	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTHTTPPORT, DEFAULTUNIXSOCKET, val)
+	host, err := utils.ParseHost(api.DEFAULTHTTPHOST, api.DEFAULTHTTPPORT, api.DEFAULTUNIXSOCKET, val)
 	if err != nil {
 		return val, err
 	}

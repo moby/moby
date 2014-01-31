@@ -1,4 +1,4 @@
-package docker
+package api
 
 import (
 	"fmt"
@@ -6,6 +6,20 @@ import (
 	"net/http/httptest"
 	"testing"
 )
+
+func TestJsonContentType(t *testing.T) {
+	if !MatchesContentType("application/json", "application/json") {
+		t.Fail()
+	}
+
+	if !MatchesContentType("application/json; charset=utf-8", "application/json") {
+		t.Fail()
+	}
+
+	if MatchesContentType("dockerapplication/json", "application/json") {
+		t.Fail()
+	}
+}
 
 func TestGetBoolParam(t *testing.T) {
 	if ret, err := getBoolParam("true"); err != nil || !ret {
