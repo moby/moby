@@ -8,10 +8,9 @@ AWS_BOX_URI = ENV['BOX_URI'] || "https://github.com/mitchellh/vagrant-aws/raw/ma
 AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
 AWS_AMI = ENV['AWS_AMI'] || "ami-69f5a900"
 AWS_INSTANCE_TYPE = ENV['AWS_INSTANCE_TYPE'] || 't1.micro'
-
 FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
-
-SSH_PRIVKEY_PATH = ENV["SSH_PRIVKEY_PATH"]
+SSH_PRIVKEY_PATH = ENV['SSH_PRIVKEY_PATH']
+PRIVATE_NETWORK = ENV['PRIVATE_NETWORK']
 
 # A script to upgrade from the 12.04 kernel to the raring backport kernel (3.8)
 # and install docker.
@@ -174,3 +173,14 @@ if !FORWARD_DOCKER_PORTS.nil?
     end
   end
 end
+
+if !PRIVATE_NETWORK.nil?
+  Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
+    config.vm.network :hostonly, PRIVATE_NETWORK
+  end
+
+  Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
+    config.vm.network "private_network", ip: PRIVATE_NETWORK
+  end
+end
+
