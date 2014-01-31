@@ -879,7 +879,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	}
 
 	for _, out := range outs.Data {
-		outID := out.Get("ID")
+		outID := out.Get("Id")
 		if !*quiet {
 			if *noTrunc {
 				fmt.Fprintf(w, "%s\t", outID)
@@ -1171,7 +1171,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			}
 
 			if filter != "" {
-				if filter == image.Get("ID") || filter == utils.TruncateID(image.Get("ID")) {
+				if filter == image.Get("Id") || filter == utils.TruncateID(image.Get("Id")) {
 					startImage = image
 				}
 
@@ -1229,7 +1229,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			for _, repotag := range out.GetList("RepoTags") {
 
 				repo, tag := utils.ParseRepositoryTag(repotag)
-				outID := out.Get("ID")
+				outID := out.Get("Id")
 				if !*noTrunc {
 					outID = utils.TruncateID(outID)
 				}
@@ -1255,12 +1255,12 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[
 		for index, image := range images.Data {
 			if index+1 == length {
 				printNode(cli, noTrunc, image, prefix+"└─")
-				if subimages, exists := byParent[image.Get("ID")]; exists {
+				if subimages, exists := byParent[image.Get("Id")]; exists {
 					cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
 				}
 			} else {
 				printNode(cli, noTrunc, image, prefix+"\u251C─")
-				if subimages, exists := byParent[image.Get("ID")]; exists {
+				if subimages, exists := byParent[image.Get("Id")]; exists {
 					cli.WalkTree(noTrunc, subimages, byParent, prefix+"\u2502 ", printNode)
 				}
 			}
@@ -1268,7 +1268,7 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[
 	} else {
 		for _, image := range images.Data {
 			printNode(cli, noTrunc, image, prefix+"└─")
-			if subimages, exists := byParent[image.Get("ID")]; exists {
+			if subimages, exists := byParent[image.Get("Id")]; exists {
 				cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
 			}
 		}
@@ -1281,10 +1281,10 @@ func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix strin
 		parentID string
 	)
 	if noTrunc {
-		imageID = image.Get("ID")
+		imageID = image.Get("Id")
 		parentID = image.Get("ParentId")
 	} else {
-		imageID = utils.TruncateID(image.Get("ID"))
+		imageID = utils.TruncateID(image.Get("Id"))
 		parentID = utils.TruncateID(image.Get("ParentId"))
 	}
 	if parentID == "" {
@@ -1301,9 +1301,9 @@ func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix strin
 func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix string) {
 	var imageID string
 	if noTrunc {
-		imageID = image.Get("ID")
+		imageID = image.Get("Id")
 	} else {
-		imageID = utils.TruncateID(image.Get("ID"))
+		imageID = utils.TruncateID(image.Get("Id"))
 	}
 
 	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, utils.HumanSize(image.GetInt64("VirtualSize")))
@@ -1382,7 +1382,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 	for _, out := range outs.Data {
 		var (
-			outID    = out.Get("ID")
+			outID    = out.Get("Id")
 			outNames = out.GetList("Names")
 		)
 

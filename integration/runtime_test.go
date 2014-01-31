@@ -60,8 +60,8 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 		t.Fatal(err)
 	}
 	for _, image := range images.Data {
-		if image.Get("ID") != unitTestImageID {
-			eng.Job("image_delete", image.Get("ID")).Run()
+		if image.Get("Id") != unitTestImageID {
+			eng.Job("image_delete", image.Get("Id")).Run()
 		}
 	}
 	return nil
