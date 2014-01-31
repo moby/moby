@@ -1798,10 +1798,12 @@ func (srv *Server) ContainerRestart(job *engine.Job) engine.Status {
 		job.Errorf("Usage: %s CONTAINER\n", job.Name)
 		return engine.StatusErr
 	}
-	name := job.Args[0]
-	t := job.GetenvInt("t")
-	if t == -1 {
-		t = 10
+	var (
+		name = job.Args[0]
+		t    = 10
+	)
+	if job.EnvExists("t") {
+		t = job.GetenvInt("t")
 	}
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Restart(int(t)); err != nil {
@@ -2239,10 +2241,12 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 		job.Errorf("Usage: %s CONTAINER\n", job.Name)
 		return engine.StatusErr
 	}
-	name := job.Args[0]
-	t := job.GetenvInt("t")
-	if t == -1 {
-		t = 10
+	var (
+		name = job.Args[0]
+		t    = 10
+	)
+	if job.EnvExists("t") {
+		t = job.GetenvInt("t")
 	}
 	if container := srv.runtime.Get(name); container != nil {
 		if err := container.Stop(int(t)); err != nil {

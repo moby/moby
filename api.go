@@ -584,11 +584,7 @@ func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, 
 		return fmt.Errorf("Missing parameter")
 	}
 	job := srv.Eng.Job("restart", vars["name"])
-	if r.Form.Get("t") == "" {
-		job.Setenv("t", "-1")
-	} else {
-		job.Setenv("t", r.Form.Get("t"))
-	}
+	job.Setenv("t", r.Form.Get("t"))
 	if err := job.Run(); err != nil {
 		return err
 	}
@@ -656,11 +652,7 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	job := srv.Eng.Job("stop", vars["name"])
-	if r.Form.Get("t") == "" {
-		job.Setenv("t", "-1")
-	} else {
-		job.Setenv("t", r.Form.Get("t"))
-	}
+	job.Setenv("t", r.Form.Get("t"))
 	if err := job.Run(); err != nil {
 		return err
 	}
