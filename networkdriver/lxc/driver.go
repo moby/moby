@@ -155,7 +155,7 @@ func setupIPTables(addr net.Addr, icc bool) error {
 	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-d", addr.String(), "-j", "MASQUERADE"}
 
 	if !iptables.Exists(natArgs...) {
-		if output, err := iptables.Raw(append([]string{"-A"}, natArgs...)...); err != nil {
+		if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error iptables postrouting: %s", output)
