@@ -62,7 +62,7 @@ func TestSetenvInt(t *testing.T) {
 	if val := job.GetenvInt("bar"); val != 42 {
 		t.Fatalf("GetenvInt returns incorrect value: %d", val)
 	}
-	if val := job.GetenvInt("nonexistent"); val != -1 {
+	if val := job.GetenvInt("nonexistent"); val != 0 {
 		t.Fatalf("GetenvInt returns incorrect value: %d", val)
 	}
 }

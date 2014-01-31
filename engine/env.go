@@ -60,7 +60,7 @@ func (env *Env) GetInt64(key string) int64 {
 	s := strings.Trim(env.Get(key), " \t")
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return -1
+		return 0
 	}
 	return val
 }

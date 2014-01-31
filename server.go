@@ -1083,7 +1083,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 	}, -1)
 
 	for _, container := range srv.runtime.List() {
-		if !container.State.IsRunning() && !all && n == -1 && since == "" && before == "" {
+		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
 			continue
 		}
 		if before != "" && !foundBefore {
@@ -1092,7 +1092,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 			}
 			continue
 		}
-		if displayed == n {
+		if n > 0 && displayed == n {
 			break
 		}
 		if container.ID == since || utils.TruncateID(container.ID) == since {
@@ -1742,7 +1742,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return engine.StatusErr
 	}
 	config := ContainerConfigFromJob(job)
-	if config.Memory > 0 && config.Memory < 524288 {
+	if config.Memory != 0 && config.Memory < 524288 {
 		job.Errorf("Minimum memory limit allowed is 512k")
 		return engine.StatusErr
 	}
