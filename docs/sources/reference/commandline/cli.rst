@@ -811,6 +811,8 @@ Known Issues (kill)
 
 * :issue:`197` indicates that ``docker kill`` may leave directories
   behind and make it difficult to remove the container.
+* :issue:`3844` lxc 1.0.0 beta3 removed ``lcx-kill`` which is used by Docker versions before 0.8.0;
+  see the issue for a workaround.
 
 .. _cli_load:
 
