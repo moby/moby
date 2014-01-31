@@ -1,3 +1,5 @@
+// +build amd64
+
 package docker
 
 // FIXME: This could be easily rewritten in pure Go

@@ -1,3 +1,5 @@
+// +build !linux !amd64
+
 package lxc
 
 func setHostname(hostname string) error {
