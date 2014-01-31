@@ -729,6 +729,7 @@ Create an image
         :query repo: repository
         :query tag: tag
         :query registry: the registry to pull from
+        :query q: suppress verbose pull output
         :reqheader X-Registry-Auth: base64-encoded AuthConfig object
         :statuscode 200: no error
         :statuscode 500: server error
@@ -881,7 +882,8 @@ Push an image on the registry
     {"error":"Invalid..."}
     ...
 
-   :query registry: the registry you wan to push, optional
+   :query registry: the registry you want to push, optional
+   :query q: suppress verbose push output
    :reqheader X-Registry-Auth: include a base64-encoded AuthConfig object.
    :statuscode 200: no error
    :statuscode 404: no such image
