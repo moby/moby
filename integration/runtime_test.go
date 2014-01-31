@@ -125,7 +125,7 @@ func setupBaseImage() {
 	if err != nil {
 		log.Fatalf("Can't initialize engine at %s: %s", unitTestStoreBase, err)
 	}
-	job := eng.Job("initapi")
+	job := eng.Job("initserver")
 	job.Setenv("Root", unitTestStoreBase)
 	job.SetenvBool("Autorestart", false)
 	job.Setenv("BridgeIface", unitTestNetworkBridge)
@@ -573,7 +573,7 @@ func TestRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job := eng.Job("initapi")
+	job := eng.Job("initserver")
 	job.Setenv("Root", eng.Root())
 	job.SetenvBool("Autorestart", false)
 	if err := job.Run(); err != nil {
@@ -605,7 +605,7 @@ func TestRestore(t *testing.T) {
 }
 
 func TestReloadContainerLinks(t *testing.T) {
-	// FIXME: here we don't use NewTestEngine because it calls initapi with Autorestart=false,
+	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
 	// and we want to set it to true.
 	root, err := newTestDirectory(unitTestStoreBase)
 	if err != nil {
@@ -615,7 +615,7 @@ func TestReloadContainerLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job := eng.Job("initapi")
+	job := eng.Job("initserver")
 	job.Setenv("Root", eng.Root())
 	job.SetenvBool("Autorestart", true)
 	if err := job.Run(); err != nil {
@@ -665,7 +665,7 @@ func TestReloadContainerLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job = eng.Job("initapi")
+	job = eng.Job("initserver")
 	job.Setenv("Root", eng.Root())
 	job.SetenvBool("Autorestart", false)
 	if err := job.Run(); err != nil {

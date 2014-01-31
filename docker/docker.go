@@ -83,7 +83,7 @@ func main() {
 			log.Fatal(err)
 		}
 		// Load plugin: httpapi
-		job := eng.Job("initapi")
+		job := eng.Job("initserver")
 		job.Setenv("Pidfile", *pidfile)
 		job.Setenv("Root", *flRoot)
 		job.SetenvBool("AutoRestart", *flAutoRestart)
@@ -103,6 +103,7 @@ func main() {
 		job = eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
 		job.SetenvBool("EnableCors", *flEnableCors)
+		job.Setenv("Version", VERSION)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

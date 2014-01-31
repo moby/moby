@@ -36,6 +36,10 @@ const (
 
 type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
+func init() {
+	engine.Register("serveapi", ServeApi)
+}
+
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
@@ -1159,4 +1163,31 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 
 	httpSrv := http.Server{Addr: addr, Handler: r}
 	return httpSrv.Serve(l)
+}
+
+// ServeApi loops through all of the protocols sent in to docker and spawns
+// off a go routine to setup a serving http.Server for each.
+func ServeApi(job *engine.Job) engine.Status {
+	protoAddrs := job.Args
+	chErrors := make(chan error, len(protoAddrs))
+
+	for _, protoAddr := range protoAddrs {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		go func() {
+			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
+		}()
+	}
+
+	for i := 0; i < len(protoAddrs); i += 1 {
+		err := <-chErrors
+		if err != nil {
+			return job.Error(err)
+		}
+	}
+
+	// Tell the init daemon we are accepting requests
+	go systemd.SdNotify("READY=1")
+
+	return engine.StatusOK
 }
