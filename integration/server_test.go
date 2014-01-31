@@ -288,7 +288,7 @@ func TestRestartKillWait(t *testing.T) {
 	}
 
 	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
-		job = srv.Eng.Job("wait", outs.Data[0].Get("ID"))
+		job = srv.Eng.Job("wait", outs.Data[0].Get("Id"))
 		var statusStr string
 		job.Stdout.AddString(&statusStr)
 		if err := job.Run(); err != nil {
@@ -472,7 +472,7 @@ func TestRmi(t *testing.T) {
 	}
 
 	for _, image := range images.Data {
-		if strings.Contains(unitTestImageID, image.Get("ID")) {
+		if strings.Contains(unitTestImageID, image.Get("Id")) {
 			continue
 		}
 		if image.GetList("RepoTags")[0] == "<none>:<none>" {
@@ -650,7 +650,7 @@ func assertContainerList(srv *docker.Server, all bool, limit int, since, before 
 		return false
 	}
 	for i := 0; i < len(outs.Data); i++ {
-		if outs.Data[i].Get("ID") != expected[i] {
+		if outs.Data[i].Get("Id") != expected[i] {
 			return false
 		}
 	}
