@@ -89,18 +89,10 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
-func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
-	b, err := json.Marshal(v)
-
-	if err != nil {
-		return err
-	}
-
+func writeJSON(w http.ResponseWriter, code int, v engine.Env) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	w.Write(b)
-
-	return nil
+	return v.Encode(w)
 }
 
 func getBoolParam(value string) (bool, error) {
@@ -352,25 +344,28 @@ func postCommit(srv *Server, version float64, w http.ResponseWriter, r *http.Req
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	config := &Config{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil && err != io.EOF {
+	var (
+		config engine.Env
+		env    engine.Env
+		job    = srv.Eng.Job("commit", r.Form.Get("container"))
+	)
+	if err := config.Import(r.Body); err != nil {
 		utils.Errorf("%s", err)
 	}
 
-	job := srv.Eng.Job("commit", r.Form.Get("container"))
 	job.Setenv("repo", r.Form.Get("repo"))
 	job.Setenv("tag", r.Form.Get("tag"))
 	job.Setenv("author", r.Form.Get("author"))
 	job.Setenv("comment", r.Form.Get("comment"))
-	job.SetenvJson("config", config)
+	job.SetenvSubEnv("config", &config)
 
 	var id string
 	job.Stdout.AddString(&id)
 	if err := job.Run(); err != nil {
 		return err
 	}
-
-	return writeJSON(w, http.StatusCreated, &APIID{id})
+	env.Set("Id", id)
+	return writeJSON(w, http.StatusCreated, env)
 }
 
 // Creates an image from Pull or from Import
@@ -555,15 +550,19 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	if err := parseForm(r); err != nil {
 		return nil
 	}
-	out := &APIRun{}
-	job := srv.Eng.Job("create", r.Form.Get("name"))
+	var (
+		out         engine.Env
+		job         = srv.Eng.Job("create", r.Form.Get("name"))
+		outWarnings []string
+		outId       string
+		warnings    = bytes.NewBuffer(nil)
+	)
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
 	// Read container ID from the first line of stdout
-	job.Stdout.AddString(&out.ID)
+	job.Stdout.AddString(&outId)
 	// Read warnings from stderr
-	warnings := &bytes.Buffer{}
 	job.Stderr.Add(warnings)
 	if err := job.Run(); err != nil {
 		return err
@@ -571,8 +570,10 @@ func postContainersCreate(srv *Server, version float64, w http.ResponseWriter, r
 	// Parse warnings from stderr
 	scanner := bufio.NewScanner(warnings)
 	for scanner.Scan() {
-		out.Warnings = append(out.Warnings, scanner.Text())
+		outWarnings = append(outWarnings, scanner.Text())
 	}
+	out.Set("Id", outId)
+	out.SetList("Warnings", outWarnings)
 	return writeJSON(w, http.StatusCreated, out)
 }
 
@@ -664,18 +665,22 @@ func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := srv.Eng.Job("wait", vars["name"])
-	var statusStr string
-	job.Stdout.AddString(&statusStr)
+	var (
+		env    engine.Env
+		status string
+		job    = srv.Eng.Job("wait", vars["name"])
+	)
+	job.Stdout.AddString(&status)
 	if err := job.Run(); err != nil {
 		return err
 	}
 	// Parse a 16-bit encoded integer to map typical unix exit status.
-	status, err := strconv.ParseInt(statusStr, 10, 16)
+	_, err := strconv.ParseInt(status, 10, 16)
 	if err != nil {
 		return err
 	}
-	return writeJSON(w, http.StatusOK, &APIWait{StatusCode: int(status)})
+	env.Set("StatusCode", status)
+	return writeJSON(w, http.StatusOK, env)
 }
 
 func postContainersResize(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -699,18 +704,14 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 
-	// TODO: replace the buffer by job.AddEnv()
 	var (
 		job    = srv.Eng.Job("inspect", vars["name"], "container")
-		buffer = bytes.NewBuffer(nil)
-		c      Container
+		c, err = job.Stdout.AddEnv()
 	)
-	job.Stdout.Add(buffer)
-	if err := job.Run(); err != nil {
+	if err != nil {
 		return err
 	}
-
-	if err := json.Unmarshal(buffer.Bytes(), &c); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 
@@ -737,7 +738,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 
 	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 
-	if !c.Config.Tty && version >= 1.6 {
+	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version >= 1.6 {
 		errStream = utils.NewStdWriter(outStream, utils.Stderr)
 		outStream = utils.NewStdWriter(outStream, utils.Stdout)
 	} else {
@@ -874,24 +875,24 @@ func postContainersCopy(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 
-	copyData := &APICopy{}
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "application/json" {
-		if err := json.NewDecoder(r.Body).Decode(copyData); err != nil {
+	var copyData engine.Env
+
+	if contentType := r.Header.Get("Content-Type"); contentType == "application/json" {
+		if err := copyData.Decode(r.Body); err != nil {
 			return err
 		}
 	} else {
 		return fmt.Errorf("Content-Type not supported: %s", contentType)
 	}
 
-	if copyData.Resource == "" {
+	if copyData.Get("Resource") == "" {
 		return fmt.Errorf("Path cannot be empty")
 	}
-	if copyData.Resource[0] == '/' {
-		copyData.Resource = copyData.Resource[1:]
+	if copyData.Get("Resource")[0] == '/' {
+		copyData.Set("Resource", copyData.Get("Resource")[1:])
 	}
 
-	job := srv.Eng.Job("container_copy", vars["name"], copyData.Resource)
+	job := srv.Eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
