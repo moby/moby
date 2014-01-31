@@ -213,6 +213,27 @@ func TestIPAllocator(t *testing.T) {
 	}
 }
 
+func TestAllocateFirstIP(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 0, 0},
+		Mask: []byte{255, 255, 255, 0},
+	}
+
+	firstIP := network.IP.To4().Mask(network.Mask)
+	first := ipToInt(&firstIP) + 1
+
+	ip, err := RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allocated := ipToInt(ip)
+
+	if allocated == first {
+		t.Fatalf("allocated ip should not equal first ip: %d == %d", first, allocated)
+	}
+}
+
 func assertIPEquals(t *testing.T, ip1, ip2 *net.IP) {
 	if !ip1.Equal(*ip2) {
 		t.Fatalf("Expected IP %s, got %s", ip1, ip2)
