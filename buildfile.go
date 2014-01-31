@@ -478,7 +478,6 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		for {
 			n, err := resp.Body.Read(buf)
-			fmt.Println("Buffer: ", n, buf[:n])
 			if err != nil && err != io.EOF {
 				return err
 			}
