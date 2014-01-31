@@ -36,7 +36,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 		AutoRestart:                 job.GetenvBool("AutoRestart"),
 		EnableIptables:              job.GetenvBool("EnableIptables"),
 		EnableIpForward:             job.GetenvBool("EnableIpForward"),
-		BridgeIP:                    job.Getenv("BridgeIp"),
+		BridgeIP:                    job.Getenv("BridgeIP"),
 		DefaultIp:                   net.ParseIP(job.Getenv("DefaultIp")),
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),

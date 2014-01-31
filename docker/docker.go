@@ -90,7 +90,7 @@ func main() {
 		job.SetenvBool("EnableIptables", *flEnableIptables)
 		job.SetenvBool("EnableIpForward", *flEnableIpForward)
 		job.Setenv("BridgeIface", *bridgeName)
-		job.Setenv("BridgeIp", *bridgeIp)
+		job.Setenv("BridgeIP", *bridgeIp)
 		job.Setenv("DefaultIp", *flDefaultIp)
 		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 		job.Setenv("GraphDriver", *flGraphDriver)
