@@ -228,6 +228,22 @@ func testParse(f *FlagSet, t *testing.T) {
 	}
 }
 
+func testPanic(f *FlagSet, t *testing.T) {
+	f.Int([]string{"-int"}, 0, "int value")
+	if f.Parsed() {
+		t.Error("f.Parse() = true before Parse")
+	}
+	args := []string{
+		"-int", "21",
+	}
+	f.Parse(args)
+}
+
+func TestParsePanic(t *testing.T) {
+	ResetForTesting(func() {})
+	testPanic(CommandLine, t)
+}
+
 func TestParse(t *testing.T) {
 	ResetForTesting(func() { t.Error("bad parse") })
 	testParse(CommandLine, t)
