@@ -38,9 +38,9 @@ two new volumes::
   $ docker run -v /var/volume1 -v /var/volume2 busybox true
 
 This command will create the new container with two new volumes that 
-exits instantly (``true`` is pretty much the smallest, simplest program 
+exist instantly (``true`` is pretty much the smallest, simplest program 
 that you can run). Once created you can mount its volumes in any other 
-container using the ``-volumes-from`` option; irrespecive of whether the
+container using the ``-volumes-from`` option; irrespective of whether the
 container is running or not. 
 
 Or, you can use the VOLUME instruction in a Dockerfile to add one or more new
@@ -56,7 +56,7 @@ Creating and mounting a Data Volume Container
 ---------------------------------------------
 
 If you have some persistent data that you want to share between containers, 
-or want to use from non-persistent containers, its best to create a named
+or want to use from non-persistent containers, it is best to create a named
 Data Volume Container, and then to mount the data from it.
 
 Create a named container with volumes to share (``/var/volume1`` and ``/var/volume2``)::
@@ -79,7 +79,7 @@ This allows you to abstract the actual data source from users of that data,
 similar to :ref:`ambassador_pattern_linking <ambassador_pattern_linking>`.
 
 If you remove containers that mount volumes, including the initial DATA container, 
-or the middleman, the volumes will not be deleted until there are no containers still
+or the middleman, the volumes will not be deleted as long as there are containers still
 referencing those volumes. This allows you to upgrade, or effectivly migrate data volumes
 between containers.
 
@@ -90,14 +90,14 @@ Mount a Host Directory as a Container Volume:
 
   -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
 
-If ``host-dir`` is missing from the command, then docker creates a new volume.
+If ``host-dir`` is missing from the command, Docker will create a new volume.
 If ``host-dir`` is present but points to a non-existent directory on the host,
 Docker will automatically create this directory and use it as the source of the
 bind-mount.
 
-Note that this is not available from a Dockerfile due the portability and
+Note that this is not available from a Dockerfile due to the portability and
 sharing purpose of it. The ``host-dir`` volumes are entirely host-dependent and
-might not work on any other machine.
+might not work on other machines.
 
 For example::
 
