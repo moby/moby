@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"bytes"
 	"fmt"
 	"io"
@@ -122,5 +123,16 @@ func TestTarUntar(t *testing.T) {
 		if err := tarUntar(t, origin, c); err != nil {
 			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
 		}
+	}
+}
+
+// Some tar archives such as http://haproxy.1wt.eu/download/1.5/src/devel/haproxy-1.5-dev21.tar.gz
+// use PAX Global Extended Headers.
+// Failing prevents the archives from being uncompressed during ADD
+func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
+	hdr := tar.Header{Typeflag: tar.TypeXGlobalHeader}
+	err := createTarFile("pax_global_header", "some_dir", &hdr, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

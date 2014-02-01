@@ -228,6 +228,10 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 			return err
 		}
 
+	case tar.TypeXGlobalHeader:
+		utils.Debugf("PAX Global Extended Headers found and ignored")
+		return nil
+
 	default:
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
