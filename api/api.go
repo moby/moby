@@ -204,7 +204,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
 
-	if version > 1.8 {
+	if version >= 1.7 {
 		job.Stdout.Add(w)
 	} else if outs, err = job.Stdout.AddListTable(); err != nil {
 		return err
@@ -214,7 +214,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 		return err
 	}
 
-	if version < 1.8 && outs != nil { // Convert to legacy format
+	if version < 1.7 && outs != nil { // Convert to legacy format
 		outsLegacy := engine.NewTable("Created", 0)
 		for _, out := range outs.Data {
 			for _, repoTag := range out.GetList("RepoTags") {
@@ -319,7 +319,7 @@ func getContainersJSON(eng *engine.Engine, version float64, w http.ResponseWrite
 	job.Setenv("before", r.Form.Get("before"))
 	job.Setenv("limit", r.Form.Get("limit"))
 
-	if version > 1.5 {
+	if version >= 1.5 {
 		job.Stdout.Add(w)
 	} else if outs, err = job.Stdout.AddTable(); err != nil {
 		return err
