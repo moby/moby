@@ -1037,8 +1037,7 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	}
 
 	if err := MergeConfig(&newConfig, config); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
