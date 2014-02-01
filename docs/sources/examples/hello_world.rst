@@ -70,10 +70,12 @@ See the example in action
 
 .. raw:: html
 
-    <div style="margin-top:10px;">
-      <iframe width="560" height="350" src="http://ascii.io/a/2603/raw" frameborder="0"></iframe>
-    </div>
-
+   <iframe width="560" height="400" frameborder="0"
+           sandbox="allow-same-origin allow-scripts" 
+   srcdoc="<body><script type=&quot;text/javascript&quot; 
+           src=&quot;https://asciinema.org/a/2603.js&quot; 
+           id=&quot;asciicast-2603&quot; async></script></body>">
+   </iframe>
 
 ----
 
@@ -163,9 +165,12 @@ See the example in action
 
 .. raw:: html
 
-    <div style="margin-top:10px;">
-      <iframe width="560" height="350" src="http://ascii.io/a/2562/raw" frameborder="0"></iframe>
-    </div>
+   <iframe width="560" height="400" frameborder="0"
+           sandbox="allow-same-origin allow-scripts" 
+   srcdoc="<body><script type=&quot;text/javascript&quot; 
+           src=&quot;https://asciinema.org/a/2562.js&quot; 
+           id=&quot;asciicast-2562&quot; async></script></body>">
+   </iframe>
 
 The next example in the series is a :ref:`python_web_app` example, or
 you could skip to any of the other examples:

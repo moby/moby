@@ -107,8 +107,11 @@ See the example in action
 
 .. raw:: html
 
-    <div style="margin-top:10px;">
-      <iframe width="720" height="350" src="http://ascii.io/a/2573/raw" frameborder="0"></iframe>
-    </div>
+   <iframe width="720" height="400" frameborder="0"
+           sandbox="allow-same-origin allow-scripts" 
+   srcdoc="<body><script type=&quot;text/javascript&quot; 
+           src=&quot;https://asciinema.org/a/2573.js&quot; 
+           id=&quot;asciicast-2573&quot; async></script></body>">
+   </iframe>
 
 Continue to :ref:`running_ssh_service`.
