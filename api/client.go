@@ -647,14 +647,13 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 	}
 
-	indented := new(bytes.Buffer)
-	indented.WriteByte('[')
+	indented := bytes.NewBufferString("[")
 	status := 0
 
 	for _, name := range cmd.Args() {
 		obj, _, err := readBody(cli.call("GET", "/inspect/"+name+"/json", nil, false))
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s", err)
+			fmt.Fprintf(cli.err, "%s\n", err)
 			status = 1
 			continue
 		}
@@ -681,11 +680,10 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		indented.WriteString(",")
 	}
 
+	indented.Truncate(indented.Len() - 1)
 	if indented.Len() > 1 {
-		// Remove trailing ','
-		indented.Truncate(indented.Len() - 1)
+		indented.WriteByte(']')
 	}
-	indented.WriteByte(']')
 
 	if tmpl == nil {
 		if _, err := io.Copy(cli.out, indented); err != nil {
