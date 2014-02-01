@@ -20,6 +20,7 @@ import (
 const (
 	DefaultNetworkBridge = "docker0"
 	DisableNetworkBridge = "none"
+	UseHostNetworkBridge = "host"
 	DefaultNetworkMtu    = 1500
 	siocBRADDBR          = 0x89a0
 )
@@ -271,12 +272,13 @@ type NetworkManager struct {
 	bridgeNetwork    *net.IPNet
 	defaultBindingIP net.IP
 	disabled         bool
+	usehost  bool
 }
 
 // Allocate a network interface
 func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 
-	if manager.disabled {
+	if manager.disabled || manager.usehost {
 		return &NetworkInterface{disabled: true}, nil
 	}
 
@@ -300,6 +302,13 @@ func newNetworkManager(config *DaemonConfig) (*NetworkManager, error) {
 	if config.BridgeIface == DisableNetworkBridge {
 		manager := &NetworkManager{
 			disabled: true,
+		}
+		return manager, nil
+	}
+
+	if config.BridgeIface == UseHostNetworkBridge {
+		manager := &NetworkManager{
+			usehost: true,
 		}
 		return manager, nil
 	}

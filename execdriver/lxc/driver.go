@@ -92,11 +92,15 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 	}
 
 	if c.Network != nil {
-		params = append(params,
-			"-g", c.Network.Gateway,
-			"-i", fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
-			"-mtu", strconv.Itoa(c.Network.Mtu),
-		)
+		if c.Network.NetUseHost {
+			params = append(params, "-hostnetwork")
+		} else {
+			params = append(params,
+				"-g", c.Network.Gateway,
+				"-i", fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
+				"-mtu", strconv.Itoa(c.Network.Mtu),
+			)
+		}
 	}
 
 	if c.User != "" {
