@@ -1036,11 +1036,12 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	if false { // What to do here?
-		config = &newConfig
+	if err := MergeConfig(&newConfig, config); err != nil {
+		job.Error(err)
+		return engine.StatusErr
 	}
 
-	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), config)
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
 	if err != nil {
 		return job.Error(err)
 	}
