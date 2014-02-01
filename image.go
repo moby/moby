@@ -203,12 +203,20 @@ func ValidateID(id string) error {
 }
 
 func GenerateID() string {
-	id := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, id)
-	if err != nil {
-		panic(err) // This shouldn't happen
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.Atoi(utils.TruncateID(value)); err == nil {
+			continue
+		}
+		return value
 	}
-	return hex.EncodeToString(id)
 }
 
 // Image includes convenience proxy functions to its graph
