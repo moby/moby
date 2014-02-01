@@ -8,7 +8,6 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
-	"github.com/dotcloud/docker/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
@@ -16,7 +15,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -47,7 +45,6 @@ type Container struct {
 	State  State
 	Image  string
 
-	network         *NetworkInterface
 	NetworkSettings *NetworkSettings
 
 	ResolvConfPath string
@@ -558,6 +555,7 @@ func populateCommand(c *Container) {
 		en           *execdriver.Network
 		driverConfig []string
 	)
+
 	if !c.Config.NetworkDisabled {
 		network := c.NetworkSettings
 		en = &execdriver.Network{
@@ -603,15 +601,18 @@ func (container *Container) Start() (err error) {
 	if container.State.IsRunning() {
 		return fmt.Errorf("The container %s is already running.", container.ID)
 	}
+
 	defer func() {
 		if err != nil {
 			container.cleanup()
 		}
 	}()
+
 	if err := container.Mount(); err != nil {
 		return err
 	}
-	if container.runtime.networkManager.disabled {
+
+	if container.runtime.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
 		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
@@ -681,7 +682,7 @@ func (container *Container) Start() (err error) {
 		}
 
 		for p, child := range children {
-			link, err := NewLink(container, child, p, runtime.networkManager.bridgeIface)
+			link, err := NewLink(container, child, p, runtime.eng)
 			if err != nil {
 				rollback()
 				return err
@@ -1102,32 +1103,38 @@ func (container *Container) allocateNetwork() error {
 	}
 
 	var (
-		iface *NetworkInterface
-		err   error
+		env *engine.Env
+		err error
+		eng = container.runtime.eng
 	)
+
 	if container.State.IsGhost() {
-		if manager := container.runtime.networkManager; manager.disabled {
-			iface = &NetworkInterface{disabled: true}
+		if container.runtime.config.DisableNetwork {
+			env = &engine.Env{}
 		} else {
-			iface = &NetworkInterface{
-				IPNet:   net.IPNet{IP: net.ParseIP(container.NetworkSettings.IPAddress), Mask: manager.bridgeNetwork.Mask},
-				Gateway: manager.bridgeNetwork.IP,
-				manager: manager,
+			currentIP := container.NetworkSettings.IPAddress
+
+			job := eng.Job("allocate_interface", container.ID)
+			if currentIP != "" {
+				job.Setenv("RequestIP", currentIP)
 			}
-			if iface != nil && iface.IPNet.IP != nil {
-				if _, err := ipallocator.RequestIP(manager.bridgeNetwork, &iface.IPNet.IP); err != nil {
-					return err
-				}
-			} else {
-				iface, err = container.runtime.networkManager.Allocate()
-				if err != nil {
-					return err
-				}
+
+			env, err = job.Stdout.AddEnv()
+			if err != nil {
+				return err
+			}
+
+			if err := job.Run(); err != nil {
+				return err
 			}
 		}
 	} else {
-		iface, err = container.runtime.networkManager.Allocate()
+		job := eng.Job("allocate_interface", container.ID)
+		env, err = job.Stdout.AddEnv()
 		if err != nil {
+			return err
+		}
+		if err := job.Run(); err != nil {
 			return err
 		}
 	}
@@ -1171,37 +1178,50 @@ func (container *Container) allocateNetwork() error {
 		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
 			binding = append(binding, PortBinding{})
 		}
+
 		for i := 0; i < len(binding); i++ {
 			b := binding[i]
-			nat, err := iface.AllocatePort(port, b)
+
+			portJob := eng.Job("allocate_port", container.ID)
+			portJob.Setenv("HostIP", b.HostIp)
+			portJob.Setenv("HostPort", b.HostPort)
+			portJob.Setenv("Proto", port.Proto())
+			portJob.Setenv("ContainerPort", port.Port())
+
+			portEnv, err := portJob.Stdout.AddEnv()
 			if err != nil {
-				iface.Release()
 				return err
 			}
-			utils.Debugf("Allocate port: %s:%s->%s", nat.Binding.HostIp, port, nat.Binding.HostPort)
-			binding[i] = nat.Binding
+			if err := portJob.Run(); err != nil {
+				eng.Job("release_interface", container.ID).Run()
+				return err
+			}
+			b.HostIp = portEnv.Get("HostIP")
+			b.HostPort = portEnv.Get("HostPort")
+
+			binding[i] = b
 		}
 		bindings[port] = binding
 	}
 	container.writeHostConfig()
 
 	container.NetworkSettings.Ports = bindings
-	container.network = iface
 
-	container.NetworkSettings.Bridge = container.runtime.networkManager.bridgeIface
-	container.NetworkSettings.IPAddress = iface.IPNet.IP.String()
-	container.NetworkSettings.IPPrefixLen, _ = iface.IPNet.Mask.Size()
-	container.NetworkSettings.Gateway = iface.Gateway.String()
+	container.NetworkSettings.Bridge = env.Get("Bridge")
+	container.NetworkSettings.IPAddress = env.Get("IP")
+	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
+	container.NetworkSettings.Gateway = env.Get("Gateway")
 
 	return nil
 }
 
 func (container *Container) releaseNetwork() {
-	if container.Config.NetworkDisabled || container.network == nil {
+	if container.Config.NetworkDisabled {
 		return
 	}
-	container.network.Release()
-	container.network = nil
+	eng := container.runtime.eng
+
+	eng.Job("release_interface", container.ID).Run()
 	container.NetworkSettings = &NetworkSettings{}
 }
 

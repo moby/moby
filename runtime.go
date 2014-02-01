@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/chroot"
 	"github.com/dotcloud/docker/execdriver/lxc"
@@ -12,6 +13,7 @@ import (
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	_ "github.com/dotcloud/docker/networkdriver/lxc"
 	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/sysinfo"
@@ -42,13 +44,13 @@ type Runtime struct {
 	repository     string
 	sysInitPath    string
 	containers     *list.List
-	networkManager *NetworkManager
 	graph          *Graph
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
 	sysInfo        *sysinfo.SysInfo
 	volumes        *Graph
 	srv            *Server
+	eng            *engine.Engine
 	config         *DaemonConfig
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
@@ -609,15 +611,15 @@ func (runtime *Runtime) RegisterLink(parent, child *Container, alias string) err
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(config *DaemonConfig) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(config)
+func NewRuntime(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(config, eng)
 	if err != nil {
 		return nil, err
 	}
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
 
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
@@ -664,12 +666,20 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
-	if config.BridgeIface == "" {
-		config.BridgeIface = DefaultNetworkBridge
-	}
-	netManager, err := newNetworkManager(config)
-	if err != nil {
-		return nil, err
+
+	if !config.DisableNetwork {
+		job := eng.Job("init_networkdriver")
+
+		job.SetenvBool("EnableIptables", config.EnableIptables)
+		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
+		job.SetenvBool("EnableIpForward", config.EnableIpForward)
+		job.Setenv("BridgeIface", config.BridgeIface)
+		job.Setenv("BridgeIP", config.BridgeIP)
+		job.Setenv("DefaultBindingIP", config.DefaultIp.String())
+
+		if err := job.Run(); err != nil {
+			return nil, err
+		}
 	}
 
 	graphdbPath := path.Join(config.Root, "linkgraph.db")
@@ -721,7 +731,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
-		networkManager: netManager,
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
@@ -732,6 +741,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		driver:         driver,
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
+		eng:            eng,
 	}
 
 	if err := runtime.restore(); err != nil {
