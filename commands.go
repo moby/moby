@@ -336,7 +336,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.Configs[serverAddress] = authconfig
 
-	body, statusCode, err := readBody(cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false))
+	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false)
 	if statusCode == 401 {
 		delete(cli.configFile.Configs, serverAddress)
 		auth.SaveConfig(cli.configFile)
@@ -345,9 +345,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if err != nil {
 		return err
 	}
-
 	var out2 engine.Env
-	err = json.Unmarshal(body, &out2)
+	err = out2.Decode(stream)
 	if err != nil {
 		cli.configFile, _ = auth.LoadConfig(os.Getenv("HOME"))
 		return err
