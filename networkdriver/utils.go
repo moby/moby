@@ -3,8 +3,9 @@ package networkdriver
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
+
+	"github.com/dotcloud/docker/pkg/netlink"
 )
 
 var (
@@ -99,4 +100,17 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 			name, (addrs4[0].(*net.IPNet)).IP)
 	}
 	return addrs4[0], nil
+}
+
+func GetDefaultRouteIface() (*net.Interface, error) {
+	rs, err := netlink.NetworkGetRoutes()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get routes: %v", err)
+	}
+	for _, r := range rs {
+		if r.Default {
+			return r.Iface, nil
+		}
+	}
+	return nil, fmt.Errorf("no default route")
 }

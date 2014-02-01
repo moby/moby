@@ -1,12 +1,14 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/engine"
 	"net"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/networkdriver"
 )
 
 const (
-	DefaultNetworkMtu    = 1500
+	defaultNetworkMtu    = 1500
 	DisableNetworkBridge = "none"
 )
 
@@ -52,4 +54,11 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 	config.DisableNetwork = job.Getenv("BridgeIface") == DisableNetworkBridge
 
 	return config
+}
+
+func GetDefaultNetworkMtu() int {
+	if iface, err := networkdriver.GetDefaultRouteIface(); err == nil {
+		return iface.MTU
+	}
+	return defaultNetworkMtu
 }
