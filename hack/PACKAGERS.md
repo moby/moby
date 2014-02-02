@@ -39,6 +39,7 @@ To build docker, you will need the following system dependencies
 * Go version 1.2 or later
 * SQLite version 3.7.9 or later
 * libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version 2.02.89 or later
+* btrfs-progs version 3.8 or later (including commit e5cb128 from 2013-01-07) for the necessary btrfs headers
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
 under the path *src/github.com/dotcloud/docker*.
 

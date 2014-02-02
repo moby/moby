@@ -4,15 +4,11 @@ package btrfs
 
 /*
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <errno.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include <linux/btrfs.h>
-
+#include <btrfs/ioctl.h>
 */
 import "C"
+
 import (
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
