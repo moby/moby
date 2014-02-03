@@ -2,6 +2,7 @@ package networkdriver
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 
@@ -10,6 +11,7 @@ import (
 
 var (
 	networkGetRoutesFct = netlink.NetworkGetRoutes
+	ErrNoDefaultRoute   = errors.New("no default route")
 )
 
 func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
@@ -103,7 +105,7 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 }
 
 func GetDefaultRouteIface() (*net.Interface, error) {
-	rs, err := netlink.NetworkGetRoutes()
+	rs, err := networkGetRoutesFct()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get routes: %v", err)
 	}
@@ -112,5 +114,5 @@ func GetDefaultRouteIface() (*net.Interface, error) {
 			return r.Iface, nil
 		}
 	}
-	return nil, fmt.Errorf("no default route")
+	return nil, ErrNoDefaultRoute
 }
