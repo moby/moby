@@ -1726,38 +1726,53 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 		if container.State.IsRunning() {
 			return job.Errorf("Impossible to remove a running container, please stop it first")
 		}
-		volumes := make(map[string]struct{})
-
-		binds := make(map[string]struct{})
-
-		for _, bind := range container.hostConfig.Binds {
-			splitBind := strings.Split(bind, ":")
-			source := splitBind[0]
-			binds[source] = struct{}{}
-		}
-
-		// Store all the deleted containers volumes
-		for _, volumeId := range container.Volumes {
-
-			// Skip the volumes mounted from external
-			if _, exists := binds[volumeId]; exists {
-				continue
-			}
-
-			volumeId = strings.TrimSuffix(volumeId, "/layer")
-			volumeId = filepath.Base(volumeId)
-			volumes[volumeId] = struct{}{}
-		}
 		if err := srv.runtime.Destroy(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
 		srv.LogEvent("destroy", container.ID, srv.runtime.repositories.ImageName(container.Image))
 
 		if removeVolume {
+			var (
+				volumes     = make(map[string]struct{})
+				binds       = make(map[string]struct{})
+				usedVolumes = make(map[string]*Container)
+			)
+
+			// the volume id is always the base of the path
+			getVolumeId := func(p string) string {
+				return filepath.Base(strings.TrimSuffix(p, "/layer"))
+			}
+
+			// populate bind map so that they can be skipped and not removed
+			for _, bind := range container.hostConfig.Binds {
+				source := strings.Split(bind, ":")[0]
+				// TODO: refactor all volume stuff, all of it
+				// this is very important that we eval the link
+				// or comparing the keys to container.Volumes will not work
+				p, err := filepath.EvalSymlinks(source)
+				if err != nil {
+					return job.Error(err)
+				}
+				source = p
+				binds[source] = struct{}{}
+			}
+
+			// Store all the deleted containers volumes
+			for _, volumeId := range container.Volumes {
+				// Skip the volumes mounted from external
+				// bind mounts here will will be evaluated for a symlink
+				if _, exists := binds[volumeId]; exists {
+					continue
+				}
+
+				volumeId = getVolumeId(volumeId)
+				volumes[volumeId] = struct{}{}
+			}
+
 			// Retrieve all volumes from all remaining containers
-			usedVolumes := make(map[string]*Container)
 			for _, container := range srv.runtime.List() {
 				for _, containerVolumeId := range container.Volumes {
+					containerVolumeId = getVolumeId(containerVolumeId)
 					usedVolumes[containerVolumeId] = container
 				}
 			}
