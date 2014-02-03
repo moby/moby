@@ -49,7 +49,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 	if mtu := job.GetenvInt("Mtu"); mtu != 0 {
 		config.Mtu = mtu
 	} else {
-		config.Mtu = DefaultNetworkMtu
+		config.Mtu = GetDefaultNetworkMtu()
 	}
 	config.DisableNetwork = job.Getenv("BridgeIface") == DisableNetworkBridge
 
