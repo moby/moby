@@ -163,7 +163,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	}
 
 	defer func() {
-		if err == nil {
+		if err != nil {
 			driver.Put(img.ID)
 		}
 	}()
