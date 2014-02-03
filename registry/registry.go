@@ -22,7 +22,7 @@ import (
 var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-	ErrLoginRequired         = errors.New("Authentication is required.")
+	errLoginRequired         = errors.New("Authentication is required.")
 )
 
 func pingRegistryEndpoint(endpoint string) (bool, error) {
@@ -186,7 +186,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		if res.StatusCode == 401 {
-			return nil, ErrLoginRequired
+			return nil, errLoginRequired
 		}
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 	}
@@ -332,7 +332,7 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
-		return nil, ErrLoginRequired
+		return nil, errLoginRequired
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.

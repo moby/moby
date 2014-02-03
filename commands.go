@@ -1047,7 +1047,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	if err := push(authConfig); err != nil {
-		if err.Error() == registry.ErrLoginRequired.Error() {
+		if strings.Contains(err.Error(), "Status 401") {
 			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
 			if err := cli.CmdLogin(endpoint); err != nil {
 				return err
@@ -1106,7 +1106,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	if err := pull(authConfig); err != nil {
-		if err.Error() == registry.ErrLoginRequired.Error() {
+		if strings.Contains(err.Error(), "Status 401") {
 			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
 			if err := cli.CmdLogin(endpoint); err != nil {
 				return err
