@@ -24,7 +24,7 @@
 #
 
 docker-version	0.6.1
-FROM	stackbrew/ubuntu:13.10
+FROM	ubuntu:13.10
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
