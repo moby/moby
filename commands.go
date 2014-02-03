@@ -1472,7 +1472,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return err
 	}
 
-	fmt.Fprintf(cli.out, "%s\n", env.Get("ID"))
+	fmt.Fprintf(cli.out, "%s\n", env.Get("Id"))
 	return nil
 }
 
