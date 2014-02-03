@@ -95,7 +95,7 @@ func subvolCreate(path, name string) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Can't create subvolume")
+		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
 	}
 	return nil
 }
@@ -122,7 +122,7 @@ func subvolSnapshot(src, dest, name string) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Can't create subvolume")
+		return fmt.Errorf("Failed to create btrfs snapshot: %v", errno.Error())
 	}
 	return nil
 }
@@ -142,7 +142,7 @@ func subvolDelete(path, name string) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Can't create subvolume")
+		return fmt.Errorf("Failed to destroy btrfs snapshot: %v", errno.Error())
 	}
 	return nil
 }
