@@ -1,4 +1,4 @@
-FROM stackbrew/ubuntu:12.04
+FROM ubuntu:12.04
 MAINTAINER Nick Stinemates
 #
 #    docker build -t docker:docs . && docker run -p 8000:8000 docker:docs
