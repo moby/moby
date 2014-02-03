@@ -150,7 +150,7 @@ a ``prepare-commit-msg`` hook to your docker checkout:
 
 ```
 curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
-``
+```
 
 * Note: the above script expects to find your GitHub user name in ``git config --get github.user``
 
