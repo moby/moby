@@ -72,7 +72,7 @@ First add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
-   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
