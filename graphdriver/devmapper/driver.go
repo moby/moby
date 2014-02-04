@@ -99,7 +99,7 @@ func (d *Driver) Remove(id string) error {
 	if err := d.unmount(id, mp); err != nil {
 		return err
 	}
-	return d.DeviceSet.RemoveDevice(id)
+	return d.DeviceSet.DeleteDevice(id)
 }
 
 func (d *Driver) Get(id string) (string, error) {
