@@ -29,6 +29,15 @@ type DevInfo struct {
 	TransactionId uint64     `json:"transaction_id"`
 	Initialized   bool       `json:"initialized"`
 	devices       *DeviceSet `json:"-"`
+
+	mountCount int    `json:"-"`
+	mountPath  string `json:"-"`
+	// A floating mount means one reference is not owned and
+	// will be stolen by the next mount. This allows us to
+	// avoid unmounting directly after creation before the
+	// first get (since we need to mount to set up the device
+	// a bit first).
+	floating bool `json:"-"`
 }
 
 type MetaData struct {
@@ -43,7 +52,6 @@ type DeviceSet struct {
 	TransactionId    uint64
 	NewTransactionId uint64
 	nextFreeDevice   int
-	activeMounts     map[string]int
 }
 
 type DiskUsage struct {
@@ -68,6 +76,14 @@ type DevStatus struct {
 	MappedSectors       uint64
 	HighestMappedSector uint64
 }
+
+type UnmountMode int
+
+const (
+	UnmountRegular UnmountMode = iota
+	UnmountFloat
+	UnmountSink
+)
 
 func getDevName(name string) string {
 	return "/dev/mapper/" + name
@@ -733,13 +749,12 @@ func (devices *DeviceSet) Shutdown() error {
 	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 
-	for path, count := range devices.activeMounts {
-		for i := count; i > 0; i-- {
-			if err := sysUnmount(path, 0); err != nil {
-				utils.Debugf("Shutdown unmounting %s, error: %s\n", path, err)
+	for _, info := range devices.Devices {
+		if info.mountCount > 0 {
+			if err := sysUnmount(info.mountPath, 0); err != nil {
+				utils.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
 			}
 		}
-		delete(devices.activeMounts, path)
 	}
 
 	for _, d := range devices.Devices {
@@ -761,21 +776,31 @@ func (devices *DeviceSet) Shutdown() error {
 	return nil
 }
 
-func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
+func (devices *DeviceSet) MountDevice(hash, path string) error {
 	devices.Lock()
 	defer devices.Unlock()
+
+	info := devices.Devices[hash]
+
+	if info.mountCount > 0 {
+		if path != info.mountPath {
+			return fmt.Errorf("Trying to mount devmapper device in multple places (%s, %s)", info.mountPath, path)
+		}
+
+		if info.floating {
+			// Steal floating ref
+			info.floating = false
+		} else {
+			info.mountCount++
+		}
+		return nil
+	}
 
 	if err := devices.activateDeviceIfNeeded(hash); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
-	info := devices.Devices[hash]
-
 	var flags uintptr = sysMsMgcVal
-
-	if readOnly {
-		flags = flags | sysMsRdOnly
-	}
 
 	err := sysMount(info.DevName(), path, "ext4", flags, "discard")
 	if err != nil && err == sysEInval {
@@ -785,20 +810,50 @@ func (devices *DeviceSet) MountDevice(hash, path string, readOnly bool) error {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
 	}
 
-	count := devices.activeMounts[path]
-	devices.activeMounts[path] = count + 1
+	info.mountCount = 1
+	info.mountPath = path
+	info.floating = false
 
 	return devices.setInitialized(hash)
 }
 
-func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) error {
-	utils.Debugf("[devmapper] UnmountDevice(hash=%s path=%s)", hash, path)
+func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
+	utils.Debugf("[devmapper] UnmountDevice(hash=%s, mode=%d)", hash, mode)
 	defer utils.Debugf("[devmapper] UnmountDevice END")
 	devices.Lock()
 	defer devices.Unlock()
 
-	utils.Debugf("[devmapper] Unmount(%s)", path)
-	if err := sysUnmount(path, 0); err != nil {
+	info := devices.Devices[hash]
+
+	if mode == UnmountFloat {
+		if info.floating {
+			return fmt.Errorf("UnmountDevice: can't float floating reference %s\n", hash)
+		}
+
+		// Leave this reference floating
+		info.floating = true
+		return nil
+	}
+
+	if mode == UnmountSink {
+		if !info.floating {
+			// Someone already sunk this
+			return nil
+		}
+		// Otherwise, treat this as a regular unmount
+	}
+
+	if info.mountCount == 0 {
+		return fmt.Errorf("UnmountDevice: device not-mounted id %s\n", hash)
+	}
+
+	info.mountCount--
+	if info.mountCount > 0 {
+		return nil
+	}
+
+	utils.Debugf("[devmapper] Unmount(%s)", info.mountPath)
+	if err := sysUnmount(info.mountPath, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -809,15 +864,9 @@ func (devices *DeviceSet) UnmountDevice(hash, path string, deactivate bool) erro
 		return err
 	}
 
-	if count := devices.activeMounts[path]; count > 1 {
-		devices.activeMounts[path] = count - 1
-	} else {
-		delete(devices.activeMounts, path)
-	}
+	devices.deactivateDevice(hash)
 
-	if deactivate {
-		devices.deactivateDevice(hash)
-	}
+	info.mountPath = ""
 
 	return nil
 }
@@ -960,9 +1009,8 @@ func NewDeviceSet(root string, doInit bool) (*DeviceSet, error) {
 	SetDevDir("/dev")
 
 	devices := &DeviceSet{
-		root:         root,
-		MetaData:     MetaData{Devices: make(map[string]*DevInfo)},
-		activeMounts: make(map[string]int),
+		root:     root,
+		MetaData: MetaData{Devices: make(map[string]*DevInfo)},
 	}
 
 	if err := devices.initDevmapper(doInit); err != nil {
