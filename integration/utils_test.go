@@ -4,9 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +13,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/utils"
 )
 
 // This file contains utility functions for docker's unit test suite.
@@ -32,7 +33,7 @@ func mkRuntime(f utils.Fataler) *docker.Runtime {
 	config := &docker.DaemonConfig{
 		Root:        root,
 		AutoRestart: false,
-		Mtu:         docker.DefaultNetworkMtu,
+		Mtu:         docker.GetDefaultNetworkMtu(),
 	}
 
 	eng, err := engine.New(root)

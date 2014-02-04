@@ -2,13 +2,16 @@ package networkdriver
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
+
+	"github.com/dotcloud/docker/pkg/netlink"
 )
 
 var (
 	networkGetRoutesFct = netlink.NetworkGetRoutes
+	ErrNoDefaultRoute   = errors.New("no default route")
 )
 
 func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
@@ -99,4 +102,17 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 			name, (addrs4[0].(*net.IPNet)).IP)
 	}
 	return addrs4[0], nil
+}
+
+func GetDefaultRouteIface() (*net.Interface, error) {
+	rs, err := networkGetRoutesFct()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get routes: %v", err)
+	}
+	for _, r := range rs {
+		if r.Default {
+			return r.Iface, nil
+		}
+	}
+	return nil, ErrNoDefaultRoute
 }
