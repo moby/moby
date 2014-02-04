@@ -2,8 +2,9 @@
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
 
-.. macosx:
+.. _macosx:
 
+========
 Mac OS X
 ========
 
