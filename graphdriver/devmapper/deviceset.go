@@ -595,7 +595,7 @@ func (devices *DeviceSet) deleteDevice(hash string) error {
 
 	devinfo, _ := getInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
-		if err := removeDevice(info.Name()); err != nil {
+		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
 			utils.Debugf("Error removing device: %s\n", err)
 			return err
 		}
