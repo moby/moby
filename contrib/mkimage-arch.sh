@@ -15,6 +15,7 @@ hash expect &>/dev/null || {
 }
 
 ROOTFS=$(mktemp -d /tmp/rootfs-archlinux-XXXXXXXXXX)
+chmod 755 $ROOTFS
 
 # packages to ignore for space savings
 PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
