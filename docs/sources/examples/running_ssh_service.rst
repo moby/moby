@@ -25,9 +25,12 @@ smooth, but it gives you a good idea.
 
 .. raw:: html
 
-    <div style="margin-top:10px;">
-      <iframe width="800" height="400" src="http://ascii.io/a/2637/raw" frameborder="0"></iframe>
-    </div>
+   <iframe width="815" height="450" frameborder="0"
+           sandbox="allow-same-origin allow-scripts" 
+   srcdoc="<body><script type=&quot;text/javascript&quot; 
+           src=&quot;https://asciinema.org/a/2637.js&quot; 
+           id=&quot;asciicast-2637&quot; async></script></body>">
+   </iframe>
         
 You can also get this sshd container by using:
 
