@@ -290,7 +290,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	if oldInfo != nil && !oldInfo.Initialized {
 		utils.Debugf("Removing uninitialized base image")
-		if err := devices.removeDevice(""); err != nil {
+		if err := devices.deleteDevice(""); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
@@ -562,7 +562,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	return nil
 }
 
-func (devices *DeviceSet) removeDevice(hash string) error {
+func (devices *DeviceSet) deleteDevice(hash string) error {
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("hash %s doesn't exists", hash)
@@ -610,11 +610,11 @@ func (devices *DeviceSet) removeDevice(hash string) error {
 	return nil
 }
 
-func (devices *DeviceSet) RemoveDevice(hash string) error {
+func (devices *DeviceSet) DeleteDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	return devices.removeDevice(hash)
+	return devices.deleteDevice(hash)
 }
 
 func (devices *DeviceSet) deactivateDevice(hash string) error {
