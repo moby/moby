@@ -82,8 +82,8 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr str
 		"!", "-i", c.Bridge,
 		"-o", c.Bridge,
 		"-p", proto,
-		"-d", daddr,
-		"--dport", strconv.Itoa(port),
+		"-d", dest_addr,
+		"--dport", strconv.Itoa(dest_port),
 		"-j", "ACCEPT"); err != nil {
 		return err
 	} else if len(output) != 0 {
