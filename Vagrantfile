@@ -8,9 +8,18 @@ AWS_BOX_URI = ENV['BOX_URI'] || "https://github.com/mitchellh/vagrant-aws/raw/ma
 AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
 AWS_AMI = ENV['AWS_AMI'] || "ami-69f5a900"
 AWS_INSTANCE_TYPE = ENV['AWS_INSTANCE_TYPE'] || 't1.micro'
-FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
 SSH_PRIVKEY_PATH = ENV['SSH_PRIVKEY_PATH']
 PRIVATE_NETWORK = ENV['PRIVATE_NETWORK']
+
+# Boolean that forwards the Docker dynamic ports 49000-49900
+# See http://docs.docker.io/en/latest/use/port_redirection/ for more
+# $ FORWARD_DOCKER_PORTS=1 vagrant [up|reload]
+FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
+
+# You may also provide a comma-separated list of ports
+# for Vagrant to forward. For example:
+# $ FORWARD_PORTS=8080,27017 vagrant [up|reload]
+FORWARD_PORTS = ENV['FORWARD_PORTS']
 
 # A script to upgrade from the 12.04 kernel to the raring backport kernel (3.8)
 # and install docker.
@@ -160,15 +169,18 @@ Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
   config.vm.provision :shell, :inline => $vbox_script
 end
 
-if !FORWARD_DOCKER_PORTS.nil?
+# Setup port forwarding per loaded environment variables
+forward_ports = FORWARD_DOCKER_PORTS.nil? ? [] : [*49000..49900]
+forward_ports += FORWARD_PORTS.split(',').map{|i| i.to_i } if FORWARD_PORTS
+if forward_ports.any?
   Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
-    (49000..49900).each do |port|
+    forward_ports.each do |port|
       config.vm.forward_port port, port
     end
   end
 
   Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
-    (49000..49900).each do |port|
+    forward_ports.each do |port|
       config.vm.network :forwarded_port, :host => port, :guest => port
     end
   end
