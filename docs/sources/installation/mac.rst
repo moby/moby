@@ -1,98 +1,159 @@
-:title: Installing Docker on a Mac
-:description: Installing Docker on a Mac
-:keywords: Docker, Docker documentation, virtualbox, git, ssh
+:title: Requirements and Installation on Mac OS X 10.6 Snow Leopard
+:description: Please note this project is currently under heavy development. It should not be used in production.
+:keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
 
-.. _install_using_vagrant:
+.. macosx:
 
-Installing Docker on a Mac
-==========================
+Mac OS X
+========
 
-This guide explains how to install a full Docker setup on your Mac,
-using Virtualbox and Vagrant.
+.. note::
 
-Install Vagrant and Virtualbox
-------------------------------
+   These instructions are available with the new release of Docker
+   (version 0.8). However, they are subject to change.
 
 .. include:: install_header.inc
 
-.. include:: install_unofficial.inc
+Docker is supported on Mac OS X 10.6 "Snow Leopard" or newer.
 
-#. Install virtualbox from https://www.virtualbox.org/ (or use your
-   package manager)
-#. Install vagrant from http://www.vagrantup.com/ (or use your package
-   manager)
-#. Install git if you had not installed it before, check if it is
-   installed by running ``git`` in a terminal window
+How To Install Docker On Mac OS X
+=================================
 
-
-Spin it up
+VirtualBox
 ----------
 
-1. Fetch the docker sources (this includes the ``Vagrantfile`` for
-   machine setup).
+Docker on OS X needs VirtualBox to run. To begin with, head over to
+`VirtualBox Download Page`_ and get the tool for ``OS X hosts x86/amd64``.
 
-   .. code-block:: bash
+.. _VirtualBox Download Page: https://www.virtualbox.org/wiki/Downloads
 
-      git clone https://github.com/dotcloud/docker.git
+Once the download is complete, open the disk image, run the set up file
+(i.e. ``VirtualBox.pkg``) and install VirtualBox. Do not simply copy the
+package without running the installer.
 
-2. Change directory to docker
+boot2docker
+-----------
 
-   .. code-block:: bash
+`boot2docker`_ provides a handy script to easily manage the VM running the
+``docker`` daemon. It also takes care of the installation for the OS image
+that is used for the job.
 
-      cd docker
+.. _GitHub page: https://github.com/steeve/boot2docker
 
-3. Run vagrant from the sources directory
+Open up a new terminal window, if you have not already.
 
-   .. code-block:: bash
-
-      vagrant up
-
-   Vagrant will:
-
-   * Download the 'official' Precise64 base ubuntu virtual machine image from vagrantup.com
-   * Boot this image in virtualbox
-   * Follow official :ref:`ubuntu_linux` installation path
-
-   You now have a Ubuntu Virtual Machine running with docker pre-installed.
-
-Connect
--------
-
-To access the VM and use Docker, Run ``vagrant ssh`` from the same directory as where you ran
-``vagrant up``. Vagrant will connect you to the correct VM.
+Run the following commands to get boot2docker:
 
 .. code-block:: bash
 
-   vagrant ssh
+    # Enter the application directory
+    cd ~/Applications
+    
+    # Get the file
+    curl https://raw.github.com/steeve/boot2docker/master/boot2docker > boot2docker
+    
+    # Mark it executable
+    chmod +x boot2docker
 
+Docker OS X Client
+------------------
 
-Upgrades
---------
+The ``docker`` daemon is accessed using the ``docker`` client.
 
-Since your local VM is based on Ubuntu, you can upgrade docker by logging in to the
-VM and calling ``apt-get``:
-
-
-.. code-block:: bash
-
-   # Log into the VM
-   vagrant ssh
-
-   # update your sources list
-   sudo apt-get update
-
-   # install the latest
-   sudo apt-get install lxc-docker
-
-
-Run
----
-
-Now you are in the VM, run docker
+Run the following commands to get it downloaded and set up:
 
 .. code-block:: bash
 
-   sudo docker
+    # Get the file
+    curl -o docker http://get.docker.io/builds/Darwin/x86_64/docker-latest
+    
+    # Mark it executable
+    chmod +x docker
 
+    # Set the environment variable for the docker daemon
+    export DOCKER_HOST=tcp://
+    
+    # Copy the executable file
+    sudo cp docker /usr/local/bin/
 
-Continue with the :ref:`hello_world` example.
+And that’s it! Let’s check out how to use it.
+
+How To Use Docker On Mac OS X
+=============================
+
+The ``docker`` daemon (via boot2docker)
+---------------------------------------
+
+Inside the ``~/Application`` directory, run the following commands:
+
+.. code-block:: bash
+
+    # Initiate the VM
+    ./boot2docker init
+
+    # Run the VM (the docker daemon)
+    ./boot2docker up
+    
+    # To see all available commands:
+    ./boot2docker
+
+    # Usage ./boot2docker {init|start|up|pause|stop|restart|status|info|delete|ssh|download}
+
+The ``docker`` client
+---------------------
+
+Once the VM with the ``docker`` daemon is up, you can use the ``docker``
+client just like any other application.
+
+.. code-block:: bash
+
+    docker version
+    # Client version: 0.7.6
+    # Go version (client): go1.2
+    # Git commit (client): bc3b2ec
+    # Server version: 0.7.5
+    # Git commit (server): c348c04
+    # Go version (server): go1.2
+
+SSH-ing The VM
+--------------
+
+If you feel the need to connect to the VM, you can simply run:
+
+.. code-block:: bash
+
+    ./boot2docker ssh
+
+    # User: docker
+    # Pwd:  tcuser
+
+You can now continue with the :ref:`hello_world` example.
+
+Learn More
+==========
+
+boot2docker:
+------------
+
+See the GitHub page for `boot2docker`_.
+
+.. _boot2docker: https://github.com/steeve/boot2docker
+
+If SSH complains about keys:
+----------------------------
+
+.. code-block:: bash
+
+    ssh-keygen -R '[localhost]:2022'
+
+About the way Docker works on Mac OS X:
+---------------------------------------
+
+Docker has two key components: the ``docker`` daemon and the ``docker``
+client. The tool works by client commanding the daemon. In order to
+work and do its magic, the daemon makes use of some Linux Kernel
+features (e.g. LXC, name spaces etc.), which are not supported by OS X.
+Therefore, the solution of getting Docker to run on OS X consists of
+running it inside a lightweight virtual machine. In order to simplify
+things, Docker comes with a bash script to make this whole process as
+easy as possible (i.e. boot2docker).
