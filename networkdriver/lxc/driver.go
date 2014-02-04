@@ -26,11 +26,12 @@ const (
 // Network interface represents the networking stack of a container
 type networkInterface struct {
 	IP           net.IP
+	IP6          net.IP
 	PortMappings []net.Addr // there are mappings to the host interfaces
 }
 
 var (
-	addrs = []string{
+	addrs4 = []string{
 		// Here we don't follow the convention of using the 1st IP of the range for the gateway.
 		// This is to use the same gateway IPs as the /24 ranges, which predate the /16 ranges.
 		// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
@@ -50,10 +51,19 @@ var (
 		"192.168.44.1/24",
 	}
 
-	bridgeIface   string
-	bridgeNetwork *net.IPNet
+	addrs6 = []string{
+		networkdriver.GenULA(),
+		networkdriver.GenULA(),
+		networkdriver.GenULA(),
+		networkdriver.GenULA(),
+	}
+
+	bridgeIface    string
+	bridgeNetwork  *net.IPNet
+	bridgeNetwork6 *net.IPNet
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
+	defaultBindingIP6 = net.ParseIP("::")
 	currentInterfaces = make(map[string]*networkInterface)
 )
 
@@ -66,14 +76,19 @@ func init() {
 func InitDriver(job *engine.Job) engine.Status {
 	var (
 		network        *net.IPNet
+		network6       *net.IPNet
 		enableIPTables = job.GetenvBool("EnableIptables")
 		icc            = job.GetenvBool("InterContainerCommunication")
 		ipForward      = job.GetenvBool("EnableIpForward")
 		bridgeIP       = job.Getenv("BridgeIP")
+		bridgeIP6      = job.Getenv("BridgeIP6")
 	)
 
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
 		defaultBindingIP = net.ParseIP(defaultIP)
+	}
+	if defaultIP6 := job.Getenv("DefaultBindingIP6"); defaultIP6 != "" {
+		defaultBindingIP6 = net.ParseIP(defaultIP6)
 	}
 
 	bridgeIface = job.Getenv("BridgeIface")
@@ -85,7 +100,7 @@ func InitDriver(job *engine.Job) engine.Status {
 	if err != nil {
 		// If the iface is not found, try to create it
 		job.Logf("creating new bridge for %s", bridgeIface)
-		if err := createBridge(bridgeIP); err != nil {
+		if err := createBridge(bridgeIP, bridgeIP6); err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
@@ -101,6 +116,16 @@ func InitDriver(job *engine.Job) engine.Status {
 		network = addr.(*net.IPNet)
 	}
 
+	addr6, err := networkdriver.GetIfaceAddr6(bridgeIface)
+	if err != nil {
+		// At this point we should have a bridge because of
+		// IPv4. Throw an error
+		job.Error(err)
+		return engine.StatusErr
+	} else {
+		network6 = addr6.(*net.IPNet)
+	}
+
 	// Configure iptables for link support
 	if enableIPTables {
 		if err := setupIPTables(addr, icc); err != nil {
@@ -113,6 +138,11 @@ func InitDriver(job *engine.Job) engine.Status {
 		// Enable IPv4 forwarding
 		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
 			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+		}
+
+		// Enable IPv6 forwarding
+		if err := ioutil.WriteFile("/proc/sys/net/ipv6/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+			job.Logf("WARNING: unable to enable IPv6 forwarding: %s\n", err)
 		}
 	}
 
@@ -131,7 +161,8 @@ func InitDriver(job *engine.Job) engine.Status {
 		portmapper.SetIptablesChain(chain)
 	}
 
-	bridgeNetwork = network
+	bridgeNetwork  = network
+	bridgeNetwork6 = network6
 
 	// https://github.com/dotcloud/docker/issues/2768
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeNetwork.IP)
@@ -216,32 +247,42 @@ func setupIPTables(addr net.Addr, icc bool) error {
 	return nil
 }
 
-// CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
-// and attempts to configure it with an address which doesn't conflict with any other interface on the host.
-// If it can't find an address which doesn't conflict, it will return an error.
-func createBridge(bridgeIP string) error {
+func findBridgeNetwork(preferredIp string) (string, error) {
+	var address_pool *[]string
+
 	nameservers := []string{}
+	ip := net.ParseIP(preferredIp)
 	resolvConf, _ := utils.GetResolvConf()
 	// we don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
 	if resolvConf != nil {
-		nameservers = append(nameservers, utils.GetNameserversAsCIDR(resolvConf)...)
+		if !networkdriver.IsIPv6(&ip) {
+			nameservers = append(nameservers, utils.GetIPv4NameserversAsCIDR(resolvConf)...)
+		} else {
+			nameservers = append(nameservers, utils.GetIPv6NameserversAsCIDR(resolvConf)...)
+		}
+	}
+
+	if networkdriver.IsIPv6(&ip) {
+		address_pool = &addrs6
+	} else {
+		address_pool = &addrs4
 	}
 
 	var ifaceAddr string
-	if len(bridgeIP) != 0 {
-		_, _, err := net.ParseCIDR(bridgeIP)
+	if len(preferredIp) != 0 {
+		_, _, err := net.ParseCIDR(preferredIp)
 		if err != nil {
-			return err
+			return "", err
 		}
-		ifaceAddr = bridgeIP
+		return preferredIp, nil
 	} else {
-		for _, addr := range addrs {
+		for _, addr := range *address_pool {
 			_, dockerNetwork, err := net.ParseCIDR(addr)
 			if err != nil {
-				return err
+				return "", err
 			}
 			if err := networkdriver.CheckNameserverOverlaps(nameservers, dockerNetwork); err == nil {
 				if err := networkdriver.CheckRouteOverlaps(dockerNetwork); err == nil {
@@ -255,10 +296,28 @@ func createBridge(bridgeIP string) error {
 	}
 
 	if ifaceAddr == "" {
-		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", bridgeIface, bridgeIface)
+		return "", fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", bridgeIface, bridgeIface)
 	}
-	utils.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
+	return ifaceAddr, nil
+}
 
+// CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
+// and attempts to configure it with an address which doesn't conflict with any other interface on the host.
+// If it can't find an address which doesn't conflict, it will return an error.
+func createBridge(bridgeIP, bridgeIP6 string) error {
+	var inet, inet6 string
+
+	inet, err := findBridgeNetwork(bridgeIP)
+	if err != nil {
+		return err
+	}
+	inet6, err = findBridgeNetwork(bridgeIP6)
+	if err != nil {
+		return err
+	}
+
+
+	utils.Debugf("Creating bridge %s with networks %s, %s", bridgeIface, inet, inet6)
 	if err := createBridgeIface(bridgeIface); err != nil {
 		return err
 	}
@@ -268,14 +327,25 @@ func createBridge(bridgeIP string) error {
 		return err
 	}
 
-	ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
+	ipAddr, ipNet, err := net.ParseCIDR(inet)
 	if err != nil {
 		return err
 	}
 
 	if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
-		return fmt.Errorf("Unable to add private network: %s", err)
+		return fmt.Errorf("Unable to add private IPv4 network: %s", err)
 	}
+
+	ipAddr6, ipNet6, err := net.ParseCIDR(inet6)
+	if err != nil {
+		return err
+	}
+
+	if netlink.NetworkLinkAddIp(iface, ipAddr6, ipNet6); err != nil {
+		return fmt.Errorf("Unable to add private IPv6 network: %s", err)
+	}
+
+
 	if err := netlink.NetworkLinkUp(iface); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
@@ -309,12 +379,15 @@ func createBridgeIface(name string) error {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip          *net.IP
-		err         error
-		id          = job.Args[0]
-		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+		ip            *net.IP
+		ip6           *net.IP
+		err           error
+		id            = job.Args[0]
+		requestedIP   = net.ParseIP(job.Getenv("RequestedIP"))
+		requestedIP6  = net.ParseIP(job.Getenv("RequestedIP6"))
 	)
 
+	// IPv4
 	if requestedIP != nil {
 		ip, err = ipallocator.RequestIP(bridgeNetwork, &requestedIP)
 	} else {
@@ -324,18 +397,36 @@ func Allocate(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	// IPv6
+	if requestedIP6 != nil {
+		ip6, err = ipallocator.RequestIP(bridgeNetwork6, &requestedIP)
+	} else {
+		ip6, err = ipallocator.RequestIP(bridgeNetwork6, nil)
+	}
+	if err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 
 	out := engine.Env{}
 	out.Set("IP", ip.String())
+	out.Set("IP6", ip6.String())
 	out.Set("Mask", bridgeNetwork.Mask.String())
+	out.Set("Mask6", bridgeNetwork6.Mask.String())
 	out.Set("Gateway", bridgeNetwork.IP.String())
+	out.Set("Gateway6", bridgeNetwork6.IP.String())
 	out.Set("Bridge", bridgeIface)
 
+	// IPv4
 	size, _ := bridgeNetwork.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
+	// IPv6
+	size6, _ := bridgeNetwork6.Mask.Size()
+	out.SetInt("IPPrefixLen6", size6)
 
 	currentInterfaces[id] = &networkInterface{
-		IP: *ip,
+		IP:   *ip,
+		IP6:  *ip6,
 	}
 
 	out.WriteTo(job.Stdout)

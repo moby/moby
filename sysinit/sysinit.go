@@ -53,8 +53,10 @@ func SysInit() {
 	var (
 		// Get cmdline arguments
 		user       = flag.String("u", "", "username or uid")
-		gateway    = flag.String("g", "", "gateway address")
-		ip         = flag.String("i", "", "ip address")
+		gateway    = flag.String("g", "", "IPv4 gateway address")
+		gateway6   = flag.String("g6", "", "IPv6 gateway address")
+		ip         = flag.String("i", "", "IPv4 address")
+		ip6        = flag.String("i6", "", "IPv6 address")
 		workDir    = flag.String("w", "", "workdir")
 		privileged = flag.Bool("privileged", false, "privileged mode")
 		mtu        = flag.Int("mtu", 1500, "interface mtu")
@@ -78,7 +80,9 @@ func SysInit() {
 	args := &execdriver.InitArgs{
 		User:       *user,
 		Gateway:    *gateway,
+		Gateway6:   *gateway6,
 		Ip:         *ip,
+		Ip6:        *ip6,
 		WorkDir:    *workDir,
 		Privileged: *privileged,
 		Env:        env,

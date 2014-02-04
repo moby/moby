@@ -12,6 +12,7 @@ type SysInfo struct {
 	MemoryLimit            bool
 	SwapLimit              bool
 	IPv4ForwardingDisabled bool
+	IPv6ForwardingDisabled bool
 	AppArmor               bool
 }
 

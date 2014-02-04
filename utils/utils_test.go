@@ -440,7 +440,7 @@ func TestParsePortMapping(t *testing.T) {
 	}
 }
 
-func TestGetNameserversAsCIDR(t *testing.T) {
+func TestGetIPv4NameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4
 nameserver 40.3.200.10
@@ -456,8 +456,41 @@ nameserver 1.2.3.4
 #nameserver 4.3.2.1`: {"1.2.3.4/32"},
 		`search example.com
 nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
+		`search example.com
+nameserver fe80::1
+nameserver 1.2.3.4`: {"1.2.3.4/32"},
 	} {
-		test := GetNameserversAsCIDR([]byte(resolv))
+		test := GetIPv4NameserversAsCIDR([]byte(resolv))
+		if !StrSlicesEqual(test, result) {
+			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
+		}
+	}
+}
+
+func TestGetIPv6NameserversAsCIDR(t *testing.T) {
+	for resolv, result := range map[string][]string{`
+nameserver fe80::1
+nameserver fe80:1::1
+search example.com`: {"fe80::1/128", "fe80:1::1/128"},
+		`search example.com`: {},
+		`nameserver 2001:503:ba3e::2:30
+search example.com
+nameserver fe80::1`: {"2001:503:ba3e::2:30/128", "fe80::1/128"},
+		``: {},
+		`  nameserver 2001:503:ba3e::2:30   `: {"2001:503:ba3e::2:30/128"},
+		`search example.com
+nameserver 2001:503:ba3e::2:30
+#nameserver fe80::1`: {"2001:503:ba3e::2:30/128"},
+		`search example.com
+nameserver [2001:503:ba3e::2:30]
+#nameserver fe80::1`: {"2001:503:ba3e::2:30/128"},
+		`search example.com
+nameserver fe80::1 # comments hooray`: {"fe80::1/128"},
+		`search example.com
+nameserver fe80::1
+nameserver 1.2.3.4`: {"fe80::1/128"},
+	} {
+		test := GetIPv6NameserversAsCIDR([]byte(resolv))
 		if !StrSlicesEqual(test, result) {
 			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
 		}

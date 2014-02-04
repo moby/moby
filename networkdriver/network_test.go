@@ -96,20 +96,28 @@ func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
 func TestNetworkOverlaps(t *testing.T) {
 	//netY starts at same IP and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/65", t)
 	//netY starts within netX and ends at same IP
 	AssertOverlap("172.16.0.1/24", "172.16.0.128/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/65", t)
 	//netY starts and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.64/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::64/65", t)
 	//netY starts at same IP and ends outside of netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/48", t)
 	//netY starts before and ends at same IP of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8:0:1::1/64", "2001:db8::1/63", t)
 	//netY starts before and ends outside of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/48", t)
 	//netY starts and ends before netX
 	AssertNoOverlap("172.16.1.1/25", "172.16.0.1/24", t)
+	AssertNoOverlap("2001:db8:2::1/64", "2001:db8::1/64", t)
 	//netX starts and ends before netY
 	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
+	AssertNoOverlap("2001:db8::1/64", "2001:db8:2::1/64", t)
 }
 
 func TestNetworkRange(t *testing.T) {
@@ -186,5 +194,94 @@ func TestNetworkRange(t *testing.T) {
 	}
 	if size := NetworkSize(network.Mask); size != 64 {
 		t.Error(size)
+	}
+
+
+	// IPv6
+	// 48bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/48")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::ffff:ffff:ffff:ffff:ffff")) {
+		t.Error(last.String())
+	}
+	if size, size2 := NetworkSize6(network.Mask); size != uint64(65535) || size2 != uint64(18446744073709551615) {
+		t.Error(size)
+	}
+
+	// 64bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/64")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::ffff:ffff:ffff:ffff")) {
+		t.Error(last.String())
+	}
+	if size, size2 := NetworkSize6(network.Mask); size != 0 || size2 != uint64(18446744073709551615) {
+		t.Error(size)
+	}
+
+	// TODO We should handle the special /127 and /128 networks
+	// differently from others because they ignore the "network address"
+	// in a subnet. Arbitrarily adding one to the number hosts can cause an overflow
+
+	// 127bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/127")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::1")) {
+		t.Error(last.String())
+	}
+	if size, size2 := NetworkSize6(network.Mask); size != 0 || size2 != uint64(1) {
+		t.Error(size)
+	}
+
+	// 128bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/128")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::1")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::1")) {
+		t.Error(last.String())
+	}
+	if size, size2 := NetworkSize6(network.Mask); size != 0 || size2 != 0 {
+		t.Error(size)
+	}
+}
+
+func TestIsIPv6(t *testing.T) {
+	ip, _,_  := net.ParseCIDR("202.12.27.33/32")
+	ip2,_,_  := net.ParseCIDR("10.1.2.1/8")
+	ip3,_,_  := net.ParseCIDR("224.0.0.1/4")
+
+	ip4,_,_  := net.ParseCIDR("2001:db8::1/48")
+	ip5,_,_  := net.ParseCIDR("fe80::1/64")
+	ip6,_,_  := net.ParseCIDR("ffx8::/16")
+
+
+	if result := IsIPv6(&ip); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip.String(), result)
+	}
+	if result := IsIPv6(&ip2); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip2.String(), result)
+	}
+	if result := IsIPv6(&ip3); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip3.String(), result)
+	}
+
+	if result := IsIPv6(&ip4); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip4.String(), result)
+	}
+	if result := IsIPv6(&ip5); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip5.String(), result)
+	}
+	if result := IsIPv6(&ip6); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip6.String(), result)
 	}
 }

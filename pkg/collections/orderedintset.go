@@ -7,7 +7,7 @@ import (
 // OrderedIntSet is a thread-safe sorted set and a stack.
 type OrderedIntSet struct {
 	sync.RWMutex
-	set []int
+	set []uint64
 }
 
 // NewOrderedSet returns an initialized OrderedSet
@@ -16,7 +16,7 @@ func NewOrderedIntSet() *OrderedIntSet {
 }
 
 // Push takes a string and adds it to the set. If the elem aready exists, it has no effect.
-func (s *OrderedIntSet) Push(elem int) {
+func (s *OrderedIntSet) Push(elem uint64) {
 	s.RLock()
 	for _, e := range s.set {
 		if e == elem {
@@ -31,7 +31,7 @@ func (s *OrderedIntSet) Push(elem int) {
 	// Make sure the list is always sorted
 	for i, e := range s.set {
 		if elem < e {
-			s.set = append(s.set[:i], append([]int{elem}, s.set[i:]...)...)
+			s.set = append(s.set[:i], append([]uint64{elem}, s.set[i:]...)...)
 			s.Unlock()
 			return
 		}
@@ -42,13 +42,13 @@ func (s *OrderedIntSet) Push(elem int) {
 }
 
 // Pop is an alias to PopFront()
-func (s *OrderedIntSet) Pop() int {
+func (s *OrderedIntSet) Pop() uint64 {
 	return s.PopFront()
 }
 
 // Pop returns the first elemen from the list and removes it.
 // If the list is empty, it returns 0
-func (s *OrderedIntSet) PopFront() int {
+func (s *OrderedIntSet) PopFront() uint64 {
 	s.RLock()
 
 	for i, e := range s.set {
@@ -67,7 +67,7 @@ func (s *OrderedIntSet) PopFront() int {
 // PullBack retrieve the last element of the list.
 // The element is not removed.
 // If the list is empty, an empty element is returned.
-func (s *OrderedIntSet) PullBack() int {
+func (s *OrderedIntSet) PullBack() uint64 {
 	if len(s.set) == 0 {
 		return 0
 	}
@@ -75,7 +75,7 @@ func (s *OrderedIntSet) PullBack() int {
 }
 
 // Exists checks if the given element present in the list.
-func (s *OrderedIntSet) Exists(elem int) bool {
+func (s *OrderedIntSet) Exists(elem uint64) bool {
 	for _, e := range s.set {
 		if e == elem {
 			return true
@@ -86,7 +86,7 @@ func (s *OrderedIntSet) Exists(elem int) bool {
 
 // Remove removes an element from the list.
 // If the element is not found, it has no effect.
-func (s *OrderedIntSet) Remove(elem int) {
+func (s *OrderedIntSet) Remove(elem uint64) {
 	for i, e := range s.set {
 		if e == elem {
 			s.set = append(s.set[:i], s.set[i+1:]...)

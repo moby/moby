@@ -23,19 +23,35 @@ func setupHostname(args *execdriver.InitArgs) error {
 
 // Setup networking
 func setupNetworking(args *execdriver.InitArgs) error {
-	if args.Ip != "" {
+	if args.Ip != "" || args.Ip6 != "" {
 		// eth0
 		iface, err := net.InterfaceByName("eth0")
 		if err != nil {
 			return fmt.Errorf("Unable to set up networking: %v", err)
 		}
-		ip, ipNet, err := net.ParseCIDR(args.Ip)
-		if err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
+
+		// IPv4
+		if args.Ip != "" {
+			ip, ipNet, err := net.ParseCIDR(args.Ip)
+			if err != nil {
+				return fmt.Errorf("Unable to set up networking: %v", err)
+			}
+			if err := netlink.NetworkLinkAddIp(iface, ip, ipNet); err != nil {
+				return fmt.Errorf("Unable to set up IPv4 networking: %v", err)
+			}
 		}
-		if err := netlink.NetworkLinkAddIp(iface, ip, ipNet); err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
+
+		// IPv6
+		if args.Ip6 != "" {
+			ip, ipNet, err := net.ParseCIDR(args.Ip6)
+			if err != nil {
+				return fmt.Errorf("Unable to set up networking: %v", err)
+			}
+			if err := netlink.NetworkLinkAddIp(iface, ip, ipNet); err != nil {
+				return fmt.Errorf("Unable to set up IPv6 networking: %v", err)
+			}
 		}
+
 		if err := netlink.NetworkSetMTU(iface, args.Mtu); err != nil {
 			return fmt.Errorf("Unable to set MTU: %v", err)
 		}
@@ -54,6 +70,16 @@ func setupNetworking(args *execdriver.InitArgs) error {
 	}
 	if args.Gateway != "" {
 		gw := net.ParseIP(args.Gateway)
+		if gw == nil {
+			return fmt.Errorf("Unable to set up networking, %s is not a valid gateway IP", args.Gateway)
+		}
+
+		if err := netlink.AddDefaultGw(gw); err != nil {
+			return fmt.Errorf("Unable to set up networking: %v", err)
+		}
+	}
+	if args.Gateway6 != "" {
+		gw := net.ParseIP(args.Gateway6)
 		if gw == nil {
 			return fmt.Errorf("Unable to set up networking, %s is not a valid gateway IP", args.Gateway)
 		}

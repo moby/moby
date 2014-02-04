@@ -30,6 +30,42 @@ func TestRequestNewIps(t *testing.T) {
 	}
 }
 
+func TestGetPosition(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 0, 1},
+		Mask: []byte{255, 255, 0, 0},
+	}
+	ip := net.IPv4(192, 168, 0, 10)
+	ip2 := net.IPv4(192, 168, 1, 100)
+
+	if result := getPosition(network, &ip); result != 10 {
+		t.Fatalf("Expected 10, got %d", result)
+	}
+	if result := getPosition(network, &ip2); result != 356 {
+		t.Fatalf("Expected 356, got %d", result)
+	}
+}
+
+func TestGetPosition6(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01},
+		Mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
+	ip  := net.IP{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xfa, 0xb8}
+	ip2 := net.IP{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x10}
+
+	result1, result2 := getPosition6(network, &ip)
+	if result1 != 0 && result2 == 64184 {
+		t.Fatalf("Expected 0 and 64184, got %d and %d", result1, result2)
+	}
+	result3, result4 := getPosition6(network, &ip2)
+	if result3 != 256 && result4 == 16 {
+		t.Fatalf("Expected 1 and 16, got %d and %d", result3, result4)
+	}
+}
+
 func TestReleaseIp(t *testing.T) {
 	defer reset()
 	network := &net.IPNet{
@@ -95,6 +131,18 @@ func TestConversion(t *testing.T) {
 		t.Fatal("converted to zero")
 	}
 	conv := intToIP(i)
+	if !ip.Equal(*conv) {
+		t.Error(conv.String())
+	}
+}
+
+func TestConversion6(t *testing.T) {
+	ip := net.ParseIP("::1")
+	i, i2 := ip6ToInt(&ip)
+	if i != 0 || i2 == 0 {
+		t.Fatal("converted to zero")
+	}
+	conv := intToIP6(i, i2)
 	if !ip.Equal(*conv) {
 		t.Error(conv.String())
 	}
@@ -213,6 +261,123 @@ func TestIPAllocator(t *testing.T) {
 	}
 }
 
+func TestIPAllocator6(t *testing.T) {
+	expectedIPs := []net.IP{
+		0: net.IP([]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02}),
+		1: net.IP([]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03}),
+		2: net.IP([]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x04}),
+		3: net.IP([]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x05}),
+		4: net.IP([]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x06}),
+		5: net.IP([]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x07}),
+	}
+
+	gwIP, n, _ := net.ParseCIDR("2001:db8::1/125")
+	network := &net.IPNet{IP: gwIP, Mask: n.Mask}
+	// Pool after initialisation (f = free, u = used)
+	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	//  ↑
+
+	// Check that we get 6 IPs, from 2001:db8::2-2001:db8::7, in that
+	// order.
+	for i := 0; i < 6; i++ {
+		ip, err := RequestIP(network, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertIPEquals(t, &expectedIPs[i], ip)
+	}
+	// Before loop begin
+	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	//  ↑
+
+	// After i = 0
+	// 2(u) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	//         ↑
+
+	// After i = 1
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f) - 7(f)
+	//                ↑
+
+	// After i = 2
+	// 2(u) - 3(u) - 4(u) - 5(f) - 6(f) - 7(f)
+	//                       ↑
+
+	// After i = 3
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f) - 7(f)
+	//                              ↑
+
+	// After i = 4
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f) - 7(f)
+	//                                     ↑
+
+	// After i = 5
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u) - 7(u)
+	//  ↑
+
+	// Check that there are no more IPs
+	ip, err := RequestIP(network, nil)
+	if err == nil {
+		t.Fatalf("There shouldn't be any IP addresses at this point, got %s\n", ip)
+	}
+
+	// Release some IPs in non-sequential order
+	if err := ReleaseIP(network, &expectedIPs[3]); err != nil {
+		t.Fatal(err)
+	}
+	// 2(u) - 3(u) - 4(u) - 5(f) - 6(u)
+	//                       ↑
+
+	if err := ReleaseIP(network, &expectedIPs[2]); err != nil {
+		t.Fatal(err)
+	}
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(u)
+	//                       ↑
+
+	if err := ReleaseIP(network, &expectedIPs[4]); err != nil {
+		t.Fatal(err)
+	}
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
+	//                       ↑
+
+	// Make sure that IPs are reused in sequential order, starting
+	// with the first released IP
+	newIPs := make([]*net.IP, 3)
+	for i := 0; i < 3; i++ {
+		ip, err := RequestIP(network, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		newIPs[i] = ip
+	}
+	// Before loop begin
+	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f) - 7(u)
+	//                       ↑
+
+	// After i = 0
+	// 2(u) - 3(u) - 4(f) - 5(u) - 6(f) - 7(u)
+	//                              ↑
+
+	// After i = 1
+	// 2(u) - 3(u) - 4(f) - 5(u) - 6(u) - 7(u)
+	//                ↑
+
+	// After i = 2
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u) - 7(u)
+	//                       ↑
+
+	// Reordered these because the new set will always return the
+	// lowest ips first and not in the order that they were released
+	assertIPEquals(t, &expectedIPs[2], newIPs[0])
+	assertIPEquals(t, &expectedIPs[3], newIPs[1])
+	assertIPEquals(t, &expectedIPs[4], newIPs[2])
+
+	_, err = RequestIP(network, nil)
+	if err == nil {
+		t.Fatal("There shouldn't be any IP addresses at this point")
+	}
+}
+
 func TestAllocateFirstIP(t *testing.T) {
 	defer reset()
 	network := &net.IPNet{
@@ -228,6 +393,28 @@ func TestAllocateFirstIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	allocated := ipToInt(ip)
+
+	if allocated == first {
+		t.Fatalf("allocated ip should not equal first ip: %d == %d", first, allocated)
+	}
+}
+
+func TestAllocateFirstIP6(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
+
+	firstIP := network.IP.To16().Mask(network.Mask)
+	_, first := ip6ToInt(&firstIP)
+	first = first + 1
+
+	ip, err := RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, allocated := ip6ToInt(ip)
 
 	if allocated == first {
 		t.Fatalf("allocated ip should not equal first ip: %d == %d", first, allocated)

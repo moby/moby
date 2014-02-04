@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -563,11 +562,14 @@ func populateCommand(c *Container) {
 	if !c.Config.NetworkDisabled {
 		network := c.NetworkSettings
 		en = &execdriver.Network{
-			Gateway:     network.Gateway,
-			Bridge:      network.Bridge,
-			IPAddress:   network.IPAddress,
-			IPPrefixLen: network.IPPrefixLen,
-			Mtu:         c.runtime.config.Mtu,
+			Gateway:      network.Gateway,
+			Gateway6:     network.Gateway6,
+			IPAddress:    network.IPAddress,
+			IPAddress6:   network.IPAddress6,
+			IPPrefixLen:  network.IPPrefixLen,
+			IPPrefixLen6: network.IPPrefixLen6,
+			Bridge:       network.Bridge,
+			Mtu:          c.runtime.config.Mtu,
 		}
 	}
 
@@ -638,6 +640,10 @@ func (container *Container) Start() (err error) {
 
 	if container.runtime.sysInfo.IPv4ForwardingDisabled {
 		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
+	}
+
+	if container.runtime.sysInfo.IPv6ForwardingDisabled {
+		log.Printf("WARNING: IPv6 forwarding is disabled. IPv6 networking will not work")
 	}
 
 	if container.Volumes == nil || len(container.Volumes) == 0 {
@@ -1118,11 +1124,13 @@ func (container *Container) allocateNetwork() error {
 		if container.runtime.config.DisableNetwork {
 			env = &engine.Env{}
 		} else {
-			currentIP := container.NetworkSettings.IPAddress
+			currentIP  := container.NetworkSettings.IPAddress
+			currentIP6 := container.NetworkSettings.IPAddress6
 
 			job := eng.Job("allocate_interface", container.ID)
 			if currentIP != "" {
 				job.Setenv("RequestIP", currentIP)
+				job.Setenv("RequestIP6", currentIP6)
 			}
 
 			env, err = job.Stdout.AddEnv()
@@ -1217,8 +1225,8 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.IPAddress = env.Get("IP")
 	container.NetworkSettings.IPAddress6 = env.Get("IP6")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
-	container.NetworkSettings.IPPrefixLen6 = env.GetInt("IPPrefixLen6")	
-    container.NetworkSettings.Gateway = env.Get("Gateway")
+	container.NetworkSettings.IPPrefixLen6 = env.GetInt("IPPrefixLen6")
+	container.NetworkSettings.Gateway = env.Get("Gateway")
 	container.NetworkSettings.Gateway6 = env.Get("Gateway6")
 
 	return nil

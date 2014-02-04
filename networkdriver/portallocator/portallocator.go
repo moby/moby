@@ -71,14 +71,14 @@ func ReleasePort(ip net.IP, proto string, port int) error {
 	}
 
 	allocated := defaultAllocatedPorts[proto]
-	allocated.Remove(port)
+	allocated.Remove(uint64(port))
 
 	if !equalsDefault(ip) {
 		registerIP(ip)
 
 		// Remove the port for the specific ip address
 		allocated = otherAllocatedPorts[ip.String()][proto]
-		allocated.Remove(port)
+		allocated.Remove(uint64(port))
 	}
 	return nil
 }
@@ -111,16 +111,16 @@ func registerDynamicPort(ip net.IP, proto string) (int, error) {
 		registerIP(ip)
 
 		ipAllocated := otherAllocatedPorts[ip.String()][proto]
-		ipAllocated.Push(port)
+		ipAllocated.Push(uint64(port))
 	} else {
-		allocated.Push(port)
+		allocated.Push(uint64(port))
 	}
 	return port, nil
 }
 
 func registerSetPort(ip net.IP, proto string, port int) error {
 	allocated := defaultAllocatedPorts[proto]
-	if allocated.Exists(port) {
+	if allocated.Exists(uint64(port)) {
 		return ErrPortAlreadyAllocated
 	}
 
@@ -128,12 +128,12 @@ func registerSetPort(ip net.IP, proto string, port int) error {
 		registerIP(ip)
 
 		ipAllocated := otherAllocatedPorts[ip.String()][proto]
-		if ipAllocated.Exists(port) {
+		if ipAllocated.Exists(uint64(port)) {
 			return ErrPortAlreadyAllocated
 		}
-		ipAllocated.Push(port)
+		ipAllocated.Push(uint64(port))
 	} else {
-		allocated.Push(port)
+		allocated.Push(uint64(port))
 	}
 	return nil
 }
