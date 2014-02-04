@@ -25,7 +25,7 @@ smooth, but it gives you a good idea.
 
 .. raw:: html
 
-   <iframe width="800" height="450" frameborder="0"
+   <iframe width="815" height="450" frameborder="0"
            sandbox="allow-same-origin allow-scripts" 
    srcdoc="<body><script type=&quot;text/javascript&quot; 
            src=&quot;https://asciinema.org/a/2637.js&quot; 
