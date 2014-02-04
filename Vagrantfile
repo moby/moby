@@ -160,6 +160,12 @@ Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
     override.vm.provision :shell, :inline => $vbox_script
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    if ENV['VAGRANT_CORES']
+      vb.customize ["modifyvm", :id, "--cpus", ENV['VAGRANT_CORES']]
+    end
+    if ENV['VAGRANT_MEMORY']
+      vb.customize ["modifyvm", :id, "--memory", ENV['VAGRANT_MEMORY']]
+    end
   end
 end
 
