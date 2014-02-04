@@ -46,8 +46,8 @@ Run the following commands to get boot2docker:
 
 .. code-block:: bash
 
-    # Enter the application directory
-    cd ~/Applications
+    # Enter the installation directory
+    cd ~/bin
     
     # Get the file
     curl https://raw.github.com/steeve/boot2docker/master/boot2docker > boot2docker
@@ -84,7 +84,7 @@ How To Use Docker On Mac OS X
 The ``docker`` daemon (via boot2docker)
 ---------------------------------------
 
-Inside the ``~/Application`` directory, run the following commands:
+Inside the ``~/bin`` directory, run the following commands:
 
 .. code-block:: bash
 
