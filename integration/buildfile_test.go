@@ -847,3 +847,19 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 		t.Fatal("Expected: %v, got: %v", docker.ErrDockerfileEmpty, err)
 	}
 }
+
+func TestBuildOnBuildTrigger(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+	from {IMAGE}
+	onbuild run echo here is the trigger
+	onbuild run touch foobar
+	`,
+		nil, nil,
+	},
+		t, nil, true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// FIXME: test that the 'foobar' file was created in the final build.
+}

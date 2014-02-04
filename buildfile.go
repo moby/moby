@@ -108,7 +108,24 @@ func (b *buildFile) CmdFrom(name string) error {
 	if b.config.Env == nil || len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 	}
+	// Process ONBUILD triggers if they exist
+	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
+		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
+	}
+	for n, step := range b.config.OnBuild {
+		if err := b.BuildStep(fmt.Sprintf("onbuild-%d", n), step); err != nil {
+			return err
+		}
+	}
+	b.config.OnBuild = []string{}
 	return nil
+}
+
+// The ONBUILD command declares a build instruction to be executed in any future build
+// using the current image as a base.
+func (b *buildFile) CmdOnbuild(trigger string) error {
+	b.config.OnBuild = append(b.config.OnBuild, trigger)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
 func (b *buildFile) CmdMaintainer(name string) error {
@@ -680,28 +697,11 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, " ", 2)
-		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
+			return "", err
 		}
-		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-		arguments := strings.Trim(tmp[1], " ")
-
-		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-		if !exists {
-			fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-			continue
-		}
-
 		stepN += 1
-		fmt.Fprintf(b.outStream, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
-		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-		if ret != nil {
-			return "", ret.(error)
-		}
-
-		fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -711,6 +711,31 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return b.image, nil
 	}
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
+}
+
+// BuildStep parses a single build step from `instruction` and executes it in the current context.
+func (b *buildFile) BuildStep(name, expression string) error {
+	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
+	tmp := strings.SplitN(expression, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid Dockerfile format")
+	}
+	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
+	arguments := strings.Trim(tmp[1], " ")
+
+	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
+	if !exists {
+		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+		return nil
+	}
+
+	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
+	if ret != nil {
+		return ret.(error)
+	}
+
+	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
+	return nil
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig, authConfigFile *auth.ConfigFile) BuildFile {
