@@ -855,8 +855,8 @@ func TestBuildOnBuildTrigger(t *testing.T) {
 	onbuild run touch foobar
 	`,
 		nil, nil,
-		},
-	t, nil, true,
+	},
+		t, nil, true,
 	)
 	if err != nil {
 		t.Fatal(err)

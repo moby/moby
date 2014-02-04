@@ -112,8 +112,8 @@ func (b *buildFile) CmdFrom(name string) error {
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
 		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
 	}
-	for _, step := range b.config.OnBuild {
-		if err := b.BuildStep(step); err != nil {
+	for n, step := range b.config.OnBuild {
+		if err := b.BuildStep(fmt.Sprintf("onbuild-%d", n), step); err != nil {
 			return err
 		}
 	}
@@ -697,8 +697,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		fmt.Fprintf(b.outStream, "Step %d : %s\n", stepN, line)
-		if err := b.BuildStep(line); err != nil {
+		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
 			return "", err
 		}
 		stepN += 1
@@ -715,7 +714,8 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 }
 
 // BuildStep parses a single build step from `instruction` and executes it in the current context.
-func (b *buildFile) BuildStep(expression string) error {
+func (b *buildFile) BuildStep(name, expression string) error {
+	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
 	tmp := strings.SplitN(expression, " ", 2)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid Dockerfile format")
