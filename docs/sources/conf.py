@@ -62,7 +62,7 @@ master_doc = 'toctree'
 
 # General information about the project.
 project = u'Docker'
-copyright = u'2013, Team Docker'
+copyright = u'2014 Docker, Inc.'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -175,7 +175,7 @@ html_show_sourcelink = False
 #html_show_sphinx = True
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-#html_show_copyright = True
+html_show_copyright = True
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
@@ -235,8 +235,10 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('commandline/cli', 'docker', u'Docker Documentation',
-     [u'Team Docker'], 1)
+    ('reference/commandline/cli', 'docker', u'Docker CLI Documentation',
+     [u'Team Docker'], 1),
+    ('reference/builder', 'Dockerfile', u'Dockerfile Documentation',
+     [u'Team Docker'], 5),
 ]
 
 # If true, show URL addresses after external links.

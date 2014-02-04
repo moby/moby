@@ -37,16 +37,16 @@ func TestSetenvBool(t *testing.T) {
 	job := mkJob(t, "dummy")
 	job.SetenvBool("foo", true)
 	if val := job.GetenvBool("foo"); !val {
-		t.Fatalf("GetenvBool returns incorrect value: %b", val)
+		t.Fatalf("GetenvBool returns incorrect value: %t", val)
 	}
 
 	job.SetenvBool("bar", false)
 	if val := job.GetenvBool("bar"); val {
-		t.Fatalf("GetenvBool returns incorrect value: %b", val)
+		t.Fatalf("GetenvBool returns incorrect value: %t", val)
 	}
 
 	if val := job.GetenvBool("nonexistent"); val {
-		t.Fatalf("GetenvBool returns incorrect value: %b", val)
+		t.Fatalf("GetenvBool returns incorrect value: %t", val)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestSetenvInt(t *testing.T) {
 	if val := job.GetenvInt("bar"); val != 42 {
 		t.Fatalf("GetenvInt returns incorrect value: %d", val)
 	}
-	if val := job.GetenvInt("nonexistent"); val != -1 {
+	if val := job.GetenvInt("nonexistent"); val != 0 {
 		t.Fatalf("GetenvInt returns incorrect value: %d", val)
 	}
 }
@@ -82,32 +82,6 @@ func TestSetenvList(t *testing.T) {
 	if val := job.GetenvList("nonexistent"); val != nil {
 		t.Fatalf("GetenvList returns incorrect value: %v", val)
 	}
-}
-
-func TestImportEnv(t *testing.T) {
-	type dummy struct {
-		DummyInt         int
-		DummyStringArray []string
-	}
-
-	job := mkJob(t, "dummy")
-	if err := job.ImportEnv(&dummy{42, []string{"foo", "bar"}}); err != nil {
-		t.Fatal(err)
-	}
-
-	dmy := dummy{}
-	if err := job.ExportEnv(&dmy); err != nil {
-		t.Fatal(err)
-	}
-
-	if dmy.DummyInt != 42 {
-		t.Fatalf("Expected 42, got %d", dmy.DummyInt)
-	}
-
-	if len(dmy.DummyStringArray) != 2 || dmy.DummyStringArray[0] != "foo" || dmy.DummyStringArray[1] != "bar" {
-		t.Fatalf("Expected {foo, bar}, got %v", dmy.DummyStringArray)
-	}
-
 }
 
 func TestEnviron(t *testing.T) {

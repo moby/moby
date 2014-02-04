@@ -15,7 +15,7 @@ var (
 
 func spawnTestRegistry(t *testing.T) *Registry {
 	authConfig := &auth.AuthConfig{}
-	r, err := NewRegistry("", authConfig, utils.NewHTTPRequestFactory())
+	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,10 +23,11 @@ func spawnTestRegistry(t *testing.T) *Registry {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
-	err := pingRegistryEndpoint(makeURL("/v1/"))
+	standalone, err := pingRegistryEndpoint(makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	assertEqual(t, standalone, true, "Expected standalone to be true (default)")
 }
 
 func TestGetRemoteHistory(t *testing.T) {
@@ -99,7 +100,7 @@ func TestGetRemoteTags(t *testing.T) {
 
 func TestGetRepositoryData(t *testing.T) {
 	r := spawnTestRegistry(t)
-	data, err := r.GetRepositoryData(makeURL("/v1/"), "foo42/bar")
+	data, err := r.GetRepositoryData("foo42/bar")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,15 +169,14 @@ func TestPushImageJSONIndex(t *testing.T) {
 			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
 		},
 	}
-	ep := makeURL("/v1/")
-	repoData, err := r.PushImageJSONIndex(ep, "foo42/bar", imgData, false, nil)
+	repoData, err := r.PushImageJSONIndex("foo42/bar", imgData, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if repoData == nil {
 		t.Fatal("Expected RepositoryData object")
 	}
-	repoData, err = r.PushImageJSONIndex(ep, "foo42/bar", imgData, true, []string{ep})
+	repoData, err = r.PushImageJSONIndex("foo42/bar", imgData, true, []string{r.indexEndpoint})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -20,7 +22,6 @@ import (
 func TestGetVersion(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	var err error
 	r := httptest.NewRecorder()
@@ -30,48 +31,68 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	// FIXME getting the version should require an actual running Server
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
 
-	v := &docker.APIVersion{}
-	if err = json.Unmarshal(r.Body.Bytes(), v); err != nil {
+	out := engine.NewOutput()
+	v, err := out.AddEnv()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Version != docker.VERSION {
-		t.Errorf("Expected version %s, %s found", docker.VERSION, v.Version)
+	if _, err := io.Copy(out, r.Body); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	expected := docker.VERSION
+	if result := v.Get("Version"); result != expected {
+		t.Errorf("Expected version %s, %s found", expected, result)
+	}
+	expected = "application/json"
+	if result := r.HeaderMap.Get("Content-Type"); result != expected {
+		t.Errorf("Expected Content-Type %s, %s found", expected, result)
 	}
 }
 
 func TestGetInfo(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	initialImages, err := srv.Images(false, "")
+	job := eng.Job("images")
+	initialImages, err := job.Stdout.AddListTable()
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
 	req, err := http.NewRequest("GET", "/info", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
 
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
 
-	infos := &docker.APIInfo{}
-	err = json.Unmarshal(r.Body.Bytes(), infos)
+	out := engine.NewOutput()
+	i, err := out.AddEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if infos.Images != len(initialImages) {
-		t.Errorf("Expected images: %d, %d found", len(initialImages), infos.Images)
+	if _, err := io.Copy(out, r.Body); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	if images := i.GetInt("Images"); images != initialImages.Len() {
+		t.Errorf("Expected images: %d, %d found", initialImages.Len(), images)
+	}
+	expected := "application/json"
+	if result := r.HeaderMap.Get("Content-Type"); result != expected {
+		t.Errorf("Expected Content-Type %s, %s found", expected, result)
 	}
 }
 
@@ -100,7 +121,7 @@ func TestGetEvents(t *testing.T) {
 
 	r := httptest.NewRecorder()
 	setTimeout(t, "", 500*time.Millisecond, func() {
-		if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r, t)
@@ -124,12 +145,13 @@ func TestGetEvents(t *testing.T) {
 func TestGetImagesJSON(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	// all=0
-
-	initialImages, err := srv.Images(false, "")
+	job := eng.Job("images")
+	initialImages, err := job.Stdout.AddListTable()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,23 +162,23 @@ func TestGetImagesJSON(t *testing.T) {
 
 	r := httptest.NewRecorder()
 
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
 
-	images := []docker.APIImages{}
-	if err := json.Unmarshal(r.Body.Bytes(), &images); err != nil {
+	images := engine.NewTable("Created", 0)
+	if _, err := images.ReadListFrom(r.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images) != len(initialImages) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
+	if images.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
 	}
 
 	found := false
-	for _, img := range images {
-		if strings.Contains(img.RepoTags[0], unitTestImageName) {
+	for _, img := range images.Data {
+		if strings.Contains(img.GetList("RepoTags")[0], unitTestImageName) {
 			found = true
 			break
 		}
@@ -169,32 +191,29 @@ func TestGetImagesJSON(t *testing.T) {
 
 	// all=1
 
-	initialImages, err = srv.Images(true, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	initialImages = getAllImages(eng, t)
 
 	req2, err := http.NewRequest("GET", "/images/json?all=true", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r2, req2); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r2, t)
 
-	images2 := []docker.APIImages{}
-	if err := json.Unmarshal(r2.Body.Bytes(), &images2); err != nil {
+	images2 := engine.NewTable("Id", 0)
+	if _, err := images2.ReadListFrom(r2.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images2) != len(initialImages) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images2))
+	if images2.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images2.Len())
 	}
 
 	found = false
-	for _, img := range images2 {
-		if img.ID == unitTestImageID {
+	for _, img := range images2.Data {
+		if img.Get("Id") == unitTestImageID {
 			found = true
 			break
 		}
@@ -211,41 +230,24 @@ func TestGetImagesJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r3, req3); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r3, req3); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r3, t)
 
-	images3 := []docker.APIImages{}
-	if err := json.Unmarshal(r3.Body.Bytes(), &images3); err != nil {
+	images3 := engine.NewTable("Id", 0)
+	if _, err := images3.ReadListFrom(r3.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images3) != 0 {
-		t.Errorf("Expected 0 image, %d found", len(images3))
-	}
-
-	r4 := httptest.NewRecorder()
-
-	// all=foobar
-	req4, err := http.NewRequest("GET", "/images/json?all=foobar", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r4, req4); err != nil {
-		t.Fatal(err)
-	}
-	// Don't assert against HTTP error since we expect an error
-	if r4.Code != http.StatusBadRequest {
-		t.Fatalf("%d Bad Request expected, received %d\n", http.StatusBadRequest, r4.Code)
+	if images3.Len() != 0 {
+		t.Errorf("Expected 0 image, %d found", images3.Len())
 	}
 }
 
 func TestGetImagesHistory(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	r := httptest.NewRecorder()
 
@@ -253,24 +255,23 @@ func TestGetImagesHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
 
-	history := []docker.APIHistory{}
-	if err := json.Unmarshal(r.Body.Bytes(), &history); err != nil {
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(r.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
-	if len(history) != 1 {
-		t.Errorf("Expected 1 line, %d found", len(history))
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 line, %d found", len(outs.Data))
 	}
 }
 
 func TestGetImagesByName(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	req, err := http.NewRequest("GET", "/images/"+unitTestImageName+"/json", nil)
 	if err != nil {
@@ -278,7 +279,7 @@ func TestGetImagesByName(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -295,14 +296,26 @@ func TestGetImagesByName(t *testing.T) {
 func TestGetContainersJSON(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	beginLen := len(srv.Containers(true, false, -1, "", ""))
+	job := eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	beginLen := len(outs.Data)
 
 	containerID := createTestContainer(eng, &docker.Config{
 		Image: unitTestImageID,
 		Cmd:   []string{"echo", "test"},
 	}, t)
+
+	if containerID == "" {
+		t.Fatalf("Received empty container ID")
+	}
 
 	req, err := http.NewRequest("GET", "/containers/json?all=1", nil)
 	if err != nil {
@@ -310,26 +323,25 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	containers := []docker.APIContainers{}
-	if err := json.Unmarshal(r.Body.Bytes(), &containers); err != nil {
+	containers := engine.NewTable("", 0)
+	if _, err := containers.ReadListFrom(r.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
-	if len(containers) != beginLen+1 {
-		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers), beginLen)
+	if len(containers.Data) != beginLen+1 {
+		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers.Data), beginLen)
 	}
-	if containers[0].ID != containerID {
-		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", containerID, containers[0].ID)
+	if id := containers.Data[0].Get("Id"); id != containerID {
+		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", containerID, id)
 	}
 }
 
 func TestGetContainersExport(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
@@ -347,7 +359,7 @@ func TestGetContainersExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -365,7 +377,7 @@ func TestGetContainersExport(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if h.Name == "./test" {
+		if h.Name == "test" {
 			found = true
 			break
 		}
@@ -378,7 +390,6 @@ func TestGetContainersExport(t *testing.T) {
 func TestGetContainersChanges(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
@@ -395,19 +406,19 @@ func TestGetContainersChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	changes := []docker.Change{}
-	if err := json.Unmarshal(r.Body.Bytes(), &changes); err != nil {
+	outs := engine.NewTable("", 0)
+	if _, err := outs.ReadListFrom(r.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// Check the changelog
 	success := false
-	for _, elem := range changes {
-		if elem.Path == "/etc/passwd" && elem.Kind == 2 {
+	for _, elem := range outs.Data {
+		if elem.Get("Path") == "/etc/passwd" && elem.GetInt("Kind") == 2 {
 			success = true
 		}
 	}
@@ -417,10 +428,8 @@ func TestGetContainersChanges(t *testing.T) {
 }
 
 func TestGetContainersTop(t *testing.T) {
-	t.Skip("Fixme. Skipping test for now. Reported error when testing using dind: 'api_test.go:527: Expected 2 processes, found 0.'")
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -454,47 +463,49 @@ func TestGetContainersTop(t *testing.T) {
 	// Make sure sh spawn up cat
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
 		in, out := containerAttach(eng, containerID, t)
-		if err := assertPipe("hello\n", "hello", out, in, 15); err != nil {
+		if err := assertPipe("hello\n", "hello", out, in, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/"+containerID+"/top?ps_args=u", bytes.NewReader([]byte{}))
+	req, err := http.NewRequest("GET", "/containers/"+containerID+"/top?ps_args=aux", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	procs := docker.APITop{}
-	if err := json.Unmarshal(r.Body.Bytes(), &procs); err != nil {
+	var procs engine.Env
+	if err := procs.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(procs.Titles) != 11 {
-		t.Fatalf("Expected 11 titles, found %d.", len(procs.Titles))
+	if len(procs.GetList("Titles")) != 11 {
+		t.Fatalf("Expected 11 titles, found %d.", len(procs.GetList("Titles")))
 	}
-	if procs.Titles[0] != "USER" || procs.Titles[10] != "COMMAND" {
-		t.Fatalf("Expected Titles[0] to be USER and Titles[10] to be COMMAND, found %s and %s.", procs.Titles[0], procs.Titles[10])
+	if procs.GetList("Titles")[0] != "USER" || procs.GetList("Titles")[10] != "COMMAND" {
+		t.Fatalf("Expected Titles[0] to be USER and Titles[10] to be COMMAND, found %s and %s.", procs.GetList("Titles")[0], procs.GetList("Titles")[10])
 	}
-
-	if len(procs.Processes) != 2 {
-		t.Fatalf("Expected 2 processes, found %d.", len(procs.Processes))
+	processes := [][]string{}
+	if err := procs.GetJson("Processes", &processes); err != nil {
+		t.Fatal(err)
 	}
-	if procs.Processes[0][10] != "/bin/sh" && procs.Processes[0][10] != "cat" {
-		t.Fatalf("Expected `cat` or `/bin/sh`, found %s.", procs.Processes[0][10])
+	if len(processes) != 2 {
+		t.Fatalf("Expected 2 processes, found %d.", len(processes))
 	}
-	if procs.Processes[1][10] != "/bin/sh" && procs.Processes[1][10] != "cat" {
-		t.Fatalf("Expected `cat` or `/bin/sh`, found %s.", procs.Processes[1][10])
+	if processes[0][10] != "/bin/sh -c cat" {
+		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", processes[0][10])
+	}
+	if processes[1][10] != "/bin/sh -c cat" {
+		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", processes[1][10])
 	}
 }
 
 func TestGetContainersByName(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
@@ -510,7 +521,7 @@ func TestGetContainersByName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -545,7 +556,7 @@ func TestPostCommit(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -553,11 +564,11 @@ func TestPostCommit(t *testing.T) {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
 	}
 
-	apiID := &docker.APIID{}
-	if err := json.Unmarshal(r.Body.Bytes(), apiID); err != nil {
+	var env engine.Env
+	if err := env.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := srv.ImageInspect(apiID.ID); err != nil {
+	if _, err := srv.ImageInspect(env.Get("Id")); err != nil {
 		t.Fatalf("The image has not been committed")
 	}
 }
@@ -565,7 +576,6 @@ func TestPostCommit(t *testing.T) {
 func TestPostContainersCreate(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	configJSON, err := json.Marshal(&docker.Config{
 		Image:  unitTestImageID,
@@ -582,7 +592,7 @@ func TestPostContainersCreate(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -590,11 +600,11 @@ func TestPostContainersCreate(t *testing.T) {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
 	}
 
-	apiRun := &docker.APIRun{}
-	if err := json.Unmarshal(r.Body.Bytes(), apiRun); err != nil {
+	var apiRun engine.Env
+	if err := apiRun.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
-	containerID := apiRun.ID
+	containerID := apiRun.Get("Id")
 
 	containerAssertExists(eng, containerID, t)
 	containerRun(eng, containerID, t)
@@ -607,7 +617,6 @@ func TestPostContainersCreate(t *testing.T) {
 func TestPostContainersKill(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -632,7 +641,7 @@ func TestPostContainersKill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -647,7 +656,6 @@ func TestPostContainersKill(t *testing.T) {
 func TestPostContainersRestart(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -672,7 +680,7 @@ func TestPostContainersRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -693,7 +701,6 @@ func TestPostContainersRestart(t *testing.T) {
 func TestPostContainersStart(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(
 		eng,
@@ -715,7 +722,7 @@ func TestPostContainersStart(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -732,7 +739,7 @@ func TestPostContainersStart(t *testing.T) {
 	}
 
 	r = httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	// Starting an already started container should return an error
@@ -743,10 +750,45 @@ func TestPostContainersStart(t *testing.T) {
 	containerKill(eng, containerID, t)
 }
 
+// Expected behaviour: using / as a bind mount source should throw an error
+func TestRunErrorBindMountRootSource(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	containerID := createTestContainer(
+		eng,
+		&docker.Config{
+			Image:     unitTestImageID,
+			Cmd:       []string{"/bin/cat"},
+			OpenStdin: true,
+		},
+		t,
+	)
+
+	hostConfigJSON, err := json.Marshal(&docker.HostConfig{
+		Binds: []string{"/:/tmp"},
+	})
+
+	req, err := http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	r := httptest.NewRecorder()
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusInternalServerError {
+		containerKill(eng, containerID, t)
+		t.Fatal("should have failed to run when using / as a source for the bind mount")
+	}
+}
+
 func TestPostContainersStop(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -772,7 +814,7 @@ func TestPostContainersStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -787,7 +829,6 @@ func TestPostContainersStop(t *testing.T) {
 func TestPostContainersWait(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -805,16 +846,16 @@ func TestPostContainersWait(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r, t)
-		apiWait := &docker.APIWait{}
-		if err := json.Unmarshal(r.Body.Bytes(), apiWait); err != nil {
+		var apiWait engine.Env
+		if err := apiWait.Decode(r.Body); err != nil {
 			t.Fatal(err)
 		}
-		if apiWait.StatusCode != 0 {
-			t.Fatalf("Non zero exit code for sleep: %d\n", apiWait.StatusCode)
+		if apiWait.GetInt("StatusCode") != 0 {
+			t.Fatalf("Non zero exit code for sleep: %d\n", apiWait.GetInt("StatusCode"))
 		}
 	})
 
@@ -826,7 +867,6 @@ func TestPostContainersWait(t *testing.T) {
 func TestPostContainersAttach(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -864,7 +904,7 @@ func TestPostContainersAttach(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r.ResponseRecorder, t)
@@ -877,7 +917,7 @@ func TestPostContainersAttach(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", string([]byte{1, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{1, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -905,7 +945,6 @@ func TestPostContainersAttach(t *testing.T) {
 func TestPostContainersAttachStderr(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -943,7 +982,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r.ResponseRecorder, t)
@@ -956,7 +995,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", string([]byte{2, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 15); err != nil {
+		if err := assertPipe("hello\n", string([]byte{2, 0, 0, 0, 0, 0, 0, 6})+"hello", stdout, stdinPipe, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -987,7 +1026,6 @@ func TestPostContainersAttachStderr(t *testing.T) {
 func TestDeleteContainers(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	containerID := createTestContainer(eng,
 		&docker.Config{
@@ -1001,7 +1039,7 @@ func TestDeleteContainers(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1014,13 +1052,13 @@ func TestDeleteContainers(t *testing.T) {
 func TestOptionsRoute(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
+
 	r := httptest.NewRecorder()
 	req, err := http.NewRequest("OPTIONS", "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1032,14 +1070,14 @@ func TestOptionsRoute(t *testing.T) {
 func TestGetEnabledCors(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
+
 	r := httptest.NewRecorder()
 
 	req, err := http.NewRequest("GET", "/version", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1065,23 +1103,17 @@ func TestGetEnabledCors(t *testing.T) {
 func TestDeleteImages(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	initialImages, err := srv.Images(false, "")
-	if err != nil {
+	initialImages := getImages(eng, t, true, "")
+
+	if err := eng.Job("tag", unitTestImageName, "test", "test").Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerTag(unitTestImageName, "test", "test", false); err != nil {
-		t.Fatal(err)
-	}
-	images, err := srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images := getImages(eng, t, true, "")
 
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+1 {
-		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
+	if len(images.Data[0].GetList("RepoTags")) != len(initialImages.Data[0].GetList("RepoTags"))+1 {
+		t.Errorf("Expected %d images, %d found", len(initialImages.Data[0].GetList("RepoTags"))+1, len(images.Data[0].GetList("RepoTags")))
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
@@ -1090,7 +1122,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusConflict {
@@ -1103,7 +1135,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r2 := httptest.NewRecorder()
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r2, req2); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r2, t)
@@ -1111,27 +1143,23 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	var outs []docker.APIRmi
-	if err := json.Unmarshal(r2.Body.Bytes(), &outs); err != nil {
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(r2.Body.Bytes()); err != nil {
 		t.Fatal(err)
 	}
-	if len(outs) != 1 {
-		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs))
+	if len(outs.Data) != 1 {
+		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs.Data))
 	}
-	images, err = srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images = getImages(eng, t, false, "")
 
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
+	if images.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
 	}
 }
 
 func TestPostContainersCopy(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
@@ -1144,19 +1172,22 @@ func TestPostContainersCopy(t *testing.T) {
 	containerRun(eng, containerID, t)
 
 	r := httptest.NewRecorder()
-	copyData := docker.APICopy{HostPath: ".", Resource: "/test.txt"}
 
-	jsonData, err := json.Marshal(copyData)
-	if err != nil {
+	var copyData engine.Env
+	copyData.Set("Resource", "/test.txt")
+	copyData.Set("HostPath", ".")
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := copyData.Encode(jsonData); err != nil {
 		t.Fatal(err)
 	}
 
-	req, err := http.NewRequest("POST", "/containers/"+containerID+"/copy", bytes.NewReader(jsonData))
+	req, err := http.NewRequest("POST", "/containers/"+containerID+"/copy", jsonData)
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	if err := docker.ServeRequest(srv, docker.APIVERSION, r, req); err != nil {
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)

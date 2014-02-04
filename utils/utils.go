@@ -26,24 +26,13 @@ import (
 var (
 	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
 	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
+	INITPATH  string // custom location to search for a valid dockerinit binary (available for packagers as a last resort escape hatch)
 )
 
 // A common interface to access the Fatal method of
 // both testing.B and testing.T.
 type Fataler interface {
 	Fatal(args ...interface{})
-}
-
-// ListOpts type
-type ListOpts []string
-
-func (opts *ListOpts) String() string {
-	return fmt.Sprint(*opts)
-}
-
-func (opts *ListOpts) Set(value string) error {
-	*opts = append(*opts, value)
-	return nil
 }
 
 // Go is a basic promise implementation: it wraps calls a function in a goroutine,
@@ -57,14 +46,12 @@ func Go(f func() error) chan error {
 }
 
 // Request a given URL and return an io.Reader
-func Download(url string, stderr io.Writer) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
+		return nil, fmt.Errorf("Got HTTP status code >= 400: %s", resp.Status)
 	}
 	return resp, nil
 }
@@ -92,56 +79,6 @@ func Debugf(format string, a ...interface{}) {
 
 func Errorf(format string, a ...interface{}) {
 	logf("error", format, a...)
-}
-
-// Reader with progress bar
-type progressReader struct {
-	reader       io.ReadCloser // Stream to read from
-	output       io.Writer     // Where to send progress bar to
-	readTotal    int           // Expected stream length (bytes)
-	readProgress int           // How much has been read so far (bytes)
-	lastUpdate   int           // How many bytes read at least update
-	template     string        // Template to print. Default "%v/%v (%v)"
-	sf           *StreamFormatter
-	newLine      bool
-}
-
-func (r *progressReader) Read(p []byte) (n int, err error) {
-	read, err := io.ReadCloser(r.reader).Read(p)
-	r.readProgress += read
-	updateEvery := 1024 * 512 //512kB
-	if r.readTotal > 0 {
-		// Update progress for every 1% read if 1% < 512kB
-		if increment := int(0.01 * float64(r.readTotal)); increment < updateEvery {
-			updateEvery = increment
-		}
-	}
-	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
-		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
-		} else {
-			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
-		}
-		r.lastUpdate = r.readProgress
-	}
-	// Send newline when complete
-	if r.newLine && err != nil {
-		r.output.Write(r.sf.FormatStatus("", ""))
-	}
-	return read, err
-}
-func (r *progressReader) Close() error {
-	return io.ReadCloser(r.reader).Close()
-}
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, tpl []byte, sf *StreamFormatter, newline bool) *progressReader {
-	return &progressReader{
-		reader:    r,
-		output:    NewWriteFlusher(output),
-		readTotal: size,
-		template:  string(tpl),
-		sf:        sf,
-		newLine:   newline,
-	}
 }
 
 // HumanDuration returns a human-readable approximation of a duration
@@ -224,14 +161,23 @@ func Trunc(s string, maxlen int) string {
 	return s[:maxlen]
 }
 
-// Figure out the absolute path of our own binary
+// Figure out the absolute path of our own binary (if it's still around).
 func SelfPath() string {
 	path, err := exec.LookPath(os.Args[0])
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
+		if execErr, ok := err.(*exec.Error); ok && os.IsNotExist(execErr.Err) {
+			return ""
+		}
 		panic(err)
 	}
 	path, err = filepath.Abs(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
 		panic(err)
 	}
 	return path
@@ -252,7 +198,13 @@ func dockerInitSha1(target string) string {
 }
 
 func isValidDockerInitPath(target string, selfPath string) bool { // target and selfPath should be absolute (InitPath and SelfPath already do this)
+	if target == "" {
+		return false
+	}
 	if IAMSTATIC {
+		if selfPath == "" {
+			return false
+		}
 		if target == selfPath {
 			return true
 		}
@@ -278,12 +230,23 @@ func DockerInitPath(localCopy string) string {
 	}
 	var possibleInits = []string{
 		localCopy,
+		INITPATH,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
-		// "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+
+		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		// http://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec
 		"/usr/libexec/docker/dockerinit",
 		"/usr/local/libexec/docker/dockerinit",
+
+		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
+		// http://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
+		"/usr/lib/docker/dockerinit",
+		"/usr/local/lib/docker/dockerinit",
 	}
 	for _, dockerInit := range possibleInits {
+		if dockerInit == "" {
+			continue
+		}
 		path, err := exec.LookPath(dockerInit)
 		if err == nil {
 			path, err = filepath.Abs(path)
@@ -456,6 +419,7 @@ func GetTotalUsedFds() int {
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
+	sync.RWMutex
 	index *suffixarray.Index
 	ids   map[string]bool
 	bytes []byte
@@ -470,6 +434,8 @@ func NewTruncIndex() *TruncIndex {
 }
 
 func (idx *TruncIndex) Add(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
 	if strings.Contains(id, " ") {
 		return fmt.Errorf("Illegal character: ' '")
 	}
@@ -483,6 +449,8 @@ func (idx *TruncIndex) Add(id string) error {
 }
 
 func (idx *TruncIndex) Delete(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
 	if _, exists := idx.ids[id]; !exists {
 		return fmt.Errorf("No such id: %s", id)
 	}
@@ -508,6 +476,8 @@ func (idx *TruncIndex) lookup(s string) (int, int, error) {
 }
 
 func (idx *TruncIndex) Get(s string) (string, error) {
+	idx.RLock()
+	defer idx.RUnlock()
 	before, after, err := idx.lookup(s)
 	//log.Printf("Get(%s) bytes=|%s| before=|%d| after=|%d|\n", s, idx.bytes, before, after)
 	if err != nil {
@@ -543,7 +513,7 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 					if err := src.Close(); err != nil {
 						return 0, err
 					}
-					return 0, io.EOF
+					return 0, nil
 				}
 			}
 			// ---- End of docker
@@ -587,15 +557,11 @@ type KernelVersionInfo struct {
 }
 
 func (k *KernelVersionInfo) String() string {
-	flavor := ""
-	if len(k.Flavor) > 0 {
-		flavor = fmt.Sprintf("-%s", k.Flavor)
-	}
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
+	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
 }
 
 // Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, = if a == b, 1 it a > b
+// Returns -1 if a < b, 0 if a == b, 1 it a > b
 func CompareKernelVersion(a, b *KernelVersionInfo) int {
 	if a.Kernel < b.Kernel {
 		return -1
@@ -616,28 +582,6 @@ func CompareKernelVersion(a, b *KernelVersionInfo) int {
 	}
 
 	return 0
-}
-
-func FindCgroupMountpoint(cgroupType string) (string, error) {
-	output, err := ioutil.ReadFile("/proc/mounts")
-	if err != nil {
-		return "", err
-	}
-
-	// /proc/mounts has 6 fields per line, one mount per line, e.g.
-	// cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
-	for _, line := range strings.Split(string(output), "\n") {
-		parts := strings.Split(line, " ")
-		if len(parts) == 6 && parts[2] == "cgroup" {
-			for _, opt := range strings.Split(parts[3], ",") {
-				if opt == cgroupType {
-					return parts[1], nil
-				}
-			}
-		}
-	}
-
-	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
 }
 
 func GetKernelVersion() (*KernelVersionInfo, error) {
@@ -666,41 +610,15 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
-		flavor               string
-		kernel, major, minor int
-		err                  error
+		kernel, major, minor, parsed int
+		flavor                       string
 	)
 
-	tmp := strings.SplitN(release, "-", 2)
-	tmp2 := strings.Split(tmp[0], ".")
-
-	if len(tmp2) > 0 {
-		kernel, err = strconv.Atoi(tmp2[0])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 1 {
-		major, err = strconv.Atoi(tmp2[1])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 2 {
-		// Removes "+" because git kernels might set it
-		minorUnparsed := strings.Trim(tmp2[2], "+")
-		minor, err = strconv.Atoi(minorUnparsed)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp) == 2 {
-		flavor = tmp[1]
-	} else {
-		flavor = ""
+	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
+	// make sure we got all the version numbers.
+	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
+	if parsed < 3 {
+		return nil, errors.New("Can't parse kernel version " + release)
 	}
 
 	return &KernelVersionInfo{
@@ -754,153 +672,11 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-type JSONError struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-type JSONMessage struct {
-	Status       string     `json:"status,omitempty"`
-	Progress     string     `json:"progress,omitempty"`
-	ErrorMessage string     `json:"error,omitempty"` //deprecated
-	ID           string     `json:"id,omitempty"`
-	From         string     `json:"from,omitempty"`
-	Time         int64      `json:"time,omitempty"`
-	Error        *JSONError `json:"errorDetail,omitempty"`
-}
-
-func (e *JSONError) Error() string {
-	return e.Message
-}
-
 func NewHTTPRequestError(msg string, res *http.Response) error {
 	return &JSONError{
 		Message: msg,
 		Code:    res.StatusCode,
 	}
-}
-
-func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
-	if jm.Error != nil {
-		if jm.Error.Code == 401 {
-			return fmt.Errorf("Authentication is required.")
-		}
-		return jm.Error
-	}
-	endl := ""
-	if isTerminal {
-		// <ESC>[2K = erase entire current line
-		fmt.Fprintf(out, "%c[2K\r", 27)
-		endl = "\r"
-	}
-	if jm.Time != 0 {
-		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
-	}
-	if jm.ID != "" {
-		fmt.Fprintf(out, "%s: ", jm.ID)
-	}
-	if jm.From != "" {
-		fmt.Fprintf(out, "(from %s) ", jm.From)
-	}
-	if jm.Progress != "" {
-		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress, endl)
-	} else {
-		fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
-	}
-	return nil
-}
-
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, isTerminal bool) error {
-	dec := json.NewDecoder(in)
-	ids := make(map[string]int)
-	diff := 0
-	for {
-		jm := JSONMessage{}
-		if err := dec.Decode(&jm); err == io.EOF {
-			break
-		} else if err != nil {
-			return err
-		}
-		if jm.Progress != "" && jm.ID != "" {
-			line, ok := ids[jm.ID]
-			if !ok {
-				line = len(ids)
-				ids[jm.ID] = line
-				fmt.Fprintf(out, "\n")
-				diff = 0
-			} else {
-				diff = len(ids) - line
-			}
-			if isTerminal {
-				// <ESC>[{diff}A = move cursor up diff rows
-				fmt.Fprintf(out, "%c[%dA", 27, diff)
-			}
-		}
-		err := jm.Display(out, isTerminal)
-		if jm.ID != "" {
-			if isTerminal {
-				// <ESC>[{diff}B = move cursor down diff rows
-				fmt.Fprintf(out, "%c[%dB", 27, diff)
-			}
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type StreamFormatter struct {
-	json bool
-	used bool
-}
-
-func NewStreamFormatter(json bool) *StreamFormatter {
-	return &StreamFormatter{json, false}
-}
-
-func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
-	sf.used = true
-	str := fmt.Sprintf(format, a...)
-	if sf.json {
-		b, err := json.Marshal(&JSONMessage{ID: id, Status: str})
-		if err != nil {
-			return sf.FormatError(err)
-		}
-		return b
-	}
-	return []byte(str + "\r\n")
-}
-
-func (sf *StreamFormatter) FormatError(err error) []byte {
-	sf.used = true
-	if sf.json {
-		jsonError, ok := err.(*JSONError)
-		if !ok {
-			jsonError = &JSONError{Message: err.Error()}
-		}
-		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
-			return b
-		}
-		return []byte("{\"error\":\"format error\"}")
-	}
-	return []byte("Error: " + err.Error() + "\r\n")
-}
-
-func (sf *StreamFormatter) FormatProgress(id, action, progress string) []byte {
-	sf.used = true
-	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: progress, ID: id})
-		if err != nil {
-			return nil
-		}
-		return b
-	}
-	return []byte(action + " " + progress + "\r")
-}
-
-func (sf *StreamFormatter) Used() bool {
-	return sf.used
 }
 
 func IsURL(str string) bool {
@@ -973,14 +749,29 @@ func GetNameserversAsCIDR(resolvConf []byte) []string {
 	return nameservers
 }
 
-func ParseHost(host string, port int, addr string) (string, error) {
-	var proto string
+// FIXME: Change this not to receive default value as parameter
+func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (string, error) {
+	var (
+		proto string
+		host  string
+		port  int
+	)
+	addr = strings.TrimSpace(addr)
 	switch {
 	case strings.HasPrefix(addr, "unix://"):
-		return addr, nil
+		proto = "unix"
+		addr = strings.TrimPrefix(addr, "unix://")
+		if addr == "" {
+			addr = defaultUnix
+		}
 	case strings.HasPrefix(addr, "tcp://"):
 		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	case strings.HasPrefix(addr, "fd://"):
+		return addr, nil
+	case addr == "":
+		proto = "unix"
+		addr = defaultUnix
 	default:
 		if strings.Contains(addr, "://") {
 			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)
@@ -988,25 +779,35 @@ func ParseHost(host string, port int, addr string) (string, error) {
 		proto = "tcp"
 	}
 
-	if strings.Contains(addr, ":") {
+	if proto != "unix" && strings.Contains(addr, ":") {
 		hostParts := strings.Split(addr, ":")
 		if len(hostParts) != 2 {
 			return "", fmt.Errorf("Invalid bind address format: %s", addr)
 		}
 		if hostParts[0] != "" {
 			host = hostParts[0]
+		} else {
+			host = defaultHost
 		}
-		if p, err := strconv.Atoi(hostParts[1]); err == nil {
+
+		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
 			port = p
+		} else {
+			port = defaultPort
 		}
+
 	} else {
 		host = addr
+		port = defaultPort
+	}
+	if proto == "unix" {
+		return fmt.Sprintf("%s://%s", proto, host), nil
 	}
 	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
 }
 
 func GetReleaseVersion() string {
-	resp, err := http.Get("http://get.docker.io/latest")
+	resp, err := http.Get("https://get.docker.io/latest")
 	if err != nil {
 		return ""
 	}
@@ -1066,129 +867,14 @@ func UserLookup(uid string) (*User, error) {
 	return nil, fmt.Errorf("User not found in /etc/passwd")
 }
 
-type DependencyGraph struct {
-	nodes map[string]*DependencyNode
-}
-
-type DependencyNode struct {
-	id   string
-	deps map[*DependencyNode]bool
-}
-
-func NewDependencyGraph() DependencyGraph {
-	return DependencyGraph{
-		nodes: map[string]*DependencyNode{},
-	}
-}
-
-func (graph *DependencyGraph) addNode(node *DependencyNode) string {
-	if graph.nodes[node.id] == nil {
-		graph.nodes[node.id] = node
-	}
-	return node.id
-}
-
-func (graph *DependencyGraph) NewNode(id string) string {
-	if graph.nodes[id] != nil {
-		return id
-	}
-	nd := &DependencyNode{
-		id:   id,
-		deps: map[*DependencyNode]bool{},
-	}
-	graph.addNode(nd)
-	return id
-}
-
-func (graph *DependencyGraph) AddDependency(node, to string) error {
-	if graph.nodes[node] == nil {
-		return fmt.Errorf("Node %s does not belong to this graph", node)
-	}
-
-	if graph.nodes[to] == nil {
-		return fmt.Errorf("Node %s does not belong to this graph", to)
-	}
-
-	if node == to {
-		return fmt.Errorf("Dependency loops are forbidden!")
-	}
-
-	graph.nodes[node].addDependency(graph.nodes[to])
-	return nil
-}
-
-func (node *DependencyNode) addDependency(to *DependencyNode) bool {
-	node.deps[to] = true
-	return node.deps[to]
-}
-
-func (node *DependencyNode) Degree() int {
-	return len(node.deps)
-}
-
-// The magic happens here ::
-func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
-	Debugf("Generating traversal map. Nodes: %d", len(graph.nodes))
-	result := [][]string{}
-	processed := map[*DependencyNode]bool{}
-	// As long as we haven't processed all nodes...
-	for len(processed) < len(graph.nodes) {
-		// Use a temporary buffer for processed nodes, otherwise
-		// nodes that depend on each other could end up in the same round.
-		tmpProcessed := []*DependencyNode{}
-		for _, node := range graph.nodes {
-			// If the node has more dependencies than what we have cleared,
-			// it won't be valid for this round.
-			if node.Degree() > len(processed) {
-				continue
-			}
-			// If it's already processed, get to the next one
-			if processed[node] {
-				continue
-			}
-			// It's not been processed yet and has 0 deps. Add it!
-			// (this is a shortcut for what we're doing below)
-			if node.Degree() == 0 {
-				tmpProcessed = append(tmpProcessed, node)
-				continue
-			}
-			// If at least one dep hasn't been processed yet, we can't
-			// add it.
-			ok := true
-			for dep := range node.deps {
-				if !processed[dep] {
-					ok = false
-					break
-				}
-			}
-			// All deps have already been processed. Add it!
-			if ok {
-				tmpProcessed = append(tmpProcessed, node)
-			}
-		}
-		Debugf("Round %d: found %d available nodes", len(result), len(tmpProcessed))
-		// If no progress has been made this round,
-		// that means we have circular dependencies.
-		if len(tmpProcessed) == 0 {
-			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
-		}
-		round := []string{}
-		for _, nd := range tmpProcessed {
-			round = append(round, nd.id)
-			processed[nd] = true
-		}
-		result = append(result, round)
-	}
-	return result, nil
-}
-
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
-	Status int
+	Status     string
+	StatusCode int
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("Status: %d", e.Status)
+	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
 }
 
 func quote(word string, buf *bytes.Buffer) {
@@ -1312,4 +998,20 @@ func CopyFile(src, dst string) (int64, error) {
 	}
 	defer df.Close()
 	return io.Copy(df, sf)
+}
+
+type readCloserWrapper struct {
+	io.Reader
+	closer func() error
+}
+
+func (r *readCloserWrapper) Close() error {
+	return r.closer()
+}
+
+func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
+	return &readCloserWrapper{
+		Reader: r,
+		closer: closer,
+	}
 }

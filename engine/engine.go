@@ -3,13 +3,15 @@ package engine
 import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
 
-type Handler func(*Job) string
+type Handler func(*Job) Status
 
 var globalHandlers map[string]Handler
 
@@ -34,6 +36,9 @@ type Engine struct {
 	handlers map[string]Handler
 	hack     Hack // data for temporary hackery (see hack.go)
 	id       string
+	Stdout   io.Writer
+	Stderr   io.Writer
+	Stdin    io.Reader
 }
 
 func (eng *Engine) Root() string {
@@ -41,7 +46,6 @@ func (eng *Engine) Root() string {
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
-	eng.Logf("Register(%s) (handlers=%v)", name, eng.handlers)
 	_, exists := eng.handlers[name]
 	if exists {
 		return fmt.Errorf("Can't overwrite handler for command %s", name)
@@ -70,16 +74,36 @@ func New(root string) (*Engine, error) {
 		log.Printf("WARNING: %s\n", err)
 	} else {
 		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			}
 		}
 	}
+
 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
+
+	// Docker makes some assumptions about the "absoluteness" of root
+	// ... so let's make sure it has no symlinks
+	if p, err := filepath.Abs(root); err != nil {
+		log.Fatalf("Unable to get absolute root (%s): %s", root, err)
+	} else {
+		root = p
+	}
+	if p, err := filepath.EvalSymlinks(root); err != nil {
+		log.Fatalf("Unable to canonicalize root (%s): %s", root, err)
+	} else {
+		root = p
+	}
+
 	eng := &Engine{
 		root:     root,
 		handlers: make(map[string]Handler),
 		id:       utils.RandomString(),
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		Stdin:    os.Stdin,
 	}
 	// Copy existing global handlers
 	for k, v := range globalHandlers {
@@ -99,10 +123,12 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Eng:    eng,
 		Name:   name,
 		Args:   args,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdin:  NewInput(),
+		Stdout: NewOutput(),
+		Stderr: NewOutput(),
+		env:    &Env{},
 	}
+	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
 	handler, exists := eng.handlers[name]
 	if exists {
 		job.handler = handler
@@ -111,6 +137,9 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 }
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
-	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(os.Stderr, prefixedFormat, args...)
+	if os.Getenv("TEST") == "" {
+		prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
+		return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
+	}
+	return 0, nil
 }

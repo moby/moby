@@ -1,3 +1,5 @@
+// +build linux,amd64
+
 package devmapper
 
 import (
@@ -5,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"runtime"
+	"syscall"
 )
 
 type DevmapperLogger interface {
@@ -177,25 +180,18 @@ func (t *Task) GetNextTarget(next uintptr) (nextPtr uintptr, start uint64,
 		start, length, targetType, params
 }
 
-func AttachLoopDevice(filename string) (*osFile, error) {
-	var fd int
-	res := DmAttachLoopDevice(filename, &fd)
-	if res == "" {
-		return nil, ErrAttachLoopbackDevice
-	}
-	return &osFile{File: osNewFile(uintptr(fd), res)}, nil
-}
-
 func getLoopbackBackingFile(file *osFile) (uint64, uint64, error) {
-	dev, inode, err := DmGetLoopbackBackingFile(file.Fd())
-	if err != 0 {
+	loopInfo, err := ioctlLoopGetStatus64(file.Fd())
+	if err != nil {
+		utils.Errorf("Error get loopback backing file: %s\n", err)
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
-	return dev, inode, nil
+	return loopInfo.loDevice, loopInfo.loInode, nil
 }
 
 func LoopbackSetCapacity(file *osFile) error {
-	if err := DmLoopbackSetCapacity(file.Fd()); err != 0 {
+	if err := ioctlLoopSetCapacity(file.Fd(), 0); err != nil {
+		utils.Errorf("Error loopbackSetCapacity: %s", err)
 		return ErrLoopbackSetCapacity
 	}
 	return nil
@@ -223,11 +219,10 @@ func FindLoopDeviceFor(file *osFile) *osFile {
 			continue
 		}
 
-		dev, inode, err := getLoopbackBackingFile(&osFile{File: file})
+		dev, inode, err := getLoopbackBackingFile(file)
 		if err == nil && dev == targetDevice && inode == targetInode {
-			return &osFile{File: file}
+			return file
 		}
-
 		file.Close()
 	}
 
@@ -286,11 +281,35 @@ func RemoveDevice(name string) error {
 }
 
 func GetBlockDeviceSize(file *osFile) (uint64, error) {
-	size, errno := DmGetBlockSize(file.Fd())
-	if size == -1 || errno != 0 {
+	size, err := ioctlBlkGetSize64(file.Fd())
+	if err != nil {
+		utils.Errorf("Error getblockdevicesize: %s", err)
 		return 0, ErrGetBlockSize
 	}
 	return uint64(size), nil
+}
+
+func BlockDeviceDiscard(path string) error {
+	file, err := osOpenFile(path, osORdWr, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	size, err := GetBlockDeviceSize(file)
+	if err != nil {
+		return err
+	}
+
+	if err := ioctlBlkDiscard(file.Fd(), 0, size); err != nil {
+		return err
+	}
+
+	// Without this sometimes the remove of the device that happens after
+	// discard fails with EBUSY.
+	syscall.Sync()
+
+	return nil
 }
 
 // This is the programmatic example of "dmsetup create"
@@ -420,7 +439,7 @@ func suspendDevice(name string) error {
 		return err
 	}
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running DeviceSuspend")
+		return fmt.Errorf("Error running DeviceSuspend: %s", err)
 	}
 	return nil
 }
@@ -437,7 +456,7 @@ func resumeDevice(name string) error {
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running DeviceSuspend")
+		return fmt.Errorf("Error running DeviceResume")
 	}
 
 	UdevWait(cookie)

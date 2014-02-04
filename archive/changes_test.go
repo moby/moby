@@ -247,7 +247,7 @@ func TestChangesDirsMutated(t *testing.T) {
 		}
 		if changes[i].Path == expectedChanges[i].Path {
 			if changes[i] != expectedChanges[i] {
-				t.Fatalf("Wrong change for %s, expected %s, got %d\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
+				t.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
 			}
 		} else if changes[i].Path < expectedChanges[i].Path {
 			t.Fatalf("unexpected change %s\n", changes[i].String())
@@ -258,19 +258,18 @@ func TestChangesDirsMutated(t *testing.T) {
 }
 
 func TestApplyLayer(t *testing.T) {
-	t.Skip("Skipping TestApplyLayer due to known failures") // Disable this for now as it is broken
-	return
-
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	createSampleDir(t, src)
+	defer os.RemoveAll(src)
 	dst := src + "-copy"
 	if err := copyDir(src, dst); err != nil {
 		t.Fatal(err)
 	}
 	mutateSampleDir(t, dst)
+	defer os.RemoveAll(dst)
 
 	changes, err := ChangesDirs(dst, src)
 	if err != nil {
@@ -297,9 +296,6 @@ func TestApplyLayer(t *testing.T) {
 	}
 
 	if len(changes2) != 0 {
-		t.Fatalf("Unexpected differences after re applying mutation: %v", changes)
+		t.Fatalf("Unexpected differences after reapplying mutation: %v", changes2)
 	}
-
-	os.RemoveAll(src)
-	os.RemoveAll(dst)
 }

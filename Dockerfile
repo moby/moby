@@ -24,52 +24,72 @@
 #
 
 docker-version	0.6.1
-from	ubuntu:12.04
-maintainer	Solomon Hykes <solomon@dotcloud.com>
+FROM	ubuntu:13.10
+MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
-# Build dependencies
-run	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
-run	apt-get update
-run	apt-get install -y -q curl
-run	apt-get install -y -q git
-run	apt-get install -y -q mercurial
-run	apt-get install -y -q build-essential libsqlite3-dev
+# Packaged dependencies
+RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
+	apt-utils \
+	aufs-tools \
+	automake \
+	btrfs-tools \
+	build-essential \
+	curl \
+	dpkg-sig \
+	git \
+	iptables \
+	libapparmor-dev \
+	libcap-dev \
+	libsqlite3-dev \
+	mercurial \
+	reprepro \
+	ruby1.9.1 \
+	ruby1.9.1-dev \
+	s3cmd=1.1.0* \
+	--no-install-recommends
 
-# Install Go
-run	curl -s https://go.googlecode.com/files/go1.2rc5.src.tar.gz | tar -v -C /usr/local -xz
-env	PATH	/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
-env	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
-run	cd /usr/local/go/src && ./make.bash && go install -ldflags '-w -linkmode external -extldflags "-static -Wl,--unresolved-symbols=ignore-in-shared-libs"' -tags netgo -a std
-
-# Ubuntu stuff
-run	apt-get install -y -q ruby1.9.3 rubygems libffi-dev
-run	gem install --no-rdoc --no-ri fpm
-run	apt-get install -y -q reprepro dpkg-sig
-
-run	apt-get install -y -q python-pip
-run	pip install s3cmd==1.1.0-beta3
-run	pip install python-magic==0.4.6
-run	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY\n' > /.s3cfg
-
-# Runtime dependencies
-run	apt-get install -y -q iptables
-run	apt-get install -y -q lxc
-run	apt-get install -y -q aufs-tools
+# Get and compile LXC 0.8 (since it is the most stable)
+RUN	git clone --no-checkout https://github.com/lxc/lxc.git /usr/local/lxc && cd /usr/local/lxc && git checkout -q lxc-0.8.0
+RUN	cd /usr/local/lxc && ./autogen.sh && ./configure --disable-docs && make && make install
 
 # Get lvm2 source for compiling statically
-run	git clone https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout v2_02_103
+RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103
 # see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
-# note: we can't use "git clone -b" above because it requires at least git 1.7.10 to be able to use that on a tag instead of a branch and we only have 1.7.9.5
+# note: we don't use "git clone -b" above because it then spews big nasty warnings about 'detached HEAD' state that we can't silence as easily as we can silence them using "git checkout" directly
 
 # Compile and install lvm2
-run	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
+RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-volume	/var/lib/docker
-workdir	/go/src/github.com/dotcloud/docker
+# Install Go
+RUN	curl -s https://go.googlecode.com/files/go1.2.src.tar.gz | tar -v -C /usr/local -xz
+ENV	PATH	/usr/local/go/bin:$PATH
+ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
+RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
+
+# Compile Go for cross compilation
+ENV	DOCKER_CROSSPLATFORMS	linux/386 linux/arm darwin/amd64 darwin/386
+# (set an explicit GOARM of 5 for maximum compatibility)
+ENV	GOARM	5
+RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
+
+# Grab Go's cover tool for dead-simple code coverage testing
+RUN	go get code.google.com/p/go.tools/cmd/cover
+
+# TODO replace FPM with some very minimal debhelper stuff
+RUN	gem install --no-rdoc --no-ri fpm --version 1.0.2
+
+# Setup s3cmd config
+RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > /.s3cfg
+
+# Set user.email so crosbymichael's in-container merge commits go smoothly
+RUN	git config --global user.email 'docker-dummy@example.com'
+
+VOLUME	/var/lib/docker
+WORKDIR	/go/src/github.com/dotcloud/docker
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
-entrypoint	["hack/dind"]
+ENTRYPOINT	["hack/dind"]
 
 # Upload docker source
-add	.	/go/src/github.com/dotcloud/docker
+ADD	.	/go/src/github.com/dotcloud/docker

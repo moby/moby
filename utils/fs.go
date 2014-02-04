@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -22,14 +24,71 @@ func TreeSize(dir string) (size int64, err error) {
 
 		// Check inode to handle hard links correctly
 		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		if _, exists := data[inode]; exists {
+		// inode is not a uint64 on all platforms. Cast it to avoid issues.
+		if _, exists := data[uint64(inode)]; exists {
 			return nil
 		}
-		data[inode] = false
+		// inode is not a uint64 on all platforms. Cast it to avoid issues.
+		data[uint64(inode)] = false
 
 		size += s
 
 		return nil
 	})
 	return
+}
+
+// FollowSymlink will follow an existing link and scope it to the root
+// path provided.
+func FollowSymlinkInScope(link, root string) (string, error) {
+	prev := "/"
+
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+
+	link, err = filepath.Abs(link)
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.HasPrefix(filepath.Dir(link), root) {
+		return "", fmt.Errorf("%s is not within %s", link, root)
+	}
+
+	for _, p := range strings.Split(link, "/") {
+		prev = filepath.Join(prev, p)
+		prev = filepath.Clean(prev)
+
+		for {
+			stat, err := os.Lstat(prev)
+			if err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				return "", err
+			}
+			if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+				dest, err := os.Readlink(prev)
+				if err != nil {
+					return "", err
+				}
+
+				switch dest[0] {
+				case '/':
+					prev = filepath.Join(root, dest)
+				case '.':
+					prev, _ = filepath.Abs(prev)
+
+					if prev = filepath.Clean(filepath.Join(filepath.Dir(prev), dest)); len(prev) < len(root) {
+						prev = filepath.Join(root, filepath.Base(dest))
+					}
+				}
+			} else {
+				break
+			}
+		}
+	}
+	return prev, nil
 }

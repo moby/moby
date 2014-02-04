@@ -30,7 +30,7 @@ func TestLinkNew(t *testing.T) {
 
 	to := newMockLinkContainer(toID, "172.0.17.3")
 
-	link, err := NewLink(to, from, "/db/docker", "172.0.17.1")
+	link, err := NewLink(to, from, "/db/docker", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,9 +48,6 @@ func TestLinkNew(t *testing.T) {
 		t.Fail()
 	}
 	if link.ChildIP != "172.0.17.2" {
-		t.Fail()
-	}
-	if link.BridgeInterface != "172.0.17.1" {
 		t.Fail()
 	}
 	for _, p := range link.Ports {
@@ -75,7 +72,7 @@ func TestLinkEnv(t *testing.T) {
 
 	to := newMockLinkContainer(toID, "172.0.17.3")
 
-	link, err := NewLink(to, from, "/db/docker", "172.0.17.1")
+	link, err := NewLink(to, from, "/db/docker", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,10 +8,18 @@ AWS_BOX_URI = ENV['BOX_URI'] || "https://github.com/mitchellh/vagrant-aws/raw/ma
 AWS_REGION = ENV['AWS_REGION'] || "us-east-1"
 AWS_AMI = ENV['AWS_AMI'] || "ami-69f5a900"
 AWS_INSTANCE_TYPE = ENV['AWS_INSTANCE_TYPE'] || 't1.micro'
+SSH_PRIVKEY_PATH = ENV['SSH_PRIVKEY_PATH']
+PRIVATE_NETWORK = ENV['PRIVATE_NETWORK']
 
+# Boolean that forwards the Docker dynamic ports 49000-49900
+# See http://docs.docker.io/en/latest/use/port_redirection/ for more
+# $ FORWARD_DOCKER_PORTS=1 vagrant [up|reload]
 FORWARD_DOCKER_PORTS = ENV['FORWARD_DOCKER_PORTS']
 
-SSH_PRIVKEY_PATH = ENV["SSH_PRIVKEY_PATH"]
+# You may also provide a comma-separated list of ports
+# for Vagrant to forward. For example:
+# $ FORWARD_PORTS=8080,27017 vagrant [up|reload]
+FORWARD_PORTS = ENV['FORWARD_PORTS']
 
 # A script to upgrade from the 12.04 kernel to the raring backport kernel (3.8)
 # and install docker.
@@ -24,9 +32,9 @@ if [ -z "$user" ]; then
 fi
 
 # Adding an apt gpg key is idempotent.
-wget -q -O - https://get.docker.io/gpg | apt-key add -
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
-# Creating the docker.list file is idempotent, but it may overrite desired
+# Creating the docker.list file is idempotent, but it may overwrite desired
 # settings if it already exists.  This could be solved with md5sum but it
 # doesn't seem worth it.
 echo 'deb http://get.docker.io/ubuntu docker main' > \
@@ -41,7 +49,7 @@ apt-get install -q -y lxc-docker
 usermod -a -G docker "$user"
 
 tmp=`mktemp -q` && {
-    # Only install the backport kernel, don't bother upgrade if the backport is
+    # Only install the backport kernel, don't bother upgrading if the backport is
     # already installed.  We want parse the output of apt so we need to save it
     # with 'tee'.  NOTE: The installation of the kernel will trigger dkms to
     # install vboxguest if needed.
@@ -70,7 +78,7 @@ SCRIPT
 # trigger dkms to build the virtualbox guest module install.
 $vbox_script = <<VBOX_SCRIPT + $script
 # Install the VirtualBox guest additions if they aren't already installed.
-if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
+if [ ! -d /opt/VBoxGuestAdditions-4.3.6/ ]; then
     # Update remote package metadata.  'apt-get update' is idempotent.
     apt-get update -q
 
@@ -79,9 +87,10 @@ if [ ! -d /opt/VBoxGuestAdditions-4.3.2/ ]; then
     apt-get install -q -y linux-headers-generic-lts-raring dkms
 
     echo 'Downloading VBox Guest Additions...'
-    wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.2/VBoxGuestAdditions_4.3.2.iso
+    wget -cq http://dlc.sun.com.edgesuite.net/virtualbox/4.3.6/VBoxGuestAdditions_4.3.6.iso
+    echo "95648fcdb5d028e64145a2fe2f2f28c946d219da366389295a61fed296ca79f0  VBoxGuestAdditions_4.3.6.iso" | sha256sum --check || exit 1
 
-    mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.2.iso /mnt
+    mount -o loop,ro /home/vagrant/VBoxGuestAdditions_4.3.6.iso /mnt
     /mnt/VBoxLinuxAdditions.run --nox11
     umount /mnt
 fi
@@ -160,16 +169,30 @@ Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
   config.vm.provision :shell, :inline => $vbox_script
 end
 
-if !FORWARD_DOCKER_PORTS.nil?
+# Setup port forwarding per loaded environment variables
+forward_ports = FORWARD_DOCKER_PORTS.nil? ? [] : [*49000..49900]
+forward_ports += FORWARD_PORTS.split(',').map{|i| i.to_i } if FORWARD_PORTS
+if forward_ports.any?
   Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
-    (49000..49900).each do |port|
+    forward_ports.each do |port|
       config.vm.forward_port port, port
     end
   end
 
   Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
-    (49000..49900).each do |port|
+    forward_ports.each do |port|
       config.vm.network :forwarded_port, :host => port, :guest => port
     end
   end
 end
+
+if !PRIVATE_NETWORK.nil?
+  Vagrant::VERSION < "1.1.0" and Vagrant::Config.run do |config|
+    config.vm.network :hostonly, PRIVATE_NETWORK
+  end
+
+  Vagrant::VERSION >= "1.1.0" and Vagrant.configure("2") do |config|
+    config.vm.network "private_network", ip: PRIVATE_NETWORK
+  end
+end
+

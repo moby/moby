@@ -1,37 +1,14 @@
 package docker
 
-/*
-#include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <errno.h>
-
-// See linux.git/fs/btrfs/ioctl.h
-#define BTRFS_IOCTL_MAGIC 0x94
-#define BTRFS_IOC_CLONE _IOW(BTRFS_IOCTL_MAGIC, 9, int)
-
-int
-btrfs_reflink(int fd_out, int fd_in)
-{
-  int res;
-  res = ioctl(fd_out, BTRFS_IOC_CLONE, fd_in);
-  if (res < 0)
-    return errno;
-  return 0;
-}
-
-*/
-import "C"
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/namesgenerator"
+	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/utils"
 	"io"
-	"io/ioutil"
-	"os"
 	"strconv"
 	"strings"
-	"syscall"
+	"sync/atomic"
 )
 
 type Change struct {
@@ -215,9 +192,9 @@ func MergeConfig(userConf, imageConf *Config) error {
 	return nil
 }
 
-func parseLxcConfOpts(opts utils.ListOpts) ([]KeyValuePair, error) {
-	out := make([]KeyValuePair, len(opts))
-	for i, o := range opts {
+func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
+	out := make([]KeyValuePair, opts.Len())
+	for i, o := range opts.GetAll() {
 		k, v, err := parseLxcOpt(o)
 		if err != nil {
 			return nil, err
@@ -346,32 +323,10 @@ func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	return nil
 }
 
-func BtrfsReflink(fd_out, fd_in uintptr) error {
-	res := C.btrfs_reflink(C.int(fd_out), C.int(fd_in))
-	if res != 0 {
-		return syscall.Errno(res)
-	}
-	return nil
-}
-
 // Links come in the format of
 // name:alias
 func parseLink(rawLink string) (map[string]string, error) {
 	return utils.PartParser("name:alias", rawLink)
-}
-
-func RootIsShared() bool {
-	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			cols := strings.Split(line, " ")
-			if len(cols) >= 6 && cols[4] == "/" {
-				return strings.HasPrefix(cols[6], "shared")
-			}
-		}
-	}
-
-	// No idea, probably safe to assume so
-	return true
 }
 
 type checker struct {
@@ -387,13 +342,27 @@ func generateRandomName(runtime *Runtime) (string, error) {
 	return namesgenerator.GenerateRandomName(&checker{runtime})
 }
 
-func CopyFile(dstFile, srcFile *os.File) error {
-	err := BtrfsReflink(dstFile.Fd(), srcFile.Fd())
-	if err == nil {
-		return nil
+// Read an io.Reader and call a function when it returns EOF
+func EofReader(r io.Reader, callback func()) *eofReader {
+	return &eofReader{
+		Reader:   r,
+		callback: callback,
 	}
+}
 
-	// Fall back to normal copy
-	_, err = io.Copy(dstFile, srcFile)
-	return err
+type eofReader struct {
+	io.Reader
+	gotEOF   int32
+	callback func()
+}
+
+func (r *eofReader) Read(p []byte) (n int, err error) {
+	n, err = r.Reader.Read(p)
+	if err == io.EOF {
+		// Use atomics to make the gotEOF check threadsafe
+		if atomic.CompareAndSwapInt32(&r.gotEOF, 0, 1) {
+			r.callback()
+		}
+	}
+	return
 }

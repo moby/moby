@@ -1,12 +1,12 @@
-:title: Port redirection
+:title: Redirect Ports
 :description: usage about port redirection
 :keywords: Usage, basic port, docker, documentation, examples
 
 
 .. _port_redirection:
 
-Port redirection
-================
+Redirect Ports
+==============
 
 Interacting with a service is commonly done through a connection to a
 port. When this service runs inside a container, one can connect to
@@ -31,7 +31,7 @@ container, Docker provide ways to bind the container port to an
 interface of the host system. To simplify communication between
 containers, Docker provides the linking mechanism.
 
-Binding a port to an host interface
+Binding a port to a host interface
 -----------------------------------
 
 To bind a port of the container to a specific interface of the host

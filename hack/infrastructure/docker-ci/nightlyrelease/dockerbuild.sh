@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Variables AWS_ACCESS_KEY, AWS_SECRET_KEY and PG_PASSPHRASE are decoded
 # from /root/release_credentials.json

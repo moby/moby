@@ -25,12 +25,13 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	mountpk "github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
-	"log"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 )
 
 func init() {
@@ -38,7 +39,9 @@ func init() {
 }
 
 type Driver struct {
-	root string
+	root       string
+	sync.Mutex // Protects concurrent modification to active
+	active     map[string]int
 }
 
 // New returns a new AUFS driver.
@@ -54,12 +57,17 @@ func Init(root string) (graphdriver.Driver, error) {
 		"layers",
 	}
 
+	a := &Driver{
+		root:   root,
+		active: make(map[string]int),
+	}
+
 	// Create the root aufs driver dir and return
 	// if it already exists
 	// If not populate the dir structure
 	if err := os.MkdirAll(root, 0755); err != nil {
 		if os.IsExist(err) {
-			return &Driver{root}, nil
+			return a, nil
 		}
 		return nil, err
 	}
@@ -69,7 +77,7 @@ func Init(root string) (graphdriver.Driver, error) {
 			return nil, err
 		}
 	}
-	return &Driver{root}, nil
+	return a, nil
 }
 
 // Return a nil error if the kernel supports aufs
@@ -167,6 +175,14 @@ func (a *Driver) createDirsFor(id string) error {
 
 // Unmount and remove the dir information
 func (a *Driver) Remove(id string) error {
+	// Protect the a.active from concurrent access
+	a.Lock()
+	defer a.Unlock()
+
+	if a.active[id] != 0 {
+		utils.Errorf("Warning: removing active id %s\n", id)
+	}
+
 	// Make sure the dir is umounted first
 	if err := a.unmount(id); err != nil {
 		return err
@@ -176,20 +192,17 @@ func (a *Driver) Remove(id string) error {
 		"diff",
 	}
 
-	// Remove the dirs atomically
+	// Atomically remove each directory in turn by first moving it out of the
+	// way (so that docker doesn't find it anymore) before doing removal of
+	// the whole tree.
 	for _, p := range tmpDirs {
-		// We need to use a temp dir in the same dir as the driver so Rename
-		// does not fall back to the slow copy if /tmp and the driver dir
-		// are on different devices
-		tmp := path.Join(a.rootPath(), "tmp", p, id)
-		if err := os.MkdirAll(tmp, 0755); err != nil {
-			return err
-		}
+
 		realPath := path.Join(a.rootPath(), p, id)
-		if err := os.Rename(realPath, tmp); err != nil && !os.IsNotExist(err) {
+		tmpPath := path.Join(a.rootPath(), p, fmt.Sprintf("%s-removing", id))
+		if err := os.Rename(realPath, tmpPath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		defer os.RemoveAll(tmp)
+		defer os.RemoveAll(tmpPath)
 	}
 
 	// Remove the layers file for the id
@@ -210,22 +223,50 @@ func (a *Driver) Get(id string) (string, error) {
 		ids = []string{}
 	}
 
+	// Protect the a.active from concurrent access
+	a.Lock()
+	defer a.Unlock()
+
+	count := a.active[id]
+
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
 	out := path.Join(a.rootPath(), "diff", id)
 	if len(ids) > 0 {
 		out = path.Join(a.rootPath(), "mnt", id)
-		if err := a.mount(id); err != nil {
-			return "", err
+
+		if count == 0 {
+			if err := a.mount(id); err != nil {
+				return "", err
+			}
 		}
 	}
+
+	a.active[id] = count + 1
+
 	return out, nil
+}
+
+func (a *Driver) Put(id string) {
+	// Protect the a.active from concurrent access
+	a.Lock()
+	defer a.Unlock()
+
+	if count := a.active[id]; count > 1 {
+		a.active[id] = count - 1
+	} else {
+		ids, _ := getParentIds(a.rootPath(), id)
+		// We only mounted if there are any parents
+		if ids != nil && len(ids) > 0 {
+			a.unmount(id)
+		}
+		delete(a.active, id)
+	}
 }
 
 // Returns an archive of the contents for the id
 func (a *Driver) Diff(id string) (archive.Archive, error) {
 	return archive.TarFilter(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
-		Recursive:   true,
 		Compression: archive.Uncompressed,
 	})
 }
@@ -296,7 +337,7 @@ func (a *Driver) unmount(id string) error {
 
 func (a *Driver) mounted(id string) (bool, error) {
 	target := path.Join(a.rootPath(), "mnt", id)
-	return Mounted(target)
+	return mountpk.Mounted(target)
 }
 
 // During cleanup aufs needs to unmount all mountpoints
@@ -313,24 +354,44 @@ func (a *Driver) Cleanup() error {
 	return nil
 }
 
-func (a *Driver) aufsMount(ro []string, rw, target string) error {
-	rwBranch := fmt.Sprintf("%v=rw", rw)
-	roBranches := ""
-	for _, layer := range ro {
-		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
-	}
-	branches := fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches)
+func (a *Driver) aufsMount(ro []string, rw, target string) (err error) {
+	defer func() {
+		if err != nil {
+			Unmount(target)
+		}
+	}()
 
-	//if error, try to load aufs kernel module
-	if err := mount("none", target, "aufs", 0, branches); err != nil {
-		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
-		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
-			return fmt.Errorf("Unable to load the AUFS module")
+	if err = a.tryMount(ro, rw, target); err != nil {
+		if err = a.mountRw(rw, target); err != nil {
+			return
 		}
-		log.Printf("...module loaded.")
-		if err := mount("none", target, "aufs", 0, branches); err != nil {
-			return fmt.Errorf("Unable to mount using aufs %s", err)
+
+		for _, layer := range ro {
+			branch := fmt.Sprintf("append:%s=ro+wh", layer)
+			if err = mount("none", target, "aufs", MsRemount, branch); err != nil {
+				return
+			}
 		}
 	}
-	return nil
+	return
+}
+
+// Try to mount using the aufs fast path, if this fails then
+// append ro layers.
+func (a *Driver) tryMount(ro []string, rw, target string) (err error) {
+	var (
+		rwBranch   = fmt.Sprintf("%s=rw", rw)
+		roBranches = fmt.Sprintf("%s=ro+wh:", strings.Join(ro, "=ro+wh:"))
+	)
+	return mount("none", target, "aufs", 0, fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches))
+}
+
+func (a *Driver) mountRw(rw, target string) error {
+	return mount("none", target, "aufs", 0, fmt.Sprintf("br:%s,xino=/dev/shm/aufs.xino", rw))
+}
+
+func rollbackMount(target string, err error) {
+	if err != nil {
+		Unmount(target)
+	}
 }

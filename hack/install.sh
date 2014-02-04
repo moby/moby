@@ -37,8 +37,10 @@ if command_exists docker || command_exists lxc-docker; then
 	( set -x; sleep 20 )
 fi
 
+user="$(id -un 2>/dev/null || true)"
+
 sh_c='sh -c'
-if [ "$(whoami 2>/dev/null || true)" != 'root' ]; then
+if [ "$user" != 'root' ]; then
 	if command_exists sudo; then
 		sh_c='sudo sh -c'
 	elif command_exists su; then
@@ -108,7 +110,13 @@ case "$lsb_dist" in
 		fi
 		(
 			set -x
-			$sh_c "$curl ${url}gpg | apt-key add -"
+			if [ "https://get.docker.io/" = "$url" ]; then
+				$sh_c "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
+			elif [ "https://test.docker.io/" = "$url" ]; then
+				$sh_c "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
+			else
+				$sh_c "$curl ${url}gpg | apt-key add -"
+			fi
 			$sh_c "echo deb ${url}ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q lxc-docker'
 		)
@@ -116,8 +124,18 @@ case "$lsb_dist" in
 			(
 				set -x
 				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
-			)
+			) || true
 		fi
+		your_user=your-user
+		[ "$user" != 'root' ] && your_user="$user"
+		echo
+		echo 'If you would like to use Docker as a non-root user, you should now consider'
+		echo 'adding your user to the "docker" group with something like:'
+		echo
+		echo '  sudo usermod -aG docker' $your_user
+		echo
+		echo 'Remember that you will have to log out and back in for this to take effect!'
+		echo
 		exit 0
 		;;
 		

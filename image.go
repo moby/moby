@@ -28,6 +28,7 @@ type Image struct {
 	Author          string    `json:"author,omitempty"`
 	Config          *Config   `json:"config,omitempty"`
 	Architecture    string    `json:"architecture,omitempty"`
+	OS              string    `json:"os,omitempty"`
 	graph           *Graph
 	Size            int64
 }
@@ -51,6 +52,9 @@ func LoadImage(root string) (*Image, error) {
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
+		// If the layersize file does not exist then set the size to a negative number
+		// because a layer size of 0 (zero) is valid
+		img.Size = -1
 	} else {
 		size, err := strconv.Atoi(string(buf))
 		if err != nil {
@@ -100,27 +104,14 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 				if err != nil {
 					return err
 				}
+				defer driver.Put(img.Parent)
 				changes, err := archive.ChangesDirs(layer, parent)
 				if err != nil {
 					return err
 				}
-				if size = archive.ChangesSize(layer, changes); err != nil {
-					return err
-				}
+				size = archive.ChangesSize(layer, changes)
 			}
 		}
-	}
-
-	// If raw json is provided, then use it
-	if jsonData != nil {
-		return ioutil.WriteFile(jsonPath(root), jsonData, 0600)
-	}
-	// Otherwise, unmarshal the image
-	if jsonData, err = json.Marshal(img); err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-		return err
 	}
 
 	img.Size = size
@@ -128,6 +119,19 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 		return err
 	}
 
+	// If raw json is provided, then use it
+	if jsonData != nil {
+		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+			return err
+		}
+	} else {
+		if jsonData, err = json.Marshal(img); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -144,7 +148,7 @@ func jsonPath(root string) string {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (img *Image) TarLayer() (archive.Archive, error) {
+func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if img.graph == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
 	}
@@ -157,19 +161,35 @@ func (img *Image) TarLayer() (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if err != nil {
+			driver.Put(img.ID)
+		}
+	}()
+
 	if img.Parent == "" {
-		return archive.Tar(imgFs, archive.Uncompressed)
-	} else {
-		parentFs, err := driver.Get(img.Parent)
+		archive, err := archive.Tar(imgFs, archive.Uncompressed)
 		if err != nil {
 			return nil, err
 		}
-		changes, err := archive.ChangesDirs(imgFs, parentFs)
-		if err != nil {
-			return nil, err
-		}
-		return archive.ExportChanges(imgFs, changes)
+		return EofReader(archive, func() { driver.Put(img.ID) }), nil
 	}
+
+	parentFs, err := driver.Get(img.Parent)
+	if err != nil {
+		return nil, err
+	}
+	defer driver.Put(img.Parent)
+	changes, err := archive.ChangesDirs(imgFs, parentFs)
+	if err != nil {
+		return nil, err
+	}
+	archive, err := archive.ExportChanges(imgFs, changes)
+	if err != nil {
+		return nil, err
+	}
+	return EofReader(archive, func() { driver.Put(img.ID) }), nil
 }
 
 func ValidateID(id string) error {
@@ -183,12 +203,20 @@ func ValidateID(id string) error {
 }
 
 func GenerateID() string {
-	id := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, id)
-	if err != nil {
-		panic(err) // This shouldn't happen
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.Atoi(utils.TruncateID(value)); err == nil {
+			continue
+		}
+		return value
 	}
-	return hex.EncodeToString(id)
 }
 
 // Image includes convenience proxy functions to its graph

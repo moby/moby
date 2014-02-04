@@ -1,11 +1,15 @@
 package archive
 
 import (
+	"archive/tar"
 	"fmt"
+	"github.com/dotcloud/docker/utils"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type ChangeType int
@@ -32,6 +36,21 @@ func (change *Change) String() string {
 		kind = "D"
 	}
 	return fmt.Sprintf("%s %s", kind, change.Path)
+}
+
+// Gnu tar and the go tar writer don't have sub-second mtime
+// precision, which is problematic when we apply changes via tar
+// files, we handle this by comparing for exact times, *or* same
+// second count and either a or b having exactly 0 nanoseconds
+func sameFsTime(a, b time.Time) bool {
+	return a == b ||
+		(a.Unix() == b.Unix() &&
+			(a.Nanosecond() == 0 || b.Nanosecond() == 0))
+}
+
+func sameFsTimeSpec(a, b syscall.Timespec) bool {
+	return a.Sec == b.Sec &&
+		(a.Nsec == b.Nsec || a.Nsec == 0 || b.Nsec == 0)
 }
 
 func Changes(layers []string, rw string) ([]Change, error) {
@@ -85,7 +104,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 					// However, if it's a directory, maybe it wasn't actually modified.
 					// If you modify /foo/bar/baz, then /foo will be part of the changed files only because it's the parent of bar
 					if stat.IsDir() && f.IsDir() {
-						if f.Size() == stat.Size() && f.Mode() == stat.Mode() && f.ModTime() == stat.ModTime() {
+						if f.Size() == stat.Size() && f.Mode() == stat.Mode() && sameFsTime(f.ModTime(), stat.ModTime()) {
 							// Both directories are the same, don't record the change
 							return nil
 						}
@@ -181,7 +200,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Rdev != newStat.Rdev ||
 				// Don't look at size for dirs, its not a good measure of change
 				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				getLastModification(oldStat) != getLastModification(newStat) {
+				!sameFsTimeSpec(getLastModification(oldStat), getLastModification(newStat)) {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,
@@ -294,24 +313,51 @@ func ChangesSize(newDir string, changes []Change) int64 {
 	return size
 }
 
+func major(device uint64) uint64 {
+	return (device >> 8) & 0xfff
+}
+
+func minor(device uint64) uint64 {
+	return (device & 0xff) | ((device >> 12) & 0xfff00)
+}
+
 func ExportChanges(dir string, changes []Change) (Archive, error) {
-	files := make([]string, 0)
-	deletions := make([]string, 0)
-	for _, change := range changes {
-		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
-			files = append(files, change.Path)
+	reader, writer := io.Pipe()
+	tw := tar.NewWriter(writer)
+
+	go func() {
+		// In general we log errors here but ignore them because
+		// during e.g. a diff operation the container can continue
+		// mutating the filesystem and we can see transient errors
+		// from this
+		for _, change := range changes {
+			if change.Kind == ChangeDelete {
+				whiteOutDir := filepath.Dir(change.Path)
+				whiteOutBase := filepath.Base(change.Path)
+				whiteOut := filepath.Join(whiteOutDir, ".wh."+whiteOutBase)
+				hdr := &tar.Header{
+					Name:       whiteOut[1:],
+					Size:       0,
+					ModTime:    time.Now(),
+					AccessTime: time.Now(),
+					ChangeTime: time.Now(),
+				}
+				if err := tw.WriteHeader(hdr); err != nil {
+					utils.Debugf("Can't write whiteout header: %s\n", err)
+				}
+			} else {
+				path := filepath.Join(dir, change.Path)
+				if err := addTarFile(path, change.Path[1:], tw); err != nil {
+					utils.Debugf("Can't add file %s to tar: %s\n", path, err)
+				}
+			}
 		}
-		if change.Kind == ChangeDelete {
-			base := filepath.Base(change.Path)
-			dir := filepath.Dir(change.Path)
-			deletions = append(deletions, filepath.Join(dir, ".wh."+base))
+
+		// Make sure to check the error on Close.
+		if err := tw.Close(); err != nil {
+			utils.Debugf("Can't close layer: %s\n", err)
 		}
-	}
-	// FIXME: Why do we create whiteout files inside Tar code ?
-	return TarFilter(dir, &TarOptions{
-		Compression: Uncompressed,
-		Includes:    files,
-		Recursive:   false,
-		CreateFiles: deletions,
-	})
+		writer.Close()
+	}()
+	return reader, nil
 }

@@ -18,14 +18,15 @@ Contents:
    :maxdepth: 1
 
    ubuntulinux
+   rhel
    fedora
    archlinux
    gentoolinux
-   vagrant
+   openSUSE
+   frugalware
+   mac
    windows
    amazon
    rackspace
-   kernel
+   google
    binaries
-   security
-   upgrading

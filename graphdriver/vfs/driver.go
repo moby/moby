@@ -36,9 +36,8 @@ func (d *Driver) Cleanup() error {
 }
 
 func copyDir(src, dst string) error {
-	cmd := exec.Command("cp", "-aT", "--reflink=auto", src, dst)
-	if err := cmd.Run(); err != nil {
-		return err
+	if output, err := exec.Command("cp", "-aT", "--reflink=auto", src, dst).CombinedOutput(); err != nil {
+		return fmt.Errorf("Error VFS copying directory: %s (%s)", err, output)
 	}
 	return nil
 }
@@ -83,6 +82,11 @@ func (d *Driver) Get(id string) (string, error) {
 		return "", fmt.Errorf("%s: not a directory", dir)
 	}
 	return dir, nil
+}
+
+func (d *Driver) Put(id string) {
+	// The vfs driver has no runtime resources (e.g. mounts)
+	// to clean up, so we don't need anything here
 }
 
 func (d *Driver) Exists(id string) bool {
