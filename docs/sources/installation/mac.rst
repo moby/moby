@@ -66,7 +66,7 @@ Run the following commands to get it downloaded and set up:
 .. code-block:: bash
 
     # Get the file
-    curl -o docker http://get.docker.io/builds/Darwin/x86_64/docker-latest
+    curl -o docker https://get.docker.io/builds/Darwin/x86_64/docker-latest
     
     # Mark it executable
     chmod +x docker
