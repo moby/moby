@@ -39,6 +39,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 		EnableIptables:              job.GetenvBool("EnableIptables"),
 		EnableIpForward:             job.GetenvBool("EnableIpForward"),
 		BridgeIP:                    job.Getenv("BridgeIP"),
+		BridgeIface:                 job.Getenv("BridgeIface"),
 		DefaultIp:                   net.ParseIP(job.Getenv("DefaultIp")),
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
@@ -51,7 +52,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 	} else {
 		config.Mtu = GetDefaultNetworkMtu()
 	}
-	config.DisableNetwork = job.Getenv("BridgeIface") == DisableNetworkBridge
+	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
 
 	return config
 }
