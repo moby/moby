@@ -1,10 +1,10 @@
 package docker
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/pkg/crypto"
 	"os"
 	"strings"
 	"testing"
@@ -35,7 +35,7 @@ func TestLogin(t *testing.T) {
 
 func TestCreateAccount(t *testing.T) {
 	tokenBuffer := make([]byte, 16)
-	_, err := rand.Read(tokenBuffer)
+	_, err := crypto.RandRead(tokenBuffer)
 	if err != nil {
 		t.Fatal(err)
 	}

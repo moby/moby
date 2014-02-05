@@ -2,12 +2,11 @@ package utils
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/crypto"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
@@ -189,7 +188,7 @@ func dockerInitSha1(target string) string {
 		return ""
 	}
 	defer f.Close()
-	h := sha1.New()
+	h := crypto.NewSHA1()
 	_, err = io.Copy(h, f)
 	if err != nil {
 		return ""
@@ -542,7 +541,7 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 }
 
 func HashData(src io.Reader) (string, error) {
-	h := sha256.New()
+	h := crypto.NewSHA256()
 	if _, err := io.Copy(h, src); err != nil {
 		return "", err
 	}

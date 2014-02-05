@@ -1,10 +1,10 @@
 package aufs
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/pkg/crypto"
 	"io/ioutil"
 	"os"
 	"path"
@@ -627,7 +627,7 @@ func TestApplyDiff(t *testing.T) {
 }
 
 func hash(c string) string {
-	h := sha256.New()
+	h := crypto.NewSHA256()
 	fmt.Fprint(h, c)
 	return hex.EncodeToString(h.Sum(nil))
 }
