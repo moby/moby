@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # This script builds various binary artifacts from a checkout of the docker
@@ -25,12 +25,18 @@ set -o pipefail
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-RESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
-grep -q "$RESOLVCONF" /proc/mounts || {
-	echo >&2 "# WARNING! I don't seem to be running in a docker container."
-	echo >&2 "# The result of this command might be an incorrect build, and will not be officially supported."
-	echo >&2 "# Try this: 'make all'"
-}
+if [ "$(pwd)" != '/go/src/github.com/dotcloud/docker' ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+	{
+		echo "# WARNING! I don't seem to be running in the Docker container."
+		echo "# The result of this command might be an incorrect build, and will not be"
+		echo "#   officially supported."
+		echo "#"
+		echo "# Try this instead: make all"
+		echo "#"
+	} >&2
+fi
+
+echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(

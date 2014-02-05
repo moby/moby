@@ -223,6 +223,31 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		},
 		nil,
 	},
+
+	// JSON!
+	{
+		`
+FROM {IMAGE}
+RUN ["/bin/echo","hello","world"]
+CMD ["/bin/true"]
+ENTRYPOINT ["/bin/echo","your command -->"]
+`,
+		nil,
+		nil,
+	},
+	{
+		`
+FROM {IMAGE}
+ADD test /test
+RUN ["chmod","+x","/test"]
+RUN ["/test"]
+RUN [ "$(cat /testfile)" = 'test!' ]
+`,
+		[][2]string{
+			{"test", "#!/bin/sh\necho 'test!' > /testfile"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -296,7 +321,7 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		return nil, err
@@ -700,7 +725,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -746,7 +771,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -821,4 +846,20 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	if err != docker.ErrDockerfileEmpty {
 		t.Fatal("Expected: %v, got: %v", docker.ErrDockerfileEmpty, err)
 	}
+}
+
+func TestBuildOnBuildTrigger(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+	from {IMAGE}
+	onbuild run echo here is the trigger
+	onbuild run touch foobar
+	`,
+		nil, nil,
+	},
+		t, nil, true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// FIXME: test that the 'foobar' file was created in the final build.
 }

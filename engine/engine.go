@@ -46,7 +46,6 @@ func (eng *Engine) Root() string {
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
-	eng.Logf("Register(%s) (handlers=%v)", name, eng.handlers)
 	_, exists := eng.handlers[name]
 	if exists {
 		return fmt.Errorf("Can't overwrite handler for command %s", name)
@@ -138,6 +137,9 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 }
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
-	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
+	if os.Getenv("TEST") == "" {
+		prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
+		return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
+	}
+	return 0, nil
 }

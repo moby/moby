@@ -1,3 +1,5 @@
+// +build amd64
+
 package netlink
 
 import (
@@ -473,7 +475,7 @@ func NetworkLinkAdd(name string, linkType string) error {
 
 // Returns an array of IPNet for all the currently routed subnets on ipv4
 // This is similar to the first column of "ip route" output
-func NetworkGetRoutes() ([]*net.IPNet, error) {
+func NetworkGetRoutes() ([]Route, error) {
 	native := nativeEndian()
 
 	s, err := getNetlinkSocket()
@@ -496,7 +498,7 @@ func NetworkGetRoutes() ([]*net.IPNet, error) {
 		return nil, err
 	}
 
-	res := make([]*net.IPNet, 0)
+	res := make([]Route, 0)
 
 done:
 	for {
@@ -525,8 +527,7 @@ done:
 				continue
 			}
 
-			var iface *net.Interface = nil
-			var ipNet *net.IPNet = nil
+			var r Route
 
 			msg := (*RtMsg)(unsafe.Pointer(&m.Data[0:syscall.SizeofRtMsg][0]))
 
@@ -546,8 +547,8 @@ done:
 			}
 
 			if msg.Dst_len == 0 {
-				// Ignore default routes
-				continue
+				// Default routes
+				r.Default = true
 			}
 
 			attrs, err := syscall.ParseNetlinkRouteAttr(&m)
@@ -558,18 +559,17 @@ done:
 				switch attr.Attr.Type {
 				case syscall.RTA_DST:
 					ip := attr.Value
-					ipNet = &net.IPNet{
+					r.IPNet = &net.IPNet{
 						IP:   ip,
 						Mask: net.CIDRMask(int(msg.Dst_len), 8*len(ip)),
 					}
 				case syscall.RTA_OIF:
 					index := int(native.Uint32(attr.Value[0:4]))
-					iface, _ = net.InterfaceByIndex(index)
-					_ = iface
+					r.Iface, _ = net.InterfaceByIndex(index)
 				}
 			}
-			if ipNet != nil {
-				res = append(res, ipNet)
+			if r.Default || r.IPNet != nil {
+				res = append(res, r)
 			}
 		}
 	}

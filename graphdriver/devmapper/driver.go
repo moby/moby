@@ -1,12 +1,14 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
 import (
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
+	"sync"
 )
 
 func init() {
@@ -20,7 +22,9 @@ func init() {
 
 type Driver struct {
 	*DeviceSet
-	home string
+	home       string
+	sync.Mutex // Protects concurrent modification to active
+	active     map[string]int
 }
 
 var Init = func(home string) (graphdriver.Driver, error) {
@@ -31,6 +35,7 @@ var Init = func(home string) (graphdriver.Driver, error) {
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
+		active:    make(map[string]int),
 	}
 	return d, nil
 }
@@ -82,6 +87,14 @@ func (d *Driver) Create(id, parent string) error {
 }
 
 func (d *Driver) Remove(id string) error {
+	// Protect the d.active from concurrent access
+	d.Lock()
+	defer d.Unlock()
+
+	if d.active[id] != 0 {
+		utils.Errorf("Warning: removing active id %s\n", id)
+	}
+
 	mp := path.Join(d.home, "mnt", id)
 	if err := d.unmount(id, mp); err != nil {
 		return err
@@ -90,11 +103,36 @@ func (d *Driver) Remove(id string) error {
 }
 
 func (d *Driver) Get(id string) (string, error) {
+	// Protect the d.active from concurrent access
+	d.Lock()
+	defer d.Unlock()
+
+	count := d.active[id]
+
 	mp := path.Join(d.home, "mnt", id)
-	if err := d.mount(id, mp); err != nil {
-		return "", err
+	if count == 0 {
+		if err := d.mount(id, mp); err != nil {
+			return "", err
+		}
 	}
+
+	d.active[id] = count + 1
+
 	return path.Join(mp, "rootfs"), nil
+}
+
+func (d *Driver) Put(id string) {
+	// Protect the d.active from concurrent access
+	d.Lock()
+	defer d.Unlock()
+
+	if count := d.active[id]; count > 1 {
+		d.active[id] = count - 1
+	} else {
+		mp := path.Join(d.home, "mnt", id)
+		d.unmount(id, mp)
+		delete(d.active, id)
+	}
 }
 
 func (d *Driver) mount(id, mountPoint string) error {

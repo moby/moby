@@ -12,7 +12,9 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -90,17 +92,24 @@ func setTimeout(t *testing.T, msg string, d time.Duration, f func()) {
 	}
 }
 
+func expectPipe(expected string, r io.Reader) error {
+	o, err := bufio.NewReader(r).ReadString('\n')
+	if err != nil {
+		return err
+	}
+	if strings.Trim(o, " \r\n") != expected {
+		return fmt.Errorf("Unexpected output. Expected [%s], received [%s]", expected, o)
+	}
+	return nil
+}
+
 func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error {
 	for i := 0; i < count; i++ {
 		if _, err := w.Write([]byte(input)); err != nil {
 			return err
 		}
-		o, err := bufio.NewReader(r).ReadString('\n')
-		if err != nil {
+		if err := expectPipe(output, r); err != nil {
 			return err
-		}
-		if strings.Trim(o, " \r\n") != output {
-			return fmt.Errorf("Unexpected output. Expected [%s], received [%s]", output, o)
 		}
 	}
 	return nil
@@ -1021,13 +1030,76 @@ func TestContainerOrphaning(t *testing.T) {
 	buildSomething(template2, imageName)
 
 	// remove the second image by name
-	resp, err := srv.ImageDelete(imageName, true)
+	resp, err := srv.DeleteImage(imageName, true)
 
 	// see if we deleted the first image (and orphaned the container)
-	for _, i := range resp {
-		if img1 == i.Deleted {
+	for _, i := range resp.Data {
+		if img1 == i.Get("Deleted") {
 			t.Fatal("Orphaned image with container")
 		}
 	}
 
+}
+
+func TestCmdKill(t *testing.T) {
+	stdin, stdinPipe := io.Pipe()
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := docker.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	cli2 := docker.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		cli.CmdRun("-i", "-t", unitTestImageID, "sh", "-c", "trap 'echo SIGUSR1' USR1; trap 'echo SIGUSR2' USR2; echo Ready; while true; do read; done")
+	}()
+
+	container := waitContainerStart(t, 10*time.Second)
+
+	setTimeout(t, "Read Ready timed out", 3*time.Second, func() {
+		if err := expectPipe("Ready", stdout); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	setTimeout(t, "SIGUSR1 timed out", 2*time.Second, func() {
+		for i := 0; i < 10; i++ {
+			if err := cli2.CmdKill("-s", strconv.Itoa(int(syscall.SIGUSR1)), container.ID); err != nil {
+				t.Fatal(err)
+			}
+			if err := expectPipe("SIGUSR1", stdout); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	setTimeout(t, "SIGUSR2 timed out", 2*time.Second, func() {
+		for i := 0; i < 10; i++ {
+			if err := cli2.CmdKill("--signal=USR2", container.ID); err != nil {
+				t.Fatal(err)
+			}
+			if err := expectPipe("SIGUSR2", stdout); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	time.Sleep(500 * time.Millisecond)
+	if !container.State.IsRunning() {
+		t.Fatal("The container should be still running")
+	}
+
+	setTimeout(t, "Waiting for container timedout", 5*time.Second, func() {
+		if err := cli2.CmdKill(container.ID); err != nil {
+			t.Fatal(err)
+		}
+
+		<-ch
+		if err := cli2.CmdWait(container.ID); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 }

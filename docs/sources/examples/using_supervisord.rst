@@ -70,7 +70,7 @@ Let's see what is inside our ``supervisord.conf`` file.
     command=/usr/sbin/sshd -D
 
     [program:apache2]
-    command=/bin/bash -c "source /etc/apache2/envvars && /usr/sbin/apache2 -DFOREGROUND"
+    command=/bin/bash -c "source /etc/apache2/envvars && exec /usr/sbin/apache2 -DFOREGROUND"
 
 The ``supervisord.conf`` configuration file contains directives that configure
 Supervisor and the processes it manages. The first block ``[supervisord]``

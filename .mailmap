@@ -1,9 +1,11 @@
-# Generate AUTHORS: git log --format='%aN <%aE>' | sort -uf | grep -v vagrant-ubuntu-12
-<charles.hooper@dotcloud.com> <chooper@plumata.com> 
+# Generate AUTHORS: git log --format='%aN <%aE>' | sort -uf
+<charles.hooper@dotcloud.com> <chooper@plumata.com>
 <daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
 <daniel.mizyrycki@dotcloud.com> <mzdaniel@glidelink.net>
-Guillaume J. Charmes <guillaume.charmes@dotcloud.com> <charmes.guillaume@gmail.com>
-<guillaume.charmes@dotcloud.com> <guillaume@dotcloud.com>
+Guillaume J. Charmes <guillaume.charmes@docker.com> <charmes.guillaume@gmail.com>
+<guillaume.charmes@docker.com> <guillaume@dotcloud.com>
+<guillaume.charmes@docker.com> <guillaume@docker.com>
+<guillaume.charmes@docker.com> <guillaume.charmes@dotcloud.com>
 <kencochrane@gmail.com> <KenCochrane@gmail.com>
 <sridharr@activestate.com> <github@srid.name>
 Thatcher Peskens <thatcher@dotcloud.com> dhrp <thatcher@dotcloud.com>
@@ -15,8 +17,11 @@ Joffrey F <joffrey@dotcloud.com>
 Tim Terhorst <mynamewastaken+git@gmail.com>
 Andy Smith <github@anarkystic.com>
 <kalessin@kalessin.fr> <louis@dotcloud.com>
-<victor.vieux@dotcloud.com> <victor@dotcloud.com>
-<victor.vieux@dotcloud.com> <dev@vvieux.com>
+<victor.vieux@docker.com> <victor.vieux@dotcloud.com>
+<victor.vieux@docker.com> <victor@dotcloud.com>
+<victor.vieux@docker.com> <dev@vvieux.com>
+<victor.vieux@docker.com> <victor@docker.com>
+<victor.vieux@docker.com> <vieux@docker.com>
 <dominik@honnef.co> <dominikh@fork-bomb.org>
 Thatcher Peskens <thatcher@dotcloud.com>
 <ehanchrow@ine.com> <eric.hanchrow@gmail.com>
@@ -38,3 +43,18 @@ Jean-Baptiste Barth <jeanbaptiste.barth@gmail.com>
 Matthew Mueller <mattmuelle@gmail.com>
 <mosoni@ebay.com> <mohitsoni1989@gmail.com>
 Shih-Yuan Lee <fourdollars@gmail.com>
+Daniel Mizyrycki <daniel.mizyrycki@dotcloud.com> root <root@vagrant-ubuntu-12.10.vagrantup.com>
+Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
+<proppy@google.com> <proppy@aminche.com>
+<michael@crosbymichael.com> <crosby.michael@gmail.com>
+<github@metaliveblog.com> <github@developersupport.net>
+<brandon@ifup.org> <brandon@ifup.co>
+<dano@spotify.com> <daniel.norberg@gmail.com>
+<danny@codeaholics.org> <Danny.Yates@mailonline.co.uk>
+<gurjeet@singh.im> <singh.gurjeet@gmail.com>
+<shawn@churchofgit.com> <shawnlandden@gmail.com>
+<sjoerd-github@linuxonly.nl> <sjoerd@byte.nl>
+<solomon@dotcloud.com> <solomon.hykes@dotcloud.com>
+<SvenDowideit@home.org.au> <SvenDowideit@fosiki.com>
+Sven Dowideit <SvenDowideit@home.org.au> ¨Sven <¨SvenDowideit@home.org.au¨>
+unclejack <unclejacksons@gmail.com> <unclejack@users.noreply.github.com>

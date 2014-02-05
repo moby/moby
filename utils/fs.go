@@ -24,10 +24,12 @@ func TreeSize(dir string) (size int64, err error) {
 
 		// Check inode to handle hard links correctly
 		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		if _, exists := data[inode]; exists {
+		// inode is not a uint64 on all platforms. Cast it to avoid issues.
+		if _, exists := data[uint64(inode)]; exists {
 			return nil
 		}
-		data[inode] = false
+		// inode is not a uint64 on all platforms. Cast it to avoid issues.
+		data[uint64(inode)] = false
 
 		size += s
 

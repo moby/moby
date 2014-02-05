@@ -22,7 +22,7 @@ import (
 var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-	ErrLoginRequired         = errors.New("Authentication is required.")
+	errLoginRequired         = errors.New("Authentication is required.")
 )
 
 func pingRegistryEndpoint(endpoint string) (bool, error) {
@@ -59,7 +59,7 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 	// versions of the registry
 	if standalone == "" {
 		return true, nil
-	// Accepted values are "true" (case-insensitive) and "1".
+		// Accepted values are "true" (case-insensitive) and "1".
 	} else if strings.EqualFold(standalone, "true") || standalone == "1" {
 		return true, nil
 	}
@@ -186,7 +186,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		if res.StatusCode == 401 {
-			return nil, ErrLoginRequired
+			return nil, errLoginRequired
 		}
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 	}
@@ -205,15 +205,18 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 }
 
 // Check if an image exists in the Registry
+// TODO: This method should return the errors instead of masking them and returning false
 func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) bool {
 
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
+		utils.Errorf("Error in LookupRemoteImage %s", err)
 		return false
 	}
 	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
+		utils.Errorf("Error in LookupRemoteImage %s", err)
 		return false
 	}
 	res.Body.Close()
@@ -329,7 +332,7 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
-		return nil, ErrLoginRequired
+		return nil, errLoginRequired
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
@@ -614,6 +617,10 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	if err != nil {
 		return nil, err
 	}
+	if r.authConfig != nil && len(r.authConfig.Username) > 0 {
+		req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
+	}
+	req.Header.Set("X-Docker-Token", "true")
 	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err

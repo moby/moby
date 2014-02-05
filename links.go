@@ -2,7 +2,7 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/iptables"
+	"github.com/dotcloud/docker/engine"
 	"path"
 	"strings"
 )
@@ -11,13 +11,13 @@ type Link struct {
 	ParentIP         string
 	ChildIP          string
 	Name             string
-	BridgeInterface  string
 	ChildEnvironment []string
 	Ports            []Port
 	IsEnabled        bool
+	eng              *engine.Engine
 }
 
-func NewLink(parent, child *Container, name, bridgeInterface string) (*Link, error) {
+func NewLink(parent, child *Container, name string, eng *engine.Engine) (*Link, error) {
 	if parent.ID == child.ID {
 		return nil, fmt.Errorf("Cannot link to self: %s == %s", parent.ID, child.ID)
 	}
@@ -33,12 +33,12 @@ func NewLink(parent, child *Container, name, bridgeInterface string) (*Link, err
 	}
 
 	l := &Link{
-		BridgeInterface:  bridgeInterface,
 		Name:             name,
 		ChildIP:          child.NetworkSettings.IPAddress,
 		ParentIP:         parent.NetworkSettings.IPAddress,
 		ChildEnvironment: child.Config.Env,
 		Ports:            ports,
+		eng:              eng,
 	}
 	return l, nil
 
@@ -119,30 +119,21 @@ func (l *Link) Disable() {
 }
 
 func (l *Link) toggle(action string, ignoreErrors bool) error {
-	for _, p := range l.Ports {
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
-			"-p", p.Proto(),
-			"-s", l.ParentIP,
-			"--dport", p.Port(),
-			"-d", l.ChildIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return err
-		} else if len(output) != 0 {
-			return fmt.Errorf("Error toggle iptables forward: %s", output)
-		}
+	job := l.eng.Job("link", action)
 
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", l.BridgeInterface, "-o", l.BridgeInterface,
-			"-p", p.Proto(),
-			"-s", l.ChildIP,
-			"--sport", p.Port(),
-			"-d", l.ParentIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return err
-		} else if len(output) != 0 {
-			return fmt.Errorf("Error toggle iptables forward: %s", output)
-		}
+	job.Setenv("ParentIP", l.ParentIP)
+	job.Setenv("ChildIP", l.ChildIP)
+	job.SetenvBool("IgnoreErrors", ignoreErrors)
+
+	out := make([]string, len(l.Ports))
+	for i, p := range l.Ports {
+		out[i] = fmt.Sprintf("%s/%s", p.Port(), p.Proto())
+	}
+	job.SetenvList("Ports", out)
+
+	if err := job.Run(); err != nil {
+		// TODO: get ouput from job
+		return err
 	}
 	return nil
 }

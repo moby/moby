@@ -66,6 +66,14 @@ EXAMPLES:
 * Improve detection of kernel version
 ```
 
+If you need a list of contributors between the last major release and the
+current bump branch, use something like:
+```bash
+git log --format='%aN <%aE>' v0.7.0...bump_v0.8.0 | sort -uf
+```
+Obviously, you'll need to adjust version numbers as necessary.  If you just need
+a count, add a simple `| wc -l`.
+
 ### 3. Change the contents of the VERSION file
 
 ```bash

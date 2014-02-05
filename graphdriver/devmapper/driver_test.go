@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
@@ -641,6 +641,10 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetMessage",
 			"DmTaskCreate",
 			"DmTaskGetInfo",
+			"DmTaskSetCookie",
+			"DmTaskSetTarget",
+			"DmTaskSetAddNode",
+			"DmUdevWait",
 			"Mounted",
 			"sysUnmount",
 		)

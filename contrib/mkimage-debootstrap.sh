@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 variant='minbase'
@@ -117,6 +117,11 @@ target="/tmp/docker-rootfs-debootstrap-$suite-$$-$RANDOM"
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"
 
+if [ "$suite" = 'lucid' ]; then
+	# lucid fails and doesn't include gpgv in minbase; "apt-get update" fails
+	include+=',gpgv'
+fi
+
 set -x
 
 # bootstrap
@@ -138,18 +143,26 @@ if [ -z "$strictDebootstrap" ]; then
 	# shrink the image, since apt makes us fat (wheezy: ~157.5MB vs ~120MB)
 	sudo chroot . apt-get clean
 	
-	# while we're at it, apt is unnecessarily slow inside containers
-	#  this forces dpkg not to call sync() after package extraction and speeds up install
-	#    the benefit is huge on spinning disks, and the penalty is nonexistent on SSD or decent server virtualization
-	echo 'force-unsafe-io' | sudo tee etc/dpkg/dpkg.cfg.d/02apt-speedup > /dev/null
-	#  we want to effectively run "apt-get clean" after every install to keep images small (see output of "apt-get clean -s" for context)
+	if strings usr/bin/dpkg | grep -q unsafe-io; then
+		# while we're at it, apt is unnecessarily slow inside containers
+		#  this forces dpkg not to call sync() after package extraction and speeds up install
+		#    the benefit is huge on spinning disks, and the penalty is nonexistent on SSD or decent server virtualization
+		echo 'force-unsafe-io' | sudo tee etc/dpkg/dpkg.cfg.d/02apt-speedup > /dev/null
+		# we have this wrapped up in an "if" because the "force-unsafe-io"
+		# option was added in dpkg 1.15.8.6
+		# (see http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=584254#82),
+		# and ubuntu lucid/10.04 only has 1.15.5.6
+	fi
+	
+	# we want to effectively run "apt-get clean" after every install to keep images small (see output of "apt-get clean -s" for context)
 	{
 		aptGetClean='"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true";'
 		echo "DPkg::Post-Invoke { ${aptGetClean} };"
 		echo "APT::Update::Post-Invoke { ${aptGetClean} };"
 		echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";'
 	} | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
-	#  and remove the translations, too
+	
+	# and remove the translations, too
 	echo 'Acquire::Languages "none";' | sudo tee etc/apt/apt.conf.d/no-languages > /dev/null
 	
 	# helpful undo lines for each the above tweaks (for lack of a better home to keep track of them):
@@ -190,6 +203,9 @@ if [ -z "$strictDebootstrap" ]; then
 				;;
 		esac
 	fi
+	
+	# make sure our packages lists are as up to date as we can get them
+	sudo chroot . apt-get update
 fi
 
 if [ "$justTar" ]; then

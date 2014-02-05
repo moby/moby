@@ -43,21 +43,14 @@
     $ gcutil ssh docker-playground
     docker-playground:~$ 
 
-5. Enable IP forwarding:
-
-.. code-block:: bash
-
-    docker-playground:~$ echo net.ipv4.ip_forward=1 | sudo tee /etc/sysctl.d/99-docker.conf 
-    docker-playground:~$ sudo sysctl --system
-
-6. Install the latest Docker release and configure it to start when the instance boots:
+5. Install the latest Docker release and configure it to start when the instance boots:
 
 .. code-block:: bash
 
     docker-playground:~$ curl get.docker.io | bash
     docker-playground:~$ sudo update-rc.d docker defaults
 
-7. If running in zones: ``us-central1-a``, ``europe-west1-1``, and ``europe-west1-b``, the docker daemon must be started with the ``-mtu`` flag. Without the flag, you may experience intermittent network pauses. 
+6. If running in zones: ``us-central1-a``, ``europe-west1-1``, and ``europe-west1-b``, the docker daemon must be started with the ``-mtu`` flag. Without the flag, you may experience intermittent network pauses. 
 `See this issue <https://code.google.com/p/google-compute-engine/issues/detail?id=57>`_ for more details.
 
 .. code-block:: bash
@@ -65,7 +58,7 @@
     docker-playground:~$ echo 'DOCKER_OPTS="$DOCKER_OPTS -mtu 1460"' | sudo tee -a /etc/default/docker
     docker-playground:~$ sudo service docker restart
 
-8. Start a new container:
+7. Start a new container:
 
 .. code-block:: bash
 

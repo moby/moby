@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 )
@@ -101,6 +102,10 @@ func (job *Job) String() string {
 	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
 }
 
+func (job *Job) EnvExists(key string) (value bool) {
+	return job.env.Exists(key)
+}
+
 func (job *Job) Getenv(key string) (value string) {
 	return job.env.Get(key)
 }
@@ -111,6 +116,14 @@ func (job *Job) GetenvBool(key string) (value bool) {
 
 func (job *Job) SetenvBool(key string, value bool) {
 	job.env.SetBool(key, value)
+}
+
+func (job *Job) GetenvSubEnv(key string) *Env {
+	return job.env.GetSubEnv(key)
+}
+
+func (job *Job) SetenvSubEnv(key string, value *Env) error {
+	return job.env.SetSubEnv(key, value)
 }
 
 func (job *Job) GetenvInt64(key string) int64 {
@@ -163,10 +176,6 @@ func (job *Job) EncodeEnv(dst io.Writer) error {
 	return job.env.Encode(dst)
 }
 
-func (job *Job) ExportEnv(dst interface{}) (err error) {
-	return job.env.Export(dst)
-}
-
 func (job *Job) ImportEnv(src interface{}) (err error) {
 	return job.env.Import(src)
 }
@@ -176,18 +185,23 @@ func (job *Job) Environ() map[string]string {
 }
 
 func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {
-	prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(job.Stderr, prefixedFormat, args...)
+	if os.Getenv("TEST") == "" {
+		prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
+		return fmt.Fprintf(job.Stderr, prefixedFormat, args...)
+	}
+	return 0, nil
 }
 
 func (job *Job) Printf(format string, args ...interface{}) (n int, err error) {
 	return fmt.Fprintf(job.Stdout, format, args...)
 }
 
-func (job *Job) Errorf(format string, args ...interface{}) (n int, err error) {
-	return fmt.Fprintf(job.Stderr, format, args...)
+func (job *Job) Errorf(format string, args ...interface{}) Status {
+	fmt.Fprintf(job.Stderr, format, args...)
+	return StatusErr
 }
 
-func (job *Job) Error(err error) (int, error) {
-	return fmt.Fprintf(job.Stderr, "%s", err)
+func (job *Job) Error(err error) Status {
+	fmt.Fprintf(job.Stderr, "%s", err)
+	return StatusErr
 }

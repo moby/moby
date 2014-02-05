@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"index/suffixarray"
 	"io"
@@ -418,6 +419,7 @@ func GetTotalUsedFds() int {
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
+	sync.RWMutex
 	index *suffixarray.Index
 	ids   map[string]bool
 	bytes []byte
@@ -432,6 +434,8 @@ func NewTruncIndex() *TruncIndex {
 }
 
 func (idx *TruncIndex) Add(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
 	if strings.Contains(id, " ") {
 		return fmt.Errorf("Illegal character: ' '")
 	}
@@ -445,6 +449,8 @@ func (idx *TruncIndex) Add(id string) error {
 }
 
 func (idx *TruncIndex) Delete(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
 	if _, exists := idx.ids[id]; !exists {
 		return fmt.Errorf("No such id: %s", id)
 	}
@@ -470,6 +476,8 @@ func (idx *TruncIndex) lookup(s string) (int, int, error) {
 }
 
 func (idx *TruncIndex) Get(s string) (string, error) {
+	idx.RLock()
+	defer idx.RUnlock()
 	before, after, err := idx.lookup(s)
 	//log.Printf("Get(%s) bytes=|%s| before=|%d| after=|%d|\n", s, idx.bytes, before, after)
 	if err != nil {
@@ -549,15 +557,11 @@ type KernelVersionInfo struct {
 }
 
 func (k *KernelVersionInfo) String() string {
-	flavor := ""
-	if len(k.Flavor) > 0 {
-		flavor = fmt.Sprintf("-%s", k.Flavor)
-	}
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
+	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
 }
 
 // Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, = if a == b, 1 it a > b
+// Returns -1 if a < b, 0 if a == b, 1 it a > b
 func CompareKernelVersion(a, b *KernelVersionInfo) int {
 	if a.Kernel < b.Kernel {
 		return -1
@@ -606,41 +610,15 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
-		flavor               string
-		kernel, major, minor int
-		err                  error
+		kernel, major, minor, parsed int
+		flavor                       string
 	)
 
-	tmp := strings.SplitN(release, "-", 2)
-	tmp2 := strings.Split(tmp[0], ".")
-
-	if len(tmp2) > 0 {
-		kernel, err = strconv.Atoi(tmp2[0])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 1 {
-		major, err = strconv.Atoi(tmp2[1])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 2 {
-		// Removes "+" because git kernels might set it
-		minorUnparsed := strings.Trim(tmp2[2], "+")
-		minor, err = strconv.Atoi(minorUnparsed)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp) == 2 {
-		flavor = tmp[1]
-	} else {
-		flavor = ""
+	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
+	// make sure we got all the version numbers.
+	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
+	if parsed < 3 {
+		return nil, errors.New("Can't parse kernel version " + release)
 	}
 
 	return &KernelVersionInfo{
@@ -789,6 +767,8 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 	case strings.HasPrefix(addr, "tcp://"):
 		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	case strings.HasPrefix(addr, "fd://"):
+		return addr, nil
 	case addr == "":
 		proto = "unix"
 		addr = defaultUnix
@@ -885,122 +865,6 @@ func UserLookup(uid string) (*User, error) {
 		}
 	}
 	return nil, fmt.Errorf("User not found in /etc/passwd")
-}
-
-type DependencyGraph struct {
-	nodes map[string]*DependencyNode
-}
-
-type DependencyNode struct {
-	id   string
-	deps map[*DependencyNode]bool
-}
-
-func NewDependencyGraph() DependencyGraph {
-	return DependencyGraph{
-		nodes: map[string]*DependencyNode{},
-	}
-}
-
-func (graph *DependencyGraph) addNode(node *DependencyNode) string {
-	if graph.nodes[node.id] == nil {
-		graph.nodes[node.id] = node
-	}
-	return node.id
-}
-
-func (graph *DependencyGraph) NewNode(id string) string {
-	if graph.nodes[id] != nil {
-		return id
-	}
-	nd := &DependencyNode{
-		id:   id,
-		deps: map[*DependencyNode]bool{},
-	}
-	graph.addNode(nd)
-	return id
-}
-
-func (graph *DependencyGraph) AddDependency(node, to string) error {
-	if graph.nodes[node] == nil {
-		return fmt.Errorf("Node %s does not belong to this graph", node)
-	}
-
-	if graph.nodes[to] == nil {
-		return fmt.Errorf("Node %s does not belong to this graph", to)
-	}
-
-	if node == to {
-		return fmt.Errorf("Dependency loops are forbidden!")
-	}
-
-	graph.nodes[node].addDependency(graph.nodes[to])
-	return nil
-}
-
-func (node *DependencyNode) addDependency(to *DependencyNode) bool {
-	node.deps[to] = true
-	return node.deps[to]
-}
-
-func (node *DependencyNode) Degree() int {
-	return len(node.deps)
-}
-
-// The magic happens here ::
-func (graph *DependencyGraph) GenerateTraversalMap() ([][]string, error) {
-	Debugf("Generating traversal map. Nodes: %d", len(graph.nodes))
-	result := [][]string{}
-	processed := map[*DependencyNode]bool{}
-	// As long as we haven't processed all nodes...
-	for len(processed) < len(graph.nodes) {
-		// Use a temporary buffer for processed nodes, otherwise
-		// nodes that depend on each other could end up in the same round.
-		tmpProcessed := []*DependencyNode{}
-		for _, node := range graph.nodes {
-			// If the node has more dependencies than what we have cleared,
-			// it won't be valid for this round.
-			if node.Degree() > len(processed) {
-				continue
-			}
-			// If it's already processed, get to the next one
-			if processed[node] {
-				continue
-			}
-			// It's not been processed yet and has 0 deps. Add it!
-			// (this is a shortcut for what we're doing below)
-			if node.Degree() == 0 {
-				tmpProcessed = append(tmpProcessed, node)
-				continue
-			}
-			// If at least one dep hasn't been processed yet, we can't
-			// add it.
-			ok := true
-			for dep := range node.deps {
-				if !processed[dep] {
-					ok = false
-					break
-				}
-			}
-			// All deps have already been processed. Add it!
-			if ok {
-				tmpProcessed = append(tmpProcessed, node)
-			}
-		}
-		Debugf("Round %d: found %d available nodes", len(result), len(tmpProcessed))
-		// If no progress has been made this round,
-		// that means we have circular dependencies.
-		if len(tmpProcessed) == 0 {
-			return nil, fmt.Errorf("Could not find a solution to this dependency graph")
-		}
-		round := []string{}
-		for _, nd := range tmpProcessed {
-			round = append(round, nd.id)
-			processed[nd] = true
-		}
-		result = append(result, round)
-	}
-	return result, nil
 }
 
 // An StatusError reports an unsuccessful exit by a command.
@@ -1134,4 +998,20 @@ func CopyFile(src, dst string) (int64, error) {
 	}
 	defer df.Close()
 	return io.Copy(df, sf)
+}
+
+type readCloserWrapper struct {
+	io.Reader
+	closer func() error
+}
+
+func (r *readCloserWrapper) Close() error {
+	return r.closer()
+}
+
+func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
+	return &readCloserWrapper{
+		Reader: r,
+		closer: closer,
+	}
 }

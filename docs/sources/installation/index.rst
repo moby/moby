@@ -22,13 +22,11 @@ Contents:
    fedora
    archlinux
    gentoolinux
+   openSUSE
    frugalware
-   vagrant
+   mac
    windows
    amazon
    rackspace
    google
-   kernel
    binaries
-   security
-   upgrading

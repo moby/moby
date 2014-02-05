@@ -5,9 +5,10 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
+	"io"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 type Change struct {
@@ -328,20 +329,6 @@ func parseLink(rawLink string) (map[string]string, error) {
 	return utils.PartParser("name:alias", rawLink)
 }
 
-func RootIsShared() bool {
-	if data, err := ioutil.ReadFile("/proc/self/mountinfo"); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			cols := strings.Split(line, " ")
-			if len(cols) >= 6 && cols[4] == "/" {
-				return strings.HasPrefix(cols[6], "shared")
-			}
-		}
-	}
-
-	// No idea, probably safe to assume so
-	return true
-}
-
 type checker struct {
 	runtime *Runtime
 }
@@ -353,4 +340,29 @@ func (c *checker) Exists(name string) bool {
 // Generate a random and unique name
 func generateRandomName(runtime *Runtime) (string, error) {
 	return namesgenerator.GenerateRandomName(&checker{runtime})
+}
+
+// Read an io.Reader and call a function when it returns EOF
+func EofReader(r io.Reader, callback func()) *eofReader {
+	return &eofReader{
+		Reader:   r,
+		callback: callback,
+	}
+}
+
+type eofReader struct {
+	io.Reader
+	gotEOF   int32
+	callback func()
+}
+
+func (r *eofReader) Read(p []byte) (n int, err error) {
+	n, err = r.Reader.Read(p)
+	if err == io.EOF {
+		// Use atomics to make the gotEOF check threadsafe
+		if atomic.CompareAndSwapInt32(&r.gotEOF, 0, 1) {
+			r.callback()
+		}
+	}
+	return
 }

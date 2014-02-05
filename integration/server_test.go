@@ -2,10 +2,10 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
+	"github.com/dotcloud/docker/engine"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestImageTagImageDelete(t *testing.T) {
@@ -14,10 +14,7 @@ func TestImageTagImageDelete(t *testing.T) {
 
 	srv := mkServerFromEngine(eng, t)
 
-	initialImages, err := srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	initialImages := getAllImages(eng, t)
 	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -30,58 +27,48 @@ func TestImageTagImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(false, "")
-	if err != nil {
+	images := getAllImages(eng, t)
+
+	nExpected := len(initialImages.Data[0].GetList("RepoTags")) + 3
+	nActual := len(images.Data[0].GetList("RepoTags"))
+	if nExpected != nActual {
+		t.Errorf("Expected %d images, %d found", nExpected, nActual)
+	}
+
+	if _, err := srv.DeleteImage("utest/docker:tag2", true); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+3 {
-		t.Errorf("Expected %d images, %d found", len(initialImages)+3, len(images))
+	images = getAllImages(eng, t)
+
+	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 2
+	nActual = len(images.Data[0].GetList("RepoTags"))
+	if nExpected != nActual {
+		t.Errorf("Expected %d images, %d found", nExpected, nActual)
 	}
 
-	if _, err := srv.ImageDelete("utest/docker:tag2", true); err != nil {
+	if _, err := srv.DeleteImage("utest:5000/docker:tag3", true); err != nil {
 		t.Fatal(err)
 	}
 
-	images, err = srv.Images(false, "")
-	if err != nil {
+	images = getAllImages(eng, t)
+
+	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 1
+	nActual = len(images.Data[0].GetList("RepoTags"))
+
+	if _, err := srv.DeleteImage("utest:tag1", true); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+2 {
-		t.Errorf("Expected %d images, %d found", len(initialImages)+2, len(images))
-	}
+	images = getAllImages(eng, t)
 
-	if _, err := srv.ImageDelete("utest:5000/docker:tag3", true); err != nil {
-		t.Fatal(err)
-	}
-
-	images, err = srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+1 {
-		t.Errorf("Expected %d images, %d found", len(initialImages)+1, len(images))
-	}
-
-	if _, err := srv.ImageDelete("utest:tag1", true); err != nil {
-		t.Fatal(err)
-	}
-
-	images, err = srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(images) != len(initialImages) {
-		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
+	if images.Len() != initialImages.Len() {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
 	}
 }
 
 func TestCreateRm(t *testing.T) {
 	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
@@ -91,23 +78,68 @@ func TestCreateRm(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	if c := srv.Containers(true, false, -1, "", ""); len(c) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(c))
+	job := eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	if err = srv.ContainerDestroy(id, true, false); err != nil {
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if c := srv.Containers(true, false, -1, "", ""); len(c) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(c))
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	}
+
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("removeVolume", true)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(outs.Data))
 	}
 
 }
 
+func TestCreateNumberHostname(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, _, _, err := docker.ParseRun([]string{"-h", "web.0", unitTestImageID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createTestContainer(eng, config, t)
+}
+
+func TestCreateNumberUsername(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, _, _, err := docker.ParseRun([]string{"-u", "1002", unitTestImageID, "echo test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createTestContainer(eng, config, t)
+}
+
 func TestCreateRmVolumes(t *testing.T) {
 	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	config, hostConfig, _, err := docker.ParseRun([]string{"-v", "/srv", unitTestImageID, "echo", "test"}, nil)
@@ -117,11 +149,21 @@ func TestCreateRmVolumes(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	if c := srv.Containers(true, false, -1, "", ""); len(c) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(c))
+	job := eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
 	}
 
-	job := eng.Job("start", id)
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	}
+
+	job = eng.Job("start", id)
 	if err := job.ImportEnv(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -135,12 +177,24 @@ func TestCreateRmVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = srv.ContainerDestroy(id, true, false); err != nil {
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("removeVolume", true)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if c := srv.Containers(true, false, -1, "", ""); len(c) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(c))
+	job = eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(outs.Data))
 	}
 }
 
@@ -164,6 +218,85 @@ func TestCommit(t *testing.T) {
 	}
 }
 
+func TestRestartKillWait(t *testing.T) {
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+
+	config, hostConfig, _, err := docker.ParseRun([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createTestContainer(eng, config, t)
+
+	job := eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	}
+
+	job = eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	job = eng.Job("kill", id)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	eng, err = engine.New(eng.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("initserver")
+	job.Setenv("Root", eng.Root())
+	job.SetenvBool("AutoRestart", false)
+	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
+	job.SetenvBool("EnableCors", true)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	srv = mkServerFromEngine(eng, t)
+
+	job = srv.Eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	}
+
+	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
+		job = srv.Eng.Job("wait", outs.Data[0].Get("Id"))
+		var statusStr string
+		job.Stdout.AddString(&statusStr)
+		if err := job.Run(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
@@ -176,11 +309,21 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	if c := srv.Containers(true, false, -1, "", ""); len(c) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(c))
+	job := srv.Eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
 	}
 
-	job := eng.Job("start", id)
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	}
+
+	job = eng.Job("start", id)
 	if err := job.ImportEnv(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +331,9 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := srv.ContainerRestart(id, 15); err != nil {
+	job = eng.Job("restart", id)
+	job.SetenvInt("t", 15)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,12 +356,24 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	if err := srv.ContainerDestroy(id, true, false); err != nil {
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("removeVolume", true)
+	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if c := srv.Containers(true, false, -1, "", ""); len(c) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(c))
+	job = srv.Eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(outs.Data))
 	}
 }
 
@@ -242,10 +399,7 @@ func TestRmi(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	initialImages, err := srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	initialImages := getAllImages(eng, t)
 
 	config, hostConfig, _, err := docker.ParseRun([]string{unitTestImageID, "echo", "test"}, nil)
 	if err != nil {
@@ -300,34 +454,28 @@ func TestRmi(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(false, "")
+	images := getAllImages(eng, t)
+
+	if images.Len()-initialImages.Len() != 2 {
+		t.Fatalf("Expected 2 new images, found %d.", images.Len()-initialImages.Len())
+	}
+
+	_, err = srv.DeleteImage(imageID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(images)-len(initialImages) != 2 {
-		t.Fatalf("Expected 2 new images, found %d.", len(images)-len(initialImages))
+	images = getAllImages(eng, t)
+
+	if images.Len()-initialImages.Len() != 1 {
+		t.Fatalf("Expected 1 new image, found %d.", images.Len()-initialImages.Len())
 	}
 
-	_, err = srv.ImageDelete(imageID, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	images, err = srv.Images(false, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(images)-len(initialImages) != 1 {
-		t.Fatalf("Expected 1 new image, found %d.", len(images)-len(initialImages))
-	}
-
-	for _, image := range images {
-		if strings.Contains(unitTestImageID, image.ID) {
+	for _, image := range images.Data {
+		if strings.Contains(unitTestImageID, image.Get("Id")) {
 			continue
 		}
-		if image.RepoTags[0] == "<none>:<none>" {
+		if image.GetList("RepoTags")[0] == "<none>:<none>" {
 			t.Fatalf("Expected tagged image, got untagged one.")
 		}
 	}
@@ -336,8 +484,6 @@ func TestRmi(t *testing.T) {
 func TestImagesFilter(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	srv := mkServerFromEngine(eng, t)
 
 	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
 		t.Fatal(err)
@@ -351,39 +497,27 @@ func TestImagesFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(false, "utest*/*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images := getImages(eng, t, false, "utest*/*")
 
-	if len(images[0].RepoTags) != 2 {
+	if len(images.Data[0].GetList("RepoTags")) != 2 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
-	images, err = srv.Images(false, "utest")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images = getImages(eng, t, false, "utest")
 
-	if len(images[0].RepoTags) != 1 {
+	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
-	images, err = srv.Images(false, "utest*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images = getImages(eng, t, false, "utest*")
 
-	if len(images[0].RepoTags) != 1 {
+	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
-	images, err = srv.Images(false, "*5000*/*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images = getImages(eng, t, false, "*5000*/*")
 
-	if len(images[0].RepoTags) != 1 {
+	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 }
@@ -392,22 +526,135 @@ func TestImageInsert(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
-	sf := utils.NewStreamFormatter(true)
 
 	// bad image name fails
-	if err := srv.ImageInsert("foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err == nil {
+	if err := srv.Eng.Job("insert", "foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err == nil {
 		t.Fatal("expected an error and got none")
 	}
 
 	// bad url fails
-	if err := srv.ImageInsert(unitTestImageID, "http://bad_host_name_that_will_totally_fail.com/", "/foo", ioutil.Discard, sf); err == nil {
+	if err := srv.Eng.Job("insert", unitTestImageID, "http://bad_host_name_that_will_totally_fail.com/", "/foo").Run(); err == nil {
 		t.Fatal("expected an error and got none")
 	}
 
 	// success returns nil
-	if err := srv.ImageInsert(unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo", ioutil.Discard, sf); err != nil {
+	if err := srv.Eng.Job("insert", unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err != nil {
 		t.Fatalf("expected no error, but got %v", err)
 	}
+}
+
+func TestListContainers(t *testing.T) {
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config := docker.Config{
+		Image:     unitTestImageID,
+		Cmd:       []string{"/bin/sh", "-c", "cat"},
+		OpenStdin: true,
+	}
+
+	firstID := createTestContainer(eng, &config, t)
+	secondID := createTestContainer(eng, &config, t)
+	thirdID := createTestContainer(eng, &config, t)
+	fourthID := createTestContainer(eng, &config, t)
+	defer func() {
+		containerKill(eng, firstID, t)
+		containerKill(eng, secondID, t)
+		containerKill(eng, fourthID, t)
+		containerWait(eng, firstID, t)
+		containerWait(eng, secondID, t)
+		containerWait(eng, fourthID, t)
+	}()
+
+	startContainer(eng, firstID, t)
+	startContainer(eng, secondID, t)
+	startContainer(eng, fourthID, t)
+
+	// all
+	if !assertContainerList(srv, true, -1, "", "", []string{fourthID, thirdID, secondID, firstID}) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// running
+	if !assertContainerList(srv, false, -1, "", "", []string{fourthID, secondID, firstID}) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// from here 'all' flag is ignored
+
+	// limit
+	expected := []string{fourthID, thirdID}
+	if !assertContainerList(srv, true, 2, "", "", expected) ||
+		!assertContainerList(srv, false, 2, "", "", expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since
+	expected = []string{fourthID, thirdID, secondID}
+	if !assertContainerList(srv, true, -1, firstID, "", expected) ||
+		!assertContainerList(srv, false, -1, firstID, "", expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// before
+	expected = []string{secondID, firstID}
+	if !assertContainerList(srv, true, -1, "", thirdID, expected) ||
+		!assertContainerList(srv, false, -1, "", thirdID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since & before
+	expected = []string{thirdID, secondID}
+	if !assertContainerList(srv, true, -1, firstID, fourthID, expected) ||
+		!assertContainerList(srv, false, -1, firstID, fourthID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since & limit
+	expected = []string{fourthID, thirdID}
+	if !assertContainerList(srv, true, 2, firstID, "", expected) ||
+		!assertContainerList(srv, false, 2, firstID, "", expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// before & limit
+	expected = []string{thirdID}
+	if !assertContainerList(srv, true, 1, "", fourthID, expected) ||
+		!assertContainerList(srv, false, 1, "", fourthID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+
+	// since & before & limit
+	expected = []string{thirdID}
+	if !assertContainerList(srv, true, 1, firstID, fourthID, expected) ||
+		!assertContainerList(srv, false, 1, firstID, fourthID, expected) {
+		t.Error("Container list is not in the correct order")
+	}
+}
+
+func assertContainerList(srv *docker.Server, all bool, limit int, since, before string, expected []string) bool {
+	job := srv.Eng.Job("containers")
+	job.SetenvBool("all", all)
+	job.SetenvInt("limit", limit)
+	job.Setenv("since", since)
+	job.Setenv("before", before)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		return false
+	}
+	if err := job.Run(); err != nil {
+		return false
+	}
+	if len(outs.Data) != len(expected) {
+		return false
+	}
+	for i := 0; i < len(outs.Data); i++ {
+		if outs.Data[i].Get("Id") != expected[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // Regression test for being able to untag an image with an existing
@@ -434,25 +681,31 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 		t.Fatal("No id returned")
 	}
 
-	containers := srv.Containers(true, false, -1, "", "")
+	job := srv.Eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
 
-	if len(containers) != 1 {
-		t.Fatalf("Expected 1 container got %d", len(containers))
+	if len(outs.Data) != 1 {
+		t.Fatalf("Expected 1 container got %d", len(outs.Data))
 	}
 
 	// Try to remove the tag
-	imgs, err := srv.ImageDelete("utest:tag1", true)
+	imgs, err := srv.DeleteImage("utest:tag1", true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(imgs) != 1 {
-		t.Fatalf("Should only have deleted one untag %d", len(imgs))
+	if len(imgs.Data) != 1 {
+		t.Fatalf("Should only have deleted one untag %d", len(imgs.Data))
 	}
 
-	untag := imgs[0]
-
-	if untag.Untagged != unitTestImageID {
-		t.Fatalf("Expected %s got %s", unitTestImageID, untag.Untagged)
+	if untag := imgs.Data[0].Get("Untagged"); untag != unitTestImageID {
+		t.Fatalf("Expected %s got %s", unitTestImageID, untag)
 	}
 }

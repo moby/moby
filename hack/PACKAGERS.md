@@ -39,6 +39,7 @@ To build docker, you will need the following system dependencies
 * Go version 1.2 or later
 * SQLite version 3.7.9 or later
 * libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version 2.02.89 or later
+* btrfs-progs version 3.8 or later (including commit e5cb128 from 2013-01-07) for the necessary btrfs headers
 * A clean checkout of the source must be added to a valid Go [workspace](http://golang.org/doc/code.html#Workspaces)
 under the path *src/github.com/dotcloud/docker*.
 
@@ -56,15 +57,40 @@ NOTE: if you''re not able to package the exact version (to the exact commit) of 
 please get in touch so we can remediate! Who knows what discrepancies can be caused by even the
 slightest deviation. We promise to do our best to make everybody happy.
 
-## Disabling CGO
+## Stripping Binaries
 
-Make sure to disable CGO on your system, and then recompile the standard library on the build
-machine:
+Please, please, please do not strip any compiled binaries. This is really important.
 
-```bash
-export CGO_ENABLED=0
-cd /tmp && echo 'package main' > t.go && go test -a -i -v
-```
+See the following quotes from Dave Cheney, which explain this position better
+from the upstream Golang perspective.
+
+### [go issue #5855, comment #3](https://code.google.com/p/go/issues/detail?id=5855#c3)
+
+> Super super important: Do not strip go binaries or archives. It isn't tested,
+> often breaks, and doesn't work.
+
+### [launchpad golang issue #1200255, comment #8](https://bugs.launchpad.net/ubuntu/+source/golang/+bug/1200255/comments/8)
+
+> To quote myself: "Please do not strip Go binaries, it is not supported, not
+> tested, is often broken, and doesn't do what you want"
+>
+> To unpack that a bit
+>
+> * not supported, as in, we don't support it, and recommend against it when
+>   asked
+> * not tested, we don't test stripped binaries as part of the build CI process
+> * is often broken, stripping a go binary will produce anywhere from no, to
+>   subtle, to outright execution failure, see above
+
+### [launchpad golang issue #1200255, comment #13](https://bugs.launchpad.net/ubuntu/+source/golang/+bug/1200255/comments/13)
+
+> To clarify my previous statements.
+>
+> * I do not disagree with the debian policy, it is there for a good reason
+> * Having said that, it stripping Go binaries doesn't work, and nobody is
+>   looking at making it work, so there is that.
+>
+> Thanks for patching the build formula.
 
 ## Building Docker
 
@@ -120,7 +146,6 @@ The test suite will also download a small test container, so you will need inter
 
 To run properly, docker needs the following software to be installed at runtime:
 
-* GNU Tar version 1.26 or later
 * iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility
 * iptables version 1.4 or later
 * The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later

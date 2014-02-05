@@ -1,3 +1,5 @@
+// +build !linux !amd64
+
 package archive
 
 import "syscall"

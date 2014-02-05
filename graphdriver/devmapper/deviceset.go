@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
@@ -566,6 +566,15 @@ func (devices *DeviceSet) removeDevice(hash string) error {
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("hash %s doesn't exists", hash)
+	}
+
+	// This is a workaround for the kernel not discarding block so
+	// on the thin pool when we remove a thinp device, so we do it
+	// manually
+	if err := devices.activateDeviceIfNeeded(hash); err == nil {
+		if err := BlockDeviceDiscard(info.DevName()); err != nil {
+			utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
+		}
 	}
 
 	devinfo, _ := getInfo(info.Name())

@@ -73,6 +73,23 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr str
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error iptables forward: %s", output)
 	}
+
+	fAction := action
+	if fAction == Add {
+		fAction = "-I"
+	}
+	if output, err := Raw(string(fAction), "FORWARD",
+		"!", "-i", c.Bridge,
+		"-o", c.Bridge,
+		"-p", proto,
+		"-d", dest_addr,
+		"--dport", strconv.Itoa(dest_port),
+		"-j", "ACCEPT"); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return fmt.Errorf("Error iptables forward: %s", output)
+	}
+
 	return nil
 }
 
