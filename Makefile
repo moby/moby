@@ -4,6 +4,7 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 DOCKER_IMAGE := docker:$(GIT_BRANCH)
 DOCKER_DOCS_IMAGE := docker-docs:$(GIT_BRANCH)
 DOCKER_RUN_DOCKER := docker run -rm -i -t -privileged -e TESTFLAGS -v $(CURDIR)/bundles:/go/src/github.com/dotcloud/docker/bundles "$(DOCKER_IMAGE)"
+DOCKER_RUN_DOCKER_CROSBY := docker run -rm -i -t -privileged -e TESTFLAGS "$(DOCKER_IMAGE)"
 
 default: binary
 
@@ -30,6 +31,9 @@ test-integration: build
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash
+
+crosbymichael: build
+	$(DOCKER_RUN_DOCKER_CROSBY) bash
 
 build: bundles
 	docker build -rm -t "$(DOCKER_IMAGE)" .
