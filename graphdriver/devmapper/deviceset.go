@@ -804,6 +804,9 @@ func (devices *DeviceSet) MountDevice(hash, path string) error {
 	defer devices.Unlock()
 
 	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("Unknown device %s", hash)
+	}
 
 	if info.mountCount > 0 {
 		if path != info.mountPath {
