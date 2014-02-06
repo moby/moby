@@ -353,6 +353,10 @@ func Release(job *engine.Job) engine.Status {
 		proto              string
 	)
 
+	if containerInterface == nil {
+		return job.Errorf("No network information to release for %s", id)
+	}
+
 	for _, nat := range containerInterface.PortMappings {
 		if err := portmapper.Unmap(nat); err != nil {
 			log.Printf("Unable to unmap port %s: %s", nat, err)
