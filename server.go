@@ -200,8 +200,20 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 }
 
 func (srv *Server) Auth(job *engine.Job) engine.Status {
-	authConfig := &auth.AuthConfig{}
+	var (
+		err        error
+		authConfig = &auth.AuthConfig{}
+	)
+
 	job.GetenvJson("authConfig", authConfig)
+	// TODO: this is only done here because auth and registry need to be merged into one pkg
+	if addr := authConfig.ServerAddress; addr != "" && addr != auth.IndexServerAddress() {
+		addr, err = registry.ExpandAndVerifyRegistryUrl(addr)
+		if err != nil {
+			return job.Error(err)
+		}
+		authConfig.ServerAddress = addr
+	}
 	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return job.Error(err)
