@@ -835,37 +835,6 @@ func ParseRepositoryTag(repos string) (string, string) {
 	return repos, ""
 }
 
-type User struct {
-	Uid      string // user id
-	Gid      string // primary group id
-	Username string
-	Name     string
-	HomeDir  string
-}
-
-// UserLookup check if the given username or uid is present in /etc/passwd
-// and returns the user struct.
-// If the username is not found, an error is returned.
-func UserLookup(uid string) (*User, error) {
-	file, err := ioutil.ReadFile("/etc/passwd")
-	if err != nil {
-		return nil, err
-	}
-	for _, line := range strings.Split(string(file), "\n") {
-		data := strings.Split(line, ":")
-		if len(data) > 5 && (data[0] == uid || data[2] == uid) {
-			return &User{
-				Uid:      data[2],
-				Gid:      data[3],
-				Username: data[0],
-				Name:     data[4],
-				HomeDir:  data[5],
-			}, nil
-		}
-	}
-	return nil, fmt.Errorf("User not found in /etc/passwd")
-}
-
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
 	Status     string
@@ -874,41 +843,6 @@ type StatusError struct {
 
 func (e *StatusError) Error() string {
 	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
-}
-
-func quote(word string, buf *bytes.Buffer) {
-	// Bail out early for "simple" strings
-	if word != "" && !strings.ContainsAny(word, "\\'\"`${[|&;<>()~*?! \t\n") {
-		buf.WriteString(word)
-		return
-	}
-
-	buf.WriteString("'")
-
-	for i := 0; i < len(word); i++ {
-		b := word[i]
-		if b == '\'' {
-			// Replace literal ' with a close ', a \', and a open '
-			buf.WriteString("'\\''")
-		} else {
-			buf.WriteByte(b)
-		}
-	}
-
-	buf.WriteString("'")
-}
-
-// Take a list of strings and escape them so they will be handled right
-// when passed as arguments to an program via a shell
-func ShellQuoteArguments(args []string) string {
-	var buf bytes.Buffer
-	for i, arg := range args {
-		if i != 0 {
-			buf.WriteByte(' ')
-		}
-		quote(arg, &buf)
-	}
-	return buf.String()
 }
 
 func IsClosedError(err error) bool {

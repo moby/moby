@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/shell"
 	"io/ioutil"
 	"log"
 	"os"
@@ -127,7 +127,7 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 		// without exec in go we have to do this horrible shell hack...
 		shellString :=
 			"mount --make-rslave /; exec " +
-				utils.ShellQuoteArguments(params)
+				shell.QuoteArguments(params)
 
 		params = []string{
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
