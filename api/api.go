@@ -320,6 +320,7 @@ func getContainersJSON(eng *engine.Engine, version float64, w http.ResponseWrite
 	job.Setenv("limit", r.Form.Get("limit"))
 
 	if version >= 1.5 {
+		w.Header().Set("Content-Type", "application/json")
 		job.Stdout.Add(w)
 	} else if outs, err = job.Stdout.AddTable(); err != nil {
 		return err
