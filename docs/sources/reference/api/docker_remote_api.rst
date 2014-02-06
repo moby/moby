@@ -51,6 +51,11 @@ What's new
    **New!** You can now use the force parameter to force delete of an image, even if it's
    tagged in multiple repositories.
 
+.. http:delete:: /containers/(id)
+
+  **New!** You can now use the force paramter to force delete a container, even if
+  it is currently running
+
 v1.9
 ****
 

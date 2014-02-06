@@ -597,6 +597,7 @@ Remove a container
            HTTP/1.1 204 OK
 
         :query v: 1/True/true or 0/False/false, Remove the volumes associated to the container. Default false
+        :query force: 1/True/true or 0/False/false, Removes the container even if it was running. Default false
         :statuscode 204: no error
         :statuscode 400: bad parameter
         :statuscode 404: no such container

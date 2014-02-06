@@ -606,6 +606,7 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	job := eng.Job("container_delete", vars["name"])
 	job.Setenv("removeVolume", r.Form.Get("v"))
 	job.Setenv("removeLink", r.Form.Get("link"))
+	job.Setenv("forceRemove", r.Form.Get("force"))
 	if err := job.Run(); err != nil {
 		return err
 	}
