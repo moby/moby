@@ -7,8 +7,10 @@ feels wrong or incomplete.
 ## Reporting Issues
 
 When reporting [issues](https://github.com/dotcloud/docker/issues) 
-on GitHub please include your host OS ( Ubuntu 12.04, Fedora 19, etc... )
-and the output of `docker version` along with the output of `docker info` if possible.  
+on GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc),
+the output of `uname -a` and the output of `docker version` along with
+the output of `docker info`. Please include the steps required to reproduce
+the problem if possible and applicable.
 This information will help us review and fix your issue faster.
 
 ## Build Environment
@@ -85,6 +87,8 @@ curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/maste
 
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
+
+Pull requests mustn't contain commits from other users or branches.
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Be
