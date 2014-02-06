@@ -175,6 +175,7 @@ Linux:
 - Gentoo
 - ArchLinux
 - openSUSE 12.3+
+- CRUX 3.0+
 
 Cloud:
 

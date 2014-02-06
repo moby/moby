@@ -21,6 +21,7 @@ Contents:
    rhel
    fedora
    archlinux
+   cruxlinux
    gentoolinux
    openSUSE
    frugalware
