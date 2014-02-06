@@ -266,11 +266,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 	serverAddress := auth.IndexServerAddress()
 	if len(cmd.Args()) > 0 {
-		serverAddress, err = registry.ExpandAndVerifyRegistryUrl(cmd.Arg(0))
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(cli.out, "Login against server at %s\n", serverAddress)
+		serverAddress = cmd.Arg(0)
 	}
 
 	promptDefault := func(prompt string, configDefault string) {
