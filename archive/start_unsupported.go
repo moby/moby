@@ -13,5 +13,9 @@ func getLastModification(stat *syscall.Stat_t) syscall.Timespec {
 }
 
 func LUtimesNano(path string, ts []syscall.Timespec) error {
-	return nil
+	return ErrNotImplemented
+}
+
+func UtimesNano(path string, ts []syscall.Timespec) error {
+	return ErrNotImplemented
 }
