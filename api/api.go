@@ -222,7 +222,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 				outLegacy := &engine.Env{}
 				outLegacy.Set("Repository", parts[0])
 				outLegacy.Set("Tag", parts[1])
-				outLegacy.Set("ID", out.Get("ID"))
+				outLegacy.Set("Id", out.Get("Id"))
 				outLegacy.SetInt64("Created", out.GetInt64("Created"))
 				outLegacy.SetInt64("Size", out.GetInt64("Size"))
 				outLegacy.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
