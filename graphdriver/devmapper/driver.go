@@ -8,7 +8,6 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
-	"sync"
 )
 
 func init() {
@@ -22,9 +21,7 @@ func init() {
 
 type Driver struct {
 	*DeviceSet
-	home       string
-	sync.Mutex // Protects concurrent modification to active
-	active     map[string]int
+	home string
 }
 
 var Init = func(home string) (graphdriver.Driver, error) {
@@ -35,7 +32,6 @@ var Init = func(home string) (graphdriver.Driver, error) {
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
-		active:    make(map[string]int),
 	}
 	return d, nil
 }
@@ -83,55 +79,36 @@ func (d *Driver) Create(id, parent string) error {
 		return err
 	}
 
+	// We float this reference so that the next Get call can
+	// steal it, so we don't have to unmount
+	if err := d.DeviceSet.UnmountDevice(id, UnmountFloat); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (d *Driver) Remove(id string) error {
-	// Protect the d.active from concurrent access
-	d.Lock()
-	defer d.Unlock()
-
-	if d.active[id] != 0 {
-		utils.Errorf("Warning: removing active id %s\n", id)
-	}
-
-	mp := path.Join(d.home, "mnt", id)
-	if err := d.unmount(id, mp); err != nil {
+	// Sink the float from create in case no Get() call was made
+	if err := d.DeviceSet.UnmountDevice(id, UnmountSink); err != nil {
 		return err
 	}
-	return d.DeviceSet.RemoveDevice(id)
+	// This assumes the device has been properly Get/Put:ed and thus is unmounted
+	return d.DeviceSet.DeleteDevice(id)
 }
 
 func (d *Driver) Get(id string) (string, error) {
-	// Protect the d.active from concurrent access
-	d.Lock()
-	defer d.Unlock()
-
-	count := d.active[id]
-
 	mp := path.Join(d.home, "mnt", id)
-	if count == 0 {
-		if err := d.mount(id, mp); err != nil {
-			return "", err
-		}
+	if err := d.mount(id, mp); err != nil {
+		return "", err
 	}
-
-	d.active[id] = count + 1
 
 	return path.Join(mp, "rootfs"), nil
 }
 
 func (d *Driver) Put(id string) {
-	// Protect the d.active from concurrent access
-	d.Lock()
-	defer d.Unlock()
-
-	if count := d.active[id]; count > 1 {
-		d.active[id] = count - 1
-	} else {
-		mp := path.Join(d.home, "mnt", id)
-		d.unmount(id, mp)
-		delete(d.active, id)
+	if err := d.DeviceSet.UnmountDevice(id, UnmountRegular); err != nil {
+		utils.Errorf("Warning: error unmounting device %s: %s\n", id, err)
 	}
 }
 
@@ -140,25 +117,8 @@ func (d *Driver) mount(id, mountPoint string) error {
 	if err := osMkdirAll(mountPoint, 0755); err != nil && !osIsExist(err) {
 		return err
 	}
-	// If mountpoint is already mounted, do nothing
-	if mounted, err := Mounted(mountPoint); err != nil {
-		return fmt.Errorf("Error checking mountpoint: %s", err)
-	} else if mounted {
-		return nil
-	}
 	// Mount the device
-	return d.DeviceSet.MountDevice(id, mountPoint, false)
-}
-
-func (d *Driver) unmount(id, mountPoint string) error {
-	// If mountpoint is not mounted, do nothing
-	if mounted, err := Mounted(mountPoint); err != nil {
-		return fmt.Errorf("Error checking mountpoint: %s", err)
-	} else if !mounted {
-		return nil
-	}
-	// Unmount the device
-	return d.DeviceSet.UnmountDevice(id, mountPoint, true)
+	return d.DeviceSet.MountDevice(id, mountPoint)
 }
 
 func (d *Driver) Exists(id string) bool {
