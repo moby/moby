@@ -348,7 +348,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		destPath = path.Join(container.BasefsPath(), dest)
 	)
 	// Preserve the trailing '/'
-	if strings.HasSuffix(dest, "/") {
+	if strings.HasSuffix(dest, "/") || dest == "." || dest == ".." {
 		destPath = destPath + "/"
 	}
 	fi, err := os.Stat(origPath)
