@@ -12,7 +12,7 @@
 	<array>
 		<dict>
 			<key>match</key>
-			<string>^\s*(ONBUILD|)\s*(FROM|MAINTAINER|RUN|EXPOSE|ENV|ADD|VOLUME|USER|WORKDIR)\s</string>
+			<string>^\s*(ONBUILD\s+)?(FROM|MAINTAINER|RUN|EXPOSE|ENV|ADD|VOLUME|USER|WORKDIR)\s</string>
 			<key>captures</key>
 			<dict>
 				<key>0</key>
@@ -29,7 +29,7 @@
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>^\s*(ONBUILD|)\s*(CMD|ENTRYPOINT)\s</string>
+			<string>^\s*(ONBUILD\s+)?(CMD|ENTRYPOINT)\s</string>
 			<key>captures</key>
 			<dict>
 				<key>0</key>
