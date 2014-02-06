@@ -62,6 +62,23 @@
 			</array>
 		</dict>
 		<dict>
+			<key>begin</key>
+			<string>'</string>
+			<key>end</key>
+			<string>'</string>
+			<key>name</key>
+			<string>string.quoted.single.dockerfile</string>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>match</key>
+					<string>\\.</string>
+					<key>name</key>
+					<string>constant.character.escaped.dockerfile</string>
+				</dict>
+			</array>
+		</dict>
+		<dict>
 			<key>match</key>
 			<string>^\s*#.*$</string>
 			<key>name</key>
