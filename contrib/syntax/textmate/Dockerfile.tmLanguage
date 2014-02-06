@@ -12,15 +12,37 @@
 	<array>
 		<dict>
 			<key>match</key>
-			<string>^\s*(FROM|MAINTAINER|RUN|CMD|EXPOSE|ENV|ADD)\s</string>
-			<key>name</key>
-			<string>keyword.control.dockerfile</string>
+			<string>^\s*(ONBUILD\s+)?(FROM|MAINTAINER|RUN|EXPOSE|ENV|ADD|VOLUME|USER|WORKDIR)\s</string>
+			<key>captures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.control.dockerfile</string>					
+				</dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other.special-method.dockerfile</string>					
+				</dict>
+			</dict>
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>^\s*(ENTRYPOINT|VOLUME|USER|WORKDIR)\s</string>
-			<key>name</key>
-			<string>keyword.operator.dockerfile</string>
+			<string>^\s*(ONBUILD\s+)?(CMD|ENTRYPOINT)\s</string>
+			<key>captures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.operator.dockerfile</string>					
+				</dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other.special-method.dockerfile</string>					
+				</dict>
+			</dict>
 		</dict>
 		<dict>
 			<key>begin</key>
@@ -29,6 +51,23 @@
 			<string>"</string>
 			<key>name</key>
 			<string>string.quoted.double.dockerfile</string>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>match</key>
+					<string>\\.</string>
+					<key>name</key>
+					<string>constant.character.escaped.dockerfile</string>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>begin</key>
+			<string>'</string>
+			<key>end</key>
+			<string>'</string>
+			<key>name</key>
+			<string>string.quoted.single.dockerfile</string>
 			<key>patterns</key>
 			<array>
 				<dict>
