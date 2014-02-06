@@ -847,6 +847,9 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 	defer devices.Unlock()
 
 	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("UnmountDevice: no such device %s\n", hash)
+	}
 
 	if mode == UnmountFloat {
 		if info.floating {
