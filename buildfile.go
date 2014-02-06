@@ -348,7 +348,7 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		destPath = path.Join(container.BasefsPath(), dest)
 	)
 	// Preserve the trailing '/'
-	if strings.HasSuffix(dest, "/") {
+	if strings.HasSuffix(dest, "/") || dest == "." || dest == ".." {
 		destPath = destPath + "/"
 	}
 	fi, err := os.Stat(origPath)
@@ -384,7 +384,6 @@ func (b *buildFile) CmdAdd(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ADD format")
 	}
-
 	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
 	if err != nil {
 		return err
