@@ -236,7 +236,9 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
 
-	if err := syscall.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+	// Use root:root ownership for untarred files, like --same-owner
+	// behavior in GNU tar, or just -x in BSD tar
+	if err := syscall.Lchown(path, 0, 0); err != nil {
 		return err
 	}
 
