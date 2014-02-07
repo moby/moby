@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/chroot"
 	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/execdriver/systemd"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
@@ -706,10 +707,16 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 
 	var ed execdriver.Driver
 	utils.Debugf("execDriver: provided %s", config.ExecDriver)
+	/*
+		Default to lxc, to not break current functionality
+	*/
 	if config.ExecDriver == "chroot" && false {
 		// chroot is presently a noop driver https://github.com/dotcloud/docker/pull/4189#issuecomment-35330655
 		ed, err = chroot.NewDriver()
 		utils.Debugf("execDriver: using chroot")
+  } else if config.ExecDriver == "systemd" {
+		ed, err = systemd.NewDriver()
+    utils.Debugf("execDriver: using systemd")
 	} else {
 		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
 		utils.Debugf("execDriver: using lxc")
