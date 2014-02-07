@@ -50,6 +50,12 @@ Finally, install PostgreSQL 9.3
 .. code-block:: bash
 
     apt-get -y install postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3
+    
+Then start the newly installed Postgres server
+
+.. code-block:: bash
+
+    sudo /etc/init.d/postgresql start
 
 Now, create a PostgreSQL superuser role that can create databases and
 other roles.  Following Vagrant's convention the role will be named
