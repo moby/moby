@@ -24,8 +24,6 @@ func TestLXCConfig(t *testing.T) {
 	}
 	defer os.RemoveAll(root)
 
-	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
-
 	// Memory is allocated randomly for testing
 	rand.Seed(time.Now().UTC().UnixNano())
 	var (
@@ -37,10 +35,6 @@ func TestLXCConfig(t *testing.T) {
 		cpu    = cpuMin + rand.Intn(cpuMax-cpuMin)
 	)
 
-	driver, err := NewDriver(root, "", false)
-	if err != nil {
-		t.Fatal(err)
-	}
 	command := &execdriver.Command{
 		ID: "1",
 		Resources: &execdriver.Resources{
@@ -54,7 +48,8 @@ func TestLXCConfig(t *testing.T) {
 		AllowedDevices: make([]*devices.Device, 0),
 		ProcessConfig:  execdriver.ProcessConfig{},
 	}
-	p, err := driver.generateLXCConfig(command)
+	p := path.Join(root, "config.lxc")
+	err = execdriver.GenerateContainerConfig(LxcTemplateCompiled, command, false, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,12 +67,6 @@ func TestCustomLxcConfig(t *testing.T) {
 	}
 	defer os.RemoveAll(root)
 
-	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
-
-	driver, err := NewDriver(root, "", false)
-	if err != nil {
-		t.Fatal(err)
-	}
 	processConfig := execdriver.ProcessConfig{
 		Privileged: false,
 	}
@@ -94,7 +83,8 @@ func TestCustomLxcConfig(t *testing.T) {
 		ProcessConfig: processConfig,
 	}
 
-	p, err := driver.generateLXCConfig(command)
+	p := path.Join(root, "config.lxc")
+	err = execdriver.GenerateContainerConfig(LxcTemplateCompiled, command, false, p)
 	if err != nil {
 		t.Fatal(err)
 	}
