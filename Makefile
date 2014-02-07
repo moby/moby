@@ -45,11 +45,8 @@ test-unit: build
 test-integration: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-integration
 
-test-integration-cli: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-cli
-
-validate: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-gofmt validate-dco
+test-libvirt: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh libvirtd dynbinary dyntest-unit dyntest-integration
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash

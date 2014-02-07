@@ -3,12 +3,12 @@ package execdriver
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"strings"
-	"text/template"
 
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/netlink"
@@ -185,7 +185,11 @@ func (args *InitArgs) GetEnv(key string) string {
 	return ""
 }
 
-func GenerateContainerConfig(t *template.Template, c *Command, apparmor bool, path string) error {
+type Template interface {
+	Execute(wr io.Writer, data interface{}) error
+}
+
+func GenerateContainerConfig(t Template, c *Command, apparmor bool, path string) error {
 	fo, err := os.Create(path)
 	if err != nil {
 		return err

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ ! -e /dev/net/tun ]; then
+	mknod /dev/net/tun c 10 200
+fi
+
+if ! pidof libvirtd; then
+	libvirtd &
+	sleep 1
+	virsh net-destroy default
+fi
+
+export EXEC_DRIVER=libvirt

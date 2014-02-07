@@ -3,6 +3,7 @@ package execdrivers
 import (
 	"fmt"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/libvirt"
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/daemon/execdriver/native"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -16,6 +17,8 @@ func NewDriver(name, root, initPath string, sysInfo *sysinfo.SysInfo) (execdrive
 		// to access and write config and template files in /var/lib/docker/containers/*
 		// to be backwards compatible
 		return lxc.NewDriver(root, initPath, sysInfo.AppArmor)
+	case "libvirt":
+		return libvirt.NewDriver(root, initPath)
 	case "native":
 		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath)
 	}
