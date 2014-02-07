@@ -731,52 +731,76 @@ func GetResolvConf() ([]byte, error) {
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {
-	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
-	if !bytes.Contains(parsedResolvConf, []byte("nameserver")) {
-		return true
-	}
-	for _, ip := range [][]byte{
-		[]byte("127.0.0.1"),
-		[]byte("127.0.1.1"),
-	} {
-		if bytes.Contains(parsedResolvConf, ip) {
-			return true
+	for _, line := range GetLines(resolvConf, []byte("#")) {
+		if !bytes.Contains(line, []byte("nameserver")) {
+			continue
 		}
+		for _, ip := range [][]byte{
+			[]byte("127.0.0.1"),
+			[]byte("127.0.1.1"),
+		} {
+			if bytes.Contains(line, ip) {
+				return true
+			}
+		}
+		return false
 	}
-	return false
+	return true
 }
 
-// StripComments parses input into lines and strips away comments.
-func StripComments(input []byte, commentMarker []byte) []byte {
+// GetLines parses input into lines and strips away comments.
+func GetLines(input []byte, commentMarker []byte) [][]byte {
 	lines := bytes.Split(input, []byte("\n"))
-	var output []byte
+	var output [][]byte
 	for _, currentLine := range lines {
 		var commentIndex = bytes.Index(currentLine, commentMarker)
 		if commentIndex == -1 {
-			output = append(output, currentLine...)
+			output = append(output, currentLine)
 		} else {
-			output = append(output, currentLine[:commentIndex]...)
+			output = append(output, currentLine[:commentIndex])
 		}
-		output = append(output, []byte("\n")...)
 	}
 	return output
+}
+
+// GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
+func GetNameservers(resolvConf []byte) []string {
+	nameservers := []string{}
+	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
+	for _, line := range GetLines(resolvConf, []byte("#")) {
+		var ns = re.FindSubmatch(line)
+		if len(ns) > 0 {
+			nameservers = append(nameservers, string(ns[1]))
+		}
+	}
+	return nameservers
 }
 
 // GetNameserversAsCIDR returns nameservers (if any) listed in
 // /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {
-	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
-	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
-		var ns = re.FindSubmatch(line)
-		if len(ns) > 0 {
-			nameservers = append(nameservers, string(ns[1])+"/32")
-		}
+	for _, nameserver := range GetNameservers(resolvConf) {
+		nameservers = append(nameservers, nameserver+"/32")
 	}
-
 	return nameservers
+}
+
+// GetSearchDomains returns search domains (if any) listed in /etc/resolv.conf
+// If more than one search line is encountered, only the contents of the last
+// one is returned.
+func GetSearchDomains(resolvConf []byte) []string {
+	re := regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
+	domains := []string{}
+	for _, line := range GetLines(resolvConf, []byte("#")) {
+		match := re.FindSubmatch(line)
+		if match == nil {
+			continue
+		}
+		domains = strings.Fields(string(match[1]))
+	}
+	return domains
 }
 
 // FIXME: Change this not to receive default value as parameter
