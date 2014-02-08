@@ -102,11 +102,16 @@ the ``-H`` flag for the client.
         docker ps
         # both are equal
 
-
 To run the daemon with `systemd socket activation <http://0pointer.de/blog/projects/socket-activation.html>`_, use ``docker -d -H fd://``.
 Using ``fd://`` will work perfectly for most setups but you can also specify individual sockets too ``docker -d -H fd://3``.
 If the specified socket activated files aren't found then docker will exit.
 You can find examples of using systemd socket activation with docker and systemd in the `docker source tree <https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/>`_.
+
+.. warning::
+  Docker and LXC do not support the use of softlinks for either the Docker data directory (``/var/lib/docker``) or for ``/tmp``.
+  If your system is likely to be set up in that way, you can use ``readlink -f`` to canonicalise the links:
+
+  ``TMPDIR=$(readlink -f /tmp) /usr/local/bin/docker -d -D -g $(readlink -f /var/lib/docker) -H unix:// $EXPOSE_ALL > /var/lib/boot2docker/docker.log 2>&1``
 
 .. _cli_attach:
 
