@@ -419,6 +419,38 @@ func NetworkSetMaster(iface, master *net.Interface) error {
 	return s.HandleAck(wb.Seq)
 }
 
+func NetworkSetNsPid(iface *net.Interface, nspid int) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = 0xFFFFFFFF
+	wb.AddData(msg)
+
+	var (
+		b      = make([]byte, 4)
+		native = nativeEndian()
+	)
+	native.PutUint32(b, uint32(nspid))
+
+	data := newRtAttr(syscall.IFLA_NET_NS_PID, b)
+	wb.AddData(data)
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+
+	return s.HandleAck(wb.Seq)
+}
+
 // Add an Ip address to an interface. This is identical to:
 // ip addr add $ip/$ipNet dev $iface
 func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
