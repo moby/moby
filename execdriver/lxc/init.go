@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/netlink"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/host"
 	"github.com/syndtr/gocapability/capability"
 	"net"
 	"os"
@@ -82,7 +82,7 @@ func changeUser(args *execdriver.InitArgs) error {
 	if args.User == "" {
 		return nil
 	}
-	userent, err := utils.UserLookup(args.User)
+	userent, err := host.UserLookup(args.User)
 	if err != nil {
 		return fmt.Errorf("Unable to find user %v: %v", args.User, err)
 	}

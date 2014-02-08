@@ -1,12 +1,12 @@
 package docker
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/pkg/crypto"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -205,7 +205,7 @@ func ValidateID(id string) error {
 func GenerateID() string {
 	for {
 		id := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		if _, err := io.ReadFull(crypto.RandReader, id); err != nil {
 			panic(err) // This shouldn't happen
 		}
 		value := hex.EncodeToString(id)

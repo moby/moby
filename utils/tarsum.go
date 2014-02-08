@@ -4,8 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"crypto/sha256"
 	"encoding/hex"
+	"github.com/dotcloud/docker/pkg/crypto"
 	"hash"
 	"io"
 	"sort"
@@ -80,7 +80,7 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 		} else {
 			ts.gz = &nopCloseFlusher{Writer: ts.bufGz}
 		}
-		ts.h = sha256.New()
+		ts.h = crypto.NewSHA256()
 		ts.h.Reset()
 		ts.first = true
 		ts.sums = make(map[string]string)
@@ -163,7 +163,7 @@ func (ts *TarSum) Sum(extra []byte) string {
 		sums = append(sums, sum)
 	}
 	sort.Strings(sums)
-	h := sha256.New()
+	h := crypto.NewSHA256()
 	if extra != nil {
 		h.Write(extra)
 	}

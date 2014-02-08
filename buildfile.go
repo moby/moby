@@ -1,13 +1,13 @@
 package docker
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/pkg/crypto"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -480,7 +480,7 @@ func (b *buildFile) CmdAdd(args string) error {
 				}
 			}
 			sort.Strings(subfiles)
-			hasher := sha256.New()
+			hasher := crypto.NewSHA256()
 			hasher.Write([]byte(strings.Join(subfiles, ",")))
 			hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
 		} else {
