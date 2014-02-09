@@ -105,6 +105,18 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
+// Loads the contents only and Dont set Ghost
+func (runtime *Runtime) loadOnly(id string) (*Container, error) {
+	container := &Container{root: runtime.containerRoot(id)}
+	if err := container.FromDisk(); err != nil {
+		return nil, err
+	}
+	if container.ID != id {
+		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
+	}
+	return container, nil
+}
+
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (runtime *Runtime) load(id string) (*Container, error) {
@@ -264,6 +276,44 @@ func (runtime *Runtime) Destroy(container *Container) error {
 	return nil
 }
 
+func (runtime *Runtime) reload() error {
+
+	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+		fmt.Printf("Loading containers: ")
+	}
+	dir, err := ioutil.ReadDir(runtime.repository)
+	if err != nil {
+		return err
+	}
+
+	currentDriver := runtime.driver.String()
+	for _, v := range dir {
+		id := v.Name()
+		container, err := runtime.loadOnly(id)
+		element := runtime.getContainerElement(id)
+
+		if element != nil {
+			runtime.containers.Remove(element)
+			if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+				fmt.Print(".")
+			}
+			if err != nil {
+				utils.Errorf("Failed to load container %v: %v", id, err)
+				continue
+			}
+			oldContainer := element.Value.(*Container)
+			// Ignore the container if it does not support the current driver being used by the graph
+			if container.Driver == "" && currentDriver == "aufs" || container.Driver == currentDriver {
+				utils.Debugf("Loaded container %v", container.ID)
+				oldContainer.Config = container.Config
+				runtime.containers.PushBack(oldContainer)
+			} else {
+				utils.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+			}
+		}
+	}
+	return nil
+}
 func (runtime *Runtime) restore() error {
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf("Loading containers: ")

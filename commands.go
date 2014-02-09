@@ -115,6 +115,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"top", "Lookup the running processes of a container"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
+		{"reload", "Reloads Containers config in memory"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
@@ -1418,6 +1419,20 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		w.Flush()
 	}
 	return nil
+}
+
+func (cli *DockerCli) CmdReload(args ...string) error {
+	var (
+		config *Config
+	)
+
+	_, _, err := cli.call("GET", "/reload", config, false)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(cli.out, "reloaded\n")
+	return nil
+
 }
 
 func (cli *DockerCli) CmdCommit(args ...string) error {

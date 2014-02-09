@@ -98,6 +98,7 @@ func jobInitServer(job *engine.Job) engine.Status {
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
 		"auth":             srv.Auth,
+		"reload":           srv.Reload,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			return job.Error(err)
@@ -195,6 +196,17 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 		}
 	} else {
 		return job.Errorf("No such container: %s", name)
+	}
+	return engine.StatusOK
+}
+
+func (srv *Server) Reload(job *engine.Job) engine.Status {
+	var (
+		err error
+	)
+	err = srv.runtime.reload()
+	if err != nil {
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
