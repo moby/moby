@@ -49,10 +49,10 @@ Run the following commands to get boot2docker:
 
     # Enter the installation directory
     cd ~/bin
-    
+
     # Get the file
     curl https://raw.github.com/steeve/boot2docker/master/boot2docker > boot2docker
-    
+
     # Mark it executable
     chmod +x boot2docker
 
@@ -67,13 +67,13 @@ Run the following commands to get it downloaded and set up:
 
     # Get the file
     curl -o docker https://get.docker.io/builds/Darwin/x86_64/docker-latest
-    
+
     # Mark it executable
     chmod +x docker
 
     # Set the environment variable for the docker daemon
     export DOCKER_HOST=tcp://
-    
+
     # Copy the executable file
     sudo cp docker /usr/local/bin/
 
@@ -94,7 +94,7 @@ Inside the ``~/bin`` directory, run the following commands:
 
     # Run the VM (the docker daemon)
     ./boot2docker up
-    
+
     # To see all available commands:
     ./boot2docker
 
@@ -115,6 +115,21 @@ client just like any other application.
     # Server version: 0.7.5
     # Git commit (server): c348c04
     # Go version (server): go1.2
+
+Forwarding VM Port Range to Host
+-------------------------------
+
+If we take the port range that docker uses by default with the -P option
+(49000-49900), and forward same range from host to vm, we'll be able to interact
+with our containers as if they were running locally:
+
+.. code-block:: bash
+
+   # vm must be powered off
+   for i in {4900..49900}; do
+    VBoxManage modifyvm "boot2docker-vm" --natpf1 "tcp-port$i,tcp,,$i,,$i";
+    VBoxManage modifyvm "boot2docker-vm" --natpf1 "udp-port$i,udp,,$i,,$i";
+   done
 
 SSH-ing The VM
 --------------
