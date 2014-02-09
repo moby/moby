@@ -2,6 +2,60 @@
 
 package netlink
 
+/*
+#include <string.h>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+
+static int get_socket(void) {
+	int s_errno;
+	int fd;
+
+	fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (fd >= 0) {
+		return fd;
+    }
+	s_errno = errno;
+
+	fd = socket(PF_PACKET, SOCK_DGRAM, 0);
+	if (fd >= 0) {
+		return fd;
+    }
+
+	fd = socket(PF_INET6, SOCK_DGRAM, 0);
+	if (fd >= 0) {
+		return fd;
+    }
+	errno = s_errno;
+	return -1;
+}
+
+
+static int change_name(const char *old_name, const char *new_name) {
+    struct ifreq ifr;
+	int err;
+	int fd;
+
+	fd = get_socket();
+	if (fd < 0) {
+		return -1;
+    }
+
+	strncpy(ifr.ifr_name, old_name, IFNAMSIZ);
+	strncpy(ifr.ifr_newname, new_name, IFNAMSIZ);
+
+    err = ioctl(fd, SIOCSIFNAME, &ifr);
+	if (err) {
+        close(fd);
+		return -1;
+	}
+    close(fd);
+	return err;
+}
+*/
+import "C"
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -640,4 +694,16 @@ done:
 	}
 
 	return res, nil
+}
+
+func NetworkChangeName(oldName, newName string) error {
+	var (
+		cold = C.CString(oldName)
+		cnew = C.CString(newName)
+	)
+
+	if errno := int(C.change_name(cold, cnew)); errno != 0 {
+		return fmt.Errorf("unable to change name %d", errno)
+	}
+	return nil
 }
