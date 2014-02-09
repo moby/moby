@@ -620,43 +620,6 @@ Copy files or folders from a container
 	:statuscode 500: server error
 
 
-Get or set cgroup subsystem on a running container
-**************************************************
-
-.. http:post:: /containers/(id)/cgroup
-
-	Get or set cgroup subsystem of container ``id``
-
-	**Example request**:
-
-	.. sourcecode:: http
-
-	   POST /containers/653ab4fb8221/copy HTTP/1.1
-	   Content-Type: application/json
-
-	   {
-  		"ReadSubsystem": ["memory.limit_in_bytes"],
-  		"WriteSubsystem": [{"Key": "cpuset.cpus", "Value": "1"}]
-	   }
-
-
-	**Example response**:
-
-	.. sourcecode:: http
-
-	   HTTP/1.1 200 OK
-	   Content-Type: application/json
-
-	   [
-	   	{"Subsystem":"memory.limit_in_bytes","Out":"104857600","Err":"","Status":0},
-	   	{"Subsystem":"cpuset.cpus","Out":"","Err":"","Status":0}
-	   ]
-
-	:statuscode 200: no error
-	:statuscode 404: no such container
-	:statuscode 500: server error
-
-
 2.2 Images
 ----------
 
