@@ -1,4 +1,4 @@
-:title: Requirements and Installation on Mac OS X 10.6 Snow Leopard
+:title: Installation on Mac OS X 10.6 Snow Leopard
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
 
