@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -1592,36 +1593,6 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 	return EofReader(archive, func() { container.Unmount() }), nil
 }
 
-func (container *Container) GetCgroupSubsysem(subsystem string) (string, error) {
-
-	if !container.State.IsRunning() {
-		return "", fmt.Errorf("The container %s is not running.", container.ID)
-	}
-
-	output, err := exec.Command("lxc-cgroup", "-n", container.ID, subsystem).CombinedOutput()
-
-	if err != nil {
-		utils.Debugf("Error with lxc-cgroup: %s (%s)", err, output)
-	}
-
-	return strings.TrimSuffix(string(output), "\n"), err
-}
-
-func (container *Container) SetCgroupSubsysem(subsystem, value string) (string, error) {
-
-	if !container.State.IsRunning() {
-		return "", fmt.Errorf("The container %s is not running.", container.ID)
-	}
-
-	output, err := exec.Command("lxc-cgroup", "-n", container.ID, subsystem, value).CombinedOutput()
-
-	if err != nil {
-		utils.Debugf("Error with lxc-cgroup: %s (%s)", err, output)
-	}
-
-	return strings.TrimSuffix(string(output), "\n"), err
-}
-
 // Returns true if the container exposes a certain port
 func (container *Container) Exposes(p Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
@@ -1665,6 +1636,14 @@ func (container *Container) AddLXCConfig(subsystem string, value string) error {
 		}
 		kvPair.Value = value
 		container.hostConfig.LxcConf = append(container.hostConfig.LxcConf, kvPair)
+	}
+	return nil
+}
+
+func (container *Container) GenerateLXCConfig() error {
+	populateCommand(container)
+	if err := container.runtime.UpdateConfig(container); err != nil {
+		return err
 	}
 	return nil
 }

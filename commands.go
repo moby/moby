@@ -2265,9 +2265,8 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 
 func (cli *DockerCli) CmdCgroup(args ...string) error {
 	cmd := cli.Subcmd("cgroup", "[OPTIONS] CONTAINER SUBSYSTEM=[VALUE]...", "Set or get cgroup subsystems on a container")
-	var (
-		flSaveToFile = cmd.Bool("w", false, "Save change to rcFile")
-	)
+	flSaveToFile := cmd.Bool([]string{"#w", "-w"}, false, "Save change to rcFile")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -2278,18 +2277,31 @@ func (cli *DockerCli) CmdCgroup(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	var cgroupData APICgroup
+	var (
+		cgroupData     engine.Env
+		readSubsystem  []string
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
 
 	for _, entry := range cmd.Args()[1:] {
 		pair := strings.Split(entry, "=")
 		if len(pair) < 1 || pair[0] == "" {
 			fmt.Fprintf(cli.err, "WARNING: empty subsystem\n")
 		} else if len(pair) == 1 {
-			cgroupData.ReadSubsystem = append(cgroupData.ReadSubsystem, pair[0])
+			readSubsystem = append(readSubsystem, pair[0])
 		} else {
-			cgroupData.WriteSubsystem = append(cgroupData.WriteSubsystem, KeyValuePair{Key: pair[0], Value: pair[1]})
+			writeSubsystem = append(writeSubsystem, struct {
+				Key   string
+				Value string
+			}{Key: pair[0], Value: pair[1]})
 		}
 	}
+
+	cgroupData.SetList("ReadSubsystem", readSubsystem)
+	cgroupData.SetJson("WriteSubsystem", writeSubsystem)
 
 	var encounteredError error
 
@@ -2298,7 +2310,7 @@ func (cli *DockerCli) CmdCgroup(args ...string) error {
 		v.Set("w", "1")
 	}
 
-	body, _, err := cli.call("POST", "/containers/"+name+"/cgroup?"+v.Encode(), cgroupData)
+	body, _, err := readBody(cli.call("POST", "/containers/"+name+"/cgroup?"+v.Encode(), cgroupData, false))
 
 	if err != nil {
 		fmt.Fprintf(cli.err, "%s\n", err)

@@ -917,35 +917,49 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	return nil
 }
 
-func postContainersCgroup(srv *Server, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersCgroup(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
 
 	saveToFile, err := getBoolParam(r.FormValue("w"))
 	if err != nil {
 		return err
 	}
 
-	cgroupData := &APICgroup{}
+	var (
+		cgroupData     engine.Env
+		readSubsystem  []string
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "application/json" {
-		if err := json.NewDecoder(r.Body).Decode(cgroupData); err != nil {
+		if err := cgroupData.Decode(r.Body); err != nil {
+			utils.Debugf("err %s", err)
 			return err
 		}
 	} else {
 		return fmt.Errorf("Content-Type not supported: %s", contentType)
 	}
 
-	cgroupResponse, err := srv.ContainerCgroup(name, cgroupData, saveToFile)
-	if err != nil {
-		utils.Errorf("%s", err.Error())
+	readSubsystem = cgroupData.GetList("ReadSubsystem")
+	if err := cgroupData.GetJson("WriteSubsystem", &writeSubsystem); err != nil {
 		return err
 	}
 
-	writeJSON(w, http.StatusOK, &cgroupResponse)
+	job := eng.Job("cgroup", vars["name"])
+	job.SetenvList("readSubsystem", readSubsystem)
+	job.SetenvJson("writeSubsystem", writeSubsystem)
+	job.SetenvBool("saveToFile", saveToFile)
+
+	job.Stdout.Add(w)
+	if err := job.Run(); err != nil {
+		return err
+	}
 
 	return nil
 }
