@@ -367,7 +367,7 @@ func postCommit(eng *engine.Engine, version float64, w http.ResponseWriter, r *h
 		env    engine.Env
 		job    = eng.Job("commit", r.Form.Get("container"))
 	)
-	if err := config.Import(r.Body); err != nil {
+	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
 	}
 
