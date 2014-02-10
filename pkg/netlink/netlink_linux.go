@@ -10,6 +10,12 @@ import (
 	"unsafe"
 )
 
+const (
+	IFNAMSIZ       = 16
+	DEFAULT_CHANGE = 0xFFFFFFFF
+	IFLA_INFO_KIND = 1
+)
+
 var nextSeqNr int
 
 func nativeEndian() binary.ByteOrder {
@@ -368,7 +374,7 @@ func NetworkSetMTU(iface *net.Interface, mtu int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(iface.Index)
-	msg.Change = 0xFFFFFFFF
+	msg.Change = DEFAULT_CHANGE
 	wb.AddData(msg)
 
 	var (
@@ -400,7 +406,7 @@ func NetworkSetMaster(iface, master *net.Interface) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(iface.Index)
-	msg.Change = 0xFFFFFFFF
+	msg.Change = DEFAULT_CHANGE
 	wb.AddData(msg)
 
 	var (
@@ -432,7 +438,7 @@ func NetworkSetNsPid(iface *net.Interface, nspid int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(iface.Index)
-	msg.Change = 0xFFFFFFFF
+	msg.Change = DEFAULT_CHANGE
 	wb.AddData(msg)
 
 	var (
@@ -523,8 +529,6 @@ func NetworkLinkAdd(name string, linkType string) error {
 
 	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name))
 	wb.AddData(nameData)
-
-	IFLA_INFO_KIND := 1
 
 	kindData := newRtAttr(IFLA_INFO_KIND, nonZeroTerminated(linkType))
 
@@ -642,28 +646,21 @@ done:
 	return res, nil
 }
 
-func getIfSocket() (int, error) {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
-	if err == nil {
-		return fd, err
+func getIfSocket() (fd int, err error) {
+	for _, socket := range []int{
+		syscall.AF_INET,
+		syscall.AF_PACKET,
+		syscall.AF_INET6,
+	} {
+		if fd, err = syscall.Socket(socket, syscall.SOCK_DGRAM, 0); err == nil {
+			break
+		}
 	}
-	sErr := err
-
-	fd, err = syscall.Socket(syscall.AF_PACKET, syscall.SOCK_DGRAM, 0)
 	if err == nil {
-		return fd, err
+		return fd, nil
 	}
-
-	fd, err = syscall.Socket(syscall.AF_INET6, syscall.SOCK_DGRAM, 0)
-	if err == nil {
-		return fd, err
-	}
-
-	return -1, sErr
+	return -1, err
 }
-
-// from <net/if.h>
-const IFNAMSIZ = 16
 
 func NetworkChangeName(oldName, newName string) error {
 	fd, err := getIfSocket()
