@@ -53,9 +53,9 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(cat ./VERSION)
-if [ -d .git ] && command -v git &> /dev/null; then
+if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
-	if [ -n "$(git status --porcelain)" ]; then
+	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-dirty"
 	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
