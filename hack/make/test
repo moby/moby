@@ -19,7 +19,7 @@ bundle_test() {
 		date
 
 		TESTS_FAILED=()
-		for test_dir in $(find_test_dirs); do
+		for test_dir in $(find_dirs '*_test.go'); do
 			echo
 
 			if ! LDFLAGS="$LDFLAGS $LDFLAGS_STATIC" go_test_dir "$test_dir"; then
@@ -46,17 +46,6 @@ bundle_test() {
 			true
 		fi
 	} 2>&1 | tee $DEST/test.log
-}
-
-
-# This helper function walks the current directory looking for directories
-# holding Go test files, and prints their paths on standard output, one per
-# line.
-find_test_dirs() {
-	find -not \( \
-		\( -wholename './vendor' -o -wholename './integration' \) \
-		-prune \
-	\) -name '*_test.go' -print0 | xargs -0n1 dirname | sort -u
 }
 
 bundle_test
