@@ -14,6 +14,8 @@ const (
 	IFNAMSIZ       = 16
 	DEFAULT_CHANGE = 0xFFFFFFFF
 	IFLA_INFO_KIND = 1
+	IFLA_INFO_DATA = 2
+	VETH_PEER      = 1
 )
 
 var nextSeqNr int
@@ -197,7 +199,9 @@ func (rr *NetlinkRequest) ToWireFormat() []byte {
 }
 
 func (rr *NetlinkRequest) AddData(data NetlinkRequestData) {
-	rr.Data = append(rr.Data, data)
+	if data != nil {
+		rr.Data = append(rr.Data, data)
+	}
 }
 
 func newNetlinkRequest(proto, flags int) *NetlinkRequest {
@@ -676,6 +680,41 @@ func NetworkChangeName(oldName, newName string) error {
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.SIOCSIFNAME, uintptr(unsafe.Pointer(&data[0]))); errno != 0 {
 		return errno
 	}
-
 	return nil
+}
+
+func NetworkCreateVethPair(name1, name2 string) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	wb.AddData(msg)
+
+	kindData := newRtAttr(IFLA_INFO_KIND, nonZeroTerminated("veth"))
+	info := newRtAttr(syscall.IFLA_LINKINFO, kindData.ToWireFormat())
+	//	wb.AddData(info)
+
+	peerName := newRtAttr(syscall.IFLA_IFNAME, nonZeroTerminated(name2))
+	peer := newRtAttr(VETH_PEER, peerName.ToWireFormat())
+	//	wb.AddData(peer)
+
+	b := []byte{}
+	b = append(b, peer.ToWireFormat()...)
+	b = append(b, info.ToWireFormat()...)
+
+	infoData := newRtAttr(IFLA_INFO_DATA, b)
+	wb.AddData(infoData)
+
+	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name1))
+	wb.AddData(nameData)
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+	return s.HandleAck(wb.Seq)
 }
