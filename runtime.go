@@ -378,9 +378,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		}
 	}
 
-	if len(config.Entrypoint) != 0 && config.Cmd == nil {
-		config.Cmd = []string{}
-	} else if config.Cmd == nil || len(config.Cmd) == 0 {
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return nil, nil, fmt.Errorf("No command specified")
 	}
 
