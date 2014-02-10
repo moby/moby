@@ -66,7 +66,7 @@ func TestLinkEnv(t *testing.T) {
 	from.State = State{Running: true}
 	ports := make(map[Port]struct{})
 
-	ports[Port("6379/tcp")] = struct{}{}
+	ports[Port("6379/tcp/testalias")] = struct{}{}
 
 	from.Config.ExposedPorts = ports
 
@@ -100,6 +100,21 @@ func TestLinkEnv(t *testing.T) {
 	}
 	if env["DOCKER_PORT_6379_TCP_PORT"] != "6379" {
 		t.Fatalf("Expected 6379, got %s", env["DOCKER_PORT_6379_TCP_PORT"])
+	}
+	if env["DOCKER_TESTALIAS"] != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected 172.0.17.2:6379, got %s", env["DOCKER_TESTALIAS"])
+	}
+	if env["DOCKER_TESTALIAS"] != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["DOCKER_TESTALIAS"])
+	}
+	if env["DOCKER_TESTALIAS_PROTO"] != "tcp" {
+		t.Fatalf("Expected tcp, got %s", env["DOCKER_TESTALIAS_PROTO"])
+	}
+	if env["DOCKER_TESTALIAS_ADDR"] != "172.0.17.2" {
+		t.Fatalf("Expected 172.0.17.2, got %s", env["DOCKER_TESTALIAS_ADDR"])
+	}
+	if env["DOCKER_TESTALIAS_PORT"] != "6379" {
+		t.Fatalf("Expected 6379, got %s", env["DOCKER_TESTALIAS_PORT"])
 	}
 	if env["DOCKER_NAME"] != "/db/docker" {
 		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])

@@ -40,7 +40,7 @@ system, use the ``-p`` parameter of the ``docker run`` command:
 .. code-block:: bash
 
     # General syntax
-    docker run -p [([<host_interface>:[host_port]])|(<host_port>):]<container_port>[/udp] <image> <cmd>
+    docker run -p [([<host_interface>:[host_port]])|(<host_port>):]<container_port>[/udp][#alias_name] <image> <cmd>
 
 When no host interface is provided, the port is bound to all available
 interfaces of the host machine (aka INADDR_ANY, or 0.0.0.0).When no host port is
@@ -68,6 +68,14 @@ combinations described for TCP work. Here is only one example:
 
     # Bind UDP port 5353 of the container to UDP port 53 on 127.0.0.1 of the host machine.
     docker run -p 127.0.0.1:53:5353/udp <image> <cmd>
+
+An optional port alias can be supplied by adding a trailing ``#alias_name``. Aliases
+become useful when used in conjunction with container linking discussed below.
+
+.. code-block:: bash
+
+    # Bind TCP port 5432 of the container to TCP port 5432 on 127.0.0.1 of the host machine, provide an alias for this port of 'postgres'.
+    docker run -p 127.0.0.1:5432:5432/tcp#postgres <image> <cmd>
 
 The command ``docker port`` lists the interface and port on the host
 machine bound to a given container port. It is useful when using
@@ -140,4 +148,53 @@ This tells ``client`` that a service is running on port 80 of
 ``server`` and that ``server`` is accessible at the IP address
 172.17.0.8
 
-Note: Using the ``-p`` parameter also exposes the port..
+.. NOTE:: Using the ``-p`` parameter also exposes the port with the difference
+    being the port will also be accesible from the container host.
+
+Port Aliases
+------------
+
+Should you require consistent environment variable names regardless of the
+protocol, port or host address in use then aliases are available.
+
+In the example below two services run within a single ``persistence-store`` container.
+Should these need to be separated in future any configuration inside linked containers
+regarding these services can remain unchanged.
+
+.. code-block:: bash
+
+    # Expose TCP port 5432 and udp port 6379
+    docker run -expose 5432#postgres -expose 6379/udp#redis -name persistence-store <image> <cmd>
+
+The ``client`` then links to the ``persistence-store``:
+
+.. code-block:: bash
+
+    # Link
+    docker run -name client -link persistence-store:persistence-store <image> <cmd>
+
+``client`` locally refers to ``persistence-store`` as ``persistence-store``. The
+following environment variables, among others, are available on
+``client``:
+
+.. code-block:: bash
+
+    # The address, port and protocol of the 'postgres' service
+    PERSISTENCE-STORE_POSTGRES=tcp://172.17.0.2:5432
+    PERSISTENCE-STORE_POSTGRES_ADDR=172.17.0.2
+    PERSISTENCE-STORE_POSTGRES_PORT=5432
+    PERSISTENCE-STORE_POSTGRES_PROTO=tcp
+
+    # The address, port and protocol of the 'redis' service
+    PERSISTENCE-STORE_REDIS=udp://172.17.0.2:6379
+    PERSISTENCE-STORE_REDIS_ADDR=172.17.0.2
+    PERSISTENCE-STORE_REDIS_PORT=6379
+    PERSISTENCE-STORE_REDIS_PROTO=udp
+
+Any application configuration on the ``client`` may utilise these known
+variable names to access the appropriate services. Should the protocol, port
+or host address in use subsequently change the application configuration will
+not need to be altered.
+
+.. NOTE:: Ambassador containers may be more suitable for your particular use
+    case. Further details on the :ref:`ambassador_pattern_linking` page.
