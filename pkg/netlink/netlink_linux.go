@@ -662,15 +662,17 @@ func getIfSocket() (int, error) {
 	return -1, sErr
 }
 
+// from <net/if.h>
+const IFNAMSIZ = 16
+
 func NetworkChangeName(oldName, newName string) error {
 	fd, err := getIfSocket()
 	if err != nil {
 		return err
 	}
 	defer syscall.Close(fd)
-	IFNAMSIZ := 16
 
-	data := [32]byte{}
+	data := [IFNAMSIZ * 2]byte{}
 	copy(data[:IFNAMSIZ-1], oldName)
 	copy(data[IFNAMSIZ:IFNAMSIZ*2-1], newName)
 
