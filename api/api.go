@@ -190,6 +190,14 @@ func getContainersExport(eng *engine.Engine, version float64, w http.ResponseWri
 	return nil
 }
 
+func getReload(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	job := eng.Job("reload")
+	if err := job.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1012,6 +1020,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/reload":                         getReload,
 		},
 		"POST": {
 			"/auth":                         postAuth,
