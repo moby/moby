@@ -731,6 +731,8 @@ func NetworkChangeName(iface *net.Interface, newName string) error {
 	defer syscall.Close(fd)
 
 	data := [IFNAMSIZ * 2]byte{}
+	// the "-1"s here are very important for ensuring we get proper null
+	// termination of our new C strings
 	copy(data[:IFNAMSIZ-1], iface.Name)
 	copy(data[IFNAMSIZ:IFNAMSIZ*2-1], newName)
 
