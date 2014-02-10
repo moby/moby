@@ -279,7 +279,8 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		panic(err)
+		utils.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {
 		running = true
