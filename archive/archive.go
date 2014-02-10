@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -17,14 +18,18 @@ import (
 	"syscall"
 )
 
-type Archive io.Reader
+type (
+	Archive     io.Reader
+	Compression int
+	TarOptions  struct {
+		Includes    []string
+		Compression Compression
+	}
+)
 
-type Compression int
-
-type TarOptions struct {
-	Includes    []string
-	Compression Compression
-}
+var (
+	ErrNotImplemented = errors.New("Function not implemented")
+)
 
 const (
 	Uncompressed Compression = iota
@@ -236,14 +241,14 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
 
-	if err := syscall.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
 		return err
 	}
 
 	// There is no LChmod, so ignore mode for symlink. Also, this
 	// must happen after chown, as that can modify the file mode
 	if hdr.Typeflag != tar.TypeSymlink {
-		if err := syscall.Chmod(path, uint32(hdr.Mode&07777)); err != nil {
+		if err := os.Chmod(path, os.FileMode(hdr.Mode&07777)); err != nil {
 			return err
 		}
 	}
@@ -251,7 +256,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
 	if hdr.Typeflag != tar.TypeSymlink {
-		if err := syscall.UtimesNano(path, ts); err != nil {
+		if err := UtimesNano(path, ts); err != nil {
 			return err
 		}
 	} else {
