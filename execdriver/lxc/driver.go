@@ -387,6 +387,7 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 
 func (d *driver) GetCgroupSubsystem(id, subsystem string) (string, error) {
 
+	subsystem = utils.RemoveLXCCgroupPrefix(subsystem)
 	output, err := exec.Command("lxc-cgroup", "-n", id, subsystem).CombinedOutput()
 
 	if err != nil {
@@ -398,6 +399,7 @@ func (d *driver) GetCgroupSubsystem(id, subsystem string) (string, error) {
 
 func (d *driver) SetCgroupSubsystem(id, subsystem, value string) (string, error) {
 
+	subsystem = utils.RemoveLXCCgroupPrefix(subsystem)
 	output, err := exec.Command("lxc-cgroup", "-n", id, subsystem, value).CombinedOutput()
 
 	if err != nil {

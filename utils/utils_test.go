@@ -487,3 +487,9 @@ func TestIsInBytesSubsystem(t *testing.T) {
 		t.Fatalf("Unexpected false result")
 	}
 }
+
+func TestRemoveLXCCgroupPrefix(t *testing.T) {
+	if RemoveLXCCgroupPrefix("lxc.cgroup.cpuset.cpus") != "cpuset.cpus" {
+		t.Fatalf("Unexpected result")
+	}
+}

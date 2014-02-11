@@ -1033,8 +1033,9 @@ func GetThisCgroup(cgroupType string) (string, error) {
 }
 
 func IsInBytesSubsystem(subsystem string) bool {
-	if strings.Contains(subsystem, "in_bytes") {
-		return true
-	}
-	return false
+	return strings.Contains(subsystem, "in_bytes")
+}
+
+func RemoveLXCCgroupPrefix(subsystem string) string {
+	return strings.Replace(subsystem, "lxc.cgroup.", "", 1)
 }

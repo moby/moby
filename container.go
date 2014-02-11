@@ -1626,7 +1626,9 @@ func (container *Container) AddLXCConfig(subsystem string, value string) error {
 	}
 	if !findAndUpdate {
 		var kvPair KeyValuePair
-		kvPair.Key = "lxc.cgroup." + subsystem
+		if !strings.HasPrefix(subsystem, "lxc.cgroup.") {
+			kvPair.Key = "lxc.cgroup." + subsystem
+		}
 		if utils.IsInBytesSubsystem(subsystem) {
 			parsedValue, err := utils.RAMInBytes(value)
 			if err != nil {
