@@ -15,7 +15,8 @@ const (
 	DEFAULT_CHANGE = 0xFFFFFFFF
 	IFLA_INFO_KIND = 1
 	IFLA_INFO_DATA = 2
-	VETH_PEER      = 1
+	VETH_INFO_PEER = 1
+	IFLA_NET_NS_FD = 28
 )
 
 var nextSeqNr int
@@ -365,6 +366,28 @@ func NetworkLinkUp(iface *net.Interface) error {
 	return s.HandleAck(wb.Seq)
 }
 
+func NetworkLinkDown(iface *net.Interface) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change = syscall.IFF_UP
+	msg.Flags = 0 & ^syscall.IFF_UP
+	msg.Index = int32(iface.Index)
+	wb.AddData(msg)
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+
+	return s.HandleAck(wb.Seq)
+}
+
 func NetworkSetMTU(iface *net.Interface, mtu int) error {
 	s, err := getNetlinkSocket()
 	if err != nil {
@@ -452,6 +475,38 @@ func NetworkSetNsPid(iface *net.Interface, nspid int) error {
 	native.PutUint32(b, uint32(nspid))
 
 	data := newRtAttr(syscall.IFLA_NET_NS_PID, b)
+	wb.AddData(data)
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+
+	return s.HandleAck(wb.Seq)
+}
+
+func NetworkSetNsFd(iface *net.Interface, fd int) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = DEFAULT_CHANGE
+	wb.AddData(msg)
+
+	var (
+		b      = make([]byte, 4)
+		native = nativeEndian()
+	)
+	native.PutUint32(b, uint32(fd))
+
+	data := newRtAttr(IFLA_NET_NS_FD, b)
 	wb.AddData(data)
 
 	if err := s.Send(wb); err != nil {
@@ -668,7 +723,7 @@ func getIfSocket() (fd int, err error) {
 	return -1, err
 }
 
-func NetworkChangeName(oldName, newName string) error {
+func NetworkChangeName(iface *net.Interface, newName string) error {
 	fd, err := getIfSocket()
 	if err != nil {
 		return err
@@ -676,7 +731,7 @@ func NetworkChangeName(oldName, newName string) error {
 	defer syscall.Close(fd)
 
 	data := [IFNAMSIZ * 2]byte{}
-	copy(data[:IFNAMSIZ-1], oldName)
+	copy(data[:IFNAMSIZ-1], iface.Name)
 	copy(data[IFNAMSIZ:IFNAMSIZ*2-1], newName)
 
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.SIOCSIFNAME, uintptr(unsafe.Pointer(&data[0]))); errno != 0 {
