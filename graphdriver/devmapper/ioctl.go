@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
@@ -57,4 +57,15 @@ func ioctlBlkGetSize64(fd uintptr) (int64, error) {
 		return 0, err
 	}
 	return size, nil
+}
+
+func ioctlBlkDiscard(fd uintptr, offset, length uint64) error {
+	var r [2]uint64
+	r[0] = offset
+	r[1] = length
+
+	if _, _, err := sysSyscall(sysSysIoctl, fd, BlkDiscard, uintptr(unsafe.Pointer(&r[0]))); err != 0 {
+		return err
+	}
+	return nil
 }

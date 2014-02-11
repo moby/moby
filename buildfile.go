@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -47,6 +48,7 @@ type buildFile struct {
 	rm           bool
 
 	authConfig *auth.AuthConfig
+	configFile *auth.ConfigFile
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -72,7 +74,22 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.graph.IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			if err := b.srv.ImagePull(remote, tag, b.outOld, b.sf, b.authConfig, nil, true); err != nil {
+			pullRegistryAuth := b.authConfig
+			if len(b.configFile.Configs) > 0 {
+				// The request came with a full auth config file, we prefer to use that
+				endpoint, _, err := registry.ResolveRepositoryName(remote)
+				if err != nil {
+					return err
+				}
+				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+				pullRegistryAuth = &resolvedAuth
+			}
+			job := b.srv.Eng.Job("pull", remote, tag)
+			job.SetenvBool("json", b.sf.Json())
+			job.SetenvBool("parallel", true)
+			job.SetenvJson("authConfig", pullRegistryAuth)
+			job.Stdout.Add(b.outOld)
+			if err := job.Run(); err != nil {
 				return err
 			}
 			image, err = b.runtime.repositories.LookupImage(name)
@@ -91,7 +108,24 @@ func (b *buildFile) CmdFrom(name string) error {
 	if b.config.Env == nil || len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 	}
+	// Process ONBUILD triggers if they exist
+	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
+		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
+	}
+	for n, step := range b.config.OnBuild {
+		if err := b.BuildStep(fmt.Sprintf("onbuild-%d", n), step); err != nil {
+			return err
+		}
+	}
+	b.config.OnBuild = []string{}
 	return nil
+}
+
+// The ONBUILD command declares a build instruction to be executed in any future build
+// using the current image as a base.
+func (b *buildFile) CmdOnbuild(trigger string) error {
+	b.config.OnBuild = append(b.config.OnBuild, trigger)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
 func (b *buildFile) CmdMaintainer(name string) error {
@@ -124,7 +158,7 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
+	config, _, _, err := ParseRun(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
 	if err != nil {
 		return err
 	}
@@ -287,12 +321,23 @@ func (b *buildFile) CmdVolume(args string) error {
 
 func (b *buildFile) checkPathForAddition(orig string) error {
 	origPath := path.Join(b.contextPath, orig)
+	if p, err := filepath.EvalSymlinks(origPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s: no such file or directory", orig)
+		}
+		return err
+	} else {
+		origPath = p
+	}
 	if !strings.HasPrefix(origPath, b.contextPath) {
 		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
 	_, err := os.Stat(origPath)
 	if err != nil {
-		return fmt.Errorf("%s: no such file or directory", orig)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s: no such file or directory", orig)
+		}
+		return err
 	}
 	return nil
 }
@@ -300,7 +345,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	var (
 		origPath = path.Join(b.contextPath, orig)
-		destPath = path.Join(container.RootfsPath(), dest)
+		destPath = path.Join(container.BasefsPath(), dest)
 	)
 	// Preserve the trailing '/'
 	if strings.HasSuffix(dest, "/") {
@@ -308,7 +353,10 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
-		return fmt.Errorf("%s: no such file or directory", orig)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s: no such file or directory", orig)
+		}
+		return err
 	}
 	if fi.IsDir() {
 		if err := archive.CopyWithTar(origPath, destPath); err != nil {
@@ -462,7 +510,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	b.tmpContainers[container.ID] = struct{}{}
 
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return err
 	}
 	defer container.Unmount()
@@ -584,7 +632,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		b.tmpContainers[container.ID] = struct{}{}
 		fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
-		if err := container.EnsureMounted(); err != nil {
+		if err := container.Mount(); err != nil {
 			return err
 		}
 		defer container.Unmount()
@@ -616,7 +664,13 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	b.context = &utils.TarSum{Reader: context, DisableCompression: true}
+
+	decompressedStream, err := archive.DecompressStream(context)
+	if err != nil {
+		return "", err
+	}
+
+	b.context = &utils.TarSum{Reader: decompressedStream, DisableCompression: true}
 	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return "", err
 	}
@@ -643,28 +697,11 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		tmp := strings.SplitN(line, " ", 2)
-		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
+			return "", err
 		}
-		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-		arguments := strings.Trim(tmp[1], " ")
-
-		method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-		if !exists {
-			fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-			continue
-		}
-
 		stepN += 1
-		fmt.Fprintf(b.outStream, "Step %d : %s %s\n", stepN, strings.ToUpper(instruction), arguments)
 
-		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-		if ret != nil {
-			return "", ret.(error)
-		}
-
-		fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -676,7 +713,32 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig) BuildFile {
+// BuildStep parses a single build step from `instruction` and executes it in the current context.
+func (b *buildFile) BuildStep(name, expression string) error {
+	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
+	tmp := strings.SplitN(expression, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid Dockerfile format")
+	}
+	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
+	arguments := strings.Trim(tmp[1], " ")
+
+	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
+	if !exists {
+		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+		return nil
+	}
+
+	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
+	if ret != nil {
+		return ret.(error)
+	}
+
+	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
+	return nil
+}
+
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig, authConfigFile *auth.ConfigFile) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -690,6 +752,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		rm:            rm,
 		sf:            sf,
 		authConfig:    auth,
+		configFile:    authConfigFile,
 		outOld:        outOld,
 	}
 }

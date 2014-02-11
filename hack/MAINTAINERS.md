@@ -5,7 +5,7 @@
 Dear maintainer. Thank you for investing the time and energy to help make Docker as
 useful as possible. Maintaining a project is difficult, sometimes unrewarding work.
 Sure, you will get to contribute cool features to the project. But most of your time
-will be spent reviewing, cleaning up, documenting, andswering questions, justifying
+will be spent reviewing, cleaning up, documenting, answering questions, justifying
 design decisions - while everyone has all the fun! But remember - the quality of the
 maintainers work is what distinguishes the good projects from the great.
 So please be proud of your work, even the unglamourous parts, and encourage a culture
@@ -54,13 +54,13 @@ But how do we identify the relevant maintainer for a given pull request?
 
 Docker follows the timeless, highly efficient and totally unfair system known as [Benevolent dictator for life](http://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life),
 with yours truly, Solomon Hykes, in the role of BDFL.
-This means that all decisions are made by default by me. Since making every decision myself would be highly unscalable, in practice decisions are spread across multiple maintainers.
+This means that all decisions are made by default by me. Since making every decision myself would be highly un-scalable, in practice decisions are spread across multiple maintainers.
 
 The relevant maintainer for a pull request is assigned in 3 steps:
 
 * Step 1: Determine the subdirectory affected by the pull request. This might be src/registry, docs/source/api, or any other part of the repo.
 
-* Step 2: Find the MAINTAINERS file which affects this directory. If the directory itself does not have a MAINTAINERS file, work your way up the the repo hierarchy until you find one.
+* Step 2: Find the MAINTAINERS file which affects this directory. If the directory itself does not have a MAINTAINERS file, work your way up the repo hierarchy until you find one.
 
 * Step 3: The first maintainer listed is the primary maintainer. The pull request is assigned to him. He may assign it to other listed maintainers, at his discretion.
 

@@ -18,6 +18,7 @@ type Driver interface {
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
+	Put(id string)
 	Exists(id string) bool
 
 	Status() [][2]string
@@ -42,6 +43,8 @@ var (
 		"aufs",
 		"devicemapper",
 		"vfs",
+		// experimental, has to be enabled manually for now
+		"btrfs",
 	}
 )
 

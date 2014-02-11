@@ -39,7 +39,7 @@ download the source.
 Usage
 -----
 
-The module provides a puppet class for installing docker and two defined types
+The module provides a puppet class for installing Docker and two defined types
 for managing images and containers.
 
 Installation
@@ -52,7 +52,7 @@ Installation
 Images
 ~~~~~~
 
-The next step is probably to install a docker image, for this we have a
+The next step is probably to install a Docker image. For this, we have a
 defined type which can be used like so:
 
 .. code-block:: ruby
@@ -65,10 +65,11 @@ This is equivalent to running:
 
   docker pull ubuntu
 
-Note that it will only if the image of that name does not already exist.
-This is downloading a large binary so on first run can take a while.
-For that reason this define turns off the default 5 minute timeout
-for exec. Note that you can also remove images you no longer need with:
+Note that it will only be downloaded if an image of that name does 
+not already exist. This is downloading a large binary so on first 
+run can take a while. For that reason this define turns off the 
+default 5 minute timeout for the exec type. Note that you can also
+remove images you no longer need with:
 
 .. code-block:: ruby
 
@@ -79,8 +80,8 @@ for exec. Note that you can also remove images you no longer need with:
 Containers
 ~~~~~~~~~~
 
-Now you have an image you can run commands within a container managed by
-docker.
+Now you have an image where you can run commands within a container
+managed by Docker.
 
 .. code-block:: ruby
 
@@ -103,7 +104,7 @@ Run also contains a number of optional parameters:
     image        => 'ubuntu',
     command      => '/bin/sh -c "while true; do echo hello world; sleep 1; done"',
     ports        => ['4444', '4555'],
-    volumes      => ['/var/lib/counchdb', '/var/log'],
+    volumes      => ['/var/lib/couchdb', '/var/log'],
     volumes_from => '6446ea52fbc9',
     memory_limit => 10485760, # bytes
     username     => 'example',

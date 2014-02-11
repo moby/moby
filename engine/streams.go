@@ -5,6 +5,7 @@ import (
 	"container/ring"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sync"
 )
 
@@ -12,6 +13,7 @@ type Output struct {
 	sync.Mutex
 	dests []io.Writer
 	tasks sync.WaitGroup
+	used  bool
 }
 
 // NewOutput returns a new Output object with no destinations attached.
@@ -20,15 +22,30 @@ func NewOutput() *Output {
 	return &Output{}
 }
 
+// Return true if something was written on this output
+func (o *Output) Used() bool {
+	o.Lock()
+	defer o.Unlock()
+	return o.used
+}
+
 // Add attaches a new destination to the Output. Any data subsequently written
 // to the output will be written to the new destination in addition to all the others.
 // This method is thread-safe.
-// FIXME: Add cannot fail
-func (o *Output) Add(dst io.Writer) error {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+func (o *Output) Add(dst io.Writer) {
+	o.Lock()
+	defer o.Unlock()
 	o.dests = append(o.dests, dst)
-	return nil
+}
+
+// Set closes and remove existing destination and then attaches a new destination to
+// the Output. Any data subsequently written to the output will be written to the new
+// destination in addition to all the others. This method is thread-safe.
+func (o *Output) Set(dst io.Writer) {
+	o.Close()
+	o.Lock()
+	defer o.Unlock()
+	o.dests = []io.Writer{dst}
 }
 
 // AddPipe creates an in-memory pipe with io.Pipe(), adds its writing end as a destination,
@@ -80,8 +97,9 @@ func (o *Output) AddString(dst *string) error {
 // Write writes the same data to all registered destinations.
 // This method is thread-safe.
 func (o *Output) Write(p []byte) (n int, err error) {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+	o.Lock()
+	defer o.Unlock()
+	o.used = true
 	var firstErr error
 	for _, dst := range o.dests {
 		_, err := dst.Write(p)
@@ -96,8 +114,8 @@ func (o *Output) Write(p []byte) (n int, err error) {
 // AddTail and AddString tasks to complete.
 // The Close method of each destination is called if it exists.
 func (o *Output) Close() error {
-	o.Mutex.Lock()
-	defer o.Mutex.Unlock()
+	o.Lock()
+	defer o.Unlock()
 	var firstErr error
 	for _, dst := range o.dests {
 		if closer, ok := dst.(io.WriteCloser); ok {
@@ -130,6 +148,17 @@ func (i *Input) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	return i.src.Read(p)
+}
+
+// Closes the src
+// Not thread safe on purpose
+func (i *Input) Close() error {
+	if i.src != nil {
+		if closer, ok := i.src.(io.WriteCloser); ok {
+			return closer.Close()
+		}
+	}
+	return nil
 }
 
 // Add attaches a new source to the input.
@@ -186,6 +215,42 @@ func (o *Output) AddEnv() (dst *Env, err error) {
 				return
 			}
 			*dst = *env
+		}
+	}()
+	return dst, nil
+}
+
+func (o *Output) AddListTable() (dst *Table, err error) {
+	src, err := o.AddPipe()
+	if err != nil {
+		return nil, err
+	}
+	dst = NewTable("", 0)
+	o.tasks.Add(1)
+	go func() {
+		defer o.tasks.Done()
+		content, err := ioutil.ReadAll(src)
+		if err != nil {
+			return
+		}
+		if _, err := dst.ReadListFrom(content); err != nil {
+			return
+		}
+	}()
+	return dst, nil
+}
+
+func (o *Output) AddTable() (dst *Table, err error) {
+	src, err := o.AddPipe()
+	if err != nil {
+		return nil, err
+	}
+	dst = NewTable("", 0)
+	o.tasks.Add(1)
+	go func() {
+		defer o.tasks.Done()
+		if _, err := dst.ReadFrom(src); err != nil {
+			return
 		}
 	}()
 	return dst, nil

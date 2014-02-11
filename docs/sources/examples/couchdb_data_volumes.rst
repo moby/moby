@@ -41,7 +41,7 @@ This time, we're requesting shared access to ``$COUCH1``'s volumes.
 
 .. code-block:: bash
 
-    COUCH2=$(sudo docker run -d -p 5984 -volumes-from $COUCH1 shykes/couchdb:2013-05-03)
+    COUCH2=$(sudo docker run -d -p 5984 --volumes-from $COUCH1 shykes/couchdb:2013-05-03)
 
 Browse data on the second database
 ----------------------------------

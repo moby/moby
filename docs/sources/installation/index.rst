@@ -21,14 +21,13 @@ Contents:
    rhel
    fedora
    archlinux
+   cruxlinux
    gentoolinux
+   openSUSE
    frugalware
-   vagrant
+   mac
    windows
    amazon
    rackspace
    google
-   kernel
    binaries
-   security
-   upgrading

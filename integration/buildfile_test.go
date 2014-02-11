@@ -148,6 +148,65 @@ RUN [ "$(/hello.sh)" = "hello world" ]
 		nil,
 	},
 
+	// Users and groups
+	{
+		`
+FROM {IMAGE}
+
+# Make sure our defaults work
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)" = '0:0/root:root' ]
+
+# TODO decide if "args.user = strconv.Itoa(syscall.Getuid())" is acceptable behavior for changeUser in sysvinit instead of "return nil" when "USER" isn't specified (so that we get the proper group list even if that is the empty list, even in the default case of not supplying an explicit USER to run as, which implies USER 0)
+USER root
+RUN [ "$(id -G):$(id -Gn)" = '0:root' ]
+
+# Setup dockerio user and group
+RUN echo 'dockerio:x:1000:1000::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1000:' >> /etc/group
+
+# Make sure we can switch to our user and all the information is exactly as we expect it to be
+USER dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000:dockerio' ]
+
+# Switch back to root and double check that worked exactly as we might expect it to
+USER root
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0:root' ]
+
+# Add a "supplementary" group for our dockerio user
+RUN echo 'supplementary:x:1001:dockerio' >> /etc/group
+
+# ... and then go verify that we get it like we expect
+USER dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000 1001:dockerio supplementary' ]
+USER 1000
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000 1001:dockerio supplementary' ]
+
+# super test the new "user:group" syntax
+USER dockerio:dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000:dockerio' ]
+USER 1000:dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000:dockerio' ]
+USER dockerio:1000
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000:dockerio' ]
+USER 1000:1000
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1000/dockerio:dockerio/1000:dockerio' ]
+USER dockerio:supplementary
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1001/dockerio:supplementary/1001:supplementary' ]
+USER dockerio:1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1001/dockerio:supplementary/1001:supplementary' ]
+USER 1000:supplementary
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1001/dockerio:supplementary/1001:supplementary' ]
+USER 1000:1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1000:1001/dockerio:supplementary/1001:supplementary' ]
+
+# make sure unknown uid/gid still works properly
+USER 1042:1043
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1042:1043/1042:1043/1043:1043' ]
+`,
+		nil,
+		nil,
+	},
+
 	// Environment variable
 	{
 		`
@@ -220,6 +279,31 @@ run    [ "$(cat /bar/withfile)" = "test2" ]
 		[][2]string{
 			{"testfile", "test1"},
 			{"testdir/withfile", "test2"},
+		},
+		nil,
+	},
+
+	// JSON!
+	{
+		`
+FROM {IMAGE}
+RUN ["/bin/echo","hello","world"]
+CMD ["/bin/true"]
+ENTRYPOINT ["/bin/echo","your command -->"]
+`,
+		nil,
+		nil,
+	},
+	{
+		`
+FROM {IMAGE}
+ADD test /test
+RUN ["chmod","+x","/test"]
+RUN ["/test"]
+RUN [ "$(cat /testfile)" = 'test!' ]
+`,
+		[][2]string{
+			{"test", "#!/bin/sh\necho 'test!' > /testfile"},
 		},
 		nil,
 	},
@@ -296,7 +380,7 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
 	if err != nil {
 		return nil, err
@@ -700,7 +784,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -746,7 +830,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
 
 	if err == nil {
@@ -821,4 +905,20 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	if err != docker.ErrDockerfileEmpty {
 		t.Fatal("Expected: %v, got: %v", docker.ErrDockerfileEmpty, err)
 	}
+}
+
+func TestBuildOnBuildTrigger(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+	from {IMAGE}
+	onbuild run echo here is the trigger
+	onbuild run touch foobar
+	`,
+		nil, nil,
+	},
+		t, nil, true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// FIXME: test that the 'foobar' file was created in the final build.
 }

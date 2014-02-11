@@ -151,12 +151,15 @@ func SaveConfig(configFile *ConfigFile) error {
 
 // try to register/login to the registry server
 func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
-	client := &http.Client{}
-	reqStatusCode := 0
-	var status string
-	var reqBody []byte
+	var (
+		status        string
+		reqBody       []byte
+		err           error
+		client        = &http.Client{}
+		reqStatusCode = 0
+		serverAddress = authConfig.ServerAddress
+	)
 
-	serverAddress := authConfig.ServerAddress
 	if serverAddress == "" {
 		serverAddress = IndexServerAddress()
 	}

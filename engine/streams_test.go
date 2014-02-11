@@ -95,9 +95,7 @@ func TestOutputAddEnv(t *testing.T) {
 func TestOutputAddClose(t *testing.T) {
 	o := NewOutput()
 	var s sentinelWriteCloser
-	if err := o.Add(&s); err != nil {
-		t.Fatal(err)
-	}
+	o.Add(&s)
 	if err := o.Close(); err != nil {
 		t.Fatal(err)
 	}

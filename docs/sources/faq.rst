@@ -26,7 +26,7 @@ Does Docker run on Mac OS X or Windows?
    Not at this time, Docker currently only runs on Linux, but you can
    use VirtualBox to run Docker in a virtual machine on your box, and
    get the best of both worlds. Check out the
-   :ref:`install_using_vagrant` and :ref:`windows` installation
+   :ref:`macosx` and :ref:`windows` installation
    guides.
 
 How do containers compare to virtual machines?
@@ -172,14 +172,22 @@ Linux:
 - Fedora 19/20+
 - RHEL 6.5+
 - Centos 6+
-- Gento
+- Gentoo
 - ArchLinux
+- openSUSE 12.3+
+- CRUX 3.0+
 
 Cloud:
 
 - Amazon EC2
 - Google Compute Engine
 - Rackspace
+
+How do I report a security issue with Docker?
+.............................................
+
+You can learn about the project's security policy `here <http://www.docker.io/security/>`_
+and report security issues to this `mailbox <mailto:security@docker.com>`_.
 
 Can I help by adding some questions and answers?
 ................................................
@@ -195,7 +203,7 @@ Where can I find more answers?
     * `Docker user mailinglist`_
     * `Docker developer mailinglist`_
     * `IRC, docker on freenode`_
-    * `Github`_
+    * `GitHub`_
     * `Ask questions on Stackoverflow`_
     * `Join the conversation on Twitter`_
 

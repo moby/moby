@@ -1,5 +1,5 @@
 :title: Installation on FrugalWare
-:description: Docker installation on FrugalWare.
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: frugalware linux, virtualization, docker, documentation, installation
 
 .. _frugalware:
@@ -60,21 +60,3 @@ To start on system boot:
 ::
 
     sudo systemctl enable lxc-docker
-    
-Network Configuration
----------------------
-
-IPv4 packet forwarding is disabled by default on FrugalWare, so Internet access from inside
-the container may not work.
-
-To enable packet forwarding, run the following command as the ``root`` user on the host system:
-
-::
-
-    sysctl net.ipv4.ip_forward=1
-    
-And, to make it persistent across reboots, add the following to a file named **/etc/sysctl.d/docker.conf**:
-
-::
-
-    net.ipv4.ip_forward=1

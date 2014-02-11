@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.8.0 (2014-02-04)
+
+#### Notable features since 0.7.0
+
+* Images and containers can be removed much faster
+* Building an image from source with docker build is now much faster
+* The Docker daemon starts and stops much faster
+* The memory footprint of many common operations has been reduced, by streaming files instead of buffering them in memory, fixing memory leaks, and fixing various suboptimal memory allocations
+* Several race conditions were fixed, making Docker more stable under very high concurrency load. This makes Docker more stable and less likely to crash and reduces the memory footprint of many common operations
+* All packaging operations are now built on the Go language’s standard tar implementation, which is bundled with Docker itself. This makes packaging more portable across host distributions, and solves several issues caused by quirks and incompatibilities between different distributions of tar
+* Docker can now create, remove and modify larger numbers of containers and images graciously thanks to more aggressive releasing of system resources. For example the storage driver API now allows Docker to do reference counting on mounts created by the drivers
+With the ongoing changes to the networking and execution subsystems of docker testing these areas have been a focus of the refactoring.  By moving these subsystems into separate packages we can test, analyze, and monitor coverage and quality of these packages
+* Many components have been separated into smaller sub-packages, each with a dedicated test suite. As a result the code is better-tested, more readable and easier to change
+
+* The ADD instruction now supports caching, which avoids unnecessarily re-uploading the same source content again and again when it hasn’t changed
+* The new ONBUILD instruction adds to your image a “trigger” instruction to be executed at a later time, when the image is used as the base for another build
+* Docker now ships with an experimental storage driver which uses the BTRFS filesystem for copy-on-write
+* Docker is officially supported on Mac OSX
+* The Docker daemon supports systemd socket activation
+
+## 0.7.6 (2014-01-14)
+
+#### Builder
+
+* Do not follow symlink outside of build context
+
+#### Runtime
+
+- Remount bind mounts when ro is specified
+* Use https for fetching docker version
+
+#### Other
+
+* Inline the test.docker.io fingerprint
+* Add ca-certificates to packaging documentation
+
 ## 0.7.5 (2014-01-09)
 
 #### Builder

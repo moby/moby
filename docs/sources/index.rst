@@ -5,26 +5,21 @@
 Introduction
 ------------
 
-``docker``, the Linux Container Runtime, runs Unix processes with
-strong guarantees of isolation across servers. Your software runs
-repeatably everywhere because its :ref:`container_def` includes any
-dependencies.
+Docker is an open-source engine to easily create lightweight, portable,
+self-sufficient containers from any application. The same container that a
+developer builds and tests on a laptop can run at scale, in production, on
+VMs, bare metal, OpenStack clusters, or any major infrastructure provider.
 
-``docker`` runs three ways:
+Common use cases for Docker include:
 
-* as a daemon to manage LXC containers on your :ref:`Linux host
-  <kernel>` (``sudo docker -d``)
-* as a :ref:`CLI <cli>` which talks to the daemon's `REST API
-  <api/docker_remote_api>`_ (``docker run ...``)
-* as a client of :ref:`Repositories <working_with_the_repository>`
-  that let you share what you've built (``docker pull, docker
-  commit``).
+- Automating the packaging and deployment of web applications.
+- Automated testing and continuous integration/deployment.
+- Deploying and scaling databases and backend services in a service-oriented environment.
+- Building custom PaaS environments, either from scratch or as an extension of off-the-shelf platforms like OpenShift or Cloud Foundry.
 
-Each use of ``docker`` is documented here. The features of Docker are
-currently in active development, so this documentation will change
-frequently.
+Please note Docker is currently under heavy developement. It should not be used in production (yet).
 
-For an overview of Docker, please see the `Introduction
+For a high-level overview of Docker, please see the `Introduction
 <http://www.docker.io/learn_more/>`_. When you're ready to start working with
 Docker, we have a `quick start <http://www.docker.io/gettingstarted>`_
 and a more in-depth guide to :ref:`ubuntu_linux` and other

@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
@@ -495,7 +495,6 @@ func TestDriverCreate(t *testing.T) {
 			"DmTaskCreate",
 			"DmTaskGetInfo",
 			"sysMount",
-			"Mounted",
 			"DmTaskRun",
 			"DmTaskSetTarget",
 			"DmTaskSetSector",
@@ -614,7 +613,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskCreate",
 			"DmTaskGetInfo",
 			"sysMount",
-			"Mounted",
 			"DmTaskRun",
 			"DmTaskSetTarget",
 			"DmTaskSetSector",
@@ -641,7 +639,10 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetMessage",
 			"DmTaskCreate",
 			"DmTaskGetInfo",
-			"Mounted",
+			"DmTaskSetCookie",
+			"DmTaskSetTarget",
+			"DmTaskSetAddNode",
+			"DmUdevWait",
 			"sysUnmount",
 		)
 	}()

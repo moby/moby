@@ -1,3 +1,5 @@
+// +build amd64
+
 package graphdb
 
 import (
