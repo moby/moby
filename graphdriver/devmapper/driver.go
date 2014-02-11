@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
+	"os"
 	"path"
 )
 
@@ -94,7 +95,16 @@ func (d *Driver) Remove(id string) error {
 		return err
 	}
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
-	return d.DeviceSet.DeleteDevice(id)
+	if err := d.DeviceSet.DeleteDevice(id); err != nil {
+		return err
+	}
+
+	mp := path.Join(d.home, "mnt", id)
+	if err := os.RemoveAll(mp); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }
 
 func (d *Driver) Get(id string) (string, error) {
