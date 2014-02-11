@@ -31,6 +31,15 @@ container, Docker provide ways to bind the container port to an
 interface of the host system. To simplify communication between
 containers, Docker provides the linking mechanism.
 
+Auto map all exposed ports on the host
+-------------------------------------
+
+To bind all the exposed container ports to the host automatically, use 
+``docker run -P <imageid>``.  The mapped host ports will be auto-selected 
+from a pool of unused ports (49000..49900), and you will need to use 
+``docker ps``, ``docker inspect <container_id>``  or 
+``docker port <container_id> <port>`` to determine what they are.
+
 Binding a port to a host interface
 -----------------------------------
 
