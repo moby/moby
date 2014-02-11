@@ -531,8 +531,10 @@ func NetworkLinkAdd(name string, linkType string) error {
 	msg := newIfInfomsg(syscall.AF_UNSPEC)
 	wb.AddData(msg)
 
-	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name))
-	wb.AddData(nameData)
+	if name != "" {
+		nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name))
+		wb.AddData(nameData)
+	}
 
 	kindData := newRtAttr(IFLA_INFO_KIND, nonZeroTerminated(linkType))
 
