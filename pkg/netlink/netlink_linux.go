@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os/exec"
 	"syscall"
 	"unsafe"
 )
@@ -741,37 +742,8 @@ func NetworkChangeName(iface *net.Interface, newName string) error {
 }
 
 func NetworkCreateVethPair(name1, name2 string) error {
-	s, err := getNetlinkSocket()
-	if err != nil {
-		return err
+	if data, err := exec.Command("ip", "link", "add", name1, "type", "veth", "peer", "name", name2).Output(); err != nil {
+		return fmt.Errorf("%s %s", data, err)
 	}
-	defer s.Close()
-
-	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
-
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
-	wb.AddData(msg)
-
-	kindData := newRtAttr(IFLA_INFO_KIND, nonZeroTerminated("veth"))
-	info := newRtAttr(syscall.IFLA_LINKINFO, kindData.ToWireFormat())
-	//	wb.AddData(info)
-
-	peerName := newRtAttr(syscall.IFLA_IFNAME, nonZeroTerminated(name2))
-	peer := newRtAttr(VETH_PEER, peerName.ToWireFormat())
-	//	wb.AddData(peer)
-
-	b := []byte{}
-	b = append(b, peer.ToWireFormat()...)
-	b = append(b, info.ToWireFormat()...)
-
-	infoData := newRtAttr(IFLA_INFO_DATA, b)
-	wb.AddData(infoData)
-
-	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name1))
-	wb.AddData(nameData)
-
-	if err := s.Send(wb); err != nil {
-		return err
-	}
-	return s.HandleAck(wb.Seq)
+	return nil
 }
