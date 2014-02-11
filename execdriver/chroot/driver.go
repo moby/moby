@@ -99,3 +99,15 @@ func (d *driver) Name() string {
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	return nil, fmt.Errorf("Not supported")
 }
+
+func (d *driver) GetCgroupSubsystem(id, subsystem string) (string, error) {
+	return "", fmt.Errorf("Not supported")
+}
+
+func (d *driver) SetCgroupSubsystem(id, subsystem, value string) (string, error) {
+	return "", fmt.Errorf("Not supported")
+}
+
+func (d *driver) UpdateConfig(c *execdriver.Command) error {
+	panic("Not implemented")
+}

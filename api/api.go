@@ -918,6 +918,53 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	return nil
 }
 
+func postContainersCgroup(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	saveToFile, err := getBoolParam(r.FormValue("w"))
+	if err != nil {
+		return err
+	}
+
+	var (
+		cgroupData     engine.Env
+		readSubsystem  []string
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		if err := cgroupData.Decode(r.Body); err != nil {
+			utils.Debugf("err %s", err)
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	readSubsystem = cgroupData.GetList("ReadSubsystem")
+	if err := cgroupData.GetJson("WriteSubsystem", &writeSubsystem); err != nil {
+		return err
+	}
+
+	job := eng.Job("cgroup", vars["name"])
+	job.SetenvList("readSubsystem", readSubsystem)
+	job.SetenvJson("writeSubsystem", writeSubsystem)
+	job.SetenvBool("saveToFile", saveToFile)
+
+	job.Stdout.Add(w)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1031,6 +1078,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/containers/{name:.*}/cgroup":  postContainersCgroup,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

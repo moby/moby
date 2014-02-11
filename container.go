@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -1606,4 +1607,45 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 		return pty, nil
 	}
 	return nil, ErrNotATTY
+}
+
+func (container *Container) AddLXCConfig(subsystem string, value string) error {
+	findAndUpdate := false
+	for i := range container.hostConfig.LxcConf {
+		if strings.HasSuffix(container.hostConfig.LxcConf[i].Key, subsystem) {
+			if utils.IsInBytesSubsystem(subsystem) {
+				parsedValue, err := utils.RAMInBytes(value)
+				if err != nil {
+					return err
+				}
+				value = strconv.FormatInt(parsedValue, 10)
+			}
+			container.hostConfig.LxcConf[i].Value = value
+			findAndUpdate = true
+		}
+	}
+	if !findAndUpdate {
+		var kvPair KeyValuePair
+		if !strings.HasPrefix(subsystem, "lxc.cgroup.") {
+			kvPair.Key = "lxc.cgroup." + subsystem
+		}
+		if utils.IsInBytesSubsystem(subsystem) {
+			parsedValue, err := utils.RAMInBytes(value)
+			if err != nil {
+				return err
+			}
+			value = strconv.FormatInt(parsedValue, 10)
+		}
+		kvPair.Value = value
+		container.hostConfig.LxcConf = append(container.hostConfig.LxcConf, kvPair)
+	}
+	return nil
+}
+
+func (container *Container) GenerateLXCConfig() error {
+	populateCommand(container)
+	if err := container.runtime.UpdateConfig(container); err != nil {
+		return err
+	}
+	return nil
 }

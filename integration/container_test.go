@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -1717,4 +1718,85 @@ func TestRestartGhost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestAddLXCConfig(t *testing.T) {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer nuke(runtime)
+	config, hc, _, err := docker.ParseRun([]string{"-i", "-lxc-conf", "lxc.cgroup.cpuset.cpus=0", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobCreate := eng.Job("create")
+	if err := jobCreate.ImportEnv(config); err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	jobCreate.Stdout.AddString(&id)
+	if err := jobCreate.Run(); err != nil {
+		t.Fatal(err)
+	}
+	jobStart := eng.Job("start", id)
+	if err := jobStart.ImportEnv(hc); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobStart.Run(); err != nil {
+		t.Fatal(err)
+	}
+	// FIXME: this hack can be removed once Wait is a job
+	container := runtime.Get(id)
+	if container == nil {
+		t.Fatalf("Couldn't retrieve container %s from runtime", id)
+	}
+
+	defer runtime.Destroy(container)
+
+	cStdin, err := container.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time to the process to start
+	container.WaitTimeout(500 * time.Millisecond)
+
+	if !container.State.IsRunning() {
+		t.Errorf("Container should be running")
+	}
+
+	// Can not access unexport field hostConfig, So use reflect to test result.
+	r := reflect.ValueOf(container)
+	f := reflect.Indirect(r).FieldByName("hostConfig").Elem().FieldByName("LxcConf")
+
+	if f.Len() != 1 {
+		t.Fatalf("Except length is 1, but actual is %d", f.Len())
+	}
+
+	if err := container.AddLXCConfig("cpuset.cpus", "1,2"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := container.AddLXCConfig("blkio.weight", "500"); err != nil {
+		t.Fatal(err)
+	}
+
+	if f.Len() != 2 {
+		t.Fatalf("Except length is 2, but actual is %d", f.Len())
+	}
+
+	for i := 0; i < f.Len(); i++ {
+		pair := f.Index(i)
+		key := pair.FieldByName("Key").String()
+		value := pair.FieldByName("Value").String()
+		if key == "cpuset.cpus" && value != "1,2" {
+			t.Fatalf("Unmatched pair")
+		}
+		if key == "blkio.weight" && value != "500" {
+			t.Fatalf("Unmatched pair")
+		}
+	}
+
+	// Try to avoid the timeout in destroy. Best effort, don't check error
+	cStdin.Close()
+	container.WaitTimeout(2 * time.Second)
 }

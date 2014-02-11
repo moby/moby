@@ -85,6 +85,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
+		{"cgroup", "Set or get cgroup subsystems on a container"},
 		{"cp", "Copy files/folders from the containers filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
@@ -2256,6 +2257,64 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		return err
 	}
 	return nil
+}
+
+func (cli *DockerCli) CmdCgroup(args ...string) error {
+	cmd := cli.Subcmd("cgroup", "[OPTIONS] CONTAINER SUBSYSTEM=[VALUE]...", "Set or get cgroup subsystems on a container")
+	flSaveToFile := cmd.Bool([]string{"#w", "-w"}, false, "Save change to rcFile")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+
+	name := cmd.Arg(0)
+
+	var (
+		cgroupData     engine.Env
+		readSubsystem  []string
+		writeSubsystem []struct {
+			Key   string
+			Value string
+		}
+	)
+
+	for _, entry := range cmd.Args()[1:] {
+		pair := strings.Split(entry, "=")
+		if len(pair) < 1 || pair[0] == "" {
+			fmt.Fprintf(cli.err, "WARNING: empty subsystem\n")
+		} else if len(pair) == 1 {
+			readSubsystem = append(readSubsystem, pair[0])
+		} else {
+			writeSubsystem = append(writeSubsystem, struct {
+				Key   string
+				Value string
+			}{Key: pair[0], Value: pair[1]})
+		}
+	}
+
+	cgroupData.SetList("ReadSubsystem", readSubsystem)
+	cgroupData.SetJson("WriteSubsystem", writeSubsystem)
+
+	var encounteredError error
+
+	v := url.Values{}
+	if *flSaveToFile {
+		v.Set("w", "1")
+	}
+
+	body, _, err := readBody(cli.call("POST", "/containers/"+name+"/cgroup?"+v.Encode(), cgroupData, false))
+
+	if err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
+		encounteredError = fmt.Errorf("Error: failed to change subsystem on this container")
+	} else {
+		fmt.Fprintln(cli.out, string(body))
+	}
+	return encounteredError
 }
 
 func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {

@@ -838,6 +838,10 @@ func (runtime *Runtime) RestoreCommand(c *Container) error {
 	return runtime.execDriver.Restore(c.command)
 }
 
+func (runtime *Runtime) UpdateConfig(c *Container) error {
+	return runtime.execDriver.UpdateConfig(c.command)
+}
+
 // Nuke kills all containers then removes all content
 // from the content root, including images, volumes and
 // container filesystems.
