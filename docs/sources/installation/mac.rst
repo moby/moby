@@ -147,6 +147,18 @@ If SSH complains about keys:
 
     ssh-keygen -R '[localhost]:2022'
 
+Upgrading to a newer release of boot2docker
+-------------------------------------------
+
+To upgrade an initialised VM, you can use the following 3 commands. Your persistence
+disk will not be changed, so you won't lose your images and containers:
+
+.. code-block:: bash
+
+    ./boot2docker stop
+    ./boot2docker download
+    ./boot2docker start
+
 About the way Docker works on Mac OS X:
 ---------------------------------------
 
