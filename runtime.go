@@ -133,14 +133,6 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 
-	// Get the root filesystem from the driver
-	basefs, err := runtime.driver.Get(container.ID)
-	if err != nil {
-		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
-	}
-	defer runtime.driver.Put(container.ID)
-	container.basefs = basefs
-
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
