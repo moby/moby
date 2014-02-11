@@ -251,9 +251,14 @@ value ``<value>``. This value will be passed to all future ``RUN``
 instructions. This is functionally equivalent to prefixing the command
 with ``<key>=<value>``
 
+The environment variables set using ``ENV`` will persist when a container is run
+from the resulting image. You can view the values using ``docker inspect``, and change them using ``docker run --env <key>=<value>``.
+
 .. note::
-    The environment variables will persist when a container is run
-    from the resulting image.
+    One example where this can cause unexpected consequenses, is setting 
+    ``ENV DEBIAN_FRONTEND noninteractive``.
+    Which will persist when the container is run interactively; for example: 
+    ``docker run -t -i image bash``
 
 .. _dockerfile_add:
 
