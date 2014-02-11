@@ -1562,7 +1562,7 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) Copy(resource string) (archive.Archive, error) {
+func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
@@ -1589,7 +1589,7 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return EofReader(archive, func() { container.Unmount() }), nil
+	return utils.NewReadCloserWrapper(archive, container.Unmount), nil
 }
 
 // Returns true if the container exposes a certain port

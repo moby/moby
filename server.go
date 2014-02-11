@@ -2339,6 +2339,7 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
+		defer data.Close()
 
 		if _, err := io.Copy(job.Stdout, data); err != nil {
 			return job.Error(err)
