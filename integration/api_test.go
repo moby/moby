@@ -1175,6 +1175,8 @@ func TestGetEnabledCors(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	eng := NewTestEngine(t)
+	//we expect errors, so we disable stderr
+	eng.Stderr = ioutil.Discard
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	initialImages := getImages(eng, t, true, "")

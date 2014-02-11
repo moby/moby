@@ -631,7 +631,7 @@ func deleteImages(eng *engine.Engine, version float64, w http.ResponseWriter, r 
 	}
 	var job = eng.Job("image_delete", vars["name"])
 	streamJSON(job, w, false)
-	job.SetenvBool("autoPrune", version > 1.1)
+	job.Setenv("force", r.Form.Get("force"))
 
 	return job.Run()
 }

@@ -1031,7 +1031,10 @@ func TestContainerOrphaning(t *testing.T) {
 	buildSomething(template2, imageName)
 
 	// remove the second image by name
-	resp, err := srv.DeleteImage(imageName, true)
+	resp := engine.NewTable("", 0)
+	if err := srv.DeleteImage(imageName, resp, true, false); err == nil {
+		t.Fatal("Expected error, got none")
+	}
 
 	// see if we deleted the first image (and orphaned the container)
 	for _, i := range resp.Data {
