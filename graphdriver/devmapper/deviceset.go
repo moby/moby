@@ -658,19 +658,18 @@ func (devices *DeviceSet) deactivatePool() error {
 func (devices *DeviceSet) deactivateDevice(hash string) error {
 	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
-	var devname string
-	// FIXME: shouldn't we just register the pool into devices?
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
+
+	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("Unknown device %s", hash)
 	}
-	devinfo, err := getInfo(devname)
+	devinfo, err := getInfo(info.Name())
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
-		if err := devices.removeDeviceAndWait(devname); err != nil {
+		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
@@ -741,18 +740,18 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 // a) the device registered at <device_set_prefix>-<hash> is closed,
 // or b) the 1 second timeout expires.
 func (devices *DeviceSet) waitClose(hash string) error {
-	devname, err := devices.byHash(hash)
-	if err != nil {
-		return err
+	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("Unknown device %s", hash)
 	}
 	i := 0
 	for ; i < 1000; i += 1 {
-		devinfo, err := getInfo(devname)
+		devinfo, err := getInfo(info.Name())
 		if err != nil {
 			return err
 		}
 		if i%100 == 0 {
-			utils.Debugf("Waiting for unmount of %s: opencount=%d", devname, devinfo.OpenCount)
+			utils.Debugf("Waiting for unmount of %s: opencount=%d", hash, devinfo.OpenCount)
 		}
 		if devinfo.OpenCount == 0 {
 			break
@@ -760,24 +759,9 @@ func (devices *DeviceSet) waitClose(hash string) error {
 		time.Sleep(1 * time.Millisecond)
 	}
 	if i == 1000 {
-		return fmt.Errorf("Timeout while waiting for device %s to close", devname)
+		return fmt.Errorf("Timeout while waiting for device %s to close", hash)
 	}
 	return nil
-}
-
-// byHash is a hack to allow looking up the deviceset's pool by the hash "pool".
-// FIXME: it seems probably cleaner to register the pool in devices.Devices,
-// but I am afraid of arcane implications deep in the devicemapper code,
-// so this will do.
-func (devices *DeviceSet) byHash(hash string) (devname string, err error) {
-	if hash == "pool" {
-		return devices.getPoolDevName(), nil
-	}
-	info := devices.Devices[hash]
-	if info == nil {
-		return "", fmt.Errorf("hash %s doesn't exists", hash)
-	}
-	return info.Name(), nil
 }
 
 func (devices *DeviceSet) Shutdown() error {
