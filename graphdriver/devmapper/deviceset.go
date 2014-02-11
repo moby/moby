@@ -639,6 +639,22 @@ func (devices *DeviceSet) DeleteDevice(hash string) error {
 	return devices.deleteDevice(hash)
 }
 
+func (devices *DeviceSet) deactivatePool() error {
+	utils.Debugf("[devmapper] deactivatePool()")
+	defer utils.Debugf("[devmapper] deactivatePool END")
+	devname := devices.getPoolDevName()
+	devinfo, err := getInfo(devname)
+	if err != nil {
+		utils.Debugf("\n--->Err: %s\n", err)
+		return err
+	}
+	if devinfo.Exists != 0 {
+		return removeDevice(devname)
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) deactivateDevice(hash string) error {
 	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
@@ -789,11 +805,8 @@ func (devices *DeviceSet) Shutdown() error {
 		}
 	}
 
-	pool := devices.getPoolDevName()
-	if devinfo, err := getInfo(pool); err == nil && devinfo.Exists != 0 {
-		if err := devices.deactivateDevice("pool"); err != nil {
-			utils.Debugf("Shutdown deactivate %s , error: %s\n", pool, err)
-		}
+	if err := devices.deactivatePool(); err != nil {
+		utils.Debugf("Shutdown deactivate pool , error: %s\n", err)
 	}
 
 	return nil
