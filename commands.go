@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/sysinfo"
@@ -383,12 +384,12 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	if VERSION != "" {
-		fmt.Fprintf(cli.out, "Client version: %s\n", VERSION)
+	if dockerversion.VERSION != "" {
+		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
 	}
 	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
-	if GITCOMMIT != "" {
-		fmt.Fprintf(cli.out, "Git commit (client): %s\n", GITCOMMIT)
+	if dockerversion.GITCOMMIT != "" {
+		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
 	}
 
 	body, _, err := readBody(cli.call("GET", "/version", nil, false))
@@ -413,7 +414,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	release := utils.GetReleaseVersion()
 	if release != "" {
 		fmt.Fprintf(cli.out, "Last stable version: %s", release)
-		if (VERSION != "" || remoteVersion.Exists("Version")) && (strings.Trim(VERSION, "-dev") != release || strings.Trim(remoteVersion.Get("Version"), "-dev") != release) {
+		if (dockerversion.VERSION != "" || remoteVersion.Exists("Version")) && (strings.Trim(dockerversion.VERSION, "-dev") != release || strings.Trim(remoteVersion.Get("Version"), "-dev") != release) {
 			fmt.Fprintf(cli.out, ", please update docker")
 		}
 		fmt.Fprintf(cli.out, "\n")
@@ -2298,7 +2299,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 			}
 		}
 	}
-	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
 	req.Host = cli.addr
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -2355,7 +2356,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
 	req.Host = cli.addr
 	if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
@@ -2419,7 +2420,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "Docker-Client/"+VERSION)
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
 	req.Header.Set("Content-Type", "plain/text")
 	req.Host = cli.addr
 

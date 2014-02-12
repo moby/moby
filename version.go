@@ -7,14 +7,6 @@ import (
 	"runtime"
 )
 
-var (
-	// FIXME: this is a convenience indirection to preserve legacy
-	// code. It can be removed by using dockerversion.VERSION and
-	// dockerversion.GITCOMMIT directly
-	GITCOMMIT string = dockerversion.GITCOMMIT
-	VERSION   string = dockerversion.VERSION
-)
-
 func init() {
 	engine.Register("version", jobVersion)
 }
@@ -31,8 +23,8 @@ func jobVersion(job *engine.Job) engine.Status {
 // environment.
 func dockerVersion() *engine.Env {
 	v := &engine.Env{}
-	v.Set("Version", VERSION)
-	v.Set("GitCommit", GITCOMMIT)
+	v.Set("Version", dockerversion.VERSION)
+	v.Set("GitCommit", dockerversion.GITCOMMIT)
 	v.Set("GoVersion", runtime.Version())
 	v.Set("Os", runtime.GOOS)
 	v.Set("Arch", runtime.GOARCH)

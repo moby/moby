@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
@@ -827,7 +828,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NEventsListener", len(srv.events))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
-	v.Set("InitSha1", utils.INITSHA1)
+	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)

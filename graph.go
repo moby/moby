@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -130,7 +131,7 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 		ID:            GenerateID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
-		DockerVersion: VERSION,
+		DockerVersion: dockerversion.VERSION,
 		Author:        author,
 		Config:        config,
 		Architecture:  runtime.GOARCH,
