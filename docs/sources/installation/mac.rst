@@ -117,7 +117,7 @@ client just like any other application.
     # Go version (server): go1.2
 
 Forwarding VM Port Range to Host
--------------------------------
+--------------------------------
 
 If we take the port range that docker uses by default with the -P option
 (49000-49900), and forward same range from host to vm, we'll be able to interact
