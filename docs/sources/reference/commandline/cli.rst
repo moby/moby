@@ -1088,6 +1088,10 @@ is, ``docker run`` is equivalent to the API ``/containers/create`` then
 The ``docker run`` command can be used in combination with ``docker commit`` to
 :ref:`change the command that a container runs <cli_commit_examples>`.
 
+See :ref:`port_redirection` for more detailed information about the ``--expose``, 
+``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for 
+specific examples using ``--link``.
+
 Known Issues (run -volumes-from)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
