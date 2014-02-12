@@ -26,6 +26,9 @@ and we will add the libraries here.
 +----------------------+----------------+--------------------------------------------+----------+
 | Javascript           | docker-js      | https://github.com/dgoujard/docker-js      | Active   |
 +----------------------+----------------+--------------------------------------------+----------+
+| Javascript (Angular) | docker-cp      | https://github.com/13W/docker-cp           | Active   |
+| **WebUI**            |                |                                            |          |
++----------------------+----------------+--------------------------------------------+----------+
 | Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  | Active   |
 | **WebUI**            |                |                                            |          |
 +----------------------+----------------+--------------------------------------------+----------+
