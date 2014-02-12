@@ -1895,7 +1895,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		if strings.Contains(e, ":") {
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
-		p := NewPort(splitProtoPort(e))
+		p := NewPort(splitPortEntry(e))
 		if _, exists := ports[p]; !exists {
 			ports[p] = struct{}{}
 		}

@@ -51,22 +51,28 @@ func (l *Link) Alias() string {
 
 func (l *Link) ToEnv() []string {
 	env := []string{}
-	alias := strings.ToUpper(l.Alias())
+	linkAlias := strings.ToUpper(l.Alias())
 
 	if p := l.getDefaultPort(); p != nil {
-		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", linkAlias, p.Proto(), l.ChildIP, p.Port()))
 	}
 
 	// Load exposed ports into the environment
 	for _, p := range l.Ports {
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", linkAlias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", linkAlias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", linkAlias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", linkAlias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+		if portAlias := p.Alias(); portAlias != "" {
+			env = append(env, fmt.Sprintf("%s_%s=%s://%s:%s", linkAlias, strings.ToUpper(portAlias), p.Proto(), l.ChildIP, p.Port()))
+			env = append(env, fmt.Sprintf("%s_%s_ADDR=%s", linkAlias, strings.ToUpper(portAlias), l.ChildIP))
+			env = append(env, fmt.Sprintf("%s_%s_PORT=%s", linkAlias, strings.ToUpper(portAlias), p.Port()))
+			env = append(env, fmt.Sprintf("%s_%s_PROTO=%s", linkAlias, strings.ToUpper(portAlias), p.Proto()))
+		}
 	}
 
 	// Load the linked container's name into the environment
-	env = append(env, fmt.Sprintf("%s_NAME=%s", alias, l.Name))
+	env = append(env, fmt.Sprintf("%s_NAME=%s", linkAlias, l.Name))
 
 	if l.ChildEnvironment != nil {
 		for _, v := range l.ChildEnvironment {
@@ -78,7 +84,7 @@ func (l *Link) ToEnv() []string {
 			if parts[0] == "HOME" || parts[0] == "PATH" {
 				continue
 			}
-			env = append(env, fmt.Sprintf("%s_ENV_%s=%s", alias, parts[0], parts[1]))
+			env = append(env, fmt.Sprintf("%s_ENV_%s=%s", linkAlias, parts[0], parts[1]))
 		}
 	}
 	return env

@@ -194,7 +194,7 @@ type PortBinding struct {
 	HostPort string
 }
 
-// 80/tcp
+// 80/tcp/alias
 type Port string
 
 func (p Port) Proto() string {
@@ -209,6 +209,14 @@ func (p Port) Port() string {
 	return strings.Split(string(p), "/")[0]
 }
 
+func (p Port) Alias() string {
+	parts := strings.Split(string(p), "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	return parts[2]
+}
+
 func (p Port) Int() int {
 	i, err := parsePort(p.Port())
 	if err != nil {
@@ -217,8 +225,12 @@ func (p Port) Int() int {
 	return i
 }
 
-func NewPort(proto, port string) Port {
-	return Port(fmt.Sprintf("%s/%s", port, proto))
+func NewPort(proto, port, alias string) Port {
+	portStr := fmt.Sprintf("%s/%s", port, proto)
+	if alias != "" {
+		portStr = fmt.Sprintf("%s/%s/%s", port, proto, alias)
+	}
+	return Port(portStr)
 }
 
 type PortMapping map[string]string // Deprecated

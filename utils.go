@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/utils"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -215,11 +216,11 @@ func parseLxcOpt(opt string) (string, string, error) {
 // FIXME: network related stuff (including parsing) should be grouped in network file
 const (
 	PortSpecTemplate       = "ip:hostPort:containerPort"
-	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort"
+	PortSpecTemplateFormat = "ip:hostPort:containerPort#alias | ip::containerPort#alias | hostPort:containerPort#alias"
 )
 
-// We will receive port specs in the format of ip:public:private/proto and these need to be
-// parsed in the internal types
+// We will receive port specs in the format of ip:public:private/proto#alias and
+// these need to be parsed in the internal types
 func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
 	var (
 		exposedPorts = make(map[Port]struct{}, len(ports))
@@ -228,9 +229,14 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 
 	for _, rawPort := range ports {
 		proto := "tcp"
+		alias := ""
 
 		if i := strings.LastIndex(rawPort, "/"); i != -1 {
 			proto = rawPort[i+1:]
+			rawPort = rawPort[:i]
+		}
+		if i := strings.LastIndex(rawPort, "#"); i != -1 {
+			alias = rawPort[i+1:]
 			rawPort = rawPort[:i]
 		}
 		if !strings.Contains(rawPort, ":") {
@@ -260,7 +266,7 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
 		}
 
-		port := NewPort(proto, containerPort)
+		port := NewPort(proto, containerPort, alias)
 		if _, exists := exposedPorts[port]; !exists {
 			exposedPorts[port] = struct{}{}
 		}
@@ -278,17 +284,18 @@ func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 	return exposedPorts, bindings, nil
 }
 
-// Splits a port in the format of port/proto
-func splitProtoPort(rawPort string) (string, string) {
-	parts := strings.Split(rawPort, "/")
-	l := len(parts)
-	if l == 0 {
-		return "", ""
+// Splits a port in the format of port[/proto][#alias] returning
+// as proto, port, alias
+func splitPortEntry(rawPort string) (string, string, string) {
+	re := regexp.MustCompile("([0-9]+)(?:/(tcp|udp))?(?:#(.+))?")
+	p := re.FindStringSubmatch(rawPort)
+	port, proto, alias := p[1], p[2], p[3]
+
+	if proto == "" {
+		proto = "tcp"
 	}
-	if l == 1 {
-		return "tcp", rawPort
-	}
-	return parts[0], parts[1]
+
+	return proto, port, alias
 }
 
 func parsePort(rawPort string) (int, error) {
