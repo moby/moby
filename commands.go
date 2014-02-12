@@ -14,6 +14,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
@@ -1757,16 +1758,16 @@ func ParseRun(args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *f
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = NewListOpts(ValidateAttach)
-		flVolumes = NewListOpts(ValidatePath)
-		flLinks   = NewListOpts(ValidateLink)
-		flEnv     = NewListOpts(ValidateEnv)
+		flAttach  = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes = opts.NewListOpts(opts.ValidatePath)
+		flLinks   = opts.NewListOpts(opts.ValidateLink)
+		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 
-		flPublish     ListOpts
-		flExpose      ListOpts
-		flDns         ListOpts
-		flVolumesFrom ListOpts
-		flLxcOpts     ListOpts
+		flPublish     opts.ListOpts
+		flExpose      opts.ListOpts
+		flDns         opts.ListOpts
+		flVolumesFrom opts.ListOpts
+		flLxcOpts     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
