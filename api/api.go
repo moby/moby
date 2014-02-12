@@ -27,12 +27,21 @@ import (
 	"syscall"
 )
 
+// FIXME: move code common to client and server to common.go
 const (
 	APIVERSION        = 1.9
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTHTTPPORT   = 4243
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 )
+
+func ValidateHost(val string) (string, error) {
+	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTHTTPPORT, DEFAULTUNIXSOCKET, val)
+	if err != nil {
+		return val, err
+	}
+	return host, nil
+}
 
 type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
