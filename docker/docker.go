@@ -8,16 +8,12 @@ import (
 
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
-)
-
-var (
-	GITCOMMIT string
-	VERSION   string
 )
 
 func main() {
@@ -72,8 +68,6 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
-	docker.GITCOMMIT = GITCOMMIT
-	docker.VERSION = VERSION
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
@@ -105,7 +99,7 @@ func main() {
 		job = eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
 		job.SetenvBool("EnableCors", *flEnableCors)
-		job.Setenv("Version", VERSION)
+		job.Setenv("Version", dockerversion.VERSION)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
@@ -127,5 +121,5 @@ func main() {
 }
 
 func showVersion() {
-	fmt.Printf("Docker version %s, build %s\n", VERSION, GITCOMMIT)
+	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
 }
