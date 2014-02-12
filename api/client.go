@@ -29,7 +29,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1277,19 +1276,6 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 	} else {
 		fmt.Fprint(cli.out, "\n")
 	}
-}
-
-func displayablePorts(ports *engine.Table) string {
-	result := []string{}
-	for _, port := range ports.Data {
-		if port.Get("IP") == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))
-		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
-		}
-	}
-	sort.Strings(result)
-	return strings.Join(result, ", ")
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
