@@ -16,6 +16,7 @@ import (
 
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -48,7 +49,7 @@ func mkRuntime(f utils.Fataler) *docker.Runtime {
 	return r
 }
 
-func createNamedTestContainer(eng *engine.Engine, config *docker.Config, f utils.Fataler, name string) (shortId string) {
+func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f utils.Fataler, name string) (shortId string) {
 	job := eng.Job("create", name)
 	if err := job.ImportEnv(config); err != nil {
 		f.Fatal(err)
@@ -60,7 +61,7 @@ func createNamedTestContainer(eng *engine.Engine, config *docker.Config, f utils
 	return
 }
 
-func createTestContainer(eng *engine.Engine, config *docker.Config, f utils.Fataler) (shortId string) {
+func createTestContainer(eng *engine.Engine, config *runconfig.Config, f utils.Fataler) (shortId string) {
 	return createNamedTestContainer(eng, config, f, "")
 }
 
@@ -252,8 +253,8 @@ func readFile(src string, t *testing.T) (content string) {
 // dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Container, *docker.HostConfig, error) {
-	config, hc, _, err := docker.ParseRun(args, nil)
+func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Container, *runconfig.HostConfig, error) {
+	config, hc, _, err := runconfig.Parse(args, nil)
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)

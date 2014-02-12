@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -126,7 +127,7 @@ func (graph *Graph) Get(name string) (*Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.Archive, container *Container, comment, author string, config *Config) (*Image, error) {
+func (graph *Graph) Create(layerData archive.Archive, container *Container, comment, author string, config *runconfig.Config) (*Image, error) {
 	img := &Image{
 		ID:            GenerateID(),
 		Comment:       comment,

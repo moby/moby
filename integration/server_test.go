@@ -3,6 +3,7 @@ package docker
 import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
 	"time"
@@ -71,7 +72,7 @@ func TestCreateRm(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +119,7 @@ func TestCreateNumberHostname(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, _, _, err := docker.ParseRun([]string{"-h", "web.0", unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{"-h", "web.0", unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +131,7 @@ func TestCreateNumberUsername(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, _, _, err := docker.ParseRun([]string{"-u", "1002", unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{"-u", "1002", unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +143,7 @@ func TestCreateRmVolumes(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := docker.ParseRun([]string{"-v", "/srv", unitTestImageID, "echo", "test"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"-v", "/srv", unitTestImageID, "echo", "test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +203,7 @@ func TestCommit(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "/bin/cat"}, nil)
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +225,7 @@ func TestRestartKillWait(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
 
-	config, hostConfig, _, err := docker.ParseRun([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +303,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := docker.ParseRun([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +402,7 @@ func TestRmi(t *testing.T) {
 
 	initialImages := getAllImages(eng, t)
 
-	config, hostConfig, _, err := docker.ParseRun([]string{unitTestImageID, "echo", "test"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{unitTestImageID, "echo", "test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -548,7 +549,7 @@ func TestListContainers(t *testing.T) {
 	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config := docker.Config{
+	config := runconfig.Config{
 		Image:     unitTestImageID,
 		Cmd:       []string{"/bin/sh", "-c", "cat"},
 		OpenStdin: true,
@@ -671,7 +672,7 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 	}
 
 	// Create a container from the image
-	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

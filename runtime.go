@@ -18,6 +18,7 @@ import (
 	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -329,7 +330,7 @@ func (runtime *Runtime) restore() error {
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (runtime *Runtime) Create(config *Config, name string) (*Container, []string, error) {
+func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Container, []string, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
@@ -347,7 +348,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
 	}
 
-	checkDeprecatedExpose := func(config *Config) bool {
+	checkDeprecatedExpose := func(config *runconfig.Config) bool {
 		if config != nil {
 			if config.PortSpecs != nil {
 				for _, p := range config.PortSpecs {
@@ -366,7 +367,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	}
 
 	if img.Config != nil {
-		if err := MergeConfig(config, img.Config); err != nil {
+		if err := runconfig.Merge(config, img.Config); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -441,7 +442,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
-		hostConfig:      &HostConfig{},
+		hostConfig:      &runconfig.HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		Name:            name,
@@ -518,7 +519,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
+func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
 	if err := container.Mount(); err != nil {

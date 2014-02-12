@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -38,7 +39,7 @@ type buildFile struct {
 
 	image      string
 	maintainer string
-	config     *Config
+	config     *runconfig.Config
 
 	contextPath string
 	context     *utils.TarSum
@@ -101,7 +102,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		}
 	}
 	b.image = image.ID
-	b.config = &Config{}
+	b.config = &runconfig.Config{}
 	if image.Config != nil {
 		b.config = image.Config
 	}
@@ -158,14 +159,14 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
+	config, _, _, err := runconfig.Parse(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
 	if err != nil {
 		return err
 	}
 
 	cmd := b.config.Cmd
 	b.config.Cmd = nil
-	MergeConfig(b.config, config)
+	runconfig.Merge(b.config, config)
 
 	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
@@ -742,7 +743,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
-		config:        &Config{},
+		config:        &runconfig.Config{},
 		outStream:     outStream,
 		errStream:     errStream,
 		tmpContainers: make(map[string]struct{}),
