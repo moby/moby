@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"os/exec"
 	"syscall"
 	"unsafe"
 )
@@ -144,29 +143,61 @@ func rtaAlignOf(attrlen int) int {
 
 type RtAttr struct {
 	syscall.RtAttr
-	Data []byte
+	Data     []byte
+	children []*RtAttr
+	prefix   int
 }
 
 func newRtAttr(attrType int, data []byte) *RtAttr {
-	attr := &RtAttr{}
+	attr := &RtAttr{
+		children: []*RtAttr{},
+	}
 	attr.Type = uint16(attrType)
 	attr.Data = data
 
 	return attr
 }
 
-func (attr *RtAttr) ToWireFormat() []byte {
+func newRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
+	attr := newRtAttr(attrType, data)
+	parent.children = append(parent.children, attr)
+	return attr
+}
+
+func (a *RtAttr) length() int {
+	l := 0
+	for _, child := range a.children {
+		l += child.length() + syscall.SizeofRtAttr + child.prefix
+	}
+	if l == 0 {
+		l++
+	}
+	return rtaAlignOf(l + len(a.Data))
+}
+
+func (a *RtAttr) ToWireFormat() []byte {
 	native := nativeEndian()
 
-	len := syscall.SizeofRtAttr + len(attr.Data)
-	b := make([]byte, rtaAlignOf(len))
-	native.PutUint16(b[0:2], uint16(len))
-	native.PutUint16(b[2:4], attr.Type)
-	for i, d := range attr.Data {
-		b[4+i] = d
+	length := a.length()
+	buf := make([]byte, rtaAlignOf(length+syscall.SizeofRtAttr))
+
+	if a.Data != nil {
+		copy(buf[4:], a.Data)
+	} else {
+		next := 4
+		for _, child := range a.children {
+			childBuf := child.ToWireFormat()
+			copy(buf[next+child.prefix:], childBuf)
+			next += rtaAlignOf(len(childBuf))
+		}
 	}
 
-	return b
+	if l := uint16(rtaAlignOf(length)); l != 0 {
+		native.PutUint16(buf[0:2], l+1)
+	}
+	native.PutUint16(buf[2:4], a.Type)
+
+	return buf
 }
 
 type NetlinkRequest struct {
@@ -557,12 +588,7 @@ func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
 }
 
 func zeroTerminated(s string) []byte {
-	bytes := make([]byte, len(s)+1)
-	for i := 0; i < len(s); i++ {
-		bytes[i] = s[i]
-	}
-	bytes[len(s)] = 0
-	return bytes
+	return []byte(s + "\000")
 }
 
 func nonZeroTerminated(s string) []byte {
@@ -744,8 +770,32 @@ func NetworkChangeName(iface *net.Interface, newName string) error {
 }
 
 func NetworkCreateVethPair(name1, name2 string) error {
-	if data, err := exec.Command("ip", "link", "add", name1, "type", "veth", "peer", "name", name2).Output(); err != nil {
-		return fmt.Errorf("%s %s", data, err)
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
 	}
-	return nil
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	wb.AddData(msg)
+
+	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name1))
+	wb.AddData(nameData)
+
+	nest1 := newRtAttr(syscall.IFLA_LINKINFO, nil)
+	newRtAttrChild(nest1, IFLA_INFO_KIND, zeroTerminated("veth"))
+	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
+	nest3 := newRtAttrChild(nest2, VETH_INFO_PEER, nil)
+
+	last := newRtAttrChild(nest3, syscall.IFLA_IFNAME, zeroTerminated(name2))
+	last.prefix = syscall.SizeofIfInfomsg
+
+	wb.AddData(nest1)
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+	return s.HandleAck(wb.Seq)
 }
