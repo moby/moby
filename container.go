@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
@@ -86,7 +87,7 @@ type Config struct {
 	AttachStdout    bool
 	AttachStderr    bool
 	PortSpecs       []string // Deprecated - Can be in the format of 8080/tcp
-	ExposedPorts    map[Port]struct{}
+	ExposedPorts    map[nat.Port]struct{}
 	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool // Open stdin
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
@@ -147,7 +148,7 @@ type HostConfig struct {
 	ContainerIDFile string
 	LxcConf         []KeyValuePair
 	Privileged      bool
-	PortBindings    map[Port][]PortBinding
+	PortBindings    nat.PortMap
 	Links           []string
 	PublishAllPorts bool
 }
@@ -189,38 +190,7 @@ type KeyValuePair struct {
 	Value string
 }
 
-type PortBinding struct {
-	HostIp   string
-	HostPort string
-}
-
-// 80/tcp
-type Port string
-
-func (p Port) Proto() string {
-	parts := strings.Split(string(p), "/")
-	if len(parts) == 1 {
-		return "tcp"
-	}
-	return parts[1]
-}
-
-func (p Port) Port() string {
-	return strings.Split(string(p), "/")[0]
-}
-
-func (p Port) Int() int {
-	i, err := parsePort(p.Port())
-	if err != nil {
-		panic(err)
-	}
-	return i
-}
-
-func NewPort(proto, port string) Port {
-	return Port(fmt.Sprintf("%s/%s", port, proto))
-}
-
+// FIXME: move deprecated port stuff to nat to clean up the core.
 type PortMapping map[string]string // Deprecated
 
 type NetworkSettings struct {
@@ -229,13 +199,13 @@ type NetworkSettings struct {
 	Gateway     string
 	Bridge      string
 	PortMapping map[string]PortMapping // Deprecated
-	Ports       map[Port][]PortBinding
+	Ports       nat.PortMap
 }
 
 func (settings *NetworkSettings) PortMappingAPI() *engine.Table {
 	var outs = engine.NewTable("", 0)
 	for port, bindings := range settings.Ports {
-		p, _ := parsePort(port.Port())
+		p, _ := nat.ParsePort(port.Port())
 		if len(bindings) == 0 {
 			out := &engine.Env{}
 			out.SetInt("PublicPort", p)
@@ -245,7 +215,7 @@ func (settings *NetworkSettings) PortMappingAPI() *engine.Table {
 		}
 		for _, binding := range bindings {
 			out := &engine.Env{}
-			h, _ := parsePort(binding.HostPort)
+			h, _ := nat.ParsePort(binding.HostPort)
 			out.SetInt("PrivatePort", p)
 			out.SetInt("PublicPort", h)
 			out.Set("Type", port.Proto())
@@ -1152,8 +1122,8 @@ func (container *Container) allocateNetwork() error {
 	}
 
 	var (
-		portSpecs = make(map[Port]struct{})
-		bindings  = make(map[Port][]PortBinding)
+		portSpecs = make(nat.PortSet)
+		bindings  = make(nat.PortMap)
 	)
 
 	if !container.State.IsGhost() {
@@ -1177,7 +1147,7 @@ func (container *Container) allocateNetwork() error {
 	for port := range portSpecs {
 		binding := bindings[port]
 		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
-			binding = append(binding, PortBinding{})
+			binding = append(binding, nat.PortBinding{})
 		}
 
 		for i := 0; i < len(binding); i++ {
@@ -1593,7 +1563,7 @@ func (container *Container) Copy(resource string) (archive.Archive, error) {
 }
 
 // Returns true if the container exposes a certain port
-func (container *Container) Exposes(p Port) bool {
+func (container *Container) Exposes(p nat.Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
 	return exists
 }

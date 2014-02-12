@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/nat"
 	"testing"
 )
 
@@ -125,7 +126,7 @@ func TestMergeConfig(t *testing.T) {
 		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
 
-	ports, _, err := parsePortSpecs([]string{"0000"})
+	ports, _, err := nat.ParsePortSpecs([]string{"0000"})
 	if err != nil {
 		t.Error(err)
 	}

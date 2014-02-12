@@ -1,4 +1,4 @@
-package docker
+package nat
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ func TestSortUniquePorts(t *testing.T) {
 		Port("22/tcp"),
 	}
 
-	sortPorts(ports, func(ip, jp Port) bool {
+	Sort(ports, func(ip, jp Port) bool {
 		return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && ip.Proto() == "tcp")
 	})
 
@@ -30,7 +30,7 @@ func TestSortSamePortWithDifferentProto(t *testing.T) {
 		Port("6379/udp"),
 	}
 
-	sortPorts(ports, func(ip, jp Port) bool {
+	Sort(ports, func(ip, jp Port) bool {
 		return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && ip.Proto() == "tcp")
 	})
 

@@ -3,10 +3,10 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/utils"
 	"io"
-	"strconv"
 	"strings"
 	"sync/atomic"
 )
@@ -98,7 +98,7 @@ func MergeConfig(userConf, imageConf *Config) error {
 		userConf.ExposedPorts = imageConf.ExposedPorts
 	} else if imageConf.ExposedPorts != nil {
 		if userConf.ExposedPorts == nil {
-			userConf.ExposedPorts = make(map[Port]struct{})
+			userConf.ExposedPorts = make(nat.PortSet)
 		}
 		for port := range imageConf.ExposedPorts {
 			if _, exists := userConf.ExposedPorts[port]; !exists {
@@ -109,9 +109,9 @@ func MergeConfig(userConf, imageConf *Config) error {
 
 	if userConf.PortSpecs != nil && len(userConf.PortSpecs) > 0 {
 		if userConf.ExposedPorts == nil {
-			userConf.ExposedPorts = make(map[Port]struct{})
+			userConf.ExposedPorts = make(nat.PortSet)
 		}
-		ports, _, err := parsePortSpecs(userConf.PortSpecs)
+		ports, _, err := nat.ParsePortSpecs(userConf.PortSpecs)
 		if err != nil {
 			return err
 		}
@@ -125,10 +125,10 @@ func MergeConfig(userConf, imageConf *Config) error {
 	if imageConf.PortSpecs != nil && len(imageConf.PortSpecs) > 0 {
 		utils.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
 		if userConf.ExposedPorts == nil {
-			userConf.ExposedPorts = make(map[Port]struct{})
+			userConf.ExposedPorts = make(nat.PortSet)
 		}
 
-		ports, _, err := parsePortSpecs(imageConf.PortSpecs)
+		ports, _, err := nat.ParsePortSpecs(imageConf.PortSpecs)
 		if err != nil {
 			return err
 		}
@@ -212,96 +212,9 @@ func parseLxcOpt(opt string) (string, string, error) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
-// FIXME: network related stuff (including parsing) should be grouped in network file
-const (
-	PortSpecTemplate       = "ip:hostPort:containerPort"
-	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort"
-)
-
-// We will receive port specs in the format of ip:public:private/proto and these need to be
-// parsed in the internal types
-func parsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
-	var (
-		exposedPorts = make(map[Port]struct{}, len(ports))
-		bindings     = make(map[Port][]PortBinding)
-	)
-
-	for _, rawPort := range ports {
-		proto := "tcp"
-
-		if i := strings.LastIndex(rawPort, "/"); i != -1 {
-			proto = rawPort[i+1:]
-			rawPort = rawPort[:i]
-		}
-		if !strings.Contains(rawPort, ":") {
-			rawPort = fmt.Sprintf("::%s", rawPort)
-		} else if len(strings.Split(rawPort, ":")) == 2 {
-			rawPort = fmt.Sprintf(":%s", rawPort)
-		}
-
-		parts, err := utils.PartParser(PortSpecTemplate, rawPort)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		var (
-			containerPort = parts["containerPort"]
-			rawIp         = parts["ip"]
-			hostPort      = parts["hostPort"]
-		)
-
-		if containerPort == "" {
-			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
-		}
-		if _, err := strconv.ParseUint(containerPort, 10, 16); err != nil {
-			return nil, nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
-		}
-		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
-			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
-		}
-
-		port := NewPort(proto, containerPort)
-		if _, exists := exposedPorts[port]; !exists {
-			exposedPorts[port] = struct{}{}
-		}
-
-		binding := PortBinding{
-			HostIp:   rawIp,
-			HostPort: hostPort,
-		}
-		bslice, exists := bindings[port]
-		if !exists {
-			bslice = []PortBinding{}
-		}
-		bindings[port] = append(bslice, binding)
-	}
-	return exposedPorts, bindings, nil
-}
-
-// Splits a port in the format of port/proto
-func splitProtoPort(rawPort string) (string, string) {
-	parts := strings.Split(rawPort, "/")
-	l := len(parts)
-	if l == 0 {
-		return "", ""
-	}
-	if l == 1 {
-		return "tcp", rawPort
-	}
-	return parts[0], parts[1]
-}
-
-func parsePort(rawPort string) (int, error) {
-	port, err := strconv.ParseUint(rawPort, 10, 16)
-	if err != nil {
-		return 0, err
-	}
-	return int(port), nil
-}
-
 func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 	if config.PortSpecs != nil {
-		ports, bindings, err := parsePortSpecs(config.PortSpecs)
+		ports, bindings, err := nat.ParsePortSpecs(config.PortSpecs)
 		if err != nil {
 			return err
 		}
@@ -314,7 +227,7 @@ func migratePortMappings(config *Config, hostConfig *HostConfig) error {
 		}
 
 		if config.ExposedPorts == nil {
-			config.ExposedPorts = make(map[Port]struct{}, len(ports))
+			config.ExposedPorts = make(nat.PortSet, len(ports))
 		}
 		for k, v := range ports {
 			config.ExposedPorts[k] = v
