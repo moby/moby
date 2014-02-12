@@ -180,11 +180,20 @@ func (b *buildFile) CmdRun(args string) error {
 		return nil
 	}
 
-	cid, err := b.run()
+	c, err := b.create()
 	if err != nil {
 		return err
 	}
-	if err := b.commit(cid, cmd, "run"); err != nil {
+	// Ensure that we keep the container mounted until the commit
+	// to avoid unmounting and then mounting directly again
+	c.Mount()
+	defer c.Unmount()
+
+	err = b.run(c)
+	if err != nil {
+		return err
+	}
+	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
 
@@ -555,16 +564,16 @@ func (sf *StderrFormater) Write(buf []byte) (int, error) {
 	return len(buf), err
 }
 
-func (b *buildFile) run() (string, error) {
+func (b *buildFile) create() (*Container, error) {
 	if b.image == "" {
-		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
+		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.config.Image = b.image
 
 	// Create the container and start it
 	c, _, err := b.runtime.Create(b.config, "")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
@@ -573,6 +582,10 @@ func (b *buildFile) run() (string, error) {
 	c.Path = b.config.Cmd[0]
 	c.Args = b.config.Cmd[1:]
 
+	return c, nil
+}
+
+func (b *buildFile) run(c *Container) error {
 	var errCh chan error
 
 	if b.verbose {
@@ -583,12 +596,12 @@ func (b *buildFile) run() (string, error) {
 
 	//start the container
 	if err := c.Start(); err != nil {
-		return "", err
+		return err
 	}
 
 	if errCh != nil {
 		if err := <-errCh; err != nil {
-			return "", err
+			return err
 		}
 	}
 
@@ -598,10 +611,10 @@ func (b *buildFile) run() (string, error) {
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
 			Code:    ret,
 		}
-		return "", err
+		return err
 	}
 
-	return c.ID, nil
+	return nil
 }
 
 // Commit the container <id> with the autorun command <autoCmd>
