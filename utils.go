@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
+	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"strconv"
@@ -192,7 +193,7 @@ func MergeConfig(userConf, imageConf *Config) error {
 	return nil
 }
 
-func parseLxcConfOpts(opts ListOpts) ([]KeyValuePair, error) {
+func parseLxcConfOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
 	out := make([]KeyValuePair, opts.Len())
 	for i, o := range opts.GetAll() {
 		k, v, err := parseLxcOpt(o)
