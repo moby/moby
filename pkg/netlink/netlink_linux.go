@@ -45,6 +45,7 @@ func getIpFamily(ip net.IP) int {
 }
 
 type NetlinkRequestData interface {
+	Len() int
 	ToWireFormat() []byte
 }
 
@@ -53,21 +54,24 @@ type IfInfomsg struct {
 }
 
 func newIfInfomsg(family int) *IfInfomsg {
-	msg := &IfInfomsg{}
-	msg.Family = uint8(family)
-	msg.Type = uint16(0)
-	msg.Index = int32(0)
-	msg.Flags = uint32(0)
-	msg.Change = uint32(0)
+	return &IfInfomsg{
+		IfInfomsg: syscall.IfInfomsg{
+			Family: uint8(family),
+		},
+	}
+}
 
+func newIfInfomsgChild(parent *RtAttr, family int) *IfInfomsg {
+	msg := newIfInfomsg(family)
+	parent.children = append(parent.children, msg)
 	return msg
 }
 
 func (msg *IfInfomsg) ToWireFormat() []byte {
 	native := nativeEndian()
 
-	len := syscall.SizeofIfInfomsg
-	b := make([]byte, len)
+	length := syscall.SizeofIfInfomsg
+	b := make([]byte, length)
 	b[0] = msg.Family
 	b[1] = 0
 	native.PutUint16(b[2:4], msg.Type)
@@ -77,26 +81,27 @@ func (msg *IfInfomsg) ToWireFormat() []byte {
 	return b
 }
 
+func (msg *IfInfomsg) Len() int {
+	return syscall.SizeofIfInfomsg
+}
+
 type IfAddrmsg struct {
 	syscall.IfAddrmsg
 }
 
 func newIfAddrmsg(family int) *IfAddrmsg {
-	msg := &IfAddrmsg{}
-	msg.Family = uint8(family)
-	msg.Prefixlen = uint8(0)
-	msg.Flags = uint8(0)
-	msg.Scope = uint8(0)
-	msg.Index = uint32(0)
-
-	return msg
+	return &IfAddrmsg{
+		IfAddrmsg: syscall.IfAddrmsg{
+			Family: uint8(family),
+		},
+	}
 }
 
 func (msg *IfAddrmsg) ToWireFormat() []byte {
 	native := nativeEndian()
 
-	len := syscall.SizeofIfAddrmsg
-	b := make([]byte, len)
+	length := syscall.SizeofIfAddrmsg
+	b := make([]byte, length)
 	b[0] = msg.Family
 	b[1] = msg.Prefixlen
 	b[2] = msg.Flags
@@ -105,26 +110,31 @@ func (msg *IfAddrmsg) ToWireFormat() []byte {
 	return b
 }
 
+func (msg *IfAddrmsg) Len() int {
+	return syscall.SizeofIfAddrmsg
+}
+
 type RtMsg struct {
 	syscall.RtMsg
 }
 
 func newRtMsg(family int) *RtMsg {
-	msg := &RtMsg{}
-	msg.Family = uint8(family)
-	msg.Table = syscall.RT_TABLE_MAIN
-	msg.Scope = syscall.RT_SCOPE_UNIVERSE
-	msg.Protocol = syscall.RTPROT_BOOT
-	msg.Type = syscall.RTN_UNICAST
-
-	return msg
+	return &RtMsg{
+		RtMsg: syscall.RtMsg{
+			Family:   uint8(family),
+			Table:    syscall.RT_TABLE_MAIN,
+			Scope:    syscall.RT_SCOPE_UNIVERSE,
+			Protocol: syscall.RTPROT_BOOT,
+			Type:     syscall.RTN_UNICAST,
+		},
+	}
 }
 
 func (msg *RtMsg) ToWireFormat() []byte {
 	native := nativeEndian()
 
-	len := syscall.SizeofRtMsg
-	b := make([]byte, len)
+	length := syscall.SizeofRtMsg
+	b := make([]byte, length)
 	b[0] = msg.Family
 	b[1] = msg.Dst_len
 	b[2] = msg.Src_len
@@ -137,6 +147,10 @@ func (msg *RtMsg) ToWireFormat() []byte {
 	return b
 }
 
+func (msg *RtMsg) Len() int {
+	return syscall.SizeofRtMsg
+}
+
 func rtaAlignOf(attrlen int) int {
 	return (attrlen + syscall.RTA_ALIGNTO - 1) & ^(syscall.RTA_ALIGNTO - 1)
 }
@@ -144,18 +158,17 @@ func rtaAlignOf(attrlen int) int {
 type RtAttr struct {
 	syscall.RtAttr
 	Data     []byte
-	children []*RtAttr
-	prefix   int
+	children []NetlinkRequestData
 }
 
 func newRtAttr(attrType int, data []byte) *RtAttr {
-	attr := &RtAttr{
-		children: []*RtAttr{},
+	return &RtAttr{
+		RtAttr: syscall.RtAttr{
+			Type: uint16(attrType),
+		},
+		children: []NetlinkRequestData{},
+		Data:     data,
 	}
-	attr.Type = uint16(attrType)
-	attr.Data = data
-
-	return attr
 }
 
 func newRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
@@ -164,10 +177,10 @@ func newRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
 	return attr
 }
 
-func (a *RtAttr) length() int {
+func (a *RtAttr) Len() int {
 	l := 0
 	for _, child := range a.children {
-		l += child.length() + syscall.SizeofRtAttr + child.prefix
+		l += child.Len() + syscall.SizeofRtAttr
 	}
 	if l == 0 {
 		l++
@@ -178,7 +191,7 @@ func (a *RtAttr) length() int {
 func (a *RtAttr) ToWireFormat() []byte {
 	native := nativeEndian()
 
-	length := a.length()
+	length := a.Len()
 	buf := make([]byte, rtaAlignOf(length+syscall.SizeofRtAttr))
 
 	if a.Data != nil {
@@ -187,7 +200,7 @@ func (a *RtAttr) ToWireFormat() []byte {
 		next := 4
 		for _, child := range a.children {
 			childBuf := child.ToWireFormat()
-			copy(buf[next+child.prefix:], childBuf)
+			copy(buf[next:], childBuf)
 			next += rtaAlignOf(len(childBuf))
 		}
 	}
@@ -212,7 +225,7 @@ func (rr *NetlinkRequest) ToWireFormat() []byte {
 	dataBytes := make([][]byte, len(rr.Data))
 	for i, data := range rr.Data {
 		dataBytes[i] = data.ToWireFormat()
-		length = length + uint32(len(dataBytes[i]))
+		length += uint32(len(dataBytes[i]))
 	}
 	b := make([]byte, length)
 	native.PutUint32(b[0:4], length)
@@ -221,12 +234,10 @@ func (rr *NetlinkRequest) ToWireFormat() []byte {
 	native.PutUint32(b[8:12], rr.Seq)
 	native.PutUint32(b[12:16], rr.Pid)
 
-	i := 16
+	next := 16
 	for _, data := range dataBytes {
-		for _, dataByte := range data {
-			b[i] = dataByte
-			i = i + 1
-		}
+		copy(b[next:], data)
+		next += len(data)
 	}
 	return b
 }
@@ -238,12 +249,14 @@ func (rr *NetlinkRequest) AddData(data NetlinkRequestData) {
 }
 
 func newNetlinkRequest(proto, flags int) *NetlinkRequest {
-	rr := &NetlinkRequest{}
-	rr.Len = uint32(syscall.NLMSG_HDRLEN)
-	rr.Type = uint16(proto)
-	rr.Flags = syscall.NLM_F_REQUEST | uint16(flags)
-	rr.Seq = uint32(getSeq())
-	return rr
+	return &NetlinkRequest{
+		NlMsghdr: syscall.NlMsghdr{
+			Len:   uint32(syscall.NLMSG_HDRLEN),
+			Type:  uint16(proto),
+			Flags: syscall.NLM_F_REQUEST | uint16(flags),
+			Seq:   uint32(getSeq()),
+		},
+	}
 }
 
 type NetlinkSocket struct {
@@ -286,7 +299,7 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
 		return nil, err
 	}
 	if nr < syscall.NLMSG_HDRLEN {
-		return nil, fmt.Errorf("Got short response from netlink")
+		return nil, ErrShortResponse
 	}
 	rb = rb[:nr]
 	return syscall.ParseNetlinkMessage(rb)
@@ -301,7 +314,7 @@ func (s *NetlinkSocket) GetPid() (uint32, error) {
 	case *syscall.SockaddrNetlink:
 		return v.Pid, nil
 	}
-	return 0, fmt.Errorf("Wrong socket type")
+	return 0, ErrWrongSockType
 }
 
 func (s *NetlinkSocket) HandleAck(seq uint32) error {
@@ -592,11 +605,7 @@ func zeroTerminated(s string) []byte {
 }
 
 func nonZeroTerminated(s string) []byte {
-	bytes := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		bytes[i] = s[i]
-	}
-	return bytes
+	return []byte(s)
 }
 
 // Add a new network link of a specified type. This is identical to
@@ -789,8 +798,8 @@ func NetworkCreateVethPair(name1, name2 string) error {
 	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
 	nest3 := newRtAttrChild(nest2, VETH_INFO_PEER, nil)
 
-	last := newRtAttrChild(nest3, syscall.IFLA_IFNAME, zeroTerminated(name2))
-	last.prefix = syscall.SizeofIfInfomsg
+	newIfInfomsgChild(nest3, syscall.AF_UNSPEC)
+	newRtAttrChild(nest3, syscall.IFLA_IFNAME, zeroTerminated(name2))
 
 	wb.AddData(nest1)
 
