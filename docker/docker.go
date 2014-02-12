@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	_ "github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
