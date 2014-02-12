@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"github.com/kr/pty"
 	"io"
@@ -42,7 +43,7 @@ type Container struct {
 	Path string
 	Args []string
 
-	Config *Config
+	Config *runconfig.Config
 	State  State
 	Image  string
 
@@ -68,107 +69,9 @@ type Container struct {
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW  map[string]bool
-	hostConfig *HostConfig
+	hostConfig *runconfig.HostConfig
 
 	activeLinks map[string]*Link
-}
-
-// Note: the Config structure should hold only portable information about the container.
-// Here, "portable" means "independent from the host we are running on".
-// Non-portable information *should* appear in HostConfig.
-type Config struct {
-	Hostname        string
-	Domainname      string
-	User            string
-	Memory          int64 // Memory limit (in bytes)
-	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	CpuShares       int64 // CPU shares (relative weight vs. other containers)
-	AttachStdin     bool
-	AttachStdout    bool
-	AttachStderr    bool
-	PortSpecs       []string // Deprecated - Can be in the format of 8080/tcp
-	ExposedPorts    map[nat.Port]struct{}
-	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin       bool // Open stdin
-	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
-	Env             []string
-	Cmd             []string
-	Dns             []string
-	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
-	Volumes         map[string]struct{}
-	VolumesFrom     string
-	WorkingDir      string
-	Entrypoint      []string
-	NetworkDisabled bool
-	OnBuild         []string
-}
-
-func ContainerConfigFromJob(job *engine.Job) *Config {
-	config := &Config{
-		Hostname:        job.Getenv("Hostname"),
-		Domainname:      job.Getenv("Domainname"),
-		User:            job.Getenv("User"),
-		Memory:          job.GetenvInt64("Memory"),
-		MemorySwap:      job.GetenvInt64("MemorySwap"),
-		CpuShares:       job.GetenvInt64("CpuShares"),
-		AttachStdin:     job.GetenvBool("AttachStdin"),
-		AttachStdout:    job.GetenvBool("AttachStdout"),
-		AttachStderr:    job.GetenvBool("AttachStderr"),
-		Tty:             job.GetenvBool("Tty"),
-		OpenStdin:       job.GetenvBool("OpenStdin"),
-		StdinOnce:       job.GetenvBool("StdinOnce"),
-		Image:           job.Getenv("Image"),
-		VolumesFrom:     job.Getenv("VolumesFrom"),
-		WorkingDir:      job.Getenv("WorkingDir"),
-		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
-	}
-	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
-	job.GetenvJson("Volumes", &config.Volumes)
-	if PortSpecs := job.GetenvList("PortSpecs"); PortSpecs != nil {
-		config.PortSpecs = PortSpecs
-	}
-	if Env := job.GetenvList("Env"); Env != nil {
-		config.Env = Env
-	}
-	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
-		config.Cmd = Cmd
-	}
-	if Dns := job.GetenvList("Dns"); Dns != nil {
-		config.Dns = Dns
-	}
-	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
-		config.Entrypoint = Entrypoint
-	}
-
-	return config
-}
-
-type HostConfig struct {
-	Binds           []string
-	ContainerIDFile string
-	LxcConf         []KeyValuePair
-	Privileged      bool
-	PortBindings    nat.PortMap
-	Links           []string
-	PublishAllPorts bool
-}
-
-func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
-	hostConfig := &HostConfig{
-		ContainerIDFile: job.Getenv("ContainerIDFile"),
-		Privileged:      job.GetenvBool("Privileged"),
-		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
-	}
-	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
-	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
-	if Binds := job.GetenvList("Binds"); Binds != nil {
-		hostConfig.Binds = Binds
-	}
-	if Links := job.GetenvList("Links"); Links != nil {
-		hostConfig.Links = Links
-	}
-
-	return hostConfig
 }
 
 type BindMap struct {
@@ -178,17 +81,9 @@ type BindMap struct {
 }
 
 var (
-	ErrContainerStart           = errors.New("The container failed to start. Unknown error")
-	ErrContainerStartTimeout    = errors.New("The container failed to start due to timed out.")
-	ErrInvalidWorikingDirectory = errors.New("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictAttachDetach     = errors.New("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove = errors.New("Conflicting options: -rm and -d")
+	ErrContainerStart        = errors.New("The container failed to start. Unknown error")
+	ErrContainerStartTimeout = errors.New("The container failed to start due to timed out.")
 )
-
-type KeyValuePair struct {
-	Key   string
-	Value string
-}
 
 // FIXME: move deprecated port stuff to nat to clean up the core.
 type PortMapping map[string]string // Deprecated
@@ -292,7 +187,7 @@ func (container *Container) ToDisk() (err error) {
 }
 
 func (container *Container) readHostConfig() error {
-	container.hostConfig = &HostConfig{}
+	container.hostConfig = &runconfig.HostConfig{}
 	// If the hostconfig file does not exist, do not read it.
 	// (We still have to initialize container.hostConfig,
 	// but that's OK, since we just did that above.)

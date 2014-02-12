@@ -2,13 +2,14 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
 )
 
 func newMockLinkContainer(id string, ip string) *Container {
 	return &Container{
-		Config: &Config{},
+		Config: &runconfig.Config{},
 		ID:     id,
 		NetworkSettings: &NetworkSettings{
 			IPAddress: ip,
