@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/nat"
 	"path"
 	"strings"
 )
@@ -12,7 +13,7 @@ type Link struct {
 	ChildIP          string
 	Name             string
 	ChildEnvironment []string
-	Ports            []Port
+	Ports            []nat.Port
 	IsEnabled        bool
 	eng              *engine.Engine
 }
@@ -25,7 +26,7 @@ func NewLink(parent, child *Container, name string, eng *engine.Engine) (*Link, 
 		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, name)
 	}
 
-	ports := make([]Port, len(child.Config.ExposedPorts))
+	ports := make([]nat.Port, len(child.Config.ExposedPorts))
 	var i int
 	for p := range child.Config.ExposedPorts {
 		ports[i] = p
@@ -85,14 +86,14 @@ func (l *Link) ToEnv() []string {
 }
 
 // Default port rules
-func (l *Link) getDefaultPort() *Port {
-	var p Port
+func (l *Link) getDefaultPort() *nat.Port {
+	var p nat.Port
 	i := len(l.Ports)
 
 	if i == 0 {
 		return nil
 	} else if i > 1 {
-		sortPorts(l.Ports, func(ip, jp Port) bool {
+		nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
 			// If the two ports have the same number, tcp takes priority
 			// Sort in desc order
 			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")

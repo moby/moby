@@ -143,6 +143,7 @@ Network Settings
 ----------------
 
 ::
+
    -n=true   : Enable networking for this container
    -dns=[]   : Set custom dns servers for the container
 

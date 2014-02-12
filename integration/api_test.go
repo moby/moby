@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
@@ -45,7 +47,7 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Close()
-	expected := docker.VERSION
+	expected := dockerversion.VERSION
 	if result := v.Get("Version"); result != expected {
 		t.Errorf("Expected version %s, %s found", expected, result)
 	}
@@ -308,7 +310,7 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 	beginLen := len(outs.Data)
 
-	containerID := createTestContainer(eng, &docker.Config{
+	containerID := createTestContainer(eng, &runconfig.Config{
 		Image: unitTestImageID,
 		Cmd:   []string{"echo", "test"},
 	}, t)
@@ -345,7 +347,7 @@ func TestGetContainersExport(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test"},
 		},
@@ -393,7 +395,7 @@ func TestGetContainersChanges(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"/bin/rm", "/etc/passwd"},
 		},
@@ -432,7 +434,7 @@ func TestGetContainersTop(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/sh", "-c", "cat"},
 			OpenStdin: true,
@@ -509,7 +511,7 @@ func TestGetContainersByName(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"echo", "test"},
 		},
@@ -541,7 +543,7 @@ func TestPostCommit(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test"},
 		},
@@ -577,7 +579,7 @@ func TestPostContainersCreate(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	configJSON, err := json.Marshal(&docker.Config{
+	configJSON, err := json.Marshal(&runconfig.Config{
 		Image:  unitTestImageID,
 		Memory: 33554432,
 		Cmd:    []string{"touch", "/test"},
@@ -619,7 +621,7 @@ func TestPostContainersKill(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -658,7 +660,7 @@ func TestPostContainersRestart(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
@@ -704,7 +706,7 @@ func TestPostContainersStart(t *testing.T) {
 
 	containerID := createTestContainer(
 		eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -712,7 +714,7 @@ func TestPostContainersStart(t *testing.T) {
 		t,
 	)
 
-	hostConfigJSON, err := json.Marshal(&docker.HostConfig{})
+	hostConfigJSON, err := json.Marshal(&runconfig.HostConfig{})
 
 	req, err := http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
 	if err != nil {
@@ -757,7 +759,7 @@ func TestRunErrorBindMountRootSource(t *testing.T) {
 
 	containerID := createTestContainer(
 		eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -765,7 +767,7 @@ func TestRunErrorBindMountRootSource(t *testing.T) {
 		t,
 	)
 
-	hostConfigJSON, err := json.Marshal(&docker.HostConfig{
+	hostConfigJSON, err := json.Marshal(&runconfig.HostConfig{
 		Binds: []string{"/:/tmp"},
 	})
 
@@ -791,7 +793,7 @@ func TestPostContainersStop(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
@@ -831,7 +833,7 @@ func TestPostContainersWait(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/sleep", "1"},
 			OpenStdin: true,
@@ -869,7 +871,7 @@ func TestPostContainersAttach(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -947,7 +949,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
 			OpenStdin: true,
@@ -1028,7 +1030,7 @@ func TestDeleteContainers(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test"},
 		},
@@ -1163,7 +1165,7 @@ func TestPostContainersCopy(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test.txt"},
 		},

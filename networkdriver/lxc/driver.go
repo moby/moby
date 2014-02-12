@@ -172,7 +172,6 @@ func setupIPTables(addr net.Addr, icc bool) error {
 		iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
 
 		if !iptables.Exists(dropArgs...) {
-
 			utils.Debugf("Disable inter-container communication")
 			if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
@@ -353,6 +352,10 @@ func Release(job *engine.Job) engine.Status {
 		proto              string
 	)
 
+	if containerInterface == nil {
+		return job.Errorf("No network information to release for %s", id)
+	}
+
 	for _, nat := range containerInterface.PortMappings {
 		if err := portmapper.Unmap(nat); err != nil {
 			log.Printf("Unable to unmap port %s: %s", nat, err)
@@ -459,6 +462,20 @@ func LinkContainers(job *engine.Job) engine.Status {
 			"-s", parentIP,
 			"--dport", port,
 			"-d", childIP,
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle iptables forward: %s", output)
+			return engine.StatusErr
+		}
+
+		if output, err := iptables.Raw(action, "FORWARD",
+			"-i", bridgeIface, "-o", bridgeIface,
+			"-p", proto,
+			"-s", childIP,
+			"--sport", port,
+			"-d", parentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			job.Error(err)
 			return engine.StatusErr

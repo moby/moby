@@ -1,10 +1,11 @@
-package docker
+package runconfig
 
 import (
+	"github.com/dotcloud/docker/nat"
 	"testing"
 )
 
-func TestCompareConfig(t *testing.T) {
+func TestCompare(t *testing.T) {
 	volumes1 := make(map[string]struct{})
 	volumes1["/test1"] = struct{}{}
 	config1 := Config{
@@ -44,24 +45,24 @@ func TestCompareConfig(t *testing.T) {
 		VolumesFrom: "11111111",
 		Volumes:     volumes2,
 	}
-	if CompareConfig(&config1, &config2) {
-		t.Fatalf("CompareConfig should return false, Dns are different")
+	if Compare(&config1, &config2) {
+		t.Fatalf("Compare should return false, Dns are different")
 	}
-	if CompareConfig(&config1, &config3) {
-		t.Fatalf("CompareConfig should return false, PortSpecs are different")
+	if Compare(&config1, &config3) {
+		t.Fatalf("Compare should return false, PortSpecs are different")
 	}
-	if CompareConfig(&config1, &config4) {
-		t.Fatalf("CompareConfig should return false, VolumesFrom are different")
+	if Compare(&config1, &config4) {
+		t.Fatalf("Compare should return false, VolumesFrom are different")
 	}
-	if CompareConfig(&config1, &config5) {
-		t.Fatalf("CompareConfig should return false, Volumes are different")
+	if Compare(&config1, &config5) {
+		t.Fatalf("Compare should return false, Volumes are different")
 	}
-	if !CompareConfig(&config1, &config1) {
-		t.Fatalf("CompareConfig should return true")
+	if !Compare(&config1, &config1) {
+		t.Fatalf("Compare should return true")
 	}
 }
 
-func TestMergeConfig(t *testing.T) {
+func TestMerge(t *testing.T) {
 	volumesImage := make(map[string]struct{})
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
@@ -82,7 +83,7 @@ func TestMergeConfig(t *testing.T) {
 		Volumes:   volumesUser,
 	}
 
-	if err := MergeConfig(configUser, configImage); err != nil {
+	if err := Merge(configUser, configImage); err != nil {
 		t.Error(err)
 	}
 
@@ -125,7 +126,7 @@ func TestMergeConfig(t *testing.T) {
 		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
 
-	ports, _, err := parsePortSpecs([]string{"0000"})
+	ports, _, err := nat.ParsePortSpecs([]string{"0000"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -133,7 +134,7 @@ func TestMergeConfig(t *testing.T) {
 		ExposedPorts: ports,
 	}
 
-	if err := MergeConfig(configUser, configImage2); err != nil {
+	if err := Merge(configUser, configImage2); err != nil {
 		t.Error(err)
 	}
 

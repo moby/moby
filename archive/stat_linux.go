@@ -30,3 +30,10 @@ func LUtimesNano(path string, ts []syscall.Timespec) error {
 
 	return nil
 }
+
+func UtimesNano(path string, ts []syscall.Timespec) error {
+	if err := syscall.UtimesNano(path, ts); err != nil {
+		return err
+	}
+	return nil
+}

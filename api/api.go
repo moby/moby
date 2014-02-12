@@ -27,12 +27,21 @@ import (
 	"syscall"
 )
 
+// FIXME: move code common to client and server to common.go
 const (
 	APIVERSION        = 1.9
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTHTTPPORT   = 4243
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 )
+
+func ValidateHost(val string) (string, error) {
+	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTHTTPPORT, DEFAULTUNIXSOCKET, val)
+	if err != nil {
+		return val, err
+	}
+	return host, nil
+}
 
 type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
@@ -222,7 +231,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 				outLegacy := &engine.Env{}
 				outLegacy.Set("Repository", parts[0])
 				outLegacy.Set("Tag", parts[1])
-				outLegacy.Set("ID", out.Get("ID"))
+				outLegacy.Set("Id", out.Get("Id"))
 				outLegacy.SetInt64("Created", out.GetInt64("Created"))
 				outLegacy.SetInt64("Size", out.GetInt64("Size"))
 				outLegacy.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
@@ -320,6 +329,7 @@ func getContainersJSON(eng *engine.Engine, version float64, w http.ResponseWrite
 	job.Setenv("limit", r.Form.Get("limit"))
 
 	if version >= 1.5 {
+		w.Header().Set("Content-Type", "application/json")
 		job.Stdout.Add(w)
 	} else if outs, err = job.Stdout.AddTable(); err != nil {
 		return err
@@ -366,7 +376,7 @@ func postCommit(eng *engine.Engine, version float64, w http.ResponseWriter, r *h
 		env    engine.Env
 		job    = eng.Job("commit", r.Form.Get("container"))
 	)
-	if err := config.Import(r.Body); err != nil {
+	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
 	}
 

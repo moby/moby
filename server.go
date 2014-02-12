@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -200,8 +202,20 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 }
 
 func (srv *Server) Auth(job *engine.Job) engine.Status {
-	authConfig := &auth.AuthConfig{}
+	var (
+		err        error
+		authConfig = &auth.AuthConfig{}
+	)
+
 	job.GetenvJson("authConfig", authConfig)
+	// TODO: this is only done here because auth and registry need to be merged into one pkg
+	if addr := authConfig.ServerAddress; addr != "" && addr != auth.IndexServerAddress() {
+		addr, err = registry.ExpandAndVerifyRegistryUrl(addr)
+		if err != nil {
+			return job.Error(err)
+		}
+		authConfig.ServerAddress = addr
+	}
 	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return job.Error(err)
@@ -649,7 +663,7 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 	}
 	defer file.Body.Close()
 
-	config, _, _, err := ParseRun([]string{img.ID, "echo", "insert", url, path}, srv.runtime.sysInfo)
+	config, _, _, err := runconfig.Parse([]string{img.ID, "echo", "insert", url, path}, srv.runtime.sysInfo)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -815,7 +829,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NEventsListener", len(srv.events))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
-	v.Set("InitSha1", utils.INITSHA1)
+	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
@@ -1030,7 +1044,7 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config Config
+	var config runconfig.Config
 	if err := job.GetenvJson("config", &config); err != nil {
 		return job.Error(err)
 	}
@@ -1610,7 +1624,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	} else if len(job.Args) > 1 {
 		return job.Errorf("Usage: %s", job.Name)
 	}
-	config := ContainerConfigFromJob(job)
+	config := runconfig.ContainerConfigFromJob(job)
 	if config.Memory != 0 && config.Memory < 524288 {
 		return job.Errorf("Minimum memory limit allowed is 512k")
 	}
@@ -1976,7 +1990,7 @@ func (srv *Server) canDeleteImage(imgID string) error {
 	return nil
 }
 
-func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) {
+func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*Image, error) {
 
 	// Retrieve all images
 	images, err := srv.runtime.graph.Map()
@@ -2000,7 +2014,7 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 		if err != nil {
 			return nil, err
 		}
-		if CompareConfig(&img.ContainerConfig, config) {
+		if runconfig.Compare(&img.ContainerConfig, config) {
 			if match == nil || match.Created.Before(img.Created) {
 				match = img
 			}
@@ -2009,7 +2023,7 @@ func (srv *Server) ImageGetCached(imgID string, config *Config) (*Image, error) 
 	return match, nil
 }
 
-func (srv *Server) RegisterLinks(container *Container, hostConfig *HostConfig) error {
+func (srv *Server) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	runtime := srv.runtime
 
 	if hostConfig != nil && hostConfig.Links != nil {
@@ -2053,7 +2067,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	}
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
-		hostConfig := ContainerHostConfigFromJob(job)
+		hostConfig := runconfig.ContainerHostConfigFromJob(job)
 		// Validate the HostConfig binds. Make sure that:
 		// 1) the source of a bind mount isn't /
 		//         The bind mount "/:/foo" isn't allowed.
@@ -2297,7 +2311,7 @@ func (srv *Server) JobInspect(job *engine.Job) engine.Status {
 		}
 		object = &struct {
 			*Container
-			HostConfig *HostConfig
+			HostConfig *runconfig.HostConfig
 		}{container, container.hostConfig}
 	default:
 		return job.Errorf("Unknown kind: %s", kind)

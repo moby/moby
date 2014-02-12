@@ -7,8 +7,10 @@ feels wrong or incomplete.
 ## Reporting Issues
 
 When reporting [issues](https://github.com/dotcloud/docker/issues) 
-on GitHub please include your host OS ( Ubuntu 12.04, Fedora 19, etc... )
-and the output of `docker version` along with the output of `docker info` if possible.  
+on GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc),
+the output of `uname -a` and the output of `docker version` along with
+the output of `docker info`. Please include the steps required to reproduce
+the problem if possible and applicable.
 This information will help us review and fix your issue faster.
 
 ## Build Environment
@@ -86,6 +88,8 @@ curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/maste
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
 
+Pull requests mustn't contain commits from other users or branches.
+
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Be
 sure to post a comment after pushing. The new commits will show up in the pull
@@ -104,6 +108,18 @@ Add your name to the AUTHORS file, but make sure the list is sorted and your
 name and email address match your git configuration. The AUTHORS file is
 regenerated occasionally from the git commit history, so a mismatch may result
 in your changes being overwritten.
+
+### Merge approval
+
+Docker maintainers use LGTM (looks good to me) in comments on the code review
+to indicate acceptance.
+
+A change requires LGTMs from an absolute majority of the maintainers of each
+component affected. For example, if a change affects docs/ and registry/, it
+needs an absolute majority from the maintainers of docs/ AND, separately, an
+absolute majority of the maintainers of registry
+
+For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
 
 ### Sign your work
 
@@ -163,7 +179,7 @@ If you have any questions, please refer to the FAQ in the [docs](http://docs.doc
 * Step 1: learn the component inside out
 * Step 2: make yourself useful by contributing code, bugfixes, support etc.
 * Step 3: volunteer on the irc channel (#docker@freenode)
-* Step 4: propose yourself at a scheduled #docker-meeting
+* Step 4: propose yourself at a scheduled docker meeting in #docker-dev
 
 Don't forget: being a maintainer is a time investment. Make sure you will have time to make yourself available.
 You don't have to be a maintainer to make a difference on the project!

@@ -1,11 +1,11 @@
-:title: Requirements and Installation on Windows
-:description: Docker's tutorial to run docker on Windows
+:title: Installation on Windows
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, Windows, requirements, virtualbox, vagrant, git, ssh, putty, cygwin
 
 .. _windows:
 
-Installing Docker on Windows
-============================
+Windows
+=======
 
 Docker can run on Windows using a VM like VirtualBox. You then run
 Linux within the VM.

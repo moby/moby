@@ -1,13 +1,15 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
 )
 
 func newMockLinkContainer(id string, ip string) *Container {
 	return &Container{
-		Config: &Config{},
+		Config: &runconfig.Config{},
 		ID:     id,
 		NetworkSettings: &NetworkSettings{
 			IPAddress: ip,
@@ -22,9 +24,9 @@ func TestLinkNew(t *testing.T) {
 	from := newMockLinkContainer(fromID, "172.0.17.2")
 	from.Config.Env = []string{}
 	from.State = State{Running: true}
-	ports := make(map[Port]struct{})
+	ports := make(nat.PortSet)
 
-	ports[Port("6379/tcp")] = struct{}{}
+	ports[nat.Port("6379/tcp")] = struct{}{}
 
 	from.Config.ExposedPorts = ports
 
@@ -51,7 +53,7 @@ func TestLinkNew(t *testing.T) {
 		t.Fail()
 	}
 	for _, p := range link.Ports {
-		if p != Port("6379/tcp") {
+		if p != nat.Port("6379/tcp") {
 			t.Fail()
 		}
 	}
@@ -64,9 +66,9 @@ func TestLinkEnv(t *testing.T) {
 	from := newMockLinkContainer(fromID, "172.0.17.2")
 	from.Config.Env = []string{"PASSWORD=gordon"}
 	from.State = State{Running: true}
-	ports := make(map[Port]struct{})
+	ports := make(nat.PortSet)
 
-	ports[Port("6379/tcp")] = struct{}{}
+	ports[nat.Port("6379/tcp")] = struct{}{}
 
 	from.Config.ExposedPorts = ports
 

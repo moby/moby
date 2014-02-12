@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/dockerversion"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
@@ -21,12 +22,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
-
-var (
-	IAMSTATIC bool   // whether or not Docker itself was compiled statically via ./hack/make.sh binary
-	INITSHA1  string // sha1sum of separate static dockerinit, if Docker itself was compiled dynamically via ./hack/make.sh dynbinary
-	INITPATH  string // custom location to search for a valid dockerinit binary (available for packagers as a last resort escape hatch)
 )
 
 // A common interface to access the Fatal method of
@@ -201,7 +196,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	if target == "" {
 		return false
 	}
-	if IAMSTATIC {
+	if dockerversion.IAMSTATIC {
 		if selfPath == "" {
 			return false
 		}
@@ -218,7 +213,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 		}
 		return os.SameFile(targetFileInfo, selfPathFileInfo)
 	}
-	return INITSHA1 != "" && dockerInitSha1(target) == INITSHA1
+	return dockerversion.INITSHA1 != "" && dockerInitSha1(target) == dockerversion.INITSHA1
 }
 
 // Figure out the path of our dockerinit (which may be SelfPath())
@@ -230,7 +225,7 @@ func DockerInitPath(localCopy string) string {
 	}
 	var possibleInits = []string{
 		localCopy,
-		INITPATH,
+		dockerversion.INITPATH,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
 
 		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
@@ -834,37 +829,6 @@ func ParseRepositoryTag(repos string) (string, string) {
 		return repos[:n], tag
 	}
 	return repos, ""
-}
-
-type User struct {
-	Uid      string // user id
-	Gid      string // primary group id
-	Username string
-	Name     string
-	HomeDir  string
-}
-
-// UserLookup check if the given username or uid is present in /etc/passwd
-// and returns the user struct.
-// If the username is not found, an error is returned.
-func UserLookup(uid string) (*User, error) {
-	file, err := ioutil.ReadFile("/etc/passwd")
-	if err != nil {
-		return nil, err
-	}
-	for _, line := range strings.Split(string(file), "\n") {
-		data := strings.Split(line, ":")
-		if len(data) > 5 && (data[0] == uid || data[2] == uid) {
-			return &User{
-				Uid:      data[2],
-				Gid:      data[3],
-				Username: data[0],
-				Name:     data[4],
-				HomeDir:  data[5],
-			}, nil
-		}
-	}
-	return nil, fmt.Errorf("User not found in /etc/passwd")
 }
 
 // An StatusError reports an unsuccessful exit by a command.

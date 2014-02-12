@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -105,8 +106,8 @@ func TestGraphCreate(t *testing.T) {
 	if image.Comment != "Testing" {
 		t.Fatalf("Wrong comment: should be '%s', not '%s'", "Testing", image.Comment)
 	}
-	if image.DockerVersion != docker.VERSION {
-		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", docker.VERSION, image.DockerVersion)
+	if image.DockerVersion != dockerversion.VERSION {
+		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", dockerversion.VERSION, image.DockerVersion)
 	}
 	images, err := graph.Map()
 	if err != nil {

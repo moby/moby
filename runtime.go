@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/chroot"
@@ -17,6 +18,7 @@ import (
 	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -132,14 +134,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	if err := runtime.ensureName(container); err != nil {
 		return err
 	}
-
-	// Get the root filesystem from the driver
-	basefs, err := runtime.driver.Get(container.ID)
-	if err != nil {
-		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
-	}
-	defer runtime.driver.Put(container.ID)
-	container.basefs = basefs
 
 	container.runtime = runtime
 
@@ -336,7 +330,7 @@ func (runtime *Runtime) restore() error {
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (runtime *Runtime) Create(config *Config, name string) (*Container, []string, error) {
+func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Container, []string, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
@@ -354,7 +348,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
 	}
 
-	checkDeprecatedExpose := func(config *Config) bool {
+	checkDeprecatedExpose := func(config *runconfig.Config) bool {
 		if config != nil {
 			if config.PortSpecs != nil {
 				for _, p := range config.PortSpecs {
@@ -373,14 +367,12 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	}
 
 	if img.Config != nil {
-		if err := MergeConfig(config, img.Config); err != nil {
+		if err := runconfig.Merge(config, img.Config); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	if len(config.Entrypoint) != 0 && config.Cmd == nil {
-		config.Cmd = []string{}
-	} else if config.Cmd == nil || len(config.Cmd) == 0 {
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return nil, nil, fmt.Errorf("No command specified")
 	}
 
@@ -450,7 +442,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
-		hostConfig:      &HostConfig{},
+		hostConfig:      &runconfig.HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		Name:            name,
@@ -527,7 +519,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
+func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
 	if err := container.Mount(); err != nil {
@@ -688,7 +680,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		return nil, err
 	}
 
-	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", VERSION))
+	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
 		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
