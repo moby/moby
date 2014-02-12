@@ -12,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/nat"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/pkg/term"
@@ -799,7 +800,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
-	if frontends, exists := out.NetworkSettings.Ports[Port(port+"/"+proto)]; exists && frontends != nil {
+	if frontends, exists := out.NetworkSettings.Ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
 		for _, frontend := range frontends {
 			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
 		}
@@ -1792,7 +1793,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 
-	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", PortSpecTemplateFormat))
+	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
@@ -1885,7 +1886,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		domainname = parts[1]
 	}
 
-	ports, portBindings, err := parsePortSpecs(flPublish.GetAll())
+	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -1895,7 +1896,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		if strings.Contains(e, ":") {
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
-		p := NewPort(splitProtoPort(e))
+		p := nat.NewPort(nat.SplitProtoPort(e))
 		if _, exists := ports[p]; !exists {
 			ports[p] = struct{}{}
 		}

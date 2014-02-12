@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -368,7 +369,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 		eng     = NewTestEngine(t)
 		runtime = mkRuntimeFromEngine(eng, t)
 		port    = 5554
-		p       docker.Port
+		p       nat.Port
 	)
 	defer func() {
 		if err != nil {
@@ -387,8 +388,8 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 		} else {
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
-		ep := make(map[docker.Port]struct{}, 1)
-		p = docker.Port(fmt.Sprintf("%s/%s", strPort, proto))
+		ep := make(map[nat.Port]struct{}, 1)
+		p = nat.Port(fmt.Sprintf("%s/%s", strPort, proto))
 		ep[p] = struct{}{}
 
 		jobCreate := eng.Job("create")
@@ -411,8 +412,8 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 	}
 
 	jobStart := eng.Job("start", id)
-	portBindings := make(map[docker.Port][]docker.PortBinding)
-	portBindings[p] = []docker.PortBinding{
+	portBindings := make(map[nat.Port][]nat.PortBinding)
+	portBindings[p] = []nat.PortBinding{
 		{},
 	}
 	if err := jobStart.SetenvJson("PortsBindings", portBindings); err != nil {

@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/nat"
 	"testing"
 )
 
@@ -22,7 +23,7 @@ func TestParseLxcConfOpt(t *testing.T) {
 }
 
 func TestParseNetworkOptsPrivateOnly(t *testing.T) {
-	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100::80"})
+	ports, bindings, err := nat.ParsePortSpecs([]string{"192.168.1.100::80"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +65,7 @@ func TestParseNetworkOptsPrivateOnly(t *testing.T) {
 }
 
 func TestParseNetworkOptsPublic(t *testing.T) {
-	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100:8080:80"})
+	ports, bindings, err := nat.ParsePortSpecs([]string{"192.168.1.100:8080:80"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func TestParseNetworkOptsPublic(t *testing.T) {
 }
 
 func TestParseNetworkOptsUdp(t *testing.T) {
-	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100::6000/udp"})
+	ports, bindings, err := nat.ParsePortSpecs([]string{"192.168.1.100::6000/udp"})
 	if err != nil {
 		t.Fatal(err)
 	}
