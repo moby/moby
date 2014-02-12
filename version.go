@@ -1,9 +1,18 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"runtime"
+)
+
+var (
+	// FIXME: this is a convenience indirection to preserve legacy
+	// code. It can be removed by using dockerversion.VERSION and
+	// dockerversion.GITCOMMIT directly
+	GITCOMMIT string = dockerversion.GITCOMMIT
+	VERSION   string = dockerversion.VERSION
 )
 
 func init() {

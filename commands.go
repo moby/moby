@@ -39,11 +39,6 @@ import (
 )
 
 var (
-	GITCOMMIT string
-	VERSION   string
-)
-
-var (
 	ErrConnectionRefused = errors.New("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 )
 
