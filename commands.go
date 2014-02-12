@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"archive/tar"
 	"bufio"
 	"bytes"
 	"encoding/base64"
@@ -136,31 +135,6 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	return cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, cli.out, nil)
 }
 
-// mkBuildContext returns an archive of an empty context with the contents
-// of `dockerfile` at the path ./Dockerfile
-func MkBuildContext(dockerfile string, files [][2]string) (archive.Archive, error) {
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
-	files = append(files, [2]string{"Dockerfile", dockerfile})
-	for _, file := range files {
-		name, content := file[0], file[1]
-		hdr := &tar.Header{
-			Name: name,
-			Size: int64(len(content)),
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return nil, err
-		}
-		if _, err := tw.Write([]byte(content)); err != nil {
-			return nil, err
-		}
-	}
-	if err := tw.Close(); err != nil {
-		return nil, err
-	}
-	return ioutil.NopCloser(buf), nil
-}
-
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "[OPTIONS] PATH | URL | -", "Build a new container image from the source code at PATH")
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
@@ -188,7 +162,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err != nil {
 			return err
 		}
-		context, err = MkBuildContext(string(dockerfile), nil)
+		context, err = archive.Generate("Dockerfile", string(dockerfile))
 	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
 		isRemote = true
 	} else {

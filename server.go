@@ -476,7 +476,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		c, err := MkBuildContext(string(dockerFile), nil)
+		c, err := archive.Generate("Dockerfile", string(dockerFile))
 		if err != nil {
 			return job.Error(err)
 		}
