@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -45,7 +46,7 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Close()
-	expected := docker.VERSION
+	expected := dockerversion.VERSION
 	if result := v.Get("Version"); result != expected {
 		t.Errorf("Expected version %s, %s found", expected, result)
 	}
