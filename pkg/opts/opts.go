@@ -1,8 +1,7 @@
-package docker
+package opts
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"path/filepath"
@@ -99,6 +98,16 @@ func ValidateLink(val string) (string, error) {
 	return val, nil
 }
 
+// FIXME: this is a duplicate of docker.utils.parseLink.
+// 	it can't be moved to a separate links/ package because
+//	links depends on Container which is defined in the core.
+//
+// Links come in the format of
+// name:alias
+func parseLink(rawLink string) (map[string]string, error) {
+	return utils.PartParser("name:alias", rawLink)
+}
+
 func ValidatePath(val string) (string, error) {
 	var containerPath string
 
@@ -127,14 +136,6 @@ func ValidateEnv(val string) (string, error) {
 		return val, nil
 	}
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
-}
-
-func ValidateHost(val string) (string, error) {
-	host, err := utils.ParseHost(api.DEFAULTHTTPHOST, api.DEFAULTHTTPPORT, api.DEFAULTUNIXSOCKET, val)
-	if err != nil {
-		return val, err
-	}
-	return host, nil
 }
 
 func ValidateIp4Address(val string) (string, error) {
