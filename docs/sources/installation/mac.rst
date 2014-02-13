@@ -72,7 +72,7 @@ Run the following commands to get it downloaded and set up:
     chmod +x docker
 
     # Set the environment variable for the docker daemon
-    export DOCKER_HOST=tcp://
+    export DOCKER_HOST=tcp://127.0.0.1:4243
 
     # Copy the executable file
     sudo cp docker /usr/local/bin/
