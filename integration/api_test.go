@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"archive/tar"
 	"bufio"
 	"bytes"
+	"code.google.com/p/go/src/pkg/archive/tar"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"

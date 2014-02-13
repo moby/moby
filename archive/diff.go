@@ -1,7 +1,7 @@
 package archive
 
 import (
-	"archive/tar"
+	"code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os"
 	"path/filepath"

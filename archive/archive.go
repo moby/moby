@@ -1,8 +1,8 @@
 package archive
 
 import (
-	"archive/tar"
 	"bytes"
+	"code.google.com/p/go/src/pkg/archive/tar"
 	"compress/bzip2"
 	"compress/gzip"
 	"errors"
