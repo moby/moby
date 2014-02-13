@@ -65,8 +65,11 @@ type buildFile struct {
 func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
 		tmp := b.runtime.Get(c)
-		b.runtime.Destroy(tmp)
-		fmt.Fprintf(b.outStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+		if err := b.runtime.Destroy(tmp); err != nil {
+			fmt.Fprintf(b.outStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
+		} else {
+			fmt.Fprintf(b.outStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+		}
 	}
 }
 
