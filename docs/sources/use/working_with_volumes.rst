@@ -101,7 +101,7 @@ might not work on any other machine.
 
 For example::
 
-  sudo docker run -v /var/logs:/var/host_logs:ro ubuntu bash
+  sudo docker run -t -i -v /var/logs:/var/host_logs:ro ubuntu bash
 
 The command above mounts the host directory ``/var/logs`` into the
 container with read only permissions as ``/var/host_logs``.
