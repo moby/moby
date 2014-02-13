@@ -926,6 +926,22 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	return nil
 }
 
+func postJob(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var data engine.Env
+	data.Decode(r.Body)
+
+	job := eng.Job(vars["name"], data.GetList("params")...)
+	if env := data.GetSubEnv("env"); env != nil {
+		job.ReplaceEnv(env)
+	}
+	job.Stdout.Add(w)
+	return job.Run()
+}
+
 func optionsHandler(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1047,6 +1063,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 		"OPTIONS": {
 			"": optionsHandler,
 		},
+	}
+	if os.Getenv("DEBUG") != "" {
+		m["POST"]["/debug/job/{name:.*}"] = postJob
 	}
 
 	for method, routes := range m {
