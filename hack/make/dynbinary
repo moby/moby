@@ -7,8 +7,19 @@ CGO_ENABLED=0 go build -o $DEST/dockerinit-$VERSION -ldflags "$LDFLAGS -d" $BUIL
 echo "Created binary: $DEST/dockerinit-$VERSION"
 ln -sf dockerinit-$VERSION $DEST/dockerinit
 
+sha1sum=
+if command -v sha1sum &> /dev/null; then
+	sha1sum=sha1sum
+elif command -v shasum &> /dev/null; then
+	# Mac OS X - why couldn't they just use the same command name and be happy?
+	sha1sum=shasum
+else
+	echo >&2 'error: cannot find sha1sum command or equivalent'
+	exit 1
+fi
+
 # sha1 our new dockerinit to ensure separate docker and dockerinit always run in a perfect pair compiled for one another
-export DOCKER_INITSHA1="$(sha1sum $DEST/dockerinit-$VERSION | cut -d' ' -f1)"
+export DOCKER_INITSHA1="$($sha1sum $DEST/dockerinit-$VERSION | cut -d' ' -f1)"
 # exported so that "dyntest" can easily access it later without recalculating it
 
 (
