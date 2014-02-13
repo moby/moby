@@ -247,6 +247,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 				outsLegacy.Add(outLegacy)
 			}
 		}
+		w.Header().Set("Content-Type", "application/json")
 		if _, err := outsLegacy.WriteListTo(w); err != nil {
 			return err
 		}
@@ -350,6 +351,7 @@ func getContainersJSON(eng *engine.Engine, version float64, w http.ResponseWrite
 			ports.ReadListFrom([]byte(out.Get("Ports")))
 			out.Set("Ports", displayablePorts(ports))
 		}
+		w.Header().Set("Content-Type", "application/json")
 		if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
