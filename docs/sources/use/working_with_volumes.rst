@@ -108,6 +108,16 @@ container with read only permissions as ``/var/host_logs``.
 
 .. versionadded:: v0.5.0
 
+
+Note for OS/X users and remote daemon users:
+--------------------------------------------
+ 
+OS/X users run ``boot2docker`` to create a minimalist virtual machine running the docker daemon.  That 
+virtual machine then launches docker commands on behalf of the OS/X command line.   The means that ``host
+directories`` refer to directories in the ``boot2docker`` virtual machine, not the OS/X filesystem.
+
+Similarly, anytime when the docker daemon is on a remote machine, the ``host directories`` always refer to directories on the daemon's machine.
+
 Known Issues
 ............
 
