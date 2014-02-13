@@ -745,7 +745,7 @@ func GetNameserversAsCIDR(resolvConf []byte) []string {
 }
 
 // FIXME: Change this not to receive default value as parameter
-func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (string, error) {
+func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
 	var (
 		proto string
 		host  string
@@ -753,6 +753,8 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 	)
 	addr = strings.TrimSpace(addr)
 	switch {
+	case addr == "tcp://":
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
 	case strings.HasPrefix(addr, "unix://"):
 		proto = "unix"
 		addr = strings.TrimPrefix(addr, "unix://")
@@ -788,12 +790,13 @@ func ParseHost(defaultHost string, defaultPort int, defaultUnix, addr string) (s
 		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
 			port = p
 		} else {
-			port = defaultPort
+			return "", fmt.Errorf("Invalid bind address format: %s", addr)
 		}
 
+	} else if proto == "tcp" && !strings.Contains(addr, ":") {
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
 	} else {
 		host = addr
-		port = defaultPort
 	}
 	if proto == "unix" {
 		return fmt.Sprintf("%s://%s", proto, host), nil
