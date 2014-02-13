@@ -200,6 +200,7 @@ func getContainersExport(eng *engine.Engine, version float64, w http.ResponseWri
 }
 
 func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
 	if err := parseForm(r); err != nil {
 		return err
 	}
