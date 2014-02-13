@@ -43,6 +43,7 @@ var (
 		"vfs",
 		// experimental, has to be enabled manually for now
 		"btrfs",
+		"overlayfs",
 	}
 )
 
