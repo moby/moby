@@ -106,6 +106,13 @@ For example::
 The command above mounts the host directory ``/var/logs`` into the
 container with read only permissions as ``/var/host_logs``.
 
+Note for OS/X users:
+--------------------
+
+OS/X users run ``boot2docker`` to create a minimalist virtual machine running the docker daemon.  That 
+virtual machine then launches docker commands on behalf of the OS/X command line.   The means that ``host``
+directories refer to directories in the ``boot2docker`` virtual machine, not the OS/X filesystem.
+
 .. versionadded:: v0.5.0
 
 
