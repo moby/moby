@@ -12,7 +12,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
   $ sudo docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -H=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind/connect to or unix://[/path/to/socket] to use. When host=[0.0.0.0], port=[4243] or path=[/var/run/docker.sock] is omitted, default values are used.
+      -H=[unix:///var/run/docker.sock]: tcp://[host]:port to bind/connect to or unix://[/path/to/socket] to use. When host=[127.0.0.1] is omitted for tcp or path=[/var/run/docker.sock] is omitted for unix sockets, default values are used.
 
     A self-sufficient runtime for linux containers.
 
