@@ -63,10 +63,10 @@ only be specified once.
 
 ::
 
-    Usage of docker:
+    Usage:
       -D, --debug=false: Enable debug mode
-      -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
+      -H, --host=[]: The socket to bind to in daemon mode, specified using tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
@@ -89,6 +89,8 @@ only be specified once.
       --tlskey="~/.docker/key.pem": Path to TLS key file
       --tlsverify=false: Use TLS and verify the remote (daemon: verify client, client: verify daemon)
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
+
+    Options with [] may be specified multiple times.
 
 The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
 daemon and client.  To run the daemon you provide the ``-d`` flag.
