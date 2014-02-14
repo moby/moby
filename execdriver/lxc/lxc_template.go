@@ -80,6 +80,10 @@ lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noex
 # if your userspace allows it. eg. see http://bit.ly/T9CkqJ
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
 
+{{if .Tty}}
+lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
+{{end}}
+
 lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
