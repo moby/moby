@@ -813,7 +813,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		basePath = path.Dir(basePath)
 	}
 
-	archive, err := archive.TarFilter(basePath, &archive.TarOptions{
+	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
 	})

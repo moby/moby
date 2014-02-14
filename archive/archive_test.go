@@ -63,8 +63,8 @@ func TestCmdStreamGood(t *testing.T) {
 	}
 }
 
-func tarUntar(t *testing.T, origin string, compression Compression) error {
-	archive, err := Tar(origin, compression)
+func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error) {
+	archive, err := TarWithOptions(origin, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,37 +72,29 @@ func tarUntar(t *testing.T, origin string, compression Compression) error {
 
 	buf := make([]byte, 10)
 	if _, err := archive.Read(buf); err != nil {
-		return err
+		return nil, err
 	}
 	wrap := io.MultiReader(bytes.NewReader(buf), archive)
 
 	detectedCompression := DetectCompression(buf)
+	compression := options.Compression
 	if detectedCompression.Extension() != compression.Extension() {
-		return fmt.Errorf("Wrong compression detected. Actual compression: %s, found %s", compression.Extension(), detectedCompression.Extension())
+		return nil, fmt.Errorf("Wrong compression detected. Actual compression: %s, found %s", compression.Extension(), detectedCompression.Extension())
 	}
 
 	tmp, err := ioutil.TempDir("", "docker-test-untar")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer os.RemoveAll(tmp)
 	if err := Untar(wrap, tmp, nil); err != nil {
-		return err
+		return nil, err
 	}
 	if _, err := os.Stat(tmp); err != nil {
-		return err
+		return nil, err
 	}
 
-	changes, err := ChangesDirs(origin, tmp)
-	if err != nil {
-		return err
-	}
-
-	if len(changes) != 0 {
-		t.Fatalf("Unexpected differences after tarUntar: %v", changes)
-	}
-
-	return nil
+	return ChangesDirs(origin, tmp)
 }
 
 func TestTarUntar(t *testing.T) {
@@ -122,8 +114,48 @@ func TestTarUntar(t *testing.T) {
 		Uncompressed,
 		Gzip,
 	} {
-		if err := tarUntar(t, origin, c); err != nil {
+		changes, err := tarUntar(t, origin, &TarOptions{
+			Compression: c,
+		})
+
+		if err != nil {
 			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
+		}
+
+		if len(changes) != 0 {
+			t.Fatalf("Unexpected differences after tarUntar: %v", changes)
+		}
+	}
+}
+
+func TestTarWithOptions(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(path.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		opts       *TarOptions
+		numChanges int
+	}{
+		{&TarOptions{Includes: []string{"1"}}, 1},
+		{&TarOptions{Excludes: []string{"2"}}, 1},
+	}
+	for _, testCase := range cases {
+		changes, err := tarUntar(t, origin, testCase.opts)
+		if err != nil {
+			t.Fatalf("Error tar/untar when testing inclusion/exclusion: %s", err)
+		}
+		if len(changes) != testCase.numChanges {
+			t.Errorf("Expected %d changes, got %d for %+v:",
+				testCase.numChanges, len(changes), testCase.opts)
 		}
 	}
 }
