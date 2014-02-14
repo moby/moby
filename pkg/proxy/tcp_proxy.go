@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"log"
 	"net"
@@ -49,7 +48,8 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 		to.CloseRead()
 		event <- written
 	}
-	utils.Debugf("Forwarding traffic between tcp/%v and tcp/%v", client.RemoteAddr(), backend.RemoteAddr())
+
+	log.Printf("Forwarding traffic between tcp/%v and tcp/%v", client.RemoteAddr(), backend.RemoteAddr())
 	go broker(client, backend)
 	go broker(backend, client)
 
@@ -71,17 +71,17 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 	client.Close()
 	backend.Close()
 done:
-	utils.Debugf("%v bytes transferred between tcp/%v and tcp/%v", transferred, client.RemoteAddr(), backend.RemoteAddr())
+	log.Printf("%v bytes transferred between tcp/%v and tcp/%v", transferred, client.RemoteAddr(), backend.RemoteAddr())
 }
 
 func (proxy *TCPProxy) Run() {
 	quit := make(chan bool)
 	defer close(quit)
-	utils.Debugf("Starting proxy on tcp/%v for tcp/%v", proxy.frontendAddr, proxy.backendAddr)
+	log.Printf("Starting proxy on tcp/%v for tcp/%v", proxy.frontendAddr, proxy.backendAddr)
 	for {
 		client, err := proxy.listener.Accept()
 		if err != nil {
-			utils.Debugf("Stopping proxy on tcp/%v for tcp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			log.Printf("Stopping proxy on tcp/%v for tcp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
 			return
 		}
 		go proxy.clientLoop(client.(*net.TCPConn), quit)
