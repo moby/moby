@@ -7,18 +7,6 @@ import (
 	"runtime"
 )
 
-func init() {
-	engine.Register("version", jobVersion)
-}
-
-func jobVersion(job *engine.Job) engine.Status {
-	if _, err := dockerVersion().WriteTo(job.Stdout); err != nil {
-		job.Errorf("%s", err)
-		return engine.StatusErr
-	}
-	return engine.StatusOK
-}
-
 // dockerVersion returns detailed version information in the form of a queriable
 // environment.
 func dockerVersion() *engine.Env {
