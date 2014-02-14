@@ -106,7 +106,7 @@ func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteClose
 
 	switch compression {
 	case Uncompressed:
-		return dest, nil
+		return utils.NopWriteCloser(dest), nil
 	case Gzip:
 		return gzip.NewWriter(dest), nil
 	case Bzip2, Xz:
@@ -336,6 +336,9 @@ func TarFilter(srcPath string, options *TarOptions) (io.Reader, error) {
 		}
 		if err := compressWriter.Close(); err != nil {
 			utils.Debugf("Can't close compress writer: %s\n", err)
+		}
+		if err := pipeWriter.Close(); err != nil {
+			utils.Debugf("Can't close pipe writer: %s\n", err)
 		}
 	}()
 
