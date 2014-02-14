@@ -972,3 +972,25 @@ func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
 		closer: closer,
 	}
 }
+
+func CompareVersion(a, b string) int {
+	aa := strings.Split(a, ".")
+	bb := strings.Split(b, ".")
+	for i, s := range aa {
+		var ai, bi int
+		ai, _ = strconv.Atoi(s)
+		if len(bb) > i {
+			bi, _ = strconv.Atoi(bb[i])
+		}
+		if ai > bi {
+			return 1
+		}
+		if bi > ai {
+			return -1
+		}
+	}
+	if len(bb) > len(aa) {
+		return -1
+	}
+	return 0
+}

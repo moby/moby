@@ -479,3 +479,23 @@ func StrSlicesEqual(a, b []string) bool {
 
 	return true
 }
+
+func asserVersion(t *testing.T, a, b string, result int) {
+	if r := CompareVersion(a, b); r != result {
+		t.Fatalf("Unexpected version comparison result. Found %d, expected %d", r, result)
+	}
+}
+
+func TestCompareVersion(t *testing.T) {
+	asserVersion(t, "1.12", "1.12", 0)
+	asserVersion(t, "1.05.00.0156", "1.0.221.9289", 1)
+	asserVersion(t, "1", "1.0.1", -1)
+	asserVersion(t, "1.0.1", "1", 1)
+	asserVersion(t, "1.0.1", "1.0.2", -1)
+	asserVersion(t, "1.0.2", "1.0.3", -1)
+	asserVersion(t, "1.0.3", "1.1", -1)
+	asserVersion(t, "1.1", "1.1.1", -1)
+	asserVersion(t, "1.1.1", "1.1.2", -1)
+	asserVersion(t, "1.1.2", "1.2", -1)
+
+}

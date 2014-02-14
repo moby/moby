@@ -2038,7 +2038,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -2115,7 +2115,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -2179,7 +2179,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
