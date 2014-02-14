@@ -9,7 +9,7 @@ Python Web App
 
 .. include:: example_header.inc
 
-While using Dockerfiles is the prefered way to create maintainable
+While using Dockerfiles is the preffered way to create maintainable
 and repeatable images, its useful to know how you can try things out
 and then commit your live changes to an image.
 
@@ -18,29 +18,29 @@ Docker images  by making changes to a running
 container, and then saving the results as a new image. We will do 
 that by making a simple 'hello world' Flask web application image.
 
-**Steps:**
+Download the initial image
+--------------------------
+
+Download the ``shykes/pybuilder`` Docker image from the ``http://index.docker.io``
+registry. 
+
+This image contains a ``buildapp`` script to download the web app and then ``pip install`` 
+any required modules, and a ``runapp`` script that finds the ``app.py`` and runs it.
+
+.. _`shykes/pybuilder`: https://github.com/shykes/pybuilder
 
 .. code-block:: bash
 
     $ sudo docker pull shykes/pybuilder
 
-Download the ``shykes/pybuilder`` Docker image from the ``http://index.docker.io``
-registry. Note that this container was built with a very old version of docker 
-(May 2013), but can still be used now.
+.. note:: This container was built with a very old version of docker 
+    (May 2013 - see `shykes/pybuilder`_ ), when the ``Dockerfile`` format was different, 
+    but the image can still be used now.
 
+Interactively make some modifications
+-------------------------------------
 
-.. code-block:: bash
-
-    $ sudo docker run -i -t -name pybuilder_run shykes/pybuilder bash
-
-    $$ URL=http://github.com/shykes/helloflask/archive/master.tar.gz
-    $$ /usr/local/bin/buildapp $URL
-    [lots of output later]
-    $$ exit
-
-
-We then start a new container running interactively  using the
-image. 
+We then start a new container running interactively  using the image. 
 First, we set a ``URL`` variable that points to a tarball of a simple 
 helloflask web app, and then we run a command contained in the image called
 ``buildapp``, passing it the ``$URL`` variable. The container is
@@ -51,8 +51,15 @@ try things out, and then exit when you're done.
 
 .. code-block:: bash
 
-    $ sudo docker commit pybuilder_run /builds/github.com/shykes/helloflask/master
-    c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9
+    $ sudo docker run -i -t -name pybuilder_run shykes/pybuilder bash
+
+    $$ URL=http://github.com/shykes/helloflask/archive/master.tar.gz
+    $$ /usr/local/bin/buildapp $URL
+    [...]
+    $$ exit
+
+Commit the container to create a new image
+------------------------------------------
 
 Save the changes we just made in the container to a new image called
 ``/builds/github.com/hykes/helloflask/master``. You now have 3 different
@@ -61,11 +68,21 @@ long-id ``c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9``.
 
 .. code-block:: bash
 
-    $ WEB_WORKER=$(sudo docker run -d -p 5000 /builds/github.com/hykes/helloflask/master /usr/local/bin/runapp)
+    $ sudo docker commit pybuilder_run /builds/github.com/shykes/helloflask/master
+    c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9
+
+
+Run the new image to start the web worker
+-----------------------------------------
 
 Use the new image to create a new container with
 network port 5000, and return the container ID and store in the
 ``WEB_WORKER`` variable (rather than naming a container/image, you can use the ID's).
+
+.. code-block:: bash
+
+    $ WEB_WORKER=$(sudo docker run -d -p 5000 /builds/github.com/hykes/helloflask/master /usr/local/bin/runapp)
+
 
 - **"docker run -d "** run a command in a new container. We pass "-d"
   so it runs as a daemon.
@@ -74,10 +91,8 @@ network port 5000, and return the container ID and store in the
 - **/usr/local/bin/runapp** is the command which starts the web app.
 
 
-.. code-block:: bash
-
-    $ sudo docker logs -f $WEB_WORKER
-     * Running on http://0.0.0.0:5000/
+View the container logs
+-----------------------
 
 View the logs for the new container using the ``WEB_WORKER`` variable, and
 if everything worked as planned you should see the line ``Running on
@@ -88,19 +103,30 @@ terminal and continue with the example while watching the result in the logs.
 
 .. code-block:: bash
 
-    $ WEB_PORT=$(sudo docker port $WEB_WORKER 5000 | awk -F: '{ print $2 }')
+    $ sudo docker logs -f $WEB_WORKER
+     * Running on http://0.0.0.0:5000/
+
+
+See the webapp output
+---------------------
 
 Look up the public-facing port which is NAT-ed. Find the private port
 used by the container and store it inside of the ``WEB_PORT`` variable.
 
+Access the web app using the ``curl`` binary. If everything worked as planned you
+should see the line ``Hello world!`` inside of your console.
+
 .. code-block:: bash
+
+    $ WEB_PORT=$(sudo docker port $WEB_WORKER 5000 | awk -F: '{ print $2 }')
 
     # install curl if necessary, then ...
     $ curl http://127.0.0.1:$WEB_PORT
     Hello world!
 
-Access the web app using the ``curl`` binary. If everything worked as planned you
-should see the line ``Hello world!`` inside of your console.
+
+Clean up example containers and images
+--------------------------------------
 
 .. code-block:: bash
 

@@ -2,8 +2,6 @@
 :description: A simple hello world example with Docker
 :keywords: docker, example, hello world
 
-.. _examples:
-
 .. _running_examples:
 
 Check your Docker install
@@ -37,7 +35,7 @@ Download the small base image named ``busybox``:
 
 .. code-block:: bash
 
-    # Download an busybox image
+    # Download a busybox image
     $ sudo docker pull busybox
 
 The ``busybox`` image is a minimal Linux system. You can do the same
@@ -71,8 +69,8 @@ See the example in action
    <iframe width="560" height="400" frameborder="0"
            sandbox="allow-same-origin allow-scripts" 
    srcdoc="<body><script type=&quot;text/javascript&quot; 
-           src=&quot;https://asciinema.org/a/2603.js&quot; 
-           id=&quot;asciicast-2603&quot; async></script></body>">
+           src=&quot;https://asciinema.org/a/7658.js&quot; 
+           id=&quot;asciicast-7658&quot; async></script></body>">
    </iframe>
 
 ----
