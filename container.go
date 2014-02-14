@@ -231,6 +231,7 @@ func (container *Container) setupPty() error {
 	container.ptyMaster = ptyMaster
 	container.command.Stdout = ptySlave
 	container.command.Stderr = ptySlave
+	container.command.Console = ptySlave.Name()
 
 	// Copy the PTYs to our broadcasters
 	go func() {
