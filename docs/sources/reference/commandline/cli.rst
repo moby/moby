@@ -184,7 +184,7 @@ Examples:
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
-      -t, --time="": Repository name (and optionally a tag) to be applied 
+      -t, --tag="": Repository name (and optionally a tag) to be applied 
              to the resulting image in case of success.
       -q, --quiet=false: Suppress verbose build output.
       --no-cache: Do not use the cache when building the image.
