@@ -67,7 +67,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, layer string) error {
+func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, root, layer string) error {
 	// Store the layer
 	var (
 		size   int64
@@ -174,7 +174,11 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return EofReader(archive, func() { driver.Put(img.ID) }), nil
+		return utils.NewReadCloserWrapper(archive, func() error {
+			err := archive.Close()
+			driver.Put(img.ID)
+			return err
+		}), nil
 	}
 
 	parentFs, err := driver.Get(img.Parent)
@@ -190,7 +194,11 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return EofReader(archive, func() { driver.Put(img.ID) }), nil
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		driver.Put(img.ID)
+		return err
+	}), nil
 }
 
 func ValidateID(id string) error {

@@ -1288,7 +1288,11 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return EofReader(archive, func() { container.Unmount() }), nil
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.Unmount()
+		return err
+	}), nil
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -1301,7 +1305,11 @@ func (container *Container) Export() (archive.Archive, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return EofReader(archive, func() { container.Unmount() }), nil
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.Unmount()
+		return err
+	}), nil
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -1455,7 +1463,11 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return utils.NewReadCloserWrapper(archive, container.Unmount), nil
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.Unmount()
+		return err
+	}), nil
 }
 
 // Returns true if the container exposes a certain port

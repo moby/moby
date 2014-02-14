@@ -531,6 +531,8 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	if err != nil {
 		return nil, err
 	}
+	defer rwTar.Close()
+
 	// Create a new image from the container's base layers + a new layer from container changes
 	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
 	if err != nil {
@@ -817,7 +819,11 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return EofReader(archive, func() { runtime.driver.Put(container.ID) }), nil
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		runtime.driver.Put(container.ID)
+		return err
+	}), nil
 }
 
 func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {

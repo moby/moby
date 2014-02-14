@@ -319,7 +319,7 @@ func runContainer(eng *engine.Engine, r *docker.Runtime, args []string, t *testi
 }
 
 // FIXME: this is duplicated from graph_test.go in the docker package.
-func fakeTar() (io.Reader, error) {
+func fakeTar() (io.ReadCloser, error) {
 	content := []byte("Hello world!\n")
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
@@ -333,7 +333,7 @@ func fakeTar() (io.Reader, error) {
 		tw.Write([]byte(content))
 	}
 	tw.Close()
-	return buf, nil
+	return ioutil.NopCloser(buf), nil
 }
 
 func getAllImages(eng *engine.Engine, t *testing.T) *engine.Table {

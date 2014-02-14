@@ -292,6 +292,7 @@ func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Errorf("%s: %s", name, err)
 		}
+		defer data.Close()
 
 		// Stream the entire contents of the container (basically a volatile snapshot)
 		if _, err := io.Copy(job.Stdout, data); err != nil {
@@ -361,6 +362,7 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
+	defer fs.Close()
 
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
 		return job.Error(err)
@@ -400,6 +402,7 @@ func (srv *Server) exportImage(image *Image, tempdir string) error {
 		if err != nil {
 			return err
 		}
+		defer fs.Close()
 
 		fsTar, err := os.Create(path.Join(tmpImageDir, "layer.tar"))
 		if err != nil {
@@ -436,14 +439,14 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		authConfig     = &auth.AuthConfig{}
 		configFile     = &auth.ConfigFile{}
 		tag            string
-		context        io.Reader
+		context        io.ReadCloser
 	)
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
-		context = job.Stdin
+		context = ioutil.NopCloser(job.Stdin)
 	} else if utils.IsGIT(remoteURL) {
 		if !strings.HasPrefix(remoteURL, "git://") {
 			remoteURL = "https://" + remoteURL
@@ -479,6 +482,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		}
 		context = c
 	}
+	defer context.Close()
 
 	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
 	b := NewBuildFile(srv,
@@ -1575,7 +1579,7 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 		repo    = job.Args[1]
 		tag     string
 		sf      = utils.NewStreamFormatter(job.GetenvBool("json"))
-		archive io.Reader
+		archive archive.ArchiveReader
 		resp    *http.Response
 	)
 	if len(job.Args) > 2 {
@@ -1601,7 +1605,9 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		archive = utils.ProgressReader(resp.Body, int(resp.ContentLength), job.Stdout, sf, true, "", "Importing")
+		progressReader := utils.ProgressReader(resp.Body, int(resp.ContentLength), job.Stdout, sf, true, "", "Importing")
+		defer progressReader.Close()
+		archive = progressReader
 	}
 	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
 	if err != nil {

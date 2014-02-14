@@ -19,9 +19,10 @@ import (
 )
 
 type (
-	Archive     io.Reader
-	Compression int
-	TarOptions  struct {
+	Archive       io.ReadCloser
+	ArchiveReader io.Reader
+	Compression   int
+	TarOptions    struct {
 		Includes    []string
 		Compression Compression
 	}
@@ -269,7 +270,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 
 // Tar creates an archive from the directory at `path`, and returns it as a
 // stream of bytes.
-func Tar(path string, compression Compression) (io.Reader, error) {
+func Tar(path string, compression Compression) (io.ReadCloser, error) {
 	return TarFilter(path, &TarOptions{Compression: compression})
 }
 
@@ -291,7 +292,7 @@ func escapeName(name string) string {
 
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
-func TarFilter(srcPath string, options *TarOptions) (io.Reader, error) {
+func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
 	compressWriter, err := CompressStream(pipeWriter, options.Compression)
@@ -436,15 +437,19 @@ func TarUntar(src string, dst string) error {
 	if err != nil {
 		return err
 	}
+	defer archive.Close()
 	return Untar(archive, dst, nil)
 }
 
 // UntarPath is a convenience function which looks for an archive
 // at filesystem path `src`, and unpacks it at `dst`.
 func UntarPath(src, dst string) error {
-	if archive, err := os.Open(src); err != nil {
+	archive, err := os.Open(src)
+	if err != nil {
 		return err
-	} else if err := Untar(archive, dst, nil); err != nil {
+	}
+	defer archive.Close()
+	if err := Untar(archive, dst, nil); err != nil {
 		return err
 	}
 	return nil
