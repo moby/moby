@@ -65,13 +65,13 @@ func DetectCompression(source []byte) Compression {
 	return Uncompressed
 }
 
-func xzDecompress(archive io.Reader) (io.Reader, error) {
+func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
 
 	return CmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
-func DecompressStream(archive io.Reader) (io.Reader, error) {
+func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	buf := make([]byte, 10)
 	totalN := 0
 	for totalN < 10 {
@@ -90,11 +90,11 @@ func DecompressStream(archive io.Reader) (io.Reader, error) {
 
 	switch compression {
 	case Uncompressed:
-		return wrap, nil
+		return ioutil.NopCloser(wrap), nil
 	case Gzip:
 		return gzip.NewReader(wrap)
 	case Bzip2:
-		return bzip2.NewReader(wrap), nil
+		return ioutil.NopCloser(bzip2.NewReader(wrap)), nil
 	case Xz:
 		return xzDecompress(wrap)
 	default:
@@ -352,12 +352,13 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		return fmt.Errorf("Empty archive")
 	}
 
-	archive, err := DecompressStream(archive)
+	decompressedArchive, err := DecompressStream(archive)
 	if err != nil {
 		return err
 	}
+	defer decompressedArchive.Close()
 
-	tr := tar.NewReader(archive)
+	tr := tar.NewReader(decompressedArchive)
 
 	var dirs []*tar.Header
 
@@ -528,7 +529,7 @@ func CopyFileWithTar(src, dst string) (err error) {
 // CmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func CmdStream(cmd *exec.Cmd, input io.Reader) (io.Reader, error) {
+func CmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 	if input != nil {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
