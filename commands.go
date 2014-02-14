@@ -2118,7 +2118,9 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		return nil, -1, err
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+	if resp.StatusCode == 404 {
+		return nil, resp.StatusCode, fmt.Errorf("Error: request for %s returned 404 Not Found for the api version", req.URL)
+	} else if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, -1, err
