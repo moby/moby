@@ -127,7 +127,7 @@ func (graph *Graph) Get(name string) (*Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.Archive, container *Container, comment, author string, config *runconfig.Config) (*Image, error) {
+func (graph *Graph) Create(layerData archive.ArchiveReader, container *Container, comment, author string, config *runconfig.Config) (*Image, error) {
 	img := &Image{
 		ID:            GenerateID(),
 		Comment:       comment,
@@ -151,7 +151,7 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Image) (err error) {
+func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, img *Image) (err error) {
 	defer func() {
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.
@@ -226,7 +226,9 @@ func (graph *Graph) TempLayerArchive(id string, compression archive.Compression,
 	if err != nil {
 		return nil, err
 	}
-	return archive.NewTempArchive(utils.ProgressReader(ioutil.NopCloser(a), 0, output, sf, false, utils.TruncateID(id), "Buffering to disk"), tmp)
+	progress := utils.ProgressReader(a, 0, output, sf, false, utils.TruncateID(id), "Buffering to disk")
+	defer progress.Close()
+	return archive.NewTempArchive(progress, tmp)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.

@@ -19,9 +19,10 @@ import (
 )
 
 type (
-	Archive     io.Reader
-	Compression int
-	TarOptions  struct {
+	Archive       io.ReadCloser
+	ArchiveReader io.Reader
+	Compression   int
+	TarOptions    struct {
 		Includes    []string
 		Compression Compression
 	}
@@ -65,13 +66,13 @@ func DetectCompression(source []byte) Compression {
 	return Uncompressed
 }
 
-func xzDecompress(archive io.Reader) (io.Reader, error) {
+func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
 
 	return CmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
-func DecompressStream(archive io.Reader) (io.Reader, error) {
+func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	buf := make([]byte, 10)
 	totalN := 0
 	for totalN < 10 {
@@ -90,11 +91,11 @@ func DecompressStream(archive io.Reader) (io.Reader, error) {
 
 	switch compression {
 	case Uncompressed:
-		return wrap, nil
+		return ioutil.NopCloser(wrap), nil
 	case Gzip:
 		return gzip.NewReader(wrap)
 	case Bzip2:
-		return bzip2.NewReader(wrap), nil
+		return ioutil.NopCloser(bzip2.NewReader(wrap)), nil
 	case Xz:
 		return xzDecompress(wrap)
 	default:
@@ -106,7 +107,7 @@ func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteClose
 
 	switch compression {
 	case Uncompressed:
-		return dest, nil
+		return utils.NopWriteCloser(dest), nil
 	case Gzip:
 		return gzip.NewWriter(dest), nil
 	case Bzip2, Xz:
@@ -269,7 +270,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 
 // Tar creates an archive from the directory at `path`, and returns it as a
 // stream of bytes.
-func Tar(path string, compression Compression) (io.Reader, error) {
+func Tar(path string, compression Compression) (io.ReadCloser, error) {
 	return TarFilter(path, &TarOptions{Compression: compression})
 }
 
@@ -291,7 +292,7 @@ func escapeName(name string) string {
 
 // Tar creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `filter`. If `filter` is nil, then all files are included.
-func TarFilter(srcPath string, options *TarOptions) (io.Reader, error) {
+func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
 	compressWriter, err := CompressStream(pipeWriter, options.Compression)
@@ -337,6 +338,9 @@ func TarFilter(srcPath string, options *TarOptions) (io.Reader, error) {
 		if err := compressWriter.Close(); err != nil {
 			utils.Debugf("Can't close compress writer: %s\n", err)
 		}
+		if err := pipeWriter.Close(); err != nil {
+			utils.Debugf("Can't close pipe writer: %s\n", err)
+		}
 	}()
 
 	return pipeReader, nil
@@ -352,12 +356,13 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		return fmt.Errorf("Empty archive")
 	}
 
-	archive, err := DecompressStream(archive)
+	decompressedArchive, err := DecompressStream(archive)
 	if err != nil {
 		return err
 	}
+	defer decompressedArchive.Close()
 
-	tr := tar.NewReader(archive)
+	tr := tar.NewReader(decompressedArchive)
 
 	var dirs []*tar.Header
 
@@ -432,15 +437,19 @@ func TarUntar(src string, dst string) error {
 	if err != nil {
 		return err
 	}
+	defer archive.Close()
 	return Untar(archive, dst, nil)
 }
 
 // UntarPath is a convenience function which looks for an archive
 // at filesystem path `src`, and unpacks it at `dst`.
 func UntarPath(src, dst string) error {
-	if archive, err := os.Open(src); err != nil {
+	archive, err := os.Open(src)
+	if err != nil {
 		return err
-	} else if err := Untar(archive, dst, nil); err != nil {
+	}
+	defer archive.Close()
+	if err := Untar(archive, dst, nil); err != nil {
 		return err
 	}
 	return nil
@@ -528,7 +537,7 @@ func CopyFileWithTar(src, dst string) (err error) {
 // CmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func CmdStream(cmd *exec.Cmd, input io.Reader) (io.Reader, error) {
+func CmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 	if input != nil {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {

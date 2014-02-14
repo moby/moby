@@ -158,7 +158,7 @@ func MkBuildContext(dockerfile string, files [][2]string) (archive.Archive, erro
 	if err := tw.Close(); err != nil {
 		return nil, err
 	}
-	return buf, nil
+	return ioutil.NopCloser(buf), nil
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
@@ -206,7 +206,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		body = utils.ProgressReader(ioutil.NopCloser(context), 0, cli.err, sf, true, "", "Uploading context")
+		body = utils.ProgressReader(context, 0, cli.err, sf, true, "", "Uploading context")
 	}
 	// Upload the build context
 	v := &url.Values{}

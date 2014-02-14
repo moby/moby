@@ -28,7 +28,7 @@ type Driver interface {
 type Differ interface {
 	Diff(id string) (archive.Archive, error)
 	Changes(id string) ([]archive.Change, error)
-	ApplyDiff(id string, diff archive.Archive) error
+	ApplyDiff(id string, diff archive.ArchiveReader) error
 	DiffSize(id string) (bytes int64, err error)
 }
 

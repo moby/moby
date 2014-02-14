@@ -464,6 +464,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
 		remoteHash = tarSum.Sum(nil)
+		r.Close()
 
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(dest, "/") {
