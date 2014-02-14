@@ -359,20 +359,36 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		}
 		return err
 	}
+
 	if fi.IsDir() {
 		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
-		// First try to unpack the source as an archive
-	} else if err := archive.UntarPath(origPath, destPath); err != nil {
-		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
-		// If that fails, just copy it as a regular file
-		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
-			return err
-		}
-		if err := archive.CopyWithTar(origPath, destPath); err != nil {
-			return err
-		}
+		return nil
+	}
+
+	// First try to unpack the source as an archive
+	// to support the untar feature we need to clean up the path a little bit
+	// because tar is very forgiving.  First we need to strip off the archive's
+	// filename from the path but this is only added if it does not end in / .
+	tarDest := destPath
+	if strings.HasSuffix(tarDest, "/") {
+		tarDest = filepath.Dir(destPath)
+	}
+
+	// try to successfully untar the orig
+	if err := archive.UntarPath(origPath, tarDest); err == nil {
+		return nil
+	}
+	utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
+
+	// If that fails, just copy it as a regular file
+	// but do not use all the magic path handling for the tar path
+	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
+		return err
+	}
+	if err := archive.CopyWithTar(origPath, destPath); err != nil {
+		return err
 	}
 	return nil
 }
