@@ -68,7 +68,7 @@ Once inside our freshly created container we need to install Redis to get the
     service redis-server stop
 
 Now we can test the connection. Firstly, let's look at the available environmental 
-variables in our web application container that docker has setup for us. We can use these to get the IP and port 
+variables in our web application container that Docker has setup for us. We can use these to get the IP and port 
 of our ``redis`` container.
 
 .. code-block:: bash
