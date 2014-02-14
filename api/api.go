@@ -27,12 +27,20 @@ import (
 	"syscall"
 )
 
+// FIXME: move code common to client and server to common.go
 const (
 	APIVERSION        = 1.9
 	DEFAULTHTTPHOST   = "127.0.0.1"
-	DEFAULTHTTPPORT   = 4243
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 )
+
+func ValidateHost(val string) (string, error) {
+	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
+	if err != nil {
+		return val, err
+	}
+	return host, nil
+}
 
 type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
 
@@ -97,6 +105,15 @@ func writeJSON(w http.ResponseWriter, code int, v engine.Env) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	return v.Encode(w)
+}
+
+func streamJSON(job *engine.Job, w http.ResponseWriter, flush bool) {
+	w.Header().Set("Content-Type", "application/json")
+	if flush {
+		job.Stdout.Add(utils.NewWriteFlusher(w))
+	} else {
+		job.Stdout.Add(w)
+	}
 }
 
 func getBoolParam(value string) (bool, error) {
@@ -205,7 +222,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 	job.Setenv("all", r.Form.Get("all"))
 
 	if version >= 1.7 {
-		job.Stdout.Add(w)
+		streamJSON(job, w, false)
 	} else if outs, err = job.Stdout.AddListTable(); err != nil {
 		return err
 	}
@@ -229,6 +246,7 @@ func getImagesJSON(eng *engine.Engine, version float64, w http.ResponseWriter, r
 				outsLegacy.Add(outLegacy)
 			}
 		}
+		w.Header().Set("Content-Type", "application/json")
 		if _, err := outsLegacy.WriteListTo(w); err != nil {
 			return err
 		}
@@ -256,9 +274,8 @@ func getEvents(eng *engine.Engine, version float64, w http.ResponseWriter, r *ht
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	var job = eng.Job("events", r.RemoteAddr)
-	job.Stdout.Add(utils.NewWriteFlusher(w))
+	streamJSON(job, w, true)
 	job.Setenv("since", r.Form.Get("since"))
 	return job.Run()
 }
@@ -269,7 +286,7 @@ func getImagesHistory(eng *engine.Engine, version float64, w http.ResponseWriter
 	}
 
 	var job = eng.Job("history", vars["name"])
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 
 	if err := job.Run(); err != nil {
 		return err
@@ -282,7 +299,7 @@ func getContainersChanges(eng *engine.Engine, version float64, w http.ResponseWr
 		return fmt.Errorf("Missing parameter")
 	}
 	var job = eng.Job("changes", vars["name"])
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 
 	return job.Run()
 }
@@ -299,7 +316,7 @@ func getContainersTop(eng *engine.Engine, version float64, w http.ResponseWriter
 	}
 
 	job := eng.Job("top", vars["name"], r.Form.Get("ps_args"))
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 	return job.Run()
 }
 
@@ -320,7 +337,7 @@ func getContainersJSON(eng *engine.Engine, version float64, w http.ResponseWrite
 	job.Setenv("limit", r.Form.Get("limit"))
 
 	if version >= 1.5 {
-		job.Stdout.Add(w)
+		streamJSON(job, w, false)
 	} else if outs, err = job.Stdout.AddTable(); err != nil {
 		return err
 	}
@@ -333,6 +350,7 @@ func getContainersJSON(eng *engine.Engine, version float64, w http.ResponseWrite
 			ports.ReadListFrom([]byte(out.Get("Ports")))
 			out.Set("Ports", displayablePorts(ports))
 		}
+		w.Header().Set("Content-Type", "application/json")
 		if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
@@ -366,7 +384,7 @@ func postCommit(eng *engine.Engine, version float64, w http.ResponseWriter, r *h
 		env    engine.Env
 		job    = eng.Job("commit", r.Form.Get("container"))
 	)
-	if err := config.Import(r.Body); err != nil {
+	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
 	}
 
@@ -425,8 +443,12 @@ func postImagesCreate(eng *engine.Engine, version float64, w http.ResponseWriter
 		job.Stdin.Add(r.Body)
 	}
 
-	job.SetenvBool("json", version > 1.0)
-	job.Stdout.Add(utils.NewWriteFlusher(w))
+	if version > 1.0 {
+		job.SetenvBool("json", true)
+		streamJSON(job, w, true)
+	} else {
+		job.Stdout.Add(utils.NewWriteFlusher(w))
+	}
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
 			return err
@@ -465,7 +487,7 @@ func getImagesSearch(eng *engine.Engine, version float64, w http.ResponseWriter,
 	var job = eng.Job("search", r.Form.Get("term"))
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 
 	return job.Run()
 }
@@ -482,8 +504,12 @@ func postImagesInsert(eng *engine.Engine, version float64, w http.ResponseWriter
 	}
 
 	job := eng.Job("insert", vars["name"], r.Form.Get("url"), r.Form.Get("path"))
-	job.SetenvBool("json", version > 1.0)
-	job.Stdout.Add(w)
+	if version > 1.0 {
+		job.SetenvBool("json", true)
+		streamJSON(job, w, false)
+	} else {
+		job.Stdout.Add(w)
+	}
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
 			return err
@@ -532,8 +558,12 @@ func postImagesPush(eng *engine.Engine, version float64, w http.ResponseWriter, 
 	job := eng.Job("push", vars["name"])
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
-	job.SetenvBool("json", version > 1.0)
-	job.Stdout.Add(utils.NewWriteFlusher(w))
+	if version > 1.0 {
+		job.SetenvBool("json", true)
+		streamJSON(job, w, true)
+	} else {
+		job.Stdout.Add(utils.NewWriteFlusher(w))
+	}
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
@@ -635,7 +665,7 @@ func deleteImages(eng *engine.Engine, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Missing parameter")
 	}
 	var job = eng.Job("image_delete", vars["name"])
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 	job.SetenvBool("autoPrune", version > 1.1)
 
 	return job.Run()
@@ -815,7 +845,7 @@ func getContainersByName(eng *engine.Engine, version float64, w http.ResponseWri
 		return fmt.Errorf("Missing parameter")
 	}
 	var job = eng.Job("inspect", vars["name"], "container")
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
@@ -825,7 +855,7 @@ func getImagesByName(eng *engine.Engine, version float64, w http.ResponseWriter,
 		return fmt.Errorf("Missing parameter")
 	}
 	var job = eng.Job("inspect", vars["name"], "image")
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
@@ -865,11 +895,11 @@ func postBuild(eng *engine.Engine, version float64, w http.ResponseWriter, r *ht
 	}
 
 	if version >= 1.8 {
-		w.Header().Set("Content-Type", "application/json")
 		job.SetenvBool("json", true)
+		streamJSON(job, w, true)
+	} else {
+		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
-
-	job.Stdout.Add(utils.NewWriteFlusher(w))
 	job.Stdin.Add(r.Body)
 	job.Setenv("remote", r.FormValue("remote"))
 	job.Setenv("t", r.FormValue("t"))
@@ -910,7 +940,7 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	}
 
 	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
-	job.Stdout.Add(w)
+	streamJSON(job, w, false)
 	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
 	}

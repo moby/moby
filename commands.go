@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
@@ -266,11 +267,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 	serverAddress := auth.IndexServerAddress()
 	if len(cmd.Args()) > 0 {
-		serverAddress, err = registry.ExpandAndVerifyRegistryUrl(cmd.Arg(0))
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(cli.out, "Login against server at %s\n", serverAddress)
+		serverAddress = cmd.Arg(0)
 	}
 
 	promptDefault := func(prompt string, configDefault string) {
@@ -1760,16 +1757,16 @@ func ParseRun(args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *f
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = NewListOpts(ValidateAttach)
-		flVolumes = NewListOpts(ValidatePath)
-		flLinks   = NewListOpts(ValidateLink)
-		flEnv     = NewListOpts(ValidateEnv)
+		flAttach  = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes = opts.NewListOpts(opts.ValidatePath)
+		flLinks   = opts.NewListOpts(opts.ValidateLink)
+		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 
-		flPublish     ListOpts
-		flExpose      ListOpts
-		flDns         ListOpts
-		flVolumesFrom ListOpts
-		flLxcOpts     ListOpts
+		flPublish     opts.ListOpts
+		flExpose      opts.ListOpts
+		flDns         opts.ListOpts
+		flVolumesFrom opts.ListOpts
+		flLxcOpts     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -2331,7 +2328,9 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		return nil, -1, err
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+	if resp.StatusCode == 404 {
+		return nil, resp.StatusCode, fmt.Errorf("Error: request for %s returned 404 Not Found for the api version", req.URL)
+	} else if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, -1, err

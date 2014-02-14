@@ -495,7 +495,6 @@ func TestDriverCreate(t *testing.T) {
 			"DmTaskCreate",
 			"DmTaskGetInfo",
 			"sysMount",
-			"Mounted",
 			"DmTaskRun",
 			"DmTaskSetTarget",
 			"DmTaskSetSector",
@@ -614,7 +613,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskCreate",
 			"DmTaskGetInfo",
 			"sysMount",
-			"Mounted",
 			"DmTaskRun",
 			"DmTaskSetTarget",
 			"DmTaskSetSector",
@@ -645,7 +643,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetTarget",
 			"DmTaskSetAddNode",
 			"DmUdevWait",
-			"Mounted",
 			"sysUnmount",
 		)
 	}()

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.8.1 (2014-02-14)
+
+### Builder
+- Avoid extra mount/unmount during build. This fixes mount/unmount related errors during build.
+- Add error to docker build --rm. This adds missing error handling.
+- Fix regression with ADD for tar files. This stops ADD from unpacking tarballs.
+
+### Documentation
+- Download the docker client binary for Mac over https
+- Update the titles of the install instructions & descriptions
+* Add instructions for upgrading boot2docker
+* Add port forwarding example in OS X install docs
+* Swich Firefox example to Iceweasel
+
+### Remote API
+* Move code specific to the API to the api package
+- Fix header content type for the API. Makes all endpoints use proper content type.
+* Improve error message for 404 returned by daemon
+
+### Runtime
+* Do not ping the registry from the CLI. All requests to registres flow through the daemon.
+- Check for nil information return in the lxc driver. This fixes panics with older lxc versions.
+- Devicemapper: cleanups and fix for unmount. Fixes two problems which were causing unmount to fail intermittently.
+- Devicemapper: remove directory when removing device. Directories don't get left behind when removing the device.
+* Devicemapper: enable skip_block_zeroing. Improves performance by not zeroing blocks.
+- Devicemapper: fix shutdown warnings. Fixes shutdown warnings concerning pool device removal.
+- Ensure docker cp stream is closed properly. Fixes problems with files not being copied by `docker cp`
+- Stop making `tcp://` default to `127.0.0.1:4243` and remove the default port for tcp
+- Fix `--run` in `docker commit`. This makes `docker commit --run` work again.
+- Fix custom bridge related options. This makes custom bridges work again.
++ Mount-bind the PTY as container console. This allows tmux/screen to run.
+- Avoid extra mount/unmount during container registration. Fixes a race condition.
+- Remove a panic in the lxc driver. Fixes a daemon crash.
+
 ## 0.8.0 (2014-02-04)
 
 #### Notable features since 0.7.0
