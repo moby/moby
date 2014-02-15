@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 )
 
@@ -64,6 +65,18 @@ func TestEngineRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
+	// We expect Root to resolve to an absolute path.
+	// FIXME: this should not be necessary.
+	// Until the above FIXME is implemented, let's check for the
+	// current behavior.
+	tmp, err = filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp, err = filepath.Abs(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	dir := path.Join(tmp, "dir")
 	eng, err := New(dir)
 	if err != nil {
