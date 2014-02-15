@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dotcloud/docker"
+	_ "github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
@@ -108,7 +108,7 @@ func main() {
 			log.Fatal("Please specify only one -H")
 		}
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
-		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
+		if err := api.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			if sterr, ok := err.(*utils.StatusError); ok {
 				if sterr.Status != "" {
 					log.Println(sterr.Status)

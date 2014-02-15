@@ -1,4 +1,4 @@
-package docker
+package api
 
 import (
 	"bufio"
@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/dockerversion"
@@ -30,7 +29,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -76,7 +74,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", api.DEFAULTUNIXSOCKET)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTUNIXSOCKET)
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
@@ -1280,19 +1278,6 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 	}
 }
 
-func displayablePorts(ports *engine.Table) string {
-	result := []string{}
-	for _, port := range ports.Data {
-		if port.Get("IP") == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))
-		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
-		}
-	}
-	sort.Strings(result)
-	return strings.Join(result, ", ")
-}
-
 func (cli *DockerCli) CmdPs(args ...string) error {
 	cmd := cli.Subcmd("ps", "[OPTIONS]", "List containers")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
@@ -1587,7 +1572,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	if !container.State.IsRunning() {
+	if !container.State.Running {
 		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
 	}
 
@@ -2044,7 +2029,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", api.APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -2123,7 +2108,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", api.APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -2168,7 +2153,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 
-	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
+	if MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
 		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.terminalFd, cli.isTerminal)
 	}
 	if _, err := io.Copy(out, resp.Body); err != nil {
@@ -2187,7 +2172,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", api.APIVERSION, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
@@ -2370,7 +2355,7 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	if err := json.Unmarshal(body, c); err != nil {
 		return false, -1, err
 	}
-	return c.State.IsRunning(), c.State.GetExitCode(), nil
+	return c.State.Running, c.State.ExitCode, nil
 }
 
 func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, error) {
