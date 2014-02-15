@@ -100,7 +100,6 @@ func changeUser(args *execdriver.InitArgs) error {
 }
 
 func setupCapabilities(args *execdriver.InitArgs) error {
-
 	if args.Privileged {
 		return nil
 	}

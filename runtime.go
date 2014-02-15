@@ -7,7 +7,6 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/execdriver/chroot"
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
@@ -704,19 +703,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 
 	sysInfo := sysinfo.New(false)
 
-	/*
-		temporarilly disabled.
-	*/
-	if false {
-		var ed execdriver.Driver
-		if driver := os.Getenv("EXEC_DRIVER"); driver == "lxc" {
-			ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
-		} else {
-			ed, err = chroot.NewDriver()
-		}
-		if ed != nil {
-		}
-	}
 	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)
 	if err != nil {
 		return nil, err
