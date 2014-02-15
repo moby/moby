@@ -14,16 +14,6 @@ import (
 	"testing"
 )
 
-// mkTestContext generates a build context from the contents of the provided dockerfile.
-// This context is suitable for use as an argument to BuildFile.Build()
-func mkTestContext(dockerfile string, files [][2]string, t *testing.T) archive.Archive {
-	context, err := docker.MkBuildContext(dockerfile, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return context
-}
-
 // A testContextTemplate describes a build context and how to test it
 type testContextTemplate struct {
 	// Contents of the Dockerfile
@@ -32,6 +22,18 @@ type testContextTemplate struct {
 	files [][2]string
 	// Additional remote files to host on a local HTTP server.
 	remoteFiles [][2]string
+}
+
+func (context testContextTemplate) Archive(dockerfile string, t *testing.T) archive.Archive {
+	input := []string{"Dockerfile", dockerfile}
+	for _, pair := range context.files {
+		input = append(input, pair[0], pair[1])
+	}
+	a, err := archive.Generate(input...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
 }
 
 // A table of all the contexts to build and test.
@@ -381,7 +383,7 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
 	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
-	id, err := buildfile.Build(mkTestContext(dockerfile, context.files, t))
+	id, err := buildfile.Build(context.Archive(dockerfile, t))
 	if err != nil {
 		return nil, err
 	}
@@ -785,7 +787,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
 	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
-	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
 		t.Log("Error should not be nil")
@@ -831,7 +833,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
 	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
-	_, err = buildfile.Build(mkTestContext(dockerfile, context.files, t))
+	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
 		t.Log("Error should not be nil")
