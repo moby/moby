@@ -2,37 +2,15 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
 )
 
-func newMockLinkContainer(id string, ip string) *Container {
-	return &Container{
-		Config: &runconfig.Config{},
-		ID:     id,
-		NetworkSettings: &NetworkSettings{
-			IPAddress: ip,
-		},
-	}
-}
-
 func TestLinkNew(t *testing.T) {
-	toID := GenerateID()
-	fromID := GenerateID()
-
-	from := newMockLinkContainer(fromID, "172.0.17.2")
-	from.Config.Env = []string{}
-	from.State = State{Running: true}
 	ports := make(nat.PortSet)
-
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	from.Config.ExposedPorts = ports
-
-	to := newMockLinkContainer(toID, "172.0.17.3")
-
-	link, err := NewLink(to, from, "/db/docker", nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,21 +38,10 @@ func TestLinkNew(t *testing.T) {
 }
 
 func TestLinkEnv(t *testing.T) {
-	toID := GenerateID()
-	fromID := GenerateID()
-
-	from := newMockLinkContainer(fromID, "172.0.17.2")
-	from.Config.Env = []string{"PASSWORD=gordon"}
-	from.State = State{Running: true}
 	ports := make(nat.PortSet)
-
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	from.Config.ExposedPorts = ports
-
-	to := newMockLinkContainer(toID, "172.0.17.3")
-
-	link, err := NewLink(to, from, "/db/docker", nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

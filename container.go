@@ -548,8 +548,19 @@ func (container *Container) Start() (err error) {
 			container.activeLinks = nil
 		}
 
-		for p, child := range children {
-			link, err := NewLink(container, child, p, runtime.eng)
+		for linkAlias, child := range children {
+			if !child.State.IsRunning() {
+				return fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
+			}
+
+			link, err := NewLink(
+				container.NetworkSettings.IPAddress,
+				child.NetworkSettings.IPAddress,
+				linkAlias,
+				child.Config.Env,
+				child.Config.ExposedPorts,
+				runtime.eng)
+
 			if err != nil {
 				rollback()
 				return err

@@ -18,26 +18,23 @@ type Link struct {
 	eng              *engine.Engine
 }
 
-func NewLink(parent, child *Container, name string, eng *engine.Engine) (*Link, error) {
-	if parent.ID == child.ID {
-		return nil, fmt.Errorf("Cannot link to self: %s == %s", parent.ID, child.ID)
-	}
-	if !child.State.IsRunning() {
-		return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, name)
-	}
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}, eng *engine.Engine) (*Link, error) {
 
-	ports := make([]nat.Port, len(child.Config.ExposedPorts))
-	var i int
-	for p := range child.Config.ExposedPorts {
+	var (
+		i     int
+		ports = make([]nat.Port, len(exposedPorts))
+	)
+
+	for p := range exposedPorts {
 		ports[i] = p
 		i++
 	}
 
 	l := &Link{
 		Name:             name,
-		ChildIP:          child.NetworkSettings.IPAddress,
-		ParentIP:         parent.NetworkSettings.IPAddress,
-		ChildEnvironment: child.Config.Env,
+		ChildIP:          childIP,
+		ParentIP:         parentIP,
+		ChildEnvironment: env,
 		Ports:            ports,
 		eng:              eng,
 	}
