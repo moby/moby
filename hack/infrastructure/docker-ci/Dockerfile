@@ -1,47 +1,29 @@
-# VERSION:        0.25
-# DOCKER-VERSION  0.6.6
-# AUTHOR:         Daniel Mizyrycki <daniel@docker.com>
-# DESCRIPTION:    Deploy docker-ci on Digital Ocean
-# COMMENTS:
-#     CONFIG_JSON is an environment variable json string loaded as:
-#
-# export CONFIG_JSON='
-#     { "DROPLET_NAME":        "docker-ci",
-#       "DO_CLIENT_ID":        "Digital_Ocean_client_id",
-#       "DO_API_KEY":          "Digital_Ocean_api_key",
-#       "DOCKER_KEY_ID":       "Digital_Ocean_ssh_key_id",
-#       "DOCKER_CI_KEY_PATH":  "docker-ci_private_key_path",
-#       "DOCKER_CI_PUB":       "$(cat docker-ci_ssh_public_key.pub)",
-#       "DOCKER_CI_KEY":       "$(cat docker-ci_ssh_private_key.key)",
-#       "BUILDBOT_PWD":        "Buildbot_server_password",
-#       "IRC_PWD":             "Buildbot_IRC_password",
-#       "SMTP_USER":           "SMTP_server_user",
-#       "SMTP_PWD":            "SMTP_server_password",
-#       "PKG_ACCESS_KEY":      "Docker_release_S3_bucket_access_key",
-#       "PKG_SECRET_KEY":      "Docker_release_S3_bucket_secret_key",
-#       "PKG_GPG_PASSPHRASE":  "Docker_release_gpg_passphrase",
-#       "INDEX_AUTH":          "Index_encripted_user_password",
-#       "REGISTRY_USER":       "Registry_test_user",
-#       "REGISTRY_PWD":        "Registry_test_password",
-#       "REGISTRY_BUCKET":     "Registry_S3_bucket_name",
-#       "REGISTRY_ACCESS_KEY": "Registry_S3_bucket_access_key",
-#       "REGISTRY_SECRET_KEY": "Registry_S3_bucket_secret_key",
-#       "IRC_CHANNEL":         "Buildbot_IRC_channel",
-#       "EMAIL_RCP":           "Buildbot_mailing_receipient" }'
-#
-#
-# TO_BUILD:   docker build -t docker-ci .
-# TO_DEPLOY:  docker run -e CONFIG_JSON="${CONFIG_JSON}" docker-ci
+# DOCKER-VERSION: 0.7.6
+# AUTHOR:         Daniel Mizyrycki <daniel@dotcloud.com>
+# DESCRIPTION:    docker-ci continuous integration service
+# TO_BUILD:       docker build -rm -t docker-ci/docker-ci .
+# TO_RUN:         docker run -rm -i -t -p 8000:80 -p 2222:22 -v /run:/var/socket \
+#                     -v /data/docker-ci:/data/docker-ci docker-ci/docker-ci
 
 from ubuntu:12.04
+maintainer Daniel Mizyrycki <daniel@dotcloud.com>
 
-run echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' \
-    > /etc/apt/sources.list
-run apt-get update; apt-get install -y git python2.7 python-dev libevent-dev \
-    python-pip ssh rsync less vim
-run pip install requests fabric
+ENV DEBIAN_FRONTEND noninteractive
+RUN echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > \
+    /etc/apt/sources.list; apt-get update
+RUN apt-get install -y --no-install-recommends  python2.7 python-dev \
+    libevent-dev git supervisor ssh rsync less vim sudo gcc wget nginx
+RUN cd /tmp; wget http://python-distribute.org/distribute_setup.py
+RUN cd /tmp; python distribute_setup.py; easy_install pip; rm distribute_setup.py
 
-# Add deployment code and set default container command
-add . /docker-ci
-cmd "/docker-ci/deployment.py"
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+RUN echo 'deb http://get.docker.io/ubuntu docker main' > \
+      /etc/apt/sources.list.d/docker.list; apt-get update
+RUN apt-get install -y lxc-docker-0.8.0
+RUN pip install SQLAlchemy==0.7.10 buildbot buildbot-slave pyopenssl boto
+RUN ln -s /var/socket/docker.sock /run/docker.sock
 
+ADD . /docker-ci
+RUN /docker-ci/setup.sh
+
+ENTRYPOINT ["supervisord", "-n"]
