@@ -943,6 +943,9 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	streamJSON(job, w, false)
 	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
+		if strings.Contains(err.Error(), "No such container") {
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}
 	return nil
 }
