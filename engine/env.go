@@ -36,6 +36,13 @@ func (env *Env) Exists(key string) bool {
 	return exists
 }
 
+func (env *Env) Init(src *Env) {
+	*env = make([]string, 0, len(*src))
+	for _, val := range *src {
+		(*env) = append((*env), val)
+	}
+}
+
 func (env *Env) GetBool(key string) (value bool) {
 	s := strings.ToLower(strings.Trim(env.Get(key), " \t"))
 	if s == "" || s == "0" || s == "no" || s == "false" || s == "none" {

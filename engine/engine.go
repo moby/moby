@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -134,6 +135,48 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		job.handler = handler
 	}
 	return job
+}
+
+// ParseJob creates a new job from a text description using a shell-like syntax.
+//
+// The following syntax is used to parse `input`:
+//
+// * Words are separated using standard whitespaces as separators.
+// * Quotes and backslashes are not interpreted.
+// * Words of the form 'KEY=[VALUE]' are added to the job environment.
+// * All other words are added to the job arguments.
+//
+// For example:
+//
+// job, _ := eng.ParseJob("VERBOSE=1 echo hello TEST=true world")
+//
+// The resulting job will have:
+//	job.Args={"echo", "hello", "world"}
+//	job.Env={"VERBOSE":"1", "TEST":"true"}
+//
+func (eng *Engine) ParseJob(input string) (*Job, error) {
+	// FIXME: use a full-featured command parser
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	scanner.Split(bufio.ScanWords)
+	var (
+		cmd []string
+		env Env
+	)
+	for scanner.Scan() {
+		word := scanner.Text()
+		kv := strings.SplitN(word, "=", 2)
+		if len(kv) == 2 {
+			env.Set(kv[0], kv[1])
+		} else {
+			cmd = append(cmd, word)
+		}
+	}
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("empty command: '%s'", input)
+	}
+	job := eng.Job(cmd[0], cmd[1:]...)
+	job.Env().Init(&env)
+	return job, nil
 }
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
