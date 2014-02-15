@@ -780,8 +780,10 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	cmd := cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
-	force := cmd.Bool([]string{"f", "-force"}, false, "Force")
+	var (
+		cmd   = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
+		force = cmd.Bool([]string{"f", "-force"}, false, "Force")
+	)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

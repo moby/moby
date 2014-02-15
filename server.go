@@ -1812,10 +1812,10 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force bool) error {
 	var (
 		repoName, tag string
-		img, err      = srv.runtime.repositories.LookupImage(name)
 		tags          = []string{}
 	)
 
+	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return fmt.Errorf("No such image: %s", name)
 	}
@@ -1873,8 +1873,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force boo
 			if err := srv.runtime.repositories.DeleteAll(img.ID); err != nil {
 				return err
 			}
-			err := srv.runtime.graph.Delete(img.ID)
-			if err != nil {
+			if err := srv.runtime.graph.Delete(img.ID); err != nil {
 				return err
 			}
 			out := &engine.Env{}
@@ -1898,7 +1897,7 @@ func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
-	var imgs = engine.NewTable("", 0)
+	imgs := engine.NewTable("", 0)
 	if err := srv.DeleteImage(job.Args[0], imgs, true, job.GetenvBool("force")); err != nil {
 		return job.Error(err)
 	}
