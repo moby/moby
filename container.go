@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/term"
@@ -71,7 +72,7 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks map[string]*Link
+	activeLinks map[string]*links.Link
 }
 
 type BindMap struct {
@@ -537,7 +538,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	if len(children) > 0 {
-		container.activeLinks = make(map[string]*Link, len(children))
+		container.activeLinks = make(map[string]*links.Link, len(children))
 
 		// If we encounter an error make sure that we rollback any network
 		// config and ip table changes
@@ -553,7 +554,7 @@ func (container *Container) Start() (err error) {
 				return fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 			}
 
-			link, err := NewLink(
+			link, err := links.NewLink(
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,
 				linkAlias,

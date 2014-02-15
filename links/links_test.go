@@ -1,4 +1,4 @@
-package docker
+package links
 
 import (
 	"github.com/dotcloud/docker/nat"
