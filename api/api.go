@@ -1219,8 +1219,6 @@ func ServeApi(job *engine.Job) engine.Status {
 		}()
 	}
 
-	AcceptConnections(nil)
-
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
