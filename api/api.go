@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/socketactivation"
+	"github.com/dotcloud/docker/pkg/listenbuffer"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
@@ -1163,7 +1163,7 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		}
 	}
 
-	l, err := socketactivation.NewActivationListener(proto, addr, activationLock, 15*time.Minute)
+	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock, 15*time.Minute)
 	if err != nil {
 		return err
 	}

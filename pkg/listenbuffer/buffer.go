@@ -3,7 +3,7 @@
    listening on a socket, unix, tcp, udp but hold connections
    until the application has booted and is ready to accept them
 */
-package socketactivation
+package listenbuffer
 
 import (
 	"fmt"
@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-// NewActivationListener returns a listener listening on addr with the protocol.  It sets the
+// NewListenBuffer returns a listener listening on addr with the protocol.  It sets the
 // timeout to wait on first connection before an error is returned
-func NewActivationListener(proto, addr string, activate chan struct{}, timeout time.Duration) (net.Listener, error) {
+func NewListenBuffer(proto, addr string, activate chan struct{}, timeout time.Duration) (net.Listener, error) {
 	wrapped, err := net.Listen(proto, addr)
 	if err != nil {
 		return nil, err
