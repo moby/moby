@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/socketactivation"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
@@ -25,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // FIXME: move code common to client and server to common.go
@@ -32,6 +34,10 @@ const (
 	APIVERSION        = 1.9
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+)
+
+var (
+	activationLock chan struct{}
 )
 
 func ValidateHost(val string) (string, error) {
@@ -46,6 +52,7 @@ type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter
 
 func init() {
 	engine.Register("serveapi", ServeApi)
+	engine.Register("acceptconnections", AcceptConnections)
 }
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
@@ -1156,7 +1163,7 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		}
 	}
 
-	l, err := net.Listen(proto, addr)
+	l, err := socketactivation.NewActivationListener(proto, addr, activationLock, 15*time.Minute)
 	if err != nil {
 		return err
 	}
@@ -1198,8 +1205,11 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 // ServeApi loops through all of the protocols sent in to docker and spawns
 // off a go routine to setup a serving http.Server for each.
 func ServeApi(job *engine.Job) engine.Status {
-	protoAddrs := job.Args
-	chErrors := make(chan error, len(protoAddrs))
+	var (
+		protoAddrs = job.Args
+		chErrors   = make(chan error, len(protoAddrs))
+	)
+	activationLock = make(chan struct{})
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
@@ -1209,6 +1219,8 @@ func ServeApi(job *engine.Job) engine.Status {
 		}()
 	}
 
+	AcceptConnections(nil)
+
 	for i := 0; i < len(protoAddrs); i += 1 {
 		err := <-chErrors
 		if err != nil {
@@ -1216,8 +1228,15 @@ func ServeApi(job *engine.Job) engine.Status {
 		}
 	}
 
+	return engine.StatusOK
+}
+
+func AcceptConnections(job *engine.Job) engine.Status {
 	// Tell the init daemon we are accepting requests
 	go systemd.SdNotify("READY=1")
+
+	// close the lock so the listeners start accepting connections
+	close(activationLock)
 
 	return engine.StatusOK
 }
