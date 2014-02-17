@@ -56,13 +56,19 @@ func jobInitServer(job *engine.Job) engine.Status {
 	}
 	job.Logf("Setting up signal traps")
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP)
 	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		utils.RemovePidFile(srv.runtime.config.Pidfile)
-		srv.Close()
-		os.Exit(0)
+		for {
+			sig := <-c
+			if sig == syscall.SIGHUP {
+				srv.Reload(job)
+			} else {
+				log.Printf("Received signal '%v', exiting\n", sig)
+				utils.RemovePidFile(srv.runtime.config.Pidfile)
+				srv.Close()
+				os.Exit(0)
+			}
+		}
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
@@ -100,6 +106,7 @@ func jobInitServer(job *engine.Job) engine.Status {
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
 		"auth":             srv.Auth,
+		"reload":           srv.Reload,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			return job.Error(err)
@@ -221,6 +228,17 @@ func (srv *Server) Auth(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	job.Printf("%s\n", status)
+	return engine.StatusOK
+}
+
+func (srv *Server) Reload(job *engine.Job) engine.Status {
+	var (
+		err error
+	)
+	err = srv.runtime.reload()
+	if err != nil {
+		return job.Error(err)
+	}
 	return engine.StatusOK
 }
 
