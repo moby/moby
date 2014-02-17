@@ -1647,7 +1647,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		job.Errorf("WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v\n", defaultDns)
+		job.Errorf("WARNING: Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", defaultDns)
 		config.Dns = defaultDns
 	}
 
