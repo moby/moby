@@ -46,6 +46,11 @@ Full Documentation
 What's new
 ----------
 
+.. http:get:: /inspect/(name)/json
+
+  **New!** This endpoint returns low-level information on a container or an
+  image, and returns a 409 if it cannot autodetect the kind (when there is a conflict)
+
 .. http:post:: /build
 
    **New!** This endpoint now takes a serialized ConfigFile which it uses to
