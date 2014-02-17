@@ -30,7 +30,7 @@ func NewTCPProxy(frontendAddr, backendAddr *net.TCPAddr) (*TCPProxy, error) {
 func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 	backend, err := net.DialTCP("tcp", nil, proxy.backendAddr)
 	if err != nil {
-		log.Printf("Can't forward traffic to backend tcp/%v: %v\n", proxy.backendAddr, err.Error())
+		log.Printf("Can't forward traffic to backend tcp/%v: %s\n", proxy.backendAddr, err)
 		client.Close()
 		return
 	}
@@ -49,7 +49,6 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 		event <- written
 	}
 
-	log.Printf("Forwarding traffic between tcp/%v and tcp/%v", client.RemoteAddr(), backend.RemoteAddr())
 	go broker(client, backend)
 	go broker(backend, client)
 
@@ -65,23 +64,20 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 			for ; i < 2; i++ {
 				transferred += <-event
 			}
-			goto done
+			return
 		}
 	}
 	client.Close()
 	backend.Close()
-done:
-	log.Printf("%v bytes transferred between tcp/%v and tcp/%v", transferred, client.RemoteAddr(), backend.RemoteAddr())
 }
 
 func (proxy *TCPProxy) Run() {
 	quit := make(chan bool)
 	defer close(quit)
-	log.Printf("Starting proxy on tcp/%v for tcp/%v", proxy.frontendAddr, proxy.backendAddr)
 	for {
 		client, err := proxy.listener.Accept()
 		if err != nil {
-			log.Printf("Stopping proxy on tcp/%v for tcp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			log.Printf("Stopping proxy on tcp/%v for tcp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			return
 		}
 		go proxy.clientLoop(client.(*net.TCPConn), quit)

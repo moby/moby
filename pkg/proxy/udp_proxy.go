@@ -66,7 +66,6 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 		proxy.connTrackLock.Lock()
 		delete(proxy.connTrackTable, *clientKey)
 		proxy.connTrackLock.Unlock()
-		log.Printf("Done proxying between udp/%v and udp/%v", clientAddr.String(), proxy.backendAddr.String())
 		proxyConn.Close()
 	}()
 
@@ -92,24 +91,20 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 				return
 			}
 			i += written
-			log.Printf("Forwarded %v/%v bytes to udp/%v", i, read, clientAddr.String())
 		}
 	}
 }
 
 func (proxy *UDPProxy) Run() {
 	readBuf := make([]byte, UDPBufSize)
-	log.Printf("Starting proxy on udp/%v for udp/%v", proxy.frontendAddr, proxy.backendAddr)
 	for {
 		read, from, err := proxy.listener.ReadFromUDP(readBuf)
 		if err != nil {
 			// NOTE: Apparently ReadFrom doesn't return
 			// ECONNREFUSED like Read do (see comment in
 			// UDPProxy.replyLoop)
-			if isClosedError(err) {
-				log.Printf("Stopping proxy on udp/%v for udp/%v (socket was closed)", proxy.frontendAddr, proxy.backendAddr)
-			} else {
-				log.Printf("Stopping proxy on udp/%v for udp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			if !isClosedError(err) {
+				log.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			}
 			break
 		}
@@ -120,7 +115,7 @@ func (proxy *UDPProxy) Run() {
 		if !hit {
 			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %v\n", proxy.backendAddr.String(), err)
+				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				continue
 			}
 			proxy.connTrackTable[*fromKey] = proxyConn
@@ -130,11 +125,10 @@ func (proxy *UDPProxy) Run() {
 		for i := 0; i != read; {
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %v\n", proxy.backendAddr.String(), err)
+				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				break
 			}
 			i += written
-			log.Printf("Forwarded %v/%v bytes to udp/%v", i, read, proxy.backendAddr.String())
 		}
 	}
 }
