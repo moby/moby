@@ -59,10 +59,10 @@ Bind Docker to another host/port or a Unix socket
 
 .. warning:: Changing the default ``docker`` daemon binding to a TCP
    port or Unix *docker* user group will increase your security risks
-   by allowing non-root users to potentially gain *root* access on the
-   host (`e.g. #1369
-   <https://github.com/dotcloud/docker/issues/1369>`_). Make sure you
-   control access to ``docker``.
+   by allowing non-root users to gain *root* access on the
+   host. Make sure you control access to ``docker``. If you are binding 
+   to a TCP port, anyone with access to that port has full Docker access;
+   so it is not advisable on an open network.
 
 With ``-H`` it is possible to make the Docker daemon to listen on a
 specific IP and port. By default, it will listen on
