@@ -2,6 +2,7 @@ package libcontainer
 
 import (
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 // Context is a generic key value pair that allows arbatrary data to be sent
@@ -60,13 +61,8 @@ type Container struct {
 	// rootfs and mount namespace if specified
 	Mounts Mounts `json:"mounts,omitempty"`
 
-	// RequiredDeviceNodes are a list of device nodes that will be mknod into the container's rootfs at /dev
-	// If the host system does not support the device that the container requests an error is returned
-	RequiredDeviceNodes []string `json:"required_device_nodes,omitempty"`
-
-	// OptionalDeviceNodes are a list of device nodes that will be mknod into the container's rootfs at /dev
-	// If the host system does not support the device that the container requests the error is ignored
-	OptionalDeviceNodes []string `json:"optional_device_nodes,omitempty"`
+	// The device nodes that should be automatically created within the container upon container start.  Note, make sure that the node is marked as allowed in the cgroup as well!
+	DeviceNodes []devices.Device `json:"device_nodes,omitempty"`
 }
 
 // Network defines configuration for a container's networking stack

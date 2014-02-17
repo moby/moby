@@ -23,6 +23,7 @@ import (
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/symlink"
@@ -230,18 +231,20 @@ func populateCommand(c *Container, env []string) error {
 		Cpuset:     c.Config.Cpuset,
 	}
 	c.command = &execdriver.Command{
-		ID:         c.ID,
-		Privileged: c.hostConfig.Privileged,
-		Rootfs:     c.RootfsPath(),
-		InitPath:   "/.dockerinit",
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		WorkingDir: c.Config.WorkingDir,
-		Network:    en,
-		Tty:        c.Config.Tty,
-		User:       c.Config.User,
-		Config:     context,
-		Resources:  resources,
+		ID:                 c.ID,
+		Privileged:         c.hostConfig.Privileged,
+		Rootfs:             c.RootfsPath(),
+		InitPath:           "/.dockerinit",
+		Entrypoint:         c.Path,
+		Arguments:          c.Args,
+		WorkingDir:         c.Config.WorkingDir,
+		Network:            en,
+		Tty:                c.Config.Tty,
+		User:               c.Config.User,
+		Config:             context,
+		Resources:          resources,
+		AllowedDevices:     devices.DefaultAllowedDevices,
+		AutoCreatedDevices: devices.DefaultAutoCreatedDevices,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env

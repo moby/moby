@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -834,4 +835,41 @@ func TestRunWithCpuset(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - cpuset 0")
+}
+
+func TestDeviceNumbers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "ls -l /dev/null")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	deviceLineFields := strings.Fields(out)
+	deviceLineFields[6] = ""
+	deviceLineFields[7] = ""
+	deviceLineFields[8] = ""
+	expected := []string{"crw-rw-rw-", "1", "root", "root", "1,", "3", "", "", "", "/dev/null"}
+
+	if !(reflect.DeepEqual(deviceLineFields, expected)) {
+		t.Fatalf("expected output\ncrw-rw-rw- 1 root root 1, 3 May 24 13:29 /dev/null\n received\n %s\n", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - test device numbers")
+}
+
+func TestThatCharacterDevicesActLikeCharacterDevices(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "dd if=/dev/zero of=/zero bs=1k count=5 2> /dev/null ; du -h /zero")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual[0] == '0' {
+		t.Fatalf("expected a new file called /zero to be create that is greater than 0 bytes long, but du says: %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test that character devices work.")
 }
