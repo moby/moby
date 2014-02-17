@@ -2,9 +2,9 @@ package proxy
 
 import (
 	"encoding/binary"
-	"github.com/dotcloud/docker/utils"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -66,7 +66,6 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 		proxy.connTrackLock.Lock()
 		delete(proxy.connTrackTable, *clientKey)
 		proxy.connTrackLock.Unlock()
-		utils.Debugf("Done proxying between udp/%v and udp/%v", clientAddr.String(), proxy.backendAddr.String())
 		proxyConn.Close()
 	}()
 
@@ -92,24 +91,20 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 				return
 			}
 			i += written
-			utils.Debugf("Forwarded %v/%v bytes to udp/%v", i, read, clientAddr.String())
 		}
 	}
 }
 
 func (proxy *UDPProxy) Run() {
 	readBuf := make([]byte, UDPBufSize)
-	utils.Debugf("Starting proxy on udp/%v for udp/%v", proxy.frontendAddr, proxy.backendAddr)
 	for {
 		read, from, err := proxy.listener.ReadFromUDP(readBuf)
 		if err != nil {
 			// NOTE: Apparently ReadFrom doesn't return
 			// ECONNREFUSED like Read do (see comment in
 			// UDPProxy.replyLoop)
-			if utils.IsClosedError(err) {
-				utils.Debugf("Stopping proxy on udp/%v for udp/%v (socket was closed)", proxy.frontendAddr, proxy.backendAddr)
-			} else {
-				utils.Errorf("Stopping proxy on udp/%v for udp/%v (%v)", proxy.frontendAddr, proxy.backendAddr, err.Error())
+			if !isClosedError(err) {
+				log.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			}
 			break
 		}
@@ -120,7 +115,7 @@ func (proxy *UDPProxy) Run() {
 		if !hit {
 			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %v\n", proxy.backendAddr.String(), err)
+				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				continue
 			}
 			proxy.connTrackTable[*fromKey] = proxyConn
@@ -130,11 +125,10 @@ func (proxy *UDPProxy) Run() {
 		for i := 0; i != read; {
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %v\n", proxy.backendAddr.String(), err)
+				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				break
 			}
 			i += written
-			utils.Debugf("Forwarded %v/%v bytes to udp/%v", i, read, proxy.backendAddr.String())
 		}
 	}
 }
@@ -150,3 +144,13 @@ func (proxy *UDPProxy) Close() {
 
 func (proxy *UDPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
 func (proxy *UDPProxy) BackendAddr() net.Addr  { return proxy.backendAddr }
+
+func isClosedError(err error) bool {
+	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.
+	 * See:
+	 * http://golang.org/src/pkg/net/net.go
+	 * https://code.google.com/p/go/issues/detail?id=4337
+	 * https://groups.google.com/forum/#!msg/golang-nuts/0_aaCvBmOcM/SptmDyX1XJMJ
+	 */
+	return strings.HasSuffix(err.Error(), "use of closed network connection")
+}
