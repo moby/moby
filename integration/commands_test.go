@@ -161,6 +161,51 @@ func TestRunHostname(t *testing.T) {
 	}
 }
 
+// TestRunDevice checks that 'docker run -device' correctly creates the device in the container
+func TestRunDevice(t *testing.T) {
+	stdout, stdoutPipe := io.Pipe()
+
+	cli := api.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("--device", "/dev/zero:/dev/nulo", unitTestImageID, "stat", "-c%a", "/dev/nulo"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
+		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cmdOutput != "666\n" {
+			t.Fatalf("Permissions for /dev/nulo should have been '%s', not '%s'", "666\n", cmdOutput)
+		}
+	})
+
+	container := globalRuntime.List()[0]
+
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
+		<-c
+
+		go func() {
+			cli.CmdWait(container.ID)
+		}()
+
+		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Cleanup pipes
+	if err := closeWrap(stdout, stdoutPipe); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestRunWorkdir checks that 'docker run -w' correctly sets a custom working directory
 func TestRunWorkdir(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
