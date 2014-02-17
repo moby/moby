@@ -1088,3 +1088,24 @@ func ValidateContextDirectory(srcPath string) error {
 	})
 	return finalError
 }
+
+func ParseDevice(device string) (string, string, error) {
+	src := ""
+	dst := ""
+	arr := strings.Split(device, ":")
+	switch len(arr) {
+	case 2:
+		dst = arr[1]
+		fallthrough
+	case 1:
+		src = arr[0]
+	default:
+		return "", "", fmt.Errorf("Invalid device specification: %s", device)
+	}
+
+	if dst == "" {
+		dst = src
+	}
+
+	return src, dst, nil
+}
