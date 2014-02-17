@@ -33,6 +33,7 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	OnBuild         []string
+	Devices         []string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -70,6 +71,9 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	}
 	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
 		config.Entrypoint = Entrypoint
+	}
+	if Devices := job.GetenvList("Devices"); Devices != nil {
+		config.Devices = Devices
 	}
 
 	return config

@@ -38,6 +38,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flVolumes = opts.NewListOpts(opts.ValidatePath)
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flDevices = opts.NewListOpts(opts.ValidatePath)
 
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
@@ -68,6 +69,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to stdin, stdout or stderr.")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
+	cmd.Var(&flDevices, []string{"#device", "-device"}, "Add a host device to the container")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
@@ -201,6 +203,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
+		Devices:         flDevices.GetAll(),
 	}
 
 	hostConfig := &HostConfig{

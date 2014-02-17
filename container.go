@@ -665,6 +665,10 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	if err := container.createDevices(root); err != nil {
+		return err
+	}
+
 	callbackLock := make(chan struct{})
 	callback := func(command *execdriver.Command) {
 		container.State.SetRunning(command.Pid())
@@ -732,6 +736,51 @@ func (container *Container) getBindMap() (map[string]BindMap, error) {
 		binds[path.Clean(dst)] = bindMap
 	}
 	return binds, nil
+}
+
+func (container *Container) createDevices(root string) error {
+	for _, device := range container.Config.Devices {
+		arr := strings.Split(device, ":")
+		if len(arr) != 2 {
+			return fmt.Errorf("Invalid device specification: %s", device)
+		}
+
+		src := arr[0]
+		dst := path.Join(root, arr[1])
+
+		stat, err := os.Stat(src)
+		if (err != nil) {
+			return err
+		}
+
+		mode := stat.Mode()
+		if ((mode & os.ModeDevice) == 0) {
+			return fmt.Errorf("%s is not a block device", src)
+		}
+
+		perm := os.FileMode.Perm(mode)
+		if ((mode & os.ModeCharDevice) != 0) {
+			perm |= syscall.S_IFCHR
+		} else {
+			perm |= syscall.S_IFBLK
+		}
+
+		devNumber := 0
+		sys, ok := stat.Sys().(*syscall.Stat_t)
+		if ok {
+			devNumber = int(sys.Rdev)
+		} else {
+			return fmt.Errorf("Cannot determine the device major and minor numbers")
+		}
+
+		oldMask := syscall.Umask(int(0))
+		if err := syscall.Mknod(dst, uint32(perm), devNumber); err != nil {
+			return err;
+		}
+		syscall.Umask(oldMask)
+	}
+
+	return nil
 }
 
 func (container *Container) createVolumes() error {
