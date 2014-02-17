@@ -665,3 +665,19 @@ func TestUnPrivilegedCannotMount(t *testing.T) {
 
 	logDone("run - test un-privileged cannot mount")
 }
+
+func TestDevice(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/zero:/dev/nulo", "busybox", "sh", "-c", "ls /dev/nulo")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "/dev/nulo" {
+		t.Fatalf("expected output /dev/nulo, received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test device")
+}

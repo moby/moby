@@ -415,7 +415,64 @@ func (container *Container) Start() (err error) {
 	}
 	container.waitLock = make(chan struct{})
 
+	if err := container.createDevices(); err != nil {
+		return err
+	}
+
 	return container.waitForStart()
+}
+
+func (container *Container) createDevices() error {
+	for _, device := range container.hostConfig.Devices {
+		src, dst, err := utils.ParseDevice(device)
+		if err != nil {
+			return err
+		}
+		dst = path.Join(container.RootfsPath(), dst)
+
+		stat, err := os.Stat(src)
+		if err != nil {
+			return err
+		}
+
+		devType := 'c'
+		mode := stat.Mode()
+		perm := os.FileMode.Perm(mode)
+		switch {
+		case (mode & os.ModeDevice) == 0:
+			return fmt.Errorf("%s is not a device", src)
+		case (mode & os.ModeCharDevice) != 0:
+			perm |= syscall.S_IFCHR
+		default:
+			perm |= syscall.S_IFBLK
+			devType = 'b'
+		}
+
+		devNumber := 0
+		sys, ok := stat.Sys().(*syscall.Stat_t)
+		if ok {
+			devNumber = int(sys.Rdev)
+		} else {
+			return fmt.Errorf("Cannot determine the device major and minor numbers")
+		}
+
+		oldMask := syscall.Umask(int(0))
+		if err := os.MkdirAll(path.Dir(dst), 0755); err != nil {
+			return err
+		}
+		if err := syscall.Mknod(dst, uint32(perm), devNumber); err != nil {
+			return err
+		}
+		syscall.Umask(oldMask)
+
+		devMajor := int64((devNumber >> 8) & 0xfff)
+		devMinor := int64((devNumber & 0xff) | ((devNumber >> 12) & 0xfff00))
+		if err := container.daemon.execDriver.AddDevice(container.command, devType, devMajor, devMinor); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) Run() error {

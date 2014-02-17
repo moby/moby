@@ -81,6 +81,13 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
+func (d *driver) AddDevice(c *execdriver.Command, devType rune, devMajor int64, devMinor int64) error {
+	c.Config["lxc"] = append(c.Config["lxc"], fmt.Sprintf("cgroup.devices.allow = %c %d:%d rwm",
+		devType, devMajor, devMinor))
+
+	return nil
+}
+
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	if err := execdriver.SetTerminal(c, pipes); err != nil {
 		return -1, err

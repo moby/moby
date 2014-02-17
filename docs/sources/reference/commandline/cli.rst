@@ -1018,6 +1018,7 @@ image is removed.
       -c, --cpu-shares=0: CPU shares (relative weight)
       --cidfile="": Write the container ID to the file
       -d, --detach=false: Detached mode: Run container in the background, print new container id
+      --device=[]: Add a host device to the container (e.g. --device=/dev/sdc[:/dev/xvdc])
       -e, --env=[]: Set environment variables
       --env-file="": Read in a line delimited file of ENV variables
       -h, --hostname="": Container host name
@@ -1257,6 +1258,17 @@ could be retrieved using ``docker logs``. This is useful if you need to pipe
 a file or something else into a container and retrieve the container's ID once
 the container has finished running.
 
+.. code-block:: bash
+
+   $ sudo docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
+   brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
+   brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
+   crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
+
+It is often necessary to directly expose devices to a container.  ``--device``
+option enables that.  For example, a specific block storage device or loop
+device or audio device can be added to an otherwise 'unprivileged' container
+(without ``-privileged`` flag) and have the application directly access it.
 
 A complete example
 ..................
