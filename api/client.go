@@ -1961,6 +1961,9 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	if stream != nil {
 		defer stream.Close()
 	}
+	if statusCode == 404 {
+		return fmt.Errorf("No such container: %v", info[0])
+	}
 	if err != nil {
 		return err
 	}

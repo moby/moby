@@ -1217,6 +1217,34 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 }
 
+func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	r := httptest.NewRecorder()
+
+	var copyData engine.Env
+	copyData.Set("Resource", "/test.txt")
+	copyData.Set("HostPath", ".")
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := copyData.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/id_not_found/copy", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("404 expected for id_not_found Container, received %v", r.Code)
+	}
+}
+
 // Mocked types for tests
 type NopConn struct {
 	io.ReadCloser
