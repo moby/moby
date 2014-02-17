@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"archive/tar"
 	"bufio"
 	"bytes"
+	"code.google.com/p/go/src/pkg/archive/tar"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"
@@ -386,6 +386,77 @@ func TestGetContainersExport(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("The created test file has not been found in the exported image")
+	}
+}
+
+func TestSaveImageAndThenLoad(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	// save image
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+	tarball := r.Body
+
+	// delete the image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	// make sure there is no image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("%d NotFound expected, received %d\n", http.StatusNotFound, r.Code)
+	}
+
+	// load the image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("POST", "/images/load", tarball)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	// finally make sure the image is there
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 }
 
@@ -1214,6 +1285,34 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("The created test file has not been found in the copied output")
+	}
+}
+
+func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	r := httptest.NewRecorder()
+
+	var copyData engine.Env
+	copyData.Set("Resource", "/test.txt")
+	copyData.Set("HostPath", ".")
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := copyData.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/id_not_found/copy", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("404 expected for id_not_found Container, received %v", r.Code)
 	}
 }
 
