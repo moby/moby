@@ -389,6 +389,77 @@ func TestGetContainersExport(t *testing.T) {
 	}
 }
 
+func TestSaveImageAndThenLoad(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	// save image
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+	tarball := r.Body
+
+	// delete the image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	// make sure there is no image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("%d NotFound expected, received %d\n", http.StatusNotFound, r.Code)
+	}
+
+	// load the image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("POST", "/images/load", tarball)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	// finally make sure the image is there
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+}
+
 func TestGetContainersChanges(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
