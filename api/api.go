@@ -52,7 +52,6 @@ type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter
 
 func init() {
 	engine.Register("serveapi", ServeApi)
-	engine.Register("acceptconnections", AcceptConnections)
 }
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
@@ -1210,6 +1209,10 @@ func ServeApi(job *engine.Job) engine.Status {
 		chErrors   = make(chan error, len(protoAddrs))
 	)
 	activationLock = make(chan struct{})
+
+	if err := job.Eng.Register("acceptconnections", AcceptConnections); err != nil {
+		return job.Error(err)
+	}
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
