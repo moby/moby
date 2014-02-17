@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"archive/tar"
 	"bytes"
+	"code.google.com/p/go/src/pkg/archive/tar"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
