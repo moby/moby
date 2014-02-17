@@ -186,7 +186,7 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) error {
 	switch hdr.Typeflag {
 	case tar.TypeDir:
 		// Create directory unless it exists as a directory already.
