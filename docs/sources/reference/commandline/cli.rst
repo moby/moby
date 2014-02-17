@@ -194,7 +194,8 @@ The files at ``PATH`` or ``URL`` are called the "context" of the build. The
 build process may refer to any of the files in the context, for example when
 using an :ref:`ADD <dockerfile_add>` instruction.  When a single ``Dockerfile``
 is given as ``URL``, then no context is set.  When a Git repository is set as
-``URL``, then the repository is used as the context
+``URL``, then the repository is used as the context. Git repositories are
+cloned with their submodules (`git clone --recursive`).
 
 .. _cli_build_examples:
 
