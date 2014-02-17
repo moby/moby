@@ -74,6 +74,9 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 		if strings.HasPrefix(hdr.Name, ".wh..wh.") {
 			continue
 		}
+		if strings.HasPrefix(filepath.Clean(hdr.Linkname), ".wh..wh.") {
+			continue
+		}
 
 		path := filepath.Join(dest, hdr.Name)
 		base := filepath.Base(path)
