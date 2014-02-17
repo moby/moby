@@ -1256,6 +1256,13 @@ func (container *Container) Stop(seconds int) error {
 }
 
 func (container *Container) Restart(seconds int) error {
+	// Avoid unnecessarily unmounting and then directly mounting
+	// the container when the container stops and then starts
+	// again
+	if err := container.Mount(); err == nil {
+		defer container.Unmount()
+	}
+
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
