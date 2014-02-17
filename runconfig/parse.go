@@ -68,6 +68,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flLabelOptions    = cmd.String([]string{"Z", "-label"}, "", "Options to pass to underlying labeling system")
+		flEnvFile         = cmd.String([]string{"#envfile", "-envfile"}, "", "Read in a line delimited file of ENV variables")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -199,6 +200,17 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		}
 	}
 
+	// collect all the environment variables for the container
+	envVariables := []string{}
+	envVariables = append(envVariables, flEnv.GetAll()...)
+	parsedVars, err := opts.ParseEnvFile(*flEnvFile)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+	envVariables = append(envVariables, parsedVars...)
+	// boo, there's no debug output for docker run
+	//utils.Debugf("Environment variables for the container: %#v", envVariables)
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -213,7 +225,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
-		Env:             flEnv.GetAll(),
+		Env:             envVariables,
 		Cmd:             runCmd,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),
