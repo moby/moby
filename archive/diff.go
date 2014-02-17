@@ -2,7 +2,9 @@ package archive
 
 import (
 	"code.google.com/p/go/src/pkg/archive/tar"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,6 +44,9 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 
 	var dirs []*tar.Header
 
+	aufsTempdir := ""
+	aufsHardlinks := make(map[string]*tar.Header)
+
 	// Iterate through the files in the archive.
 	for {
 		hdr, err := tr.Next()
@@ -72,6 +77,22 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 
 		// Skip AUFS metadata dirs
 		if strings.HasPrefix(hdr.Name, ".wh..wh.") {
+			// Regular files inside /.wh..wh.plnk can be used as hardlink targets
+			// We don't want this directory, but we need the files in them so that
+			// such hardlinks can be resolved.
+			if strings.HasPrefix(hdr.Name, ".wh..wh.plnk") && hdr.Typeflag == tar.TypeReg {
+				basename := filepath.Base(hdr.Name)
+				aufsHardlinks[basename] = hdr
+				if aufsTempdir == "" {
+					if aufsTempdir, err = ioutil.TempDir("", "dockerplnk"); err != nil {
+						return err
+					}
+					defer os.RemoveAll(aufsTempdir)
+				}
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 
@@ -96,7 +117,26 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 				}
 			}
 
-			if err := createTarFile(path, dest, hdr, tr); err != nil {
+			srcData := io.Reader(tr)
+			srcHdr := hdr
+
+			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so
+			// we manually retarget these into the temporary files we extracted them into
+			if hdr.Typeflag == tar.TypeLink && strings.HasPrefix(filepath.Clean(hdr.Linkname), ".wh..wh.plnk") {
+				linkBasename := filepath.Base(hdr.Linkname)
+				srcHdr = aufsHardlinks[linkBasename]
+				if srcHdr == nil {
+					return fmt.Errorf("Invalid aufs hardlink")
+				}
+				tmpFile, err := os.Open(filepath.Join(aufsTempdir, linkBasename))
+				if err != nil {
+					return err
+				}
+				defer tmpFile.Close()
+				srcData = tmpFile
+			}
+
+			if err := createTarFile(path, dest, srcHdr, srcData); err != nil {
 				return err
 			}
 
