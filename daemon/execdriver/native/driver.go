@@ -81,6 +81,10 @@ func NewDriver(root, initPath string) (*driver, error) {
 	}, nil
 }
 
+func (d *driver) AddDevice(c *execdriver.Command, devType rune, devMajor int64, devMinor int64) error {
+	return nil
+}
+
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	// take the Command and populate the libcontainer.Container from it
 	container, err := d.createContainer(c)
