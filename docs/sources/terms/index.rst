@@ -18,5 +18,7 @@ Contents:
    layer
    image
    container
+   registry
+   repository
 
 
