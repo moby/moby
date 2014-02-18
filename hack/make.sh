@@ -53,9 +53,9 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(cat ./VERSION)
-if [ -d .git ] && command -v git &> /dev/null; then
+if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
-	if [ -n "$(git status --porcelain)" ]; then
+	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-dirty"
 	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
@@ -68,9 +68,22 @@ else
 	exit 1
 fi
 
+if [ "$AUTO_GOPATH" ]; then
+	rm -rf .gopath
+	mkdir -p .gopath/src/github.com/dotcloud
+	ln -sf ../../../.. .gopath/src/github.com/dotcloud/docker
+	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
+fi
+
+if [ ! "$GOPATH" ]; then
+	echo >&2 'error: missing GOPATH; please see http://golang.org/doc/code.html#GOPATH'
+	echo >&2 '  alternatively, set AUTO_GOPATH=1'
+	exit 1
+fi
+
 # Use these flags when compiling the tests and final binary
-LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w'
-LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
+LDFLAGS='-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'" -X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'" -w'
+LDFLAGS_STATIC='-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
 BUILDFLAGS='-tags netgo -a'
 
 HAVE_GO_TEST_COVER=

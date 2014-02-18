@@ -1,5 +1,5 @@
-:title: Rackspace Cloud Installation
-:description: Installing Docker on Ubuntu proviced by Rackspace
+:title: Installation on Rackspace Cloud
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Rackspace Cloud, installation, docker, linux, ubuntu
 
 Rackspace Cloud

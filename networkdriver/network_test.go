@@ -110,7 +110,7 @@ func TestNetworkOverlaps(t *testing.T) {
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
 	AssertOverlap("2001:db8:0:1::1/64", "2001:db8::1/63", t)
 	//netY starts before and ends outside of netX
-	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	AssertOverlap("172.16.1.1/24", "172.16.0.1/22", t)
 	AssertOverlap("2001:db8::1/64", "2001:db8::1/48", t)
 	//netY starts and ends before netX
 	AssertNoOverlap("172.16.1.1/25", "172.16.0.1/24", t)

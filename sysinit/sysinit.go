@@ -27,18 +27,12 @@ func setupEnv(args *execdriver.InitArgs) {
 
 func executeProgram(args *execdriver.InitArgs) error {
 	setupEnv(args)
+
 	dockerInitFct, err := execdriver.GetInitFunc(args.Driver)
 	if err != nil {
 		panic(err)
 	}
 	return dockerInitFct(args)
-
-	if args.Driver == "lxc" {
-		// Will never reach
-	} else if args.Driver == "chroot" {
-	}
-
-	return nil
 }
 
 // Sys Init code

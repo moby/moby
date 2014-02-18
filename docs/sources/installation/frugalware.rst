@@ -1,5 +1,5 @@
 :title: Installation on FrugalWare
-:description: Docker installation on FrugalWare.
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: frugalware linux, virtualization, docker, documentation, installation
 
 .. _frugalware:
