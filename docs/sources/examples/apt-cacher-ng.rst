@@ -37,20 +37,13 @@ To see the logfiles that are 'tailed' in the default command, you can use:
 
     $ sudo docker logs -f test_apt_cacher_ng
 
-To get your Debian based containers to use the proxy, you can do one of 3 things
+To get your Debian based containers to use the proxy, you can do one of three things
 
-1. Set and environment variable: ``http_proxy=http://dockerhost:3142/``
-2. Add an apt Proxy setting ``echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy``
+1. Add an apt Proxy setting ``echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy``
+2. Set and environment variable: ``http_proxy=http://dockerhost:3142/``
 3. Change your sources.list entries to start with ``http://dockerhost:3142/``
 
-Option 1 will work for running a container, so is good for testing, but will 
-break any non-apt http requests, like ``curl``, ``wget`` and more.:
-
-.. code-block:: bash
-
-    $ sudo docker run -rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
-
-Or you can inject the settings safely into your apt configuration in a local
+**Option 1** injects the settings safely into your apt configuration in a local
 version of a common base:
 
 .. code-block:: bash
@@ -63,7 +56,14 @@ version of a common base:
 
     # docker build -t my_ubuntu .
 
-Option 3 is the least portable, but there will be times when you might need to
+**Option 2** is good for testing, but will 
+break other HTTP clients which obey ``http_proxy``, such as ``curl``, ``wget`` and others:
+
+.. code-block:: bash
+
+    $ sudo docker run -rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
+
+**Option 3** is the least portable, but there will be times when you might need to
 do it - and you can do it from your Dockerfile too.
 
 Apt-cacher-ng has some tools that allow you to manage the repository, and they 
