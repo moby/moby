@@ -893,6 +893,11 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if err := daemon.restore(); err != nil {
 		return nil, err
 	}
+
+	if installer, ok := daemon.driver.(engine.Installer); ok {
+		installer.Install(eng)
+	}
+
 	return daemon, nil
 }
 

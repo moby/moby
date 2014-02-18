@@ -26,6 +26,7 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/opts"
 	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/pkg/units"
@@ -2128,5 +2129,46 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	if err := cli.stream("POST", "/images/load", input, cli.out, nil); err != nil {
 		return err
 	}
+	return nil
+}
+
+func validateGenericOpt(val string) (string, error) {
+	if val == "args" {
+		return "", fmt.Errorf("options names args are not allowed")
+	}
+	if strings.Count(val, "=") == 0 {
+		return "", fmt.Errorf("%s is not a key-value option", val)
+	}
+	return val, nil
+}
+
+func (cli *DockerCli) GenericCmd(target, op string, args ...string) error {
+	cmd := cli.Subcmd(target+":"+op, "[ARGUMENTS]", "Plugin specific operation")
+
+	flOpts := opts.NewListOpts(validateGenericOpt)
+	cmd.Var(&flOpts, []string{"o"}, "Set operation specific env var -o \"DEBUG=1\"")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	val := url.Values{}
+	for _, arg := range cmd.Args() {
+		val.Add("args", arg)
+	}
+
+	for _, o := range flOpts.GetAll() {
+		k, v, err := utils.ParseKeyValueOpt(o)
+		if err != nil {
+			return err
+		}
+		val.Add(k, v)
+	}
+
+	_, _, err := readBody(cli.call("GET", "/cmd/"+target+"/"+op+"?"+val.Encode(), nil, false))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
