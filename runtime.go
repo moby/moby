@@ -396,7 +396,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
-		if !strings.HasSuffix(err.Error(), "name are not unique") {
+		if !graphdb.IsNonUniqueNameError(err) {
 			return nil, nil, err
 		}
 
