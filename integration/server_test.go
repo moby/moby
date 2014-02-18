@@ -691,7 +691,7 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 		t.Fatalf("Should only have deleted one untag %d", len(imgs.Data))
 	}
 
-	if untag := imgs.Data[0].Get("Untagged"); untag != unitTestImageID {
+	if untag := imgs.Data[0].Get("Untagged"); untag != "utest:tag1" {
 		t.Fatalf("Expected %s got %s", unitTestImageID, untag)
 	}
 }

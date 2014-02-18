@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
