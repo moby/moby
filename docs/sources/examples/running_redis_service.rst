@@ -67,9 +67,8 @@ Once inside our freshly created container we need to install Redis to get the
     apt-get -y install redis-server
     service redis-server stop
 
-Since we used the ``--link redis:db`` option before. Docker has created some 
-environment variables in our web application container. 
-Let's inspect them with the ``env`` command.
+As we've used the ``--link redis:db`` option, Docker has created some environment 
+variables in our web application container.
 
 .. code-block:: bash
 
