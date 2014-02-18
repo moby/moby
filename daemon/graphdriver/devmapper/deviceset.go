@@ -457,6 +457,9 @@ func minor(device uint64) uint64 {
 }
 
 func (devices *DeviceSet) ResizePool(size int64) error {
+	devices.Lock()
+	defer devices.Unlock()
+
 	dirname := devices.loopbackDir()
 	datafilename := path.Join(dirname, "data")
 	metadatafilename := path.Join(dirname, "metadata")

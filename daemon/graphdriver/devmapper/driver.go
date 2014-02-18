@@ -3,13 +3,14 @@
 package devmapper
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 
 	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/pkg/units"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -56,10 +57,10 @@ func (d *Driver) Status() [][2]string {
 		{"Pool Name", s.PoolName},
 		{"Data file", s.DataLoopback},
 		{"Metadata file", s.MetadataLoopback},
-		{"Data Space Used", fmt.Sprintf("%.1f Mb", float64(s.Data.Used)/(1024*1024))},
-		{"Data Space Total", fmt.Sprintf("%.1f Mb", float64(s.Data.Total)/(1024*1024))},
-		{"Metadata Space Used", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Used)/(1024*1024))},
-		{"Metadata Space Total", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Total)/(1024*1024))},
+		{"Data Space Used", units.HumanSize(int64(s.Data.Used))},
+		{"Data Space Total", units.HumanSize(int64(s.Data.Total))},
+		{"Metadata Space Used", units.HumanSize(int64(s.Metadata.Used))},
+		{"Metadata Space Total", units.HumanSize(int64(s.Metadata.Total))},
 	}
 	return status
 }
@@ -143,4 +144,28 @@ func (d *Driver) Put(id string) {
 
 func (d *Driver) Exists(id string) bool {
 	return d.DeviceSet.HasDevice(id)
+}
+
+func (d *Driver) resizePool(job *engine.Job) engine.Status {
+	args := job.Args
+	if len(args) != 1 {
+		return job.Errorf("Usage: resize-pool NEW_SIZE")
+	}
+
+	size, err := units.FromHumanSize(args[0])
+	if err != nil {
+		return job.Errorf("Invalid size: %s", args[0])
+	}
+
+	err = d.DeviceSet.ResizePool(size)
+	if err != nil {
+		return job.Errorf("Error resizing pool: %s", err.Error())
+	}
+
+	return engine.StatusOK
+}
+
+func (d *Driver) Install(eng *engine.Engine) error {
+	eng.Register("dm:resize-pool", d.resizePool)
+	return nil
 }
