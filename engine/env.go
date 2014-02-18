@@ -190,7 +190,7 @@ func (env *Env) Encode(dst io.Writer) error {
 	m := make(map[string]interface{})
 	for k, v := range env.Map() {
 		var val interface{}
-		if err := json.Unmarshal([]byte(v), &val); err == nil {
+		if err := json.Unmarshal([]byte(v), &val); err == nil && k != "Tag" {
 			// FIXME: we fix-convert float values to int, because
 			// encoding/json decodes integers to float64, but cannot encode them back.
 			// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
