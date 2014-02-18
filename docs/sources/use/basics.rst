@@ -50,6 +50,7 @@ Running an interactive shell
   # allocate a tty, attach stdin and stdout
   # To detach the tty without exiting the shell,
   # use the escape sequence Ctrl-p + Ctrl-q
+  # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
   sudo docker run -i -t ubuntu /bin/bash
 
 .. _bind_docker:

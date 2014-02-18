@@ -917,6 +917,8 @@ Running ``docker ps`` showing 2 linked containers.
 
 The last container is marked as a ``Ghost`` container. It is a container that was running when the docker daemon was restarted (upgraded, or ``-H`` settings changed). The container is still running, but as this docker daemon process is not able to manage it, you can't attach to it. To bring them out of ``Ghost`` Status, you need to use ``docker kill`` or ``docker restart``.
 
+``docker ps`` will show only running containers by default.  To see all containers: ``docker ps -a``
+
 .. _cli_pull:
 
 ``pull``
@@ -1085,6 +1087,7 @@ The ``docker run`` command first ``creates`` a writeable container layer over
 the specified image, and then ``starts`` it using the specified command. That
 is, ``docker run`` is equivalent to the API ``/containers/create`` then
 ``/containers/(id)/start``.
+Once the container is stopped it still exists and can be started back up.  See ``docker ps -a`` to view a list of all containers.
 
 The ``docker run`` command can be used in combination with ``docker commit`` to
 :ref:`change the command that a container runs <cli_commit_examples>`.
