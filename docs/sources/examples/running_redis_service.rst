@@ -67,9 +67,8 @@ Once inside our freshly created container we need to install Redis to get the
     apt-get -y install redis-server
     service redis-server stop
 
-Now we can test the connection. Firstly, let's look at the available environmental 
-variables in our web application container that Docker has setup for us. We can use these to get the IP and port 
-of our ``redis`` container.
+Docker sets some environment variables in our web application container. 
+Let's inspect them with the ``env`` command.
 
 .. code-block:: bash
 
