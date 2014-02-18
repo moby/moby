@@ -126,7 +126,7 @@ with our containers as if they were running locally:
 .. code-block:: bash
 
    # vm must be powered off
-   for i in {4900..49900}; do
+   for i in {49000..49900}; do
     VBoxManage modifyvm "boot2docker-vm" --natpf1 "tcp-port$i,tcp,,$i,,$i";
     VBoxManage modifyvm "boot2docker-vm" --natpf1 "udp-port$i,udp,,$i,,$i";
    done
