@@ -68,7 +68,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flLabelOptions    = cmd.String([]string{"Z", "-label"}, "", "Options to pass to underlying labeling system")
-		flEnvFile         = cmd.String([]string{"#envfile", "-envfile"}, "", "Read in a line delimited file of ENV variables")
+		flEnvFile         = cmd.String([]string{"#env-file", "-env-file"}, "", "Read in a line delimited file of ENV variables")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")

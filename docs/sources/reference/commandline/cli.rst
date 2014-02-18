@@ -1152,7 +1152,7 @@ image is removed.
       --cidfile="": Write the container ID to the file
       -d, --detach=false: Detached mode: Run container in the background, print new container id
       -e, --env=[]: Set environment variables
-      --envfile="": Read in a line delimited file of ENV variables
+      --env-file="": Read in a line delimited file of ENV variables
       -h, --hostname="": Container host name
       -i, --interactive=false: Keep stdin open even if not attached
       --privileged=false: Give extended privileges to this container
