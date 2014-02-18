@@ -1,5 +1,5 @@
-:title: Installation on Gentoo Linux
-:description: Docker installation instructions and nuances for Gentoo Linux.
+:title: Installation on Gentoo
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: gentoo linux, virtualization, docker, documentation, installation
 
 .. _gentoo_linux:

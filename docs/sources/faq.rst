@@ -175,12 +175,19 @@ Linux:
 - Gentoo
 - ArchLinux
 - openSUSE 12.3+
+- CRUX 3.0+
 
 Cloud:
 
 - Amazon EC2
 - Google Compute Engine
 - Rackspace
+
+How do I report a security issue with Docker?
+.............................................
+
+You can learn about the project's security policy `here <http://www.docker.io/security/>`_
+and report security issues to this `mailbox <mailto:security@docker.com>`_.
 
 Can I help by adding some questions and answers?
 ................................................

@@ -51,7 +51,7 @@ done
 
 yum -c "$yum_config" --installroot="$target" --setopt=tsflags=nodocs \
     --setopt=group_package_types=mandatory -y groupinstall Core
-yum -c "$yum_config" --installroot="$mount" -y clean all
+yum -c "$yum_config" --installroot="$target" -y clean all
 
 cat > "$target"/etc/sysconfig/network <<EOF
 NETWORKING=yes

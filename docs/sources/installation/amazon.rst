@@ -1,5 +1,5 @@
 :title: Installation on Amazon EC2
-:description: Docker installation on Amazon EC2 
+:description: Please note this project is currently under heavy development. It should not be used in production. 
 :keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
 
 Amazon EC2

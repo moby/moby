@@ -1,8 +1,8 @@
 package docker
 
 import (
-	"archive/tar"
 	"bytes"
+	"code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 )
 

@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/netlink"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/user"
 	"github.com/syndtr/gocapability/capability"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"syscall"
 )
@@ -79,35 +78,28 @@ func setupWorkingDirectory(args *execdriver.InitArgs) error {
 
 // Takes care of dropping privileges to the desired user
 func changeUser(args *execdriver.InitArgs) error {
-	if args.User == "" {
-		return nil
-	}
-	userent, err := utils.UserLookup(args.User)
+	uid, gid, suppGids, err := user.GetUserGroupSupplementary(
+		args.User,
+		syscall.Getuid(), syscall.Getgid(),
+	)
 	if err != nil {
-		return fmt.Errorf("Unable to find user %v: %v", args.User, err)
+		return err
 	}
 
-	uid, err := strconv.Atoi(userent.Uid)
-	if err != nil {
-		return fmt.Errorf("Invalid uid: %v", userent.Uid)
+	if err := syscall.Setgroups(suppGids); err != nil {
+		return fmt.Errorf("Setgroups failed: %v", err)
 	}
-	gid, err := strconv.Atoi(userent.Gid)
-	if err != nil {
-		return fmt.Errorf("Invalid gid: %v", userent.Gid)
-	}
-
 	if err := syscall.Setgid(gid); err != nil {
-		return fmt.Errorf("setgid failed: %v", err)
+		return fmt.Errorf("Setgid failed: %v", err)
 	}
 	if err := syscall.Setuid(uid); err != nil {
-		return fmt.Errorf("setuid failed: %v", err)
+		return fmt.Errorf("Setuid failed: %v", err)
 	}
 
 	return nil
 }
 
 func setupCapabilities(args *execdriver.InitArgs) error {
-
 	if args.Privileged {
 		return nil
 	}
@@ -127,6 +119,7 @@ func setupCapabilities(args *execdriver.InitArgs) error {
 		capability.CAP_AUDIT_CONTROL,
 		capability.CAP_MAC_OVERRIDE,
 		capability.CAP_MAC_ADMIN,
+		capability.CAP_NET_ADMIN,
 	}
 
 	c, err := capability.NewPid(os.Getpid())

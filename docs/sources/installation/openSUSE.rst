@@ -1,5 +1,5 @@
 :title: Installation on openSUSE
-:description: Docker installation on openSUSE.
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: openSUSE, virtualbox, docker, documentation, installation
 
 .. _openSUSE:

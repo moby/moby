@@ -1,5 +1,5 @@
 :title: Installation on Arch Linux
-:description: Docker installation on Arch Linux.
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: arch linux, virtualization, docker, documentation, installation
 
 .. _arch_linux:

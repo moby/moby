@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -38,7 +39,7 @@ type buildFile struct {
 
 	image      string
 	maintainer string
-	config     *Config
+	config     *runconfig.Config
 
 	contextPath string
 	context     *utils.TarSum
@@ -64,8 +65,11 @@ type buildFile struct {
 func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
 		tmp := b.runtime.Get(c)
-		b.runtime.Destroy(tmp)
-		fmt.Fprintf(b.outStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+		if err := b.runtime.Destroy(tmp); err != nil {
+			fmt.Fprintf(b.outStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
+		} else {
+			fmt.Fprintf(b.outStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+		}
 	}
 }
 
@@ -101,7 +105,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		}
 	}
 	b.image = image.ID
-	b.config = &Config{}
+	b.config = &runconfig.Config{}
 	if image.Config != nil {
 		b.config = image.Config
 	}
@@ -158,14 +162,14 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := ParseRun(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
+	config, _, _, err := runconfig.Parse(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
 	if err != nil {
 		return err
 	}
 
 	cmd := b.config.Cmd
 	b.config.Cmd = nil
-	MergeConfig(b.config, config)
+	runconfig.Merge(b.config, config)
 
 	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
@@ -179,11 +183,20 @@ func (b *buildFile) CmdRun(args string) error {
 		return nil
 	}
 
-	cid, err := b.run()
+	c, err := b.create()
 	if err != nil {
 		return err
 	}
-	if err := b.commit(cid, cmd, "run"); err != nil {
+	// Ensure that we keep the container mounted until the commit
+	// to avoid unmounting and then mounting directly again
+	c.Mount()
+	defer c.Unmount()
+
+	err = b.run(c)
+	if err != nil {
+		return err
+	}
+	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
 
@@ -342,7 +355,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *Container, orig, dest string) error {
+func (b *buildFile) addContext(container *Container, orig, dest string, remote bool) error {
 	var (
 		origPath = path.Join(b.contextPath, orig)
 		destPath = path.Join(container.BasefsPath(), dest)
@@ -358,20 +371,39 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		}
 		return err
 	}
+
 	if fi.IsDir() {
 		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
-		// First try to unpack the source as an archive
-	} else if err := archive.UntarPath(origPath, destPath); err != nil {
+		return nil
+	}
+
+	// First try to unpack the source as an archive
+	// to support the untar feature we need to clean up the path a little bit
+	// because tar is very forgiving.  First we need to strip off the archive's
+	// filename from the path but this is only added if it does not end in / .
+	tarDest := destPath
+	if strings.HasSuffix(tarDest, "/") {
+		tarDest = filepath.Dir(destPath)
+	}
+
+	// If we are adding a remote file, do not try to untar it
+	if !remote {
+		// try to successfully untar the orig
+		if err := archive.UntarPath(origPath, tarDest); err == nil {
+			return nil
+		}
 		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
-		// If that fails, just copy it as a regular file
-		if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
-			return err
-		}
-		if err := archive.CopyWithTar(origPath, destPath); err != nil {
-			return err
-		}
+	}
+
+	// If that fails, just copy it as a regular file
+	// but do not use all the magic path handling for the tar path
+	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
+		return err
+	}
+	if err := archive.CopyWithTar(origPath, destPath); err != nil {
+		return err
 	}
 	return nil
 }
@@ -399,14 +431,15 @@ func (b *buildFile) CmdAdd(args string) error {
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
 	b.config.Image = b.image
 
-	// FIXME: do we really need this?
 	var (
 		origPath   = orig
 		destPath   = dest
 		remoteHash string
+		isRemote   bool
 	)
 
 	if utils.IsURL(orig) {
+		isRemote = true
 		resp, err := utils.Download(orig)
 		if err != nil {
 			return err
@@ -435,6 +468,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
 		remoteHash = tarSum.Sum(nil)
+		r.Close()
 
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(dest, "/") {
@@ -515,7 +549,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	defer container.Unmount()
 
-	if err := b.addContext(container, origPath, destPath); err != nil {
+	if err := b.addContext(container, origPath, destPath, isRemote); err != nil {
 		return err
 	}
 
@@ -554,16 +588,16 @@ func (sf *StderrFormater) Write(buf []byte) (int, error) {
 	return len(buf), err
 }
 
-func (b *buildFile) run() (string, error) {
+func (b *buildFile) create() (*Container, error) {
 	if b.image == "" {
-		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
+		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.config.Image = b.image
 
 	// Create the container and start it
 	c, _, err := b.runtime.Create(b.config, "")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
@@ -572,6 +606,10 @@ func (b *buildFile) run() (string, error) {
 	c.Path = b.config.Cmd[0]
 	c.Args = b.config.Cmd[1:]
 
+	return c, nil
+}
+
+func (b *buildFile) run(c *Container) error {
 	var errCh chan error
 
 	if b.verbose {
@@ -582,12 +620,12 @@ func (b *buildFile) run() (string, error) {
 
 	//start the container
 	if err := c.Start(); err != nil {
-		return "", err
+		return err
 	}
 
 	if errCh != nil {
 		if err := <-errCh; err != nil {
-			return "", err
+			return err
 		}
 	}
 
@@ -597,10 +635,10 @@ func (b *buildFile) run() (string, error) {
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
 			Code:    ret,
 		}
-		return "", err
+		return err
 	}
 
-	return c.ID, nil
+	return nil
 }
 
 // Commit the container <id> with the autorun command <autoCmd>
@@ -742,7 +780,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
-		config:        &Config{},
+		config:        &runconfig.Config{},
 		outStream:     outStream,
 		errStream:     errStream,
 		tmpContainers: make(map[string]struct{}),

@@ -1,4 +1,4 @@
-:title: Requirements and Installation on Red Hat Enterprise Linux
+:title: Installation on Red Hat Enterprise Linux
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, requirements, linux, rhel, centos
 

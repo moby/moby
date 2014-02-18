@@ -1,6 +1,6 @@
 :title: Remote API Client Libraries
 :description: Various client libraries available to use with the Docker remote API
-:keywords: API, Docker, index, registry, REST, documentation, clients, Python, Ruby, Javascript, Erlang, Go
+:keywords: API, Docker, index, registry, REST, documentation, clients, Python, Ruby, JavaScript, Erlang, Go
 
 
 ==================================
@@ -21,12 +21,18 @@ and we will add the libraries here.
 +----------------------+----------------+--------------------------------------------+----------+
 | Ruby                 | docker-api     | https://github.com/swipely/docker-api      | Active   |
 +----------------------+----------------+--------------------------------------------+----------+
-| Javascript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  | Active   |
+| JavaScript (NodeJS)  | dockerode      | https://github.com/apocas/dockerode        | Active   |
+|                      |                | Install via NPM: `npm install dockerode`   |          |
++----------------------+----------------+--------------------------------------------+----------+
+| JavaScript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  | Active   |
 |                      |                | Install via NPM: `npm install docker.io`   |          |
 +----------------------+----------------+--------------------------------------------+----------+
-| Javascript           | docker-js      | https://github.com/dgoujard/docker-js      | Active   |
+| JavaScript           | docker-js      | https://github.com/dgoujard/docker-js      | Active   |
 +----------------------+----------------+--------------------------------------------+----------+
-| Javascript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  | Active   |
+| JavaScript (Angular) | docker-cp      | https://github.com/13W/docker-cp           | Active   |
+| **WebUI**            |                |                                            |          |
++----------------------+----------------+--------------------------------------------+----------+
+| JavaScript (Angular) | dockerui       | https://github.com/crosbymichael/dockerui  | Active   |
 | **WebUI**            |                |                                            |          |
 +----------------------+----------------+--------------------------------------------+----------+
 | Java                 | docker-java    | https://github.com/kpelykh/docker-java     | Active   |

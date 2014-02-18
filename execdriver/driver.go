@@ -99,6 +99,8 @@ type Command struct {
 	Network    *Network   `json:"network"` // if network is nil then networking is disabled
 	Config     []string   `json:"config"`  //  generic values that specific drivers can consume
 	Resources  *Resources `json:"resources"`
+
+	Console string `json:"-"`
 }
 
 // Return the pid of the process
