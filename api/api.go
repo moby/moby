@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/listenbuffer"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
@@ -25,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // FIXME: move code common to client and server to common.go
@@ -32,6 +34,10 @@ const (
 	APIVERSION        = 1.9
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+)
+
+var (
+	activationLock chan struct{}
 )
 
 func ValidateHost(val string) (string, error) {
@@ -1159,7 +1165,7 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		}
 	}
 
-	l, err := net.Listen(proto, addr)
+	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock, 15*time.Minute)
 	if err != nil {
 		return err
 	}
@@ -1201,8 +1207,15 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 // ServeApi loops through all of the protocols sent in to docker and spawns
 // off a go routine to setup a serving http.Server for each.
 func ServeApi(job *engine.Job) engine.Status {
-	protoAddrs := job.Args
-	chErrors := make(chan error, len(protoAddrs))
+	var (
+		protoAddrs = job.Args
+		chErrors   = make(chan error, len(protoAddrs))
+	)
+	activationLock = make(chan struct{})
+
+	if err := job.Eng.Register("acceptconnections", AcceptConnections); err != nil {
+		return job.Error(err)
+	}
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
@@ -1219,8 +1232,15 @@ func ServeApi(job *engine.Job) engine.Status {
 		}
 	}
 
+	return engine.StatusOK
+}
+
+func AcceptConnections(job *engine.Job) engine.Status {
 	// Tell the init daemon we are accepting requests
 	go systemd.SdNotify("READY=1")
+
+	// close the lock so the listeners start accepting connections
+	close(activationLock)
 
 	return engine.StatusOK
 }

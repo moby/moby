@@ -171,9 +171,14 @@ func spawnGlobalDaemon() {
 			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
+
 	// Give some time to ListenAndServer to actually start
 	// FIXME: use inmem transports instead of tcp
 	time.Sleep(time.Second)
+
+	if err := eng.Job("acceptconnections").Run(); err != nil {
+		log.Fatalf("Unable to accept connections for test api: %s", err)
+	}
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output

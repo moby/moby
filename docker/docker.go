@@ -81,25 +81,36 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Load plugin: httpapi
-		job := eng.Job("initserver")
-		job.Setenv("Pidfile", *pidfile)
-		job.Setenv("Root", *flRoot)
-		job.SetenvBool("AutoRestart", *flAutoRestart)
-		job.SetenvList("Dns", flDns.GetAll())
-		job.SetenvBool("EnableIptables", *flEnableIptables)
-		job.SetenvBool("EnableIpForward", *flEnableIpForward)
-		job.Setenv("BridgeIface", *bridgeName)
-		job.Setenv("BridgeIP", *bridgeIp)
-		job.Setenv("DefaultIp", *flDefaultIp)
-		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
-		job.Setenv("GraphDriver", *flGraphDriver)
-		job.SetenvInt("Mtu", *flMtu)
-		if err := job.Run(); err != nil {
-			log.Fatal(err)
-		}
+		// load the daemon in the background so we can immediately start
+		// the http api so that connections don't fail while the daemon
+		// is booting
+		go func() {
+			// Load plugin: httpapi
+			job := eng.Job("initserver")
+			job.Setenv("Pidfile", *pidfile)
+			job.Setenv("Root", *flRoot)
+			job.SetenvBool("AutoRestart", *flAutoRestart)
+			job.SetenvList("Dns", flDns.GetAll())
+			job.SetenvBool("EnableIptables", *flEnableIptables)
+			job.SetenvBool("EnableIpForward", *flEnableIpForward)
+			job.Setenv("BridgeIface", *bridgeName)
+			job.Setenv("BridgeIP", *bridgeIp)
+			job.Setenv("DefaultIp", *flDefaultIp)
+			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+			job.Setenv("GraphDriver", *flGraphDriver)
+			job.SetenvInt("Mtu", *flMtu)
+			if err := job.Run(); err != nil {
+				log.Fatal(err)
+			}
+			// after the daemon is done setting up we can tell the api to start
+			// accepting connections
+			if err := eng.Job("acceptconnections").Run(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
 		// Serve api
-		job = eng.Job("serveapi", flHosts.GetAll()...)
+		job := eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
 		job.SetenvBool("EnableCors", *flEnableCors)
 		job.Setenv("Version", dockerversion.VERSION)
