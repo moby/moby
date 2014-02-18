@@ -3,6 +3,7 @@ package ipallocator
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/networkdriver"
 	"github.com/dotcloud/docker/pkg/collections"
 	"net"
@@ -33,7 +34,7 @@ func RequestIP(address *net.IPNet, ip *net.IP) (*net.IP, error) {
 	checkAddress(address)
 
 	if ip == nil {
-		if !networkdriver.IsIPv6(&address.IP) {
+		if !utils.IsIPv6(&address.IP) {
 			next, err := getNextIp(address)
 			if err != nil {
 				return nil, err
@@ -68,7 +69,7 @@ func ReleaseIP(address *net.IPNet, ip *net.IP) error {
 		pos uint64
 	)
 
-	if !networkdriver.IsIPv6(ip) {
+	if !utils.IsIPv6(ip) {
 		pos = uint64(getPosition(address, ip))
 	} else {
 		_, pos = getPosition6(address, ip)
@@ -197,7 +198,7 @@ func registerIP(address *net.IPNet, ip *net.IP) error {
 		pos uint64
 	)
 
-	if !networkdriver.IsIPv6(ip) {
+	if !utils.IsIPv6(ip) {
 		pos = uint64(getPosition(address, ip))
 	} else {
 		_, pos = getPosition6(address, ip)

@@ -29,6 +29,7 @@ var (
 		"udp": BeginPortRange - 1,
 	}
 	defaultIP             = net.ParseIP("0.0.0.0")
+	defaultIP6            = net.ParseIP("::")
 	defaultAllocatedPorts = portMappings{}
 	otherAllocatedPorts   = ipMapping{}
 	lock                  = sync.Mutex{}
@@ -139,7 +140,7 @@ func registerSetPort(ip net.IP, proto string, port int) error {
 }
 
 func equalsDefault(ip net.IP) bool {
-	return ip == nil || ip.Equal(defaultIP)
+	return ip == nil || ip.Equal(defaultIP) || ip.Equal(defaultIP6)
 }
 
 func nextPort(proto string) int {

@@ -178,6 +178,10 @@ func GetDefaultRouteIface() (*net.Interface, error) {
 // returning uint64-encoded 'seconds' and 'fractions' See RFC 5905
 func timeNTP() (uint64, uint64, error) {
 	ntps, err := net.ResolveUDPAddr("udp", "0.pool.ntp.org:123")
+	if err != nil {
+		fmt.Errorf("Unable to get NTP time: %v", err)
+		return 0, 0, err
+	}
 
 	data := make([]byte, 48)
 	data[0] = 3<<3 | 3
@@ -227,7 +231,7 @@ func findMAC() uint64 {
 
 // GenULA() generates Unique Local Addresses for IPv6, implementing the
 // algorithm suggested in RFC 4193
-func GenULA() string {
+func GenULA() net.IPNet {
 	ntpsec, ntpfrac, _ := timeNTP()
 	mac := findMAC()
 	if mac == 0 {
@@ -250,7 +254,24 @@ func GenULA() string {
 		ip[n] = shakey[i]
 	}
 
-	return ip.String() + "/64"
+	return net.IPNet{
+		IP:	ip,
+		Mask:	net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
+}
+
+func GenerateIPv6AddressPool() []string {
+	var tempIP net.IP
+	addresses := make([]string, 4)
+
+	for i := 0; i < len(addresses); i++ {
+		tempIP = GenULA().IP
+		// Add one for our Gateway as GenULA generates network addresses
+		tempIP[15] = tempIP[15] + 1
+		addresses[i] = tempIP.String() + "/64"
+	}
+
+	return addresses
 }
 
 func IsIPv6(ip *net.IP) bool {

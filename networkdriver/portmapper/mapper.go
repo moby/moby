@@ -17,7 +17,7 @@ type mapping struct {
 }
 
 var (
-	chain *iptables.Chain
+	chain  *iptables.Chain
 	lock  sync.Mutex
 
 	// udp:ip:port
@@ -34,6 +34,7 @@ var (
 func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
+
 
 func Map(container net.Addr, hostIP net.IP, hostPort int) error {
 	lock.Lock()
@@ -106,9 +107,17 @@ func Unmap(host net.Addr) error {
 func getKey(a net.Addr) string {
 	switch t := a.(type) {
 	case *net.TCPAddr:
-		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "tcp")
+		if t.IP.To4() != nil {
+			return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "tcp")
+		} else {
+			return fmt.Sprintf("[%s]:%d/%s", t.IP.String(), t.Port, "tcp")
+		}
 	case *net.UDPAddr:
-		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
+		if t.IP.To4() != nil {
+			return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
+		} else {
+			return fmt.Sprintf("[%s]:%d/%s", t.IP.String(), t.Port, "udp")
+		}
 	}
 	return ""
 }

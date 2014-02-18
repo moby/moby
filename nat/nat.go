@@ -87,10 +87,14 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			proto = rawPort[i+1:]
 			rawPort = rawPort[:i]
 		}
-		if !strings.Contains(rawPort, ":") {
-			rawPort = fmt.Sprintf("::%s", rawPort)
-		} else if len(strings.Split(rawPort, ":")) == 2 {
-			rawPort = fmt.Sprintf(":%s", rawPort)
+		//TODO(ajw) Should we leave this in?
+		// Dont munge rawPort if we were given an IPv6 address
+		if !(strings.Contains(rawPort, "[") && strings.Contains(rawPort, "]")) {
+			if !strings.Contains(rawPort, ":") {
+				rawPort = fmt.Sprintf("::%s", rawPort)
+			} else if len(strings.Split(rawPort, ":")) == 2 {
+				rawPort = fmt.Sprintf(":%s", rawPort)
+			}
 		}
 
 		parts, err := utils.PartParser(PortSpecTemplate, rawPort)

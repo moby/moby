@@ -668,7 +668,9 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		job.SetenvBool("EnableIpForward", config.EnableIpForward)
 		job.Setenv("BridgeIface", config.BridgeIface)
 		job.Setenv("BridgeIP", config.BridgeIP)
+		job.Setenv("BridgeIP6", config.BridgeIP6)
 		job.Setenv("DefaultBindingIP", config.DefaultIp.String())
+		job.Setenv("DefaultBindingIP6", config.DefaultIp6.String())
 
 		if err := job.Run(); err != nil {
 			return nil, err

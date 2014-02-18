@@ -21,8 +21,10 @@ type DaemonConfig struct {
 	EnableIptables              bool
 	EnableIpForward             bool
 	DefaultIp                   net.IP
+	DefaultIp6                  net.IP
 	BridgeIface                 string
 	BridgeIP                    string
+	BridgeIP6                   string
 	InterContainerCommunication bool
 	GraphDriver                 string
 	Mtu                         int
@@ -39,8 +41,10 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 		EnableIptables:              job.GetenvBool("EnableIptables"),
 		EnableIpForward:             job.GetenvBool("EnableIpForward"),
 		BridgeIP:                    job.Getenv("BridgeIP"),
+		BridgeIP6:                   job.Getenv("BridgeIP6"),
 		BridgeIface:                 job.Getenv("BridgeIface"),
 		DefaultIp:                   net.ParseIP(job.Getenv("DefaultIp")),
+		DefaultIp6:                  net.ParseIP(job.Getenv("DefaultIp6")),
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
 	}

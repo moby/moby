@@ -826,6 +826,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetBool("MemoryLimit", srv.runtime.sysInfo.MemoryLimit)
 	v.SetBool("SwapLimit", srv.runtime.sysInfo.SwapLimit)
 	v.SetBool("IPv4Forwarding", !srv.runtime.sysInfo.IPv4ForwardingDisabled)
+	v.SetBool("IPv6Forwarding", !srv.runtime.sysInfo.IPv6ForwardingDisabled)
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
@@ -1664,6 +1665,9 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	}
 	if !container.Config.NetworkDisabled && srv.runtime.sysInfo.IPv4ForwardingDisabled {
 		job.Errorf("WARNING: IPv4 forwarding is disabled.\n")
+	}
+	if !container.Config.NetworkDisabled && srv.runtime.sysInfo.IPv6ForwardingDisabled {
+		job.Errorf("WARNING: IPv6 forwarding is disabled.\n")
 	}
 	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	// FIXME: this is necessary because runtime.Create might return a nil container

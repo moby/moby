@@ -13,7 +13,7 @@ func init() {
 }
 
 func reset() {
-	chain = nil
+	chain  = nil
 	currentMappings = make(map[string]*mapping)
 }
 
@@ -75,8 +75,7 @@ func TestMapPorts(t *testing.T) {
 
 func TestGetUDPKey(t *testing.T) {
 	addr := &net.UDPAddr{IP: net.ParseIP("192.168.1.5"), Port: 53}
-
-	key := getKey(addr)
+	key  := getKey(addr)
 
 	if expected := "192.168.1.5:53/udp"; key != expected {
 		t.Fatalf("expected key %s got %s", expected, key)
@@ -84,9 +83,8 @@ func TestGetUDPKey(t *testing.T) {
 }
 
 func TestGetTCPKey(t *testing.T) {
-	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.5"), Port: 80}
-
-	key := getKey(addr)
+	addr:= &net.TCPAddr{IP: net.ParseIP("192.168.1.5"), Port: 80}
+	key  := getKey(addr)
 
 	if expected := "192.168.1.5:80/tcp"; key != expected {
 		t.Fatalf("expected key %s got %s", expected, key)

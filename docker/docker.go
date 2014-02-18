@@ -29,14 +29,16 @@ func main() {
 		flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 		flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
 		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
-		bridgeIp             = flag.String([]string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
+		bridgeIp             = flag.String([]string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IPv4 address, not compatible with -b")
+		bridgeIp6            = flag.String([]string{"#bip6", "-bip6"}, "", "Use this CIDR notation address for the network bridge's IPv6 address, not compatible with -b")
 		pidfile              = flag.String([]string{"p", "-pidfile"}, "/var/run/docker.pid", "Path to use for daemon PID file")
 		flRoot               = flag.String([]string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the docker runtime")
 		flEnableCors         = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 		flDns                = opts.NewListOpts(opts.ValidateIp4Address)
 		flEnableIptables     = flag.Bool([]string{"#iptables", "-iptables"}, true, "Disable docker's addition of iptables rules")
 		flEnableIpForward    = flag.Bool([]string{"#ip-forward", "-ip-forward"}, true, "Disable enabling of net.ipv4.ip_forward")
-		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
+		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container IPv4 ports")
+		flDefaultIp6         = flag.String([]string{"#ip6", "-ip6"}, "::", "Default IP address to use when binding container IPv6 ports")
 		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
 		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
@@ -67,6 +69,9 @@ func main() {
 	if *bridgeName != "" && *bridgeIp != "" {
 		log.Fatal("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
+	if *bridgeName != "" && *bridgeIp6 != "" {
+		log.Fatal("You specified -b & --bip6, mutually exclusive options. Please specify only one.")
+	}
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
@@ -95,7 +100,9 @@ func main() {
 			job.SetenvBool("EnableIpForward", *flEnableIpForward)
 			job.Setenv("BridgeIface", *bridgeName)
 			job.Setenv("BridgeIP", *bridgeIp)
+			job.Setenv("BridgeIP6", *bridgeIp6)
 			job.Setenv("DefaultIp", *flDefaultIp)
+			job.Setenv("DefaultIp6", *flDefaultIp6)
 			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 			job.Setenv("GraphDriver", *flGraphDriver)
 			job.SetenvInt("Mtu", *flMtu)

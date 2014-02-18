@@ -11,6 +11,8 @@ import (
 type Link struct {
 	ParentIP         string
 	ChildIP          string
+	ParentIP6        string
+	ChildIP6         string
 	Name             string
 	ChildEnvironment []string
 	Ports            []nat.Port
@@ -18,7 +20,7 @@ type Link struct {
 	eng              *engine.Engine
 }
 
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}, eng *engine.Engine) (*Link, error) {
+func NewLink(parentIP, childIP, parentIP6, childIP6, name string, env []string, exposedPorts map[nat.Port]struct{}, eng *engine.Engine) (*Link, error) {
 
 	var (
 		i     int
@@ -34,6 +36,8 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 		Name:             name,
 		ChildIP:          childIP,
 		ParentIP:         parentIP,
+		ChildIP6:         childIP6,
+		ParentIP6:        parentIP6,
 		ChildEnvironment: env,
 		Ports:            ports,
 		eng:              eng,
@@ -47,17 +51,24 @@ func (l *Link) Alias() string {
 	return alias
 }
 
+//TODO(ajw) Surround ipv6 addresses with brackets
 func (l *Link) ToEnv() []string {
 	env := []string{}
 	alias := strings.ToUpper(l.Alias())
 
 	if p := l.getDefaultPort(); p != nil {
 		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+		if l.ChildIP6 != "" {
+			env = append(env, fmt.Sprintf("%s_PORT6=%s://[%s]:%s", alias, p.Proto(), l.ChildIP6, p.Port()))
+		}
 	}
 
 	// Load exposed ports into the environment
 	for _, p := range l.Ports {
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+		if l.ChildIP6 != "" {
+			env = append(env, fmt.Sprintf("%s_PORT6_%s_%s=%s://[%s]:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP6, p.Port()))
+		}
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
@@ -121,6 +132,8 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 
 	job.Setenv("ParentIP", l.ParentIP)
 	job.Setenv("ChildIP", l.ChildIP)
+	job.Setenv("ParentIP6", l.ParentIP6)
+	job.Setenv("ChildIP6", l.ChildIP6)
 	job.SetenvBool("IgnoreErrors", ignoreErrors)
 
 	out := make([]string, len(l.Ports))

@@ -51,12 +51,7 @@ var (
 		"192.168.44.1/24",
 	}
 
-	addrs6 = []string{
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-	}
+	addrs6 = networkdriver.GenerateIPv6AddressPool()
 
 	bridgeIface    string
 	bridgeNetwork  *net.IPNet
@@ -140,8 +135,8 @@ func InitDriver(job *engine.Job) engine.Status {
 			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
 		}
 
-		// Enable IPv6 forwarding
-		if err := ioutil.WriteFile("/proc/sys/net/ipv6/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+		// Enable IPv6 forwarding on all interfaces
+		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
 			job.Logf("WARNING: unable to enable IPv6 forwarding: %s\n", err)
 		}
 	}
@@ -246,28 +241,22 @@ func setupIPTables(addr net.Addr, icc bool) error {
 	return nil
 }
 
-func findBridgeNetwork(preferredIp string) (string, error) {
-	var address_pool *[]string
-
+func findBridgeNetwork(preferredIp string, address_pool []string) (string, error) {
 	nameservers := []string{}
-	ip := net.ParseIP(preferredIp)
 	resolvConf, _ := utils.GetResolvConf()
+
+	firstIP,_,_ := net.ParseCIDR(address_pool[0])
+
 	// we don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
 	if resolvConf != nil {
-		if !networkdriver.IsIPv6(&ip) {
+		if !utils.IsIPv6(&firstIP) {
 			nameservers = append(nameservers, utils.GetIPv4NameserversAsCIDR(resolvConf)...)
 		} else {
 			nameservers = append(nameservers, utils.GetIPv6NameserversAsCIDR(resolvConf)...)
 		}
-	}
-
-	if networkdriver.IsIPv6(&ip) {
-		address_pool = &addrs6
-	} else {
-		address_pool = &addrs4
 	}
 
 	var ifaceAddr string
@@ -278,7 +267,7 @@ func findBridgeNetwork(preferredIp string) (string, error) {
 		}
 		return preferredIp, nil
 	} else {
-		for _, addr := range *address_pool {
+		for _, addr := range address_pool {
 			_, dockerNetwork, err := net.ParseCIDR(addr)
 			if err != nil {
 				return "", err
@@ -306,11 +295,11 @@ func findBridgeNetwork(preferredIp string) (string, error) {
 func createBridge(bridgeIP, bridgeIP6 string) error {
 	var inet, inet6 string
 
-	inet, err := findBridgeNetwork(bridgeIP)
+	inet, err := findBridgeNetwork(bridgeIP, addrs4)
 	if err != nil {
 		return err
 	}
-	inet6, err = findBridgeNetwork(bridgeIP6)
+	inet6, err = findBridgeNetwork(bridgeIP6, addrs6)
 	if err != nil {
 		return err
 	}
@@ -472,6 +461,9 @@ func Release(job *engine.Job) engine.Status {
 	if err := ipallocator.ReleaseIP(bridgeNetwork, &containerInterface.IP); err != nil {
 		log.Printf("Unable to release ip %s\n", err)
 	}
+	if err := ipallocator.ReleaseIP(bridgeNetwork6, &containerInterface.IP6); err != nil {
+		log.Printf("Unable to release ip %s\n", err)
+	}
 	return engine.StatusOK
 }
 
@@ -480,6 +472,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 	var (
 		err error
 
+		// XXX: For now if the jobs hostIP is empty we just assume IPv4
 		ip            = defaultBindingIP
 		id            = job.Args[0]
 		hostIP        = job.Getenv("HostIP")
@@ -507,10 +500,18 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	if proto == "tcp" {
 		host = &net.TCPAddr{IP: ip, Port: hostPort}
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		if !utils.IsIPv6(&ip) {
+			container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			container = &net.TCPAddr{IP: network.IP6, Port: containerPort}
+		}
 	} else {
 		host = &net.UDPAddr{IP: ip, Port: hostPort}
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		if !utils.IsIPv6(&ip) {
+			container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			container = &net.UDPAddr{IP: network.IP6, Port: containerPort}
+		}
 	}
 
 	if err := portmapper.Map(container, ip, hostPort); err != nil {
@@ -540,6 +541,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
+
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
 		return parts[0], parts[1]
@@ -547,6 +549,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 	for _, p := range ports {
 		port, proto := split(p)
+
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", proto,

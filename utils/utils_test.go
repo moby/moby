@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"net"
 )
 
 func TestBufReader(t *testing.T) {
@@ -442,6 +443,26 @@ func TestParsePortMapping(t *testing.T) {
 	}
 }
 
+func TestParsePortMapping6(t *testing.T) {
+	data, err := PartParser("ip:public:private", "[2001:db8::1]:80:8080")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data) != 3 {
+		t.FailNow()
+	}
+	if data["ip"] != "2001:db8::1" {
+		t.Fail()
+	}
+	if data["public"] != "80" {
+		t.Fail()
+	}
+	if data["private"] != "8080" {
+		t.Fail()
+	}
+}
+
 func TestGetIPv4NameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4
@@ -511,4 +532,43 @@ func StrSlicesEqual(a, b []string) bool {
 	}
 
 	return true
+}
+
+func TestIsIPv6(t *testing.T) {
+	ip ,_,_ := net.ParseCIDR("202.12.27.33/32")
+	ip2,_,_ := net.ParseCIDR("10.1.2.1/8")
+	ip3,_,_ := net.ParseCIDR("224.0.0.1/4")
+	ip4 := net.ParseIP("0.0.0.0")
+
+	ip5,_,_ := net.ParseCIDR("2001:db8::1/48")
+	ip6,_,_ := net.ParseCIDR("fe80::1/64")
+	ip7,_,_ := net.ParseCIDR("ffe8::/48")
+	ip8 := net.ParseIP("::")
+
+
+	if result := IsIPv6(&ip); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip.String(), result)
+	}
+	if result := IsIPv6(&ip2); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip2.String(), result)
+	}
+	if result := IsIPv6(&ip3); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip3.String(), result)
+	}
+	if result := IsIPv6(&ip4); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip4.String(), result)
+	}
+
+	if result := IsIPv6(&ip5); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip5.String(), result)
+	}
+	if result := IsIPv6(&ip6); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip6.String(), result)
+	}
+	if result := IsIPv6(&ip7); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip7.String(), result)
+	}
+	if result := IsIPv6(&ip8); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip8.String(), result)
+	}
 }
