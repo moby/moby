@@ -355,7 +355,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *Container, orig, dest string) error {
+func (b *buildFile) addContext(container *Container, orig, dest string, remote bool) error {
 	var (
 		origPath = path.Join(b.contextPath, orig)
 		destPath = path.Join(container.BasefsPath(), dest)
@@ -388,11 +388,14 @@ func (b *buildFile) addContext(container *Container, orig, dest string) error {
 		tarDest = filepath.Dir(destPath)
 	}
 
-	// try to successfully untar the orig
-	if err := archive.UntarPath(origPath, tarDest); err == nil {
-		return nil
+	// If we are adding a remote file, do not try to untar it
+	if !remote {
+		// try to successfully untar the orig
+		if err := archive.UntarPath(origPath, tarDest); err == nil {
+			return nil
+		}
+		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 	}
-	utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 
 	// If that fails, just copy it as a regular file
 	// but do not use all the magic path handling for the tar path
@@ -428,14 +431,15 @@ func (b *buildFile) CmdAdd(args string) error {
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
 	b.config.Image = b.image
 
-	// FIXME: do we really need this?
 	var (
 		origPath   = orig
 		destPath   = dest
 		remoteHash string
+		isRemote   bool
 	)
 
 	if utils.IsURL(orig) {
+		isRemote = true
 		resp, err := utils.Download(orig)
 		if err != nil {
 			return err
@@ -545,7 +549,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	defer container.Unmount()
 
-	if err := b.addContext(container, origPath, destPath); err != nil {
+	if err := b.addContext(container, origPath, destPath, isRemote); err != nil {
 		return err
 	}
 
