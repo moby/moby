@@ -1815,16 +1815,22 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force boo
 		tags          = []string{}
 	)
 
+	repoName, tag = utils.ParseRepositoryTag(name)
+	if tag == "" {
+		tag = DEFAULTTAG
+	}
+
 	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
+		if r, _ := srv.runtime.repositories.Get(repoName); r != nil {
+			return fmt.Errorf("No such image: %s:%s", repoName, tag)
+		}
 		return fmt.Errorf("No such image: %s", name)
 	}
 
-	if !strings.Contains(img.ID, name) {
-		repoName, tag = utils.ParseRepositoryTag(name)
-		if tag == "" {
-			tag = DEFAULTTAG
-		}
+	if strings.Contains(img.ID, name) {
+		repoName = ""
+		tag = ""
 	}
 
 	byParents, err := srv.runtime.graph.ByParent()
