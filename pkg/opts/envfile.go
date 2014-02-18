@@ -15,6 +15,8 @@ func ParseEnvFile(filename string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
+  defer fh.Close()
+
 	var (
 		lines       []string = []string{}
 		line, chunk []byte
