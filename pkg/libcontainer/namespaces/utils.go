@@ -72,17 +72,3 @@ func setupEnvironment(container *libcontainer.Container) {
 	addEnvIfNotSet(container, "USER", "root")
 	addEnvIfNotSet(container, "LOGNAME", "root")
 }
-
-func getMasterAndConsole(container *libcontainer.Container) (string, *os.File, error) {
-	master, err := Openpmtx()
-	if err != nil {
-		return "", nil, err
-	}
-
-	console, err := Ptsname(master)
-	if err != nil {
-		master.Close()
-		return "", nil, err
-	}
-	return console, master, nil
-}

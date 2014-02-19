@@ -10,6 +10,9 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"os"
+	exec_ "os/exec"
+	"path"
+	"path/filepath"
 )
 
 var (
@@ -52,6 +55,18 @@ func exec(container *libcontainer.Container) error {
 		container.NetNsFd = netFile.Fd()
 	}
 
+	self, err := exec_.LookPath(os.Args[0])
+	if err != nil {
+		return err
+	}
+	if output, err := exec_.Command("cp", self, path.Join(container.RootFs, ".nsinit")).CombinedOutput(); err != nil {
+		return fmt.Errorf("Error exec cp: %s, (%s)", err, output)
+	} else {
+		println(self, container.RootFs)
+		fmt.Printf("-----> %s\n", output)
+	}
+	println("----")
+
 	pid, err := namespaces.ExecContainer(container)
 	if err != nil {
 		return fmt.Errorf("error exec container %s", err)
@@ -77,25 +92,25 @@ func exec(container *libcontainer.Container) error {
 }
 
 func execIn(container *libcontainer.Container) error {
-	f, err := os.Open("/root/nsroot/test")
-	if err != nil {
-		return err
-	}
-	container.NetNsFd = f.Fd()
-	pid, err := namespaces.ExecIn(container, &libcontainer.Command{
-		Env: container.Command.Env,
-		Args: []string{
-			newCommand,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("error exexin container %s", err)
-	}
-	exitcode, err := utils.WaitOnPid(pid)
-	if err != nil {
-		return fmt.Errorf("error waiting on child %s", err)
-	}
-	os.Exit(exitcode)
+	// f, err := os.Open("/root/nsroot/test")
+	// if err != nil {
+	// 	return err
+	// }
+	// container.NetNsFd = f.Fd()
+	// pid, err := namespaces.ExecIn(container, &libcontainer.Command{
+	// 	Env: container.Command.Env,
+	// 	Args: []string{
+	// 		newCommand,
+	// 	},
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("error exexin container %s", err)
+	// }
+	// exitcode, err := utils.WaitOnPid(pid)
+	// if err != nil {
+	// 	return fmt.Errorf("error waiting on child %s", err)
+	// }
+	// os.Exit(exitcode)
 	return nil
 }
 
@@ -143,11 +158,13 @@ func printErr(err error) {
 }
 
 func main() {
-	var (
-		err    error
-		cliCmd = flag.Arg(0)
-		config = "/root/development/gocode/src/github.com/dotcloud/docker/pkg/libcontainer/container.json" //flag.Arg(1)
-	)
+	cliCmd := flag.Arg(0)
+
+	config, err := filepath.Abs(flag.Arg(1))
+	if err != nil {
+		printErr(err)
+	}
+	println("cli:", cliCmd, "config:", config)
 	f, err := os.Open(config)
 	if err != nil {
 		printErr(err)

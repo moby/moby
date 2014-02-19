@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
+	"github.com/dotcloud/docker/pkg/system"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,10 +15,12 @@ import (
 // InitNamespace should be run inside an existing namespace to setup
 // common mounts, drop capabilities, and setup network interfaces
 func InitNamespace(container *libcontainer.Container) error {
+	println("|||||||||||||")
 	if err := setLogFile(container); err != nil {
 		return err
 	}
-
+	println(container.LogFile)
+	log.Printf("--------->")
 	rootfs, err := resolveRootfs(container)
 	if err != nil {
 		return err
@@ -26,7 +29,7 @@ func InitNamespace(container *libcontainer.Container) error {
 	// any errors encoutered inside the namespace we should write
 	// out to a log or a pipe to our parent and exit(1)
 	// because writing to stderr will not work after we close
-	if err := closeMasterAndStd(container.Master); err != nil {
+	if err := closeMasterAndStd(os.NewFile(container.Master, "/dev/ptmx")); err != nil {
 		log.Fatalf("close master and std %s", err)
 		return err
 	}
@@ -49,15 +52,15 @@ func InitNamespace(container *libcontainer.Container) error {
 		}
 	*/
 
-	if _, err := namespaces.Setsid(); err != nil {
+	if _, err := system.Setsid(); err != nil {
 		log.Fatalf("setsid %s", err)
 		return err
 	}
-	if err := namespaces.Setctty(); err != nil {
+	if err := system.Setctty(); err != nil {
 		log.Fatalf("setctty %s", err)
 		return err
 	}
-	if err := namespaces.ParentDeathSignal(); err != nil {
+	if err := system.ParentDeathSignal(); err != nil {
 		log.Fatalf("parent deth signal %s", err)
 		return err
 	}
@@ -65,7 +68,7 @@ func InitNamespace(container *libcontainer.Container) error {
 		log.Fatalf("setup mount namespace %s", err)
 		return err
 	}
-	if err := namespaces.Sethostname(container.ID); err != nil {
+	if err := system.Sethostname(container.ID); err != nil {
 		log.Fatalf("sethostname %s", err)
 		return err
 	}
@@ -78,12 +81,12 @@ func InitNamespace(container *libcontainer.Container) error {
 		return err
 	}
 	if container.WorkingDir != "" {
-		if err := namespaces.Chdir(container.WorkingDir); err != nil {
+		if err := system.Chdir(container.WorkingDir); err != nil {
 			log.Fatalf("chdir to %s %s", container.WorkingDir, err)
 			return err
 		}
 	}
-	if err := namespaces.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
+	if err := system.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
 		log.Fatalf("exec %s", err)
 		return err
 	}
@@ -98,24 +101,23 @@ func resolveRootfs(container *libcontainer.Container) (string, error) {
 	return filepath.EvalSymlinks(rootfs)
 }
 
-func closeMasterAndStd(master uintptr) error {
-	namespaces.Closefd(master)
-	namespaces.Closefd(0)
-	namespaces.Closefd(1)
-	namespaces.Closefd(2)
-
+func closeMasterAndStd(master *os.File) error {
+	master.Close()
+	os.Stdin.Close()
+	os.Stdout.Close()
+	os.Stderr.Close()
 	return nil
 }
 
 func setupUser(container *libcontainer.Container) error {
 	// TODO: honor user passed on container
-	if err := namespaces.Setgroups(nil); err != nil {
+	if err := system.Setgroups(nil); err != nil {
 		return err
 	}
-	if err := namespaces.Setresgid(0, 0, 0); err != nil {
+	if err := system.Setresgid(0, 0, 0); err != nil {
 		return err
 	}
-	if err := namespaces.Setresuid(0, 0, 0); err != nil {
+	if err := system.Setresuid(0, 0, 0); err != nil {
 		return err
 	}
 	return nil
@@ -126,15 +128,16 @@ func dupSlave(slave *os.File) error {
 	if slave.Fd() != 0 {
 		return fmt.Errorf("slave fd not 0 %d", slave.Fd())
 	}
-	if err := namespaces.Dup2(slave.Fd(), 1); err != nil {
+	if err := system.Dup2(slave.Fd(), 1); err != nil {
 		return err
 	}
-	if err := namespaces.Dup2(slave.Fd(), 2); err != nil {
+	if err := system.Dup2(slave.Fd(), 2); err != nil {
 		return err
 	}
 	return nil
 }
 
+// openTerminal is a clone of os.OpenFile without the O_CLOEXEC addition.
 func openTerminal(name string, flag int) (*os.File, error) {
 	r, e := syscall.Open(name, flag, 0)
 	if e != nil {

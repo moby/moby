@@ -1,15 +1,7 @@
-package namespaces
+package system
 
 import (
-	"fmt"
-	"os"
 	"syscall"
-	"unsafe"
-)
-
-const (
-	TIOCGPTN   = 0x80045430
-	TIOCSPTLCK = 0x40045431
 )
 
 func Chroot(dir string) error {
@@ -60,14 +52,6 @@ func Clone(flags uintptr) (int, error) {
 	return int(pid), nil
 }
 
-func Setns(fd uintptr, flags uintptr) error {
-	_, _, err := syscall.RawSyscall(SYS_SETNS, fd, flags, 0)
-	if err != 0 {
-		return err
-	}
-	return nil
-}
-
 func UsetCloseOnExec(fd uintptr) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_FCNTL, fd, syscall.F_SETFD, 0); err != 0 {
 		return err
@@ -95,28 +79,11 @@ func Setsid() (int, error) {
 	return syscall.Setsid()
 }
 
-func Unlockpt(f *os.File) error {
-	var u int
-	return Ioctl(f.Fd(), TIOCSPTLCK, uintptr(unsafe.Pointer(&u)))
-}
-
 func Ioctl(fd uintptr, flag, data uintptr) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, flag, data); err != 0 {
 		return err
 	}
 	return nil
-}
-
-func Ptsname(f *os.File) (string, error) {
-	var n int
-	if err := Ioctl(f.Fd(), TIOCGPTN, uintptr(unsafe.Pointer(&n))); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("/dev/pts/%d", n), nil
-}
-
-func Openpmtx() (*os.File, error) {
-	return os.OpenFile("/dev/ptmx", syscall.O_RDONLY|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
 }
 
 func Closefd(fd uintptr) error {
@@ -132,7 +99,7 @@ func Mknod(path string, mode uint32, dev int) error {
 }
 
 func ParentDeathSignal() error {
-	if _, _, err := syscall.RawSyscall6(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, uintptr(syscall.SIGKILL), 0, 0, 0, 0); err != 0 {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, uintptr(syscall.SIGKILL), 0); err != 0 {
 		return err
 	}
 	return nil

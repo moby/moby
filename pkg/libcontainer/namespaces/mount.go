@@ -2,6 +2,7 @@ package namespaces
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,16 +15,16 @@ var (
 )
 
 func SetupNewMountNamespace(rootfs, console string, readonly bool) error {
-	if err := Mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
+	if err := system.Mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mounting / as slave %s", err)
 	}
 
-	if err := Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
 
 	if readonly {
-		if err := Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
+		if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
 			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
 		}
 	}
@@ -52,29 +53,30 @@ func SetupNewMountNamespace(rootfs, console string, readonly bool) error {
 		return err
 	}
 
-	if err := Chdir(rootfs); err != nil {
+	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
-	if err := Mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
+	if err := system.Mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
 		return fmt.Errorf("mount move %s into / %s", rootfs, err)
 	}
 
-	if err := Chroot("."); err != nil {
+	if err := system.Chroot("."); err != nil {
 		return fmt.Errorf("chroot . %s", err)
 	}
 
-	if err := Chdir("/"); err != nil {
+	if err := system.Chdir("/"); err != nil {
 		return fmt.Errorf("chdir / %s", err)
 	}
 
-	Umask(0022)
+	system.Umask(0022)
 
 	return nil
 }
 
 func copyDevNodes(rootfs string) error {
-	Umask(0000)
+	oldMask := system.Umask(0000)
+	defer system.Umask(oldMask)
 
 	for _, node := range []string{
 		"null",
@@ -95,7 +97,7 @@ func copyDevNodes(rootfs string) error {
 		)
 
 		log.Printf("copy %s to %s %d\n", node, dest, st.Rdev)
-		if err := Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
+		if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("copy %s %s", node, err)
 		}
 	}
@@ -125,7 +127,8 @@ func setupDev(rootfs string) error {
 }
 
 func setupConsole(rootfs, console string) error {
-	Umask(0000)
+	oldMask := system.Umask(0000)
+	defer system.Umask(oldMask)
 
 	stat, err := os.Stat(console)
 	if err != nil {
@@ -145,11 +148,11 @@ func setupConsole(rootfs, console string) error {
 		return err
 	}
 
-	if err := Mknod(dest, (st.Mode&^07777)|0600, int(st.Rdev)); err != nil {
+	if err := system.Mknod(dest, (st.Mode&^07777)|0600, int(st.Rdev)); err != nil {
 		return fmt.Errorf("mknod %s %s", dest, err)
 	}
 
-	if err := Mount(console, dest, "bind", syscall.MS_BIND, ""); err != nil {
+	if err := system.Mount(console, dest, "bind", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("bind %s to %s %s", console, dest, err)
 	}
 	return nil
@@ -158,7 +161,7 @@ func setupConsole(rootfs, console string) error {
 // mountSystem sets up linux specific system mounts like sys, proc, shm, and devpts
 // inside the mount namespace
 func mountSystem(rootfs string) error {
-	mounts := []struct {
+	for _, m := range []struct {
 		source string
 		path   string
 		device string
@@ -171,12 +174,11 @@ func mountSystem(rootfs string) error {
 		{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaults, data: "mode=1777"},
 		{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: "newinstance,ptmxmode=0666,mode=620,gid=5"},
 		{source: "tmpfs", path: filepath.Join(rootfs, "run"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_NODEV | syscall.MS_STRICTATIME, data: "mode=755"},
-	}
-	for _, m := range mounts {
+	} {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
 		}
-		if err := Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
+		if err := system.Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.source, m.path, err)
 		}
 	}
@@ -184,22 +186,22 @@ func mountSystem(rootfs string) error {
 }
 
 func remountProc() error {
-	if err := Unmount("/proc", syscall.MNT_DETACH); err != nil {
+	if err := system.Unmount("/proc", syscall.MNT_DETACH); err != nil {
 		return err
 	}
-	if err := Mount("proc", "/proc", "proc", uintptr(defaults), ""); err != nil {
+	if err := system.Mount("proc", "/proc", "proc", uintptr(defaults), ""); err != nil {
 		return err
 	}
 	return nil
 }
 
 func remountSys() error {
-	if err := Unmount("/sys", syscall.MNT_DETACH); err != nil {
+	if err := system.Unmount("/sys", syscall.MNT_DETACH); err != nil {
 		if err != syscall.EINVAL {
 			return err
 		}
 	} else {
-		if err := Mount("sysfs", "/sys", "sysfs", uintptr(defaults), ""); err != nil {
+		if err := system.Mount("sysfs", "/sys", "sysfs", uintptr(defaults), ""); err != nil {
 			return err
 		}
 	}
