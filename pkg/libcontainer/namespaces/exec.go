@@ -50,7 +50,8 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 	// command.Stderr = os.Stderr
 	command.SysProcAttr = &syscall.SysProcAttr{}
 	command.SysProcAttr.Cloneflags = flag
-	//command.ExtraFiles = []*os.File{master}
+
+	command.ExtraFiles = []*os.File{master}
 
 	println("vvvvvvvvv")
 	if err := command.Start(); err != nil {

@@ -41,7 +41,7 @@ func SetupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := os.Remove(ptmx); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if err := os.Symlink(filepath.Join(rootfs, "pts/ptmx"), ptmx); err != nil {
+	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
 		return fmt.Errorf("symlink dev ptmx %s", err)
 	}
 
