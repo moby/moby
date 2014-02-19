@@ -36,7 +36,7 @@ You can still call an old version of the api using
 
 
 v1.10
-****
+*****
 
 Full Documentation
 ------------------
