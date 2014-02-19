@@ -39,7 +39,7 @@ boot2docker
 ``docker`` daemon. It also takes care of the installation for the OS image
 that is used for the job.
 
-.. _GitHub page: https://github.com/steeve/boot2docker
+.. _GitHub page: https://github.com/boot2docker/boot2docker
 
 Open up a new terminal window, if you have not already.
 
@@ -51,7 +51,7 @@ Run the following commands to get boot2docker:
     cd ~/bin
 
     # Get the file
-    curl https://raw.github.com/steeve/boot2docker/master/boot2docker > boot2docker
+    curl https://raw.github.com/boot2docker/boot2docker/master/boot2docker > boot2docker
 
     # Mark it executable
     chmod +x boot2docker
@@ -153,7 +153,7 @@ boot2docker:
 
 See the GitHub page for `boot2docker`_.
 
-.. _boot2docker: https://github.com/steeve/boot2docker
+.. _boot2docker: https://github.com/boot2docker/boot2docker
 
 If SSH complains about keys:
 ----------------------------
