@@ -7,11 +7,7 @@ import (
 	"runtime"
 )
 
-func init() {
-	engine.Register("version", jobVersion)
-}
-
-func jobVersion(job *engine.Job) engine.Status {
+func GetVersion(job *engine.Job) engine.Status {
 	if _, err := dockerVersion().WriteTo(job.Stdout); err != nil {
 		job.Errorf("%s", err)
 		return engine.StatusErr
