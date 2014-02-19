@@ -217,6 +217,26 @@ To install the latest version of docker, use the standard ``apt-get`` method:
    # install the latest
    sudo apt-get install lxc-docker
 
+Memory and Swap Accounting
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If want to enable memory and swap accounting, you must add the following
+command-line parameters to your kernel::
+
+    cgroup_enable=memory swapaccount=1
+
+On systems using GRUB (which is the default for Ubuntu), you can add those
+parameters by editing ``/etc/default/grub`` and extending
+``GRUB_CMDLINE_LINUX``. Look for the following line::
+
+    GRUB_CMDLINE_LINUX=""
+
+And replace it by the following one::
+
+    GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+
+Then run ``update-grub``, and reboot.
+
 Troubleshooting
 ^^^^^^^^^^^^^^^
 
