@@ -220,12 +220,12 @@ To install the latest version of docker, use the standard ``apt-get`` method:
 Troubleshooting
 ^^^^^^^^^^^^^^^
 
-On Linux Mint, the ``cgroups-lite`` package is not installed by default.
+On Linux Mint, the ``cgroup-lite`` package is not installed by default.
 Before Docker will work correctly, you will need to install this via:
 
 .. code-block:: bash
 
-    sudo apt-get update && sudo apt-get install cgroups-lite
+    sudo apt-get update && sudo apt-get install cgroup-lite
 
 .. _ufw:
 
