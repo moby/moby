@@ -19,10 +19,24 @@ post-commit hooks. The "release" branch maps to the "latest"
 documentation and the "master" branch maps to the "master"
 documentation. 
 
-**Warning**: The "master" documentation may include features not yet
-part of any official docker release. "Master" docs should be used only
-for understanding bleeding-edge development and "latest" should be
-used for the latest official release.
+## Branches
+
+**There are two branches related to editing docs**: ``master`` and a
+``doc*`` branch (currently ``doc0.8.1``). You should normally edit
+docs on the ``master`` branch. That way your fixes will automatically
+get included in later releases, and docs maintainers can easily
+cherry-pick your changes to bring over to the current docs branch. In
+the rare case where your change is not forward-compatible, then you
+could base your change on the appropriate ``doc*`` branch.
+
+Now that we have a ``doc*`` branch, we can keep the ``latest`` docs
+up to date with any bugs found between ``docker`` code releases.
+
+**Warning**: When *reading* the docs, the ``master`` documentation may
+include features not yet part of any official docker
+release. ``Master`` docs should be used only for understanding
+bleeding-edge development and ``latest`` (which points to the ``doc*``
+branch``) should be used for the latest official release.
 
 If you need to manually trigger a build of an existing branch, then
 you can do that through the [readthedocs
@@ -39,7 +53,7 @@ Getting Started
 To edit and test the docs, you'll need to install the Sphinx tool and
 its dependencies. There are two main ways to install this tool:
 
-###Native Installation
+### Native Installation
 
 Install dependencies from `requirements.txt` file in your `docker/docs`
 directory:
@@ -48,7 +62,7 @@ directory:
 
 * Mac OS X: `[sudo] pip-2.7 install -r docs/requirements.txt`
 
-###Alternative Installation: Docker Container
+### Alternative Installation: Docker Container
 
 If you're running ``docker`` on your development machine then you may
 find it easier and cleaner to use the docs Dockerfile. This installs Sphinx
@@ -59,11 +73,16 @@ docs inside the container, even starting a simple HTTP server on port
 In the ``docker`` source directory, run:
     ```make docs```
 
-This is the equivalent to ``make clean server`` since each container starts clean.
+This is the equivalent to ``make clean server`` since each container
+starts clean.
 
-Usage
------
-* Follow the contribution guidelines (``../CONTRIBUTING.md``)
+# Contributing
+
+## Normal Case:
+
+* Follow the contribution guidelines ([see
+  ``../CONTRIBUTING.md``](../CONTRIBUTING)).
+* Remember to sign your work!
 * Work in your own fork of the code, we accept pull requests.
 * Change the ``.rst`` files with your favorite editor -- try to keep the
   lines short and respect RST and Sphinx conventions. 
@@ -74,6 +93,20 @@ Usage
   http://localhost:8000/ in your favorite browser.
 
 ``make clean docs`` must complete without any warnings or errors.
+
+## Special Case for RST Newbies:
+
+If you want to write a new doc or make substantial changes to an
+existing doc, but **you don't know RST syntax**, we will accept pull
+requests in Markdown and plain text formats. We really want to
+encourage people to share their knowledge and don't want the markup
+syntax to be the obstacle. So when you make the Pull Request, please
+note in your comment that you need RST markup assistance, and we'll
+make the changes for you, and then we will make a pull request to your
+pull request so that you can get all the changes and learn about the
+markup. You still need to follow the
+[``CONTRIBUTING``](../CONTRIBUTING) guidelines, so please sign your
+commits.
 
 Working using GitHub's file editor
 ----------------------------------
@@ -93,8 +126,11 @@ exists.
 
 Notes
 -----
-* For the template the css is compiled from less. When changes are needed they can be compiled using
-lessc ``lessc main.less`` or watched using watch-lessc ``watch-lessc -i main.less -o main.css``
+
+* For the template the css is compiled from less. When changes are
+  needed they can be compiled using
+
+  lessc ``lessc main.less`` or watched using watch-lessc ``watch-lessc -i main.less -o main.css``
 
 Guides on using sphinx
 ----------------------
@@ -106,7 +142,8 @@ Guides on using sphinx
     Hello world
     ===========
 
-    This is.. (etc.)
+    This is a reference to :ref:`hello_world` and will work even if we
+    move the target to another file or change the title of the section. 
   ```
 
   The ``_hello_world:`` will make it possible to link to this position
