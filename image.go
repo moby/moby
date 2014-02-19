@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -18,17 +19,17 @@ import (
 )
 
 type Image struct {
-	ID              string    `json:"id"`
-	Parent          string    `json:"parent,omitempty"`
-	Comment         string    `json:"comment,omitempty"`
-	Created         time.Time `json:"created"`
-	Container       string    `json:"container,omitempty"`
-	ContainerConfig Config    `json:"container_config,omitempty"`
-	DockerVersion   string    `json:"docker_version,omitempty"`
-	Author          string    `json:"author,omitempty"`
-	Config          *Config   `json:"config,omitempty"`
-	Architecture    string    `json:"architecture,omitempty"`
-	OS              string    `json:"os,omitempty"`
+	ID              string            `json:"id"`
+	Parent          string            `json:"parent,omitempty"`
+	Comment         string            `json:"comment,omitempty"`
+	Created         time.Time         `json:"created"`
+	Container       string            `json:"container,omitempty"`
+	ContainerConfig runconfig.Config  `json:"container_config,omitempty"`
+	DockerVersion   string            `json:"docker_version,omitempty"`
+	Author          string            `json:"author,omitempty"`
+	Config          *runconfig.Config `json:"config,omitempty"`
+	Architecture    string            `json:"architecture,omitempty"`
+	OS              string            `json:"os,omitempty"`
 	graph           *Graph
 	Size            int64
 }
@@ -66,7 +67,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, layer string) error {
+func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, root, layer string) error {
 	// Store the layer
 	var (
 		size   int64
@@ -173,7 +174,11 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return EofReader(archive, func() { driver.Put(img.ID) }), nil
+		return utils.NewReadCloserWrapper(archive, func() error {
+			err := archive.Close()
+			driver.Put(img.ID)
+			return err
+		}), nil
 	}
 
 	parentFs, err := driver.Get(img.Parent)
@@ -189,7 +194,11 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return EofReader(archive, func() { driver.Put(img.ID) }), nil
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		driver.Put(img.ID)
+		return err
+	}), nil
 }
 
 func ValidateID(id string) error {

@@ -24,7 +24,17 @@ a working, up-to-date docker installation, then continue to the next
 step.
 
 
-Step 2: Check out the Source
+Step 2: Install tools used for this tutorial
+--------------------------------------------
+
+Install ``git``; honest, it's very good. You can use other ways to get the Docker
+source, but they're not anywhere near as easy.
+
+Install ``make``. This tutorial uses our base Makefile to kick off the docker
+containers in a repeatable and consistent way. Again, you can do it in other ways
+but you need to do more work.
+
+Step 3: Check out the Source
 ----------------------------
 
 .. code-block:: bash
@@ -35,7 +45,7 @@ Step 2: Check out the Source
 To checkout a different revision just use ``git checkout`` with the name of branch or revision number.
 
 
-Step 3: Build the Environment
+Step 4: Build the Environment
 -----------------------------
 
 This following command will build a development environment using the Dockerfile in the current directory. Essentially, it will install all the build and runtime dependencies necessary to build and test Docker. This command will take some time to complete when you first execute it.
@@ -48,7 +58,7 @@ If the build is successful, congratulations! You have produced a clean build of
 docker, neatly encapsulated in a standard build environment. 
 
 
-Step 4: Build the Docker Binary
+Step 5: Build the Docker Binary
 -------------------------------
 
 To create the Docker binary, run this command:

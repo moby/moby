@@ -958,11 +958,11 @@ Tag an image into a repository
 
         .. sourcecode:: http
 
-           HTTP/1.1 200 OK
+           HTTP/1.1 201 OK
 
 	:query repo: The repository to tag in
 	:query force: 1/True/true or 0/False/false, default false
-	:statuscode 200: no error
+	:statuscode 201: no error
 	:statuscode 400: bad parameter
 	:statuscode 404: no such image
 	:statuscode 409: conflict

@@ -119,6 +119,8 @@ EOF
 		    --deb-recommends xz-utils \
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \
+		    --conflicts docker \
+		    --conflicts docker.io \
 		    --conflicts lxc-docker-virtual-package \
 		    --provides lxc-docker \
 		    --provides lxc-docker-virtual-package \

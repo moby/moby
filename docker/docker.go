@@ -6,17 +6,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dotcloud/docker"
+	_ "github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
-)
-
-var (
-	GITCOMMIT string
-	VERSION   string
 )
 
 func main() {
@@ -36,13 +33,13 @@ func main() {
 		pidfile              = flag.String([]string{"p", "-pidfile"}, "/var/run/docker.pid", "Path to use for daemon PID file")
 		flRoot               = flag.String([]string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the docker runtime")
 		flEnableCors         = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
-		flDns                = docker.NewListOpts(docker.ValidateIp4Address)
+		flDns                = opts.NewListOpts(opts.ValidateIp4Address)
 		flEnableIptables     = flag.Bool([]string{"#iptables", "-iptables"}, true, "Disable docker's addition of iptables rules")
 		flEnableIpForward    = flag.Bool([]string{"#ip-forward", "-ip-forward"}, true, "Disable enabling of net.ipv4.ip_forward")
 		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
 		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
 		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
-		flHosts              = docker.NewListOpts(docker.ValidateHost)
+		flHosts              = opts.NewListOpts(api.ValidateHost)
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
@@ -61,6 +58,9 @@ func main() {
 			// If we do not have a host, default to unix socket
 			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
 		}
+		if _, err := api.ValidateHost(defaultHost); err != nil {
+			log.Fatal(err)
+		}
 		flHosts.Set(defaultHost)
 	}
 
@@ -71,8 +71,6 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
-	docker.GITCOMMIT = GITCOMMIT
-	docker.VERSION = VERSION
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
@@ -83,28 +81,39 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Load plugin: httpapi
-		job := eng.Job("initserver")
-		job.Setenv("Pidfile", *pidfile)
-		job.Setenv("Root", *flRoot)
-		job.SetenvBool("AutoRestart", *flAutoRestart)
-		job.SetenvList("Dns", flDns.GetAll())
-		job.SetenvBool("EnableIptables", *flEnableIptables)
-		job.SetenvBool("EnableIpForward", *flEnableIpForward)
-		job.Setenv("BridgeIface", *bridgeName)
-		job.Setenv("BridgeIP", *bridgeIp)
-		job.Setenv("DefaultIp", *flDefaultIp)
-		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
-		job.Setenv("GraphDriver", *flGraphDriver)
-		job.SetenvInt("Mtu", *flMtu)
-		if err := job.Run(); err != nil {
-			log.Fatal(err)
-		}
+		// load the daemon in the background so we can immediately start
+		// the http api so that connections don't fail while the daemon
+		// is booting
+		go func() {
+			// Load plugin: httpapi
+			job := eng.Job("initserver")
+			job.Setenv("Pidfile", *pidfile)
+			job.Setenv("Root", *flRoot)
+			job.SetenvBool("AutoRestart", *flAutoRestart)
+			job.SetenvList("Dns", flDns.GetAll())
+			job.SetenvBool("EnableIptables", *flEnableIptables)
+			job.SetenvBool("EnableIpForward", *flEnableIpForward)
+			job.Setenv("BridgeIface", *bridgeName)
+			job.Setenv("BridgeIP", *bridgeIp)
+			job.Setenv("DefaultIp", *flDefaultIp)
+			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+			job.Setenv("GraphDriver", *flGraphDriver)
+			job.SetenvInt("Mtu", *flMtu)
+			if err := job.Run(); err != nil {
+				log.Fatal(err)
+			}
+			// after the daemon is done setting up we can tell the api to start
+			// accepting connections
+			if err := eng.Job("acceptconnections").Run(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
 		// Serve api
-		job = eng.Job("serveapi", flHosts.GetAll()...)
+		job := eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
 		job.SetenvBool("EnableCors", *flEnableCors)
-		job.Setenv("Version", VERSION)
+		job.Setenv("Version", dockerversion.VERSION)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
@@ -113,7 +122,7 @@ func main() {
 			log.Fatal("Please specify only one -H")
 		}
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
-		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
+		if err := api.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			if sterr, ok := err.(*utils.StatusError); ok {
 				if sterr.Status != "" {
 					log.Println(sterr.Status)
@@ -126,5 +135,5 @@ func main() {
 }
 
 func showVersion() {
-	fmt.Printf("Docker version %s, build %s\n", VERSION, GITCOMMIT)
+	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
 }

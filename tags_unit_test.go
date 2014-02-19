@@ -31,6 +31,8 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &Image{ID: testImageID}
+	// FIXME: this fails on Darwin with:
+	// tags_unit_test.go:36: mkdir /var/folders/7g/b3ydb5gx4t94ndr_cljffbt80000gq/T/docker-test569b-tRunner-075013689/vfs/dir/foo/etc/postgres: permission denied
 	if err := graph.Register(nil, archive, img); err != nil {
 		t.Fatal(err)
 	}

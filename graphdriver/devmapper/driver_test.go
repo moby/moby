@@ -136,7 +136,12 @@ type Set map[string]bool
 
 func (r Set) Assert(t *testing.T, names ...string) {
 	for _, key := range names {
-		if _, exists := r[key]; !exists {
+		required := true
+		if strings.HasPrefix(key, "?") {
+			key = key[1:]
+			required = false
+		}
+		if _, exists := r[key]; !exists && required {
 			t.Fatalf("Key not set: %s", key)
 		}
 		delete(r, key)
@@ -486,6 +491,7 @@ func TestDriverCreate(t *testing.T) {
 			"ioctl.blkgetsize",
 			"ioctl.loopsetfd",
 			"ioctl.loopsetstatus",
+			"?ioctl.loopctlgetfree",
 		)
 
 		if err := d.Create("1", ""); err != nil {
@@ -495,7 +501,6 @@ func TestDriverCreate(t *testing.T) {
 			"DmTaskCreate",
 			"DmTaskGetInfo",
 			"sysMount",
-			"Mounted",
 			"DmTaskRun",
 			"DmTaskSetTarget",
 			"DmTaskSetSector",
@@ -604,6 +609,7 @@ func TestDriverRemove(t *testing.T) {
 			"ioctl.blkgetsize",
 			"ioctl.loopsetfd",
 			"ioctl.loopsetstatus",
+			"?ioctl.loopctlgetfree",
 		)
 
 		if err := d.Create("1", ""); err != nil {
@@ -614,7 +620,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskCreate",
 			"DmTaskGetInfo",
 			"sysMount",
-			"Mounted",
 			"DmTaskRun",
 			"DmTaskSetTarget",
 			"DmTaskSetSector",
@@ -645,7 +650,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetTarget",
 			"DmTaskSetAddNode",
 			"DmUdevWait",
-			"Mounted",
 			"sysUnmount",
 		)
 	}()

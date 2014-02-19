@@ -1,16 +1,17 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
 )
 
-func parse(t *testing.T, args string) (*Config, *HostConfig, error) {
-	config, hostConfig, _, err := ParseRun(strings.Split(args+" ubuntu bash", " "), nil)
+func parse(t *testing.T, args string) (*runconfig.Config, *runconfig.HostConfig, error) {
+	config, hostConfig, _, err := runconfig.Parse(strings.Split(args+" ubuntu bash", " "), nil)
 	return config, hostConfig, err
 }
 
-func mustParse(t *testing.T, args string) (*Config, *HostConfig) {
+func mustParse(t *testing.T, args string) (*runconfig.Config, *runconfig.HostConfig) {
 	config, hostConfig, err := parse(t, args)
 	if err != nil {
 		t.Fatal(err)

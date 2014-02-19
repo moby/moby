@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.8.1 (2014-02-18)
+
+#### Builder
+
+- Avoid extra mount/unmount during build. This removes an unneeded mount/unmount operation which was causing problems with devicemapper
+- Fix regression with ADD of tar files. This stops Docker from decompressing tarballs added via ADD from the local file system
+- Add error to `docker build --rm`. This adds a missing error check to ensure failures to remove containers are detected and reported
+
+#### Documentation
+
+* Update issue filing instructions
+* Warn against the use of symlinks for Docker's storage folder
+* Replace the Firefox example with an IceWeasel example
+* Rewrite the PostgresSQL example using a Dockerfile and add more details to it
+* Improve the OS X documentation
+
+#### Remote API
+
+- Fix broken images API for version less than 1.7
+- Use the right encoding for all API endpoints which return JSON
+- Move remote api client to api/
+- Queue calls to the API using generic socket wait 
+
+#### Runtime
+
+- Fix the use of custom settings for bridges and custom bridges
+- Refactor the devicemapper code to avoid many mount/unmount race conditions and failures
+- Remove two panics which could make Docker crash in some situations
+- Don't ping registry from the CLI client
+- Enable skip_block_zeroing for devicemapper. This stops devicemapper from always zeroing entire blocks
+- Fix --run in `docker commit`. This makes docker commit store `--run` in the image configuration
+- Remove directory when removing devicemapper device. This cleans up leftover mount directories
+- Drop NET_ADMIN capability for non-privileged containers. Unprivileged containers can't change their network configuration
+- Ensure `docker cp` stream is closed properly
+- Avoid extra mount/unmount during container registration. This removes an unneeded mount/unmount operation which was causing problems with devicemapper
+- Stop allowing tcp:// as a default tcp bin address which binds to 127.0.0.1:4243 and remove the default port
++ Mount-bind the PTY as container console. This allows tmux and screen to run in a container
+- Clean up archive closing. This fixes and improves archive handling
+- Fix engine tests on systems where temp directories are symlinked
+- Add test methods for save and load
+- Avoid temporarily unmounting the container when restarting it. This fixes a race for devicemapper during restart
+- Support submodules when building from a GitHub repository
+- Quote volume path to allow spaces
+- Fix remote tar ADD behavior. This fixes a regression which was causing Docker to extract tarballs
+
 ## 0.8.0 (2014-02-04)
 
 #### Notable features since 0.7.0

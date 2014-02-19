@@ -271,7 +271,7 @@ func (a *Driver) Diff(id string) (archive.Archive, error) {
 	})
 }
 
-func (a *Driver) ApplyDiff(id string, diff archive.Archive) error {
+func (a *Driver) ApplyDiff(id string, diff archive.ArchiveReader) error {
 	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
