@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
+	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/term"
 	"io"
@@ -105,7 +106,14 @@ func createMasterAndConsole() (*os.File, string, error) {
 }
 
 func createVethPair() (name1 string, name2 string, err error) {
-	name1, name2 = "veth001", "veth002"
+	name1, err = utils.GenerateRandomName("dock", 4)
+	if err != nil {
+		return
+	}
+	name2, err = utils.GenerateRandomName("dock", 4)
+	if err != nil {
+		return
+	}
 	if err = network.CreateVethPair(name1, name2); err != nil {
 		return
 	}
