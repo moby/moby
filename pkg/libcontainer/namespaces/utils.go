@@ -26,12 +26,6 @@ func addEnvIfNotSet(container *libcontainer.Container, key, value string) {
 	container.Command.Env = append(container.Command.Env, jv)
 }
 
-// print and error to stderr and exit(1)
-func writeError(format string, v ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, v...)
-	os.Exit(1)
-}
-
 // getNsFds inspects the container's namespace configuration and opens the fds to
 // each of the namespaces.
 func getNsFds(container *libcontainer.Container) ([]uintptr, error) {
@@ -79,27 +73,13 @@ func setupEnvironment(container *libcontainer.Container) {
 	addEnvIfNotSet(container, "LOGNAME", "root")
 }
 
-func setupUser(container *libcontainer.Container) error {
-	// TODO: honor user passed on container
-	if err := setgroups(nil); err != nil {
-		return err
-	}
-	if err := setresgid(0, 0, 0); err != nil {
-		return err
-	}
-	if err := setresuid(0, 0, 0); err != nil {
-		return err
-	}
-	return nil
-}
-
 func getMasterAndConsole(container *libcontainer.Container) (string, *os.File, error) {
-	master, err := openpmtx()
+	master, err := Openpmtx()
 	if err != nil {
 		return "", nil, err
 	}
 
-	console, err := ptsname(master)
+	console, err := Ptsname(master)
 	if err != nil {
 		master.Close()
 		return "", nil, err

@@ -14,16 +14,16 @@ var (
 )
 
 func SetupNewMountNamespace(rootfs, console string, readonly bool) error {
-	if err := mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
+	if err := Mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mounting / as slave %s", err)
 	}
 
-	if err := mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+	if err := Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
 
 	if readonly {
-		if err := mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
+		if err := Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
 			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
 		}
 	}
@@ -52,29 +52,29 @@ func SetupNewMountNamespace(rootfs, console string, readonly bool) error {
 		return err
 	}
 
-	if err := chdir(rootfs); err != nil {
+	if err := Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
-	if err := mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
+	if err := Mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
 		return fmt.Errorf("mount move %s into / %s", rootfs, err)
 	}
 
-	if err := chroot("."); err != nil {
+	if err := Chroot("."); err != nil {
 		return fmt.Errorf("chroot . %s", err)
 	}
 
-	if err := chdir("/"); err != nil {
+	if err := Chdir("/"); err != nil {
 		return fmt.Errorf("chdir / %s", err)
 	}
 
-	umask(0022)
+	Umask(0022)
 
 	return nil
 }
 
 func copyDevNodes(rootfs string) error {
-	umask(0000)
+	Umask(0000)
 
 	for _, node := range []string{
 		"null",
@@ -95,7 +95,7 @@ func copyDevNodes(rootfs string) error {
 		)
 
 		log.Printf("copy %s to %s %d\n", node, dest, st.Rdev)
-		if err := mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
+		if err := Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("copy %s %s", node, err)
 		}
 	}
@@ -125,7 +125,7 @@ func setupDev(rootfs string) error {
 }
 
 func setupConsole(rootfs, console string) error {
-	umask(0000)
+	Umask(0000)
 
 	stat, err := os.Stat(console)
 	if err != nil {
@@ -145,11 +145,11 @@ func setupConsole(rootfs, console string) error {
 		return err
 	}
 
-	if err := mknod(dest, (st.Mode&^07777)|0600, int(st.Rdev)); err != nil {
+	if err := Mknod(dest, (st.Mode&^07777)|0600, int(st.Rdev)); err != nil {
 		return fmt.Errorf("mknod %s %s", dest, err)
 	}
 
-	if err := mount(console, dest, "bind", syscall.MS_BIND, ""); err != nil {
+	if err := Mount(console, dest, "bind", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("bind %s to %s %s", console, dest, err)
 	}
 	return nil
@@ -176,7 +176,7 @@ func mountSystem(rootfs string) error {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
 		}
-		if err := mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
+		if err := Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.source, m.path, err)
 		}
 	}
@@ -184,22 +184,22 @@ func mountSystem(rootfs string) error {
 }
 
 func remountProc() error {
-	if err := unmount("/proc", syscall.MNT_DETACH); err != nil {
+	if err := Unmount("/proc", syscall.MNT_DETACH); err != nil {
 		return err
 	}
-	if err := mount("proc", "/proc", "proc", uintptr(defaults), ""); err != nil {
+	if err := Mount("proc", "/proc", "proc", uintptr(defaults), ""); err != nil {
 		return err
 	}
 	return nil
 }
 
 func remountSys() error {
-	if err := unmount("/sys", syscall.MNT_DETACH); err != nil {
+	if err := Unmount("/sys", syscall.MNT_DETACH); err != nil {
 		if err != syscall.EINVAL {
 			return err
 		}
 	} else {
-		if err := mount("sysfs", "/sys", "sysfs", uintptr(defaults), ""); err != nil {
+		if err := Mount("sysfs", "/sys", "sysfs", uintptr(defaults), ""); err != nil {
 			return err
 		}
 	}

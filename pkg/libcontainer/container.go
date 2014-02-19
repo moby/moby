@@ -11,6 +11,8 @@ type Container struct {
 	WorkingDir   string       `json:"working_dir,omitempty"`
 	Namespaces   Namespaces   `json:"namespaces,omitempty"`
 	Capabilities Capabilities `json:"capabilities,omitempty"`
+	Master       uintptr      `json:"master"`
+	Console      string       `json:"console"`
 }
 
 type Command struct {
