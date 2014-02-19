@@ -1,4 +1,4 @@
-package namespaces
+package main
 
 import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
@@ -23,15 +23,6 @@ var namespaceMap = map[libcontainer.Namespace]int{
 	libcontainer.CLONE_NEWUSER: CLONE_NEWUSER,
 	libcontainer.CLONE_NEWPID:  CLONE_NEWPID,
 	libcontainer.CLONE_NEWNET:  CLONE_NEWNET,
-}
-
-var namespaceFileMap = map[libcontainer.Namespace]string{
-	libcontainer.CLONE_NEWNS:   "mnt",
-	libcontainer.CLONE_NEWUTS:  "uts",
-	libcontainer.CLONE_NEWIPC:  "ipc",
-	libcontainer.CLONE_NEWUSER: "user",
-	libcontainer.CLONE_NEWPID:  "pid",
-	libcontainer.CLONE_NEWNET:  "net",
 }
 
 // getNamespaceFlags parses the container's Namespaces options to set the correct

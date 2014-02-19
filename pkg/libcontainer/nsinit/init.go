@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
-	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
 	"github.com/dotcloud/docker/pkg/system"
 	"log"
 	"os"
@@ -34,7 +33,7 @@ func main() {
 	}
 
 	if os.Args[1] == "exec" {
-		_, err := namespaces.ExecContainer(container)
+		_, err := execCommand(container)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -157,11 +156,13 @@ func openTerminal(name string, flag int) (*os.File, error) {
 }
 
 func setLogFile(container *libcontainer.Container) error {
-	f, err := os.OpenFile(container.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0655)
-	if err != nil {
-		return err
+	if container.LogFile != "" {
+		f, err := os.OpenFile(container.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0655)
+		if err != nil {
+			return err
+		}
+		log.SetOutput(f)
 	}
-	log.SetOutput(f)
 	return nil
 }
 

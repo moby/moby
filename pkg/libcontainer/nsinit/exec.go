@@ -1,4 +1,4 @@
-package namespaces
+package main
 
 import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
@@ -11,15 +11,7 @@ import (
 	"syscall"
 )
 
-// ExecContainer will spawn new namespaces with the specified Container configuration
-// in the RootFs path and return the pid of the new containerized process.
-//
-// If an existing network namespace is specified the container
-// will join that namespace.  If an existing network namespace is not specified but CLONE_NEWNET is,
-// the container will be spawned with a new network namespace with no configuration.  Omiting an
-// existing network namespace and the CLONE_NEWNET option in the container configuration will allow
-// the container to the the host's networking options and configuration.
-func ExecContainer(container *libcontainer.Container) (pid int, err error) {
+func execCommand(container *libcontainer.Container) (pid int, err error) {
 	master, console, err := createMasterAndConsole()
 	if err != nil {
 		return -1, err
@@ -50,7 +42,19 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 		}
 	}()
 
-	term.SetRawTerminal(os.Stdin.Fd())
+	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if err != nil {
+		return -1, err
+	}
+	if err := term.SetWinsize(master.Fd(), ws); err != nil {
+		return -1, err
+	}
+	state, err := term.SetRawTerminal(os.Stdin.Fd())
+	if err != nil {
+		command.Process.Kill()
+		return -1, err
+	}
+	defer term.RestoreTerminal(os.Stdin.Fd(), state)
 
 	if err := command.Wait(); err != nil {
 		return pid, err
