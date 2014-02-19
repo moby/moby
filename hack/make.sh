@@ -16,7 +16,7 @@ set -e
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "make" from
-#   your checkout of the Docker repository. 
+#   your checkout of the Docker repository.
 #   the Makefile will do a "docker build -t docker ." and then
 #   "docker run hack/make.sh" in the resulting container image.
 #
@@ -101,19 +101,30 @@ fi
 #
 go_test_dir() {
 	dir=$1
+	coverpkg=$2
 	testcover=()
 	if [ "$HAVE_GO_TEST_COVER" ]; then
 		# if our current go install has -cover, we want to use it :)
 		mkdir -p "$DEST/coverprofiles"
 		coverprofile="docker${dir#.}"
 		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -cover -coverprofile "$coverprofile" )
+		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
 		set -x
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" $BUILDFLAGS $TESTFLAGS
 	)
+}
+
+# This helper function walks the current directory looking for directories
+# holding certain files ($1 parameter), and prints their paths on standard
+# output, one per line.
+find_dirs() {
+	find -not \( \
+		\( -wholename './vendor' -o -wholename './integration' -o -wholename './contrib' -o -wholename './pkg/mflag/example' \) \
+		-prune \
+	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
 }
 
 bundle() {
