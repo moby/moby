@@ -767,6 +767,41 @@ Create an image, either by pull it from the registry or by importing it
     -   **200** – no error
     -   **500** – server error
 
+### Squash an image
+
+`POST /images/squash`
+
+Create a new squashed image, by combining multiple layers in an
+already existing image, up to but not including a specified base image
+
+    **Example request**:
+
+        POST /images/squash?base=ubuntu%3A13.10&leaf=docker%3Asquash HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: application/json
+
+        {
+             "Id":"20b6363a00634979c2fec7b9181d3e90a1b764d1976ba25ac2ca3f6fd516a6bc"
+        }
+
+    Query Parameters:
+
+     
+
+    -   **base** – Name of the base image to use for the new image
+    -   **leaf** – Name of the image to squash
+    -   **repo** – The repository to tag in
+    -   **tag**  – tag
+
+    Status Codes:
+
+    -   **201** – no error
+    -   **404** – no such image
+    -   **500** – server error
+
 ### Insert a file in an image
 
 `POST /images/(name)/insert`

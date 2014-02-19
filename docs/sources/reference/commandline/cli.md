@@ -1154,6 +1154,61 @@ takes no action and succeeds unconditionally.
 The main process inside the container will receive SIGTERM, and after a
 grace period, SIGKILL
 
+## squash
+----------
+
+Create a new image by combining several layers
+
+    Usage: docker squash [OPTIONS] BASEIMAGE LEAFIMAGE [REPOSITORY[:TAG]]
+
+      -m, --message="": Commit message
+
+This creates a new image which the same contents as the leaf image, but with a single
+layer. This can be useful for instance if the intermediate layers contain a lot of
+temporary data such as builds artifacts which are later removed or replaced, as such data will
+not be downloaded when downloading the squashed image.
+
+### Example:
+
+    $ sudo docker history docker:latest
+    IMAGE               CREATED             CREATED BY                                      SIZE
+    a1cc2deea3ee        19 hours ago        /bin/sh -c #(nop) ADD dir:dd8dc6d1941aa8ae9aa   118.4 MB
+    6fac2b524be6        19 hours ago        /bin/sh -c #(nop) ENTRYPOINT [hack/dind]        0 B
+    15a073fcf699        19 hours ago        /bin/sh -c #(nop) ENV DOCKER_BUILDTAGS=apparm   0 B
+    421befe79573        19 hours ago        /bin/sh -c #(nop) WORKDIR /go/src/github.com/   0 B
+    78eb13b1bd69        19 hours ago        /bin/sh -c #(nop) VOLUME /var/lib/docker        0 B
+    aa348b9d0803        19 hours ago        /bin/sh -c git config --global user.email 'do   118 B
+    4b5e1b839f65        19 hours ago        /bin/sh -c /bin/echo -e '[default]\naccess_ke   141 B
+    43de78f065fa        19 hours ago        /bin/sh -c gem install --no-rdoc --no-ri fpm    21.13 MB
+    cb6b9593d1c4        19 hours ago        /bin/sh -c go get code.google.com/p/go.tools/   13.34 MB
+    5b6d67554a5a        19 hours ago        /bin/sh -c cd /usr/local/go/src && bash -xc '   598.2 MB
+    58bdd25c48c4        19 hours ago        /bin/sh -c #(nop) ENV GOARM=5                   0 B
+    06d075c923e4        19 hours ago        /bin/sh -c #(nop) ENV DOCKER_CROSSPLATFORMS=l   0 B
+    40c9f4daadc8        19 hours ago        /bin/sh -c cd /usr/local/go/src && ./make.bas   84.28 MB
+    061823118c15        19 hours ago        /bin/sh -c #(nop) ENV GOPATH=/go:/go/src/gith   0 B
+    5c81dc9fb457        19 hours ago        /bin/sh -c #(nop) ENV PATH=/usr/local/go/bin:   0 B
+    7789cf681cc5        19 hours ago        /bin/sh -c curl -s https://go.googlecode.com/   35.32 MB
+    af80d0b46fc1        19 hours ago        /bin/sh -c cd /usr/local/lvm2 && ./configure    5.046 MB
+    d629b2e0a695        19 hours ago        /bin/sh -c git clone --no-checkout https://gi   18.34 MB
+    ba40ca134a78        19 hours ago        /bin/sh -c cd /usr/local/lxc && ./autogen.sh    6.127 MB
+    8a8bdda54d9d        19 hours ago        /bin/sh -c git clone --no-checkout https://gi   10.14 MB
+    7c293c4e4ba2        19 hours ago        /bin/sh -c apt-get update && DEBIAN_FRONTEND=   225 MB
+    642fa6ca43fb        19 hours ago        /bin/sh -c #(nop) MAINTAINER Tianon Gravi <ad   0 B
+    9f676bd305a4        6 weeks ago         /bin/sh -c #(nop) ADD saucy.tar.xz in /         182.1 MB
+    1c7f181e78b9        6 weeks ago         /bin/sh -c #(nop) MAINTAINER Tianon Gravi <ad   0 B
+    511136ea3c5a        9 months ago                                                        0 B
+    # 9f676bd305a4 is tagged as ubuntu:13.10
+    # a1cc2deea3ee is tagged as docker:latest
+    $ sudo docker squash ubuntu:13.10 docker:latest docker-shrunk
+    106fcb1525f7d958edd8302b00e337ff77dbc9c69d5ada6f82c6292cc707c03e
+    $ sudo docker history docker-shrunk
+    IMAGE               CREATED              CREATED BY                                      SIZE
+    106fcb1525f7        About a minute ago                                                   1.058 GB
+    9f676bd305a4        6 weeks ago          /bin/sh -c #(nop) ADD saucy.tar.xz in /         182.1 MB
+    1c7f181e78b9        6 weeks ago          /bin/sh -c #(nop) MAINTAINER Tianon Gravi <ad   0 B
+    511136ea3c5a        9 months ago                                                         0 B
+
+
 ## tag
 
     Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
