@@ -1857,6 +1857,10 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force boo
 		tags = append(tags, tag)
 	}
 
+	if !first && len(tags) > 0 {
+		return nil
+	}
+
 	//Untag the current image
 	for _, tag := range tags {
 		tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
