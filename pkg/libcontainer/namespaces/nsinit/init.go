@@ -14,6 +14,10 @@ import (
 // InitNamespace should be run inside an existing namespace to setup
 // common mounts, drop capabilities, and setup network interfaces
 func InitNamespace(container *libcontainer.Container) error {
+	if err := setLogFile(container); err != nil {
+		return err
+	}
+
 	rootfs, err := resolveRootfs(container)
 	if err != nil {
 		return err
@@ -137,4 +141,13 @@ func openTerminal(name string, flag int) (*os.File, error) {
 		return nil, &os.PathError{"open", name, e}
 	}
 	return os.NewFile(uintptr(r), name), nil
+}
+
+func setLogFile(container *libcontainer.Container) error {
+	f, err := os.OpenFile(container.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0655)
+	if err != nil {
+		return err
+	}
+	log.SetOutput(f)
+	return nil
 }

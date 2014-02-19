@@ -32,6 +32,7 @@ func init() {
 func nsinitFunc(container *libcontainer.Container) error {
 	container.Master = uintptr(masterFd)
 	container.Console = console
+	container.LogFile = "/root/logs"
 
 	return nsinit.InitNamespace(container)
 }

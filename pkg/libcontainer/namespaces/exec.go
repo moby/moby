@@ -44,9 +44,10 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 	// we need CLONE_VFORK so we can wait on the child
 	flag := uintptr(getNamespaceFlags(container.Namespaces) | CLONE_VFORK)
 
-	command := exec.Command(nsinit, "init", "-master", strconv.Itoa(int(master.Fd())), "-console", console)
+	command := exec.Command(nsinit, "-master", strconv.Itoa(int(master.Fd())), "-console", console, "init")
 	command.SysProcAttr = &syscall.SysProcAttr{}
 	command.SysProcAttr.Cloneflags = flag
+	command.ExtraFiles = []*os.File{master}
 	//	command.SysProcAttr.Setctty = true
 
 	if err := command.Start(); err != nil {
@@ -64,7 +65,6 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 			log.Println(err)
 		}
 	}()
-	command.Wait()
 	return pid, nil
 }
 

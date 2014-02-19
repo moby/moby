@@ -13,6 +13,7 @@ type Container struct {
 	Capabilities Capabilities `json:"capabilities,omitempty"`
 	Master       uintptr      `json:"master"`
 	Console      string       `json:"console"`
+	LogFile      string       `json:"log_file"`
 }
 
 type Command struct {
