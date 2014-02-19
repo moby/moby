@@ -1,27 +1,17 @@
-/*
-   Higher level convience functions for setting up a container
-*/
-
 package namespaces
 
 import (
-	"errors"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/pkg/term"
 	"io"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strconv"
 	"syscall"
 )
 
-var (
-	ErrExistingNetworkNamespace = errors.New("specified both CLONE_NEWNET and an existing network namespace")
-)
-
-// Exec will spawn new namespaces with the specified Container configuration
+// ExecContainer will spawn new namespaces with the specified Container configuration
 // in the RootFs path and return the pid of the new containerized process.
 //
 // If an existing network namespace is specified the container
@@ -30,30 +20,19 @@ var (
 // existing network namespace and the CLONE_NEWNET option in the container configuration will allow
 // the container to the the host's networking options and configuration.
 func ExecContainer(container *libcontainer.Container) (pid int, err error) {
-	// a user cannot pass CLONE_NEWNET and an existing net namespace fd to join
-	if container.NetNsFd > 0 && container.Namespaces.Contains(libcontainer.CLONE_NEWNET) {
-		return -1, ErrExistingNetworkNamespace
-	}
-
 	master, console, err := createMasterAndConsole()
 	if err != nil {
 		return -1, err
 	}
-	nsinit := filepath.Join(container.RootFs, ".nsinit")
 
 	// we need CLONE_VFORK so we can wait on the child
 	flag := uintptr(getNamespaceFlags(container.Namespaces) | CLONE_VFORK)
 
-	command := exec.Command(nsinit, "-master", strconv.Itoa(int(master.Fd())), "-console", console, "init", "container.json")
-	// command.Stdin = os.Stdin
-	// command.Stdout = os.Stdout
-	// command.Stderr = os.Stderr
-	command.SysProcAttr = &syscall.SysProcAttr{}
-	command.SysProcAttr.Cloneflags = flag
+	command := exec.Command("nsinit", console)
+	command.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: flag,
+	}
 
-	command.ExtraFiles = []*os.File{master}
-
-	println("vvvvvvvvv")
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
@@ -64,11 +43,18 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 			log.Println(err)
 		}
 	}()
+
 	go func() {
 		if _, err := io.Copy(master, os.Stdin); err != nil {
 			log.Println(err)
 		}
 	}()
+
+	term.SetRawTerminal(os.Stdin.Fd())
+
+	if err := command.Wait(); err != nil {
+		return pid, err
+	}
 	return pid, nil
 }
 

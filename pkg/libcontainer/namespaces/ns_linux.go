@@ -40,5 +40,5 @@ func getNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
 	for _, ns := range namespaces {
 		flag |= namespaceMap[ns]
 	}
-	return
+	return flag
 }

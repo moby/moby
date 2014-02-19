@@ -1,4 +1,4 @@
-package namespaces
+package main
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ var (
 	defaults = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 )
 
-func SetupNewMountNamespace(rootfs, console string, readonly bool) error {
+func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := system.Mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mounting / as slave %s", err)
 	}

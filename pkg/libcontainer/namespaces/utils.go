@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 func addEnvIfNotSet(container *libcontainer.Container, key, value string) {
@@ -24,31 +23,6 @@ func addEnvIfNotSet(container *libcontainer.Container, key, value string) {
 		}
 	}
 	container.Command.Env = append(container.Command.Env, jv)
-}
-
-// getNsFds inspects the container's namespace configuration and opens the fds to
-// each of the namespaces.
-func getNsFds(container *libcontainer.Container) ([]uintptr, error) {
-	var (
-		namespaces = []string{}
-		fds        = []uintptr{}
-	)
-
-	for _, ns := range container.Namespaces {
-		namespaces = append(namespaces, namespaceFileMap[ns])
-	}
-
-	for _, ns := range namespaces {
-		fd, err := getNsFd(container.NsPid, ns)
-		if err != nil {
-			for _, fd = range fds {
-				syscall.Close(int(fd))
-			}
-			return nil, err
-		}
-		fds = append(fds, fd)
-	}
-	return fds, nil
 }
 
 // getNsFd returns the fd for a specific pid and namespace option

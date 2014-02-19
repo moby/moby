@@ -1,6 +1,7 @@
-package nsinit
+package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
@@ -12,101 +13,110 @@ import (
 	"syscall"
 )
 
-// InitNamespace should be run inside an existing namespace to setup
-// common mounts, drop capabilities, and setup network interfaces
-func InitNamespace(container *libcontainer.Container) error {
-	println("|||||||||||||")
-	if err := setLogFile(container); err != nil {
-		return err
-	}
-	println(container.LogFile)
-	log.Printf("--------->")
-	rootfs, err := resolveRootfs(container)
+func loadContainer() (*libcontainer.Container, error) {
+	f, err := os.Open("container.json")
 	if err != nil {
-		return err
+		return nil, err
+	}
+	defer f.Close()
+
+	var container *libcontainer.Container
+	if err := json.NewDecoder(f).Decode(&container); err != nil {
+		return nil, err
+	}
+	return container, nil
+}
+
+func main() {
+	container, err := loadContainer()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// any errors encoutered inside the namespace we should write
-	// out to a log or a pipe to our parent and exit(1)
-	// because writing to stderr will not work after we close
-	if err := closeMasterAndStd(os.NewFile(container.Master, "/dev/ptmx")); err != nil {
-		log.Fatalf("close master and std %s", err)
-		return err
+	if os.Args[1] == "exec" {
+		_, err := namespaces.ExecContainer(container)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}
+	console := os.Args[1]
+
+	if err := setLogFile(container); err != nil {
+		log.Fatal(err)
 	}
 
-	slave, err := openTerminal(container.Console, syscall.O_RDWR)
+	rootfs, err := resolveRootfs()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// close pipes so that we can replace it with the pty
+	os.Stdin.Close()
+	os.Stdout.Close()
+	os.Stderr.Close()
+
+	slave, err := openTerminal(console, syscall.O_RDWR)
 	if err != nil {
 		log.Fatalf("open terminal %s", err)
-		return err
+	}
+	if slave.Fd() != 0 {
+		log.Fatalf("slave fd should be 0")
 	}
 	if err := dupSlave(slave); err != nil {
 		log.Fatalf("dup2 slave %s", err)
-		return err
 	}
-
-	/*
-		if container.NetNsFd > 0 {
-			if err := joinExistingNamespace(container.NetNsFd, libcontainer.CLONE_NEWNET); err != nil {
-				log.Fatalf("join existing net namespace %s", err)
-			}
-		}
-	*/
 
 	if _, err := system.Setsid(); err != nil {
 		log.Fatalf("setsid %s", err)
-		return err
 	}
 	if err := system.Setctty(); err != nil {
 		log.Fatalf("setctty %s", err)
-		return err
 	}
 	if err := system.ParentDeathSignal(); err != nil {
 		log.Fatalf("parent deth signal %s", err)
-		return err
 	}
-	if err := namespaces.SetupNewMountNamespace(rootfs, container.Console, container.ReadonlyFs); err != nil {
+
+	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		log.Fatalf("setup mount namespace %s", err)
-		return err
 	}
+
+	if container.Network != nil {
+		if err := setupNetworking(container); err != nil {
+			log.Fatalf("setup networking %s", err)
+		}
+	}
+
 	if err := system.Sethostname(container.ID); err != nil {
 		log.Fatalf("sethostname %s", err)
-		return err
 	}
 	if err := capabilities.DropCapabilities(container); err != nil {
 		log.Fatalf("drop capabilities %s", err)
-		return err
 	}
 	if err := setupUser(container); err != nil {
 		log.Fatalf("setup user %s", err)
-		return err
 	}
 	if container.WorkingDir != "" {
 		if err := system.Chdir(container.WorkingDir); err != nil {
 			log.Fatalf("chdir to %s %s", container.WorkingDir, err)
-			return err
 		}
 	}
 	if err := system.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
 		log.Fatalf("exec %s", err)
-		return err
 	}
 	panic("unreachable")
 }
 
-func resolveRootfs(container *libcontainer.Container) (string, error) {
-	rootfs, err := filepath.Abs(container.RootFs)
+func resolveRootfs() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	rootfs, err := filepath.Abs(cwd)
 	if err != nil {
 		return "", err
 	}
 	return filepath.EvalSymlinks(rootfs)
-}
-
-func closeMasterAndStd(master *os.File) error {
-	master.Close()
-	os.Stdin.Close()
-	os.Stdout.Close()
-	os.Stderr.Close()
-	return nil
 }
 
 func setupUser(container *libcontainer.Container) error {
@@ -152,5 +162,9 @@ func setLogFile(container *libcontainer.Container) error {
 		return err
 	}
 	log.SetOutput(f)
+	return nil
+}
+
+func setupNetworking(conatiner *libcontainer.Container) error {
 	return nil
 }
