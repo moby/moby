@@ -18,9 +18,8 @@ type Command struct {
 }
 
 type Network struct {
-	IP           string `json:"ip,omitempty"`
-	Gateway      string `json:"gateway,omitempty"`
-	Bridge       string `json:"bridge,omitempty"`
-	Mtu          int    `json:"mtu,omitempty"`
-	TempVethName string `json:"temp_veth,omitempty"`
+	IP      string `json:"ip,omitempty"`
+	Gateway string `json:"gateway,omitempty"`
+	Bridge  string `json:"bridge,omitempty"`
+	Mtu     int    `json:"mtu,omitempty"`
 }

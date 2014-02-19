@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
+	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -50,6 +52,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	data, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatalf("error reading from stdin %s", err)
+	}
+	tempVethName := string(data)
+
 	// close pipes so that we can replace it with the pty
 	os.Stdin.Close()
 	os.Stdout.Close()
@@ -81,7 +89,7 @@ func main() {
 	}
 
 	if container.Network != nil {
-		if err := setupNetworking(container); err != nil {
+		if err := setupNetworking(container, tempVethName); err != nil {
 			log.Fatalf("setup networking %s", err)
 		}
 	}
@@ -166,6 +174,6 @@ func setLogFile(container *libcontainer.Container) error {
 	return nil
 }
 
-func setupNetworking(conatiner *libcontainer.Container) error {
-	return nil
+func setupNetworking(container *libcontainer.Container, tempVethName string) error {
+	return network.SetupVeth(container.Network, tempVethName)
 }

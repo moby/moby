@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/term"
 	"io"
@@ -25,10 +27,33 @@ func execCommand(container *libcontainer.Container) (pid int, err error) {
 		Cloneflags: flag,
 	}
 
+	inPipe, err := command.StdinPipe()
+	if err != nil {
+		return -1, err
+	}
+
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
 	pid = command.Process.Pid
+
+	if container.Network != nil {
+		name1, name2, err := createVethPair()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := network.SetInterfaceMaster(name1, container.Network.Bridge); err != nil {
+			log.Fatal(err)
+		}
+		if err := network.InterfaceUp(name1); err != nil {
+			log.Fatal(err)
+		}
+		if err := network.SetInterfaceInNamespacePid(name2, pid); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprint(inPipe, name2)
+		inPipe.Close()
+	}
 
 	go func() {
 		if _, err := io.Copy(os.Stdout, master); err != nil {
@@ -77,4 +102,12 @@ func createMasterAndConsole() (*os.File, string, error) {
 		return nil, "", err
 	}
 	return master, console, nil
+}
+
+func createVethPair() (name1 string, name2 string, err error) {
+	name1, name2 = "veth001", "veth002"
+	if err = network.CreateVethPair(name1, name2); err != nil {
+		return
+	}
+	return
 }

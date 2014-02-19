@@ -1,6 +1,6 @@
 {
     "id": "koye",
-    "namespace_pid": 3117,
+    "log_file": "/root/logs",
     "command": {
         "args": [
             "/bin/bash"
@@ -12,12 +12,12 @@
             "TERM=xterm"
         ]
     },
-    "rootfs": "/var/lib/docker/containers/ee76122136d691d63e09d24168a91ddb2ef9fdcf210b4de5c50aa76354892f4b/root",
     "namespaces": [
         "NEWIPC",
         "NEWNS",
         "NEWPID",
-        "NEWUTS"
+        "NEWUTS",
+        "NEWNET"
     ],
     "capabilities": [
         "SETPCAP",
@@ -34,5 +34,11 @@
         "AUDIT_CONTROL",
         "MAC_OVERRIDE",
         "MAC_ADMIN"
-    ]
+    ],
+    "network": {
+        "ip": "172.17.0.100/16",
+        "gateway": "172.17.42.1",
+        "bridge": "docker0",
+        "mtu": 1500
+    }
 }
