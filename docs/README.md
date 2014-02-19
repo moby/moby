@@ -81,8 +81,8 @@ starts clean.
 ## Normal Case:
 
 * Follow the contribution guidelines ([see
-  ``../CONTRIBUTING.md``](../CONTRIBUTING)).
-* Remember to sign your work!
+  ``../CONTRIBUTING.md``](../CONTRIBUTING.md)).
+* [Remember to sign your work!](../CONTRIBUTING.md#sign-your-work)
 * Work in your own fork of the code, we accept pull requests.
 * Change the ``.rst`` files with your favorite editor -- try to keep the
   lines short and respect RST and Sphinx conventions. 
@@ -115,6 +115,7 @@ Alternatively, for small changes and typos you might want to use
 GitHub's built in file editor. It allows you to preview your changes
 right online (though there can be some differences between GitHub
 markdown and Sphinx RST). Just be careful not to create many commits.
+And you must still [sign your work!](../CONTRIBUTING.md#sign-your-work)
 
 Images
 ------
