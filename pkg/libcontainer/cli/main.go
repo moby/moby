@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
+	"github.com/dotcloud/docker/pkg/libcontainer/namespaces/nsinit"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"os"
@@ -15,13 +16,24 @@ var (
 	displayPid bool
 	newCommand string
 	usrNet     bool
+	masterFd   int
+	console    string
 )
 
 func init() {
 	flag.BoolVar(&displayPid, "pid", false, "display the pid before waiting")
 	flag.StringVar(&newCommand, "cmd", "/bin/bash", "command to run in the existing namespace")
 	flag.BoolVar(&usrNet, "net", false, "user a net namespace")
+	flag.IntVar(&masterFd, "master", 0, "master fd")
+	flag.StringVar(&console, "console", "", "console path")
 	flag.Parse()
+}
+
+func nsinitFunc(container *libcontainer.Container) error {
+	container.Master = uintptr(masterFd)
+	container.Console = console
+
+	return nsinit.InitNamespace(container)
 }
 
 func exec(container *libcontainer.Container) error {
@@ -39,7 +51,7 @@ func exec(container *libcontainer.Container) error {
 		container.NetNsFd = netFile.Fd()
 	}
 
-	pid, err := namespaces.Exec(container)
+	pid, err := namespaces.ExecContainer(container)
 	if err != nil {
 		return fmt.Errorf("error exec container %s", err)
 	}
@@ -87,39 +99,39 @@ func execIn(container *libcontainer.Container) error {
 }
 
 func createNet(config *libcontainer.Network) error {
-	root := "/root/nsroot"
-	if err := network.SetupNamespaceMountDir(root); err != nil {
-		return err
-	}
-
-	nspath := root + "/test"
-	if err := network.CreateNetworkNamespace(nspath); err != nil {
-		return nil
-	}
-	if err := network.CreateVethPair("veth0", config.TempVethName); err != nil {
-		return err
-	}
-	if err := network.SetInterfaceMaster("veth0", config.Bridge); err != nil {
-		return err
-	}
-	if err := network.InterfaceUp("veth0"); err != nil {
-		return err
-	}
-
-	f, err := os.Open(nspath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	if err := network.SetInterfaceInNamespaceFd("veth1", int(f.Fd())); err != nil {
-		return err
-	}
-
 	/*
-		if err := network.SetupVethInsideNamespace(f.Fd(), config); err != nil {
+		root := "/root/nsroot"
+		if err := network.SetupNamespaceMountDir(root); err != nil {
 			return err
 		}
+
+		nspath := root + "/test"
+		if err := network.CreateNetworkNamespace(nspath); err != nil {
+			return nil
+		}
+		if err := network.CreateVethPair("veth0", config.TempVethName); err != nil {
+			return err
+		}
+		if err := network.SetInterfaceMaster("veth0", config.Bridge); err != nil {
+			return err
+		}
+		if err := network.InterfaceUp("veth0"); err != nil {
+			return err
+		}
+
+		f, err := os.Open(nspath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		if err := network.SetInterfaceInNamespaceFd("veth1", int(f.Fd())); err != nil {
+			return err
+		}
+
+			if err := network.SetupVethInsideNamespace(f.Fd(), config); err != nil {
+				return err
+			}
 	*/
 	return nil
 }
@@ -133,7 +145,7 @@ func main() {
 	var (
 		err    error
 		cliCmd = flag.Arg(0)
-		config = flag.Arg(1)
+		config = "/root/development/gocode/src/github.com/dotcloud/docker/pkg/libcontainer/container.json" //flag.Arg(1)
 	)
 	f, err := os.Open(config)
 	if err != nil {
@@ -149,6 +161,8 @@ func main() {
 	f.Close()
 
 	switch cliCmd {
+	case "init":
+		err = nsinitFunc(container)
 	case "exec":
 		err = exec(container)
 	case "execin":

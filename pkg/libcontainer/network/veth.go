@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
 	"os"
 	"syscall"
 )
@@ -54,21 +53,6 @@ func SetupNamespaceMountDir(root string) error {
 		return err
 	}
 	if err := syscall.Mount(root, root, "none", syscall.MS_BIND, ""); err != nil {
-		return err
-	}
-	return nil
-}
-
-// CreateNetworkNamespace creates a new network namespace and binds it's fd
-// at the binding path
-func CreateNetworkNamespace(bindingPath string) error {
-	f, err := os.OpenFile(bindingPath, os.O_RDONLY|os.O_CREATE|os.O_EXCL, 0)
-	if err != nil {
-		return err
-	}
-	f.Close()
-
-	if err := namespaces.CreateNewNamespace(libcontainer.CLONE_NEWNET, bindingPath); err != nil {
 		return err
 	}
 	return nil

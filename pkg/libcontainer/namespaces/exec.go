@@ -12,6 +12,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"syscall"
 )
 
@@ -37,16 +39,15 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 	if err != nil {
 		return -1, err
 	}
-	container.Console = console
-	container.Master = master.Fd()
+	nsinit := filepath.Join(container.RootFs, ".nsinit")
 
 	// we need CLONE_VFORK so we can wait on the child
 	flag := uintptr(getNamespaceFlags(container.Namespaces) | CLONE_VFORK)
 
-	command := exec.Command("/.nsinit")
+	command := exec.Command(nsinit, "init", "-master", strconv.Itoa(int(master.Fd())), "-console", console)
 	command.SysProcAttr = &syscall.SysProcAttr{}
 	command.SysProcAttr.Cloneflags = flag
-	command.SysProcAttr.Setctty = true
+	//	command.SysProcAttr.Setctty = true
 
 	if err := command.Start(); err != nil {
 		return -1, err
@@ -63,6 +64,7 @@ func ExecContainer(container *libcontainer.Container) (pid int, err error) {
 			log.Println(err)
 		}
 	}()
+	command.Wait()
 	return pid, nil
 }
 
