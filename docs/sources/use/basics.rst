@@ -122,12 +122,38 @@ Starting a long-running worker process
   sudo docker kill $JOB
 
 
-Listing all running containers
-------------------------------
+Listing containers
+------------------
 
 .. code-block:: bash
 
-  sudo docker ps
+  sudo docker ps # Lists only running containers
+  sudo docker ps -a # Lists all containers
+
+
+Controlling containers
+----------------------
+.. code-block:: bash
+
+  # Start a new container
+  JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+
+  # Stop the container
+  docker stop $JOB
+
+  # Start the container
+  docker start $JOB
+
+  # Restart the container
+  docker restart $JOB
+
+  # SIGKILL a container
+  docker kill $JOB
+
+  # Remove a container
+  docker stop $JOB # Container must be stopped to remove it
+  docker rm $JOB
+
 
 Bind a service on a TCP port
 ------------------------------
