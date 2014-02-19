@@ -1,0 +1,38 @@
+{
+    "id": "koye",
+    "namespace_pid": 3117,
+    "command": {
+        "args": [
+            "/bin/bash"
+        ],
+        "environment": [
+            "HOME=/",
+            "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
+            "container=docker",
+            "TERM=xterm"
+        ]
+    },
+    "rootfs": "/root/main/mycontainer",
+    "namespaces": [
+        "NEWIPC",
+        "NEWNS",
+        "NEWPID",
+        "NEWUTS"
+    ],
+    "capabilities": [
+        "SETPCAP",
+        "SYS_MODULE",
+        "SYS_RAWIO",
+        "SYS_PACCT",
+        "SYS_ADMIN",
+        "SYS_NICE",
+        "SYS_RESOURCE",
+        "SYS_TIME",
+        "SYS_TTY_CONFIG",
+        "MKNOD",
+        "AUDIT_WRITE",
+        "AUDIT_CONTROL",
+        "MAC_OVERRIDE",
+        "MAC_ADMIN"
+    ]
+}
