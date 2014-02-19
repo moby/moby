@@ -2,7 +2,7 @@
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
-.. COMMENT use http://pythonhosted.org/sphinxcontrib-httpdomain/ to
+.. COMMENT use https://pythonhosted.org/sphinxcontrib-httpdomain/ to
 .. document the REST API.
 
 =================
