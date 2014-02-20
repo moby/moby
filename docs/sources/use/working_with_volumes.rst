@@ -80,7 +80,7 @@ similar to :ref:`ambassador_pattern_linking <ambassador_pattern_linking>`.
 
 If you remove containers that mount volumes, including the initial DATA container, 
 or the middleman, the volumes will not be deleted until there are no containers still
-referencing those volumes. This allows you to upgrade, or effectivly migrate data volumes
+referencing those volumes. This allows you to upgrade, or effectively migrate data volumes
 between containers.
 
 Mount a Host Directory as a Container Volume:
