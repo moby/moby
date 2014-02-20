@@ -41,6 +41,7 @@ func DropCapabilities(container *libcontainer.Container) error {
 	return nil
 }
 
+// getCapabilities returns the specific cap values for the libcontainer types
 func getCapabilities(container *libcontainer.Container) []capability.Cap {
 	drop := []capability.Cap{}
 	for _, c := range container.Capabilities {

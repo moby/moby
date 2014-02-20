@@ -1,5 +1,8 @@
 package libcontainer
 
+// These constants are defined as string types so that
+// it is clear when adding the configuration in config files
+// instead of using ints or other types
 const (
 	CAP_SETPCAP        Capability = "SETPCAP"
 	CAP_SYS_MODULE     Capability = "SYS_MODULE"
@@ -25,9 +28,15 @@ const (
 	CLONE_NEWNET  Namespace = "NEWNET"  // network
 )
 
-type Namespace string
-type Namespaces []Namespace
+type (
+	Namespace    string
+	Namespaces   []Namespace
+	Capability   string
+	Capabilities []Capability
+)
 
+// Contains returns true if the specified Namespace is
+// in the slice
 func (n Namespaces) Contains(ns Namespace) bool {
 	for _, nns := range n {
 		if nns == ns {
@@ -37,9 +46,8 @@ func (n Namespaces) Contains(ns Namespace) bool {
 	return false
 }
 
-type Capability string
-type Capabilities []Capability
-
+// Contains returns true if the specified Capability is
+// in the slice
 func (c Capabilities) Contains(capp Capability) bool {
 	for _, cc := range c {
 		if cc == capp {

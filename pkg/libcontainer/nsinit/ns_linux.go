@@ -14,6 +14,9 @@ var namespaceMap = map[libcontainer.Namespace]int{
 	libcontainer.CLONE_NEWNET:  syscall.CLONE_NEWNET,
 }
 
+// namespaceFileMap is used to convert the libcontainer types
+// into the names of the files located in /proc/<pid>/ns/* for
+// each namespace
 var namespaceFileMap = map[libcontainer.Namespace]string{
 	libcontainer.CLONE_NEWNS:   "mnt",
 	libcontainer.CLONE_NEWUTS:  "uts",

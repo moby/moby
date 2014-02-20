@@ -38,7 +38,7 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 	defer deletePidFile()
 
 	if container.Network != nil {
-		vethPair, err := setupVeth(container.Network.Bridge, command.Process.Pid)
+		vethPair, err := initializeContainerVeth(container.Network.Bridge, command.Process.Pid)
 		if err != nil {
 			return -1, err
 		}
@@ -63,14 +63,21 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
+// sendVethName writes the veth pair name to the child's stdin then closes the
+// pipe so that the child stops waiting for more data
 func sendVethName(name string, pipe io.WriteCloser) {
-	// write the veth pair name to the child's stdin then close the
-	// pipe so that the child stops waiting
 	fmt.Fprint(pipe, name)
 	pipe.Close()
 }
 
-func setupVeth(bridge string, nspid int) (string, error) {
+// initializeContainerVeth will create a veth pair and setup the host's
+// side of the pair by setting the specified bridge as the master and bringing
+// up the interface.
+//
+// Then will with set the other side of the veth pair into the container's namespaced
+// using the pid and returns the veth's interface name to provide to the container to
+// finish setting up the interface inside the namespace
+func initializeContainerVeth(bridge string, nspid int) (string, error) {
 	name1, name2, err := createVethPair()
 	if err != nil {
 		return "", err
@@ -98,6 +105,8 @@ func setupWindow(master *os.File) (*term.State, error) {
 	return term.SetRawTerminal(os.Stdin.Fd())
 }
 
+// createMasterAndConsole will open /dev/ptmx on the host and retreive the
+// pts name for use as the pty slave inside the container
 func createMasterAndConsole() (*os.File, string, error) {
 	master, err := os.OpenFile("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
 	if err != nil {
@@ -113,6 +122,8 @@ func createMasterAndConsole() (*os.File, string, error) {
 	return master, console, nil
 }
 
+// createVethPair will automatically generage two random names for
+// the veth pair and ensure that they have been created
 func createVethPair() (name1 string, name2 string, err error) {
 	name1, err = utils.GenerateRandomName("dock", 4)
 	if err != nil {
@@ -128,6 +139,7 @@ func createVethPair() (name1 string, name2 string, err error) {
 	return
 }
 
+// writePidFile writes the namespaced processes pid to .nspid in the rootfs for the container
 func writePidFile(command *exec.Cmd) error {
 	return ioutil.WriteFile(".nspid", []byte(fmt.Sprint(command.Process.Pid)), 0655)
 }
@@ -136,6 +148,9 @@ func deletePidFile() error {
 	return os.Remove(".nspid")
 }
 
+// createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
+// defined on the container's configuration and use the current binary as the init with the
+// args provided
 func createCommand(container *libcontainer.Container, console string, args []string) *exec.Cmd {
 	command := exec.Command("nsinit", append([]string{"init", console}, args...)...)
 	command.SysProcAttr = &syscall.SysProcAttr{

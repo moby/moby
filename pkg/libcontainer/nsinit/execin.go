@@ -28,6 +28,7 @@ func execinCommand(container *libcontainer.Container, nspid int, args []string) 
 		return -1, err
 	}
 
+	// foreach namespace fd, use setns to join an existing container's namespaces
 	for _, fd := range fds {
 		if fd > 0 {
 			if err := system.Setns(fd, 0); err != nil {
@@ -42,7 +43,6 @@ func execinCommand(container *libcontainer.Container, nspid int, args []string) 
 	// remount proc and sys to pick up the changes
 	if container.Namespaces.Contains(libcontainer.CLONE_NEWNS) &&
 		container.Namespaces.Contains(libcontainer.CLONE_NEWPID) {
-
 		pid, err := system.Fork()
 		if err != nil {
 			return -1, err
@@ -58,12 +58,7 @@ func execinCommand(container *libcontainer.Container, nspid int, args []string) 
 			if err := remountSys(); err != nil {
 				return -1, fmt.Errorf("remount sys %s", err)
 			}
-			if err := capabilities.DropCapabilities(container); err != nil {
-				return -1, fmt.Errorf("drop capabilities %s", err)
-			}
-			if err := system.Exec(args[0], args[0:], container.Env); err != nil {
-				return -1, err
-			}
+			goto dropAndExec
 		}
 		proc, err := os.FindProcess(pid)
 		if err != nil {
@@ -75,6 +70,7 @@ func execinCommand(container *libcontainer.Container, nspid int, args []string) 
 		}
 		os.Exit(state.Sys().(syscall.WaitStatus).ExitStatus())
 	}
+dropAndExec:
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return -1, fmt.Errorf("drop capabilities %s", err)
 	}

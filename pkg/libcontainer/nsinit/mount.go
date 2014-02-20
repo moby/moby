@@ -10,10 +10,16 @@ import (
 	"syscall"
 )
 
-// default mount point options
+// default mount point flags
 const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
+// setupNewMountNamespace is used to initialize a new mount namespace for an new
+// container in the rootfs that is specified.
+//
+// There is no need to unmount the new mounts because as soon as the mount namespace
+// is no longer in use, the mounts will be removed automatically
 func setupNewMountNamespace(rootfs, console string, readonly bool) error {
+	// mount as slave so that the new mounts do not propagate to the host
 	if err := system.Mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mounting / as slave %s", err)
 	}
@@ -55,6 +61,7 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	return nil
 }
 
+// copyDevNodes mknods the hosts devices so the new container has access to them
 func copyDevNodes(rootfs string) error {
 	oldMask := system.Umask(0000)
 	defer system.Umask(oldMask)
@@ -82,6 +89,8 @@ func copyDevNodes(rootfs string) error {
 	return nil
 }
 
+// setupDev symlinks the current processes pipes into the
+// appropriate destination on the containers rootfs
 func setupDev(rootfs string) error {
 	for _, link := range []struct {
 		from string
@@ -104,6 +113,7 @@ func setupDev(rootfs string) error {
 	return nil
 }
 
+// setupConsole ensures that the container has a proper /dev/console setup
 func setupConsole(rootfs, console string) error {
 	oldMask := system.Umask(0000)
 	defer system.Umask(oldMask)
@@ -161,6 +171,24 @@ func mountSystem(rootfs string) error {
 	return nil
 }
 
+// setupPtmx adds a symlink to pts/ptmx for /dev/ptmx and
+// finishes setting up /dev/console
+func setupPtmx(rootfs, console string) error {
+	ptmx := filepath.Join(rootfs, "dev/ptmx")
+	if err := os.Remove(ptmx); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
+		return fmt.Errorf("symlink dev ptmx %s", err)
+	}
+	if err := setupConsole(rootfs, console); err != nil {
+		return err
+	}
+	return nil
+}
+
+// remountProc is used to detach and remount the proc filesystem
+// commonly needed with running a new process inside an existing container
 func remountProc() error {
 	if err := system.Unmount("/proc", syscall.MNT_DETACH); err != nil {
 		return err
@@ -182,15 +210,4 @@ func remountSys() error {
 		}
 	}
 	return nil
-}
-
-func setupPtmx(rootfs, console string) error {
-	ptmx := filepath.Join(rootfs, "dev/ptmx")
-	if err := os.Remove(ptmx); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
-		return fmt.Errorf("symlink dev ptmx %s", err)
-	}
-	return setupConsole(rootfs, console)
 }

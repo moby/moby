@@ -37,9 +37,6 @@ func initCommand(container *libcontainer.Container, console string, args []strin
 	if err != nil {
 		return fmt.Errorf("open terminal %s", err)
 	}
-	if slave.Fd() != 0 {
-		return fmt.Errorf("slave fd should be 0")
-	}
 	if err := dupSlave(slave); err != nil {
 		return fmt.Errorf("dup2 slave %s", err)
 	}
@@ -55,7 +52,7 @@ func initCommand(container *libcontainer.Container, console string, args []strin
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
-	if err := setupNetworking(container.Network, tempVethName); err != nil {
+	if err := setupVethNetwork(container.Network, tempVethName); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
@@ -78,6 +75,8 @@ func initCommand(container *libcontainer.Container, console string, args []strin
 	panic("unreachable")
 }
 
+// resolveRootfs ensures that the current working directory is
+// not a symlink and returns the absolute path to the rootfs
 func resolveRootfs() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -104,8 +103,9 @@ func setupUser(container *libcontainer.Container) error {
 	return nil
 }
 
+// dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
+// the slave's fd is 0, or stdin
 func dupSlave(slave *os.File) error {
-	// we close Stdin,etc so our pty slave should have fd 0
 	if slave.Fd() != 0 {
 		return fmt.Errorf("slave fd not 0 %d", slave.Fd())
 	}
@@ -118,7 +118,8 @@ func dupSlave(slave *os.File) error {
 	return nil
 }
 
-// openTerminal is a clone of os.OpenFile without the O_CLOEXEC addition.
+// openTerminal is a clone of os.OpenFile without the O_CLOEXEC
+// used to open the pty slave inside the container namespace
 func openTerminal(name string, flag int) (*os.File, error) {
 	r, e := syscall.Open(name, flag, 0)
 	if e != nil {
@@ -127,7 +128,10 @@ func openTerminal(name string, flag int) (*os.File, error) {
 	return os.NewFile(uintptr(r), name), nil
 }
 
-func setupNetworking(config *libcontainer.Network, tempVethName string) error {
+// setupVethNetwork uses the Network config if it is not nil to initialize
+// the new veth interface inside the container for use by changing the name to eth0
+// setting the MTU and IP address along with the default gateway
+func setupVethNetwork(config *libcontainer.Network, tempVethName string) error {
 	if config != nil {
 		if err := network.InterfaceDown(tempVethName); err != nil {
 			return fmt.Errorf("interface down %s %s", tempVethName, err)

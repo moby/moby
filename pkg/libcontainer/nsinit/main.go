@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(ErrWrongArguments)
 	}
 	switch os.Args[1] {
-	case "exec":
+	case "exec": // this is executed outside of the namespace in the cwd
 		var exitCode int
 		nspid, err := readPid()
 		if err != nil {
@@ -43,7 +43,7 @@ func main() {
 			log.Fatal(err)
 		}
 		os.Exit(exitCode)
-	case "init":
+	case "init": // this is executed inside of the namespace to setup the container
 		if argc < 3 {
 			log.Fatal(ErrWrongArguments)
 		}
