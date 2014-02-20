@@ -15,6 +15,7 @@ const (
 	CAP_AUDIT_CONTROL  Capability = "AUDIT_CONTROL"
 	CAP_MAC_OVERRIDE   Capability = "MAC_OVERRIDE"
 	CAP_MAC_ADMIN      Capability = "MAC_ADMIN"
+	CAP_NET_ADMIN      Capability = "NET_ADMIN"
 
 	CLONE_NEWNS   Namespace = "NEWNS"   // mount
 	CLONE_NEWUTS  Namespace = "NEWUTS"  // utsname

@@ -21,6 +21,7 @@ var capMap = map[libcontainer.Capability]capability.Cap{
 	libcontainer.CAP_AUDIT_CONTROL:  capability.CAP_AUDIT_CONTROL,
 	libcontainer.CAP_MAC_OVERRIDE:   capability.CAP_MAC_OVERRIDE,
 	libcontainer.CAP_MAC_ADMIN:      capability.CAP_MAC_ADMIN,
+	libcontainer.CAP_NET_ADMIN:      capability.CAP_NET_ADMIN,
 }
 
 // DropCapabilities drops capabilities for the current process based
