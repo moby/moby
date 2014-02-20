@@ -165,6 +165,13 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 			hdr.Devmajor = int64(major(uint64(stat.Rdev)))
 			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 		}
+
+	}
+
+	capability, _ := Lgetxattr(path, "security.capability")
+	if capability != nil {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs["security.capability"] = string(capability)
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
@@ -249,6 +256,12 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 
 	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
 		return err
+	}
+
+	for key, value := range hdr.Xattrs {
+		if err := Lsetxattr(path, key, []byte(value), 0); err != nil {
+			return err
+		}
 	}
 
 	// There is no LChmod, so ignore mode for symlink. Also, this
