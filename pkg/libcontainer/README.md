@@ -47,10 +47,15 @@ Sample `container.json` file:
         "MAC_ADMIN"
     ],
     "network": {
-        "ip": "172.17.0.100/16",
+        "address": "172.17.0.100/16",
         "gateway": "172.17.42.1",
         "bridge": "docker0",
         "mtu": 1500
+    },
+    "cgroups": {
+        "name": "docker-koye",
+        "parent": "docker",
+        "memory": 524800
     }
 }
 ```

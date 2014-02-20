@@ -137,7 +137,7 @@ func setupVethNetwork(config *libcontainer.Network, tempVethName string) error {
 		if err := network.ChangeInterfaceName(tempVethName, "eth0"); err != nil {
 			return fmt.Errorf("change %s to eth0 %s", tempVethName, err)
 		}
-		if err := network.SetInterfaceIp("eth0", config.IP); err != nil {
+		if err := network.SetInterfaceIp("eth0", config.Address); err != nil {
 			return fmt.Errorf("set eth0 ip %s", err)
 		}
 		if err := network.SetMtu("eth0", config.Mtu); err != nil {

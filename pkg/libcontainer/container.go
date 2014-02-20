@@ -23,7 +23,7 @@ type Container struct {
 // The network configuration can be omited from a container causing the
 // container to be setup with the host's networking stack
 type Network struct {
-	IP      string `json:"ip,omitempty"`
+	Address string `json:"address,omitempty"`
 	Gateway string `json:"gateway,omitempty"`
 	Bridge  string `json:"bridge,omitempty"`
 	Mtu     int    `json:"mtu,omitempty"`
