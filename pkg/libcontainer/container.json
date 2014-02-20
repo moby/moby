@@ -1,5 +1,5 @@
 {
-    "id": "koye",
+    "hostname": "koye",
     "command": {
         "args": [
             "/bin/bash"

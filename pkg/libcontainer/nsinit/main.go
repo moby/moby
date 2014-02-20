@@ -37,6 +37,14 @@ func main() {
 		if err := initCommand(container, os.Args[2]); err != nil {
 			log.Fatal(err)
 		}
+	case "execin":
+		exitCode, err := execinCommand(container)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(exitCode)
+	default:
+		log.Fatalf("command not supported for nsinit %s", os.Args[1])
 	}
 }
 
