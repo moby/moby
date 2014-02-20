@@ -43,6 +43,9 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := setupPtmx(rootfs, console); err != nil {
 		return err
 	}
+	if err := setupKmsg(rootfs); err != nil {
+		return err
+	}
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
@@ -208,6 +211,35 @@ func remountSys() error {
 		if err := system.Mount("sysfs", "/sys", "sysfs", uintptr(defaultMountFlags), ""); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func setupKmsg(rootfs string) error {
+	oldMask := system.Umask(0000)
+	defer system.Umask(oldMask)
+
+	var (
+		source = filepath.Join(rootfs, "dev/kmsg")
+		dest   = filepath.Join(rootfs, "proc/kmsg")
+	)
+
+	if err := system.Mkfifo(source, 0600); err != nil {
+		return err
+	}
+
+	os.Chmod(source, 0600)
+	os.Chown(source, 0, 0)
+
+	if err := system.Mount(source, dest, "bind", syscall.MS_BIND, ""); err != nil {
+		return err
+	}
+	_, err := os.OpenFile(source, syscall.O_RDWR|syscall.O_NDELAY|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return err
+	}
+	if err := syscall.Unlink(source); err != nil {
+		return err
 	}
 	return nil
 }
