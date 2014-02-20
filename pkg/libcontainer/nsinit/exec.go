@@ -165,7 +165,7 @@ func deletePidFile() error {
 func createCommand(container *libcontainer.Container, console string, args []string) *exec.Cmd {
 	command := exec.Command("nsinit", append([]string{"init", console}, args...)...)
 	command.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces) | syscall.CLONE_VFORK), // we need CLONE_VFORK so we can wait on the child
+		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces)),
 	}
 	return command
 }
