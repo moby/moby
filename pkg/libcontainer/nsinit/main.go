@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 )
 
 var (
@@ -25,24 +27,29 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "exec":
-		exitCode, err := execCommand(container)
+		var exitCode int
+		nspid, err := readPid()
+		if err != nil {
+			if !os.IsNotExist(err) {
+				log.Fatal(err)
+			}
+		}
+		if nspid > 0 {
+			exitCode, err = execinCommand(container, nspid, os.Args[2:])
+		} else {
+			exitCode, err = execCommand(container, os.Args[2:])
+		}
 		if err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(exitCode)
 	case "init":
-		if argc != 3 {
+		if argc < 3 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := initCommand(container, os.Args[2]); err != nil {
+		if err := initCommand(container, os.Args[2], os.Args[3:]); err != nil {
 			log.Fatal(err)
 		}
-	case "execin":
-		exitCode, err := execinCommand(container)
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Exit(exitCode)
 	default:
 		log.Fatalf("command not supported for nsinit %s", os.Args[1])
 	}
@@ -60,4 +67,16 @@ func loadContainer() (*libcontainer.Container, error) {
 		return nil, err
 	}
 	return container, nil
+}
+
+func readPid() (int, error) {
+	data, err := ioutil.ReadFile(".nspid")
+	if err != nil {
+		return -1, err
+	}
+	pid, err := strconv.Atoi(string(data))
+	if err != nil {
+		return -1, err
+	}
+	return pid, nil
 }

@@ -14,7 +14,7 @@ import (
 	"syscall"
 )
 
-func initCommand(container *libcontainer.Container, console string) error {
+func initCommand(container *libcontainer.Container, console string, args []string) error {
 	rootfs, err := resolveRootfs()
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func initCommand(container *libcontainer.Container, console string) error {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
-	if err := system.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
+	if err := system.Exec(args[0], args[0:], container.Env); err != nil {
 		return fmt.Errorf("exec %s", err)
 	}
 	panic("unreachable")

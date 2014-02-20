@@ -5,19 +5,13 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/system"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"syscall"
 )
 
-func execinCommand(container *libcontainer.Container) (int, error) {
-	nspid, err := readPid()
-	if err != nil {
-		return -1, err
-	}
-
+func execinCommand(container *libcontainer.Container, nspid int, args []string) (int, error) {
 	for _, ns := range container.Namespaces {
 		if err := system.Unshare(namespaceMap[ns]); err != nil {
 			return -1, err
@@ -67,7 +61,7 @@ func execinCommand(container *libcontainer.Container) (int, error) {
 			if err := capabilities.DropCapabilities(container); err != nil {
 				return -1, fmt.Errorf("drop capabilities %s", err)
 			}
-			if err := system.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
+			if err := system.Exec(args[0], args[0:], container.Env); err != nil {
 				return -1, err
 			}
 		}
@@ -84,22 +78,10 @@ func execinCommand(container *libcontainer.Container) (int, error) {
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return -1, fmt.Errorf("drop capabilities %s", err)
 	}
-	if err := system.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
+	if err := system.Exec(args[0], args[0:], container.Env); err != nil {
 		return -1, err
 	}
 	panic("unreachable")
-}
-
-func readPid() (int, error) {
-	data, err := ioutil.ReadFile(".nspid")
-	if err != nil {
-		return -1, err
-	}
-	pid, err := strconv.Atoi(string(data))
-	if err != nil {
-		return -1, err
-	}
-	return pid, nil
 }
 
 func getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {

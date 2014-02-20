@@ -1,16 +1,11 @@
 {
     "hostname": "koye",
-    "command": {
-        "args": [
-            "/bin/bash"
-        ],
-        "environment": [
-            "HOME=/",
-            "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
-            "container=docker",
-            "TERM=xterm-256color"
-        ]
-    },
+    "environment": [
+        "HOME=/",
+        "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
+        "container=docker",
+        "TERM=xterm-256color"
+    ],
     "namespaces": [
         "NEWIPC",
         "NEWNS",

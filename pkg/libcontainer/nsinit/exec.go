@@ -16,17 +16,13 @@ import (
 	"syscall"
 )
 
-func execCommand(container *libcontainer.Container) (int, error) {
+func execCommand(container *libcontainer.Container, args []string) (int, error) {
 	master, console, err := createMasterAndConsole()
 	if err != nil {
 		return -1, err
 	}
 
-	command := exec.Command("nsinit", "init", console)
-	command.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces) | syscall.CLONE_VFORK), // we need CLONE_VFORK so we can wait on the child
-	}
-
+	command := createCommand(container, console, args)
 	// create a pipe so that we can syncronize with the namespaced process and
 	// pass the veth name to the child
 	inPipe, err := command.StdinPipe()
@@ -39,6 +35,7 @@ func execCommand(container *libcontainer.Container) (int, error) {
 	if err := writePidFile(command); err != nil {
 		return -1, err
 	}
+	defer deletePidFile()
 
 	if container.Network != nil {
 		vethPair, err := setupVeth(container.Network.Bridge, command.Process.Pid)
@@ -133,4 +130,16 @@ func createVethPair() (name1 string, name2 string, err error) {
 
 func writePidFile(command *exec.Cmd) error {
 	return ioutil.WriteFile(".nspid", []byte(fmt.Sprint(command.Process.Pid)), 0655)
+}
+
+func deletePidFile() error {
+	return os.Remove(".nspid")
+}
+
+func createCommand(container *libcontainer.Container, console string, args []string) *exec.Cmd {
+	command := exec.Command("nsinit", append([]string{"init", console}, args...)...)
+	command.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces) | syscall.CLONE_VFORK), // we need CLONE_VFORK so we can wait on the child
+	}
+	return command
 }
