@@ -2,9 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"log"
 	"os"
+)
+
+var (
+	ErrUnsupported    = errors.New("Unsupported method")
+	ErrWrongArguments = errors.New("Wrong argument count")
 )
 
 func main() {
@@ -13,6 +19,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	argc := len(os.Args)
+	if argc < 2 {
+		log.Fatal(ErrWrongArguments)
+	}
 	switch os.Args[1] {
 	case "exec":
 		exitCode, err := execCommand(container)
@@ -21,6 +31,9 @@ func main() {
 		}
 		os.Exit(exitCode)
 	case "init":
+		if argc != 3 {
+			log.Fatal(ErrWrongArguments)
+		}
 		if err := initCommand(container, os.Args[2]); err != nil {
 			log.Fatal(err)
 		}
