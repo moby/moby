@@ -707,7 +707,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		// on the thin pool when we remove a thinp device, so we do it
 		// manually
 		if err := devices.activateDeviceIfNeeded(info); err == nil {
-			if err := BlockDeviceDiscard(info.DevName()); err != nil {
+			if err := BlockDeviceDiscardAll(info.DevName()); err != nil {
 				utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
 			}
 		}
