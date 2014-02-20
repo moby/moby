@@ -10,71 +10,46 @@ import (
 	"strconv"
 )
 
-// We have two implementation of cgroups support, one is based on
-// systemd and the dbus api, and one is based on raw cgroup fs operations
-// following the pre-single-writer model docs at:
-// http://www.freedesktop.org/wiki/Software/systemd/PaxControlGroups/
-const (
-	cgroupRoot = "/sys/fs/cgroup"
-)
-
-func useSystemd() bool {
-	return false
-}
-
-func applyCgroupSystemd(container *libcontainer.Container, pid int) error {
-	return fmt.Errorf("not supported yet")
-}
-
-func writeFile(dir, file, data string) error {
-	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
-}
-
-func getCgroup(subsystem string, container *libcontainer.Container) (string, error) {
-	cgroup := container.CgroupName
-	if container.CgroupParent != "" {
-		cgroup = filepath.Join(container.CgroupParent, cgroup)
+func ApplyCgroup(container *libcontainer.Container, pid int) (err error) {
+	if container.Cgroups == nil {
+		return nil
 	}
 
-	initPath, err := cgroups.GetInitCgroupDir(subsystem)
+	// We have two implementation of cgroups support, one is based on
+	// systemd and the dbus api, and one is based on raw cgroup fs operations
+	// following the pre-single-writer model docs at:
+	// http://www.freedesktop.org/wiki/Software/systemd/PaxControlGroups/
+	//
+	// we can pick any subsystem to find the root
+	cgroupRoot, err := cgroups.FindCgroupMountpoint("memory")
 	if err != nil {
-		return "", err
+		return err
 	}
-
-	path := filepath.Join(cgroupRoot, subsystem, initPath, cgroup)
-
-	return path, nil
-}
-
-func joinCgroup(subsystem string, container *libcontainer.Container, pid int) (string, error) {
-	path, err := getCgroup(subsystem, container)
-	if err != nil {
-		return "", err
-	}
-
-	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
-		return "", err
-	}
-
-	if err := writeFile(path, "tasks", strconv.Itoa(pid)); err != nil {
-		return "", err
-	}
-
-	return path, nil
-}
-
-func applyCgroupRaw(container *libcontainer.Container, pid int) (retErr error) {
+	cgroupRoot = filepath.Dir(cgroupRoot)
 	if _, err := os.Stat(cgroupRoot); err != nil {
 		return fmt.Errorf("cgroups fs not found")
 	}
+	if err := setupDevices(container, cgroupRoot, pid); err != nil {
+		return err
+	}
+	if err := setupMemory(container, cgroupRoot, pid); err != nil {
+		return err
+	}
+	if err := setupCpu(container, cgroupRoot, pid); err != nil {
+		return err
+	}
+	return nil
+}
 
-	if !container.DeviceAccess {
-		dir, err := joinCgroup("devices", container, pid)
+func setupDevices(container *libcontainer.Container, cgroupRoot string, pid int) (err error) {
+	if !container.Cgroups.DeviceAccess {
+		dir, err := container.Cgroups.Join(cgroupRoot, "devices", pid)
 		if err != nil {
 			return err
 		}
+
 		defer func() {
-			if retErr != nil {
+			if err != nil {
 				os.RemoveAll(dir)
 			}
 		}()
@@ -113,65 +88,53 @@ func applyCgroupRaw(container *libcontainer.Container, pid int) (retErr error) {
 			}
 		}
 	}
+	return nil
+}
 
-	if container.Memory != 0 || container.MemorySwap != 0 {
-		dir, err := joinCgroup("memory", container, pid)
+func setupMemory(container *libcontainer.Container, cgroupRoot string, pid int) (err error) {
+	if container.Cgroups.Memory != 0 || container.Cgroups.MemorySwap != 0 {
+		dir, err := container.Cgroups.Join(cgroupRoot, "memory", pid)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			if retErr != nil {
+			if err != nil {
 				os.RemoveAll(dir)
 			}
 		}()
 
-		if container.Memory != 0 {
-			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(container.Memory, 10)); err != nil {
+		if container.Cgroups.Memory != 0 {
+			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(container.Cgroups.Memory, 10)); err != nil {
 				return err
 			}
-			if err := writeFile(dir, "memory.soft_limit_in_bytes", strconv.FormatInt(container.Memory, 10)); err != nil {
+			if err := writeFile(dir, "memory.soft_limit_in_bytes", strconv.FormatInt(container.Cgroups.Memory, 10)); err != nil {
 				return err
 			}
 		}
-		if container.MemorySwap != 0 {
-			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(container.MemorySwap, 10)); err != nil {
+		if container.Cgroups.MemorySwap != 0 {
+			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(container.Cgroups.MemorySwap, 10)); err != nil {
 				return err
 			}
 		}
 	}
+	return nil
+}
 
+func setupCpu(container *libcontainer.Container, cgroupRoot string, pid int) (err error) {
 	// We always want to join the cpu group, to allow fair cpu scheduling
 	// on a container basis
-	dir, err := joinCgroup("cpu", container, pid)
+	dir, err := container.Cgroups.Join(cgroupRoot, "cpu", pid)
 	if err != nil {
 		return err
 	}
-	if container.CpuShares != 0 {
-		if err := writeFile(dir, "cpu.shares", strconv.FormatInt(container.CpuShares, 10)); err != nil {
+	if container.Cgroups.CpuShares != 0 {
+		if err := writeFile(dir, "cpu.shares", strconv.FormatInt(container.Cgroups.CpuShares, 10)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func CleanupCgroup(container *libcontainer.Container) error {
-	path, _ := getCgroup("memory", container)
-	os.RemoveAll(path)
-	path, _ = getCgroup("devices", container)
-	os.RemoveAll(path)
-	path, _ = getCgroup("cpu", container)
-	os.RemoveAll(path)
-	return nil
-}
-
-func ApplyCgroup(container *libcontainer.Container, pid int) error {
-	if container.CgroupName == "" {
-		return nil
-	}
-
-	if useSystemd() {
-		return applyCgroupSystemd(container, pid)
-	} else {
-		return applyCgroupRaw(container, pid)
-	}
+func writeFile(dir, file, data string) error {
+	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }

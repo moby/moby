@@ -35,7 +35,9 @@
         "bridge": "docker0",
         "mtu": 1500
     },
-    "cgroup_name": "docker-koye",
-    "cgroup_parent": "docker",
-    "memory": 524800
+    "cgroups": {
+        "name": "docker-koye",
+        "parent": "docker",
+        "memory": 524800
+    }
 }

@@ -5,9 +5,22 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/mount"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 )
+
+type Cgroup struct {
+	Name   string `json:"name,omitempty"`
+	Parent string `json:"parent,omitempty"`
+
+	DeviceAccess bool  `json:"device_access,omitempty"` // name of parent cgroup or slice
+	Memory       int64 `json:"memory,omitempty"`        // Memory limit (in bytes)
+	MemorySwap   int64 `json:"memory_swap,omitempty"`   // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares    int64 `json:"cpu_shares,omitempty"`    // CPU shares (relative weight vs. other containers)
+}
 
 // https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
@@ -25,7 +38,6 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 			}
 		}
 	}
-
 	return "", fmt.Errorf("cgroup mountpoint not found for %s", subsystem)
 }
 
@@ -50,9 +62,50 @@ func GetInitCgroupDir(subsystem string) (string, error) {
 	return parseCgroupFile(subsystem, f)
 }
 
+func (c *Cgroup) Path(root, subsystem string) (string, error) {
+	cgroup := c.Name
+	if c.Parent != "" {
+		cgroup = filepath.Join(c.Parent, cgroup)
+	}
+	initPath, err := GetInitCgroupDir(subsystem)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, subsystem, initPath, cgroup), nil
+}
+
+func (c *Cgroup) Join(root, subsystem string, pid int) (string, error) {
+	path, err := c.Path(root, subsystem)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	if err := writeFile(path, "tasks", strconv.Itoa(pid)); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func (c *Cgroup) Cleanup(root string) error {
+	get := func(subsystem string) string {
+		path, _ := c.Path(root, subsystem)
+		return path
+	}
+
+	for _, path := range []string{
+		get("memory"),
+		get("devices"),
+		get("cpu"),
+	} {
+		os.RemoveAll(path)
+	}
+	return nil
+}
+
 func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
-
 	for s.Scan() {
 		if err := s.Err(); err != nil {
 			return "", err
@@ -66,4 +119,8 @@ func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("cgroup '%s' not found in /proc/self/cgroup", subsystem)
+}
+
+func writeFile(dir, file, data string) error {
+	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
