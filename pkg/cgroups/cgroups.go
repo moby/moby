@@ -40,6 +40,16 @@ func GetThisCgroupDir(subsystem string) (string, error) {
 	return parseCgroupFile(subsystem, f)
 }
 
+func GetInitCgroupDir(subsystem string) (string, error) {
+	f, err := os.Open("/proc/1/cgroup")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	return parseCgroupFile(subsystem, f)
+}
+
 func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
 
@@ -49,8 +59,10 @@ func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 		}
 		text := s.Text()
 		parts := strings.Split(text, ":")
-		if parts[1] == subsystem {
-			return parts[2], nil
+		for _, subs := range strings.Split(parts[1], ",") {
+			if subs == subsystem {
+				return parts[2], nil
+			}
 		}
 	}
 	return "", fmt.Errorf("cgroup '%s' not found in /proc/self/cgroup", subsystem)

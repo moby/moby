@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroup"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
@@ -33,9 +34,17 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 		return -1, err
 	}
 	if err := writePidFile(command); err != nil {
+		command.Process.Kill()
 		return -1, err
 	}
 	defer deletePidFile()
+
+	// Do this before syncing with child so that no children
+	// can escape the cgroup
+	if err := cgroup.ApplyCgroup(container, command.Process.Pid); err != nil {
+		command.Process.Kill()
+		return -1, err
+	}
 
 	if container.Network != nil {
 		vethPair, err := initializeContainerVeth(container.Network.Bridge, command.Process.Pid)
@@ -44,6 +53,9 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 		}
 		sendVethName(vethPair, inPipe)
 	}
+
+	// Sync with child
+	inPipe.Close()
 
 	go io.Copy(os.Stdout, master)
 	go io.Copy(master, os.Stdin)
@@ -67,7 +79,6 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 // pipe so that the child stops waiting for more data
 func sendVethName(name string, pipe io.WriteCloser) {
 	fmt.Fprint(pipe, name)
-	pipe.Close()
 }
 
 // initializeContainerVeth will create a veth pair and setup the host's

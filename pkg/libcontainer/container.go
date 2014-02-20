@@ -11,6 +11,13 @@ type Container struct {
 	Namespaces   Namespaces   `json:"namespaces,omitempty"`   // namespaces to apply
 	Capabilities Capabilities `json:"capabilities,omitempty"` // capabilities to drop
 	Network      *Network     `json:"network,omitempty"`      // nil for host's network stack
+
+	CgroupName   string `json:"cgroup_name,omitempty"`   // name of cgroup
+	CgroupParent string `json:"cgroup_parent,omitempty"` // name of parent cgroup or slice
+	DeviceAccess bool   `json:"device_access,omitempty"` // name of parent cgroup or slice
+	Memory       int64  `json:"memory,omitempty"`        // Memory limit (in bytes)
+	MemorySwap   int64  `json:"memory_swap,omitempty"`   // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares    int64  `json:"cpu_shares,omitempty"`    // CPU shares (relative weight vs. other containers)
 }
 
 // Network defines configuration for a container's networking stack

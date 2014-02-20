@@ -20,12 +20,10 @@ func initCommand(container *libcontainer.Container, console string, args []strin
 		return err
 	}
 
-	var tempVethName string
-	if container.Network != nil {
-		tempVethName, err = getVethName()
-		if err != nil {
-			return err
-		}
+	// We always read this as it is a way to sync with the parent as well
+	tempVethName, err := getVethName()
+	if err != nil {
+		return err
 	}
 
 	// close pipes so that we can replace it with the pty
