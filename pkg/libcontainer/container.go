@@ -1,14 +1,13 @@
 package libcontainer
 
 type Container struct {
-	ID           string       `json:"id,omitempty"`
-	Command      *Command     `json:"command,omitempty"`
+	Hostname     string       `json:"hostname,omitempty"`
 	ReadonlyFs   bool         `json:"readonly_fs,omitempty"`
 	User         string       `json:"user,omitempty"`
 	WorkingDir   string       `json:"working_dir,omitempty"`
+	Command      *Command     `json:"command,omitempty"`
 	Namespaces   Namespaces   `json:"namespaces,omitempty"`
 	Capabilities Capabilities `json:"capabilities,omitempty"`
-	LogFile      string       `json:"log_file,omitempty"`
 	Network      *Network     `json:"network,omitempty"`
 }
 

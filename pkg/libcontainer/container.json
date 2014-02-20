@@ -1,6 +1,5 @@
 {
     "id": "koye",
-    "log_file": "/root/logs",
     "command": {
         "args": [
             "/bin/bash"
@@ -9,7 +8,7 @@
             "HOME=/",
             "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
             "container=docker",
-            "TERM=xterm"
+            "TERM=xterm-256color"
         ]
     },
     "namespaces": [

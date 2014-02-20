@@ -9,17 +9,12 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"syscall"
 )
 
 func initCommand(container *libcontainer.Container, console string) error {
-	if err := setLogFile(container); err != nil {
-		return err
-	}
-
 	rootfs, err := resolveRootfs()
 	if err != nil {
 		return err
@@ -27,11 +22,10 @@ func initCommand(container *libcontainer.Container, console string) error {
 
 	var tempVethName string
 	if container.Network != nil {
-		data, err := ioutil.ReadAll(os.Stdin)
+		tempVethName, err = getVethName()
 		if err != nil {
-			return fmt.Errorf("error reading from stdin %s", err)
+			return err
 		}
-		tempVethName = string(data)
 	}
 
 	// close pipes so that we can replace it with the pty
@@ -61,13 +55,10 @@ func initCommand(container *libcontainer.Container, console string) error {
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
-	if container.Network != nil {
-		if err := setupNetworking(container.Network, tempVethName); err != nil {
-			return fmt.Errorf("setup networking %s", err)
-		}
+	if err := setupNetworking(container.Network, tempVethName); err != nil {
+		return fmt.Errorf("setup networking %s", err)
 	}
-
-	if err := system.Sethostname(container.ID); err != nil {
+	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
 	}
 	if err := capabilities.DropCapabilities(container); err != nil {
@@ -136,43 +127,45 @@ func openTerminal(name string, flag int) (*os.File, error) {
 	return os.NewFile(uintptr(r), name), nil
 }
 
-func setLogFile(container *libcontainer.Container) error {
-	if container.LogFile != "" {
-		f, err := os.OpenFile(container.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0655)
-		if err != nil {
-			return err
+func setupNetworking(config *libcontainer.Network, tempVethName string) error {
+	if config != nil {
+		if err := network.InterfaceDown(tempVethName); err != nil {
+			return fmt.Errorf("interface down %s %s", tempVethName, err)
 		}
-		log.SetOutput(f)
+		if err := network.ChangeInterfaceName(tempVethName, "eth0"); err != nil {
+			return fmt.Errorf("change %s to eth0 %s", tempVethName, err)
+		}
+		if err := network.SetInterfaceIp("eth0", config.IP); err != nil {
+			return fmt.Errorf("set eth0 ip %s", err)
+		}
+		if err := network.SetMtu("eth0", config.Mtu); err != nil {
+			return fmt.Errorf("set eth0 mtu to %d %s", config.Mtu, err)
+		}
+		if err := network.InterfaceUp("eth0"); err != nil {
+			return fmt.Errorf("eth0 up %s", err)
+		}
+		if err := network.SetMtu("lo", config.Mtu); err != nil {
+			return fmt.Errorf("set lo mtu to %d %s", config.Mtu, err)
+		}
+		if err := network.InterfaceUp("lo"); err != nil {
+			return fmt.Errorf("lo up %s", err)
+		}
+		if config.Gateway != "" {
+			if err := network.SetDefaultGateway(config.Gateway); err != nil {
+				return fmt.Errorf("set gateway to %s %s", config.Gateway, err)
+			}
+		}
 	}
 	return nil
 }
 
-func setupNetworking(config *libcontainer.Network, tempVethName string) error {
-	if err := network.InterfaceDown(tempVethName); err != nil {
-		return fmt.Errorf("interface down %s %s", tempVethName, err)
+// getVethName reads from Stdin the temp veth name
+// sent by the parent processes after the veth pair
+// has been created and setup
+func getVethName() (string, error) {
+	data, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		return "", fmt.Errorf("error reading from stdin %s", err)
 	}
-	if err := network.ChangeInterfaceName(tempVethName, "eth0"); err != nil {
-		return fmt.Errorf("change %s to eth0 %s", tempVethName, err)
-	}
-	if err := network.SetInterfaceIp("eth0", config.IP); err != nil {
-		return fmt.Errorf("set eth0 ip %s", err)
-	}
-	if err := network.SetMtu("eth0", config.Mtu); err != nil {
-		return fmt.Errorf("set eth0 mtu to %d %s", config.Mtu, err)
-	}
-	if err := network.InterfaceUp("eth0"); err != nil {
-		return fmt.Errorf("eth0 up %s", err)
-	}
-	if err := network.SetMtu("lo", config.Mtu); err != nil {
-		return fmt.Errorf("set lo mtu to %d %s", config.Mtu, err)
-	}
-	if err := network.InterfaceUp("lo"); err != nil {
-		return fmt.Errorf("lo up %s", err)
-	}
-	if config.Gateway != "" {
-		if err := network.SetDefaultGateway(config.Gateway); err != nil {
-			return fmt.Errorf("set gateway to %s %s", config.Gateway, err)
-		}
-	}
-	return nil
+	return string(data), nil
 }

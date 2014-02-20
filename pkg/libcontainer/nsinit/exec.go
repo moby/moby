@@ -27,6 +27,8 @@ func execCommand(container *libcontainer.Container) (int, error) {
 		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces) | syscall.CLONE_VFORK), // we need CLONE_VFORK so we can wait on the child
 	}
 
+	// create a pipe so that we can syncronize with the namespaced process and
+	// pass the veth name to the child
 	inPipe, err := command.StdinPipe()
 	if err != nil {
 		return -1, err
@@ -39,34 +41,17 @@ func execCommand(container *libcontainer.Container) (int, error) {
 	}
 
 	if container.Network != nil {
-		name1, name2, err := createVethPair()
+		vethPair, err := setupVeth(container.Network.Bridge, command.Process.Pid)
 		if err != nil {
 			return -1, err
 		}
-		if err := network.SetInterfaceMaster(name1, container.Network.Bridge); err != nil {
-			return -1, err
-		}
-		if err := network.InterfaceUp(name1); err != nil {
-			return -1, err
-		}
-		if err := network.SetInterfaceInNamespacePid(name2, command.Process.Pid); err != nil {
-			return -1, err
-		}
-		fmt.Fprint(inPipe, name2)
-		inPipe.Close()
+		sendVethName(vethPair, inPipe)
 	}
 
 	go io.Copy(os.Stdout, master)
 	go io.Copy(master, os.Stdin)
 
-	ws, err := term.GetWinsize(os.Stdin.Fd())
-	if err != nil {
-		return -1, err
-	}
-	if err := term.SetWinsize(master.Fd(), ws); err != nil {
-		return -1, err
-	}
-	state, err := term.SetRawTerminal(os.Stdin.Fd())
+	state, err := setupWindow(master)
 	if err != nil {
 		command.Process.Kill()
 		return -1, err
@@ -79,6 +64,41 @@ func execCommand(container *libcontainer.Container) (int, error) {
 		}
 	}
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+}
+
+func sendVethName(name string, pipe io.WriteCloser) {
+	// write the veth pair name to the child's stdin then close the
+	// pipe so that the child stops waiting
+	fmt.Fprint(pipe, name)
+	pipe.Close()
+}
+
+func setupVeth(bridge string, nspid int) (string, error) {
+	name1, name2, err := createVethPair()
+	if err != nil {
+		return "", err
+	}
+	if err := network.SetInterfaceMaster(name1, bridge); err != nil {
+		return "", err
+	}
+	if err := network.InterfaceUp(name1); err != nil {
+		return "", err
+	}
+	if err := network.SetInterfaceInNamespacePid(name2, nspid); err != nil {
+		return "", err
+	}
+	return name2, nil
+}
+
+func setupWindow(master *os.File) (*term.State, error) {
+	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if err != nil {
+		return nil, err
+	}
+	if err := term.SetWinsize(master.Fd(), ws); err != nil {
+		return nil, err
+	}
+	return term.SetRawTerminal(os.Stdin.Fd())
 }
 
 func createMasterAndConsole() (*os.File, string, error) {

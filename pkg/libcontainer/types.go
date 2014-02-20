@@ -1,29 +1,5 @@
 package libcontainer
 
-type Namespace string
-type Namespaces []Namespace
-
-func (n Namespaces) Contains(ns Namespace) bool {
-	for _, nns := range n {
-		if nns == ns {
-			return true
-		}
-	}
-	return false
-}
-
-type Capability string
-type Capabilities []Capability
-
-func (c Capabilities) Contains(capp Capability) bool {
-	for _, cc := range c {
-		if cc == capp {
-			return true
-		}
-	}
-	return false
-}
-
 const (
 	CAP_SETPCAP        Capability = "SETPCAP"
 	CAP_SYS_MODULE     Capability = "SYS_MODULE"
@@ -47,3 +23,27 @@ const (
 	CLONE_NEWPID  Namespace = "NEWPID"  // pid
 	CLONE_NEWNET  Namespace = "NEWNET"  // network
 )
+
+type Namespace string
+type Namespaces []Namespace
+
+func (n Namespaces) Contains(ns Namespace) bool {
+	for _, nns := range n {
+		if nns == ns {
+			return true
+		}
+	}
+	return false
+}
+
+type Capability string
+type Capabilities []Capability
+
+func (c Capabilities) Contains(capp Capability) bool {
+	for _, cc := range c {
+		if cc == capp {
+			return true
+		}
+	}
+	return false
+}
