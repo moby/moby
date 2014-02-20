@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
@@ -14,49 +13,21 @@ import (
 	"syscall"
 )
 
-func loadContainer() (*libcontainer.Container, error) {
-	f, err := os.Open("container.json")
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var container *libcontainer.Container
-	if err := json.NewDecoder(f).Decode(&container); err != nil {
-		return nil, err
-	}
-	return container, nil
-}
-
-func main() {
-	container, err := loadContainer()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if os.Args[1] == "exec" {
-		_, err := execCommand(container)
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Exit(0)
-	}
-	console := os.Args[1]
-
+func initCommand(container *libcontainer.Container, console string) error {
 	if err := setLogFile(container); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	rootfs, err := resolveRootfs()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var tempVethName string
 	if container.Network != nil {
 		data, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			log.Fatalf("error reading from stdin %s", err)
+			return fmt.Errorf("error reading from stdin %s", err)
 		}
 		tempVethName = string(data)
 	}
@@ -68,48 +39,48 @@ func main() {
 
 	slave, err := openTerminal(console, syscall.O_RDWR)
 	if err != nil {
-		log.Fatalf("open terminal %s", err)
+		return fmt.Errorf("open terminal %s", err)
 	}
 	if slave.Fd() != 0 {
-		log.Fatalf("slave fd should be 0")
+		return fmt.Errorf("slave fd should be 0")
 	}
 	if err := dupSlave(slave); err != nil {
-		log.Fatalf("dup2 slave %s", err)
+		return fmt.Errorf("dup2 slave %s", err)
 	}
 	if _, err := system.Setsid(); err != nil {
-		log.Fatalf("setsid %s", err)
+		return fmt.Errorf("setsid %s", err)
 	}
 	if err := system.Setctty(); err != nil {
-		log.Fatalf("setctty %s", err)
+		return fmt.Errorf("setctty %s", err)
 	}
 	if err := system.ParentDeathSignal(); err != nil {
-		log.Fatalf("parent deth signal %s", err)
+		return fmt.Errorf("parent deth signal %s", err)
 	}
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
-		log.Fatalf("setup mount namespace %s", err)
+		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if container.Network != nil {
 		if err := setupNetworking(container.Network, tempVethName); err != nil {
-			log.Fatalf("setup networking %s", err)
+			return fmt.Errorf("setup networking %s", err)
 		}
 	}
 
 	if err := system.Sethostname(container.ID); err != nil {
-		log.Fatalf("sethostname %s", err)
+		return fmt.Errorf("sethostname %s", err)
 	}
 	if err := capabilities.DropCapabilities(container); err != nil {
-		log.Fatalf("drop capabilities %s", err)
+		return fmt.Errorf("drop capabilities %s", err)
 	}
 	if err := setupUser(container); err != nil {
-		log.Fatalf("setup user %s", err)
+		return fmt.Errorf("setup user %s", err)
 	}
 	if container.WorkingDir != "" {
 		if err := system.Chdir(container.WorkingDir); err != nil {
-			log.Fatalf("chdir to %s %s", container.WorkingDir, err)
+			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
 	if err := system.Exec(container.Command.Args[0], container.Command.Args[0:], container.Command.Env); err != nil {
-		log.Fatalf("exec %s", err)
+		return fmt.Errorf("exec %s", err)
 	}
 	panic("unreachable")
 }

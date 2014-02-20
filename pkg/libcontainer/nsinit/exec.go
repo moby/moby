@@ -8,65 +8,54 @@ import (
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/term"
 	"io"
-	"log"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"syscall"
 )
 
-func execCommand(container *libcontainer.Container) (pid int, err error) {
+func execCommand(container *libcontainer.Container) (int, error) {
 	master, console, err := createMasterAndConsole()
 	if err != nil {
 		return -1, err
 	}
 
-	// we need CLONE_VFORK so we can wait on the child
-	flag := uintptr(getNamespaceFlags(container.Namespaces) | CLONE_VFORK)
-
-	command := exec.Command("nsinit", console)
+	command := exec.Command("nsinit", "init", console)
 	command.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: flag,
+		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces) | syscall.CLONE_VFORK), // we need CLONE_VFORK so we can wait on the child
 	}
 
 	inPipe, err := command.StdinPipe()
 	if err != nil {
 		return -1, err
 	}
-
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
-	pid = command.Process.Pid
+	if err := writePidFile(command); err != nil {
+		return -1, err
+	}
 
 	if container.Network != nil {
 		name1, name2, err := createVethPair()
 		if err != nil {
-			log.Fatal(err)
+			return -1, err
 		}
 		if err := network.SetInterfaceMaster(name1, container.Network.Bridge); err != nil {
-			log.Fatal(err)
+			return -1, err
 		}
 		if err := network.InterfaceUp(name1); err != nil {
-			log.Fatal(err)
+			return -1, err
 		}
-		if err := network.SetInterfaceInNamespacePid(name2, pid); err != nil {
-			log.Fatal(err)
+		if err := network.SetInterfaceInNamespacePid(name2, command.Process.Pid); err != nil {
+			return -1, err
 		}
 		fmt.Fprint(inPipe, name2)
 		inPipe.Close()
 	}
 
-	go func() {
-		if _, err := io.Copy(os.Stdout, master); err != nil {
-			log.Println(err)
-		}
-	}()
-
-	go func() {
-		if _, err := io.Copy(master, os.Stdin); err != nil {
-			log.Println(err)
-		}
-	}()
+	go io.Copy(os.Stdout, master)
+	go io.Copy(master, os.Stdin)
 
 	ws, err := term.GetWinsize(os.Stdin.Fd())
 	if err != nil {
@@ -83,9 +72,11 @@ func execCommand(container *libcontainer.Container) (pid int, err error) {
 	defer term.RestoreTerminal(os.Stdin.Fd(), state)
 
 	if err := command.Wait(); err != nil {
-		return pid, err
+		if _, ok := err.(*exec.ExitError); !ok {
+			return -1, err
+		}
 	}
-	return pid, nil
+	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
 func createMasterAndConsole() (*os.File, string, error) {
@@ -93,12 +84,10 @@ func createMasterAndConsole() (*os.File, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-
 	console, err := system.Ptsname(master)
 	if err != nil {
 		return nil, "", err
 	}
-
 	if err := system.Unlockpt(master); err != nil {
 		return nil, "", err
 	}
@@ -118,4 +107,8 @@ func createVethPair() (name1 string, name2 string, err error) {
 		return
 	}
 	return
+}
+
+func writePidFile(command *exec.Cmd) error {
+	return ioutil.WriteFile(".nspid", []byte(fmt.Sprint(command.Process.Pid)), 0655)
 }
