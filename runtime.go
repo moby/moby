@@ -812,8 +812,8 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	}), nil
 }
 
-func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {
-	return runtime.execDriver.Run(c.command, startCallback)
+func (runtime *Runtime) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return runtime.execDriver.Run(c.command, pipes, startCallback)
 }
 
 func (runtime *Runtime) Kill(c *Container, sig int) error {
