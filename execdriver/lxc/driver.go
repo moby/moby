@@ -77,10 +77,8 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	if c.Terminal != nil {
-		if err := c.Terminal.Attach(pipes); err != nil {
-			return -1, err
-		}
+	if err := execdriver.SetTerminal(c, pipes); err != nil {
+		return -1, err
 	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {

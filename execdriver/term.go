@@ -10,7 +10,6 @@ import (
 type Term interface {
 	io.Closer
 	Resize(height, width int) error
-	Attach(pipes *Pipes) error
 }
 
 type Pipes struct {
@@ -29,15 +28,15 @@ func NewPipes(stdin io.ReadCloser, stdout, stderr io.WriteCloser, useStdin bool)
 	return p
 }
 
-func NewTerminal(command *Command) error {
+func SetTerminal(command *Command, pipes *Pipes) error {
 	var (
 		term Term
 		err  error
 	)
 	if command.Tty {
-		term, err = NewTtyConsole(command)
+		term, err = NewTtyConsole(command, pipes)
 	} else {
-		term, err = NewStdConsole(command)
+		term, err = NewStdConsole(command, pipes)
 	}
 	if err != nil {
 		return err
@@ -47,20 +46,22 @@ func NewTerminal(command *Command) error {
 }
 
 type TtyConsole struct {
-	command *Command
-	Master  *os.File
-	Slave   *os.File
+	Master *os.File
+	Slave  *os.File
 }
 
-func NewTtyConsole(command *Command) (*TtyConsole, error) {
+func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
 	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
 		return nil, err
 	}
 	tty := &TtyConsole{
-		Master:  ptyMaster,
-		Slave:   ptySlave,
-		command: command,
+		Master: ptyMaster,
+		Slave:  ptySlave,
+	}
+	if err := tty.attach(command, pipes); err != nil {
+		tty.Close()
+		return nil, err
 	}
 	return tty, nil
 }
@@ -69,11 +70,10 @@ func (t *TtyConsole) Resize(h, w int) error {
 	return term.SetWinsize(t.Master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
-func (t *TtyConsole) Attach(pipes *Pipes) error {
-	t.command.Stdout = t.Slave
-	t.command.Stderr = t.Slave
-
-	t.command.Console = t.Slave.Name()
+func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
+	command.Stdout = t.Slave
+	command.Stderr = t.Slave
+	command.Console = t.Slave.Name()
 
 	go func() {
 		defer pipes.Stdout.Close()
@@ -81,8 +81,8 @@ func (t *TtyConsole) Attach(pipes *Pipes) error {
 	}()
 
 	if pipes.Stdin != nil {
-		t.command.Stdin = t.Slave
-		t.command.SysProcAttr.Setctty = true
+		command.Stdin = t.Slave
+		command.SysProcAttr.Setctty = true
 
 		go func() {
 			defer pipes.Stdin.Close()
@@ -93,27 +93,28 @@ func (t *TtyConsole) Attach(pipes *Pipes) error {
 }
 
 func (t *TtyConsole) Close() error {
-	err := t.Slave.Close()
-	if merr := t.Master.Close(); err == nil {
-		err = merr
-	}
-	return err
+	t.Slave.Close()
+	return t.Master.Close()
 }
 
 type StdConsole struct {
-	command *Command
 }
 
-func NewStdConsole(command *Command) (*StdConsole, error) {
-	return &StdConsole{command}, nil
+func NewStdConsole(command *Command, pipes *Pipes) (*StdConsole, error) {
+	std := &StdConsole{}
+
+	if err := std.attach(command, pipes); err != nil {
+		return nil, err
+	}
+	return std, nil
 }
 
-func (s *StdConsole) Attach(pipes *Pipes) error {
-	s.command.Stdout = pipes.Stdout
-	s.command.Stderr = pipes.Stderr
+func (s *StdConsole) attach(command *Command, pipes *Pipes) error {
+	command.Stdout = pipes.Stdout
+	command.Stderr = pipes.Stderr
 
 	if pipes.Stdin != nil {
-		stdin, err := s.command.StdinPipe()
+		stdin, err := command.StdinPipe()
 		if err != nil {
 			return err
 		}
