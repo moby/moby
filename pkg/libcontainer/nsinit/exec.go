@@ -22,16 +22,20 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 		return -1, err
 	}
 
-	command := createCommand(container, console, args)
 	// create a pipe so that we can syncronize with the namespaced process and
 	// pass the veth name to the child
-	inPipe, err := command.StdinPipe()
+	r, w, err := os.Pipe()
 	if err != nil {
 		return -1, err
 	}
+	system.UsetCloseOnExec(r.Fd())
+
+	command := createCommand(container, console, r.Fd(), args)
+
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
+
 	if err := writePidFile(command); err != nil {
 		command.Process.Kill()
 		return -1, err
@@ -52,11 +56,11 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 		if err != nil {
 			return -1, err
 		}
-		sendVethName(vethPair, inPipe)
+		sendVethName(vethPair, w)
 	}
 
 	// Sync with child
-	inPipe.Close()
+	w.Close()
 
 	go io.Copy(os.Stdout, master)
 	go io.Copy(master, os.Stdin)
@@ -163,8 +167,8 @@ func deletePidFile() error {
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func createCommand(container *libcontainer.Container, console string, args []string) *exec.Cmd {
-	command := exec.Command("nsinit", append([]string{"-console", console, "init"}, args...)...)
+func createCommand(container *libcontainer.Container, console string, pipe uintptr, args []string) *exec.Cmd {
+	command := exec.Command("nsinit", append([]string{"-console", console, "-pipe", fmt.Sprint(pipe), "init"}, args...)...)
 	command.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces)),
 	}

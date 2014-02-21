@@ -18,6 +18,7 @@ var (
 
 func main() {
 	console := flag.String("console", "", "Console (pty slave) name")
+	pipeFd := flag.Int("pipe", 0, "sync pipe fd")
 	flag.Parse()
 
 	container, err := loadContainer()
@@ -50,7 +51,7 @@ func main() {
 		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := initCommand(container, *console, flag.Args()[1:]); err != nil {
+		if err := initCommand(container, *console, os.NewFile(uintptr(*pipeFd), "pipe"), flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:

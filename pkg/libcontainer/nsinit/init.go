@@ -8,20 +8,21 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
 )
 
-func initCommand(container *libcontainer.Container, console string, args []string) error {
+func initCommand(container *libcontainer.Container, console string, pipe io.ReadCloser, args []string) error {
 	rootfs, err := resolveRootfs()
 	if err != nil {
 		return err
 	}
 
 	// We always read this as it is a way to sync with the parent as well
-	tempVethName, err := getVethName()
+	tempVethName, err := getVethName(pipe)
 	if err != nil {
 		return err
 	}
@@ -164,8 +165,10 @@ func setupVethNetwork(config *libcontainer.Network, tempVethName string) error {
 // getVethName reads from Stdin the temp veth name
 // sent by the parent processes after the veth pair
 // has been created and setup
-func getVethName() (string, error) {
-	data, err := ioutil.ReadAll(os.Stdin)
+func getVethName(pipe io.ReadCloser) (string, error) {
+	defer pipe.Close()
+
+	data, err := ioutil.ReadAll(pipe)
 	if err != nil {
 		return "", fmt.Errorf("error reading from stdin %s", err)
 	}
