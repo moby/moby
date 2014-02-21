@@ -164,7 +164,7 @@ func deletePidFile() error {
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
 func createCommand(container *libcontainer.Container, console string, args []string) *exec.Cmd {
-	command := exec.Command("nsinit", append([]string{"init", console}, args...)...)
+	command := exec.Command("nsinit", append([]string{"-console", console, "init"}, args...)...)
 	command.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces)),
 	}

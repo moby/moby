@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"io/ioutil"
 	"log"
@@ -16,16 +17,18 @@ var (
 )
 
 func main() {
+	console := flag.String("console", "", "Console (pty slave) name")
+	flag.Parse()
+
 	container, err := loadContainer()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	argc := len(os.Args)
-	if argc < 2 {
+	if flag.NArg() < 1 {
 		log.Fatal(ErrWrongArguments)
 	}
-	switch os.Args[1] {
+	switch flag.Arg(0) {
 	case "exec": // this is executed outside of the namespace in the cwd
 		var exitCode int
 		nspid, err := readPid()
@@ -35,23 +38,23 @@ func main() {
 			}
 		}
 		if nspid > 0 {
-			exitCode, err = execinCommand(container, nspid, os.Args[2:])
+			exitCode, err = execinCommand(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = execCommand(container, os.Args[2:])
+			exitCode, err = execCommand(container, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
-		if argc < 3 {
+		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := initCommand(container, os.Args[2], os.Args[3:]); err != nil {
+		if err := initCommand(container, *console, flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:
-		log.Fatalf("command not supported for nsinit %s", os.Args[1])
+		log.Fatalf("command not supported for nsinit %s", flag.Arg(0))
 	}
 }
 
