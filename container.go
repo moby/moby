@@ -10,10 +10,8 @@ import (
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
 	"log"
@@ -57,11 +55,11 @@ type Container struct {
 	Driver         string
 
 	command   *execdriver.Command
+	console   execdriver.Console
 	stdout    *utils.WriteBroadcaster
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
-	ptyMaster io.Closer
 
 	runtime *Runtime
 
@@ -210,56 +208,6 @@ func (container *Container) generateEnvConfig(env []string) error {
 		return err
 	}
 	ioutil.WriteFile(p, data, 0600)
-	return nil
-}
-
-func (container *Container) setupPty() error {
-	ptyMaster, ptySlave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-	container.ptyMaster = ptyMaster
-	container.command.Stdout = ptySlave
-	container.command.Stderr = ptySlave
-	container.command.Console = ptySlave.Name()
-
-	// Copy the PTYs to our broadcasters
-	go func() {
-		defer container.stdout.CloseWriters()
-		utils.Debugf("startPty: begin of stdout pipe")
-		io.Copy(container.stdout, ptyMaster)
-		utils.Debugf("startPty: end of stdout pipe")
-	}()
-
-	// stdin
-	if container.Config.OpenStdin {
-		container.command.Stdin = ptySlave
-		container.command.SysProcAttr.Setctty = true
-		go func() {
-			defer container.stdin.Close()
-			utils.Debugf("startPty: begin of stdin pipe")
-			io.Copy(ptyMaster, container.stdin)
-			utils.Debugf("startPty: end of stdin pipe")
-		}()
-	}
-	return nil
-}
-
-func (container *Container) setupStd() error {
-	container.command.Stdout = container.stdout
-	container.command.Stderr = container.stderr
-	if container.Config.OpenStdin {
-		stdin, err := container.command.StdinPipe()
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer stdin.Close()
-			utils.Debugf("start: begin of stdin pipe")
-			io.Copy(stdin, container.stdin)
-			utils.Debugf("start: end of stdin pipe")
-		}()
-	}
 	return nil
 }
 
@@ -593,14 +541,13 @@ func (container *Container) Start() (err error) {
 	}
 	container.waitLock = make(chan struct{})
 
-	// Setuping pipes and/or Pty
-	var setup func() error
-	if container.Config.Tty {
-		setup = container.setupPty
-	} else {
-		setup = container.setupStd
+	container.console, err = execdriver.NewConsole(
+		container.stdin, container.stdout, container.stderr,
+		container.Config.OpenStdin, container.Config.Tty)
+	if err != nil {
+		return err
 	}
-	if err := setup(); err != nil {
+	if err := container.console.AttachTo(container.command); err != nil {
 		return err
 	}
 
@@ -887,22 +834,20 @@ func (container *Container) cleanup() {
 			link.Disable()
 		}
 	}
-
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
 			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
-	if err := container.stdout.CloseWriters(); err != nil {
+	if err := container.stdout.Close(); err != nil {
 		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
-	if err := container.stderr.CloseWriters(); err != nil {
+	if err := container.stderr.Close(); err != nil {
 		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
-
-	if container.ptyMaster != nil {
-		if err := container.ptyMaster.Close(); err != nil {
-			utils.Errorf("%s: Error closing Pty master: %s", container.ID, err)
+	if container.console != nil {
+		if err := container.console.Close(); err != nil {
+			utils.Errorf("%s: Error closing console: %s", container.ID, err)
 		}
 	}
 
@@ -994,11 +939,7 @@ func (container *Container) Wait() int {
 }
 
 func (container *Container) Resize(h, w int) error {
-	pty, ok := container.ptyMaster.(*os.File)
-	if !ok {
-		return fmt.Errorf("ptyMaster does not have Fd() method")
-	}
-	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return container.console.Resize(h, w)
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
@@ -1202,11 +1143,9 @@ func (container *Container) Exposes(p nat.Port) bool {
 }
 
 func (container *Container) GetPtyMaster() (*os.File, error) {
-	if container.ptyMaster == nil {
+	ttyConsole, ok := container.console.(*execdriver.TtyConsole)
+	if !ok {
 		return nil, ErrNoTTY
 	}
-	if pty, ok := container.ptyMaster.(*os.File); ok {
-		return pty, nil
-	}
-	return nil, ErrNotATTY
+	return ttyConsole.Master, nil
 }
