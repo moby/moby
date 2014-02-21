@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/pkg/term"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -18,7 +19,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container, args []string) (int, error) {
+func Exec(container *libcontainer.Container, logFile string, args []string) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -29,6 +30,7 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 	)
 
 	if container.Tty {
+		log.Printf("setting up master and console")
 		master, console, err = createMasterAndConsole()
 		if err != nil {
 			return -1, err
@@ -43,8 +45,9 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 	}
 	system.UsetCloseOnExec(r.Fd())
 
-	command := createCommand(container, console, r.Fd(), args)
+	command := createCommand(container, console, logFile, r.Fd(), args)
 	if !container.Tty {
+		log.Printf("opening pipes on command")
 		if inPipe, err = command.StdinPipe(); err != nil {
 			return -1, err
 		}
@@ -56,9 +59,11 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 		}
 	}
 
+	log.Printf("staring init")
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
+	log.Printf("writting state file")
 	if err := writePidFile(command); err != nil {
 		command.Process.Kill()
 		return -1, err
@@ -68,6 +73,7 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
 	if container.Cgroups != nil {
+		log.Printf("setting up cgroups")
 		if err := container.Cgroups.Apply(command.Process.Pid); err != nil {
 			command.Process.Kill()
 			return -1, err
@@ -75,18 +81,22 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 	}
 
 	if container.Network != nil {
-		vethPair, err := initializeContainerVeth(container.Network.Bridge, command.Process.Pid)
+		log.Printf("creating veth pair")
+		vethPair, err := initializeContainerVeth(container.Network.Bridge, container.Network.Mtu, command.Process.Pid)
 		if err != nil {
 			return -1, err
 		}
+		log.Printf("sending %s as veth pair name", vethPair)
 		sendVethName(w, vethPair)
 	}
 
 	// Sync with child
+	log.Printf("closing sync pipes")
 	w.Close()
 	r.Close()
 
 	if container.Tty {
+		log.Printf("starting copy for tty")
 		go io.Copy(os.Stdout, master)
 		go io.Copy(master, os.Stdin)
 
@@ -97,6 +107,7 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 		}
 		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	} else {
+		log.Printf("starting copy for std pipes")
 		go func() {
 			defer inPipe.Close()
 			io.Copy(inPipe, os.Stdin)
@@ -105,11 +116,13 @@ func Exec(container *libcontainer.Container, args []string) (int, error) {
 		go io.Copy(os.Stderr, errPipe)
 	}
 
+	log.Printf("waiting on process")
 	if err := command.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return -1, err
 		}
 	}
+	log.Printf("process ended")
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
@@ -126,17 +139,22 @@ func sendVethName(pipe io.Writer, name string) {
 // Then will with set the other side of the veth pair into the container's namespaced
 // using the pid and returns the veth's interface name to provide to the container to
 // finish setting up the interface inside the namespace
-func initializeContainerVeth(bridge string, nspid int) (string, error) {
+func initializeContainerVeth(bridge string, mtu, nspid int) (string, error) {
 	name1, name2, err := createVethPair()
 	if err != nil {
 		return "", err
 	}
+	log.Printf("veth pair created %s <> %s", name1, name2)
 	if err := network.SetInterfaceMaster(name1, bridge); err != nil {
+		return "", err
+	}
+	if err := network.SetMtu(name1, mtu); err != nil {
 		return "", err
 	}
 	if err := network.InterfaceUp(name1); err != nil {
 		return "", err
 	}
+	log.Printf("setting %s inside %d namespace", name2, nspid)
 	if err := network.SetInterfaceInNamespacePid(name2, nspid); err != nil {
 		return "", err
 	}
@@ -200,8 +218,13 @@ func deletePidFile() error {
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func createCommand(container *libcontainer.Container, console string, pipe uintptr, args []string) *exec.Cmd {
-	command := exec.Command("nsinit", append([]string{"-console", console, "-pipe", fmt.Sprint(pipe), "init"}, args...)...)
+func createCommand(container *libcontainer.Container, console, logFile string, pipe uintptr, args []string) *exec.Cmd {
+	command := exec.Command("nsinit", append([]string{
+		"-console", console,
+		"-pipe", fmt.Sprint(pipe),
+		"-log", logFile,
+		"init"}, args...)...)
+
 	command.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces)),
 	}

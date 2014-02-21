@@ -6,6 +6,7 @@ import (
 	"flag"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ import (
 var (
 	console string
 	pipeFd  int
+	logFile string
 )
 
 var (
@@ -24,22 +26,27 @@ var (
 
 func init() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
+	flag.StringVar(&logFile, "log", "none", "log options (none, stderr, or a file path)")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
 
 	flag.Parse()
 }
 
 func main() {
+	if flag.NArg() < 1 {
+		log.Fatal(ErrWrongArguments)
+	}
 	container, err := loadContainer()
 	if err != nil {
 		log.Fatal(err)
 	}
-	if flag.NArg() < 1 {
-		log.Fatal(ErrWrongArguments)
+	if err := setupLogging(); err != nil {
+		log.Fatal(err)
 	}
-
 	switch flag.Arg(0) {
 	case "exec": // this is executed outside of the namespace in the cwd
+		log.SetPrefix("[nsinit exec] ")
+
 		var exitCode int
 		nspid, err := readPid()
 		if err != nil {
@@ -50,17 +57,22 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = nsinit.Exec(container, flag.Args()[1:])
+			exitCode, err = nsinit.Exec(container, logFile, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
+		log.SetPrefix("[nsinit init] ")
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
 		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := nsinit.Init(container, console, os.NewFile(uintptr(pipeFd), "pipe"), flag.Args()[1:]); err != nil {
+		if err := nsinit.Init(container, cwd, console, os.NewFile(uintptr(pipeFd), "pipe"), flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:
@@ -92,4 +104,21 @@ func readPid() (int, error) {
 		return -1, err
 	}
 	return pid, nil
+}
+
+func setupLogging() (err error) {
+	var writer io.Writer
+	switch logFile {
+	case "stderr":
+		writer = os.Stderr
+	case "none", "":
+		writer = ioutil.Discard
+	default:
+		writer, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755)
+		if err != nil {
+			return err
+		}
+	}
+	log.SetOutput(writer)
+	return nil
 }

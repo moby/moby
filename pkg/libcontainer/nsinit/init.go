@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/pkg/system"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -17,19 +18,23 @@ import (
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func Init(container *libcontainer.Container, console string, pipe io.ReadCloser, args []string) error {
-	rootfs, err := resolveRootfs()
+func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe io.ReadCloser, args []string) error {
+	rootfs, err := resolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
 	}
+	log.Printf("initializing namespace at %s", rootfs)
 
 	// We always read this as it is a way to sync with the parent as well
 	tempVethName, err := getVethName(pipe)
 	if err != nil {
 		return err
 	}
-
+	if tempVethName != "" {
+		log.Printf("received veth name %s", tempVethName)
+	}
 	if console != "" {
+		log.Printf("setting up console for %s", console)
 		// close pipes so that we can replace it with the pty
 		os.Stdin.Close()
 		os.Stdout.Close()
@@ -42,7 +47,6 @@ func Init(container *libcontainer.Container, console string, pipe io.ReadCloser,
 			return fmt.Errorf("dup2 slave %s", err)
 		}
 	}
-
 	if _, err := system.Setsid(); err != nil {
 		return fmt.Errorf("setsid %s", err)
 	}
@@ -63,9 +67,11 @@ func Init(container *libcontainer.Container, console string, pipe io.ReadCloser,
 	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
 	}
+	log.Printf("dropping capabilities")
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return fmt.Errorf("drop capabilities %s", err)
 	}
+	log.Printf("setting user in namespace")
 	if err := setupUser(container); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
@@ -74,6 +80,7 @@ func Init(container *libcontainer.Container, console string, pipe io.ReadCloser,
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
+	log.Printf("execing %s goodbye", args[0])
 	if err := system.Exec(args[0], args[0:], container.Env); err != nil {
 		return fmt.Errorf("exec %s", err)
 	}
@@ -82,12 +89,8 @@ func Init(container *libcontainer.Container, console string, pipe io.ReadCloser,
 
 // resolveRootfs ensures that the current working directory is
 // not a symlink and returns the absolute path to the rootfs
-func resolveRootfs() (string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	rootfs, err := filepath.Abs(cwd)
+func resolveRootfs(uncleanRootfs string) (string, error) {
+	rootfs, err := filepath.Abs(uncleanRootfs)
 	if err != nil {
 		return "", err
 	}
