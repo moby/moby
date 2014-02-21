@@ -18,7 +18,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container, tty bool, args []string) (int, error) {
+func Exec(container *libcontainer.Container, args []string) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -28,7 +28,7 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 		outPipe, errPipe io.ReadCloser
 	)
 
-	if tty {
+	if container.Tty {
 		master, console, err = createMasterAndConsole()
 		if err != nil {
 			return -1, err
@@ -44,7 +44,7 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 	system.UsetCloseOnExec(r.Fd())
 
 	command := createCommand(container, console, r.Fd(), args)
-	if !tty {
+	if !container.Tty {
 		if inPipe, err = command.StdinPipe(); err != nil {
 			return -1, err
 		}
@@ -86,7 +86,7 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 	w.Close()
 	r.Close()
 
-	if tty {
+	if container.Tty {
 		go io.Copy(os.Stdout, master)
 		go io.Copy(master, os.Stdin)
 

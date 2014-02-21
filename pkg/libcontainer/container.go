@@ -12,6 +12,7 @@ type Container struct {
 	User         string          `json:"user,omitempty"`         // user to execute the process as
 	WorkingDir   string          `json:"working_dir,omitempty"`  // current working directory
 	Env          []string        `json:"environment,omitempty"`  // environment to set
+	Tty          bool            `json:"tty,omitempty"`          // setup a proper tty or not
 	Namespaces   Namespaces      `json:"namespaces,omitempty"`   // namespaces to apply
 	Capabilities Capabilities    `json:"capabilities,omitempty"` // capabilities to drop
 	Network      *Network        `json:"network,omitempty"`      // nil for host's network stack

@@ -1,5 +1,6 @@
 {
     "hostname": "koye",
+    "tty": true,
     "environment": [
         "HOME=/",
         "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
@@ -38,6 +39,6 @@
     "cgroups": {
         "name": "docker-koye",
         "parent": "docker",
-        "memory": 524800
+        "memory": 5248000
     }
 }

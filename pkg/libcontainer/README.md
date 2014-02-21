@@ -17,6 +17,7 @@ Sample `container.json` file:
 ```json
 {
     "hostname": "koye",
+    "tty": true,
     "environment": [
         "HOME=/",
         "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
@@ -55,7 +56,7 @@ Sample `container.json` file:
     "cgroups": {
         "name": "docker-koye",
         "parent": "docker",
-        "memory": 524800
+        "memory": 5248000
     }
 }
 ```
@@ -72,10 +73,8 @@ rootfs and copy a `container.json` file into the directory with your specified c
 
 To execution `/bin/bash` in the current directory as a container just run:
 ```bash
-nsinit -tty exec /bin/bash
+nsinit exec /bin/bash
 ```
-
-If you want a proper tty setup inside the new container you must use the `-tty` flag when running nsinit.
 
 If you wish to spawn another process inside the container while your current bash session is 
 running just run the exact same command again to get another bash shell or change the command.  If the original process dies, PID 1, all other processes spawned inside the container will also be killed and the namespace will be removed. 

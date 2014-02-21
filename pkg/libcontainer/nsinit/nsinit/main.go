@@ -14,7 +14,6 @@ import (
 
 var (
 	console string
-	tty     bool
 	pipeFd  int
 )
 
@@ -25,7 +24,6 @@ var (
 
 func init() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
-	flag.BoolVar(&tty, "tty", false, "create a tty")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
 
 	flag.Parse()
@@ -52,7 +50,7 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = nsinit.Exec(container, tty, flag.Args()[1:])
+			exitCode, err = nsinit.Exec(container, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
