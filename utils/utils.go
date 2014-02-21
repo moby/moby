@@ -388,7 +388,7 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (w *WriteBroadcaster) Close() error {
+func (w *WriteBroadcaster) CloseWriters() error {
 	w.Lock()
 	defer w.Unlock()
 	for sw := range w.writers {

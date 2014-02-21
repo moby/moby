@@ -110,7 +110,7 @@ func TestWriteBroadcaster(t *testing.T) {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
-	writer.Close()
+	writer.CloseWriters()
 }
 
 type devNullCloser int

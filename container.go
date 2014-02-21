@@ -829,10 +829,10 @@ func (container *Container) cleanup() {
 			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
-	if err := container.stdout.Close(); err != nil {
+	if err := container.stdout.CloseWriters(); err != nil {
 		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
-	if err := container.stderr.Close(); err != nil {
+	if err := container.stderr.CloseWriters(); err != nil {
 		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 	if container.command.Terminal != nil {

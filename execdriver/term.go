@@ -14,10 +14,10 @@ type Term interface {
 
 type Pipes struct {
 	Stdin          io.ReadCloser
-	Stdout, Stderr io.WriteCloser
+	Stdout, Stderr io.Writer
 }
 
-func NewPipes(stdin io.ReadCloser, stdout, stderr io.WriteCloser, useStdin bool) *Pipes {
+func NewPipes(stdin io.ReadCloser, stdout, stderr io.Writer, useStdin bool) *Pipes {
 	p := &Pipes{
 		Stdout: stdout,
 		Stderr: stderr,
@@ -76,7 +76,11 @@ func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
 	command.Console = t.Slave.Name()
 
 	go func() {
-		defer pipes.Stdout.Close()
+		if wb, ok := pipes.Stdout.(interface {
+			CloseWriters() error
+		}); ok {
+			defer wb.CloseWriters()
+		}
 		io.Copy(pipes.Stdout, t.Master)
 	}()
 
