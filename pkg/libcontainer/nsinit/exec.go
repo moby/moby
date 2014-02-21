@@ -99,7 +99,10 @@ func execCommand(container *libcontainer.Container, tty bool, args []string) (in
 		}
 		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	} else {
-		go io.Copy(inPipe, os.Stdin)
+		go func() {
+			defer inPipe.Close()
+			io.Copy(inPipe, os.Stdin)
+		}()
 		go io.Copy(os.Stdout, outPipe)
 		go io.Copy(os.Stderr, errPipe)
 	}
@@ -109,6 +112,7 @@ func execCommand(container *libcontainer.Container, tty bool, args []string) (in
 			return -1, err
 		}
 	}
+
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
