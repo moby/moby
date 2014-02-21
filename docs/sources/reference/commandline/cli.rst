@@ -80,7 +80,7 @@ Commands
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
       -v, --version=false: Print version information and quit
-      -mtu, --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
+      --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
 The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
 daemon and client.  To run the daemon you provide the ``-d`` flag.
