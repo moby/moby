@@ -1133,9 +1133,9 @@ func (container *Container) Exposes(p nat.Port) bool {
 }
 
 func (container *Container) GetPtyMaster() (*os.File, error) {
-	ttyConsole, ok := container.command.Terminal.(*execdriver.TtyConsole)
+	ttyConsole, ok := container.command.Terminal.(execdriver.TtyTerminal)
 	if !ok {
 		return nil, ErrNoTTY
 	}
-	return ttyConsole.Master, nil
+	return ttyConsole.Master(), nil
 }

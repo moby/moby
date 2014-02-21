@@ -1,36 +1,16 @@
-package execdriver
+package lxc
 
 import (
+	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/kr/pty"
 	"io"
 	"os"
 )
 
-type Term interface {
-	io.Closer
-	Resize(height, width int) error
-}
-
-type Pipes struct {
-	Stdin          io.ReadCloser
-	Stdout, Stderr io.Writer
-}
-
-func NewPipes(stdin io.ReadCloser, stdout, stderr io.Writer, useStdin bool) *Pipes {
-	p := &Pipes{
-		Stdout: stdout,
-		Stderr: stderr,
-	}
-	if useStdin {
-		p.Stdin = stdin
-	}
-	return p
-}
-
-func SetTerminal(command *Command, pipes *Pipes) error {
+func SetTerminal(command *execdriver.Command, pipes *execdriver.Pipes) error {
 	var (
-		term Term
+		term execdriver.Terminal
 		err  error
 	)
 	if command.Tty {
@@ -46,18 +26,18 @@ func SetTerminal(command *Command, pipes *Pipes) error {
 }
 
 type TtyConsole struct {
-	Master *os.File
-	Slave  *os.File
+	master *os.File
+	slave  *os.File
 }
 
-func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
+func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
 	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
 		return nil, err
 	}
 	tty := &TtyConsole{
-		Master: ptyMaster,
-		Slave:  ptySlave,
+		master: ptyMaster,
+		slave:  ptySlave,
 	}
 	if err := tty.attach(command, pipes); err != nil {
 		tty.Close()
@@ -66,14 +46,18 @@ func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
 	return tty, nil
 }
 
-func (t *TtyConsole) Resize(h, w int) error {
-	return term.SetWinsize(t.Master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+func (t *TtyConsole) Master() *os.File {
+	return t.master
 }
 
-func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
-	command.Stdout = t.Slave
-	command.Stderr = t.Slave
-	command.Console = t.Slave.Name()
+func (t *TtyConsole) Resize(h, w int) error {
+	return term.SetWinsize(t.master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+}
+
+func (t *TtyConsole) attach(command *execdriver.Command, pipes *execdriver.Pipes) error {
+	command.Stdout = t.slave
+	command.Stderr = t.slave
+	command.Console = t.slave.Name()
 
 	go func() {
 		if wb, ok := pipes.Stdout.(interface {
@@ -81,30 +65,30 @@ func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
 		}); ok {
 			defer wb.CloseWriters()
 		}
-		io.Copy(pipes.Stdout, t.Master)
+		io.Copy(pipes.Stdout, t.master)
 	}()
 
 	if pipes.Stdin != nil {
-		command.Stdin = t.Slave
+		command.Stdin = t.slave
 		command.SysProcAttr.Setctty = true
 
 		go func() {
 			defer pipes.Stdin.Close()
-			io.Copy(t.Master, pipes.Stdin)
+			io.Copy(t.master, pipes.Stdin)
 		}()
 	}
 	return nil
 }
 
 func (t *TtyConsole) Close() error {
-	t.Slave.Close()
-	return t.Master.Close()
+	t.slave.Close()
+	return t.master.Close()
 }
 
 type StdConsole struct {
 }
 
-func NewStdConsole(command *Command, pipes *Pipes) (*StdConsole, error) {
+func NewStdConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*StdConsole, error) {
 	std := &StdConsole{}
 
 	if err := std.attach(command, pipes); err != nil {
@@ -113,7 +97,7 @@ func NewStdConsole(command *Command, pipes *Pipes) (*StdConsole, error) {
 	return std, nil
 }
 
-func (s *StdConsole) attach(command *Command, pipes *Pipes) error {
+func (s *StdConsole) attach(command *execdriver.Command, pipes *execdriver.Pipes) error {
 	command.Stdout = pipes.Stdout
 	command.Stderr = pipes.Stderr
 

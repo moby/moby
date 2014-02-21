@@ -2,6 +2,8 @@ package execdriver
 
 import (
 	"errors"
+	"io"
+	"os"
 	"os/exec"
 )
 
@@ -57,6 +59,18 @@ type Info interface {
 	IsRunning() bool
 }
 
+// Terminal in an interface for drivers to implement
+// if they want to support Close and Resize calls from
+// the core
+type Terminal interface {
+	io.Closer
+	Resize(height, width int) error
+}
+
+type TtyTerminal interface {
+	Master() *os.File
+}
+
 type Driver interface {
 	Run(c *Command, pipes *Pipes, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Command, sig int) error
@@ -99,8 +113,8 @@ type Command struct {
 	Config     []string   `json:"config"`  //  generic values that specific drivers can consume
 	Resources  *Resources `json:"resources"`
 
-	Terminal Term   `json:"-"`
-	Console  string `json:"-"`
+	Terminal Terminal `json:"-"` // standard or tty terminal
+	Console  string   `json:"-"` // dev/console path
 }
 
 // Return the pid of the process
