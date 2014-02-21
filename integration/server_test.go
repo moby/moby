@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
