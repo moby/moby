@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/runtime/execdriver"
+	"github.com/dotcloud/docker/utils"
 	"os"
 )
 
@@ -57,6 +58,19 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Cgroups.CpuShares = c.Resources.CpuShares
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
+	}
+
+	if opts, ok := c.Config["unit"]; ok {
+		props := [][2]string{}
+		for _, opt := range opts {
+			key, value, err := utils.ParseKeyValueOpt(opt)
+			if err == nil {
+				props = append(props, [2]string{key, value})
+			} else {
+				props = append(props, [2]string{opt, ""})
+			}
+		}
+		container.Cgroups.UnitProperties = props
 	}
 
 	// check to see if we are running in ramdisk to disable pivot root
