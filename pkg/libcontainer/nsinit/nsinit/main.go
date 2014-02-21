@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"io/ioutil"
 	"log"
 	"os"
@@ -42,9 +43,9 @@ func main() {
 			}
 		}
 		if nspid > 0 {
-			exitCode, err = execinCommand(container, nspid, flag.Args()[1:])
+			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = execCommand(container, *tty, flag.Args()[1:])
+			exitCode, err = nsinit.Exec(container, *tty, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -54,7 +55,7 @@ func main() {
 		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := initCommand(container, *console, os.NewFile(uintptr(*pipeFd), "pipe"), flag.Args()[1:]); err != nil {
+		if err := nsinit.Init(container, *console, os.NewFile(uintptr(*pipeFd), "pipe"), flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:

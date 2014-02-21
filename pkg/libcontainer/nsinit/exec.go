@@ -1,6 +1,6 @@
 // +build linux
 
-package main
+package nsinit
 
 import (
 	"fmt"
@@ -16,7 +16,9 @@ import (
 	"syscall"
 )
 
-func execCommand(container *libcontainer.Container, tty bool, args []string) (int, error) {
+// Exec performes setup outside of a namespace so that a container can be
+// executed.  Exec is a high level function for working with container namespaces.
+func Exec(container *libcontainer.Container, tty bool, args []string) (int, error) {
 	var (
 		master  *os.File
 		console string

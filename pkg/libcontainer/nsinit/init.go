@@ -1,6 +1,6 @@
 // +build linux
 
-package main
+package nsinit
 
 import (
 	"fmt"
@@ -15,7 +15,9 @@ import (
 	"syscall"
 )
 
-func initCommand(container *libcontainer.Container, console string, pipe io.ReadCloser, args []string) error {
+// Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
+// and other options required for the new container.
+func Init(container *libcontainer.Container, console string, pipe io.ReadCloser, args []string) error {
 	rootfs, err := resolveRootfs()
 	if err != nil {
 		return err

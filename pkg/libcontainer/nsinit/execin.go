@@ -1,4 +1,4 @@
-package main
+package nsinit
 
 import (
 	"fmt"
@@ -11,7 +11,8 @@ import (
 	"syscall"
 )
 
-func execinCommand(container *libcontainer.Container, nspid int, args []string) (int, error) {
+// ExecIn uses an existing pid and joins the pid's namespaces with the new command.
+func ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
 	for _, ns := range container.Namespaces {
 		if err := system.Unshare(namespaceMap[ns]); err != nil {
 			return -1, err
