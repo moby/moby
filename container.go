@@ -55,7 +55,6 @@ type Container struct {
 	Driver         string
 
 	command   *execdriver.Command
-	console   execdriver.Console
 	stdout    *utils.WriteBroadcaster
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
@@ -531,6 +530,9 @@ func (container *Container) Start() (err error) {
 	}
 
 	populateCommand(container)
+	if err := execdriver.NewTerminal(container.command); err != nil {
+		return err
+	}
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -540,16 +542,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	container.waitLock = make(chan struct{})
-
-	container.console, err = execdriver.NewConsole(
-		container.stdin, container.stdout, container.stderr,
-		container.Config.OpenStdin, container.Config.Tty)
-	if err != nil {
-		return err
-	}
-	if err := container.console.AttachTo(container.command); err != nil {
-		return err
-	}
 
 	callbackLock := make(chan struct{})
 	callback := func(command *execdriver.Command) {
@@ -790,7 +782,8 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		populateCommand(container)
 		err = container.runtime.RestoreCommand(container)
 	} else {
-		exitCode, err = container.runtime.Run(container, callback)
+		pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
+		exitCode, err = container.runtime.Run(container, pipes, callback)
 	}
 
 	if err != nil {
@@ -845,9 +838,9 @@ func (container *Container) cleanup() {
 	if err := container.stderr.Close(); err != nil {
 		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
-	if container.console != nil {
-		if err := container.console.Close(); err != nil {
-			utils.Errorf("%s: Error closing console: %s", container.ID, err)
+	if container.command.Terminal != nil {
+		if err := container.command.Terminal.Close(); err != nil {
+			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
@@ -939,7 +932,7 @@ func (container *Container) Wait() int {
 }
 
 func (container *Container) Resize(h, w int) error {
-	return container.console.Resize(h, w)
+	return container.command.Terminal.Resize(h, w)
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
@@ -1143,7 +1136,7 @@ func (container *Container) Exposes(p nat.Port) bool {
 }
 
 func (container *Container) GetPtyMaster() (*os.File, error) {
-	ttyConsole, ok := container.console.(*execdriver.TtyConsole)
+	ttyConsole, ok := container.command.Terminal.(*execdriver.TtyConsole)
 	if !ok {
 		return nil, ErrNoTTY
 	}

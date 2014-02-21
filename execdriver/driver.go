@@ -58,7 +58,7 @@ type Info interface {
 }
 
 type Driver interface {
-	Run(c *Command, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
+	Run(c *Command, pipes *Pipes, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Command, sig int) error
 	Restore(c *Command) error                     // Wait and try to re-attach on an out of process command
 	Name() string                                 // Driver name
@@ -82,7 +82,6 @@ type Resources struct {
 }
 
 // Process wrapps an os/exec.Cmd to add more metadata
-// TODO: Rename to Command
 type Command struct {
 	exec.Cmd `json:"-"`
 
@@ -100,7 +99,8 @@ type Command struct {
 	Config     []string   `json:"config"`  //  generic values that specific drivers can consume
 	Resources  *Resources `json:"resources"`
 
-	Console string `json:"-"`
+	Terminal Term   `json:"-"`
+	Console  string `json:"-"`
 }
 
 // Return the pid of the process

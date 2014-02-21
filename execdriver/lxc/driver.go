@@ -76,7 +76,12 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
-func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	if c.Terminal != nil {
+		if err := c.Terminal.Attach(pipes); err != nil {
+			return -1, err
+		}
+	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
 		return -1, err
