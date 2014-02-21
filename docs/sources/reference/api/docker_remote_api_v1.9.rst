@@ -993,12 +993,12 @@ Search images
 2.3 Misc
 --------
 
-Build an image from Dockerfile via stdin
-****************************************
+Build an image from Dockerfile
+******************************
 
 .. http:post:: /build
 
-   Build an image from Dockerfile via stdin
+   Build an image from Dockerfile using a POST body.
 
    **Example request**:
 
@@ -1032,6 +1032,7 @@ Build an image from Dockerfile via stdin
    :query t: repository name (and optionally a tag) to be applied to the resulting image in case of success
    :query q: suppress verbose build output
    :query nocache: do not use the cache when building the image
+   :query rm: Remove intermediate containers after a successful build
    :reqheader Content-type: should be set to ``"application/tar"``.
    :reqheader X-Registry-Config: base64-encoded ConfigFile object
    :statuscode 200: no error
