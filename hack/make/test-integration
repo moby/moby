@@ -9,4 +9,8 @@ bundle_test_integration() {
 		"-coverpkg $(find_dirs '*.go' | sed 's,^\.,github.com/dotcloud/docker,g' | paste -d, -s)"
 }
 
-bundle_test_integration 2>&1 | tee $DEST/test.log
+# this "grep" hides some really irritating warnings that "go test -coverpkg"
+# spews when it is given packages that aren't used
+bundle_test_integration 2>&1 \
+	| grep -v '^warning: no packages being tested depend on ' \
+	| tee $DEST/test.log
