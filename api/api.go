@@ -912,6 +912,8 @@ func postBuild(eng *engine.Engine, version float64, w http.ResponseWriter, r *ht
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
 	job.Setenv("rm", r.FormValue("rm"))
+	job.SetenvJson("authConfig", authConfig)
+	job.SetenvJson("configFile", configFile)
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
