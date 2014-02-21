@@ -13,26 +13,33 @@ import (
 )
 
 var (
+	console string
+	tty     bool
+	pipeFd  int
+)
+
+var (
 	ErrUnsupported    = errors.New("Unsupported method")
 	ErrWrongArguments = errors.New("Wrong argument count")
 )
 
-func main() {
-	var (
-		console = flag.String("console", "", "Console (pty slave) name")
-		tty     = flag.Bool("tty", false, "Create a tty")
-		pipeFd  = flag.Int("pipe", 0, "sync pipe fd")
-	)
-	flag.Parse()
+func init() {
+	flag.StringVar(&console, "console", "", "console (pty slave) path")
+	flag.BoolVar(&tty, "tty", false, "create a tty")
+	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
 
+	flag.Parse()
+}
+
+func main() {
 	container, err := loadContainer()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	if flag.NArg() < 1 {
 		log.Fatal(ErrWrongArguments)
 	}
+
 	switch flag.Arg(0) {
 	case "exec": // this is executed outside of the namespace in the cwd
 		var exitCode int
@@ -45,7 +52,7 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = nsinit.Exec(container, *tty, flag.Args()[1:])
+			exitCode, err = nsinit.Exec(container, tty, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -55,7 +62,7 @@ func main() {
 		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := nsinit.Init(container, *console, os.NewFile(uintptr(*pipeFd), "pipe"), flag.Args()[1:]); err != nil {
+		if err := nsinit.Init(container, console, os.NewFile(uintptr(pipeFd), "pipe"), flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:

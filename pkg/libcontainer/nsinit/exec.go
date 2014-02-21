@@ -44,18 +44,14 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 	system.UsetCloseOnExec(r.Fd())
 
 	command := createCommand(container, console, r.Fd(), args)
-
 	if !tty {
-		inPipe, err = command.StdinPipe()
-		if err != nil {
+		if inPipe, err = command.StdinPipe(); err != nil {
 			return -1, err
 		}
-		outPipe, err = command.StdoutPipe()
-		if err != nil {
+		if outPipe, err = command.StdoutPipe(); err != nil {
 			return -1, err
 		}
-		errPipe, err = command.StderrPipe()
-		if err != nil {
+		if errPipe, err = command.StderrPipe(); err != nil {
 			return -1, err
 		}
 	}
@@ -63,7 +59,6 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
-
 	if err := writePidFile(command); err != nil {
 		command.Process.Kill()
 		return -1, err
@@ -94,6 +89,7 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 	if tty {
 		go io.Copy(os.Stdout, master)
 		go io.Copy(master, os.Stdin)
+
 		state, err := setupWindow(master)
 		if err != nil {
 			command.Process.Kill()
@@ -114,7 +110,6 @@ func Exec(container *libcontainer.Container, tty bool, args []string) (int, erro
 			return -1, err
 		}
 	}
-
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 

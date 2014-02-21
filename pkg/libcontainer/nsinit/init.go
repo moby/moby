@@ -173,7 +173,6 @@ func setupVethNetwork(config *libcontainer.Network, tempVethName string) error {
 // has been created and setup
 func getVethName(pipe io.ReadCloser) (string, error) {
 	defer pipe.Close()
-
 	data, err := ioutil.ReadAll(pipe)
 	if err != nil {
 		return "", fmt.Errorf("error reading from stdin %s", err)
