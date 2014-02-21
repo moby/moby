@@ -27,23 +27,27 @@ func initCommand(container *libcontainer.Container, console string, pipe io.Read
 		return err
 	}
 
-	// close pipes so that we can replace it with the pty
-	os.Stdin.Close()
-	os.Stdout.Close()
-	os.Stderr.Close()
+	if console != "" {
+		// close pipes so that we can replace it with the pty
+		os.Stdin.Close()
+		os.Stdout.Close()
+		os.Stderr.Close()
+		slave, err := openTerminal(console, syscall.O_RDWR)
+		if err != nil {
+			return fmt.Errorf("open terminal %s", err)
+		}
+		if err := dupSlave(slave); err != nil {
+			return fmt.Errorf("dup2 slave %s", err)
+		}
+	}
 
-	slave, err := openTerminal(console, syscall.O_RDWR)
-	if err != nil {
-		return fmt.Errorf("open terminal %s", err)
-	}
-	if err := dupSlave(slave); err != nil {
-		return fmt.Errorf("dup2 slave %s", err)
-	}
 	if _, err := system.Setsid(); err != nil {
 		return fmt.Errorf("setsid %s", err)
 	}
-	if err := system.Setctty(); err != nil {
-		return fmt.Errorf("setctty %s", err)
+	if console != "" {
+		if err := system.Setctty(); err != nil {
+			return fmt.Errorf("setctty %s", err)
+		}
 	}
 	if err := system.ParentDeathSignal(); err != nil {
 		return fmt.Errorf("parent deth signal %s", err)

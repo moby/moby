@@ -17,8 +17,11 @@ var (
 )
 
 func main() {
-	console := flag.String("console", "", "Console (pty slave) name")
-	pipeFd := flag.Int("pipe", 0, "sync pipe fd")
+	var (
+		console = flag.String("console", "", "Console (pty slave) name")
+		tty     = flag.Bool("tty", false, "Create a tty")
+		pipeFd  = flag.Int("pipe", 0, "sync pipe fd")
+	)
 	flag.Parse()
 
 	container, err := loadContainer()
@@ -41,7 +44,7 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = execinCommand(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = execCommand(container, flag.Args()[1:])
+			exitCode, err = execCommand(container, *tty, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)

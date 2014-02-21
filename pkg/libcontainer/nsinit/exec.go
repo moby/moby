@@ -16,10 +16,21 @@ import (
 	"syscall"
 )
 
-func execCommand(container *libcontainer.Container, args []string) (int, error) {
-	master, console, err := createMasterAndConsole()
-	if err != nil {
-		return -1, err
+func execCommand(container *libcontainer.Container, tty bool, args []string) (int, error) {
+	var (
+		master  *os.File
+		console string
+		err     error
+
+		inPipe           io.WriteCloser
+		outPipe, errPipe io.ReadCloser
+	)
+
+	if tty {
+		master, console, err = createMasterAndConsole()
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	// create a pipe so that we can syncronize with the namespaced process and
@@ -31,6 +42,21 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 	system.UsetCloseOnExec(r.Fd())
 
 	command := createCommand(container, console, r.Fd(), args)
+
+	if !tty {
+		inPipe, err = command.StdinPipe()
+		if err != nil {
+			return -1, err
+		}
+		outPipe, err = command.StdoutPipe()
+		if err != nil {
+			return -1, err
+		}
+		errPipe, err = command.StderrPipe()
+		if err != nil {
+			return -1, err
+		}
+	}
 
 	if err := command.Start(); err != nil {
 		return -1, err
@@ -63,15 +89,20 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 	w.Close()
 	r.Close()
 
-	go io.Copy(os.Stdout, master)
-	go io.Copy(master, os.Stdin)
-
-	state, err := setupWindow(master)
-	if err != nil {
-		command.Process.Kill()
-		return -1, err
+	if tty {
+		go io.Copy(os.Stdout, master)
+		go io.Copy(master, os.Stdin)
+		state, err := setupWindow(master)
+		if err != nil {
+			command.Process.Kill()
+			return -1, err
+		}
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
+	} else {
+		go io.Copy(inPipe, os.Stdin)
+		go io.Copy(os.Stdout, outPipe)
+		go io.Copy(os.Stderr, errPipe)
 	}
-	defer term.RestoreTerminal(os.Stdin.Fd(), state)
 
 	if err := command.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
