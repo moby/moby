@@ -124,3 +124,125 @@ func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 func writeFile(dir, file, data string) error {
 	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
+
+func (c *Cgroup) Apply(pid int) error {
+	// We have two implementation of cgroups support, one is based on
+	// systemd and the dbus api, and one is based on raw cgroup fs operations
+	// following the pre-single-writer model docs at:
+	// http://www.freedesktop.org/wiki/Software/systemd/PaxControlGroups/
+	//
+	// we can pick any subsystem to find the root
+	cgroupRoot, err := FindCgroupMountpoint("memory")
+	if err != nil {
+		return err
+	}
+	cgroupRoot = filepath.Dir(cgroupRoot)
+
+	if _, err := os.Stat(cgroupRoot); err != nil {
+		return fmt.Errorf("cgroups fs not found")
+	}
+	if err := c.setupDevices(cgroupRoot, pid); err != nil {
+		return err
+	}
+	if err := c.setupMemory(cgroupRoot, pid); err != nil {
+		return err
+	}
+	if err := c.setupCpu(cgroupRoot, pid); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Cgroup) setupDevices(cgroupRoot string, pid int) (err error) {
+	if !c.DeviceAccess {
+		dir, err := c.Join(cgroupRoot, "devices", pid)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			if err != nil {
+				os.RemoveAll(dir)
+			}
+		}()
+
+		if err := writeFile(dir, "devices.deny", "a"); err != nil {
+			return err
+		}
+
+		allow := []string{
+			// /dev/null, zero, full
+			"c 1:3 rwm",
+			"c 1:5 rwm",
+			"c 1:7 rwm",
+
+			// consoles
+			"c 5:1 rwm",
+			"c 5:0 rwm",
+			"c 4:0 rwm",
+			"c 4:1 rwm",
+
+			// /dev/urandom,/dev/random
+			"c 1:9 rwm",
+			"c 1:8 rwm",
+
+			// /dev/pts/ - pts namespaces are "coming soon"
+			"c 136:* rwm",
+			"c 5:2 rwm",
+
+			// tuntap
+			"c 10:200 rwm",
+		}
+
+		for _, val := range allow {
+			if err := writeFile(dir, "devices.allow", val); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Cgroup) setupMemory(cgroupRoot string, pid int) (err error) {
+	if c.Memory != 0 || c.MemorySwap != 0 {
+		dir, err := c.Join(cgroupRoot, "memory", pid)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err != nil {
+				os.RemoveAll(dir)
+			}
+		}()
+
+		if c.Memory != 0 {
+			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(c.Memory, 10)); err != nil {
+				return err
+			}
+			if err := writeFile(dir, "memory.soft_limit_in_bytes", strconv.FormatInt(c.Memory, 10)); err != nil {
+				return err
+			}
+		}
+		if c.MemorySwap != 0 {
+			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.MemorySwap, 10)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Cgroup) setupCpu(cgroupRoot string, pid int) (err error) {
+	// We always want to join the cpu group, to allow fair cpu scheduling
+	// on a container basis
+	dir, err := c.Join(cgroupRoot, "cpu", pid)
+	if err != nil {
+		return err
+	}
+	if c.CpuShares != 0 {
+		if err := writeFile(dir, "cpu.shares", strconv.FormatInt(c.CpuShares, 10)); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/cgroup"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
@@ -41,9 +40,11 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	if err := cgroup.ApplyCgroup(container, command.Process.Pid); err != nil {
-		command.Process.Kill()
-		return -1, err
+	if container.Cgroups != nil {
+		if err := container.Cgroups.Apply(command.Process.Pid); err != nil {
+			command.Process.Kill()
+			return -1, err
+		}
 	}
 
 	if container.Network != nil {
