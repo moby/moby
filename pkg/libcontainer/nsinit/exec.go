@@ -56,11 +56,12 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 		if err != nil {
 			return -1, err
 		}
-		sendVethName(vethPair, w)
+		sendVethName(w, vethPair)
 	}
 
 	// Sync with child
 	w.Close()
+	r.Close()
 
 	go io.Copy(os.Stdout, master)
 	go io.Copy(master, os.Stdin)
@@ -82,7 +83,7 @@ func execCommand(container *libcontainer.Container, args []string) (int, error) 
 
 // sendVethName writes the veth pair name to the child's stdin then closes the
 // pipe so that the child stops waiting for more data
-func sendVethName(name string, pipe io.WriteCloser) {
+func sendVethName(pipe io.Writer, name string) {
 	fmt.Fprint(pipe, name)
 }
 
