@@ -261,6 +261,64 @@ incoming connections on the Docker port (default 4243):
 
 .. _installmirrors:
 
+Docker and local DNS server warnings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Systems which are running Ubuntu or an Ubuntu derivative on the desktop will
+use `127.0.0.1` as the default nameserver in `/etc/resolv.conf`. NetworkManager
+sets up dnsmasq to use the real DNS servers of the connection and sets up
+`nameserver 127.0.0.1` in `/etc/resolv.conf`.
+
+When starting containers on these desktop machines, users will see a warning:
+
+.. code-block:: bash
+
+  WARNING: Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : [8.8.8.8 8.8.4.4]
+
+This warning is shown because the containers can't use the local DNS nameserver
+and Docker will default to using an external nameserver.
+
+This can be worked around by specifying a DNS server to be used by the Docker
+daemon for the containers:
+
+.. code-block:: bash
+
+   sudo nano /etc/default/docker
+   ---
+   # Add:
+   DOCKER_OPTS="-dns 8.8.8.8"
+   # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
+   # multiple DNS servers can be specified: -dns 8.8.8.8 -dns 192.168.1.1
+
+The Docker daemon has to be restarted:
+
+.. code-block:: bash
+
+    sudo restart docker
+
+.. warning:: If you're doing this on a laptop which connects to various networks, make sure to choose a public DNS server.
+
+An alternative solution involves disabling dnsmasq in NetworkManager by
+following these steps:
+
+.. code-block:: bash
+
+    sudo nano /etc/NetworkManager/NetworkManager.conf
+    ----
+    # Change:
+    dns=dnsmasq
+    # to
+    #dns=dnsmasq
+
+NetworkManager and Docker need to be restarted afterwards:
+
+.. code-block:: bash
+
+    sudo restart network-manager
+    sudo restart docker
+
+.. warning:: This might make DNS resolution slower on some networks.
+
 Mirrors
 ^^^^^^^
 
