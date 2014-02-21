@@ -197,6 +197,8 @@ is given as ``URL``, then no context is set.  When a Git repository is set as
 ``URL``, then the repository is used as the context. Git repositories are
 cloned with their submodules (`git clone --recursive`).
 
+.. note:: ``docker build --rm`` does not affect the image cache which is used to accelerate builds, it only removes the duplicate writeable container layers.
+
 .. _cli_build_examples:
 
 .. seealso:: :ref:`dockerbuilder`.
@@ -206,7 +208,7 @@ Examples:
 
 .. code-block:: bash
 
-    $ sudo docker build .
+    $ sudo docker build --rm .
     Uploading context 10240 bytes
     Step 1 : FROM busybox
     Pulling repository busybox
@@ -229,6 +231,9 @@ Examples:
      ---> Running in 02071fceb21b
      ---> f52f38b7823e
     Successfully built f52f38b7823e
+    Removing intermediate container 9c9e81692ae9
+    Removing intermediate container 02071fceb21b
+
 
 This example specifies that the ``PATH`` is ``.``, and so all the files in
 the local directory get tar'd and sent to the Docker daemon.  The ``PATH``
@@ -242,6 +247,10 @@ client side (where you're running ``docker build``). That means that
 The transfer of context from the local machine to the Docker daemon is
 what the ``docker`` client means when you see the "Uploading context"
 message.
+
+The ``--rm`` option tells Docker to remove the intermediate containers and 
+layers that were used to create each image layer. Doing so has no impact on
+the image build cache.
 
 
 .. code-block:: bash
