@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -203,7 +204,11 @@ type dockerTtyTerm struct {
 }
 
 func (t *dockerTtyTerm) Attach(cmd *exec.Cmd) error {
-	return t.AttachPipes(cmd, t.pipes)
+	go io.Copy(t.pipes.Stdout, t.MasterPty)
+	if t.pipes.Stdin != nil {
+		go io.Copy(t.MasterPty, t.pipes.Stdin)
+	}
+	return nil
 }
 
 func (t *dockerTtyTerm) SetMaster(master *os.File) {
