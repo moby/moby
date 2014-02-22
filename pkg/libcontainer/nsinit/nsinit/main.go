@@ -74,7 +74,11 @@ func main() {
 		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := nsinit.Init(container, cwd, console, os.NewFile(uintptr(pipeFd), "pipe"), flag.Args()[1:]); err != nil {
+		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := nsinit.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:

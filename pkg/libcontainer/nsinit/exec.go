@@ -3,7 +3,6 @@
 package nsinit
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
@@ -28,11 +27,10 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 
 	// create a pipe so that we can syncronize with the namespaced process and
 	// pass the veth name to the child
-	r, w, err := os.Pipe()
+	syncPipe, err := NewSyncPipe()
 	if err != nil {
 		return -1, err
 	}
-	system.UsetCloseOnExec(r.Fd())
 
 	if container.Tty {
 		log.Printf("setting up master and console")
@@ -42,8 +40,7 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 		}
 	}
 
-	command := CreateCommand(container, console, logFile, r.Fd(), args)
-
+	command := CreateCommand(container, console, logFile, syncPipe.child.Fd(), args)
 	if container.Tty {
 		log.Printf("starting copy for tty")
 		go io.Copy(stdout, master)
@@ -79,15 +76,14 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 		command.Process.Kill()
 		return -1, err
 	}
-	if err := InitializeNetworking(container, command.Process.Pid, w); err != nil {
+	if err := InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
 
 	// Sync with child
 	log.Printf("closing sync pipes")
-	w.Close()
-	r.Close()
+	syncPipe.Close()
 
 	log.Printf("waiting on process")
 	if err := command.Wait(); err != nil {
@@ -109,7 +105,7 @@ func SetupCgroups(container *libcontainer.Container, nspid int) error {
 	return nil
 }
 
-func InitializeNetworking(container *libcontainer.Container, nspid int, pipe io.Writer) error {
+func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
 	if container.Network != nil {
 		log.Printf("creating host network configuration type %s", container.Network.Type)
 		strategy, err := network.GetStrategy(container.Network.Type)
@@ -121,21 +117,10 @@ func InitializeNetworking(container *libcontainer.Container, nspid int, pipe io.
 			return err
 		}
 		log.Printf("sending %v as network context", networkContext)
-		if err := SendContext(pipe, networkContext); err != nil {
+		if err := pipe.SendToChild(networkContext); err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-// SendContext writes the veth pair name to the child's stdin then closes the
-// pipe so that the child stops waiting for more data
-func SendContext(pipe io.Writer, context libcontainer.Context) error {
-	data, err := json.Marshal(context)
-	if err != nil {
-		return err
-	}
-	pipe.Write(data)
 	return nil
 }
 

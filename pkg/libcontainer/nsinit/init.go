@@ -3,14 +3,11 @@
 package nsinit
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -20,7 +17,7 @@ import (
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe io.ReadCloser, args []string) error {
+func Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
 	rootfs, err := resolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
@@ -28,16 +25,18 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe
 	log.Printf("initializing namespace at %s", rootfs)
 
 	// We always read this as it is a way to sync with the parent as well
-	context, err := GetContextFromParent(pipe)
+	context, err := syncPipe.ReadFromParent()
 	if err != nil {
+		syncPipe.Close()
 		return err
 	}
+	syncPipe.Close()
+	log.Printf("received context from parent %v", context)
+
 	if console != "" {
 		log.Printf("setting up console for %s", console)
 		// close pipes so that we can replace it with the pty
-		os.Stdin.Close()
-		os.Stdout.Close()
-		os.Stderr.Close()
+		closeStdPipes()
 		slave, err := openTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
@@ -79,16 +78,25 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
+	return execArgs(args, container.Env)
+}
+
+func execArgs(args []string, env []string) error {
 	name, err := exec.LookPath(args[0])
 	if err != nil {
 		return err
 	}
-
 	log.Printf("execing %s goodbye", name)
-	if err := system.Exec(name, args[0:], container.Env); err != nil {
+	if err := system.Exec(name, args[0:], env); err != nil {
 		return fmt.Errorf("exec %s", err)
 	}
 	panic("unreachable")
+}
+
+func closeStdPipes() {
+	os.Stdin.Close()
+	os.Stdout.Close()
+	os.Stderr.Close()
 }
 
 // resolveRootfs ensures that the current working directory is
@@ -152,20 +160,4 @@ func setupNetwork(config *libcontainer.Network, context libcontainer.Context) er
 		return strategy.Initialize(config, context)
 	}
 	return nil
-}
-
-func GetContextFromParent(pipe io.ReadCloser) (libcontainer.Context, error) {
-	defer pipe.Close()
-	data, err := ioutil.ReadAll(pipe)
-	if err != nil {
-		return nil, fmt.Errorf("error reading from stdin %s", err)
-	}
-	var context libcontainer.Context
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &context); err != nil {
-			return nil, err
-		}
-		log.Printf("received context %v", context)
-	}
-	return context, nil
 }
