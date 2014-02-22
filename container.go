@@ -530,6 +530,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	populateCommand(container)
+	container.command.Env = env
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {

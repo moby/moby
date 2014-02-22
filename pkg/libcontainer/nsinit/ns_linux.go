@@ -28,7 +28,7 @@ var namespaceFileMap = map[libcontainer.Namespace]string{
 
 // getNamespaceFlags parses the container's Namespaces options to set the correct
 // flags on clone, unshare, and setns
-func getNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
+func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
 	for _, ns := range namespaces {
 		flag |= namespaceMap[ns]
 	}
