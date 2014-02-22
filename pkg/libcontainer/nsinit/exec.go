@@ -230,5 +230,6 @@ func createCommand(container *libcontainer.Container, console, logFile string, p
 	command.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(getNamespaceFlags(container.Namespaces)),
 	}
+	command.Env = container.Env
 	return command
 }

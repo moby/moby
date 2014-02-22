@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 )
@@ -80,8 +81,13 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
-	log.Printf("execing %s goodbye", args[0])
-	if err := system.Exec(args[0], args[0:], container.Env); err != nil {
+	name, err := exec.LookPath(args[0])
+	if err != nil {
+		return err
+	}
+
+	log.Printf("execing %s goodbye", name)
+	if err := system.Exec(name, args[0:], container.Env); err != nil {
 		return fmt.Errorf("exec %s", err)
 	}
 	panic("unreachable")
