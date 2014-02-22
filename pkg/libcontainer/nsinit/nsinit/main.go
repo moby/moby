@@ -57,7 +57,9 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = nsinit.Exec(container, logFile, flag.Args()[1:])
+			exitCode, err = nsinit.Exec(container,
+				os.Stdin, os.Stdout, os.Stderr,
+				logFile, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
