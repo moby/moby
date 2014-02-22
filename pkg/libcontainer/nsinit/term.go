@@ -11,6 +11,7 @@ type Terminal interface {
 	io.Closer
 	SetMaster(*os.File)
 	Attach(*exec.Cmd) error
+	Resize(h, w int) error
 }
 
 func NewTerminal(stdin io.Reader, stdout, stderr io.Writer, tty bool) Terminal {
@@ -33,6 +34,10 @@ type TtyTerminal struct {
 	stdout, stderr io.Writer
 	master         *os.File
 	state          *term.State
+}
+
+func (t *TtyTerminal) Resize(h, w int) error {
+	return term.SetWinsize(t.master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
 func (t *TtyTerminal) SetMaster(master *os.File) {
@@ -80,6 +85,10 @@ func (s *StdTerminal) SetMaster(*os.File) {
 }
 
 func (s *StdTerminal) Close() error {
+	return nil
+}
+
+func (s *StdTerminal) Resize(h, w int) error {
 	return nil
 }
 
