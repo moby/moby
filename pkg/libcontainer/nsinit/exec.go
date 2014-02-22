@@ -19,9 +19,8 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.Writer, logFile string, args []string) (int, error) {
+func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.Writer, master *os.File, logFile string, args []string) (int, error) {
 	var (
-		master  *os.File
 		console string
 		err     error
 
