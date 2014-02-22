@@ -22,19 +22,9 @@ import (
 func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.Writer,
 	master *os.File, logFile string, args []string) (int, error) {
 	var (
-		console          string
-		err              error
-		inPipe           io.WriteCloser
-		outPipe, errPipe io.ReadCloser
+		console string
+		err     error
 	)
-
-	if container.Tty {
-		log.Printf("setting up master and console")
-		master, console, err = CreateMasterAndConsole()
-		if err != nil {
-			return -1, err
-		}
-	}
 
 	// create a pipe so that we can syncronize with the namespaced process and
 	// pass the veth name to the child
@@ -44,49 +34,15 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 	}
 	system.UsetCloseOnExec(r.Fd())
 
+	if container.Tty {
+		log.Printf("setting up master and console")
+		master, console, err = CreateMasterAndConsole()
+		if err != nil {
+			return -1, err
+		}
+	}
+
 	command := CreateCommand(container, console, logFile, r.Fd(), args)
-	if !container.Tty {
-		log.Printf("opening std pipes")
-		if inPipe, err = command.StdinPipe(); err != nil {
-			return -1, err
-		}
-		if outPipe, err = command.StdoutPipe(); err != nil {
-			return -1, err
-		}
-		if errPipe, err = command.StderrPipe(); err != nil {
-			return -1, err
-		}
-	}
-
-	log.Printf("staring init")
-	if err := command.Start(); err != nil {
-		return -1, err
-	}
-	log.Printf("writting state file")
-	if err := writePidFile(command); err != nil {
-		command.Process.Kill()
-		return -1, err
-	}
-	defer deletePidFile()
-
-	// Do this before syncing with child so that no children
-	// can escape the cgroup
-	if container.Cgroups != nil {
-		log.Printf("setting up cgroups")
-		if err := container.Cgroups.Apply(command.Process.Pid); err != nil {
-			command.Process.Kill()
-			return -1, err
-		}
-	}
-	if err := InitializeNetworking(container, command.Process.Pid, w); err != nil {
-		command.Process.Kill()
-		return -1, err
-	}
-
-	// Sync with child
-	log.Printf("closing sync pipes")
-	w.Close()
-	r.Close()
 
 	if container.Tty {
 		log.Printf("starting copy for tty")
@@ -100,14 +56,38 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 		}
 		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	} else {
-		log.Printf("starting copy for std pipes")
-		go func() {
-			defer inPipe.Close()
-			io.Copy(inPipe, stdin)
-		}()
-		go io.Copy(stdout, outPipe)
-		go io.Copy(stderr, errPipe)
+		if err := startStdCopy(command, stdin, stdout, stderr); err != nil {
+			command.Process.Kill()
+			return -1, err
+		}
 	}
+
+	log.Printf("staring init")
+	if err := command.Start(); err != nil {
+		return -1, err
+	}
+	log.Printf("writing state file")
+	if err := writePidFile(command); err != nil {
+		command.Process.Kill()
+		return -1, err
+	}
+	defer deletePidFile()
+
+	// Do this before syncing with child so that no children
+	// can escape the cgroup
+	if err := SetupCgroups(container, command.Process.Pid); err != nil {
+		command.Process.Kill()
+		return -1, err
+	}
+	if err := InitializeNetworking(container, command.Process.Pid, w); err != nil {
+		command.Process.Kill()
+		return -1, err
+	}
+
+	// Sync with child
+	log.Printf("closing sync pipes")
+	w.Close()
+	r.Close()
 
 	log.Printf("waiting on process")
 	if err := command.Wait(); err != nil {
@@ -117,6 +97,16 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 	}
 	log.Printf("process ended")
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+}
+
+func SetupCgroups(container *libcontainer.Container, nspid int) error {
+	if container.Cgroups != nil {
+		log.Printf("setting up cgroups")
+		if err := container.Cgroups.Apply(nspid); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func InitializeNetworking(container *libcontainer.Container, nspid int, pipe io.Writer) error {
@@ -206,4 +196,30 @@ func CreateCommand(container *libcontainer.Container, console, logFile string, p
 	}
 	command.Env = container.Env
 	return command
+}
+
+func startStdCopy(command *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer) error {
+	log.Printf("opening std pipes")
+	inPipe, err := command.StdinPipe()
+	if err != nil {
+		return err
+	}
+	outPipe, err := command.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	errPipe, err := command.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("starting copy for std pipes")
+	go func() {
+		defer inPipe.Close()
+		io.Copy(inPipe, stdin)
+	}()
+	go io.Copy(stdout, outPipe)
+	go io.Copy(stderr, errPipe)
+
+	return nil
 }
