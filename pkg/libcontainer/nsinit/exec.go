@@ -30,7 +30,7 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 
 	if container.Tty {
 		log.Printf("setting up master and console")
-		master, console, err = createMasterAndConsole()
+		master, console, err = CreateMasterAndConsole()
 		if err != nil {
 			return -1, err
 		}
@@ -44,7 +44,7 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 	}
 	system.UsetCloseOnExec(r.Fd())
 
-	command := createCommand(container, console, logFile, r.Fd(), args)
+	command := CreateCommand(container, console, logFile, r.Fd(), args)
 	if !container.Tty {
 		log.Printf("opening pipes on command")
 		if inPipe, err = command.StdinPipe(); err != nil {
@@ -81,12 +81,12 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 
 	if container.Network != nil {
 		log.Printf("creating veth pair")
-		vethPair, err := initializeContainerVeth(container.Network.Bridge, container.Network.Mtu, command.Process.Pid)
+		vethPair, err := InitializeContainerVeth(container.Network.Bridge, container.Network.Mtu, command.Process.Pid)
 		if err != nil {
 			return -1, err
 		}
 		log.Printf("sending %s as veth pair name", vethPair)
-		sendVethName(w, vethPair)
+		SendVethName(w, vethPair)
 	}
 
 	// Sync with child
@@ -99,7 +99,7 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 		go io.Copy(stdout, master)
 		go io.Copy(master, stdin)
 
-		state, err := setupWindow(master)
+		state, err := SetupWindow(master, os.Stdin)
 		if err != nil {
 			command.Process.Kill()
 			return -1, err
@@ -125,9 +125,9 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
-// sendVethName writes the veth pair name to the child's stdin then closes the
+// SendVethName writes the veth pair name to the child's stdin then closes the
 // pipe so that the child stops waiting for more data
-func sendVethName(pipe io.Writer, name string) {
+func SendVethName(pipe io.Writer, name string) {
 	fmt.Fprint(pipe, name)
 }
 
@@ -138,7 +138,7 @@ func sendVethName(pipe io.Writer, name string) {
 // Then will with set the other side of the veth pair into the container's namespaced
 // using the pid and returns the veth's interface name to provide to the container to
 // finish setting up the interface inside the namespace
-func initializeContainerVeth(bridge string, mtu, nspid int) (string, error) {
+func InitializeContainerVeth(bridge string, mtu, nspid int) (string, error) {
 	name1, name2, err := createVethPair()
 	if err != nil {
 		return "", err
@@ -160,20 +160,22 @@ func initializeContainerVeth(bridge string, mtu, nspid int) (string, error) {
 	return name2, nil
 }
 
-func setupWindow(master *os.File) (*term.State, error) {
-	ws, err := term.GetWinsize(os.Stdin.Fd())
+// SetupWindow gets the parent window size and sets the master
+// pty to the current size and set the parents mode to RAW
+func SetupWindow(master, parent *os.File) (*term.State, error) {
+	ws, err := term.GetWinsize(parent.Fd())
 	if err != nil {
 		return nil, err
 	}
 	if err := term.SetWinsize(master.Fd(), ws); err != nil {
 		return nil, err
 	}
-	return term.SetRawTerminal(os.Stdin.Fd())
+	return term.SetRawTerminal(parent.Fd())
 }
 
-// createMasterAndConsole will open /dev/ptmx on the host and retreive the
+// CreateMasterAndConsole will open /dev/ptmx on the host and retreive the
 // pts name for use as the pty slave inside the container
-func createMasterAndConsole() (*os.File, string, error) {
+func CreateMasterAndConsole() (*os.File, string, error) {
 	master, err := os.OpenFile("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, "", err
@@ -217,7 +219,7 @@ func deletePidFile() error {
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func createCommand(container *libcontainer.Container, console, logFile string, pipe uintptr, args []string) *exec.Cmd {
+func CreateCommand(container *libcontainer.Container, console, logFile string, pipe uintptr, args []string) *exec.Cmd {
 	// get our binary name so we can always reexec ourself
 	name := os.Args[0]
 	command := exec.Command(name, append([]string{
