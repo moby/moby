@@ -57,8 +57,10 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
+			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
 			exitCode, err = nsinit.Exec(container,
-				os.Stdin, os.Stdout, os.Stderr, nil,
+				&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{},
+				term,
 				logFile, flag.Args()[1:])
 		}
 		if err != nil {
