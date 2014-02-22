@@ -3,10 +3,10 @@
 package nsinit
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
-	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/term"
 	"io"
@@ -19,11 +19,11 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.Writer, master *os.File, logFile string, args []string) (int, error) {
+func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.Writer,
+	master *os.File, logFile string, args []string) (int, error) {
 	var (
-		console string
-		err     error
-
+		console          string
+		err              error
 		inPipe           io.WriteCloser
 		outPipe, errPipe io.ReadCloser
 	)
@@ -46,7 +46,7 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 
 	command := CreateCommand(container, console, logFile, r.Fd(), args)
 	if !container.Tty {
-		log.Printf("opening pipes on command")
+		log.Printf("opening std pipes")
 		if inPipe, err = command.StdinPipe(); err != nil {
 			return -1, err
 		}
@@ -78,15 +78,9 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 			return -1, err
 		}
 	}
-
-	if container.Network != nil {
-		log.Printf("creating veth pair")
-		vethPair, err := InitializeContainerVeth(container.Network.Bridge, container.Network.Mtu, command.Process.Pid)
-		if err != nil {
-			return -1, err
-		}
-		log.Printf("sending %s as veth pair name", vethPair)
-		SendVethName(w, vethPair)
+	if err := InitializeNetworking(container, command.Process.Pid, w); err != nil {
+		command.Process.Kill()
+		return -1, err
 	}
 
 	// Sync with child
@@ -104,7 +98,7 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 			command.Process.Kill()
 			return -1, err
 		}
-		defer term.RestoreTerminal(uintptr(syscall.Stdin), state)
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	} else {
 		log.Printf("starting copy for std pipes")
 		go func() {
@@ -125,39 +119,34 @@ func Exec(container *libcontainer.Container, stdin io.Reader, stdout, stderr io.
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
-// SendVethName writes the veth pair name to the child's stdin then closes the
-// pipe so that the child stops waiting for more data
-func SendVethName(pipe io.Writer, name string) {
-	fmt.Fprint(pipe, name)
+func InitializeNetworking(container *libcontainer.Container, nspid int, pipe io.Writer) error {
+	if container.Network != nil {
+		log.Printf("creating host network configuration type %s", container.Network.Type)
+		strategy, err := network.GetStrategy(container.Network.Type)
+		if err != nil {
+			return err
+		}
+		networkContext, err := strategy.Create(container.Network, nspid)
+		if err != nil {
+			return err
+		}
+		log.Printf("sending %v as network context", networkContext)
+		if err := SendContext(pipe, networkContext); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// initializeContainerVeth will create a veth pair and setup the host's
-// side of the pair by setting the specified bridge as the master and bringing
-// up the interface.
-//
-// Then will with set the other side of the veth pair into the container's namespaced
-// using the pid and returns the veth's interface name to provide to the container to
-// finish setting up the interface inside the namespace
-func InitializeContainerVeth(bridge string, mtu, nspid int) (string, error) {
-	name1, name2, err := createVethPair()
+// SendContext writes the veth pair name to the child's stdin then closes the
+// pipe so that the child stops waiting for more data
+func SendContext(pipe io.Writer, context libcontainer.Context) error {
+	data, err := json.Marshal(context)
 	if err != nil {
-		return "", err
+		return err
 	}
-	log.Printf("veth pair created %s <> %s", name1, name2)
-	if err := network.SetInterfaceMaster(name1, bridge); err != nil {
-		return "", err
-	}
-	if err := network.SetMtu(name1, mtu); err != nil {
-		return "", err
-	}
-	if err := network.InterfaceUp(name1); err != nil {
-		return "", err
-	}
-	log.Printf("setting %s inside %d namespace", name2, nspid)
-	if err := network.SetInterfaceInNamespacePid(name2, nspid); err != nil {
-		return "", err
-	}
-	return name2, nil
+	pipe.Write(data)
+	return nil
 }
 
 // SetupWindow gets the parent window size and sets the master
@@ -190,29 +179,13 @@ func CreateMasterAndConsole() (*os.File, string, error) {
 	return master, console, nil
 }
 
-// createVethPair will automatically generage two random names for
-// the veth pair and ensure that they have been created
-func createVethPair() (name1 string, name2 string, err error) {
-	name1, err = utils.GenerateRandomName("dock", 4)
-	if err != nil {
-		return
-	}
-	name2, err = utils.GenerateRandomName("dock", 4)
-	if err != nil {
-		return
-	}
-	if err = network.CreateVethPair(name1, name2); err != nil {
-		return
-	}
-	return
-}
-
 // writePidFile writes the namespaced processes pid to .nspid in the rootfs for the container
 func writePidFile(command *exec.Cmd) error {
 	return ioutil.WriteFile(".nspid", []byte(fmt.Sprint(command.Process.Pid)), 0655)
 }
 
 func deletePidFile() error {
+	log.Printf("removing .nspid file")
 	return os.Remove(".nspid")
 }
 

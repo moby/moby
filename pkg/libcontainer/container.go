@@ -4,6 +4,10 @@ import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 )
 
+// Context is a generic key value pair that allows
+// arbatrary data to be sent
+type Context map[string]string
+
 // Container defines configuration options for how a
 // container is setup inside a directory and how a process should be executed
 type Container struct {
@@ -24,8 +28,9 @@ type Container struct {
 // The network configuration can be omited from a container causing the
 // container to be setup with the host's networking stack
 type Network struct {
-	Address string `json:"address,omitempty"`
-	Gateway string `json:"gateway,omitempty"`
-	Bridge  string `json:"bridge,omitempty"`
-	Mtu     int    `json:"mtu,omitempty"`
+	Type    string  `json:"type,omitempty"`    // type of networking to setup i.e. veth, macvlan, etc
+	Context Context `json:"context,omitempty"` // generic context for type specific networking options
+	Address string  `json:"address,omitempty"`
+	Gateway string  `json:"gateway,omitempty"`
+	Mtu     int     `json:"mtu,omitempty"`
 }
