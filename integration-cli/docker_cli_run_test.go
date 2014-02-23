@@ -676,13 +676,13 @@ func TestEnvironment(t *testing.T) {
 
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME=/",
 		"HOSTNAME=testing",
 		"FALSE=true",
 		"TRUE=false",
 		"TRICKY=tri",
 		"cky",
 		"",
+		"HOME=/root",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
