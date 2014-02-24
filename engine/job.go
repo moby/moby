@@ -167,6 +167,10 @@ func (job *Job) Setenv(key, value string) {
 	job.env.Set(key, value)
 }
 
+func (job *Job) ReplaceEnv(env *Env) {
+	job.env = env
+}
+
 // DecodeEnv decodes `src` as a json dictionary, and adds
 // each decoded key-value pair to the environment.
 //
