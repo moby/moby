@@ -20,6 +20,31 @@ Docker is supported on Mac OS X 10.6 "Snow Leopard" or newer.
 How To Install Docker On Mac OS X
 =================================
 
+There are two ways to install and setup docker on Mac OS X.
+
+A) Install via docmac script
+----------------------------
+
+You can run `docmac`_ in two ways in order to install all docker dependencies (including Virtual Box) and docker itself 
+and have it set up properly.
+
+With npm:
+
+.. code-block:: bash 
+
+    npm i -g docmac && docmac
+    
+Or with curl:
+
+.. code-block:: bash
+
+    curl -L https://raw.github.com/thlorenz/docmac/master/bin/docmac.sh | sh
+
+.. _docmac: https://github.com/thlorenz/docmac
+
+B) Follow these Step by Step Installation and Setup Instructions
+------------------------------------------------------------------------
+
 VirtualBox
 ----------
 
