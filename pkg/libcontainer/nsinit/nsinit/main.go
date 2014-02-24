@@ -24,7 +24,7 @@ var (
 	ErrWrongArguments = errors.New("Wrong argument count")
 )
 
-func init() {
+func registerFlags() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
 	flag.StringVar(&logFile, "log", "none", "log options (none, stderr, or a file path)")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
@@ -33,6 +33,8 @@ func init() {
 }
 
 func main() {
+	registerFlags()
+
 	if flag.NArg() < 1 {
 		log.Fatal(ErrWrongArguments)
 	}

@@ -85,7 +85,7 @@ func init() {
 	os.Setenv("TEST", "1")
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || strings.Contains(selfPath, ".dockerinit") {
 		sysinit.SysInit()
 		return
 	}

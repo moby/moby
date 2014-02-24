@@ -86,7 +86,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return -1, err
 	}
 	args := append([]string{c.Entrypoint}, c.Arguments...)
-	return nsinit.Exec(container, factory, stateWriter, term, "/nsinit.log", args)
+	return nsinit.Exec(container, factory, stateWriter, term, "", args)
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
@@ -146,6 +146,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container,
 		"-driver", DriverName,
 		"-console", console,
 		"-pipe", fmt.Sprint(syncFd),
+		"-log", logFile,
 	}, args...)
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(nsinit.GetNamespaceFlags(container.Namespaces)),
