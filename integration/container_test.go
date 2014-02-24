@@ -1044,7 +1044,7 @@ func TestEnv(t *testing.T) {
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
-		"container=lxc",
+		"container=docker",
 		"HOSTNAME=" + utils.TruncateID(container.ID),
 		"FALSE=true",
 		"TRUE=false",

@@ -704,7 +704,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 
 	sysInfo := sysinfo.New(false)
 
-	ed, err := namespaces.NewDriver()
+	ed, err := namespaces.NewDriver(config.Root)
 	if err != nil {
 		return nil, err
 	}

@@ -55,10 +55,26 @@ func init() {
 }
 
 type driver struct {
+	root string
 }
 
-func NewDriver() (*driver, error) {
-	return &driver{}, nil
+type info struct {
+	ID     string
+	driver *driver
+}
+
+func (i *info) IsRunning() bool {
+	p := filepath.Join(i.driver.root, "containers", i.ID, "rootfs", ".nspid")
+	if _, err := os.Stat(p); err == nil {
+		return true
+	}
+	return false
+}
+
+func NewDriver(root string) (*driver, error) {
+	return &driver{
+		root: root,
+	}, nil
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
@@ -98,7 +114,10 @@ func (d *driver) Restore(c *execdriver.Command) error {
 }
 
 func (d *driver) Info(id string) execdriver.Info {
-	return nil
+	return &info{
+		ID:     id,
+		driver: d,
+	}
 }
 
 func (d *driver) Name() string {
