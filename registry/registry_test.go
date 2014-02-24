@@ -124,7 +124,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 func TestPushImageLayerRegistry(t *testing.T) {
 	r := spawnTestRegistry(t)
 	layer := strings.NewReader("")
-	_, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
+	_, _, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
