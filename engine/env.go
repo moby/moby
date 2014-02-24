@@ -37,7 +37,7 @@ func (env *Env) Exists(key string) bool {
 }
 
 func (env *Env) Init(src *Env) {
-	*env = make([]string, 0, len(*src))
+	(*env) = make([]string, 0, len(*src))
 	for _, val := range *src {
 		(*env) = append((*env), val)
 	}
