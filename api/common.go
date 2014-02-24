@@ -42,4 +42,3 @@ func MatchesContentType(contentType, expectedType string) bool {
 	}
 	return err == nil && mimetype == expectedType
 }
-
