@@ -1581,8 +1581,8 @@ func TestPrivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
-		t.Fatal("Could not mknod into privileged container")
+	if output, err := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatalf("Could not mknod into privileged container %s %v", output, err)
 	}
 }
 

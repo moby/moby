@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -125,7 +127,40 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
-	return nil, ErrNotSupported
+	pids := []int{}
+
+	subsystem := "cpu"
+	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
+	if err != nil {
+		return pids, err
+	}
+	cgroupRoot = filepath.Dir(cgroupRoot)
+
+	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
+	if err != nil {
+		return pids, err
+	}
+
+	filename := filepath.Join(cgroupRoot, cgroupDir, id, "tasks")
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		filename = filepath.Join(cgroupRoot, cgroupDir, "docker", id, "tasks")
+	}
+
+	output, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return pids, err
+	}
+	for _, p := range strings.Split(string(output), "\n") {
+		if len(p) == 0 {
+			continue
+		}
+		pid, err := strconv.Atoi(p)
+		if err != nil {
+			return pids, fmt.Errorf("Invalid pid '%s': %s", p, err)
+		}
+		pids = append(pids, pid)
+	}
+	return pids, nil
 }
 
 func writeContainerFile(container *libcontainer.Container, rootfs string) error {
@@ -219,6 +254,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 	}
 	if c.Privileged {
 		container.Capabilities = nil
+		container.Cgroups.DeviceAccess = true
 	}
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CpuShares

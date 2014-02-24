@@ -9,7 +9,6 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +22,6 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, sync
 	if err != nil {
 		return err
 	}
-	log.Printf("initializing namespace at %s", rootfs)
 
 	// We always read this as it is a way to sync with the parent as well
 	context, err := syncPipe.ReadFromParent()
@@ -32,10 +30,8 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, sync
 		return err
 	}
 	syncPipe.Close()
-	log.Printf("received context from parent %v", context)
 
 	if console != "" {
-		log.Printf("setting up console for %s", console)
 		// close pipes so that we can replace it with the pty
 		closeStdPipes()
 		slave, err := openTerminal(console, syscall.O_RDWR)
@@ -66,11 +62,9 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, sync
 	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
 	}
-	log.Printf("dropping capabilities")
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return fmt.Errorf("drop capabilities %s", err)
 	}
-	log.Printf("setting user in namespace")
 	if err := setupUser(container); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
@@ -87,7 +81,6 @@ func execArgs(args []string, env []string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("execing %s goodbye", name)
 	if err := system.Exec(name, args[0:], env); err != nil {
 		return fmt.Errorf("exec %s", err)
 	}
@@ -111,7 +104,7 @@ func resolveRootfs(uncleanRootfs string) (string, error) {
 }
 
 func setupUser(container *libcontainer.Container) error {
-	if container.User != "" {
+	if container.User != "" && container.User != "root" {
 		uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
 		if err != nil {
 			return err
