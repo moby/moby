@@ -16,6 +16,8 @@ func TestRegister(t *testing.T) {
 	if err := Register("dummy1", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	// Register is global so let's cleanup to avoid conflicts
+	defer unregister("dummy1")
 
 	eng := newTestEngine(t)
 
@@ -32,6 +34,7 @@ func TestRegister(t *testing.T) {
 	if err := eng.Register("dummy2", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	defer unregister("dummy2")
 }
 
 func TestJob(t *testing.T) {
@@ -48,6 +51,7 @@ func TestJob(t *testing.T) {
 	}
 
 	eng.Register("dummy2", h)
+	defer unregister("dummy2")
 	job2 := eng.Job("dummy2", "--level=awesome")
 
 	if job2.handler == nil {

@@ -29,6 +29,10 @@ func Register(name string, handler Handler) error {
 	return nil
 }
 
+func unregister(name string) {
+	delete(globalHandlers, name)
+}
+
 // The Engine is the core of Docker.
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
