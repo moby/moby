@@ -24,6 +24,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -715,6 +716,11 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		ed, err = chroot.NewDriver()
 		utils.Debugf("execDriver: using chroot")
   } else if config.ExecDriver == "systemd" {
+		utils.Debugf("using systemd")
+		_, err := exec.LookPath("systemd-nspawn")
+		if err != nil {
+			return nil, err
+		}
 		ed, err = systemd.NewDriver()
     utils.Debugf("execDriver: using systemd")
 	} else {
