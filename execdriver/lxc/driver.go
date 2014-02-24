@@ -301,9 +301,8 @@ func (d *driver) Info(id string) execdriver.Info {
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
-	// memory is chosen randomly, any cgroup used by docker works
-	subsystem := "memory"
-
+	// cpu is chosen because it is the only non optional subsystem in cgroups
+	subsystem := "cpu"
 	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
 	if err != nil {
 		return pids, err
