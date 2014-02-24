@@ -606,14 +606,20 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
 		kernel, major, minor, parsed int
-		flavor                       string
+		flavor, partial              string
 	)
 
 	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
 	// make sure we got all the version numbers.
-	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
-	if parsed < 3 {
+	parsed, _ = fmt.Sscanf(release, "%d.%d%s", &kernel, &major, &partial)
+	if parsed < 2 {
 		return nil, errors.New("Can't parse kernel version " + release)
+	}
+
+	// sometimes we have 3.12.25-gentoo, but sometimes we just have 3.12-1-amd64
+	parsed, _ = fmt.Sscanf(partial, ".%d%s", &minor, &flavor)
+	if parsed < 1 {
+		flavor = partial
 	}
 
 	return &KernelVersionInfo{
