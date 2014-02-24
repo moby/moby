@@ -7,16 +7,16 @@ import (
 
 func TestFuncSend(t *testing.T) {
 	var sentinel int
-	f := Func(func(data []byte, s Stream) error {
-		if string(data) != "well hello..." {
-			t.Fatalf("unexpected data: '%v'", data)
+	f := Func(func(msg Message) error {
+		if string(msg.Data) != "well hello..." {
+			t.Fatalf("unexpected data: '%v'", msg.Data)
 		}
 		sentinel = 42
 		return nil
 	})
 	local, remote := Pipe()
 	defer local.Close()
-	if err := f.Send([]byte("well hello..."), remote); err != nil {
+	if err := f.Send(Message{Data: []byte("well hello..."), Stream: remote}); err != nil {
 		t.Fatalf("send: %s", err)
 	}
 	if err := Splice(DevNull, local); err != nil {
@@ -27,10 +27,9 @@ func TestFuncSend(t *testing.T) {
 	}
 }
 
-
 func TestFuncReceive(t *testing.T) {
 	f := Func(nil)
-	_, _, err := f.Receive()
+	_, err := f.Receive()
 	if err != io.EOF {
 		t.Fatalf("Func.Receive should return io.EOF")
 	}

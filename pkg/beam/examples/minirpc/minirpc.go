@@ -29,15 +29,16 @@ type CLI struct {
 	tasks sync.WaitGroup
 }
 
-func (cli *CLI) Receive() (data []byte, stream beam.Stream, err error) {
+func (cli *CLI) Receive() (msg beam.Message, err error) {
 	for {
 		if !cli.input.Scan() {
 			fmt.Printf("done!\n")
-			return nil, nil, io.EOF
+			err = io.EOF
+			return
 		}
-		data = cli.input.Bytes()
+		msg.Data = cli.input.Bytes()
 		err = cli.input.Err()
-		if len(data) == 0 && err == nil {
+		if len(msg.Data) == 0 && err == nil {
 			continue
 		}
 		local, remote := beam.Pipe()
@@ -46,14 +47,14 @@ func (cli *CLI) Receive() (data []byte, stream beam.Stream, err error) {
 			defer cli.tasks.Done()
 			defer local.Close()
 			for {
-				data, st, err := local.Receive()
+				m, err := local.Receive()
 				if err != nil {
 					return
 				}
-				if st == nil {
+				if m.Stream == nil {
 					continue
 				}
-				name := string(data)
+				name := string(m.Data)
 				var output io.Writer
 				if name == "stdout" {
 					output = cli.stdout
@@ -64,22 +65,22 @@ func (cli *CLI) Receive() (data []byte, stream beam.Stream, err error) {
 				}
 				cli.tasks.Add(1)
 				go func() {
-					io.Copy(output, beam.NewReader(st))
+					io.Copy(output, beam.NewReader(m.Stream))
 					cli.tasks.Done()
 				}()
 			}
 		}()
-		stream = remote
+		msg.Stream = remote
 		break
 	}
 	return
 }
 
-func (cli *CLI) Send(data []byte, stream beam.Stream) (err error) {
-	if stream == nil {
+func (cli *CLI) Send(msg beam.Message) (err error) {
+	if msg.Stream == nil {
 		return nil
 	}
-	go beam.Splice(stream, beam.DevNull)
+	go beam.Splice(msg.Stream, beam.DevNull)
 	return nil
 }
 
@@ -101,18 +102,18 @@ func NewCLI(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) *CLI {
 	}
 }
 
-func RunCommand(header []byte, stream beam.Stream) (err error) {
-	parts := strings.Split(string(header), " ")
+func RunCommand(msg beam.Message) (err error) {
+	parts := strings.Split(string(msg.Data), " ")
 	// Setup stdout
 	stdoutRemote, stdout := io.Pipe()
 	defer stdout.Close()
-	if err := stream.Send([]byte("stdout"), beam.WrapIO(stdoutRemote, 0)); err != nil {
+	if err := msg.Stream.Send(beam.Message{Data: []byte("stdout"), Stream: beam.WrapIO(stdoutRemote, 0)}); err != nil {
 		return err
 	}
 	// Setup stderr
 	stderrRemote, stderr := io.Pipe()
 	defer stderr.Close()
-	if err := stream.Send([]byte("stderr"), beam.WrapIO(stderrRemote, 0)); err != nil {
+	if err := msg.Stream.Send(beam.Message{Data: []byte("stderr"), Stream: beam.WrapIO(stderrRemote, 0)}); err != nil {
 		return err
 	}
 	if parts[0] == "echo" {

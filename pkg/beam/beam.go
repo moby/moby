@@ -5,9 +5,14 @@ import (
 )
 
 type Stream interface {
-	Send(b []byte, s Stream) error
-	Receive() ([]byte, Stream, error)
+	Send(Message) error
+	Receive() (Message, error)
 
 	File() (*os.File, error)
 	Close() error
+}
+
+type Message struct {
+	Data   []byte
+	Stream Stream
 }

@@ -8,8 +8,8 @@ import (
 )
 
 type pipe struct {
-	r chan *pipeMsg
-	w chan *pipeMsg
+	r   chan Message
+	w   chan Message
 	err error
 	// We need a mutex to synchronize Send() and Close()
 	// Send() doesn't need the mutex because it's legal to
@@ -18,39 +18,31 @@ type pipe struct {
 	lock sync.Mutex
 }
 
-type pipeMsg struct {
-	data []byte
-	stream Stream
-}
-
-
-func (p *pipe) Receive() (data []byte, stream Stream, err error) {
+func (p *pipe) Receive() (msg Message, err error) {
 	if p.err != nil {
-		return nil, nil, p.err
+		err = p.err
+		return
 	}
-	msg, ok := <-p.r
+	var ok bool
+	msg, ok = <-p.r
 	if !ok {
 		p.err = io.EOF
-	} else {
-		data = msg.data
-		stream = msg.stream
 	}
 	err = p.err
 	return
 }
 
-func (p *pipe) Send(data []byte, stream Stream) error {
+func (p *pipe) Send(msg Message) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.err != nil {
 		return fmt.Errorf("send: pipe closed")
 	}
-	msg := &pipeMsg{data: data}
-	if stream != nil {
+	if msg.Stream != nil {
 		local, remote := Pipe()
 		go Splice(local, remote)
-		go Splice(local, stream)
-		msg.stream = remote
+		go Splice(local, msg.Stream)
+		msg.Stream = remote
 	}
 	p.w <- msg
 	return nil
@@ -72,7 +64,7 @@ func (p *pipe) Close() error {
 }
 
 func Pipe() (Stream, Stream) {
-	red := make(chan *pipeMsg)
-	black := make(chan *pipeMsg)
+	red := make(chan Message)
+	black := make(chan Message)
 	return &pipe{r: red, w: black}, &pipe{r: black, w: red}
 }

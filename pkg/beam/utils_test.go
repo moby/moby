@@ -10,10 +10,10 @@ import (
 
 func TestCopy(t *testing.T) {
 	a, b := Pipe()
-	timer := time.AfterFunc(1 * time.Second, func() { t.Fatalf("timeout") })
+	timer := time.AfterFunc(1*time.Second, func() { t.Fatalf("timeout") })
 	defer timer.Stop()
 	go func() {
-		if err := a.Send([]byte("hello hello"), nil); err != nil {
+		if err := a.Send(Message{Data: []byte("hello hello")}); err != nil {
 			t.Fatalf("send: %s", err)
 		}
 		if err := a.Close(); err != nil {
@@ -25,19 +25,19 @@ func TestCopy(t *testing.T) {
 			t.Fatalf("copy: %s", err)
 		}
 	}()
-	if data, s, err := b.Receive(); err != nil {
+	if msg, err := b.Receive(); err != nil {
 		t.Fatalf("receive: %s", err)
-	} else if s != nil {
-		t.Fatalf("receive: wrong stream value %#v", s)
-	} else if string(data) != "hello hello" {
-		t.Fatalf("receive: wrong data value %#v", data)
+	} else if msg.Stream != nil {
+		t.Fatalf("receive: wrong stream value %#v", msg.Stream)
+	} else if string(msg.Data) != "hello hello" {
+		t.Fatalf("receive: wrong data value %#v", msg.Data)
 	}
 }
 
 func TestSplice(t *testing.T) {
 	var wg sync.WaitGroup
 	a, b := Pipe()
-	timer := time.AfterFunc(1 * time.Second, func() { t.Fatalf("timeout") })
+	timer := time.AfterFunc(1*time.Second, func() { t.Fatalf("timeout") })
 	defer timer.Stop()
 	wg.Add(3)
 	go func() {
@@ -60,21 +60,20 @@ func TestSplice(t *testing.T) {
 }
 
 func TestDevNullReceive(t *testing.T) {
-	data, s, err := DevNull.Receive()
+	msg, err := DevNull.Receive()
 	if err != io.EOF {
 		t.Fatalf("DevNull.Receive() should return io.EOF")
 	}
-	if data != nil && len(data) != 0 {
+	if msg.Data != nil && len(msg.Data) != 0 {
 		t.Fatalf("DevNull.Receive() should not return data")
 	}
-	if s != nil {
+	if msg.Stream != nil {
 		t.Fatalf("DevNull.Receive() should not return a stream")
 	}
 }
 
-
 func TestCopyLines(t *testing.T) {
-	timer := time.AfterFunc(1 * time.Second, func() { t.Fatalf("timeout") })
+	timer := time.AfterFunc(1*time.Second, func() { t.Fatalf("timeout") })
 	defer timer.Stop()
 	input := getTestData(10)
 	output := new(bytes.Buffer)
@@ -88,7 +87,7 @@ func TestCopyLines(t *testing.T) {
 }
 
 func TestSpliceLines(t *testing.T) {
-	timer := time.AfterFunc(1 * time.Second, func() { t.Fatalf("timeout") })
+	timer := time.AfterFunc(1*time.Second, func() { t.Fatalf("timeout") })
 	defer timer.Stop()
 	input := getTestData(10)
 	output := new(bytes.Buffer)
@@ -105,7 +104,7 @@ func TestSpliceClose(t *testing.T) {
 	a1, a2 := Pipe()
 	b1, b2 := Pipe()
 	go func() {
-		a1.Send([]byte("hello world!"), nil)
+		a1.Send(Message{Data: []byte("hello world!")})
 		a1.Close()
 	}()
 	go Splice(a2, b1)
@@ -115,12 +114,12 @@ func TestSpliceClose(t *testing.T) {
 }
 
 func sendExpect(s Stream, send, expect string, t *testing.T) {
-	if err := s.Send([]byte(send), nil); err != nil {
+	if err := s.Send(Message{Data: []byte(send)}); err != nil {
 		t.Fatalf("send: %s", err)
 	}
-	if data, _, err := s.Receive(); err != io.EOF && err != nil {
+	if msg, err := s.Receive(); err != io.EOF && err != nil {
 		t.Fatalf("receive: %s", err)
-	} else if string(data) != expect {
-		t.Fatalf("expected: '%v'\nreceived '%v'", expect, string(data))
+	} else if string(msg.Data) != expect {
+		t.Fatalf("expected: '%v'\nreceived '%v'", expect, string(msg.Data))
 	}
 }

@@ -6,9 +6,8 @@ import (
 	"os"
 )
 
-
 type ioWrapper struct {
-	obj interface{}
+	obj       interface{}
 	blocksize int
 }
 
@@ -20,27 +19,30 @@ func WrapIO(obj interface{}, blocksize int) Stream {
 	return wrapper
 }
 
-func (w ioWrapper) Receive() (data []byte, s Stream, err error) {
+func (w ioWrapper) Receive() (msg Message, err error) {
 	reader, ok := w.obj.(io.Reader)
 	if !ok {
 		// Return EOF if Read is not implemented
-		return nil, nil, io.EOF
+		err = io.EOF
+		return
 	}
-	data = make([]byte, w.blocksize)
-	n, err := reader.Read(data)
-	return data[:n], nil, err
+	var n int
+	data := make([]byte, w.blocksize)
+	n, err = reader.Read(data)
+	msg.Data = data[:n]
+	return
 }
 
-func (w ioWrapper) Send(data []byte, s Stream) error {
+func (w ioWrapper) Send(msg Message) error {
 	writer, ok := w.obj.(io.Writer)
 	if !ok {
 		// Silently discard the data if Write is not implemented
 		return nil
 	}
-	if s != nil {
+	if msg.Stream != nil {
 		return fmt.Errorf("send stream: operation not supported")
 	}
-	_, err := writer.Write(data)
+	_, err := writer.Write(msg.Data)
 	return err
 }
 
@@ -53,7 +55,9 @@ func (w ioWrapper) Close() error {
 }
 
 func (w ioWrapper) File() (*os.File, error) {
-	filer, ok := w.obj.(interface { File()(*os.File, error) })
+	filer, ok := w.obj.(interface {
+		File() (*os.File, error)
+	})
 	if !ok {
 		return nil, fmt.Errorf("no file descriptor associated with stream")
 	}

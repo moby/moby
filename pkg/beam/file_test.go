@@ -16,14 +16,14 @@ func TestFileReceive(t *testing.T) {
 	f.Write([]byte(input))
 	f.Seek(0, 0)
 	sFile := File{f}
-	data, s, err := sFile.Receive()
+	msg, err := sFile.Receive()
 	if err != nil {
 		t.Fatalf("receive: %s", err)
 	}
-	if s != nil {
-		t.Fatalf("receive: unexpected stream %#v", s)
+	if msg.Stream != nil {
+		t.Fatalf("receive: unexpected stream %#v", msg.Stream)
 	}
-	if result := string(data); result != input {
+	if result := string(msg.Data); result != input {
 		t.Fatalf("unexpected data from file: '%v'", result)
 	}
 }

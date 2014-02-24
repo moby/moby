@@ -2,8 +2,8 @@ package beam
 
 import (
 	"bytes"
-	"sync"
 	"io"
+	"sync"
 )
 
 func NewReader(s Stream) io.Reader {
@@ -16,12 +16,11 @@ type streamReader struct {
 
 // FIXME: group data + stream into a Msg struct
 func (r *streamReader) Read(data []byte) (n int, err error) {
-	var msg []byte
-	msg, _, err = r.Receive()
+	msg, err := r.Receive()
 	if err != nil {
 		return 0, err
 	}
-	return bytes.NewReader(msg).Read(data)
+	return bytes.NewReader(msg.Data).Read(data)
 }
 
 func NewWriter(s Stream) io.Writer {
@@ -33,7 +32,7 @@ type streamWriter struct {
 }
 
 func (w *streamWriter) Write(data []byte) (n int, err error) {
-	err = w.Send(data, nil)
+	err = w.Send(Message{Data: data})
 	if err != nil {
 		n = 0
 	} else {
@@ -41,7 +40,6 @@ func (w *streamWriter) Write(data []byte) (n int, err error) {
 	}
 	return
 }
-
 
 func Splice(a, b Stream) (firstErr error) {
 	var wg sync.WaitGroup
@@ -60,17 +58,15 @@ func Splice(a, b Stream) (firstErr error) {
 	return
 }
 
-
 func Copy(dst, src Stream) error {
 	for {
 		var (
 			errSnd, errRcv error
-			data []byte
-			s Stream
+			msg            Message
 		)
-		data, s, errRcv = src.Receive()
-		if data != nil || s != nil {
-			errSnd = dst.Send(data, s)
+		msg, errRcv = src.Receive()
+		if msg.Data != nil || msg.Stream != nil {
+			errSnd = dst.Send(msg)
 		}
 		// Note: the order of evaluation of errors is important here.
 		if errRcv != nil && errRcv != io.EOF {
@@ -86,11 +82,11 @@ func Copy(dst, src Stream) error {
 	return nil
 }
 
-func devNull(data []byte, stream Stream) error {
-	if stream != nil {
-		go Copy(Func(devNull), stream)
+func devNull(msg Message) (err error) {
+	if msg.Stream != nil {
+		go Copy(Func(devNull), msg.Stream)
 	}
-	return nil
+	return
 }
 
 var DevNull Func = devNull

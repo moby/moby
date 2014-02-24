@@ -12,19 +12,20 @@ func NewFile(f *os.File) *File {
 	return &File{f}
 }
 
-func (f *File) Send(data []byte, s Stream) (err error) {
-	if s != nil {
-		Splice(s, DevNull)
+func (f *File) Send(msg Message) (err error) {
+	if msg.Stream != nil {
+		Splice(msg.Stream, DevNull)
 	}
-	_, err = f.f.Write(data)
+	_, err = f.f.Write(msg.Data)
 	return
 }
 
-func (f *File) Receive() (data []byte, s Stream, err error) {
+func (f *File) Receive() (msg Message, err error) {
 	var n int
-	data = make([]byte, 4096)
+	data := make([]byte, 4096)
 	n, err = f.f.Read(data)
-	return data[:n], nil, err
+	msg.Data = data[:n]
+	return
 }
 
 func (f *File) File() (*os.File, error) {

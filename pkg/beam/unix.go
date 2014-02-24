@@ -1,9 +1,9 @@
 package beam
 
 import (
-	"os"
 	"fmt"
 	"net"
+	"os"
 	"syscall"
 )
 
@@ -11,30 +11,31 @@ type UnixConn struct {
 	u *net.UnixConn
 }
 
-func (conn *UnixConn) Send(data []byte, s Stream) (err error) {
+func (conn *UnixConn) Send(msg Message) (err error) {
 	var fds []int
-	if s != nil {
-		f, err := s.File()
+	if msg.Stream != nil {
+		f, err := msg.Stream.File()
 		if err != nil {
 			return fmt.Errorf("can't get fd from stream: %s", err)
 		}
 		fds = append(fds, int(f.Fd()))
 	}
-	_, _, err = conn.u.WriteMsgUnix(data, syscall.UnixRights(fds...), nil)
-	return err
+	_, _, err = conn.u.WriteMsgUnix(msg.Data, syscall.UnixRights(fds...), nil)
+	return
 }
 
-func (conn *UnixConn) Receive() (data []byte, s Stream, err error) {
+func (conn *UnixConn) Receive() (msg Message, err error) {
 	buf := make([]byte, 4096)
 	oob := make([]byte, 4096)
 	bufn, oobn, _, _, err := conn.u.ReadMsgUnix(buf, oob)
 	if err != nil {
-		return nil, nil, fmt.Errorf("readmsg: %s", err)
+		err = fmt.Errorf("readmsg: %s", err)
+		return
 	}
-	data = buf[:bufn]
+	msg.Data = buf[:bufn]
 	if fds := extractFds(oob[:oobn]); len(fds) > 0 {
 		fd := uintptr(fds[0])
-		s = &File{os.NewFile(fd, fmt.Sprintf("%d", fd))}
+		msg.Stream = &File{os.NewFile(fd, fmt.Sprintf("%d", fd))}
 	}
 	return
 }
