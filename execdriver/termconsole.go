@@ -1,15 +1,15 @@
-package term
+package execdriver
 
 import (
-	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/pkg/term"
 	"github.com/kr/pty"
 	"io"
 	"os"
 )
 
-func SetTerminal(command *execdriver.Command, pipes *execdriver.Pipes) error {
+func SetTerminal(command *Command, pipes *Pipes) error {
 	var (
-		term execdriver.Terminal
+		term Terminal
 		err  error
 	)
 	if command.Tty {
@@ -29,7 +29,7 @@ type TtyConsole struct {
 	slave  *os.File
 }
 
-func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
+func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
 	ptyMaster, ptySlave, err := pty.Open()
 	if err != nil {
 		return nil, err
@@ -50,10 +50,10 @@ func (t *TtyConsole) Master() *os.File {
 }
 
 func (t *TtyConsole) Resize(h, w int) error {
-	return SetWinsize(t.master.Fd(), &Winsize{Height: uint16(h), Width: uint16(w)})
+	return term.SetWinsize(t.master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
-func (t *TtyConsole) attach(command *execdriver.Command, pipes *execdriver.Pipes) error {
+func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
 	command.Stdout = t.slave
 	command.Stderr = t.slave
 	command.Console = t.slave.Name()
@@ -87,7 +87,7 @@ func (t *TtyConsole) Close() error {
 type StdConsole struct {
 }
 
-func NewStdConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*StdConsole, error) {
+func NewStdConsole(command *Command, pipes *Pipes) (*StdConsole, error) {
 	std := &StdConsole{}
 
 	if err := std.attach(command, pipes); err != nil {
@@ -96,7 +96,7 @@ func NewStdConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*StdCo
 	return std, nil
 }
 
-func (s *StdConsole) attach(command *execdriver.Command, pipes *execdriver.Pipes) error {
+func (s *StdConsole) attach(command *Command, pipes *Pipes) error {
 	command.Stdout = pipes.Stdout
 	command.Stderr = pipes.Stderr
 
