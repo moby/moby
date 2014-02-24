@@ -47,6 +47,7 @@ import (
 	gosignal "os/signal"
 	"path"
 	"path/filepath"
+	"regexp"
 	goruntime "runtime"
 	"strconv"
 	"strings"
@@ -469,6 +470,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		repoName       = job.Getenv("t")
 		suppressOutput = job.GetenvBool("q")
 		noCache        = job.GetenvBool("nocache")
+		breakCache     = job.Getenv("breakcache")
 		rm             = job.GetenvBool("rm")
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -476,6 +478,10 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 	)
 	job.GetenvJson("auth", configFile)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
+
+	if noCache && breakCache != "" {
+		return job.Errorf("Can't specify both nocache and breakcache")
+	}
 
 	if remoteURL == "" {
 		context = ioutil.NopCloser(job.Stdin)
@@ -516,6 +522,15 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 	}
 	defer context.Close()
 
+	var breakCacheRe *regexp.Regexp
+	if breakCache != "" {
+		re, err := regexp.CompilePOSIX(breakCache)
+		if err != nil {
+			return job.Error(err)
+		}
+		breakCacheRe = re
+	}
+
 	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
 	b := NewBuildFile(srv,
 		&utils.StdoutFormater{
@@ -526,7 +541,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile)
+		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile, breakCacheRe)
 	id, err := b.Build(context)
 	if err != nil {
 		return job.Error(err)
