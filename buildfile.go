@@ -110,7 +110,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		b.config = image.Config
 	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+defaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
