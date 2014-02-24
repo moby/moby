@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
@@ -77,7 +78,7 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	if err := SetTerminal(c, pipes); err != nil {
+	if err := term.SetTerminal(c, pipes); err != nil {
 		return -1, err
 	}
 	configPath, err := d.generateLXCConfig(c)

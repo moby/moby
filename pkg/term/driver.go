@@ -1,8 +1,7 @@
-package lxc
+package term
 
 import (
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/pkg/term"
 	"github.com/kr/pty"
 	"io"
 	"os"
@@ -51,7 +50,7 @@ func (t *TtyConsole) Master() *os.File {
 }
 
 func (t *TtyConsole) Resize(h, w int) error {
-	return term.SetWinsize(t.master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return SetWinsize(t.master.Fd(), &Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
 func (t *TtyConsole) attach(command *execdriver.Command, pipes *execdriver.Pipes) error {
