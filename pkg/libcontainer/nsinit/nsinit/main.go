@@ -57,7 +57,11 @@ func main() {
 		if nspid > 0 {
 			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
-			exitCode, err = nsinit.Exec(container, logFile, flag.Args()[1:])
+			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
+			exitCode, err = nsinit.Exec(container,
+				&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{},
+				term,
+				logFile, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -72,7 +76,11 @@ func main() {
 		if flag.NArg() < 2 {
 			log.Fatal(ErrWrongArguments)
 		}
-		if err := nsinit.Init(container, cwd, console, os.NewFile(uintptr(pipeFd), "pipe"), flag.Args()[1:]); err != nil {
+		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := nsinit.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:

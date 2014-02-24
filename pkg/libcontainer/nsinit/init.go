@@ -8,17 +8,16 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 )
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe io.ReadCloser, args []string) error {
+func Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
 	rootfs, err := resolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
@@ -26,19 +25,18 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe
 	log.Printf("initializing namespace at %s", rootfs)
 
 	// We always read this as it is a way to sync with the parent as well
-	tempVethName, err := getVethName(pipe)
+	context, err := syncPipe.ReadFromParent()
 	if err != nil {
+		syncPipe.Close()
 		return err
 	}
-	if tempVethName != "" {
-		log.Printf("received veth name %s", tempVethName)
-	}
+	syncPipe.Close()
+	log.Printf("received context from parent %v", context)
+
 	if console != "" {
 		log.Printf("setting up console for %s", console)
 		// close pipes so that we can replace it with the pty
-		os.Stdin.Close()
-		os.Stdout.Close()
-		os.Stderr.Close()
+		closeStdPipes()
 		slave, err := openTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
@@ -61,7 +59,7 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
-	if err := setupVethNetwork(container.Network, tempVethName); err != nil {
+	if err := setupNetwork(container.Network, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
@@ -80,11 +78,25 @@ func Init(container *libcontainer.Container, uncleanRootfs, console string, pipe
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
-	log.Printf("execing %s goodbye", args[0])
-	if err := system.Exec(args[0], args[0:], container.Env); err != nil {
+	return execArgs(args, container.Env)
+}
+
+func execArgs(args []string, env []string) error {
+	name, err := exec.LookPath(args[0])
+	if err != nil {
+		return err
+	}
+	log.Printf("execing %s goodbye", name)
+	if err := system.Exec(name, args[0:], env); err != nil {
 		return fmt.Errorf("exec %s", err)
 	}
 	panic("unreachable")
+}
+
+func closeStdPipes() {
+	os.Stdin.Close()
+	os.Stdout.Close()
+	os.Stderr.Close()
 }
 
 // resolveRootfs ensures that the current working directory is
@@ -139,46 +151,13 @@ func openTerminal(name string, flag int) (*os.File, error) {
 // setupVethNetwork uses the Network config if it is not nil to initialize
 // the new veth interface inside the container for use by changing the name to eth0
 // setting the MTU and IP address along with the default gateway
-func setupVethNetwork(config *libcontainer.Network, tempVethName string) error {
+func setupNetwork(config *libcontainer.Network, context libcontainer.Context) error {
 	if config != nil {
-		if err := network.InterfaceDown(tempVethName); err != nil {
-			return fmt.Errorf("interface down %s %s", tempVethName, err)
+		strategy, err := network.GetStrategy(config.Type)
+		if err != nil {
+			return err
 		}
-		if err := network.ChangeInterfaceName(tempVethName, "eth0"); err != nil {
-			return fmt.Errorf("change %s to eth0 %s", tempVethName, err)
-		}
-		if err := network.SetInterfaceIp("eth0", config.Address); err != nil {
-			return fmt.Errorf("set eth0 ip %s", err)
-		}
-		if err := network.SetMtu("eth0", config.Mtu); err != nil {
-			return fmt.Errorf("set eth0 mtu to %d %s", config.Mtu, err)
-		}
-		if err := network.InterfaceUp("eth0"); err != nil {
-			return fmt.Errorf("eth0 up %s", err)
-		}
-		if err := network.SetMtu("lo", config.Mtu); err != nil {
-			return fmt.Errorf("set lo mtu to %d %s", config.Mtu, err)
-		}
-		if err := network.InterfaceUp("lo"); err != nil {
-			return fmt.Errorf("lo up %s", err)
-		}
-		if config.Gateway != "" {
-			if err := network.SetDefaultGateway(config.Gateway); err != nil {
-				return fmt.Errorf("set gateway to %s %s", config.Gateway, err)
-			}
-		}
+		return strategy.Initialize(config, context)
 	}
 	return nil
-}
-
-// getVethName reads from Stdin the temp veth name
-// sent by the parent processes after the veth pair
-// has been created and setup
-func getVethName(pipe io.ReadCloser) (string, error) {
-	defer pipe.Close()
-	data, err := ioutil.ReadAll(pipe)
-	if err != nil {
-		return "", fmt.Errorf("error reading from stdin %s", err)
-	}
-	return string(data), nil
 }

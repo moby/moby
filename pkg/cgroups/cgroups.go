@@ -132,7 +132,7 @@ func (c *Cgroup) Apply(pid int) error {
 	// http://www.freedesktop.org/wiki/Software/systemd/PaxControlGroups/
 	//
 	// we can pick any subsystem to find the root
-	cgroupRoot, err := FindCgroupMountpoint("memory")
+	cgroupRoot, err := FindCgroupMountpoint("cpu")
 	if err != nil {
 		return err
 	}
