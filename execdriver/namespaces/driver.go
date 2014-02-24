@@ -28,6 +28,28 @@ var (
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
+		var container *libcontainer.Container
+		f, err := os.Open("container.json")
+		if err != nil {
+			return err
+		}
+		if err := json.NewDecoder(f).Decode(&container); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(args.Pipe))
+		if err != nil {
+			return err
+		}
+		if err := nsinit.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
+			return err
+		}
 		return nil
 	})
 }
@@ -115,14 +137,15 @@ type dockerCommandFactory struct {
 func (d *dockerCommandFactory) Create(container *libcontainer.Container,
 	console, logFile string, syncFd uintptr, args []string) *exec.Cmd {
 	c := d.c
-	aname, _ := exec.LookPath("nsinit")
-	c.Path = aname
+	// we need to join the rootfs because nsinit will setup the rootfs and chroot
+	initPath := filepath.Join(c.Rootfs, c.InitPath)
+
+	c.Path = initPath
 	c.Args = append([]string{
-		aname,
+		initPath,
+		"-driver", DriverName,
 		"-console", console,
 		"-pipe", fmt.Sprint(syncFd),
-		"-log", logFile,
-		"init",
 	}, args...)
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(nsinit.GetNamespaceFlags(container.Namespaces)),

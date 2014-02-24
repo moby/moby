@@ -53,6 +53,8 @@ func SysInit() {
 		privileged = flag.Bool("privileged", false, "privileged mode")
 		mtu        = flag.Int("mtu", 1500, "interface mtu")
 		driver     = flag.String("driver", "", "exec driver")
+		pipe       = flag.Int("pipe", 0, "sync pipe fd")
+		console    = flag.String("console", "", "console (pty slave) path")
 	)
 	flag.Parse()
 
@@ -79,6 +81,8 @@ func SysInit() {
 		Args:       flag.Args(),
 		Mtu:        *mtu,
 		Driver:     *driver,
+		Console:    *console,
+		Pipe:       *pipe,
 	}
 
 	if err := executeProgram(args); err != nil {

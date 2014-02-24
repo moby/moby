@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || strings.Contains(selfPath, "/.dockerinit") {
 		// Running in init mode
 		sysinit.SysInit()
 		return
