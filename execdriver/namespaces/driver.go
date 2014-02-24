@@ -64,7 +64,7 @@ type info struct {
 }
 
 func (i *info) IsRunning() bool {
-	p := filepath.Join(i.driver.root, "containers", i.ID, "rootfs", ".nspid")
+	p := filepath.Join(i.driver.root, "containers", i.ID, "root", ".nspid")
 	if _, err := os.Stat(p); err == nil {
 		return true
 	}
@@ -106,7 +106,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
-	return p.Process.Kill()
+	return syscall.Kill(p.Process.Pid, syscall.Signal(sig))
 }
 
 func (d *driver) Restore(c *execdriver.Command) error {
