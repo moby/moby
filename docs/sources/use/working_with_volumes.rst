@@ -50,7 +50,7 @@ volumes to any container created from that image::
   # RUN-USING:          docker run -name DATA data 
   FROM          busybox
   VOLUME        ["/var/volume1", "/var/volume2"]
-  CMD           ["/usr/bin/true"]
+  CMD           ["/bin/true"]
 
 Creating and mounting a Data Volume Container
 ---------------------------------------------
