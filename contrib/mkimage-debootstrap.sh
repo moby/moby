@@ -210,6 +210,10 @@ if [ -z "$strictDebootstrap" ]; then
 					sudo sed -i "p; s/ $suite main$/ ${suite}-updates main/" etc/apt/sources.list
 				fi
 				;;
+			SteamOS)
+				# add contrib and non-free
+				sudo sed -i "s/ $suite main$/ $suite main contrib non-free/" etc/apt/sources.list
+				;;
 		esac
 	fi
 	
@@ -266,6 +270,15 @@ else
 					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
 					if [ "$lsbRelease" ]; then
 						# tag specific Tanglu version number, if available (1.0, 2.0, etc.)
+						$docker tag $repo:$suite $repo:$lsbRelease
+					fi
+				fi
+				;;
+			SteamOS)
+				if [ -r etc/lsb-release ]; then
+					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
+					if [ "$lsbRelease" ]; then
+						# tag specific SteamOS version number, if available (1.0, 2.0, etc.)
 						$docker tag $repo:$suite $repo:$lsbRelease
 					fi
 				fi
