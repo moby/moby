@@ -24,6 +24,6 @@ For a high-level overview of Docker, please see the `Introduction
 Docker, we have a `quick start <http://www.docker.io/gettingstarted>`_
 and a more in-depth guide to :ref:`ubuntu_linux` and other
 :ref:`installation_list` paths including prebuilt binaries,
-Vagrant-created VMs, Rackspace and Amazon instances.
+Rackspace and Amazon instances.
 
 Enough reading! :ref:`Try it out! <running_examples>`
