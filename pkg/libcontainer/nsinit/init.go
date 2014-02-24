@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/pkg/user"
 	"log"
 	"os"
 	"os/exec"
@@ -110,15 +111,30 @@ func resolveRootfs(uncleanRootfs string) (string, error) {
 }
 
 func setupUser(container *libcontainer.Container) error {
-	// TODO: honor user passed on container
-	if err := system.Setgroups(nil); err != nil {
-		return err
-	}
-	if err := system.Setresgid(0, 0, 0); err != nil {
-		return err
-	}
-	if err := system.Setresuid(0, 0, 0); err != nil {
-		return err
+	if container.User != "" {
+		uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
+		if err != nil {
+			return err
+		}
+		if err := system.Setgroups(suppGids); err != nil {
+			return err
+		}
+		if err := system.Setgid(gid); err != nil {
+			return err
+		}
+		if err := system.Setuid(uid); err != nil {
+			return err
+		}
+	} else {
+		if err := system.Setgroups(nil); err != nil {
+			return err
+		}
+		if err := system.Setresgid(0, 0, 0); err != nil {
+			return err
+		}
+		if err := system.Setresuid(0, 0, 0); err != nil {
+			return err
+		}
 	}
 	return nil
 }

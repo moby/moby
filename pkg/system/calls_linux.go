@@ -71,6 +71,14 @@ func Setresuid(ruid, euid, suid int) error {
 	return syscall.Setresuid(ruid, euid, suid)
 }
 
+func Setgid(gid int) error {
+	return syscall.Setgid(gid)
+}
+
+func Setuid(uid int) error {
+	return syscall.Setuid(uid)
+}
+
 func Sethostname(name string) error {
 	return syscall.Sethostname([]byte(name))
 }
