@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -27,26 +28,12 @@ import (
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
 func mkRuntime(f utils.Fataler) *docker.Runtime {
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		f.Fatal(err)
-	}
-	config := &docker.DaemonConfig{
-		Root:        root,
-		AutoRestart: false,
-		Mtu:         docker.GetDefaultNetworkMtu(),
-	}
-
-	eng, err := engine.New(root)
-	if err != nil {
-		f.Fatal(err)
-	}
-
-	r, err := docker.NewRuntimeFromDirectory(config, eng)
-	if err != nil {
-		f.Fatal(err)
-	}
-	return r
+	eng := newTestEngine(f, false, "")
+	return mkRuntimeFromEngine(eng, f)
+	// FIXME:
+	// [...]
+	// Mtu:         docker.GetDefaultNetworkMtu(),
+	// [...]
 }
 
 func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f utils.Fataler, name string) (shortId string) {
@@ -185,26 +172,34 @@ func mkRuntimeFromEngine(eng *engine.Engine, t utils.Fataler) *docker.Runtime {
 	return runtime
 }
 
-func NewTestEngine(t utils.Fataler) *engine.Engine {
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		t.Fatal(err)
+func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engine {
+	if root == "" {
+		if dir, err := newTestDirectory(unitTestStoreBase); err != nil {
+			t.Fatal(err)
+		} else {
+			root = dir
+		}
 	}
 	eng, err := engine.New(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Load default plugins
+	builtins.Register(eng)
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
 	job := eng.Job("initserver")
 	job.Setenv("Root", root)
-	job.SetenvBool("AutoRestart", false)
+	job.SetenvBool("AutoRestart", autorestart)
 	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
 	job.SetenvBool("EnableCors", true)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 	return eng
+}
+
+func NewTestEngine(t utils.Fataler) *engine.Engine {
+	return newTestEngine(t, false, "")
 }
 
 func newTestDirectory(templateDir string) (dir string, err error) {

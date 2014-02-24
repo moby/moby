@@ -2,7 +2,6 @@ package docker
 
 import (
 	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
 	"strings"
 	"testing"
@@ -258,20 +257,7 @@ func TestRestartKillWait(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eng, err = engine.New(eng.Root())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("AutoRestart", false)
-	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
-	job.SetenvBool("EnableCors", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
+	eng = newTestEngine(t, false, eng.Root())
 	srv = mkServerFromEngine(eng, t)
 
 	job = srv.Eng.Job("containers")

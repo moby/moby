@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	_ "github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
@@ -81,6 +81,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		// Load builtins
+		builtins.Register(eng)
 		// load the daemon in the background so we can immediately start
 		// the http api so that connections don't fail while the daemon
 		// is booting
