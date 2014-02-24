@@ -1509,7 +1509,7 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 		return "", err
 	}
 	imgData.Checksum = checksum
-	imgData.ChecksumPayload = checksumPayload
+	imgData.checksumPayload = checksumPayload
 	// Send the checksum
 	if err := r.PushImageChecksumRegistry(imgData, ep, token); err != nil {
 		return "", err

@@ -389,7 +389,7 @@ func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, 
 	}
 	setTokenAuth(req, token)
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
-	req.Header.Set("X-Docker-Checksum-Payload", imgData.ChecksumPayload)
+	req.Header.Set("X-Docker-Checksum-Payload", imgData.checksumPayload)
 
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
@@ -679,8 +679,8 @@ type RepositoryData struct {
 type ImgData struct {
 	ID              string `json:"id"`
 	Checksum        string `json:"checksum,omitempty"`
-	ChecksumPayload string `json:"checksum,omitempty"`
 	Tag             string `json:",omitempty"`
+	checksumPayload string
 }
 
 type Registry struct {
