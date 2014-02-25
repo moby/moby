@@ -2,7 +2,6 @@ package native
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
@@ -20,10 +19,6 @@ import (
 const (
 	DriverName = "native"
 	Version    = "0.1"
-)
-
-var (
-	ErrNotSupported = errors.New("not supported")
 )
 
 func init() {
@@ -109,10 +104,13 @@ func (d *driver) Restore(c *execdriver.Command) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	if _, err := fmt.Fscanf(f, "%d", &nspid); err != nil {
+		f.Close()
 		return err
 	}
+	f.Close()
+	defer os.Remove(p)
+
 	proc, err := os.FindProcess(nspid)
 	if err != nil {
 		return err
