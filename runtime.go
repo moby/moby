@@ -7,8 +7,8 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/execdriver/docker"
 	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/execdriver/native"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
@@ -702,17 +702,18 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		sysInitPath = localCopy
 	}
 
-	sysInfo := sysinfo.New(false)
+	var (
+		ed      execdriver.Driver
+		sysInfo = sysinfo.New(false)
+	)
 
-	var ed execdriver.Driver
-	utils.Debugf("execDriver: provided %s", config.ExecDriver)
-	if config.ExecDriver == "chroot" && false {
-		// chroot is presently a noop driver https://github.com/dotcloud/docker/pull/4189#issuecomment-35330655
-		ed, err = chroot.NewDriver()
-		utils.Debugf("execDriver: using chroot")
-	} else {
+	switch config.ExecDriver {
+	case "lxc":
 		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
-		utils.Debugf("execDriver: using lxc")
+	case "native":
+		ed, err = native.NewDriver(config.Root)
+	default:
+		return nil, fmt.Errorf("unknow exec driver %s", config.ExecDriver)
 	}
 	if err != nil {
 		return nil, err

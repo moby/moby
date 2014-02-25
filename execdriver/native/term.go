@@ -1,4 +1,4 @@
-package docker
+package native
 
 import (
 	"github.com/dotcloud/docker/execdriver"

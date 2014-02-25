@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
+	_ "github.com/dotcloud/docker/execdriver/native"
 	"io"
 	"io/ioutil"
 	"log"
