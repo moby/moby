@@ -68,7 +68,6 @@ func getDefaultTemplate() *libcontainer.Container {
 			libcontainer.GetNamespace("NEWNS"),
 			libcontainer.GetNamespace("NEWUTS"),
 			libcontainer.GetNamespace("NEWIPC"),
-			libcontainer.GetNamespace("NEWUSER"),
 			libcontainer.GetNamespace("NEWPID"),
 			libcontainer.GetNamespace("NEWNET"),
 		},

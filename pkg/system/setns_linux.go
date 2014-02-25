@@ -1,11 +1,30 @@
 package system
 
 import (
+	"errors"
+	"fmt"
+	"runtime"
 	"syscall"
 )
 
+var (
+	ErrNotSupportedPlatform = errors.New("platform and architecture is not supported")
+)
+
+// Via http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=7b21fddd087678a70ad64afc0f632e0f1071b092
+//
+// We need different setns values for the different platforms and arch
+// We are declaring the macro here because the SETNS syscall does not exist in th stdlib
+var setNsMap = map[string]uintptr{
+	"linux/amd64": 308,
+}
+
 func Setns(fd uintptr, flags uintptr) error {
-	_, _, err := syscall.RawSyscall(SYS_SETNS, fd, flags, 0)
+	ns, exists := setNsMap[fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)]
+	if !exists {
+		return ErrNotSupportedPlatform
+	}
+	_, _, err := syscall.RawSyscall(ns, fd, flags, 0)
 	if err != 0 {
 		return err
 	}
