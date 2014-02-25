@@ -3,9 +3,9 @@ package nsinit
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 // CommandFactory takes the container's configuration and options passed by the
@@ -15,22 +15,31 @@ type CommandFactory interface {
 	Create(container *libcontainer.Container, console string, syncFd uintptr, args []string) *exec.Cmd
 }
 
-type DefaultCommandFactory struct{}
+type DefaultCommandFactory struct {
+	Root string
+}
 
 // Create will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
 func (c *DefaultCommandFactory) Create(container *libcontainer.Container, console string, pipe uintptr, args []string) *exec.Cmd {
-	// get our binary name so we can always reexec ourself
-	name := os.Args[0]
-	command := exec.Command(name, append([]string{
+	// get our binary name from arg0 so we can always reexec ourself
+	command := exec.Command(os.Args[0], append([]string{
 		"-console", console,
 		"-pipe", fmt.Sprint(pipe),
+		"-root", c.Root,
 		"init"}, args...)...)
 
-	command.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: uintptr(GetNamespaceFlags(container.Namespaces)),
-	}
+	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
 	command.Env = container.Env
 	return command
+}
+
+// GetNamespaceFlags parses the container's Namespaces options to set the correct
+// flags on clone, unshare, and setns
+func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
+	for _, ns := range namespaces {
+		flag |= ns.Value
+	}
+	return flag
 }

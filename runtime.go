@@ -709,9 +709,12 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 
 	switch config.ExecDriver {
 	case "lxc":
+		// we want to five the lxc driver the full docker root because it needs
+		// to access and write config and template files in /var/lib/docker/containers/*
+		// to be backwards compatible
 		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
 	case "native":
-		ed, err = native.NewDriver(path.Join(config.Root, "native"))
+		ed, err = native.NewDriver(path.Join(config.Root, "execdriver", "native"))
 	default:
 		return nil, fmt.Errorf("unknown exec driver %s", config.ExecDriver)
 	}

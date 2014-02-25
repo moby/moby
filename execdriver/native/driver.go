@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
+	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -215,9 +216,11 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 		"-pipe", fmt.Sprint(syncFd),
 		"-root", filepath.Join(d.driver.root, d.c.ID),
 	}, args...)
-	d.c.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: uintptr(nsinit.GetNamespaceFlags(container.Namespaces)),
-	}
+
+	// set this to nil so that when we set the clone flags anything else is reset
+	d.c.SysProcAttr = nil
+	system.SetCloneFlags(&d.c.Cmd, uintptr(nsinit.GetNamespaceFlags(container.Namespaces)))
+
 	d.c.Env = container.Env
 	d.c.Dir = d.c.Rootfs
 

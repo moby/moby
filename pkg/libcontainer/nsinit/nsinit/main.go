@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
@@ -18,11 +17,6 @@ var (
 	pipeFd        int
 )
 
-var (
-	ErrUnsupported    = errors.New("Unsupported method")
-	ErrWrongArguments = errors.New("Wrong argument count")
-)
-
 func registerFlags() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
@@ -35,7 +29,7 @@ func main() {
 	registerFlags()
 
 	if flag.NArg() < 1 {
-		log.Fatal(ErrWrongArguments)
+		log.Fatalf("wrong number of argments %d", flag.NArg())
 	}
 	container, err := loadContainer()
 	if err != nil {
@@ -71,7 +65,7 @@ func main() {
 			log.Fatal(err)
 		}
 		if flag.NArg() < 2 {
-			log.Fatal(ErrWrongArguments)
+			log.Fatalf("wrong number of argments %d", flag.NArg())
 		}
 		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {
@@ -112,5 +106,5 @@ func readPid() (int, error) {
 }
 
 func newNsInit() (nsinit.NsInit, error) {
-	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{root}), nil
+	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}, &nsinit.DefaultStateWriter{root}), nil
 }

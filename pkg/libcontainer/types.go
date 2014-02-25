@@ -5,25 +5,20 @@ import (
 	"errors"
 	"github.com/syndtr/gocapability/capability"
 	"os"
-	"syscall"
 )
 
 var (
-	ErrUnkownNamespace error = errors.New("Unkown namespace")
+	ErrUnkownNamespace  = errors.New("Unknown namespace")
+	ErrUnkownCapability = errors.New("Unknown capability")
+	ErrUnsupported      = errors.New("Unsupported method")
 )
 
 // namespaceList is used to convert the libcontainer types
 // into the names of the files located in /proc/<pid>/ns/* for
 // each namespace
 var (
-	namespaceList = Namespaces{
-		{Key: "NEWNS", Value: syscall.CLONE_NEWNS, File: "mnt"},
-		{Key: "NEWUTS", Value: syscall.CLONE_NEWUTS, File: "uts"},
-		{Key: "NEWIPC", Value: syscall.CLONE_NEWIPC, File: "ipc"},
-		{Key: "NEWUSER", Value: syscall.CLONE_NEWUSER, File: "user"},
-		{Key: "NEWPID", Value: syscall.CLONE_NEWPID, File: "pid"},
-		{Key: "NEWNET", Value: syscall.CLONE_NEWNET, File: "net"},
-	}
+	namespaceList = Namespaces{}
+
 	capabilityList = Capabilities{
 		{Key: "SETPCAP", Value: capability.CAP_SETPCAP},
 		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE},
@@ -51,6 +46,10 @@ type (
 	}
 	Namespaces []*Namespace
 )
+
+func (ns *Namespace) String() string {
+	return ns.Key
+}
 
 func (ns *Namespace) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ns.Key)
@@ -95,20 +94,24 @@ type (
 	Capabilities []*Capability
 )
 
-func (ns *Capability) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ns.Key)
+func (c *Capability) String() string {
+	return c.Key
 }
 
-func (ns *Capability) UnmarshalJSON(src []byte) error {
+func (c *Capability) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.Key)
+}
+
+func (c *Capability) UnmarshalJSON(src []byte) error {
 	var capName string
 	if err := json.Unmarshal(src, &capName); err != nil {
 		return err
 	}
 	ret := GetCapability(capName)
 	if ret == nil {
-		return ErrUnkownNamespace
+		return ErrUnkownCapability
 	}
-	*ns = *ret
+	*c = *ret
 	return nil
 }
 
@@ -119,7 +122,7 @@ func GetCapability(key string) *Capability {
 		}
 	}
 	if os.Getenv("DEBUG") != "" {
-		panic("Unreachable: Namespace not found")
+		panic("Unreachable: Capability not found")
 	}
 	return nil
 }

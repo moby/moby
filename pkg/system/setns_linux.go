@@ -1,14 +1,9 @@
 package system
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 	"syscall"
-)
-
-var (
-	ErrNotSupportedPlatform = errors.New("platform and architecture is not supported")
 )
 
 // Via http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=7b21fddd087678a70ad64afc0f632e0f1071b092

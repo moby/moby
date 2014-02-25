@@ -136,3 +136,10 @@ func Mkfifo(name string, mode uint32) error {
 func Umask(mask int) int {
 	return syscall.Umask(mask)
 }
+
+func SetCloneFlags(cmd *exec.Cmd, flag uintptr) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Cloneflags = flag
+}
