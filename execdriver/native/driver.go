@@ -231,39 +231,3 @@ func (d *dockerStateWriter) WritePid(pid int) error {
 func (d *dockerStateWriter) DeletePid() error {
 	return d.dsw.DeletePid()
 }
-
-func createContainer(c *execdriver.Command) *libcontainer.Container {
-	container := getDefaultTemplate()
-
-	container.Hostname = getEnv("HOSTNAME", c.Env)
-	container.Tty = c.Tty
-	container.User = c.User
-	container.WorkingDir = c.WorkingDir
-	container.Env = c.Env
-
-	container.Env = append(container.Env, "container=docker")
-
-	if c.Network != nil {
-		container.Network = &libcontainer.Network{
-			Mtu:     c.Network.Mtu,
-			Address: fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
-			Gateway: c.Network.Gateway,
-			Type:    "veth",
-			Context: libcontainer.Context{
-				"prefix": "dock",
-				"bridge": c.Network.Bridge,
-			},
-		}
-	}
-	container.Cgroups.Name = c.ID
-	if c.Privileged {
-		container.Capabilities = nil
-		container.Cgroups.DeviceAccess = true
-	}
-	if c.Resources != nil {
-		container.Cgroups.CpuShares = c.Resources.CpuShares
-		container.Cgroups.Memory = c.Resources.Memory
-		container.Cgroups.MemorySwap = c.Resources.MemorySwap
-	}
-	return container
-}

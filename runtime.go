@@ -713,7 +713,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 	case "native":
 		ed, err = native.NewDriver(config.Root)
 	default:
-		return nil, fmt.Errorf("unknow exec driver %s", config.ExecDriver)
+		return nil, fmt.Errorf("unknown exec driver %s", config.ExecDriver)
 	}
 	if err != nil {
 		return nil, err

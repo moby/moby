@@ -190,6 +190,7 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 	job := eng.Job("initserver")
 	job.Setenv("Root", root)
 	job.SetenvBool("AutoRestart", autorestart)
+	job.Setenv("ExecDriver", "native")
 	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
 	job.SetenvBool("EnableCors", true)
 	if err := job.Run(); err != nil {
