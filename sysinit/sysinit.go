@@ -66,9 +66,6 @@ func SysInit() {
 		log.Fatalf("Unable to unmarshal environment variables: %v", err)
 	}
 
-	// Propagate the plugin-specific container env variable
-	env = append(env, "container="+os.Getenv("container"))
-
 	args := &execdriver.InitArgs{
 		User:       *user,
 		Gateway:    *gateway,
