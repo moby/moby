@@ -139,6 +139,7 @@ find_dirs() {
 		\( \
 			-wholename './vendor' \
 			-o -wholename './integration' \
+			-o -wholename './integration-cli' \
 			-o -wholename './contrib' \
 			-o -wholename './pkg/mflag/example' \
 			-o -wholename './.git' \
