@@ -11,7 +11,6 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +26,6 @@ const (
 
 var (
 	ErrNotSupported = errors.New("not supported")
-	noOpLog         = log.New(ioutil.Discard, "[nsinit] ", log.LstdFlags)
 )
 
 func init() {
@@ -51,7 +49,7 @@ func init() {
 		if err != nil {
 			return err
 		}
-		ns := nsinit.NewNsInit(noOpLog, "", &nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{})
+		ns := nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{})
 		if err := ns.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
 			return err
 		}
@@ -93,7 +91,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			dsw:      &nsinit.DefaultStateWriter{c.Rootfs},
 		}
 	)
-	ns := nsinit.NewNsInit(noOpLog, "", factory, stateWriter)
+	ns := nsinit.NewNsInit(factory, stateWriter)
 	if c.Tty {
 		term = &dockerTtyTerm{
 			pipes: pipes,
@@ -147,6 +145,8 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, Version)
 }
 
+// TODO: this can be improved with our driver
+// there has to be a better way to do this
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
@@ -207,27 +207,24 @@ type dockerCommandFactory struct {
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func (d *dockerCommandFactory) Create(container *libcontainer.Container,
-	console, logFile string, syncFd uintptr, args []string) *exec.Cmd {
-	c := d.c
+func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFd uintptr, args []string) *exec.Cmd {
 	// we need to join the rootfs because nsinit will setup the rootfs and chroot
-	initPath := filepath.Join(c.Rootfs, c.InitPath)
+	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
 
-	c.Path = initPath
-	c.Args = append([]string{
+	d.c.Path = initPath
+	d.c.Args = append([]string{
 		initPath,
 		"-driver", DriverName,
 		"-console", console,
 		"-pipe", fmt.Sprint(syncFd),
-		"-log", logFile,
 	}, args...)
-	c.SysProcAttr = &syscall.SysProcAttr{
+	d.c.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(nsinit.GetNamespaceFlags(container.Namespaces)),
 	}
-	c.Env = container.Env
-	c.Dir = c.Rootfs
+	d.c.Env = container.Env
+	d.c.Dir = d.c.Rootfs
 
-	return &c.Cmd
+	return &d.c.Cmd
 }
 
 type dockerStateWriter struct {

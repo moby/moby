@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 )
 
+// StateWriter handles writing and deleting the pid file
+// on disk
 type StateWriter interface {
 	WritePid(pid int) error
 	DeletePid() error

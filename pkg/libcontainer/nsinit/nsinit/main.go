@@ -6,7 +6,6 @@ import (
 	"flag"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,7 +15,6 @@ import (
 var (
 	console string
 	pipeFd  int
-	logFile string
 )
 
 var (
@@ -26,7 +24,6 @@ var (
 
 func registerFlags() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
-	flag.StringVar(&logFile, "log", "none", "log options (none, stderr, or a file path)")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
 
 	flag.Parse()
@@ -113,26 +110,5 @@ func readPid() (int, error) {
 }
 
 func newNsInit() (nsinit.NsInit, error) {
-	logger, err := setupLogging()
-	if err != nil {
-		return nil, err
-	}
-	return nsinit.NewNsInit(logger, logFile, &nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{}), nil
-}
-
-func setupLogging() (logger *log.Logger, err error) {
-	var writer io.Writer
-
-	switch logFile {
-	case "stderr":
-		writer = os.Stderr
-	case "none", "":
-		writer = ioutil.Discard
-	default:
-		if writer, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755); err != nil {
-			return
-		}
-	}
-	logger = log.New(writer, "", log.LstdFlags)
-	return
+	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{}), nil
 }

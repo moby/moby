@@ -6,6 +6,9 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 )
 
+// Veth is a network strategy that uses a bridge and creates
+// a veth pair, one that stays outside on the host and the other
+// is placed inside the container's namespace
 type Veth struct {
 }
 

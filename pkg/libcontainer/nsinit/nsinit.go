@@ -2,9 +2,10 @@ package nsinit
 
 import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"log"
 )
 
+// NsInit is an interface with the public facing methods to provide high level
+// exec operations on a container
 type NsInit interface {
 	Exec(container *libcontainer.Container, term Terminal, args []string) (int, error)
 	ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error)
@@ -13,17 +14,13 @@ type NsInit interface {
 
 type linuxNs struct {
 	root           string
-	logFile        string
-	logger         *log.Logger
 	commandFactory CommandFactory
 	stateWriter    StateWriter
 }
 
-func NewNsInit(logger *log.Logger, logFile string, command CommandFactory, state StateWriter) NsInit {
+func NewNsInit(command CommandFactory, state StateWriter) NsInit {
 	return &linuxNs{
-		logger:         logger,
 		commandFactory: command,
 		stateWriter:    state,
-		logFile:        logFile,
 	}
 }

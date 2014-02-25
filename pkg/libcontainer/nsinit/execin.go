@@ -18,7 +18,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 			return -1, err
 		}
 	}
-	fds, err := getNsFds(nspid, container)
+	fds, err := ns.getNsFds(nspid, container)
 	closeFds := func() {
 		for _, f := range fds {
 			system.Closefd(f)
@@ -75,13 +75,13 @@ dropAndExec:
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return -1, fmt.Errorf("drop capabilities %s", err)
 	}
-	if err := system.Exec(args[0], args[0:], container.Env); err != nil {
+	if err := system.Execv(args[0], args[0:], container.Env); err != nil {
 		return -1, err
 	}
 	panic("unreachable")
 }
 
-func getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
+func (ns *linuxNs) getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
 	fds := make([]uintptr, len(container.Namespaces))
 	for i, ns := range container.Namespaces {
 		f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", namespaceFileMap[ns]), os.O_RDONLY, 0)

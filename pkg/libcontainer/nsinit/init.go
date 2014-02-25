@@ -7,18 +7,17 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
+	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"syscall"
 )
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
 func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
-	rootfs, err := resolveRootfs(uncleanRootfs)
+	rootfs, err := utils.ResolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
 	}
@@ -34,7 +33,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if console != "" {
 		// close pipes so that we can replace it with the pty
 		closeStdPipes()
-		slave, err := openTerminal(console, syscall.O_RDWR)
+		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
 		}
@@ -50,6 +49,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
+
 	if err := system.ParentDeathSignal(); err != nil {
 		return fmt.Errorf("parent deth signal %s", err)
 	}
@@ -73,18 +73,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
-	return execArgs(args, container.Env)
-}
-
-func execArgs(args []string, env []string) error {
-	name, err := exec.LookPath(args[0])
-	if err != nil {
-		return err
-	}
-	if err := system.Exec(name, args[0:], env); err != nil {
-		return fmt.Errorf("exec %s", err)
-	}
-	panic("unreachable")
+	return system.Execv(args[0], args[0:], container.Env)
 }
 
 func closeStdPipes() {
@@ -93,18 +82,19 @@ func closeStdPipes() {
 	os.Stderr.Close()
 }
 
-// resolveRootfs ensures that the current working directory is
-// not a symlink and returns the absolute path to the rootfs
-func resolveRootfs(uncleanRootfs string) (string, error) {
-	rootfs, err := filepath.Abs(uncleanRootfs)
-	if err != nil {
-		return "", err
-	}
-	return filepath.EvalSymlinks(rootfs)
-}
-
 func setupUser(container *libcontainer.Container) error {
-	if container.User != "" && container.User != "root" {
+	switch container.User {
+	case "root", "":
+		if err := system.Setgroups(nil); err != nil {
+			return err
+		}
+		if err := system.Setresgid(0, 0, 0); err != nil {
+			return err
+		}
+		if err := system.Setresuid(0, 0, 0); err != nil {
+			return err
+		}
+	default:
 		uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
 		if err != nil {
 			return err
@@ -116,16 +106,6 @@ func setupUser(container *libcontainer.Container) error {
 			return err
 		}
 		if err := system.Setuid(uid); err != nil {
-			return err
-		}
-	} else {
-		if err := system.Setgroups(nil); err != nil {
-			return err
-		}
-		if err := system.Setresgid(0, 0, 0); err != nil {
-			return err
-		}
-		if err := system.Setresuid(0, 0, 0); err != nil {
 			return err
 		}
 	}
@@ -145,16 +125,6 @@ func dupSlave(slave *os.File) error {
 		return err
 	}
 	return nil
-}
-
-// openTerminal is a clone of os.OpenFile without the O_CLOEXEC
-// used to open the pty slave inside the container namespace
-func openTerminal(name string, flag int) (*os.File, error) {
-	r, e := syscall.Open(name, flag, 0)
-	if e != nil {
-		return nil, &os.PathError{"open", name, e}
-	}
-	return os.NewFile(uintptr(r), name), nil
 }
 
 // setupVethNetwork uses the Network config if it is not nil to initialize

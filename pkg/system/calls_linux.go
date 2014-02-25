@@ -1,6 +1,7 @@
 package system
 
 import (
+	"os/exec"
 	"syscall"
 )
 
@@ -14,6 +15,14 @@ func Chdir(dir string) error {
 
 func Exec(cmd string, args []string, env []string) error {
 	return syscall.Exec(cmd, args, env)
+}
+
+func Execv(cmd string, args []string, env []string) error {
+	name, err := exec.LookPath(cmd)
+	if err != nil {
+		return err
+	}
+	return Exec(name, args, env)
 }
 
 func Fork() (int, error) {
