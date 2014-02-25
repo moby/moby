@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"net"
+	"net/url"
 )
 
 func main() {
@@ -142,6 +144,34 @@ func RunCommand(msg beam.Message) (err error) {
 		if err := cmd.Run(); err != nil {
 			fmt.Fprintf(stderr, "exec: %s\n", err)
 		}
+	} else if parts[0] == "listen" {
+		if len(parts) < 2 {
+			fmt.Fprintf(stderr, "Usage: %s URL\n", parts[0])
+			return nil
+		}
+		addr, err := url.Parse(parts[1])
+		if err != nil {
+			fmt.Fprintf(stderr, "invalid url: %s\n", parts[1])
+			return nil
+		}
+		l, err := net.Listen(addr.Scheme, addr.Host)
+		if err != nil {
+			fmt.Fprintf(stderr, "listen: %s\n", err)
+			return nil
+		}
+		fmt.Fprintf(stdout, "listening on %s\n", parts[1])
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				fmt.Fprintf(stderr, "accept: %s\n", err)
+				return nil
+			}
+			fmt.Fprintf(stdout, "received new connection from %s\n", conn.RemoteAddr())
+			if err := msg.Stream.Send(beam.Message{Data: []byte("conn"), Stream: beam.WrapIO(conn, 0)}); err != nil {
+				return fmt.Errorf("send: %s\n", err)
+			}
+		}
+
 	} else {
 		fmt.Fprintf(stderr, "%s: command not found\n", parts[0])
 	}
