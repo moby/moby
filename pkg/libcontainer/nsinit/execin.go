@@ -42,7 +42,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 
 	// if the container has a new pid and mount namespace we need to
 	// remount proc and sys to pick up the changes
-	if container.Namespaces.Contains("CLONE_NEWNS") && container.Namespaces.Contains("CLONE_NEWPID") {
+	if container.Namespaces.Contains("NEWNS") && container.Namespaces.Contains("NEWPID") {
 		pid, err := system.Fork()
 		if err != nil {
 			return -1, err

@@ -9,12 +9,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
 var (
-	console string
-	pipeFd  int
+	root, console string
+	pipeFd        int
 )
 
 var (
@@ -25,6 +26,7 @@ var (
 func registerFlags() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
+	flag.StringVar(&root, "root", ".", "root for storing configuration data")
 
 	flag.Parse()
 }
@@ -84,7 +86,7 @@ func main() {
 }
 
 func loadContainer() (*libcontainer.Container, error) {
-	f, err := os.Open("container.json")
+	f, err := os.Open(filepath.Join(root, "container.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +100,7 @@ func loadContainer() (*libcontainer.Container, error) {
 }
 
 func readPid() (int, error) {
-	data, err := ioutil.ReadFile(".nspid")
+	data, err := ioutil.ReadFile(filepath.Join(root, "pid"))
 	if err != nil {
 		return -1, err
 	}
@@ -110,5 +112,5 @@ func readPid() (int, error) {
 }
 
 func newNsInit() (nsinit.NsInit, error) {
-	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{}), nil
+	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{root}), nil
 }

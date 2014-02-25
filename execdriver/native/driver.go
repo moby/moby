@@ -25,9 +25,9 @@ func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		var (
 			container *libcontainer.Container
-			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{})
+			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{args.Root})
 		)
-		f, err := os.Open("container.json")
+		f, err := os.Open(filepath.Join(args.Root, "container.json"))
 		if err != nil {
 			return err
 		}
@@ -57,6 +57,9 @@ type driver struct {
 }
 
 func NewDriver(root string) (*driver, error) {
+	if err := os.MkdirAll(root, 0655); err != nil {
+		return nil, err
+	}
 	return &driver{
 		root: root,
 	}, nil
@@ -66,14 +69,18 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	var (
 		term        nsinit.Terminal
 		container   = createContainer(c)
-		factory     = &dockerCommandFactory{c}
+		factory     = &dockerCommandFactory{c: c, driver: d}
 		stateWriter = &dockerStateWriter{
 			callback: startCallback,
 			c:        c,
-			dsw:      &nsinit.DefaultStateWriter{c.Rootfs},
+			dsw:      &nsinit.DefaultStateWriter{filepath.Join(d.root, c.ID)},
 		}
-		ns = nsinit.NewNsInit(factory, stateWriter)
+		ns   = nsinit.NewNsInit(factory, stateWriter)
+		args = append([]string{c.Entrypoint}, c.Arguments...)
 	)
+	if err := d.createContainerRoot(c.ID); err != nil {
+		return -1, err
+	}
 	if c.Tty {
 		term = &dockerTtyTerm{
 			pipes: pipes,
@@ -84,10 +91,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		}
 	}
 	c.Terminal = term
-	if err := writeContainerFile(container, c.Rootfs); err != nil {
+	if err := d.writeContainerFile(container, c.ID); err != nil {
 		return -1, err
 	}
-	args := append([]string{c.Entrypoint}, c.Arguments...)
 	return ns.Exec(container, term, args)
 }
 
@@ -98,9 +104,9 @@ func (d *driver) Kill(p *execdriver.Command, sig int) error {
 func (d *driver) Restore(c *execdriver.Command) error {
 	var (
 		nspid int
-		p     = filepath.Join(d.root, "containers", c.ID, "root", ".nspid")
+		path  = filepath.Join(d.root, c.ID, "pid")
 	)
-	f, err := os.Open(p)
+	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
@@ -109,7 +115,7 @@ func (d *driver) Restore(c *execdriver.Command) error {
 		return err
 	}
 	f.Close()
-	defer os.Remove(p)
+	defer os.Remove(path)
 
 	proc, err := os.FindProcess(nspid)
 	if err != nil {
@@ -167,12 +173,16 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	return pids, nil
 }
 
-func writeContainerFile(container *libcontainer.Container, rootfs string) error {
+func (d *driver) writeContainerFile(container *libcontainer.Container, id string) error {
 	data, err := json.Marshal(container)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filepath.Join(rootfs, "container.json"), data, 0755)
+	return ioutil.WriteFile(filepath.Join(d.root, id, "container.json"), data, 0655)
+}
+
+func (d *driver) createContainerRoot(id string) error {
+	return os.MkdirAll(filepath.Join(d.root, id), 0655)
 }
 
 func getEnv(key string, env []string) string {
@@ -186,7 +196,8 @@ func getEnv(key string, env []string) string {
 }
 
 type dockerCommandFactory struct {
-	c *execdriver.Command
+	c      *execdriver.Command
+	driver *driver
 }
 
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
@@ -202,6 +213,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 		"-driver", DriverName,
 		"-console", console,
 		"-pipe", fmt.Sprint(syncFd),
+		"-root", filepath.Join(d.driver.root, d.c.ID),
 	}, args...)
 	d.c.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: uintptr(nsinit.GetNamespaceFlags(container.Namespaces)),

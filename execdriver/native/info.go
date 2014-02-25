@@ -14,8 +14,7 @@ type info struct {
 // .nspid file for a container.  If the file exists then the
 // container is currently running
 func (i *info) IsRunning() bool {
-	p := filepath.Join(i.driver.root, "containers", i.ID, "root", ".nspid")
-	if _, err := os.Stat(p); err == nil {
+	if _, err := os.Stat(filepath.Join(i.driver.root, i.ID, "pid")); err == nil {
 		return true
 	}
 	return false
