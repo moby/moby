@@ -12,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/listenbuffer"
 	"github.com/dotcloud/docker/pkg/systemd"
+	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -21,7 +22,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1142,18 +1142,15 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 			return err
 		}
 
-		groups, err := ioutil.ReadFile("/etc/group")
+		groups, err := user.ParseGroupFilter(func(g *user.Group) bool {
+			return g.Name == "docker"
+		})
 		if err != nil {
 			return err
 		}
-		re := regexp.MustCompile("(^|\n)docker:.*?:([0-9]+)")
-		if gidMatch := re.FindStringSubmatch(string(groups)); gidMatch != nil {
-			gid, err := strconv.Atoi(gidMatch[2])
-			if err != nil {
-				return err
-			}
-			utils.Debugf("docker group found. gid: %d", gid)
-			if err := os.Chown(addr, 0, gid); err != nil {
+		if len(groups) > 0 {
+			utils.Debugf("docker group found. gid: %d", groups[0].Gid)
+			if err := os.Chown(addr, 0, groups[0].Gid); err != nil {
 				return err
 			}
 		}
