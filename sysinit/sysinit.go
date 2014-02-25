@@ -66,7 +66,7 @@ func SysInit() {
 
 	// Get env
 	var env []string
-	content, err := ioutil.ReadFile("/.dockerenv")
+	content, err := ioutil.ReadFile(".dockerenv")
 	if err != nil {
 		log.Fatalf("Unable to load environment variables: %v", err)
 	}
