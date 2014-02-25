@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -20,7 +18,7 @@ import (
 )
 
 const (
-	DriverName = "namespaces"
+	DriverName = "native"
 	Version    = "0.1"
 )
 
@@ -30,7 +28,10 @@ var (
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		var container *libcontainer.Container
+		var (
+			container *libcontainer.Container
+			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{})
+		)
 		f, err := os.Open("container.json")
 		if err != nil {
 			return err
@@ -49,7 +50,6 @@ func init() {
 		if err != nil {
 			return err
 		}
-		ns := nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{})
 		if err := ns.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
 			return err
 		}
@@ -59,19 +59,6 @@ func init() {
 
 type driver struct {
 	root string
-}
-
-type info struct {
-	ID     string
-	driver *driver
-}
-
-func (i *info) IsRunning() bool {
-	p := filepath.Join(i.driver.root, "containers", i.ID, "root", ".nspid")
-	if _, err := os.Stat(p); err == nil {
-		return true
-	}
-	return false
 }
 
 func NewDriver(root string) (*driver, error) {
@@ -90,8 +77,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			c:        c,
 			dsw:      &nsinit.DefaultStateWriter{c.Rootfs},
 		}
+		ns = nsinit.NewNsInit(factory, stateWriter)
 	)
-	ns := nsinit.NewNsInit(factory, stateWriter)
 	if c.Tty {
 		term = &dockerTtyTerm{
 			pipes: pipes,
@@ -279,34 +266,4 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
 	}
 	return container
-}
-
-type dockerStdTerm struct {
-	lxc.StdConsole
-	pipes *execdriver.Pipes
-}
-
-func (d *dockerStdTerm) Attach(cmd *exec.Cmd) error {
-	return d.AttachPipes(cmd, d.pipes)
-}
-
-func (d *dockerStdTerm) SetMaster(master *os.File) {
-	// do nothing
-}
-
-type dockerTtyTerm struct {
-	lxc.TtyConsole
-	pipes *execdriver.Pipes
-}
-
-func (t *dockerTtyTerm) Attach(cmd *exec.Cmd) error {
-	go io.Copy(t.pipes.Stdout, t.MasterPty)
-	if t.pipes.Stdin != nil {
-		go io.Copy(t.MasterPty, t.pipes.Stdin)
-	}
-	return nil
-}
-
-func (t *dockerTtyTerm) SetMaster(master *os.File) {
-	t.MasterPty = master
 }

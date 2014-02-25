@@ -1,26 +1,43 @@
+/*
+   These types are wrappers around the libcontainer Terminal interface so that
+   we can resuse the docker implementations where possible.
+*/
 package native
 
 import (
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/execdriver/lxc"
+	"io"
 	"os"
+	"os/exec"
 )
 
-type NsinitTerm struct {
-	master *os.File
+type dockerStdTerm struct {
+	lxc.StdConsole
+	pipes *execdriver.Pipes
 }
 
-func NewTerm(pipes *execdriver.Pipes, master *os.File) *NsinitTerm {
-	return &NsinitTerm{master}
+func (d *dockerStdTerm) Attach(cmd *exec.Cmd) error {
+	return d.AttachPipes(cmd, d.pipes)
 }
 
-func (t *NsinitTerm) Close() error {
-	return t.master.Close()
+func (d *dockerStdTerm) SetMaster(master *os.File) {
+	// do nothing
 }
 
-func (t *NsinitTerm) Resize(h, w int) error {
-	if t.master != nil {
-		return term.SetWinsize(t.master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+type dockerTtyTerm struct {
+	lxc.TtyConsole
+	pipes *execdriver.Pipes
+}
+
+func (t *dockerTtyTerm) Attach(cmd *exec.Cmd) error {
+	go io.Copy(t.pipes.Stdout, t.MasterPty)
+	if t.pipes.Stdin != nil {
+		go io.Copy(t.MasterPty, t.pipes.Stdin)
 	}
 	return nil
+}
+
+func (t *dockerTtyTerm) SetMaster(master *os.File) {
+	t.MasterPty = master
 }
