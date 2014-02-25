@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +27,7 @@ const (
 
 var (
 	ErrNotSupported = errors.New("not supported")
+	noOpLog         = log.New(ioutil.Discard, "[nsinit] ", log.LstdFlags)
 )
 
 func init() {
@@ -49,7 +51,8 @@ func init() {
 		if err != nil {
 			return err
 		}
-		if err := nsinit.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
+		ns := nsinit.NewNsInit(noOpLog, "", &nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{})
+		if err := ns.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
 			return err
 		}
 		return nil
@@ -90,6 +93,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			dsw:      &nsinit.DefaultStateWriter{c.Rootfs},
 		}
 	)
+	ns := nsinit.NewNsInit(noOpLog, "", factory, stateWriter)
 	if c.Tty {
 		term = &dockerTtyTerm{
 			pipes: pipes,
@@ -104,7 +108,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return -1, err
 	}
 	args := append([]string{c.Entrypoint}, c.Arguments...)
-	return nsinit.Exec(container, factory, stateWriter, term, "", args)
+	return ns.Exec(container, term, args)
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {

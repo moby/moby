@@ -42,13 +42,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setupLogging(); err != nil {
+	ns, err := newNsInit()
+	if err != nil {
 		log.Fatal(err)
 	}
+
 	switch flag.Arg(0) {
 	case "exec": // this is executed outside of the namespace in the cwd
-		log.SetPrefix("[nsinit exec] ")
-
 		var exitCode int
 		nspid, err := readPid()
 		if err != nil {
@@ -57,20 +57,16 @@ func main() {
 			}
 		}
 		if nspid > 0 {
-			exitCode, err = nsinit.ExecIn(container, nspid, flag.Args()[1:])
+			exitCode, err = ns.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
 			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-			exitCode, err = nsinit.Exec(container,
-				&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{},
-				term,
-				logFile, flag.Args()[1:])
+			exitCode, err = ns.Exec(container, term, flag.Args()[1:])
 		}
 		if err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
-		log.SetPrefix("[nsinit init] ")
 		cwd, err := os.Getwd()
 		if err != nil {
 			log.Fatal(err)
@@ -82,7 +78,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := nsinit.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
+		if err := ns.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
 			log.Fatal(err)
 		}
 	default:
@@ -116,19 +112,27 @@ func readPid() (int, error) {
 	return pid, nil
 }
 
-func setupLogging() (err error) {
+func newNsInit() (nsinit.NsInit, error) {
+	logger, err := setupLogging()
+	if err != nil {
+		return nil, err
+	}
+	return nsinit.NewNsInit(logger, logFile, &nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{}), nil
+}
+
+func setupLogging() (logger *log.Logger, err error) {
 	var writer io.Writer
+
 	switch logFile {
 	case "stderr":
 		writer = os.Stderr
 	case "none", "":
 		writer = ioutil.Discard
 	default:
-		writer, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755)
-		if err != nil {
-			return err
+		if writer, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755); err != nil {
+			return
 		}
 	}
-	log.SetOutput(writer)
-	return nil
+	logger = log.New(writer, "", log.LstdFlags)
+	return
 }

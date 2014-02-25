@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
-	"log"
 )
 
 type Veth struct {
 }
 
 func (v *Veth) Create(n *libcontainer.Network, nspid int) (libcontainer.Context, error) {
-	log.Printf("creating veth network")
 	var (
 		bridge string
 		prefix string
@@ -31,7 +29,6 @@ func (v *Veth) Create(n *libcontainer.Network, nspid int) (libcontainer.Context,
 		"vethHost":  name1,
 		"vethChild": name2,
 	}
-	log.Printf("veth pair created %s <> %s", name1, name2)
 	if err := SetInterfaceMaster(name1, bridge); err != nil {
 		return context, err
 	}
@@ -41,7 +38,6 @@ func (v *Veth) Create(n *libcontainer.Network, nspid int) (libcontainer.Context,
 	if err := InterfaceUp(name1); err != nil {
 		return context, err
 	}
-	log.Printf("setting %s inside %d namespace", name2, nspid)
 	if err := SetInterfaceInNamespacePid(name2, nspid); err != nil {
 		return context, err
 	}

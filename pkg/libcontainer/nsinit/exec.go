@@ -6,7 +6,6 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -14,9 +13,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container,
-	factory CommandFactory, state StateWriter, term Terminal,
-	logFile string, args []string) (int, error) {
+func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args []string) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -31,7 +28,7 @@ func Exec(container *libcontainer.Container,
 	}
 
 	if container.Tty {
-		log.Printf("setting up master and console")
+		ns.logger.Printf("setting up master and console")
 		master, console, err = CreateMasterAndConsole()
 		if err != nil {
 			return -1, err
@@ -39,54 +36,56 @@ func Exec(container *libcontainer.Container,
 		term.SetMaster(master)
 	}
 
-	command := factory.Create(container, console, logFile, syncPipe.child.Fd(), args)
+	command := ns.commandFactory.Create(container, console, ns.logFile, syncPipe.child.Fd(), args)
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}
 	defer term.Close()
 
-	log.Printf("staring init")
+	ns.logger.Printf("staring init")
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
-	log.Printf("writing state file")
-	if err := state.WritePid(command.Process.Pid); err != nil {
+	ns.logger.Printf("writing state file")
+	if err := ns.stateWriter.WritePid(command.Process.Pid); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
 	defer func() {
-		log.Printf("removing state file")
-		state.DeletePid()
+		ns.logger.Printf("removing state file")
+		ns.stateWriter.DeletePid()
 	}()
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	if err := SetupCgroups(container, command.Process.Pid); err != nil {
+	if err := ns.SetupCgroups(container, command.Process.Pid); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	if err := InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
+	if err := ns.InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
 
 	// Sync with child
-	log.Printf("closing sync pipes")
+	ns.logger.Printf("closing sync pipes")
 	syncPipe.Close()
 
-	log.Printf("waiting on process")
+	ns.logger.Printf("waiting on process")
 	if err := command.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return -1, err
 		}
 	}
-	log.Printf("process ended")
-	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+
+	exitCode := command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	ns.logger.Printf("process ended with exit code %d", exitCode)
+	return exitCode, nil
 }
 
-func SetupCgroups(container *libcontainer.Container, nspid int) error {
+func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) error {
 	if container.Cgroups != nil {
-		log.Printf("setting up cgroups")
+		ns.logger.Printf("setting up cgroups")
 		if err := container.Cgroups.Apply(nspid); err != nil {
 			return err
 		}
@@ -94,9 +93,9 @@ func SetupCgroups(container *libcontainer.Container, nspid int) error {
 	return nil
 }
 
-func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
+func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
 	if container.Network != nil {
-		log.Printf("creating host network configuration type %s", container.Network.Type)
+		ns.logger.Printf("creating host network configuration type %s", container.Network.Type)
 		strategy, err := network.GetStrategy(container.Network.Type)
 		if err != nil {
 			return err
@@ -105,7 +104,7 @@ func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *Sy
 		if err != nil {
 			return err
 		}
-		log.Printf("sending %v as network context", networkContext)
+		ns.logger.Printf("sending %v as network context", networkContext)
 		if err := pipe.SendToChild(networkContext); err != nil {
 			return err
 		}

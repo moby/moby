@@ -17,7 +17,7 @@ import (
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
+func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
 	rootfs, err := resolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
