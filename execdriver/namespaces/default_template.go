@@ -34,7 +34,7 @@ func getDefaultTemplate() *libcontainer.Container {
 			libcontainer.CLONE_NEWUTS,
 		},
 		Cgroups: &cgroups.Cgroup{
-			Name:         "docker",
+			Parent:       "docker",
 			DeviceAccess: false,
 		},
 	}

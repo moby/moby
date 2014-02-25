@@ -129,13 +129,11 @@ func (d *driver) Name() string {
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
-	subsystem := "cpu"
+	subsystem := "devices"
 	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
 	if err != nil {
 		return pids, err
 	}
-	cgroupRoot = filepath.Dir(cgroupRoot)
-
 	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
 	if err != nil {
 		return pids, err
@@ -252,6 +250,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 			},
 		}
 	}
+	container.Cgroups.Name = c.ID
 	if c.Privileged {
 		container.Capabilities = nil
 		container.Cgroups.DeviceAccess = true
