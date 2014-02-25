@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+const defaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 var (
 	ErrNotATTY               = errors.New("The PTY is not a file")
 	ErrNoTTY                 = errors.New("No PTY found")
@@ -447,7 +449,7 @@ func (container *Container) Start() (err error) {
 	// Setup environment
 	env := []string{
 		"HOME=/",
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PATH=" + defaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 

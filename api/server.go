@@ -17,7 +17,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"mime"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -29,30 +28,11 @@ import (
 	"time"
 )
 
-// FIXME: move code common to client and server to common.go
-const (
-	APIVERSION        = 1.9
-	DEFAULTHTTPHOST   = "127.0.0.1"
-	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
-)
-
 var (
 	activationLock chan struct{}
 )
 
-func ValidateHost(val string) (string, error) {
-	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
-	if err != nil {
-		return val, err
-	}
-	return host, nil
-}
-
 type HttpApiFunc func(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error
-
-func init() {
-	engine.Register("serveapi", ServeApi)
-}
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
@@ -131,27 +111,6 @@ func getBoolParam(value string) (bool, error) {
 		return false, fmt.Errorf("Bad parameter")
 	}
 	return ret, nil
-}
-
-//TODO remove, used on < 1.5 in getContainersJSON
-func displayablePorts(ports *engine.Table) string {
-	result := []string{}
-	for _, port := range ports.Data {
-		if port.Get("IP") == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))
-		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
-		}
-	}
-	return strings.Join(result, ", ")
-}
-
-func MatchesContentType(contentType, expectedType string) bool {
-	mimetype, _, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
-	}
-	return err == nil && mimetype == expectedType
 }
 
 func postAuth(eng *engine.Engine, version float64, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

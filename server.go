@@ -34,14 +34,10 @@ func (srv *Server) Close() error {
 	return srv.runtime.Close()
 }
 
-func init() {
-	engine.Register("initserver", jobInitServer)
-}
-
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
-func jobInitServer(job *engine.Job) engine.Status {
+func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
 	srv, err := NewServer(job.Eng, DaemonConfigFromJob(job))
 	if err != nil {

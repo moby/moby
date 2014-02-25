@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	_ "github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
@@ -39,6 +39,7 @@ func main() {
 		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
 		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
 		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
+		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "", "Force the docker runtime to use a specific exec driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
 	)
@@ -81,6 +82,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		// Load builtins
+		builtins.Register(eng)
 		// load the daemon in the background so we can immediately start
 		// the http api so that connections don't fail while the daemon
 		// is booting
@@ -98,6 +101,7 @@ func main() {
 			job.Setenv("DefaultIp", *flDefaultIp)
 			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 			job.Setenv("GraphDriver", *flGraphDriver)
+			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)

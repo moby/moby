@@ -74,7 +74,7 @@ When you're done with your build, you're ready to look into
 2. Format
 =========
 
-The Dockerfile format is quite simple:
+Here is the format of the Dockerfile:
 
 ::
 

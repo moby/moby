@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -112,5 +113,42 @@ func TestEngineLogf(t *testing.T) {
 		t.Fatal(err)
 	} else if n < len(input) {
 		t.Fatalf("Test: Logf() should print at least as much as the input\ninput=%d\nprinted=%d", len(input), n)
+	}
+}
+
+func TestParseJob(t *testing.T) {
+	eng := newTestEngine(t)
+	defer os.RemoveAll(eng.Root())
+	// Verify that the resulting job calls to the right place
+	var called bool
+	eng.Register("echo", func(job *Job) Status {
+		called = true
+		return StatusOK
+	})
+	input := "echo DEBUG=1 hello world VERBOSITY=42"
+	job, err := eng.ParseJob(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Name != "echo" {
+		t.Fatalf("Invalid job name: %v", job.Name)
+	}
+	if strings.Join(job.Args, ":::") != "hello:::world" {
+		t.Fatalf("Invalid job args: %v", job.Args)
+	}
+	if job.Env().Get("DEBUG") != "1" {
+		t.Fatalf("Invalid job env: %v", job.Env)
+	}
+	if job.Env().Get("VERBOSITY") != "42" {
+		t.Fatalf("Invalid job env: %v", job.Env)
+	}
+	if len(job.Env().Map()) != 2 {
+		t.Fatalf("Invalid job env: %v", job.Env)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatalf("Job was not called")
 	}
 }

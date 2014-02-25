@@ -25,9 +25,9 @@ Does Docker run on Mac OS X or Windows?
 
    Not at this time, Docker currently only runs on Linux, but you can
    use VirtualBox to run Docker in a virtual machine on your box, and
-   get the best of both worlds. Check out the
-   :ref:`macosx` and :ref:`windows` installation
-   guides.
+   get the best of both worlds. Check out the :ref:`macosx` and
+   :ref:`windows` installation guides. The small Linux distribution boot2docker
+   can be run inside virtual machines on these two operating systems.
 
 How do containers compare to virtual machines?
 ..............................................
