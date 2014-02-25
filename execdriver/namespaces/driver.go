@@ -112,7 +112,24 @@ func (d *driver) Kill(p *execdriver.Command, sig int) error {
 }
 
 func (d *driver) Restore(c *execdriver.Command) error {
-	return ErrNotSupported
+	var (
+		nspid int
+		p     = filepath.Join(d.root, "containers", c.ID, "root", ".nspid")
+	)
+	f, err := os.Open(p)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := fmt.Fscanf(f, "%d", &nspid); err != nil {
+		return err
+	}
+	proc, err := os.FindProcess(nspid)
+	if err != nil {
+		return err
+	}
+	_, err = proc.Wait()
+	return err
 }
 
 func (d *driver) Info(id string) execdriver.Info {
