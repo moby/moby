@@ -7,7 +7,6 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
 	_ "github.com/dotcloud/docker/execdriver/native"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -56,13 +55,8 @@ func SysInit() {
 		driver     = flag.String("driver", "", "exec driver")
 		pipe       = flag.Int("pipe", 0, "sync pipe fd")
 		console    = flag.String("console", "", "console (pty slave) path")
-		logFile    = flag.String("log", "", "log file path")
 	)
 	flag.Parse()
-
-	if err := setupLogging(*logFile); err != nil {
-		log.Fatalf("setup logging %s", err)
-	}
 
 	// Get env
 	var env []string
@@ -93,21 +87,4 @@ func SysInit() {
 	if err := executeProgram(args); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func setupLogging(logFile string) (err error) {
-	var writer io.Writer
-	switch logFile {
-	case "stderr":
-		writer = os.Stderr
-	case "none", "":
-		writer = ioutil.Discard
-	default:
-		writer, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755)
-		if err != nil {
-			return err
-		}
-	}
-	log.SetOutput(writer)
-	return nil
 }
