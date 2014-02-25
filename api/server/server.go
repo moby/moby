@@ -990,7 +990,7 @@ func AttachProfiler(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 }
 
-func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion string) (*mux.Router, error) {
+func CreateRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion string) (*mux.Router, error) {
 	r := mux.NewRouter()
 	if os.Getenv("DEBUG") != "" {
 		AttachProfiler(r)
@@ -1068,9 +1068,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 
 // ServeRequest processes a single http request to the docker remote api.
 // FIXME: refactor this to be part of Server and not require re-creating a new
-// router each time. This requires first moving ListenAndServe into Server.
+// router each time.
 func ServeRequest(eng *engine.Engine, apiversion version.Version, w http.ResponseWriter, req *http.Request) error {
-	router, err := createRouter(eng, false, true, "")
+	router, err := CreateRouter(eng, false, true, "")
 	if err != nil {
 		return err
 	}
@@ -1138,27 +1138,16 @@ func changeGroup(addr string, nameOrGid string) error {
 	return os.Chown(addr, 0, gid)
 }
 
-// ListenAndServe sets up the required http.Server and gets it listening for
-// each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, job *engine.Job) error {
-	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
-	if err != nil {
-		return err
-	}
-
-	if proto == "fd" {
-		return ServeFd(addr, r)
-	}
-
+func Listen(proto, addr string, admin bool, job *engine.Job) (net.Listener, error) {
 	if proto == "unix" {
 		if err := syscall.Unlink(addr); err != nil && !os.IsNotExist(err) {
-			return err
+			return nil, err
 		}
 	}
 
 	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if proto != "unix" && (job.GetenvBool("Tls") || job.GetenvBool("TlsVerify")) {
@@ -1166,8 +1155,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 		tlsKey := job.Getenv("TlsKey")
 		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
 		if err != nil {
-			return fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?",
-				tlsCert, tlsKey, err)
+			return nil, fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?", tlsCert, tlsKey, err)
 		}
 		tlsConfig := &tls.Config{
 			NextProtos:   []string{"http/1.1"},
@@ -1177,7 +1165,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 			certPool := x509.NewCertPool()
 			file, err := ioutil.ReadFile(job.Getenv("TlsCa"))
 			if err != nil {
-				return fmt.Errorf("Couldn't read CA certificate: %s", err)
+				return nil, fmt.Errorf("Couldn't read CA certificate: %s", err)
 			}
 			certPool.AppendCertsFromPEM(file)
 
@@ -1194,24 +1182,34 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 	case "unix":
-		if err := os.Chmod(addr, 0660); err != nil {
-			return err
-		}
-		socketGroup := job.Getenv("SocketGroup")
-		if socketGroup != "" {
-			if err := changeGroup(addr, socketGroup); err != nil {
-				if socketGroup == "docker" {
-					// if the user hasn't explicitly specified the group ownership, don't fail on errors.
-					utils.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
-				} else {
-					return err
+		if admin {
+			if err := os.Chmod(addr, 0600); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := os.Chmod(addr, 0660); err != nil {
+				return nil, err
+			}
+			socketGroup := job.Getenv("SocketGroup")
+			if socketGroup != "" {
+				if err := changeGroup(addr, socketGroup); err != nil {
+					if socketGroup == "docker" {
+						// if the user hasn't explicitly specified the group ownership, don't fail on errors.
+						utils.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
+					} else {
+						return nil, err
+					}
 				}
 			}
 		}
 	default:
-		return fmt.Errorf("Invalid protocol format.")
+		return nil, fmt.Errorf("Invalid protocol format.")
 	}
 
+	return l, nil
+}
+
+func Serve(addr string, r *mux.Router, l net.Listener) error {
 	httpSrv := http.Server{Addr: addr, Handler: r}
 	return httpSrv.Serve(l)
 }
@@ -1229,11 +1227,24 @@ func ServeApi(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
+	r, err := CreateRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
+	if err != nil {
+		return job.Error(err)
+	}
+
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
+			if protoAddrParts[0] == "fd" {
+				chErrors <- ServeFd(protoAddrParts[1], r)
+			} else {
+				if l, err := Listen(protoAddrParts[0], protoAddrParts[1], false, job); err != nil {
+					chErrors <- err
+				} else {
+					chErrors <- Serve(protoAddrParts[1], r, l)
+				}
+			}
 		}()
 	}
 
