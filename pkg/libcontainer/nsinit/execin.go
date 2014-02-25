@@ -14,7 +14,7 @@ import (
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
 func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
 	for _, ns := range container.Namespaces {
-		if err := system.Unshare(namespaceMap[ns]); err != nil {
+		if err := system.Unshare(ns.Value); err != nil {
 			return -1, err
 		}
 	}
@@ -42,8 +42,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 
 	// if the container has a new pid and mount namespace we need to
 	// remount proc and sys to pick up the changes
-	if container.Namespaces.Contains(libcontainer.CLONE_NEWNS) &&
-		container.Namespaces.Contains(libcontainer.CLONE_NEWPID) {
+	if container.Namespaces.Contains("CLONE_NEWNS") && container.Namespaces.Contains("CLONE_NEWPID") {
 		pid, err := system.Fork()
 		if err != nil {
 			return -1, err
@@ -84,7 +83,7 @@ dropAndExec:
 func (ns *linuxNs) getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
 	fds := make([]uintptr, len(container.Namespaces))
 	for i, ns := range container.Namespaces {
-		f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", namespaceFileMap[ns]), os.O_RDONLY, 0)
+		f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", ns.File), os.O_RDONLY, 0)
 		if err != nil {
 			return fds, err
 		}
