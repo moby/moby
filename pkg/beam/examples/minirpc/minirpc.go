@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"github.com/dotcloud/docker/pkg/beam"
 	"os"
 	"os/exec"
@@ -61,11 +60,13 @@ func (cli *CLI) Receive() (msg beam.Message, err error) {
 				} else if name == "stderr" {
 					output = cli.stderr
 				} else {
-					output = ioutil.Discard
+					prefix := fmt.Sprintf("[%s]--->[%s] ", msg.Data, name)
+					output = prefixer(prefix, cli.stderr)
 				}
 				cli.tasks.Add(1)
 				go func() {
 					io.Copy(output, beam.NewReader(m.Stream))
+					fmt.Fprintf(cli.stderr, "[EOF] %s\n", m.Data)
 					cli.tasks.Done()
 				}()
 			}
@@ -76,10 +77,22 @@ func (cli *CLI) Receive() (msg beam.Message, err error) {
 	return
 }
 
+func prefixer(prefix string, output io.Writer) io.Writer {
+	r, w := io.Pipe()
+	go func() {
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			fmt.Fprintf(output, "%s%s\n", prefix, scanner.Bytes())
+		}
+	}()
+	return w
+}
+
 func (cli *CLI) Send(msg beam.Message) (err error) {
 	if msg.Stream == nil {
 		return nil
 	}
+	fmt.Printf("---> CLI received new stream (%s)\n", msg.Data)
 	go beam.Splice(msg.Stream, beam.DevNull)
 	return nil
 }
