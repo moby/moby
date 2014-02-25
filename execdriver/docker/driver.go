@@ -1,4 +1,4 @@
-package namespaces
+package docker
 
 import (
 	"encoding/json"

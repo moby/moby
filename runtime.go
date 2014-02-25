@@ -7,8 +7,8 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/docker"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
-	"github.com/dotcloud/docker/execdriver/namespaces"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
@@ -704,7 +704,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 
 	sysInfo := sysinfo.New(false)
 
-	ed, err := namespaces.NewDriver(config.Root)
+	ed, err := docker.NewDriver(config.Root)
 	if err != nil {
 		return nil, err
 	}
