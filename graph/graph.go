@@ -260,6 +260,7 @@ func SetupInitLayer(initLayer string) error {
 		"/etc/hostname":    "file",
 		"/dev/console":     "file",
 		"/etc/mtab":        "/proc/mounts",
+		"/.dockersock":     "socket",
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {
@@ -282,6 +283,15 @@ func SetupInitLayer(initLayer string) error {
 						return err
 					}
 					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
+					if err != nil {
+						return err
+					}
+					f.Close()
+				case "socket":
+					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+						return err
+					}
+					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0000)
 					if err != nil {
 						return err
 					}

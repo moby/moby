@@ -40,6 +40,10 @@ func setupMountsForContainer(container *Container, envPath string) error {
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
+	if container.hostConfig.Privileged && container.introspectionListener != nil {
+		mounts = append(mounts, execdriver.Mount{filepath.Join(container.root, "/docker.sock"), "/.dockersock", false, true})
+	}
+
 	if container.HostnamePath != "" && container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/api/server"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/links"
@@ -16,8 +18,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -74,6 +78,8 @@ type Container struct {
 	hostConfig *runconfig.HostConfig
 
 	activeLinks map[string]*links.Link
+
+	introspectionListener net.Listener
 }
 
 // FIXME: move deprecated port stuff to nat to clean up the core.
@@ -557,6 +563,18 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	if container.hostConfig.Privileged {
+		if router, err := server.CreateRouter(container.runtime.eng, false, false, dockerversion.VERSION); err == nil {
+			if container.introspectionListener, err = server.Listen("unix", filepath.Join(container.root, "/docker.sock"), true, nil); err == nil {
+				go func(l net.Listener) {
+					utils.Debugf("start introspection API for container %s", container.ID)
+					server.Serve("http", router, l)
+					utils.Debugf("stop introspection API for container %s", container.ID)
+				}(container.introspectionListener)
+			}
+		}
+	}
+
 	populateCommand(container)
 	container.command.Env = env
 
@@ -869,6 +887,10 @@ func (container *Container) cleanup() {
 		if err := container.command.Terminal.Close(); err != nil {
 			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
+	}
+
+	if container.hostConfig.Privileged && container.introspectionListener != nil {
+		container.introspectionListener.Close()
 	}
 
 	if err := container.Unmount(); err != nil {
