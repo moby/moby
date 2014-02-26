@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	APIVERSION        = 1.9
+	APIVERSION        = "1.10"
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 )

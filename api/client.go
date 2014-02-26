@@ -780,7 +780,10 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	cmd := cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
+	var (
+		cmd   = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
+		force = cmd.Bool([]string{"f", "-force"}, false, "Force")
+	)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -789,9 +792,14 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		return nil
 	}
 
+	v := url.Values{}
+	if *force {
+		v.Set("force", "1")
+	}
+
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		body, _, err := readBody(cli.call("DELETE", "/images/"+name, nil, false))
+		body, _, err := readBody(cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, false))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
@@ -2032,7 +2040,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -2109,7 +2117,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -2173,7 +2181,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%g%s", APIVERSION, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}

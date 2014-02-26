@@ -1020,6 +1020,8 @@ containers will not be deleted.
     Usage: docker rmi IMAGE [IMAGE...]
 
     Remove one or more images
+
+      -f, --force=false: Force
     
 Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~

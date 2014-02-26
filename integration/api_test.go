@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1175,6 +1176,8 @@ func TestGetEnabledCors(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	eng := NewTestEngine(t)
+	//we expect errors, so we disable stderr
+	eng.Stderr = ioutil.Discard
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	initialImages := getImages(eng, t, true, "")
