@@ -56,7 +56,10 @@ func NewDriver() (*driver, error) {
 	return &driver{}, nil
 }
 
-func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	if err := execdriver.SetTerminal(c, pipes); err != nil {
+		return -1, err
+	}
 
 	params := []string{
 		"systemd-nspawn",
