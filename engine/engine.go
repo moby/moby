@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -27,6 +28,10 @@ func Register(name string, handler Handler) error {
 	}
 	globalHandlers[name] = handler
 	return nil
+}
+
+func unregister(name string) {
+	delete(globalHandlers, name)
 }
 
 // The Engine is the core of Docker.
@@ -106,6 +111,12 @@ func New(root string) (*Engine, error) {
 		Stderr:   os.Stderr,
 		Stdin:    os.Stdin,
 	}
+	eng.Register("commands", func(job *Job) Status {
+		for _, name := range eng.commands() {
+			job.Printf("%s\n", name)
+		}
+		return StatusOK
+	})
 	// Copy existing global handlers
 	for k, v := range globalHandlers {
 		eng.handlers[k] = v
@@ -115,6 +126,17 @@ func New(root string) (*Engine, error) {
 
 func (eng *Engine) String() string {
 	return fmt.Sprintf("%s|%s", eng.Root(), eng.id[:8])
+}
+
+// Commands returns a list of all currently registered commands,
+// sorted alphabetically.
+func (eng *Engine) commands() []string {
+	names := make([]string, 0, len(eng.handlers))
+	for name := range eng.handlers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // Job creates a new job which can later be executed.

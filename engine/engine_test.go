@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path"
@@ -17,6 +18,8 @@ func TestRegister(t *testing.T) {
 	if err := Register("dummy1", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	// Register is global so let's cleanup to avoid conflicts
+	defer unregister("dummy1")
 
 	eng := newTestEngine(t)
 
@@ -33,6 +36,7 @@ func TestRegister(t *testing.T) {
 	if err := eng.Register("dummy2", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	defer unregister("dummy2")
 }
 
 func TestJob(t *testing.T) {
@@ -49,6 +53,7 @@ func TestJob(t *testing.T) {
 	}
 
 	eng.Register("dummy2", h)
+	defer unregister("dummy2")
 	job2 := eng.Job("dummy2", "--level=awesome")
 
 	if job2.handler == nil {
@@ -57,6 +62,24 @@ func TestJob(t *testing.T) {
 
 	if job2.handler(job2) != 42 {
 		t.Fatalf("handler dummy2 was not found in job2")
+	}
+}
+
+func TestEngineCommands(t *testing.T) {
+	eng := newTestEngine(t)
+	defer os.RemoveAll(eng.Root())
+	handler := func(job *Job) Status { return StatusOK }
+	eng.Register("foo", handler)
+	eng.Register("bar", handler)
+	eng.Register("echo", handler)
+	eng.Register("die", handler)
+	var output bytes.Buffer
+	commands := eng.Job("commands")
+	commands.Stdout.Add(&output)
+	commands.Run()
+	expected := "bar\ncommands\ndie\necho\nfoo\n"
+	if result := output.String(); result != expected {
+		t.Fatalf("Unexpected output:\nExpected = %v\nResult   = %v\n", expected, result)
 	}
 }
 

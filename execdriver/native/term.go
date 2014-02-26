@@ -6,14 +6,13 @@ package native
 
 import (
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/execdriver/lxc"
 	"io"
 	"os"
 	"os/exec"
 )
 
 type dockerStdTerm struct {
-	lxc.StdConsole
+	execdriver.StdConsole
 	pipes *execdriver.Pipes
 }
 
@@ -26,7 +25,7 @@ func (d *dockerStdTerm) SetMaster(master *os.File) {
 }
 
 type dockerTtyTerm struct {
-	lxc.TtyConsole
+	execdriver.TtyConsole
 	pipes *execdriver.Pipes
 }
 

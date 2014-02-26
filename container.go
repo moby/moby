@@ -790,21 +790,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		utils.Errorf("Error running container: %s", err)
 	}
 
-	// Cleanup
-	container.cleanup()
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-
 	container.State.SetStopped(exitCode)
-
-	if container.runtime != nil && container.runtime.srv != nil {
-		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
-	}
-
-	close(container.waitLock)
 
 	// FIXME: there is a race condition here which causes this to fail during the unit tests.
 	// If another goroutine was waiting for Wait() to return before removing the container's root
@@ -813,7 +799,23 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	// to return.
 	// FIXME: why are we serializing running state to disk in the first place?
 	//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
-	container.ToDisk()
+	if err := container.ToDisk(); err != nil {
+		utils.Errorf("Error dumping container state to disk: %s\n", err)
+	}
+
+	// Cleanup
+	container.cleanup()
+
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	if container.runtime != nil && container.runtime.srv != nil {
+		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
+	}
+
+	close(container.waitLock)
 
 	return err
 }

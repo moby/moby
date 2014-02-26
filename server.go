@@ -2,7 +2,6 @@ package docker
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
@@ -1810,102 +1809,33 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-var ErrImageReferenced = errors.New("Image referenced by a repository")
-
-func (srv *Server) deleteImageAndChildren(id string, imgs *engine.Table, byParents map[string][]*Image) error {
-	// If the image is referenced by a repo, do not delete
-	if len(srv.runtime.repositories.ByID()[id]) != 0 {
-		return ErrImageReferenced
-	}
-	// If the image is not referenced but has children, go recursive
-	referenced := false
-	for _, img := range byParents[id] {
-		if err := srv.deleteImageAndChildren(img.ID, imgs, byParents); err != nil {
-			if err != ErrImageReferenced {
-				return err
-			}
-			referenced = true
-		}
-	}
-	if referenced {
-		return ErrImageReferenced
-	}
-
-	// If the image is not referenced and has no children, remove it
-	byParents, err := srv.runtime.graph.ByParent()
-	if err != nil {
-		return err
-	}
-	if len(byParents[id]) == 0 && srv.canDeleteImage(id) == nil {
-		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
-			return err
-		}
-		err := srv.runtime.graph.Delete(id)
-		if err != nil {
-			return err
-		}
-		out := &engine.Env{}
-		out.Set("Deleted", id)
-		imgs.Add(out)
-		srv.LogEvent("delete", id, "")
-		return nil
-	}
-	return nil
-}
-
-func (srv *Server) deleteImageParents(img *Image, imgs *engine.Table) error {
-	if img.Parent != "" {
-		parent, err := srv.runtime.graph.Get(img.Parent)
-		if err != nil {
-			return err
-		}
-		byParents, err := srv.runtime.graph.ByParent()
-		if err != nil {
-			return err
-		}
-		// Remove all children images
-		if err := srv.deleteImageAndChildren(img.Parent, imgs, byParents); err != nil {
-			return err
-		}
-		return srv.deleteImageParents(parent, imgs)
-	}
-	return nil
-}
-
-func (srv *Server) DeleteImage(name string, autoPrune bool) (*engine.Table, error) {
+func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force bool) error {
 	var (
 		repoName, tag string
-		img, err      = srv.runtime.repositories.LookupImage(name)
-		imgs          = engine.NewTable("", 0)
 		tags          = []string{}
 	)
 
+	repoName, tag = utils.ParseRepositoryTag(name)
+	if tag == "" {
+		tag = DEFAULTTAG
+	}
+
+	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		return nil, fmt.Errorf("No such image: %s", name)
-	}
-
-	// FIXME: What does autoPrune mean ?
-	if !autoPrune {
-		if err := srv.runtime.graph.Delete(img.ID); err != nil {
-			return nil, fmt.Errorf("Cannot delete image %s: %s", name, err)
+		if r, _ := srv.runtime.repositories.Get(repoName); r != nil {
+			return fmt.Errorf("No such image: %s:%s", repoName, tag)
 		}
-		return nil, nil
+		return fmt.Errorf("No such image: %s", name)
 	}
 
-	if !strings.Contains(img.ID, name) {
-		repoName, tag = utils.ParseRepositoryTag(name)
+	if strings.Contains(img.ID, name) {
+		repoName = ""
+		tag = ""
 	}
 
-	// If we have a repo and the image is not referenced anywhere else
-	// then just perform an untag and do not validate.
-	//
-	// i.e. only validate if we are performing an actual delete and not
-	// an untag op
-	if repoName != "" && len(srv.runtime.repositories.ByID()[img.ID]) == 1 {
-		// Prevent deletion if image is used by a container
-		if err := srv.canDeleteImage(img.ID); err != nil {
-			return nil, err
-		}
+	byParents, err := srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
 	}
 
 	//If delete by id, see if the id belong only to one repository
@@ -1917,51 +1847,68 @@ func (srv *Server) DeleteImage(name string, autoPrune bool) (*engine.Table, erro
 				if parsedTag != "" {
 					tags = append(tags, parsedTag)
 				}
-			} else if repoName != parsedRepo {
+			} else if repoName != parsedRepo && !force {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
-				return nil, fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories", utils.TruncateID(img.ID))
+				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
 			}
 		}
 	} else {
 		tags = append(tags, tag)
 	}
 
+	if !first && len(tags) > 0 {
+		return nil
+	}
+
 	//Untag the current image
 	for _, tag := range tags {
 		tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if tagDeleted {
 			out := &engine.Env{}
-			out.Set("Untagged", img.ID)
+			out.Set("Untagged", repoName+":"+tag)
 			imgs.Add(out)
 			srv.LogEvent("untag", img.ID, "")
 		}
 	}
+	tags = srv.runtime.repositories.ByID()[img.ID]
+	if (len(tags) <= 1 && repoName == "") || len(tags) == 0 {
+		if len(byParents[img.ID]) == 0 {
+			if err := srv.canDeleteImage(img.ID); err != nil {
+				return err
+			}
+			if err := srv.runtime.repositories.DeleteAll(img.ID); err != nil {
+				return err
+			}
+			if err := srv.runtime.graph.Delete(img.ID); err != nil {
+				return err
+			}
+			out := &engine.Env{}
+			out.Set("Deleted", img.ID)
+			imgs.Add(out)
+			srv.LogEvent("delete", img.ID, "")
+			if img.Parent != "" {
+				err := srv.DeleteImage(img.Parent, imgs, false, force)
+				if first {
+					return err
+				}
 
-	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
-		if err := srv.deleteImageAndChildren(img.ID, imgs, nil); err != nil {
-			if err != ErrImageReferenced {
-				return imgs, err
 			}
-		} else if err := srv.deleteImageParents(img, imgs); err != nil {
-			if err != ErrImageReferenced {
-				return imgs, err
-			}
+
 		}
 	}
-	return imgs, nil
+	return nil
 }
 
 func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
-
-	imgs, err := srv.DeleteImage(job.Args[0], job.GetenvBool("autoPrune"))
-	if err != nil {
+	imgs := engine.NewTable("", 0)
+	if err := srv.DeleteImage(job.Args[0], imgs, true, job.GetenvBool("force")); err != nil {
 		return job.Error(err)
 	}
 	if len(imgs.Data) == 0 {

@@ -32,10 +32,10 @@ shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
 build: bundles
-	docker build -rm -t "$(DOCKER_IMAGE)" .
+	docker build -t "$(DOCKER_IMAGE)" .
 
 docs-build:
-	docker build -rm -t "$(DOCKER_DOCS_IMAGE)" docs
+	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
 	mkdir bundles
