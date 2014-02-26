@@ -23,3 +23,5 @@ bundles/
 vendor/pkg/
 pyenv
 Vagrantfile
+*~
+*patch
