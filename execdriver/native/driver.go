@@ -67,6 +67,9 @@ func NewDriver(root string) (*driver, error) {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	if err := d.validateCommand(c); err != nil {
+		return -1, err
+	}
 	var (
 		term        nsinit.Terminal
 		container   = createContainer(c)
@@ -190,6 +193,17 @@ func (d *driver) createContainerRoot(id string) error {
 
 func (d *driver) removeContainerRoot(id string) error {
 	return os.RemoveAll(filepath.Join(d.root, id))
+}
+
+func (d *driver) validateCommand(c *execdriver.Command) error {
+	// we need to check the Config of the command to make sure that we
+	// do not have any of the lxc-conf variables
+	for _, conf := range c.Config {
+		if strings.Contains(conf, "lxc") {
+			return fmt.Errorf("%s is not supported by the native driver", conf)
+		}
+	}
+	return nil
 }
 
 func getEnv(key string, env []string) string {
