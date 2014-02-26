@@ -56,7 +56,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
-	if err := setupNetwork(container.Network, context); err != nil {
+	if err := setupNetwork(container, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
@@ -130,8 +130,8 @@ func dupSlave(slave *os.File) error {
 // setupVethNetwork uses the Network config if it is not nil to initialize
 // the new veth interface inside the container for use by changing the name to eth0
 // setting the MTU and IP address along with the default gateway
-func setupNetwork(config *libcontainer.Network, context libcontainer.Context) error {
-	if config != nil {
+func setupNetwork(container *libcontainer.Container, context libcontainer.Context) error {
+	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
 		if err != nil {
 			return err

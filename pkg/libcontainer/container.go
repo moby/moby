@@ -19,7 +19,7 @@ type Container struct {
 	Tty          bool            `json:"tty,omitempty"`          // setup a proper tty or not
 	Namespaces   Namespaces      `json:"namespaces,omitempty"`   // namespaces to apply
 	Capabilities Capabilities    `json:"capabilities,omitempty"` // capabilities to drop
-	Network      *Network        `json:"network,omitempty"`      // nil for host's network stack
+	Networks     []*Network      `json:"networks,omitempty"`     // nil for host's network stack
 	Cgroups      *cgroups.Cgroup `json:"cgroups,omitempty"`
 }
 

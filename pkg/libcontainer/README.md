@@ -48,16 +48,17 @@ Sample `container.json` file:
         "MAC_ADMIN",
         "NET_ADMIN"
     ],
-    "network": {
-        "type": "veth",
-        "context": {
-            "bridge": "docker0",
-            "prefix": "dock"
-        },
-        "address": "172.17.0.100/16",
-        "gateway": "172.17.42.1",
-        "mtu": 1500
-    },
+    "networks": [{
+            "type": "veth",
+            "context": {
+                "bridge": "docker0",
+                "prefix": "dock"
+            },
+            "address": "172.17.0.100/16",
+            "gateway": "172.17.42.1",
+            "mtu": 1500
+        }
+    ],
     "cgroups": {
         "name": "docker-koye",
         "parent": "docker",

@@ -12,39 +12,37 @@ import (
 type Veth struct {
 }
 
-func (v *Veth) Create(n *libcontainer.Network, nspid int) (libcontainer.Context, error) {
+func (v *Veth) Create(n *libcontainer.Network, nspid int, context libcontainer.Context) error {
 	var (
 		bridge string
 		prefix string
 		exists bool
 	)
 	if bridge, exists = n.Context["bridge"]; !exists {
-		return nil, fmt.Errorf("bridge does not exist in network context")
+		return fmt.Errorf("bridge does not exist in network context")
 	}
 	if prefix, exists = n.Context["prefix"]; !exists {
-		return nil, fmt.Errorf("veth prefix does not exist in network context")
+		return fmt.Errorf("veth prefix does not exist in network context")
 	}
 	name1, name2, err := createVethPair(prefix)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	context := libcontainer.Context{
-		"vethHost":  name1,
-		"vethChild": name2,
-	}
+	context["veth-host"] = name1
+	context["veth-child"] = name2
 	if err := SetInterfaceMaster(name1, bridge); err != nil {
-		return context, err
+		return err
 	}
 	if err := SetMtu(name1, n.Mtu); err != nil {
-		return context, err
+		return err
 	}
 	if err := InterfaceUp(name1); err != nil {
-		return context, err
+		return err
 	}
 	if err := SetInterfaceInNamespacePid(name2, nspid); err != nil {
-		return context, err
+		return err
 	}
-	return context, nil
+	return nil
 }
 
 func (v *Veth) Initialize(config *libcontainer.Network, context libcontainer.Context) error {
@@ -52,7 +50,7 @@ func (v *Veth) Initialize(config *libcontainer.Network, context libcontainer.Con
 		vethChild string
 		exists    bool
 	)
-	if vethChild, exists = context["vethChild"]; !exists {
+	if vethChild, exists = context["veth-child"]; !exists {
 		return fmt.Errorf("vethChild does not exist in network context")
 	}
 	if err := InterfaceDown(vethChild); err != nil {

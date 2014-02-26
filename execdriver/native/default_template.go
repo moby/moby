@@ -19,17 +19,20 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 	container.Env = c.Env
 
 	if c.Network != nil {
-		container.Network = &libcontainer.Network{
-			Mtu:     c.Network.Mtu,
-			Address: fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
-			Gateway: c.Network.Gateway,
-			Type:    "veth",
-			Context: libcontainer.Context{
-				"prefix": "dock",
-				"bridge": c.Network.Bridge,
+		container.Networks = []*libcontainer.Network{
+			{
+				Mtu:     c.Network.Mtu,
+				Address: fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
+				Gateway: c.Network.Gateway,
+				Type:    "veth",
+				Context: libcontainer.Context{
+					"prefix": "dock",
+					"bridge": c.Network.Bridge,
+				},
 			},
 		}
 	}
+
 	container.Cgroups.Name = c.ID
 	if c.Privileged {
 		container.Capabilities = nil

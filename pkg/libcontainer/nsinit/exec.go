@@ -84,18 +84,15 @@ func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) er
 }
 
 func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
-	if container.Network != nil {
-		strategy, err := network.GetStrategy(container.Network.Type)
+	context := libcontainer.Context{}
+	for _, config := range container.Networks {
+		strategy, err := network.GetStrategy(config.Type)
 		if err != nil {
 			return err
 		}
-		networkContext, err := strategy.Create(container.Network, nspid)
-		if err != nil {
-			return err
-		}
-		if err := pipe.SendToChild(networkContext); err != nil {
+		if err := strategy.Create(config, nspid, context); err != nil {
 			return err
 		}
 	}
-	return nil
+	return pipe.SendToChild(context)
 }
