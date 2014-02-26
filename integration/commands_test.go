@@ -1043,11 +1043,12 @@ func TestContainerOrphaning(t *testing.T) {
 }
 
 func TestCmdKill(t *testing.T) {
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
-
-	cli := api.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
-	cli2 := api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	var (
+		stdin, stdinPipe   = io.Pipe()
+		stdout, stdoutPipe = io.Pipe()
+		cli                = api.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr)
+		cli2               = api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -1086,6 +1087,7 @@ func TestCmdKill(t *testing.T) {
 		}
 	})
 
+	stdout.Close()
 	time.Sleep(500 * time.Millisecond)
 	if !container.State.IsRunning() {
 		t.Fatal("The container should be still running")
