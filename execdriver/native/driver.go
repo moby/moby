@@ -82,6 +82,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err := d.createContainerRoot(c.ID); err != nil {
 		return -1, err
 	}
+	defer d.removeContainerRoot(c.ID)
+
 	if c.Tty {
 		term = &dockerTtyTerm{
 			pipes: pipes,
@@ -184,6 +186,10 @@ func (d *driver) writeContainerFile(container *libcontainer.Container, id string
 
 func (d *driver) createContainerRoot(id string) error {
 	return os.MkdirAll(filepath.Join(d.root, id), 0655)
+}
+
+func (d *driver) removeContainerRoot(id string) error {
+	return os.RemoveAll(filepath.Join(d.root, id))
 }
 
 func getEnv(key string, env []string) string {
