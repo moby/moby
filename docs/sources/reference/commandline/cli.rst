@@ -1287,13 +1287,13 @@ explains in detail how to manipulate ports in Docker.
 
 .. code-block:: bash
 
-    $ sudo docker run -e MYVAR1 --env MYVAR2=foo --envfile ./env.list ubuntu bash
+    $ sudo docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
 
 This sets environmental variables to the container. For illustration all three
 flags are shown here. Where -e and --env can be repeated, take an environment 
 variable and value, or if no "=" is provided, then that variable's current
 value is passed through (i.e. $MYVAR1 from the host is set to $MYVAR1 in the
-container). The --envfile flag takes a filename as an argument and expects each
+container). The --env-file flag takes a filename as an argument and expects each
 line to be a VAR=VAL format.
 
 .. code-block:: bash
