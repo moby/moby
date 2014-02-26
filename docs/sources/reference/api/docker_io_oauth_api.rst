@@ -21,6 +21,8 @@ access you must first register your application.
 Before continuing, we encourage you to familiarize yourself with
 `The OAuth 2.0 Authorization Framework <http://tools.ietf.org/html/rfc6749>`_.
 
+*Also note that all OAuth interactions must take place over https connections*
+
 
 2. Register Your Application
 ============================
@@ -34,9 +36,10 @@ following information:
 - The name of your application
 - A description of your application and the service it will provide
   to docker.io users.
-- A list of one or more redirect URIs that we will use for redirecting
-  authorization requests to your application. These are used in the step
-  of getting an Authorization Code.
+- A callback URI that we will use for redirecting authorization requests to
+  your application. These are used in the step of getting an Authorization
+  Code. The domain name of the callback URI will be visible to the user when
+  they are requested to authorize your application.
 
 When your application is approved you will receive a response from the
 docker.io team with your ``client_id`` and ``client_secret`` which your
@@ -85,7 +88,7 @@ link in your application to an OAuth Authorization endpoint.
 
     .. sourcecode:: http
 
-        GET /api/v1.1/o/authorize/?client_id=TestClientID&response_type=code&redirect_uri=http%3A//my.app/auth_complete/&scope=profile_read%20email_read&state=abc123 HTTP/1.1
+        GET /api/v1.1/o/authorize/?client_id=TestClientID&response_type=code&redirect_uri=https%3A//my.app/auth_complete/&scope=profile_read%20email_read&state=abc123 HTTP/1.1
         Host: www.docker.io
 
     **Authorization Page**
@@ -95,7 +98,7 @@ link in your application to an OAuth Authorization endpoint.
     be presented with the following authorization prompt which asks the user
     to authorize your application with a description of the requested scopes.
 
-    .. image:: _static/io_oauth_authorization_page.jpg
+    .. image:: _static/io_oauth_authorization_page.png
 
     Once the user allows or denies your Authorization Request the user will be
     redirected back to your application. Included in that request will be the
@@ -152,7 +155,7 @@ that you must then use to get an Access Token.
         {
             "grant_type": "code",
             "code": "YXV0aG9yaXphdGlvbl9jb2Rl",
-            "redirect_uri": "http://my.app/auth_complete/"
+            "redirect_uri": "https://my.app/auth_complete/"
         }
 
     **Example Response**
@@ -198,6 +201,23 @@ revoked access from your application.
     :form scope: (optional) The scope of the access token to be returned.
         Must not include any scope not originally granted by the user and if
         omitted is treated as equal to the scope originally granted.
+
+    **Example Request**
+
+    Refreshing an access token.
+
+    .. sourcecode:: http
+
+        POST /api/v1.1/o/token/ HTTP/1.1
+        Host: www.docker.io
+        Authorization: Basic VGVzdENsaWVudElEOlRlc3RDbGllbnRTZWNyZXQ=
+        Accept: application/json
+        Content-Type: application/json
+
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": "hJDhLH3cfsUrQlT4MxA6s8xAFEqdgc",
+        }
 
     **Example Response**
 
