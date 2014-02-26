@@ -51,6 +51,11 @@ What's new
    **New!** You can now use the force parameter to force delete of an image, even if it's
    tagged in multiple repositories.
 
+.. http:post:: /build
+
+   **Removed** When building a github repo, the Docker server will no longer
+   run the git clone for you. Please clone locally and build using context.
+
 v1.9
 ****
 
