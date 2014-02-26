@@ -76,7 +76,7 @@ rm -rf "$target"/var/cache/ldconfig/*
 
 version=
 if [ -r "$target"/etc/redhat-release ]; then
-    version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' /etc/redhat-release)"
+    version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$target"/etc/redhat-release)"
 fi
 
 if [ -z "$version" ]; then
