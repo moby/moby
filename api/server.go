@@ -907,7 +907,7 @@ func postContainersCopy(eng *engine.Engine, version float64, w http.ResponseWrit
 	}
 
 	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
-	streamJSON(job, w, false)
+	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
 		if strings.Contains(err.Error(), "No such container") {
