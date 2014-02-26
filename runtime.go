@@ -715,14 +715,14 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		// chroot is presently a noop driver https://github.com/dotcloud/docker/pull/4189#issuecomment-35330655
 		ed, err = chroot.NewDriver()
 		utils.Debugf("execDriver: using chroot")
-  } else if config.ExecDriver == "systemd" {
+	} else if config.ExecDriver == "systemd" {
 		utils.Debugf("using systemd")
 		_, err := exec.LookPath("systemd-nspawn")
 		if err != nil {
 			return nil, err
 		}
 		ed, err = systemd.NewDriver()
-    utils.Debugf("execDriver: using systemd")
+		utils.Debugf("execDriver: using systemd")
 	} else {
 		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
 		utils.Debugf("execDriver: using lxc")
