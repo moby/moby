@@ -456,6 +456,10 @@ func (container *Container) Start() (err error) {
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
 	}
+	
+	if !container.runtime.config.DisableNetwork {
+ 		env = append(env, "HOST_ADDR=" + container.NetworkSettings.IPAddress)
+ 	}
 
 	// Init any links between the parent and children
 	runtime := container.runtime
