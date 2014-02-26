@@ -850,6 +850,10 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		}
 	}
 
+	if version.CreaterThanOrEqualTo("1.10") && utils.IsGIT(r.FormValue("remote")) {
+		return fmt.Errorf("Please clone locally and build using context")
+	}
+
 	if version.GreaterThanOrEqualTo("1.8") {
 		job.SetenvBool("json", true)
 		streamJSON(job, w, true)

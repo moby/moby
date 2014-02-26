@@ -685,7 +685,7 @@ func IsURL(str string) bool {
 }
 
 func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:")
 }
 
 // GetResolvConf opens and read the content of /etc/resolv.conf.
