@@ -223,8 +223,10 @@ func (c *Cgroup) setupMemory(cgroupRoot string, pid int) (err error) {
 				return err
 			}
 		}
-		if c.MemorySwap != 0 {
-			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.MemorySwap, 10)); err != nil {
+		// By default, MemorySwap is set to twice the size of RAM.
+		// If you want to omit MemorySwap, set it to `-1'.
+		if c.MemorySwap != -1 {
+			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.Memory*2, 10)); err != nil {
 				return err
 			}
 		}
