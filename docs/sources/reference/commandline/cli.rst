@@ -20,8 +20,12 @@ To list available commands, either run ``docker`` with no parameters or execute
 
 .. _cli_options:
 
-Types of Options
-----------------
+Options
+-------
+
+Single character commandline options can be combined, so rather than typing
+``docker run -t -i --name test busybox sh``, you can write
+``docker run -ti --name test busybox sh``.
 
 Boolean
 ~~~~~~~
