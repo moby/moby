@@ -11,6 +11,21 @@ type ioWrapper struct {
 	blocksize int
 }
 
+// WrapIO receives a value `obj` as argument, and returns a
+// Stream `s` with the following properties:
+//
+//   * s.Receive() calls obj.Read() of `blocksize` bytes and returns the result as data.
+//   * s.Send() calls obj.Write() with the data of the message to send.
+//   * s.Close() calls obj.Close().
+//
+// If `obj` does not implement some of these methods, the respective calls
+// to `s` simply do nothing.
+//
+// Example:
+//
+// // Return Message{Data: []byte("hello")}
+// WrapIO(bytes.NewBufferString("hello"), 0).Receive()
+//
 func WrapIO(obj interface{}, blocksize int) Stream {
 	wrapper := ioWrapper{obj, blocksize}
 	if blocksize == 0 {
