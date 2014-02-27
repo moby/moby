@@ -17,81 +17,9 @@ import (
 func main() {
 	hub := Hub()
 	commands := Commands()
-	cli := Cli(os.Stdin, os.Stdout, os.Stderr)
+	cli := beam.Cli(os.Stdin, os.Stdout, os.Stderr)
 	hub.Send(beam.Message{Data: []byte("register exec echo listen"), Stream: commands})
 	beam.Copy(hub, cli)
-}
-
-func Cli(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) beam.Stream {
-	inside, outside := beam.Pipe()
-	input := bufio.NewScanner(stdin)
-	var tasks sync.WaitGroup
-	go func() {
-		defer tasks.Wait()
-		defer inside.Close()
-		for id := 0; ; id++ {
-			if !input.Scan() {
-				return
-			}
-			local, remote := beam.Pipe()
-			msg := beam.Message{
-				Data:   input.Bytes(),
-				Stream: remote,
-			}
-			if len(msg.Data) == 0 && input.Err() == nil {
-				continue
-			}
-			tasks.Add(1)
-			go func(id int) {
-				fmt.Printf("New task with id=%d\n", id)
-				defer tasks.Done()
-				defer local.Close()
-				for i := 0; true; i++ {
-					m, err := local.Receive()
-					if err != nil {
-						return
-					}
-					fmt.Fprintf(stdout, "[%d] %s\n", id, m.Data)
-					if m.Stream == nil {
-						continue
-					}
-					name := string(m.Data)
-					prefix := fmt.Sprintf("[%d] [%s] ", id, name)
-					var output io.Writer
-					if name == "stderr" {
-						output = prefixer(prefix, stderr)
-					} else {
-						output = prefixer(prefix, stdout)
-					}
-					tasks.Add(1)
-					go func() {
-						io.Copy(output, beam.NewReader(m.Stream))
-						fmt.Fprintf(output, "<EOF>\n")
-						tasks.Done()
-					}()
-				}
-			}(id)
-			if err := inside.Send(msg); err != nil {
-				return
-			}
-		}
-	}()
-	return outside
-}
-
-func prefixer(prefix string, output io.Writer) io.Writer {
-	r, w := io.Pipe()
-	go func() {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			line := prefix + scanner.Text()
-			if len(line) == 0 || line[len(line)-1] != '\n' {
-				line = line + "\n"
-			}
-			fmt.Fprintf(output, "%s", line)
-		}
-	}()
-	return w
 }
 
 func Commands() beam.Stream {
