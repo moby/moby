@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -14,6 +17,16 @@ import (
 	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
+)
+
+const (
+	defaultCaFile   = "ca.pem"
+	defaultKeyFile  = "key.pem"
+	defaultCertFile = "cert.pem"
+)
+
+var (
+	dockerConfDir = os.Getenv("HOME") + "/.docker/"
 )
 
 func main() {
@@ -43,6 +56,11 @@ func main() {
 		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "native", "Force the docker runtime to use a specific exec driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
+		flTls                = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
+		flTlsVerify          = flag.Bool([]string{"-tlsverify"}, false, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
+		flCa                 = flag.String([]string{"-tlscacert"}, dockerConfDir+defaultCaFile, "Trust only remotes providing a certificate signed by the CA given here")
+		flCert               = flag.String([]string{"-tlscert"}, dockerConfDir+defaultCertFile, "Path to TLS certificate file")
+		flKey                = flag.String([]string{"-tlskey"}, dockerConfDir+defaultKeyFile, "Path to TLS key file")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
@@ -73,6 +91,7 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
+
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
@@ -140,6 +159,12 @@ func main() {
 		job.SetenvBool("EnableCors", *flEnableCors)
 		job.Setenv("Version", dockerversion.VERSION)
 		job.Setenv("SocketGroup", *flSocketGroup)
+
+		job.SetenvBool("Tls", *flTls)
+		job.SetenvBool("TlsVerify", *flTlsVerify)
+		job.Setenv("TlsCa", *flCa)
+		job.Setenv("TlsCert", *flCert)
+		job.Setenv("TlsKey", *flKey)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
@@ -148,14 +173,53 @@ func main() {
 			log.Fatal("Please specify only one -H")
 		}
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
-		if err := api.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
-			if sterr, ok := err.(*utils.StatusError); ok {
+
+		var (
+			errc      error
+			tlsConfig tls.Config
+		)
+		tlsConfig.InsecureSkipVerify = true
+
+		// If we should verify the server, we need to load a trusted ca
+		if *flTlsVerify {
+			*flTls = true
+			certPool := x509.NewCertPool()
+			file, err := ioutil.ReadFile(*flCa)
+			if err != nil {
+				log.Fatalf("Couldn't read ca cert %s: %s", *flCa, err)
+			}
+			certPool.AppendCertsFromPEM(file)
+			tlsConfig.RootCAs = certPool
+			tlsConfig.InsecureSkipVerify = false
+		}
+
+		// If tls is enabled, try to load and send client certificates
+		if *flTls || *flTlsVerify {
+			_, errCert := os.Stat(*flCert)
+			_, errKey := os.Stat(*flKey)
+			if errCert == nil && errKey == nil {
+				*flTls = true
+				cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
+				if err != nil {
+					log.Fatalf("Couldn't load X509 key pair: %s. Key encrypted?", err)
+				}
+				tlsConfig.Certificates = []tls.Certificate{cert}
+			}
+		}
+
+		if *flTls || *flTlsVerify {
+			errc = api.ParseCommands(protoAddrParts[0], protoAddrParts[1], &tlsConfig, flag.Args()...)
+		} else {
+			errc = api.ParseCommands(protoAddrParts[0], protoAddrParts[1], nil, flag.Args()...)
+		}
+		if errc != nil {
+			if sterr, ok := errc.(*utils.StatusError); ok {
 				if sterr.Status != "" {
 					log.Println(sterr.Status)
 				}
 				os.Exit(sterr.StatusCode)
 			}
-			log.Fatal(err)
+			log.Fatal(errc)
 		}
 	}
 }

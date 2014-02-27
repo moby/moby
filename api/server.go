@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"code.google.com/p/go.net/websocket"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"expvar"
@@ -1129,9 +1131,8 @@ func changeGroup(addr string, nameOrGid string) error {
 
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion string, socketGroup string) error {
-	r, err := createRouter(eng, logging, enableCors, dockerVersion)
-
+func ListenAndServe(proto, addr string, job *engine.Job) error {
+	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 	if err != nil {
 		return err
 	}
@@ -1151,17 +1152,43 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		return err
 	}
 
+	if proto != "unix" && (job.GetenvBool("Tls") || job.GetenvBool("TlsVerify")) {
+		tlsCert := job.Getenv("TlsCert")
+		tlsKey := job.Getenv("TlsKey")
+		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
+		if err != nil {
+			return fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?",
+				tlsCert, tlsKey, err)
+		}
+		tlsConfig := &tls.Config{
+			NextProtos:   []string{"http/1.1"},
+			Certificates: []tls.Certificate{cert},
+		}
+		if job.GetenvBool("TlsVerify") {
+			certPool := x509.NewCertPool()
+			file, err := ioutil.ReadFile(job.Getenv("TlsCa"))
+			if err != nil {
+				return fmt.Errorf("Couldn't read CA certificate: %s", err)
+			}
+			certPool.AppendCertsFromPEM(file)
+
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientCAs = certPool
+		}
+		l = tls.NewListener(l, tlsConfig)
+	}
+
 	// Basic error and sanity checking
 	switch proto {
 	case "tcp":
-		if !strings.HasPrefix(addr, "127.0.0.1") {
+		if !strings.HasPrefix(addr, "127.0.0.1") && !job.GetenvBool("TlsVerify") {
 			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 	case "unix":
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err
 		}
-
+		socketGroup := job.Getenv("SocketGroup")
 		if socketGroup != "" {
 			if err := changeGroup(addr, socketGroup); err != nil {
 				if socketGroup == "docker" {
@@ -1197,7 +1224,7 @@ func ServeApi(job *engine.Job) engine.Status {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"), job.Getenv("SocketGroup"))
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
 		}()
 	}
 
