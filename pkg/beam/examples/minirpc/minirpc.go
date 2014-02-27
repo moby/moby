@@ -1,17 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/beam"
-	"io"
 	"log"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 )
 
 func main() {
@@ -33,96 +30,24 @@ func Commands() beam.Stream {
 			}
 			parts := strings.Split(string(msg.Data), " ")
 			if name := parts[0]; name == "echo" {
-				go JobHandler(Echo).Send(msg)
+				go beam.JobHandler(Echo).Send(msg)
 			} else if name == "exec" {
-				go JobHandler(Exec).Send(msg)
+				go beam.JobHandler(Exec).Send(msg)
 			} else if name == "listen" {
-				go JobHandler(Listen).Send(msg)
+				go beam.JobHandler(Listen).Send(msg)
 			} else {
-				go JobHandler(Unknown).Send(msg)
+				go beam.JobHandler(Unknown).Send(msg)
 			}
 		}
 	}()
 	return outside
 }
 
-func JobHandler(f func(*Job)) beam.Stream {
-	inside, outside := beam.Pipe()
-	go func() {
-		defer inside.Close()
-		for {
-			msg, err := inside.Receive()
-			if err != nil {
-				return
-			}
-			if msg.Stream == nil {
-				msg.Stream = beam.DevNull
-			}
-			parts := strings.Split(string(msg.Data), " ")
-			// Setup default stdout
-			// FIXME: The job handler can change it before calling job.Send()
-			// For example if it wants to send a file (eg. 'exec')
-			func() error {
-				stdout, stdoutStream := PipeWriter()
-				if err := msg.Stream.Send(beam.Message{Data: []byte("stdout"), Stream: stdoutStream}); err != nil {
-					return err
-				}
-				stderr, stderrStream := PipeWriter()
-				if err := msg.Stream.Send(beam.Message{Data: []byte("stderr"), Stream: stderrStream}); err != nil {
-					return err
-				}
-				job := &Job{
-					Msg:    msg,
-					Name:   parts[0],
-					Stdout: stdout,
-					Stderr: stderr,
-				}
-				if len(parts) > 1 {
-					job.Args = parts[1:]
-				}
-				f(job)
-				return nil
-			}()
-		}
-	}()
-	return outside
-}
-
-func PipeWriter() (io.WriteCloser, beam.Stream) {
-	r, w := io.Pipe()
-	inside, outside := beam.Pipe()
-	go func() {
-		defer inside.Close()
-		defer r.Close()
-		for {
-			data := make([]byte, 4098)
-			n, err := r.Read(data)
-			if n > 0 {
-				if inside.Send(beam.Message{Data: data[:n]}); err != nil {
-					return
-				}
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
-	return w, outside
-}
-
-type Job struct {
-	Msg    beam.Message
-	Name   string
-	Args   []string
-	Stdout io.WriteCloser
-	Stderr io.WriteCloser
-}
-
-func Echo(job *Job) {
+func Echo(job *beam.Job) {
 	fmt.Fprintf(job.Stdout, "%s\n", strings.Join(job.Args, " "))
 }
 
-func Exec(job *Job) {
+func Exec(job *beam.Job) {
 	cmd := exec.Command("/bin/sh", "-c", strings.Join(job.Args, " "))
 	cmd.Stdout = job.Stdout
 	cmd.Stderr = job.Stderr
@@ -131,7 +56,7 @@ func Exec(job *Job) {
 	}
 }
 
-func Listen(job *Job) {
+func Listen(job *beam.Job) {
 	if len(job.Args) < 1 {
 		fmt.Fprintf(job.Stderr, "Usage: %s URL\n", job.Name)
 		return
@@ -160,7 +85,7 @@ func Listen(job *Job) {
 	}
 }
 
-func Unknown(job *Job) {
+func Unknown(job *beam.Job) {
 	fmt.Fprintf(job.Stderr, "No such command: %s\n", job.Name)
 }
 
@@ -190,7 +115,7 @@ func Hub() beam.Stream {
 				}
 				msg.Stream.Send(beam.Message{Data: []byte("test on registered handler\n")})
 			} else if words[0] == "commands" {
-				JobHandler(func(job *Job) {
+				beam.JobHandler(func(job *beam.Job) {
 					fmt.Fprintf(job.Stdout, "%d commands:\n", len(handlers))
 					for cmd := range handlers {
 						fmt.Fprintf(job.Stdout, "%s\n", cmd)
