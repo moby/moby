@@ -41,7 +41,7 @@ func setupMountsForContainer(container *Container, envPath string) error {
 	}
 
 	if container.hostConfig.Privileged && container.introspectionListener != nil {
-		mounts = append(mounts, execdriver.Mount{filepath.Join(container.root, "/docker.sock"), "/.dockersock", false, true})
+		mounts = append(mounts, execdriver.Mount{filepath.Join(container.root, "/docker.sock"), "/var/run/docker.sock", false, true})
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {
