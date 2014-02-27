@@ -7,7 +7,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
-// createContainer populates and configrues the container type with the
+// createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
 func createContainer(c *execdriver.Command) *libcontainer.Container {
 	container := getDefaultTemplate()

@@ -11,7 +11,7 @@ type info struct {
 }
 
 // IsRunning is determined by looking for the
-// .nspid file for a container.  If the file exists then the
+// pid file for a container.  If the file exists then the
 // container is currently running
 func (i *info) IsRunning() bool {
 	if _, err := os.Stat(filepath.Join(i.driver.root, i.ID, "pid")); err == nil {

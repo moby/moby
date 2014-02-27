@@ -58,7 +58,7 @@ type driver struct {
 }
 
 func NewDriver(root string) (*driver, error) {
-	if err := os.MkdirAll(root, 0655); err != nil {
+	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
 	return &driver{

@@ -48,9 +48,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		command.Process.Kill()
 		return -1, err
 	}
-	defer func() {
-		ns.stateWriter.DeletePid()
-	}()
+	defer ns.stateWriter.DeletePid()
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup

@@ -13,8 +13,8 @@ var strategies = map[string]NetworkStrategy{
 	"veth": &Veth{},
 }
 
-// NetworkStrategy represends a specific network configuration for
-// a containers networking stack
+// NetworkStrategy represents a specific network configuration for
+// a container's networking stack
 type NetworkStrategy interface {
 	Create(*libcontainer.Network, int, libcontainer.Context) error
 	Initialize(*libcontainer.Network, libcontainer.Context) error
