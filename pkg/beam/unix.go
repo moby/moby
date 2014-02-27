@@ -20,7 +20,7 @@ func (conn *UnixConn) Send(msg Message) (err error) {
 	if msg.Stream != nil {
 		f, err := msg.Stream.File()
 		if err != nil {
-			return fmt.Errorf("can't get fd from stream: %s", err)
+			return fmt.Errorf("can't get fd from stream: %v", err)
 		}
 		fds = append(fds, int(f.Fd()))
 	}
@@ -33,7 +33,7 @@ func (conn *UnixConn) Receive() (msg Message, err error) {
 	oob := make([]byte, 4096)
 	bufn, oobn, _, _, err := conn.u.ReadMsgUnix(buf, oob)
 	if err != nil {
-		err = fmt.Errorf("readmsg: %s", err)
+		err = fmt.Errorf("readmsg: %v", err)
 		return
 	}
 	msg.Data = buf[:bufn]

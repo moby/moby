@@ -21,9 +21,8 @@ func (f *File) Send(msg Message) (err error) {
 }
 
 func (f *File) Receive() (msg Message, err error) {
-	var n int
 	data := make([]byte, 4096)
-	n, err = f.f.Read(data)
+	n, err := f.f.Read(data)
 	msg.Data = data[:n]
 	return
 }
