@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 const (
@@ -121,12 +122,22 @@ func (d *driver) Restore(c *execdriver.Command) error {
 	}
 	f.Close()
 
-	proc, err := os.FindProcess(nspid)
-	if err != nil {
-		return err
+	if _, err := os.FindProcess(nspid); err != nil {
+		return fmt.Errorf("finding existing pid %d %s", nspid, err)
 	}
-	_, err = proc.Wait()
-	return err
+	c.Process = &os.Process{
+		Pid: nspid,
+	}
+
+	for _ = range time.Tick(500 * time.Millisecond) {
+		if err := syscall.Kill(nspid, 0); err != nil {
+			if strings.Contains(err.Error(), "no such process") {
+				return nil
+			}
+			return fmt.Errorf("signal error %s", err)
+		}
+	}
+	return nil
 }
 
 func (d *driver) Info(id string) execdriver.Info {
