@@ -11,6 +11,10 @@ type UnixConn struct {
 	u *net.UnixConn
 }
 
+func NewUnixConn(u *net.UnixConn) *UnixConn {
+	return &UnixConn{u}
+}
+
 func (conn *UnixConn) Send(msg Message) (err error) {
 	var fds []int
 	if msg.Stream != nil {
