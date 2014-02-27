@@ -646,7 +646,7 @@ Get or set cgroup subsystem on a running container
 
     .. sourcecode:: http
 
-       POST /containers/653ab4fb8221/copy HTTP/1.1
+       POST /containers/653ab4fb8221/cgroup HTTP/1.1
        Content-Type: application/json
 
        {
