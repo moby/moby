@@ -108,20 +108,18 @@ func (d *driver) Kill(p *execdriver.Command, sig int) error {
 }
 
 func (d *driver) Restore(c *execdriver.Command) error {
-	var (
-		nspid int
-		path  = filepath.Join(d.root, c.ID, "pid")
-	)
-	f, err := os.Open(path)
+	var nspid int
+	f, err := os.Open(filepath.Join(d.root, c.ID, "pid"))
 	if err != nil {
 		return err
 	}
+	defer d.removeContainerRoot(c.ID)
+
 	if _, err := fmt.Fscanf(f, "%d", &nspid); err != nil {
 		f.Close()
 		return err
 	}
 	f.Close()
-	defer os.Remove(path)
 
 	proc, err := os.FindProcess(nspid)
 	if err != nil {
