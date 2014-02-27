@@ -37,6 +37,9 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
+	if err := setupLoopbackDevices(rootfs); err != nil {
+		return fmt.Errorf("setup loopback devices %s", err)
+	}
 	if err := setupDev(rootfs); err != nil {
 		return err
 	}
@@ -76,17 +79,53 @@ func copyDevNodes(rootfs string) error {
 		"urandom",
 		"tty",
 	} {
-		stat, err := os.Stat(filepath.Join("/dev", node))
+		if err := copyDevNode(rootfs, node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func setupLoopbackDevices(rootfs string) error {
+	for i := 0; ; i++ {
+		var (
+			device = fmt.Sprintf("loop%d", i)
+			source = filepath.Join("/dev", device)
+			dest   = filepath.Join(rootfs, "dev", device)
+		)
+
+		if _, err := os.Stat(source); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			return nil
+		}
+		if _, err := os.Stat(dest); err == nil {
+			os.Remove(dest)
+		}
+		f, err := os.Create(dest)
 		if err != nil {
 			return err
 		}
-		var (
-			dest = filepath.Join(rootfs, "dev", node)
-			st   = stat.Sys().(*syscall.Stat_t)
-		)
-		if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
-			return fmt.Errorf("copy %s %s", node, err)
+		f.Close()
+		if err := system.Mount(source, dest, "none", syscall.MS_BIND, ""); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func copyDevNode(rootfs, node string) error {
+	stat, err := os.Stat(filepath.Join("/dev", node))
+	if err != nil {
+		return err
+	}
+	var (
+		dest = filepath.Join(rootfs, "dev", node)
+		st   = stat.Sys().(*syscall.Stat_t)
+	)
+	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("copy %s %s", node, err)
 	}
 	return nil
 }
