@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/beam"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -12,7 +11,7 @@ import (
 )
 
 func main() {
-	hub := Hub()
+	hub := beam.Hub()
 	commands := Commands()
 	cli := beam.Cli(os.Stdin, os.Stdout, os.Stderr)
 	hub.Send(beam.Message{Data: []byte("register exec echo listen"), Stream: commands})
@@ -87,50 +86,4 @@ func Listen(job *beam.Job) {
 
 func Unknown(job *beam.Job) {
 	fmt.Fprintf(job.Stderr, "No such command: %s\n", job.Name)
-}
-
-func Hub() beam.Stream {
-	inside, outside := beam.Pipe()
-	go func() {
-		defer fmt.Printf("hub stopped\n")
-		handlers := make(map[string]beam.Stream)
-		for {
-			msg, err := inside.Receive()
-			if err != nil {
-				return
-			}
-			if msg.Stream == nil {
-				continue
-			}
-			// FIXME: use proper word parsing
-			words := strings.Split(string(msg.Data), " ")
-			if words[0] == "register" {
-				if len(words) < 2 {
-					msg.Stream.Send(beam.Message{Data: []byte("Usage: register COMMAND\n")})
-					msg.Stream.Close()
-				}
-				for _, cmd := range words[1:] {
-					fmt.Printf("Registering handler for %s\n", cmd)
-					handlers[cmd] = msg.Stream
-				}
-				msg.Stream.Send(beam.Message{Data: []byte("test on registered handler\n")})
-			} else if words[0] == "commands" {
-				beam.JobHandler(func(job *beam.Job) {
-					fmt.Fprintf(job.Stdout, "%d commands:\n", len(handlers))
-					for cmd := range handlers {
-						fmt.Fprintf(job.Stdout, "%s\n", cmd)
-					}
-				}).Send(msg)
-			} else if handler, exists := handlers[words[0]]; exists {
-				err := handler.Send(msg)
-				if err != nil {
-					log.Printf("Error sending to %s handler: %s. De-registering handler.\n", words[0], err)
-					delete(handlers, words[0])
-				}
-			} else {
-				msg.Stream.Send(beam.Message{Data: []byte("No such command: " + words[0] + "\n")})
-			}
-		}
-	}()
-	return outside
 }
