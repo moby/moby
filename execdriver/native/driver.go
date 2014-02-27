@@ -128,8 +128,10 @@ func (d *driver) Restore(c *execdriver.Command) error {
 	c.Process = &os.Process{
 		Pid: nspid,
 	}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 
-	for _ = range time.Tick(500 * time.Millisecond) {
+	for _ = range ticker.C {
 		if err := syscall.Kill(nspid, 0); err != nil {
 			if strings.Contains(err.Error(), "no such process") {
 				return nil
