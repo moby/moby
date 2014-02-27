@@ -2,7 +2,7 @@ package docker
 
 import (
 	"bytes"
-	"code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 )
 

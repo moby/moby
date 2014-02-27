@@ -3,7 +3,6 @@ package docker
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go/src/pkg/archive/tar"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"
@@ -12,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"net"

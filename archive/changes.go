@@ -2,9 +2,9 @@ package archive
 
 import (
 	"bytes"
-	"code.google.com/p/go/src/pkg/archive/tar"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os"
 	"path/filepath"
