@@ -58,7 +58,7 @@ will only be allowed to access port 8080 and nothing else if
 inter-container communication is set to false.
 
 For example, there is an image called ``crosbymichael/redis`` that exposes the
-port 6379 and starts the Redis server. Let's name the container as ``redis``
+port 6379 and starts the Redis server. Let's name the container ``redis``
 based on that image and run it as daemon.
 
 .. code-block:: bash
