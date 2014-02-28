@@ -59,7 +59,7 @@ inter-container communication is set to false.
 
 For example, there is an image called ``crosbymichael/redis`` that exposes the
 port 6379 and starts the Redis server. Let's name the container as ``redis``
-based on that image and run it as daemon.
+based on that image and run it as a daemon.
 
 .. code-block:: bash
 
