@@ -7,7 +7,7 @@ for using linux namespaces with no external dependencies.  libcontainer provides
 
 
 #### container
-A container is a self contained directory that is able to run one or more processes inside without 
+A container is a self contained directory that is able to run one or more processes without 
 affecting the host system.  The directory is usually a full system tree.  Inside the directory
 a `container.json` file is placed with the runtime configuration for how the processes 
 should be contained and ran.  Environment, networking, and different capabilities for the 
@@ -67,11 +67,11 @@ Sample `container.json` file:
 }
 ```
 
-Using this configuration and the current directory holding the rootfs for a process to live, one can use libcontainer to exec the container. Running the life of the namespace a `pid` file 
-is written to the current directory with the pid of the namespace'd process to the external world.  A client can use this pid to wait, kill, or perform other operation with the container.  If a user tries to run an new process inside an existing container with a live namespace with namespace will be joined by the new process.
+Using this configuration and the current directory holding the rootfs for a process, one can use libcontainer to exec the container. Running the life of the namespace, a `pid` file 
+is written to the current directory with the pid of the namespaced process to the external world.  A client can use this pid to wait, kill, or perform other operation with the container.  If a user tries to run an new process inside an existing container with a live namespace the namespace will be joined by the new process.
 
 
-You may also specify an alternate root to to place the `container.json` file is read and where the `pid` file will be saved.
+You may also specify an alternate root place where the `container.json` file is read and where the `pid` file will be saved.
 
 #### nsinit
 
@@ -79,7 +79,7 @@ You may also specify an alternate root to to place the `container.json` file is 
 spawn or join new containers giving the current directory.  To use `nsinit` cd into a linux 
 rootfs and copy a `container.json` file into the directory with your specified configuration.
 
-To execution `/bin/bash` in the current directory as a container just run:
+To execute `/bin/bash` in the current directory as a container just run:
 ```bash
 nsinit exec /bin/bash
 ```
