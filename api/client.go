@@ -37,6 +37,13 @@ import (
 	"time"
 )
 
+var funcMap = template.FuncMap{
+	"json": func(v interface{}) string {
+		a, _ := json.Marshal(v)
+		return string(a)
+	},
+}
+
 var (
 	ErrConnectionRefused = errors.New("Can't connect to docker daemon. Is 'docker -d' running on this host?")
 )
@@ -640,7 +647,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	var tmpl *template.Template
 	if *tmplStr != "" {
 		var err error
-		if tmpl, err = template.New("").Parse(*tmplStr); err != nil {
+		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
 			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
 			return &utils.StatusError{StatusCode: 64,
 				Status: "Template parsing error: " + err.Error()}
