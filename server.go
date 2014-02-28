@@ -825,7 +825,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.runtime.execDriver.Name())
-	v.SetInt("NEventsListener", len(srv.events))
+	v.SetInt("NEventsListener", len(srv.listeners))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
