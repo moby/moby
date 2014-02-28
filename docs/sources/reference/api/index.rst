@@ -15,4 +15,6 @@ Your programs and scripts can access Docker's functionality via these interfaces
   index_api
   docker_remote_api
   remote_api_client_libraries
+  docker_io_oauth_api
+  docker_io_accounts_api
 
