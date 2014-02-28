@@ -206,11 +206,20 @@ func (d *driver) Restore(c *execdriver.Command) error {
 }
 
 func (d *driver) version() string {
-	version := ""
-	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
-		outputStr := string(output)
-		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
-			version = strings.TrimSpace(strings.SplitN(outputStr, ":", 2)[1])
+	var (
+		version string
+		output  []byte
+		err     error
+	)
+	if _, errPath := exec.LookPath("lxc-version"); errPath == nil {
+		output, err = exec.Command("lxc-version").CombinedOutput()
+	} else {
+		output, err = exec.Command("lxc-start", "--version").CombinedOutput()
+	}
+	if err == nil {
+		version = strings.TrimSpace(string(output))
+		if parts := strings.SplitN(version, ":", 2); len(parts) == 2 {
+			version = strings.TrimSpace(parts[1])
 		}
 	}
 	return version
