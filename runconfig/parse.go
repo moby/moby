@@ -46,6 +46,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flLxcOpts     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
+		flCreateOnly      = cmd.Bool([]string{"#create-only", "-create-only"}, false, "Create the container but do not start it")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
 		flNetwork         = cmd.Bool([]string{"n", "-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -211,6 +212,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
+		CreateOnly:      *flCreateOnly,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
