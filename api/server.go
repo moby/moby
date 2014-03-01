@@ -1079,6 +1079,11 @@ func ServeFd(addr string, handle http.Handler) error {
 
 	chErrors := make(chan error, len(ls))
 
+	// We don't want to start serving on these sockets until the
+	// "initserver" job has completed. Otherwise required handlers
+	// won't be ready.
+	<-activationLock
+
 	// Since ListenFD will return one or more sockets we have
 	// to create a go func to spawn off multiple serves
 	for i := range ls {
