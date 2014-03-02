@@ -45,6 +45,7 @@ target=$(mktemp -d --tmpdir $(basename $0).XXXXXX)
 
 set -x
 
+mkdir -m 755 "$target"/dev
 mknod -m 600 "$target"/dev/console c 5 1
 mknod -m 600 "$target"/dev/initctl p
 mknod -m 666 "$target"/dev/full c 1 7
