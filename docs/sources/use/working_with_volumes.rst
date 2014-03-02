@@ -40,7 +40,7 @@ two new volumes::
 This command will create the new container with two new volumes that 
 exits instantly (``true`` is pretty much the smallest, simplest program 
 that you can run). Once created you can mount its volumes in any other 
-container using the ``-volumes-from`` option; irrespecive of whether the
+container using the ``-volumes-from`` option; irrespective of whether the
 container is running or not. 
 
 Or, you can use the VOLUME instruction in a Dockerfile to add one or more new
