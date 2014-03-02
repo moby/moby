@@ -90,6 +90,7 @@ Mount a Host Directory as a Container Volume:
 
   -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
 
+You must specify an absolute path for ``host-dir``.
 If ``host-dir`` is missing from the command, then docker creates a new volume.
 If ``host-dir`` is present but points to a non-existent directory on the host,
 Docker will automatically create this directory and use it as the source of the
