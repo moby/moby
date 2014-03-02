@@ -130,7 +130,6 @@ from ubuntu:12.10
 run apt-get update
 run DEBIAN_FRONTEND=noninteractive apt-get install -q -y python
 run DEBIAN_FRONTEND=noninteractive apt-get install -q -y python-pip
-run pip install django
 run DEBIAN_FRONTEND=noninteractive apt-get install -q -y curl
 run curl -L https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
 run cd helloflask-master && pip install -r requirements.txt
