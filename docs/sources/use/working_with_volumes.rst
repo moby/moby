@@ -7,10 +7,6 @@
 Share Directories via Volumes
 =============================
 
-.. versionadded:: v0.3.0
-   Data volumes have been available since version 1 of the
-   :doc:`../reference/api/docker_remote_api`
-
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the :ref:`ufs_def` to provide several useful
 features for persistent or shared data:
@@ -24,8 +20,14 @@ features for persistent or shared data:
 * **Changes to a data volume will not be included at the next commit**
   because they are not recorded as regular filesystem changes in the
   top layer of the :ref:`ufs_def`
+* **Volumes persist until no containers use them** as they are a reference
+  counted resource. The container does not need to be running to share its
+  volumes, but running it can help protect it against accidental removal 
+  via ``docker rm``.
 
 Each container can have zero or more data volumes.
+
+.. versionadded:: v0.3.0
 
 Getting Started
 ...............
@@ -40,7 +42,7 @@ two new volumes::
 This command will create the new container with two new volumes that 
 exits instantly (``true`` is pretty much the smallest, simplest program 
 that you can run). Once created you can mount its volumes in any other 
-container using the ``-volumes-from`` option; irrespecive of whether the
+container using the ``-volumes-from`` option; irrespective of whether the
 container is running or not. 
 
 Or, you can use the VOLUME instruction in a Dockerfile to add one or more new
@@ -117,6 +119,38 @@ virtual machine then launches docker commands on behalf of the OS/X command line
 directories`` refer to directories in the ``boot2docker`` virtual machine, not the OS/X filesystem.
 
 Similarly, anytime when the docker daemon is on a remote machine, the ``host directories`` always refer to directories on the daemon's machine.
+
+Backup, restore, or migrate data volumes
+----------------------------------------
+
+You cannot back up volumes using ``docker export``, ``docker save`` and ``docker cp``
+because they are external to images.
+Instead you can use ``--volumes-from`` to start a new container that can access the
+data-container's volume. For example::
+
+    $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
+
+* ``-rm`` - remove the container when it exits
+* ``--volumes-from DATA`` - attach to the volumes shared by the ``DATA`` container
+* ``-v $(pwd):/backup`` - bind mount the current directory into the container; to write the tar file to
+* ``busybox`` - a small simpler image - good for quick maintenance
+* ``tar cvf /backup/backup.tar /data`` - creates an uncompressed tar file of all the files in the ``/data`` directory
+
+Then to restore to the same container, or another that you've made elsewhere::
+
+    # create a new data container
+    $ sudo docker run -v /data -name DATA2 busybox true
+    # untar the backup files into the new container's data volume
+    $ sudo docker run -rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
+    data/
+    data/sven.txt
+    # compare to the original container
+    $ sudo docker run -rm --volumes-from DATA -v `pwd`:/backup busybox ls /data
+    sven.txt
+
+
+You can use the basic techniques above to automate backup, migration and restore
+testing using your preferred tools.
 
 Known Issues
 ............
