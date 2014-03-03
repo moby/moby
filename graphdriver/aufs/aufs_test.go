@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/graphdriver"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,15 +16,24 @@ var (
 	tmp = path.Join(os.TempDir(), "aufs-tests", "aufs")
 )
 
+func testInit(dir string, t *testing.T) graphdriver.Driver {
+	d, err := Init(dir)
+	if err != nil {
+		if err == ErrAufsNotSupported {
+			t.Skip(err)
+		} else {
+			t.Fatal(err)
+		}
+	}
+	return d
+}
+
 func newDriver(t *testing.T) *Driver {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := Init(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := testInit(tmp, t)
 	return d.(*Driver)
 }
 
@@ -32,10 +42,7 @@ func TestNewDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d, err := Init(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := testInit(tmp, t)
 	defer os.RemoveAll(tmp)
 	if d == nil {
 		t.Fatalf("Driver should not be nil")
@@ -74,12 +81,8 @@ func TestNewDriverFromExistingDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Init(tmp); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Init(tmp); err != nil {
-		t.Fatal(err)
-	}
+	testInit(tmp, t)
+	testInit(tmp, t)
 	os.RemoveAll(tmp)
 }
 

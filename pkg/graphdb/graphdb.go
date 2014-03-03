@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path"
+	"strings"
 	"sync"
 )
 
@@ -49,6 +50,21 @@ type WalkFunc func(fullPath string, entity *Entity) error
 type Database struct {
 	conn *sql.DB
 	mux  sync.RWMutex
+}
+
+func IsNonUniqueNameError(err error) bool {
+	str := err.Error()
+	// sqlite 3.7.17-1ubuntu1 returns:
+	// Set failure: Abort due to constraint violation: columns parent_id, name are not unique
+	if strings.HasSuffix(str, "name are not unique") {
+		return true
+	}
+	// sqlite-3.8.3-1.fc20 returns:
+	// Set failure: Abort due to constraint violation: UNIQUE constraint failed: edge.parent_id, edge.name
+	if strings.Contains(str, "UNIQUE constraint failed") && strings.Contains(str, "edge.name") {
+		return true
+	}
+	return false
 }
 
 // Create a new graph database initialized with a root entity
