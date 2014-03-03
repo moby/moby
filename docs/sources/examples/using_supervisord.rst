@@ -21,6 +21,10 @@ container. Using Supervisor allows us to better control, manage, and restart the
 processes we want to run. To demonstrate this we're going to install and manage both an
 SSH daemon and an Apache daemon.
 
+.. note:: using Supervisor means that the daemons you start will not have
+the docker specific environmental variables set - if you need those to auto-configure
+linked containers or other settings you will need to use the Bash script method.
+
 Creating a Dockerfile
 ---------------------
 
