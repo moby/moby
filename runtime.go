@@ -363,7 +363,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 
 	warnings := []string{}
 	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
-		warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
+		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
 	}
 
 	if img.Config != nil {
