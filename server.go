@@ -1669,7 +1669,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		job.Printf("%s\n", container.ID)
 	}
 	for _, warning := range buildWarnings {
-		return job.Errorf("%s\n", warning)
+		job.Errorf("%s\n", warning)
 	}
 	return engine.StatusOK
 }
