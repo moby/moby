@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	_ "github.com/dotcloud/docker/execdriver/chroot"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
+	_ "github.com/dotcloud/docker/execdriver/systemd"
 	"io/ioutil"
 	"log"
 	"os"
