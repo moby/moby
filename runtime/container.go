@@ -529,12 +529,12 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	populateCommand(container)
+	container.command.Env = env
+
 	if err := mountVolumesForContainer(container, envPath); err != nil {
 		return err
 	}
-
-	populateCommand(container)
-	container.command.Env = env
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {

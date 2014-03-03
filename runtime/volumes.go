@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
@@ -55,70 +56,33 @@ func mountVolumesForContainer(container *Container, envPath string) error {
 		return err
 	}
 
-	// Mount docker specific files into the containers root fs
-	if err := mount.Mount(runtime.sysInitPath, filepath.Join(root, "/.dockerinit"), "none", "bind,ro"); err != nil {
-		return err
-	}
-	if err := mount.Mount(envPath, filepath.Join(root, "/.dockerenv"), "none", "bind,ro"); err != nil {
-		return err
-	}
-	if err := mount.Mount(container.ResolvConfPath, filepath.Join(root, "/etc/resolv.conf"), "none", "bind,ro"); err != nil {
-		return err
+	mounts := []execdriver.Mount{
+		{runtime.sysInitPath, "/.dockerinit", false, true},
+		{envPath, "/.dockerenv", false, true},
+		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {
-		if err := mount.Mount(container.HostnamePath, filepath.Join(root, "/etc/hostname"), "none", "bind,ro"); err != nil {
-			return err
-		}
-		if err := mount.Mount(container.HostsPath, filepath.Join(root, "/etc/hosts"), "none", "bind,ro"); err != nil {
-			return err
-		}
+		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
+		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
 	}
 
 	// Mount user specified volumes
+	// Note, these are not private because you may want propagation of (un)mounts from host
+	// volumes. For instance if you use -v /usr:/usr and the host later mounts /usr/share you
+	// want this new mount in the container
 	for r, v := range container.Volumes {
-		mountAs := "ro"
-		if container.VolumesRW[r] {
-			mountAs = "rw"
-		}
-
-		r = filepath.Join(root, r)
-		if p, err := utils.FollowSymlinkInScope(r, root); err != nil {
-			return err
-		} else {
-			r = p
-		}
-
-		if err := mount.Mount(v, r, "none", fmt.Sprintf("bind,%s", mountAs)); err != nil {
-			return err
-		}
+		mounts = append(mounts, execdriver.Mount{v, r, container.VolumesRW[r], false})
 	}
+
+	container.command.Mounts = mounts
+
 	return nil
 }
 
 func unmountVolumesForContainer(container *Container) {
-	var (
-		root   = container.RootfsPath()
-		mounts = []string{
-			root,
-			filepath.Join(root, "/.dockerinit"),
-			filepath.Join(root, "/.dockerenv"),
-			filepath.Join(root, "/etc/resolv.conf"),
-		}
-	)
-
-	if container.HostnamePath != "" && container.HostsPath != "" {
-		mounts = append(mounts, filepath.Join(root, "/etc/hostname"), filepath.Join(root, "/etc/hosts"))
-	}
-
-	for r := range container.Volumes {
-		mounts = append(mounts, filepath.Join(root, r))
-	}
-
-	for i := len(mounts) - 1; i >= 0; i-- {
-		if lastError := mount.Unmount(mounts[i]); lastError != nil {
-			log.Printf("Failed to umount %v: %v", mounts[i], lastError)
-		}
+	if err := mount.Unmount(container.RootfsPath()); err != nil {
+		log.Printf("Failed to umount container: %v", err)
 	}
 }
 
