@@ -77,6 +77,9 @@ import (
 // ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
 var ErrHelp = errors.New("flag: help requested")
 
+// ErrRetry is the error returned if you need to try letter by letter
+var ErrRetry = errors.New("flag: retry")
+
 // -- bool Value
 type boolValue bool
 
@@ -733,21 +736,21 @@ func (f *FlagSet) usage() {
 }
 
 // parseOne parses one flag. It reports whether a flag was seen.
-func (f *FlagSet) parseOne() (bool, error) {
+func (f *FlagSet) parseOne() (bool, string, error) {
 	if len(f.args) == 0 {
-		return false, nil
+		return false, "", nil
 	}
 	s := f.args[0]
 	if len(s) == 0 || s[0] != '-' || len(s) == 1 {
-		return false, nil
+		return false, "", nil
 	}
 	if s[1] == '-' && len(s) == 2 { // "--" terminates the flags
 		f.args = f.args[1:]
-		return false, nil
+		return false, "", nil
 	}
 	name := s[1:]
 	if len(name) == 0 || name[0] == '=' {
-		return false, f.failf("bad flag syntax: %s", s)
+		return false, "", f.failf("bad flag syntax: %s", s)
 	}
 
 	// it's a flag. does it have an argument?
@@ -767,14 +770,14 @@ func (f *FlagSet) parseOne() (bool, error) {
 	if !alreadythere {
 		if name == "-help" || name == "help" || name == "h" { // special case for nice help message.
 			f.usage()
-			return false, ErrHelp
+			return false, "", ErrHelp
 		}
-		return false, f.failf("flag provided but not defined: -%s", name)
+		return false, name, ErrRetry
 	}
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
 		if has_value {
 			if err := fv.Set(value); err != nil {
-				return false, f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
+				return false, "", f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
 			}
 		} else {
 			fv.Set("true")
@@ -787,17 +790,17 @@ func (f *FlagSet) parseOne() (bool, error) {
 			value, f.args = f.args[0], f.args[1:]
 		}
 		if !has_value {
-			return false, f.failf("flag needs an argument: -%s", name)
+			return false, "", f.failf("flag needs an argument: -%s", name)
 		}
 		if err := flag.Value.Set(value); err != nil {
-			return false, f.failf("invalid value %q for flag -%s: %v", value, name, err)
+			return false, "", f.failf("invalid value %q for flag -%s: %v", value, name, err)
 		}
 	}
 	if f.actual == nil {
 		f.actual = make(map[string]*Flag)
 	}
 	f.actual[name] = flag
-	return true, nil
+	return true, "", nil
 }
 
 // Parse parses flag definitions from the argument list, which should not
@@ -808,12 +811,33 @@ func (f *FlagSet) Parse(arguments []string) error {
 	f.parsed = true
 	f.args = arguments
 	for {
-		seen, err := f.parseOne()
+		seen, name, err := f.parseOne()
 		if seen {
 			continue
 		}
 		if err == nil {
 			break
+		}
+		if err == ErrRetry {
+			if len(name) > 1 {
+				err = nil
+				for _, letter := range strings.Split(name, "") {
+					f.args = append([]string{"-" + letter}, f.args...)
+					seen2, _, err2 := f.parseOne()
+					if seen2 {
+						continue
+					}
+					if err2 != nil {
+						err = f.failf("flag provided but not defined: -%s", name)
+						break
+					}
+				}
+				if err == nil {
+					continue
+				}
+			} else {
+				err = f.failf("flag provided but not defined: -%s", name)
+			}
 		}
 		switch f.errorHandling {
 		case ContinueOnError:
