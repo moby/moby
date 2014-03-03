@@ -809,6 +809,19 @@ we ask for the ``HostPort`` field to get the public address.
 
     $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
+Get config
+..........
+
+The ``.Field`` syntax doesn't work when the field contains JSON data,
+but the template language's custom ``json`` function does. The ``.config``
+section contains complex json object, so to grab it as JSON, you use ``json``
+to convert config object into JSON
+
+.. code-block:: bash
+
+    $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
+
+
 .. _cli_kill:
 
 ``kill``
