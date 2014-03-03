@@ -5,7 +5,6 @@ package nsinit
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"path/filepath"
@@ -73,8 +72,8 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 		os.Exit(state.Sys().(syscall.WaitStatus).ExitStatus())
 	}
 dropAndExec:
-	if err := capabilities.DropCapabilities(container); err != nil {
-		return -1, fmt.Errorf("drop capabilities %s", err)
+	if err := finalizeNamespace(container); err != nil {
+		return -1, err
 	}
 	if err := system.Execv(args[0], args[0:], container.Env); err != nil {
 		return -1, err

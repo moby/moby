@@ -64,16 +64,8 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
 	}
-	if err := capabilities.DropCapabilities(container); err != nil {
-		return fmt.Errorf("drop capabilities %s", err)
-	}
-	if err := setupUser(container); err != nil {
-		return fmt.Errorf("setup user %s", err)
-	}
-	if container.WorkingDir != "" {
-		if err := system.Chdir(container.WorkingDir); err != nil {
-			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
-		}
+	if err := finalizeNamespace(container); err != nil {
+		return fmt.Errorf("finalize namespace %s", err)
 	}
 	return system.Execv(args[0], args[0:], container.Env)
 }
@@ -139,6 +131,23 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 			return err
 		}
 		return strategy.Initialize(config, context)
+	}
+	return nil
+}
+
+// finalizeNamespace drops the caps and sets the correct user
+// and working dir before execing the command inside the namespace
+func finalizeNamespace(container *libcontainer.Container) error {
+	if err := capabilities.DropCapabilities(container); err != nil {
+		return fmt.Errorf("drop capabilities %s", err)
+	}
+	if err := setupUser(container); err != nil {
+		return fmt.Errorf("setup user %s", err)
+	}
+	if container.WorkingDir != "" {
+		if err := system.Chdir(container.WorkingDir); err != nil {
+			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
+		}
 	}
 	return nil
 }
