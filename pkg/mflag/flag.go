@@ -803,6 +803,11 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		f.actual = make(map[string]*Flag)
 	}
 	f.actual[name] = flag
+	for _, n := range flag.Names {
+		if n == fmt.Sprintf("#%s", name) {
+			fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+		}
+	}
 	return true, "", nil
 }
 
