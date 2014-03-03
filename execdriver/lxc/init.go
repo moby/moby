@@ -1,16 +1,46 @@
 package lxc
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/pkg/user"
 	"github.com/syndtr/gocapability/capability"
+	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"syscall"
 )
+
+// Clear environment pollution introduced by lxc-start
+func setupEnv(args *execdriver.InitArgs) error {
+	// Get env
+	var env []string
+	content, err := ioutil.ReadFile(".dockerenv")
+	if err != nil {
+		return fmt.Errorf("Unable to load environment variables: %v", err)
+	}
+	if err := json.Unmarshal(content, &env); err != nil {
+		return fmt.Errorf("Unable to unmarshal environment variables: %v", err)
+	}
+	// Propagate the plugin-specific container env variable
+	env = append(env, "container="+os.Getenv("container"))
+
+	args.Env = env
+
+	os.Clearenv()
+	for _, kv := range args.Env {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) == 1 {
+			parts = append(parts, "")
+		}
+		os.Setenv(parts[0], parts[1])
+	}
+
+	return nil
+}
 
 func setupHostname(args *execdriver.InitArgs) error {
 	hostname := getEnv(args, "HOSTNAME")

@@ -21,6 +21,10 @@ const DriverName = "lxc"
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
+		if err := setupEnv(args); err != nil {
+			return err
+		}
+
 		if err := setupHostname(args); err != nil {
 			return err
 		}
