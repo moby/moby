@@ -42,6 +42,7 @@ func main() {
 		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "", "Force the docker runtime to use a specific exec driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
+		flLog		     = flag.String([]string["#log", "-log", "", "File to write daemon logs, default to stdout")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
@@ -76,6 +77,15 @@ func main() {
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
+		}
+		
+		if (*flLog != "") {
+			f, err := os.OpenFile(*flLog, os.O_APPEND|os.O_WRONLY, 0600)
+			if err != nil {
+				log.Fatalf("failed to open file %q for logging daemon output: %v", *flLog, err) 
+			}
+			defer f.Close()
+			log.SetOutput(f)
 		}
 
 		eng, err := engine.New(*flRoot)
