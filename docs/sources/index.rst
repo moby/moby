@@ -17,7 +17,7 @@ Common use cases for Docker include:
 - Deploying and scaling databases and backend services in a service-oriented environment.
 - Building custom PaaS environments, either from scratch or as an extension of off-the-shelf platforms like OpenShift or Cloud Foundry.
 
-Please note Docker is currently under heavy developement. It should not be used in production (yet).
+Please note Docker is currently under heavy development. It should not be used in production (yet).
 
 For a high-level overview of Docker, please see the `Introduction
 <http://www.docker.io/learn_more/>`_. When you're ready to start working with
