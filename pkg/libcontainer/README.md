@@ -87,4 +87,4 @@ nsinit exec /bin/bash
 If you wish to spawn another process inside the container while your current bash session is 
 running just run the exact same command again to get another bash shell or change the command.  If the original process dies, PID 1, all other processes spawned inside the container will also be killed and the namespace will be removed. 
 
-You can identify if a process is running in a container by looking to see if `.nspid` is in the root of the directory.   
+You can identify if a process is running in a container by looking to see if `pid` is in the root of the directory.   
