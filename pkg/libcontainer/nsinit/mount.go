@@ -38,9 +38,8 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
-	if err := setupLoopbackDevices(rootfs); err != nil {
-		return fmt.Errorf("setup loopback devices %s", err)
-	}
+	// In non-privileged mode, this fails. Discard the error.
+	setupLoopbackDevices(rootfs)
 	if err := setupDev(rootfs); err != nil {
 		return err
 	}
@@ -102,29 +101,13 @@ func copyDevNodes(rootfs string) error {
 
 func setupLoopbackDevices(rootfs string) error {
 	for i := 0; ; i++ {
-		var (
-			device = fmt.Sprintf("loop%d", i)
-			source = filepath.Join("/dev", device)
-			dest   = filepath.Join(rootfs, "dev", device)
-		)
-
-		if _, err := os.Stat(source); err != nil {
+		if err := copyDevNode(rootfs, fmt.Sprintf("loop%d", i)); err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-			return nil
+			break
 		}
-		if _, err := os.Stat(dest); err == nil {
-			os.Remove(dest)
-		}
-		f, err := os.Create(dest)
-		if err != nil {
-			return err
-		}
-		f.Close()
-		if err := system.Mount(source, dest, "none", syscall.MS_BIND, ""); err != nil {
-			return err
-		}
+
 	}
 	return nil
 }
