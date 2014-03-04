@@ -5,6 +5,7 @@ import (
 	"github.com/kr/pty"
 	"io"
 	"os"
+	"os/exec"
 )
 
 func SetTerminal(command *Command, pipes *Pipes) error {
@@ -25,8 +26,8 @@ func SetTerminal(command *Command, pipes *Pipes) error {
 }
 
 type TtyConsole struct {
-	master *os.File
-	slave  *os.File
+	MasterPty *os.File
+	SlavePty  *os.File
 }
 
 func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
@@ -35,28 +36,28 @@ func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
 		return nil, err
 	}
 	tty := &TtyConsole{
-		master: ptyMaster,
-		slave:  ptySlave,
+		MasterPty: ptyMaster,
+		SlavePty:  ptySlave,
 	}
-	if err := tty.attach(command, pipes); err != nil {
+	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
 		tty.Close()
 		return nil, err
 	}
+	command.Console = tty.SlavePty.Name()
 	return tty, nil
 }
 
 func (t *TtyConsole) Master() *os.File {
-	return t.master
+	return t.MasterPty
 }
 
 func (t *TtyConsole) Resize(h, w int) error {
-	return term.SetWinsize(t.master.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
-func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
-	command.Stdout = t.slave
-	command.Stderr = t.slave
-	command.Console = t.slave.Name()
+func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
+	command.Stdout = t.SlavePty
+	command.Stderr = t.SlavePty
 
 	go func() {
 		if wb, ok := pipes.Stdout.(interface {
@@ -64,24 +65,24 @@ func (t *TtyConsole) attach(command *Command, pipes *Pipes) error {
 		}); ok {
 			defer wb.CloseWriters()
 		}
-		io.Copy(pipes.Stdout, t.master)
+		io.Copy(pipes.Stdout, t.MasterPty)
 	}()
 
 	if pipes.Stdin != nil {
-		command.Stdin = t.slave
+		command.Stdin = t.SlavePty
 		command.SysProcAttr.Setctty = true
 
 		go func() {
 			defer pipes.Stdin.Close()
-			io.Copy(t.master, pipes.Stdin)
+			io.Copy(t.MasterPty, pipes.Stdin)
 		}()
 	}
 	return nil
 }
 
 func (t *TtyConsole) Close() error {
-	t.slave.Close()
-	return t.master.Close()
+	t.SlavePty.Close()
+	return t.MasterPty.Close()
 }
 
 type StdConsole struct {
@@ -90,13 +91,13 @@ type StdConsole struct {
 func NewStdConsole(command *Command, pipes *Pipes) (*StdConsole, error) {
 	std := &StdConsole{}
 
-	if err := std.attach(command, pipes); err != nil {
+	if err := std.AttachPipes(&command.Cmd, pipes); err != nil {
 		return nil, err
 	}
 	return std, nil
 }
 
-func (s *StdConsole) attach(command *Command, pipes *Pipes) error {
+func (s *StdConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
 	command.Stdout = pipes.Stdout
 	command.Stderr = pipes.Stderr
 

@@ -51,6 +51,9 @@ type InitArgs struct {
 	Args       []string
 	Mtu        int
 	Driver     string
+	Console    string
+	Pipe       int
+	Root       string
 }
 
 // Driver specific information based on
