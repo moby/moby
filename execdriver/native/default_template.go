@@ -26,7 +26,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 				Gateway: c.Network.Gateway,
 				Type:    "veth",
 				Context: libcontainer.Context{
-					"prefix": "dock",
+					"prefix": "veth",
 					"bridge": c.Network.Bridge,
 				},
 			},
