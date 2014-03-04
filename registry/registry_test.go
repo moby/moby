@@ -145,7 +145,7 @@ func TestResolveRepositoryName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, ep, "http://"+u+"/v1/", "Expected endpoint to be "+u)
+	assertEqual(t, ep, u, "Expected endpoint to be "+u)
 	assertEqual(t, repo, "private/moonbase", "Expected endpoint to be private/moonbase")
 }
 

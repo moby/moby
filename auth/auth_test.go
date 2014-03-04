@@ -108,6 +108,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	}
 	configFile.Configs["https://registry.example.com/v1/"] = registryAuth
 	configFile.Configs["http://localhost:8000/v1/"] = localAuth
+	configFile.Configs["registry.com"] = registryAuth
 
 	validRegistries := map[string][]string{
 		"https://registry.example.com/v1/": {
@@ -121,6 +122,12 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 			"http://localhost:8000/v1/",
 			"localhost:8000",
 			"localhost:8000/v1/",
+		},
+		"registry.com": {
+			"https://registry.com/v1/",
+			"http://registry.com/v1/",
+			"registry.com",
+			"registry.com/v1/",
 		},
 	}
 

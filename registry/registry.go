@@ -92,7 +92,7 @@ func validateRepositoryName(repositoryName string) error {
 	return nil
 }
 
-// Resolves a repository name to a endpoint + name
+// Resolves a repository name to a hostname + name
 func ResolveRepositoryName(reposName string) (string, string, error) {
 	if strings.Contains(reposName, "://") {
 		// It cannot contain a scheme!
@@ -118,11 +118,8 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	if err := validateRepositoryName(reposName); err != nil {
 		return "", "", err
 	}
-	endpoint, err := ExpandAndVerifyRegistryUrl(hostname)
-	if err != nil {
-		return "", "", err
-	}
-	return endpoint, reposName, err
+
+	return hostname, reposName, nil
 }
 
 // this method expands the registry name as used in the prefix of a repo
