@@ -83,7 +83,7 @@ Commands
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
-      -e, --exec-driver="": Force the docker runtime to use a specific exec driver
+      -e, --exec-driver="native": Force the docker runtime to use a specific exec driver
       -v, --version=false: Print version information and quit
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
@@ -95,6 +95,8 @@ To force Docker to use devicemapper as the storage driver, use ``docker -d -s de
 To set the DNS server for all Docker containers, use ``docker -d -dns 8.8.8.8``.
 
 To run the daemon with debug output, use ``docker -d -D``.
+
+To use lxc as the execution driver, use ``docker -d -e lxc``.
 
 The docker client will also honor the ``DOCKER_HOST`` environment variable to set
 the ``-H`` flag for the client.  
