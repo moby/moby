@@ -38,9 +38,8 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
-	if err := setupLoopbackDevices(rootfs); err != nil {
-		return fmt.Errorf("setup loopback devices %s", err)
-	}
+	// In non-privileged mode, this fails. Discard the error.
+	setupLoopbackDevices(rootfs)
 	if err := setupDev(rootfs); err != nil {
 		return err
 	}
@@ -102,29 +101,13 @@ func copyDevNodes(rootfs string) error {
 
 func setupLoopbackDevices(rootfs string) error {
 	for i := 0; ; i++ {
-		var (
-			device = fmt.Sprintf("loop%d", i)
-			source = filepath.Join("/dev", device)
-			dest   = filepath.Join(rootfs, "dev", device)
-		)
-
-		if _, err := os.Stat(source); err != nil {
+		if err := copyDevNode(rootfs, fmt.Sprintf("loop%d", i)); err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-			return nil
+			break
 		}
-		if _, err := os.Stat(dest); err == nil {
-			os.Remove(dest)
-		}
-		f, err := os.Create(dest)
-		if err != nil {
-			return err
-		}
-		f.Close()
-		if err := system.Mount(source, dest, "none", syscall.MS_BIND, ""); err != nil {
-			return err
-		}
+
 	}
 	return nil
 }
@@ -211,10 +194,8 @@ func mountSystem(rootfs string) error {
 	}{
 		{source: "proc", path: filepath.Join(rootfs, "proc"), device: "proc", flags: defaultMountFlags},
 		{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags},
-		{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: "mode=755"},
 		{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaultMountFlags, data: "mode=1777"},
 		{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: "newinstance,ptmxmode=0666,mode=620,gid=5"},
-		{source: "tmpfs", path: filepath.Join(rootfs, "run"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_NODEV | syscall.MS_STRICTATIME, data: "mode=755"},
 	} {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
