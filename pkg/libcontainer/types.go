@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/syndtr/gocapability/capability"
-	"os"
 )
 
 var (
@@ -74,16 +73,18 @@ func GetNamespace(key string) *Namespace {
 			return ns
 		}
 	}
-	if os.Getenv("DEBUG") != "" {
-		panic("Unreachable: Namespace not found")
-	}
 	return nil
 }
 
 // Contains returns true if the specified Namespace is
 // in the slice
 func (n Namespaces) Contains(ns string) bool {
-	return GetNamespace(ns) != nil
+	for _, nsp := range n {
+		if nsp.Key == ns {
+			return true
+		}
+	}
+	return false
 }
 
 type (
@@ -121,14 +122,16 @@ func GetCapability(key string) *Capability {
 			return capp
 		}
 	}
-	if os.Getenv("DEBUG") != "" {
-		panic("Unreachable: Capability not found")
-	}
 	return nil
 }
 
 // Contains returns true if the specified Capability is
 // in the slice
 func (c Capabilities) Contains(capp string) bool {
-	return GetCapability(capp) != nil
+	for _, cap := range c {
+		if cap.Key == capp {
+			return true
+		}
+	}
+	return false
 }
