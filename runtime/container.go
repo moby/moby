@@ -532,7 +532,7 @@ func (container *Container) Start() (err error) {
 	populateCommand(container)
 	container.command.Env = env
 
-	if err := mountVolumesForContainer(container, envPath); err != nil {
+	if err := setupMountsForContainer(container, envPath); err != nil {
 		return err
 	}
 
@@ -843,8 +843,6 @@ func (container *Container) cleanup() {
 		}
 	}
 
-	unmountVolumesForContainer(container)
-
 	if err := container.Unmount(); err != nil {
 		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
@@ -1039,12 +1037,6 @@ func (container *Container) EnvConfigPath() (string, error) {
 // This method must be exported to be used from the lxc template
 // This directory is only usable when the container is running
 func (container *Container) RootfsPath() string {
-	return path.Join(container.root, "root")
-}
-
-// This is the stand-alone version of the root fs, without any additional mounts.
-// This directory is usable whenever the container is mounted (and not unmounted)
-func (container *Container) BasefsPath() string {
 	return container.basefs
 }
 

@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/execdriver"
-	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,29 +33,9 @@ func prepareVolumesForContainer(container *Container) error {
 	return nil
 }
 
-func mountVolumesForContainer(container *Container, envPath string) error {
-	// Setup the root fs as a bind mount of the base fs
-	var (
-		root    = container.RootfsPath()
-		runtime = container.runtime
-	)
-	if err := os.MkdirAll(root, 0755); err != nil && !os.IsExist(err) {
-		return nil
-	}
-
-	// Create a bind mount of the base fs as a place where we can add mounts
-	// without affecting the ability to access the base fs
-	if err := mount.Mount(container.basefs, root, "none", "bind,rw"); err != nil {
-		return err
-	}
-
-	// Make sure the root fs is private so the mounts here don't propagate to basefs
-	if err := mount.ForceMount(root, root, "none", "private"); err != nil {
-		return err
-	}
-
+func setupMountsForContainer(container *Container, envPath string) error {
 	mounts := []execdriver.Mount{
-		{runtime.sysInitPath, "/.dockerinit", false, true},
+		{container.runtime.sysInitPath, "/.dockerinit", false, true},
 		{envPath, "/.dockerenv", false, true},
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
@@ -78,12 +56,6 @@ func mountVolumesForContainer(container *Container, envPath string) error {
 	container.command.Mounts = mounts
 
 	return nil
-}
-
-func unmountVolumesForContainer(container *Container) {
-	if err := mount.Unmount(container.RootfsPath()); err != nil {
-		log.Printf("Failed to umount container: %v", err)
-	}
 }
 
 func applyVolumesFrom(container *Container) error {
