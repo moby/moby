@@ -78,7 +78,27 @@ func main() {
 			return
 		}
 
-		eng, err := engine.New(*flRoot)
+		// set up the TempDir to use a canonical path
+		tmp := os.TempDir()
+		realTmp, err := utils.ReadSymlinkedDirectory(tmp)
+		if err != nil {
+			log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+		}
+		os.Setenv("TMPDIR", realTmp)
+
+		// get the canonical path to the Docker root directory
+		root := *flRoot
+		var realRoot string
+		if _, err := os.Stat(root); err != nil && os.IsNotExist(err) {
+			realRoot = root
+		} else {
+			realRoot, err = utils.ReadSymlinkedDirectory(root)
+			if err != nil {
+				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
+			}
+		}
+
+		eng, err := engine.New(realRoot)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -91,7 +111,7 @@ func main() {
 			// Load plugin: httpapi
 			job := eng.Job("initserver")
 			job.Setenv("Pidfile", *pidfile)
-			job.Setenv("Root", *flRoot)
+			job.Setenv("Root", realRoot)
 			job.SetenvBool("AutoRestart", *flAutoRestart)
 			job.SetenvList("Dns", flDns.GetAll())
 			job.SetenvBool("EnableIptables", *flEnableIptables)

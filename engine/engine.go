@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -88,19 +87,6 @@ func New(root string) (*Engine, error) {
 
 	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
-	}
-
-	// Docker makes some assumptions about the "absoluteness" of root
-	// ... so let's make sure it has no symlinks
-	if p, err := filepath.Abs(root); err != nil {
-		log.Fatalf("Unable to get absolute root (%s): %s", root, err)
-	} else {
-		root = p
-	}
-	if p, err := filepath.EvalSymlinks(root); err != nil {
-		log.Fatalf("Unable to canonicalize root (%s): %s", root, err)
-	} else {
-		root = p
 	}
 
 	eng := &Engine{

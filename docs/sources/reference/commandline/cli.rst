@@ -112,11 +112,15 @@ Using ``fd://`` will work perfectly for most setups but you can also specify ind
 If the specified socket activated files aren't found then docker will exit.
 You can find examples of using systemd socket activation with docker and systemd in the `docker source tree <https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/>`_.
 
-.. warning::
-  Docker and LXC do not support the use of softlinks for either the Docker data directory (``/var/lib/docker``) or for ``/tmp``.
-  If your system is likely to be set up in that way, you can use ``readlink -f`` to canonicalise the links:
+Docker supports softlinks for the Docker data directory (``/var/lib/docker``) and for ``/tmp``.
+TMPDIR and the data directory can be set like this:
 
-  ``TMPDIR=$(readlink -f /tmp) /usr/local/bin/docker -d -D -g $(readlink -f /var/lib/docker) -H unix:// $EXPOSE_ALL > /var/lib/boot2docker/docker.log 2>&1``
+::
+
+    TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    # or
+    export TMPDIR=/mnt/disk2/tmp
+    /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 .. _cli_attach:
 
