@@ -197,7 +197,6 @@ func mountSystem(rootfs string) error {
 		{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: "mode=755"},
 		{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaultMountFlags, data: "mode=1777"},
 		{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: "newinstance,ptmxmode=0666,mode=620,gid=5"},
-		{source: "tmpfs", path: filepath.Join(rootfs, "run"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_NODEV | syscall.MS_STRICTATIME, data: "mode=755"},
 	} {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
