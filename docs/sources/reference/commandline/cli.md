@@ -1,17 +1,8 @@
-title
-:   Command Line Interface
+Command Line Help[¶](#command-line-help "Permalink to this headline")
+=====================================================================
 
-description
-:   Docker's CLI command description and usage
-
-keywords
-:   Docker, Docker documentation, CLI, command line
-
-Command Line Help
-=================
-
-To list available commands, either run `docker` with no parameters or
-execute `docker help`:
+To list available commands, either run `docker`{.docutils .literal} with
+no parameters or execute `docker help`{.docutils .literal}:
 
     $ sudo docker
       Usage: docker [OPTIONS] COMMAND [arg...]
@@ -21,48 +12,52 @@ execute `docker help`:
 
       ...
 
-Options
-=======
+Options[¶](#options "Permalink to this headline")
+=================================================
 
 Single character commandline options can be combined, so rather than
-typing `docker run -t -i --name test busybox sh`, you can write
-`docker run -ti --name test busybox sh`.
+typing `docker run -t -i --name test busybox sh`{.docutils .literal},
+you can write `docker run -ti --name test busybox sh`{.docutils
+.literal}.
 
-Boolean
--------
+Boolean[¶](#boolean "Permalink to this headline")
+-------------------------------------------------
 
-Boolean options look like `-d=false`. The value you see is the default
-value which gets set if you do **not** use the boolean flag. If you do
-call `run -d`, that sets the opposite boolean value, so in this case,
-`true`, and so `docker run -d` **will** run in "detached" mode, in the
-background. Other boolean options are similar -- specifying them will
-set the value to the opposite of the default value.
+Boolean options look like `-d=false`{.docutils .literal}. The value you
+see is the default value which gets set if you do **not** use the
+boolean flag. If you do call `run -d`{.docutils .literal}, that sets the
+opposite boolean value, so in this case, `true`{.docutils .literal}, and
+so `docker run -d`{.docutils .literal} **will** run in “detached” mode,
+in the background. Other boolean options are similar – specifying them
+will set the value to the opposite of the default value.
 
-Multi
------
+Multi[¶](#multi "Permalink to this headline")
+---------------------------------------------
 
-Options like `-a=[]` indicate they can be specified multiple times:
+Options like `-a=[]`{.docutils .literal} indicate they can be specified
+multiple times:
 
     docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
 
-Sometimes this can use a more complex value string, as for `-v`:
+Sometimes this can use a more complex value string, as for
+`-v`{.docutils .literal}:
 
     docker run -v /host:/container example/mysql
 
-Strings and Integers
---------------------
+Strings and Integers[¶](#strings-and-integers "Permalink to this headline")
+---------------------------------------------------------------------------
 
-Options like `-name=""` expect a string, and they can only be specified
-once. Options like `-c=0` expect an integer, and they can only be
-specified once.
+Options like `-name=""`{.docutils .literal} expect a string, and they
+can only be specified once. Options like `-c=0`{.docutils .literal}
+expect an integer, and they can only be specified once.
 
 * * * * *
 
-Commands
-========
+Commands[¶](#commands "Permalink to this headline")
+===================================================
 
-`daemon`
-========
+`daemon`{.docutils .literal}[¶](#daemon "Permalink to this headline")
+=====================================================================
 
     Usage of docker:
       -D, --debug=false: Enable debug mode
@@ -85,20 +80,23 @@ Commands
 
 The Docker daemon is the persistent process that manages containers.
 Docker uses the same binary for both the daemon and client. To run the
-daemon you provide the `-d` flag.
+daemon you provide the `-d`{.docutils .literal} flag.
 
 To force Docker to use devicemapper as the storage driver, use
-`docker -d -s devicemapper`.
+`docker -d -s devicemapper`{.docutils .literal}.
 
 To set the DNS server for all Docker containers, use
-`docker -d -dns 8.8.8.8`.
+`docker -d -dns 8.8.8.8`{.docutils .literal}.
 
-To run the daemon with debug output, use `docker -d -D`.
+To run the daemon with debug output, use `docker -d -D`{.docutils
+.literal}.
 
-To use lxc as the execution driver, use `docker -d -e lxc`.
+To use lxc as the execution driver, use `docker -d -e lxc`{.docutils
+.literal}.
 
-The docker client will also honor the `DOCKER_HOST` environment variable
-to set the `-H` flag for the client.
+The docker client will also honor the `DOCKER_HOST`{.docutils .literal}
+environment variable to set the `-H`{.docutils .literal} flag for the
+client.
 
     docker -H tcp://0.0.0.0:4243 ps
     # or
@@ -108,24 +106,25 @@ to set the `-H` flag for the client.
 
 To run the daemon with [systemd socket
 activation](http://0pointer.de/blog/projects/socket-activation.html),
-use `docker -d -H fd://`. Using `fd://` will work perfectly for most
-setups but you can also specify individual sockets too
-`docker -d -H fd://3`. If the specified socket activated files aren't
-found then docker will exit. You can find examples of using systemd
-socket activation with docker and systemd in the [docker source
+use `docker -d -H fd://`{.docutils .literal}. Using `fd://`{.docutils
+.literal} will work perfectly for most setups but you can also specify
+individual sockets too `docker -d -H fd://3`{.docutils .literal}. If the
+specified socket activated files aren’t found then docker will exit. You
+can find examples of using systemd socket activation with docker and
+systemd in the [docker source
 tree](https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/tmp`. TMPDIR and the data directory can be
-set like this:
+(`/var/lib/docker`{.docutils .literal}) and for `/tmp`{.docutils
+.literal}. TMPDIR and the data directory can be set like this:
 
     TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
     export TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
-`attach`
-========
+`attach`{.docutils .literal}[¶](#attach "Permalink to this headline")
+=====================================================================
 
     Usage: docker attach CONTAINER
 
@@ -135,53 +134,52 @@ set like this:
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
 You can detach from the container again (and leave it running) with
-`CTRL-c` (for a quiet exit) or `CTRL-\` to get a stacktrace of the
-Docker client when it quits. When you detach from the container's
-process the exit code will be returned to the client.
+`CTRL-c`{.docutils .literal} (for a quiet exit) or `CTRL-\`{.docutils
+.literal} to get a stacktrace of the Docker client when it quits. When
+you detach from the container’s process the exit code will be returned
+to the client.
 
-To stop a container, use `docker stop`.
+To stop a container, use `docker stop`{.docutils .literal}.
 
-To kill the container, use `docker kill`.
+To kill the container, use `docker kill`{.docutils .literal}.
 
-Examples:
----------
+Examples:[¶](#examples "Permalink to this headline")
+----------------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ ID=$(sudo docker run -d ubuntu /usr/bin/top -b)
-$ sudo docker attach $ID
-top - 02:05:52 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
-Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
-Cpu(s):  0.1%us,  0.2%sy,  0.0%ni, 99.7%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
-Mem:    373572k total,   355560k used,    18012k free,    27872k buffers
-Swap:   786428k total,        0k used,   786428k free,   221740k cached
+    $ ID=$(sudo docker run -d ubuntu /usr/bin/top -b)
+    $ sudo docker attach $ID
+    top - 02:05:52 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
+    Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+    Cpu(s):  0.1%us,  0.2%sy,  0.0%ni, 99.7%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+    Mem:    373572k total,   355560k used,    18012k free,    27872k buffers
+    Swap:   786428k total,        0k used,   786428k free,   221740k cached
 
-PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
- 1 root      20   0 17200 1116  912 R    0  0.3   0:00.03 top
+    PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+     1 root      20   0 17200 1116  912 R    0  0.3   0:00.03 top
 
- top - 02:05:55 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
- Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
- Cpu(s):  0.0%us,  0.2%sy,  0.0%ni, 99.8%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
- Mem:    373572k total,   355244k used,    18328k free,    27872k buffers
- Swap:   786428k total,        0k used,   786428k free,   221776k cached
+     top - 02:05:55 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
+     Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+     Cpu(s):  0.0%us,  0.2%sy,  0.0%ni, 99.8%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+     Mem:    373572k total,   355244k used,    18328k free,    27872k buffers
+     Swap:   786428k total,        0k used,   786428k free,   221776k cached
 
-   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
-   1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
+       PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+           1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
 
 
- top - 02:05:58 up  3:06,  0 users,  load average: 0.01, 0.02, 0.05
- Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
- Cpu(s):  0.2%us,  0.3%sy,  0.0%ni, 99.5%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
- Mem:    373572k total,   355780k used,    17792k free,    27880k buffers
- Swap:   786428k total,        0k used,   786428k free,   221776k cached
+     top - 02:05:58 up  3:06,  0 users,  load average: 0.01, 0.02, 0.05
+     Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+     Cpu(s):  0.2%us,  0.3%sy,  0.0%ni, 99.5%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+     Mem:    373572k total,   355780k used,    17792k free,    27880k buffers
+     Swap:   786428k total,        0k used,   786428k free,   221776k cached
 
- PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
-      1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
-^C$
-$ sudo docker stop $ID
-~~~~
+     PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+          1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
+    ^C$
+    $ sudo docker stop $ID
 
-`build`
-=======
+`build`{.docutils .literal}[¶](#build "Permalink to this headline")
+===================================================================
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
@@ -191,90 +189,92 @@ $ sudo docker stop $ID
       --no-cache: Do not use the cache when building the image.
       --rm=true: Remove intermediate containers after a successful build
 
-The files at `PATH` or `URL` are called the "context" of the build. The
-build process may refer to any of the files in the context, for example
-when using an ADD \<dockerfile\_add\> instruction. When a single
-`Dockerfile` is given as `URL`, then no context is set. When a Git
-repository is set as `URL`, then the repository is used as the context.
-Git repositories are cloned with their submodules (git clone
---recursive).
+The files at `PATH`{.docutils .literal} or `URL`{.docutils .literal} are
+called the “context” of the build. The build process may refer to any of
+the files in the context, for example when using an
+[*ADD*](../../builder/#dockerfile-add) instruction. When a single
+`Dockerfile`{.docutils .literal} is given as `URL`{.docutils .literal},
+then no context is set. When a Git repository is set as `URL`{.docutils
+.literal}, then the repository is used as the context. Git repositories
+are cloned with their submodules (git clone –recursive).
 
-Examples:
----------
+See also
 
-~~~~ {.sourceCode .bash}
-$ sudo docker build .
-Uploading context 10240 bytes
-Step 1 : FROM busybox
-Pulling repository busybox
- ---> e9aa60c60128MB/2.284 MB (100%) endpoint: https://cdn-registry-1.docker.io/v1/
-Step 2 : RUN ls -lh /
- ---> Running in 9c9e81692ae9
-total 24
-drwxr-xr-x    2 root     root        4.0K Mar 12  2013 bin
-drwxr-xr-x    5 root     root        4.0K Oct 19 00:19 dev
-drwxr-xr-x    2 root     root        4.0K Oct 19 00:19 etc
-drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 lib
-lrwxrwxrwx    1 root     root           3 Mar 12  2013 lib64 -> lib
-dr-xr-xr-x  116 root     root           0 Nov 15 23:34 proc
-lrwxrwxrwx    1 root     root           3 Mar 12  2013 sbin -> bin
-dr-xr-xr-x   13 root     root           0 Nov 15 23:34 sys
-drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
-drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
- ---> b35f4035db3f
-Step 3 : CMD echo Hello World
- ---> Running in 02071fceb21b
- ---> f52f38b7823e
-Successfully built f52f38b7823e
-Removing intermediate container 9c9e81692ae9
-Removing intermediate container 02071fceb21b
-~~~~
+[*Dockerfile Reference*](../../builder/#dockerbuilder).
 
-This example specifies that the `PATH` is `.`, and so all the files in
-the local directory get tar'd and sent to the Docker daemon. The `PATH`
-specifies where to find the files for the "context" of the build on the
+Examples:[¶](#id1 "Permalink to this headline")
+-----------------------------------------------
+
+    $ sudo docker build .
+    Uploading context 10240 bytes
+    Step 1 : FROM busybox
+    Pulling repository busybox
+     ---> e9aa60c60128MB/2.284 MB (100%) endpoint: https://cdn-registry-1.docker.io/v1/
+    Step 2 : RUN ls -lh /
+     ---> Running in 9c9e81692ae9
+    total 24
+    drwxr-xr-x    2 root     root        4.0K Mar 12  2013 bin
+    drwxr-xr-x    5 root     root        4.0K Oct 19 00:19 dev
+    drwxr-xr-x    2 root     root        4.0K Oct 19 00:19 etc
+    drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 lib
+    lrwxrwxrwx    1 root     root           3 Mar 12  2013 lib64 -> lib
+    dr-xr-xr-x  116 root     root           0 Nov 15 23:34 proc
+    lrwxrwxrwx    1 root     root           3 Mar 12  2013 sbin -> bin
+    dr-xr-xr-x   13 root     root           0 Nov 15 23:34 sys
+    drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
+    drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
+     ---> b35f4035db3f
+    Step 3 : CMD echo Hello World
+     ---> Running in 02071fceb21b
+     ---> f52f38b7823e
+    Successfully built f52f38b7823e
+    Removing intermediate container 9c9e81692ae9
+    Removing intermediate container 02071fceb21b
+
+This example specifies that the `PATH`{.docutils .literal} is
+`.`{.docutils .literal}, and so all the files in the local directory get
+tar’d and sent to the Docker daemon. The `PATH`{.docutils .literal}
+specifies where to find the files for the “context” of the build on the
 Docker daemon. Remember that the daemon could be running on a remote
-machine and that no parsing of the `Dockerfile` happens at the client
-side (where you're running `docker build`). That means that *all* the
-files at `PATH` get sent, not just the ones listed to ADD
-\<dockerfile\_add\> in the `Dockerfile`.
+machine and that no parsing of the `Dockerfile`{.docutils .literal}
+happens at the client side (where you’re running
+`docker build`{.docutils .literal}). That means that *all* the files at
+`PATH`{.docutils .literal} get sent, not just the ones listed to
+[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`{.docutils
+.literal}.
 
 The transfer of context from the local machine to the Docker daemon is
-what the `docker` client means when you see the "Uploading context"
-message.
+what the `docker`{.docutils .literal} client means when you see the
+“Uploading context” message.
 
 If you wish to keep the intermediate containers after the build is
-complete, you must use `--rm=false`. This does not affect the build
-cache.
+complete, you must use `--rm=false`{.docutils .literal}. This does not
+affect the build cache.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker build -t vieux/apache:2.0 .
-~~~~
+    $ sudo docker build -t vieux/apache:2.0 .
 
 This will build like the previous example, but it will then tag the
-resulting image. The repository name will be `vieux/apache` and the tag
-will be `2.0`
+resulting image. The repository name will be `vieux/apache`{.docutils
+.literal} and the tag will be `2.0`{.docutils .literal}
 
-~~~~ {.sourceCode .bash}
-$ sudo docker build - < Dockerfile
-~~~~
+    $ sudo docker build - < Dockerfile
 
-This will read a `Dockerfile` from *stdin* without context. Due to the
-lack of a context, no contents of any local directory will be sent to
-the `docker` daemon. Since there is no context, a `Dockerfile` `ADD`
-only works if it refers to a remote URL.
+This will read a `Dockerfile`{.docutils .literal} from *stdin* without
+context. Due to the lack of a context, no contents of any local
+directory will be sent to the `docker`{.docutils .literal} daemon. Since
+there is no context, a `Dockerfile`{.docutils .literal} `ADD`{.docutils
+.literal} only works if it refers to a remote URL.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker build github.com/creack/docker-firefox
-~~~~
+    $ sudo docker build github.com/creack/docker-firefox
 
 This will clone the GitHub repository and use the cloned repository as
-context. The `Dockerfile` at the root of the repository is used as
-`Dockerfile`. Note that you can specify an arbitrary Git repository by
-using the `git://` schema.
+context. The `Dockerfile`{.docutils .literal} at the root of the
+repository is used as `Dockerfile`{.docutils .literal}. Note that you
+can specify an arbitrary Git repository by using the `git://`{.docutils
+.literal} schema.
 
-`commit`
-========
+`commit`{.docutils .literal}[¶](#commit "Permalink to this headline")
+=====================================================================
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
@@ -285,128 +285,119 @@ using the `git://` schema.
       --run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Commit an existing container
-----------------------------
+Commit an existing container[¶](#commit-an-existing-container "Permalink to this headline")
+-------------------------------------------------------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker ps
-ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
-197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
-$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
-f5283438590d
-$ docker images | head
-REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
-SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
-~~~~
+    $ sudo docker ps
+    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    $ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
+    f5283438590d
+    $ docker images | head
+    REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
+    SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
-Change the command that a container runs
-----------------------------------------
+Change the command that a container runs[¶](#change-the-command-that-a-container-runs "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------------------
 
 Sometimes you have an application container running just a service and
 you need to make a quick change and then change it back.
 
-In this example, we run a container with `ls` and then change the image
-to run `ls /etc`.
+In this example, we run a container with `ls`{.docutils .literal} and
+then change the image to run `ls /etc`{.docutils .literal}.
 
-~~~~ {.sourceCode .bash}
-$ docker run -t -name test ubuntu ls
-bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
-$ docker commit -run='{"Cmd": ["ls","/etc"]}' test test2
-933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
-$ docker run -t test2
-adduser.conf            gshadow          login.defs           rc0.d
-alternatives            gshadow-         logrotate.d          rc1.d
-apt                     host.conf        lsb-base             rc2.d
-...
-~~~~
+    $ docker run -t -name test ubuntu ls
+    bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
+    $ docker commit -run='{"Cmd": ["ls","/etc"]}' test test2
+    933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
+    $ docker run -t test2
+    adduser.conf            gshadow          login.defs           rc0.d
+    alternatives            gshadow-         logrotate.d          rc1.d
+    apt                     host.conf        lsb-base             rc2.d
+    ...
 
-### Full -run example
+### Full -run example[¶](#full-run-example "Permalink to this headline")
 
-The `--run` JSON hash changes the `Config` section when running
-`docker inspect CONTAINERID` or `config` when running
-`docker inspect IMAGEID`.
+The `--run`{.docutils .literal} JSON hash changes the `Config`{.docutils
+.literal} section when running `docker inspect CONTAINERID`{.docutils
+.literal} or `config`{.docutils .literal} when running
+`docker inspect IMAGEID`{.docutils .literal}.
 
-(Multiline is okay within a single quote `'`)
+(Multiline is okay within a single quote `'`{.docutils .literal})
 
-~~~~ {.sourceCode .bash}
-$ sudo docker commit -run='
-{
-    "Entrypoint" : null,
-    "Privileged" : false,
-    "User" : "",
-    "VolumesFrom" : "",
-    "Cmd" : ["cat", "-e", "/etc/resolv.conf"],
-    "Dns" : ["8.8.8.8", "8.8.4.4"],
-    "MemorySwap" : 0,
-    "AttachStdin" : false,
-    "AttachStderr" : false,
-    "CpuShares" : 0,
-    "OpenStdin" : false,
-    "Volumes" : null,
-    "Hostname" : "122612f45831",
-    "PortSpecs" : ["22", "80", "443"],
-    "Image" : "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-    "Tty" : false,
-    "Env" : [
-       "HOME=/",
-       "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    ],
-    "StdinOnce" : false,
-    "Domainname" : "",
-    "WorkingDir" : "/",
-    "NetworkDisabled" : false,
-    "Memory" : 0,
-    "AttachStdout" : false
-}' $CONTAINER_ID
-~~~~
+    $ sudo docker commit -run='
+    {
+        "Entrypoint" : null,
+        "Privileged" : false,
+        "User" : "",
+        "VolumesFrom" : "",
+        "Cmd" : ["cat", "-e", "/etc/resolv.conf"],
+        "Dns" : ["8.8.8.8", "8.8.4.4"],
+        "MemorySwap" : 0,
+        "AttachStdin" : false,
+        "AttachStderr" : false,
+        "CpuShares" : 0,
+        "OpenStdin" : false,
+        "Volumes" : null,
+        "Hostname" : "122612f45831",
+        "PortSpecs" : ["22", "80", "443"],
+        "Image" : "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+        "Tty" : false,
+        "Env" : [
+           "HOME=/",
+           "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ],
+        "StdinOnce" : false,
+        "Domainname" : "",
+        "WorkingDir" : "/",
+        "NetworkDisabled" : false,
+        "Memory" : 0,
+        "AttachStdout" : false
+    }' $CONTAINER_ID
 
-`cp`
-====
+`cp`{.docutils .literal}[¶](#cp "Permalink to this headline")
+=============================================================
 
     Usage: docker cp CONTAINER:PATH HOSTPATH
 
     Copy files/folders from the containers filesystem to the host
     path.  Paths are relative to the root of the filesystem.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker cp 7bb0e258aefe:/etc/debian_version .
-$ sudo docker cp blue_frog:/etc/hosts .
-~~~~
+    $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
+    $ sudo docker cp blue_frog:/etc/hosts .
 
-`diff`
-======
+`diff`{.docutils .literal}[¶](#diff "Permalink to this headline")
+=================================================================
 
     Usage: docker diff CONTAINER
 
     List the changed files and directories in a container's filesystem
 
-There are 3 events that are listed in the 'diff':
+There are 3 events that are listed in the ‘diff’:
 
-1.  `` `A ``\` - Add
-2.  `` `D ``\` - Delete
-3.  `` `C ``\` - Change
+1.  `` `A` ``{.docutils .literal} - Add
+2.  `` `D` ``{.docutils .literal} - Delete
+3.  `` `C` ``{.docutils .literal} - Change
 
 For example:
 
-~~~~ {.sourceCode .bash}
-$ sudo docker diff 7bb0e258aefe
+    $ sudo docker diff 7bb0e258aefe
 
-C /dev
-A /dev/kmsg
-C /etc
-A /etc/mtab
-A /go
-A /go/src
-A /go/src/github.com
-A /go/src/github.com/dotcloud
-A /go/src/github.com/dotcloud/docker
-A /go/src/github.com/dotcloud/docker/.git
-....
-~~~~
+    C /dev
+    A /dev/kmsg
+    C /etc
+    A /etc/mtab
+    A /go
+    A /go/src
+    A /go/src/github.com
+    A /go/src/github.com/dotcloud
+    A /go/src/github.com/dotcloud/docker
+    A /go/src/github.com/dotcloud/docker/.git
+    ....
 
-`events`
-========
+`events`{.docutils .literal}[¶](#events "Permalink to this headline")
+=====================================================================
 
     Usage: docker events
 
@@ -415,51 +406,43 @@ A /go/src/github.com/dotcloud/docker/.git
     --since="": Show previously created events and then stream.
                (either seconds since epoch, or date string as below)
 
-Examples
---------
+Examples[¶](#cli-events-example "Permalink to this headline")
+-------------------------------------------------------------
 
-You'll need two shells for this example.
+You’ll need two shells for this example.
 
-### Shell 1: Listening for events
+### Shell 1: Listening for events[¶](#shell-1-listening-for-events "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-$ sudo docker events
-~~~~
+    $ sudo docker events
 
-### Shell 2: Start and Stop a Container
+### Shell 2: Start and Stop a Container[¶](#shell-2-start-and-stop-a-container "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-$ sudo docker start 4386fb97867d
-$ sudo docker stop 4386fb97867d
-~~~~
+    $ sudo docker start 4386fb97867d
+    $ sudo docker stop 4386fb97867d
 
-### Shell 1: (Again .. now showing events)
+### Shell 1: (Again .. now showing events)[¶](#shell-1-again-now-showing-events "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-[2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
-~~~~
+    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-### Show events in the past from a specified time
+### Show events in the past from a specified time[¶](#show-events-in-the-past-from-a-specified-time "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-$ sudo docker events -since 1378216169
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    $ sudo docker events -since 1378216169
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-$ sudo docker events -since '2013-09-03'
-[2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    $ sudo docker events -since '2013-09-03'
+    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-$ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-[2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
-~~~~
+    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
+    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-`export`
-========
+`export`{.docutils .literal}[¶](#export "Permalink to this headline")
+=====================================================================
 
     Usage: docker export CONTAINER
 
@@ -467,12 +450,10 @@ $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
 
 For example:
 
-~~~~ {.sourceCode .bash}
-$ sudo docker export red_panda > latest.tar
-~~~~
+    $ sudo docker export red_panda > latest.tar
 
-`history`
-=========
+`history`{.docutils .literal}[¶](#history "Permalink to this headline")
+=======================================================================
 
     Usage: docker history [OPTIONS] IMAGE
 
@@ -481,42 +462,40 @@ $ sudo docker export red_panda > latest.tar
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: only show numeric IDs
 
-To see how the `docker:latest` image was built:
+To see how the `docker:latest`{.docutils .literal} image was built:
 
-~~~~ {.sourceCode .bash}
-$ docker history docker
-ID                  CREATED             CREATED BY
-docker:latest       19 hours ago        /bin/sh -c #(nop) ADD . in /go/src/github.com/dotcloud/docker
-cf5f2467662d        2 weeks ago         /bin/sh -c #(nop) ENTRYPOINT ["hack/dind"]
-3538fbe372bf        2 weeks ago         /bin/sh -c #(nop) WORKDIR /go/src/github.com/dotcloud/docker
-7450f65072e5        2 weeks ago         /bin/sh -c #(nop) VOLUME /var/lib/docker
-b79d62b97328        2 weeks ago         /bin/sh -c apt-get install -y -q lxc
-36714852a550        2 weeks ago         /bin/sh -c apt-get install -y -q iptables
-8c4c706df1d6        2 weeks ago         /bin/sh -c /bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEYn' > /.s3cfg
-b89989433c48        2 weeks ago         /bin/sh -c pip install python-magic
-a23e640d85b5        2 weeks ago         /bin/sh -c pip install s3cmd
-41f54fec7e79        2 weeks ago         /bin/sh -c apt-get install -y -q python-pip
-d9bc04add907        2 weeks ago         /bin/sh -c apt-get install -y -q reprepro dpkg-sig
-e74f4760fa70        2 weeks ago         /bin/sh -c gem install --no-rdoc --no-ri fpm
-1e43224726eb        2 weeks ago         /bin/sh -c apt-get install -y -q ruby1.9.3 rubygems libffi-dev
-460953ae9d7f        2 weeks ago         /bin/sh -c #(nop) ENV GOPATH=/go:/go/src/github.com/dotcloud/docker/vendor
-8b63eb1d666b        2 weeks ago         /bin/sh -c #(nop) ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/goroot/bin
-3087f3bcedf2        2 weeks ago         /bin/sh -c #(nop) ENV GOROOT=/goroot
-635840d198e5        2 weeks ago         /bin/sh -c cd /goroot/src && ./make.bash
-439f4a0592ba        2 weeks ago         /bin/sh -c curl -s https://go.googlecode.com/files/go1.1.2.src.tar.gz | tar -v -C / -xz && mv /go /goroot
-13967ed36e93        2 weeks ago         /bin/sh -c #(nop) ENV CGO_ENABLED=0
-bf7424458437        2 weeks ago         /bin/sh -c apt-get install -y -q build-essential
-a89ec997c3bf        2 weeks ago         /bin/sh -c apt-get install -y -q mercurial
-b9f165c6e749        2 weeks ago         /bin/sh -c apt-get install -y -q git
-17a64374afa7        2 weeks ago         /bin/sh -c apt-get install -y -q curl
-d5e85dc5b1d8        2 weeks ago         /bin/sh -c apt-get update
-13e642467c11        2 weeks ago         /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
-ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
-ubuntu:12.04        6 months ago
-~~~~
+    $ docker history docker
+    ID                  CREATED             CREATED BY
+    docker:latest       19 hours ago        /bin/sh -c #(nop) ADD . in /go/src/github.com/dotcloud/docker
+    cf5f2467662d        2 weeks ago         /bin/sh -c #(nop) ENTRYPOINT ["hack/dind"]
+    3538fbe372bf        2 weeks ago         /bin/sh -c #(nop) WORKDIR /go/src/github.com/dotcloud/docker
+    7450f65072e5        2 weeks ago         /bin/sh -c #(nop) VOLUME /var/lib/docker
+    b79d62b97328        2 weeks ago         /bin/sh -c apt-get install -y -q lxc
+    36714852a550        2 weeks ago         /bin/sh -c apt-get install -y -q iptables
+    8c4c706df1d6        2 weeks ago         /bin/sh -c /bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEYn' > /.s3cfg
+    b89989433c48        2 weeks ago         /bin/sh -c pip install python-magic
+    a23e640d85b5        2 weeks ago         /bin/sh -c pip install s3cmd
+    41f54fec7e79        2 weeks ago         /bin/sh -c apt-get install -y -q python-pip
+    d9bc04add907        2 weeks ago         /bin/sh -c apt-get install -y -q reprepro dpkg-sig
+    e74f4760fa70        2 weeks ago         /bin/sh -c gem install --no-rdoc --no-ri fpm
+    1e43224726eb        2 weeks ago         /bin/sh -c apt-get install -y -q ruby1.9.3 rubygems libffi-dev
+    460953ae9d7f        2 weeks ago         /bin/sh -c #(nop) ENV GOPATH=/go:/go/src/github.com/dotcloud/docker/vendor
+    8b63eb1d666b        2 weeks ago         /bin/sh -c #(nop) ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/goroot/bin
+    3087f3bcedf2        2 weeks ago         /bin/sh -c #(nop) ENV GOROOT=/goroot
+    635840d198e5        2 weeks ago         /bin/sh -c cd /goroot/src && ./make.bash
+    439f4a0592ba        2 weeks ago         /bin/sh -c curl -s https://go.googlecode.com/files/go1.1.2.src.tar.gz | tar -v -C / -xz && mv /go /goroot
+    13967ed36e93        2 weeks ago         /bin/sh -c #(nop) ENV CGO_ENABLED=0
+    bf7424458437        2 weeks ago         /bin/sh -c apt-get install -y -q build-essential
+    a89ec997c3bf        2 weeks ago         /bin/sh -c apt-get install -y -q mercurial
+    b9f165c6e749        2 weeks ago         /bin/sh -c apt-get install -y -q git
+    17a64374afa7        2 weeks ago         /bin/sh -c apt-get install -y -q curl
+    d5e85dc5b1d8        2 weeks ago         /bin/sh -c apt-get update
+    13e642467c11        2 weeks ago         /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
+    ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
+    ubuntu:12.04        6 months ago
 
-`images`
-========
+`images`{.docutils .literal}[¶](#images "Permalink to this headline")
+=====================================================================
 
     Usage: docker images [OPTIONS] [NAME]
 
@@ -528,166 +507,151 @@ ubuntu:12.04        6 months ago
       --tree=false: output graph in tree format
       --viz=false: output graph in graphviz format
 
-Listing the most recently created images
-----------------------------------------
+Listing the most recently created images[¶](#listing-the-most-recently-created-images "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker images | head
-REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-<none>                        <none>              77af4d6b9913        19 hours ago        1.089 GB
-committest                    latest              b6fa739cedf5        19 hours ago        1.089 GB
-<none>                        <none>              78a85c484f71        19 hours ago        1.089 GB
-docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
-<none>                        <none>              0124422dd9f9        20 hours ago        1.089 GB
-<none>                        <none>              18ad6fad3402        22 hours ago        1.082 GB
-<none>                        <none>              f9f1e26352f0        23 hours ago        1.089 GB
-tryout                        latest              2629d1fa0b81        23 hours ago        131.5 MB
-<none>                        <none>              5ed6274db6ce        24 hours ago        1.089 GB
-~~~~
+    $ sudo docker images | head
+    REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    <none>                        <none>              77af4d6b9913        19 hours ago        1.089 GB
+    committest                    latest              b6fa739cedf5        19 hours ago        1.089 GB
+    <none>                        <none>              78a85c484f71        19 hours ago        1.089 GB
+    docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
+    <none>                        <none>              0124422dd9f9        20 hours ago        1.089 GB
+    <none>                        <none>              18ad6fad3402        22 hours ago        1.082 GB
+    <none>                        <none>              f9f1e26352f0        23 hours ago        1.089 GB
+    tryout                        latest              2629d1fa0b81        23 hours ago        131.5 MB
+    <none>                        <none>              5ed6274db6ce        24 hours ago        1.089 GB
 
-Listing the full length image IDs
----------------------------------
+Listing the full length image IDs[¶](#listing-the-full-length-image-ids "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker images --no-trunc | head
-REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             VIRTUAL SIZE
-<none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
-committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
-<none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
-docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
-<none>                        <none>              0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        1.089 GB
-<none>                        <none>              18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        1.082 GB
-<none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
-tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
-<none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
-~~~~
+    $ sudo docker images --no-trunc | head
+    REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             VIRTUAL SIZE
+    <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
+    committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
+    <none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
+    docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
+    <none>                        <none>              0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        1.089 GB
+    <none>                        <none>              18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        1.082 GB
+    <none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
+    tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
+    <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
 
-Displaying images visually
---------------------------
+Displaying images visually[¶](#displaying-images-visually "Permalink to this headline")
+---------------------------------------------------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker images --viz | dot -Tpng -o docker.png
-~~~~
+    $ sudo docker images --viz | dot -Tpng -o docker.png
 
-![Example inheritance graph of Docker images.](docker_images.gif)
+![Example inheritance graph of Docker
+images.](../../../_images/docker_images.gif)
 
-Displaying image hierarchy
---------------------------
+Displaying image hierarchy[¶](#displaying-image-hierarchy "Permalink to this headline")
+---------------------------------------------------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker images --tree
+    $ sudo docker images --tree
 
-├─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
-└─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
-  └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
-    ├─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
-    │ └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
-    │   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
-    │     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
-    │       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
-    │         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
-    └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
-      └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
-        └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)
-          └─b1b0235328dd Size: 363.3 MB (virtual 640.2 MB)
-            └─7cb05d1acb3b Size: 20.48 kB (virtual 640.2 MB)
-              └─47bf6f34832d Size: 20.48 kB (virtual 640.2 MB)
-                └─f165104e82ed Size: 12.29 kB (virtual 640.2 MB)
-                  └─d9cf85a47b7e Size: 1.911 MB (virtual 642.2 MB)
-                    └─3ee562df86ca Size: 17.07 kB (virtual 642.2 MB)
-                      └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
-                        └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
-                          └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
-~~~~
+    ├─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
+    └─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
+      └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
+        ├─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
+        │ └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
+        │   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
+        │     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
+        │       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
+        │         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
+        └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
+          └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
+            └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)
+              └─b1b0235328dd Size: 363.3 MB (virtual 640.2 MB)
+                └─7cb05d1acb3b Size: 20.48 kB (virtual 640.2 MB)
+                  └─47bf6f34832d Size: 20.48 kB (virtual 640.2 MB)
+                    └─f165104e82ed Size: 12.29 kB (virtual 640.2 MB)
+                      └─d9cf85a47b7e Size: 1.911 MB (virtual 642.2 MB)
+                        └─3ee562df86ca Size: 17.07 kB (virtual 642.2 MB)
+                          └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
+                            └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
+                              └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
 
-`import`
-========
+`import`{.docutils .literal}[¶](#import "Permalink to this headline")
+=====================================================================
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create an empty filesystem image and import the contents of the tarball 
+    Create an empty filesystem image and import the contents of the tarball
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
-At this time, the URL must start with `http` and point to a single file
-archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root
-filesystem. If you would like to import from a local directory or
-archive, you can use the `-` parameter to take the data from *stdin*.
+At this time, the URL must start with `http`{.docutils .literal} and
+point to a single file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or
+.txz) containing a root filesystem. If you would like to import from a
+local directory or archive, you can use the `-`{.docutils .literal}
+parameter to take the data from *stdin*.
 
-Examples
---------
+Examples[¶](#id3 "Permalink to this headline")
+----------------------------------------------
 
-### Import from a remote location
+### Import from a remote location[¶](#import-from-a-remote-location "Permalink to this headline")
 
 This will create a new untagged image.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker import http://example.com/exampleimage.tgz
-~~~~
+    $ sudo docker import http://example.com/exampleimage.tgz
 
-### Import from a local file
+### Import from a local file[¶](#import-from-a-local-file "Permalink to this headline")
 
 Import to docker via pipe and *stdin*.
 
-~~~~ {.sourceCode .bash}
-$ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
-~~~~
+    $ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
 
-### Import from a local directory
+### Import from a local directory[¶](#import-from-a-local-directory "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-$ sudo tar -c . | docker import - exampleimagedir
-~~~~
+    $ sudo tar -c . | docker import - exampleimagedir
 
-Note the `sudo` in this example -- you must preserve the ownership of
-the files (especially root ownership) during the archiving with tar. If
-you are not root (or the sudo command) when you tar, then the ownerships
-might not get preserved.
+Note the `sudo`{.docutils .literal} in this example – you must preserve
+the ownership of the files (especially root ownership) during the
+archiving with tar. If you are not root (or the sudo command) when you
+tar, then the ownerships might not get preserved.
 
-`info`
-======
+`info`{.docutils .literal}[¶](#info "Permalink to this headline")
+=================================================================
 
     Usage: docker info
 
     Display system-wide information.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker info
-Containers: 292
-Images: 194
-Debug mode (server): false
-Debug mode (client): false
-Fds: 22
-Goroutines: 67
-LXC Version: 0.9.0
-EventsListeners: 115
-Kernel Version: 3.8.0-33-generic
-WARNING: No swap limit support
-~~~~
+    $ sudo docker info
+    Containers: 292
+    Images: 194
+    Debug mode (server): false
+    Debug mode (client): false
+    Fds: 22
+    Goroutines: 67
+    LXC Version: 0.9.0
+    EventsListeners: 115
+    Kernel Version: 3.8.0-33-generic
+    WARNING: No swap limit support
 
-`insert`
-========
+`insert`{.docutils .literal}[¶](#insert "Permalink to this headline")
+=====================================================================
 
     Usage: docker insert IMAGE URL PATH
 
     Insert a file from URL in the IMAGE at PATH
 
-Use the specified `IMAGE` as the parent for a new image which adds a
-layer \<layer\_def\> containing the new file. The `insert` command does
-not modify the original image, and the new image has the contents of the
-parent image, plus the new file.
+Use the specified `IMAGE`{.docutils .literal} as the parent for a new
+image which adds a [*layer*](../../../terms/layer/#layer-def) containing
+the new file. The `insert`{.docutils .literal} command does not modify
+the original image, and the new image has the contents of the parent
+image, plus the new file.
 
-Examples
---------
+Examples[¶](#id4 "Permalink to this headline")
+----------------------------------------------
 
-### Insert file from GitHub
+### Insert file from GitHub[¶](#insert-file-from-github "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-$ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/master/postinstall /tmp/postinstall.sh
-06fd35556d7b
-~~~~
+    $ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/master/postinstall /tmp/postinstall.sh
+    06fd35556d7b
 
-`inspect`
-=========
+`inspect`{.docutils .literal}[¶](#inspect "Permalink to this headline")
+=======================================================================
 
     Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
@@ -698,57 +662,52 @@ $ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/mast
 By default, this will render all results in a JSON array. If a format is
 specified, the given template will be executed for each result.
 
-Go's [text/template](http://golang.org/pkg/text/template/) package
+Go’s [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
 
-Examples
---------
+Examples[¶](#id5 "Permalink to this headline")
+----------------------------------------------
 
-### Get an instance's IP Address
+### Get an instance’s IP Address[¶](#get-an-instance-s-ip-address "Permalink to this headline")
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker inspect --format='{{.NetworkSettings.IPAddress}}' $INSTANCE_ID
-~~~~
+    $ sudo docker inspect --format='{{.NetworkSettings.IPAddress}}' $INSTANCE_ID
 
-### List All Port Bindings
+### List All Port Bindings[¶](#list-all-port-bindings "Permalink to this headline")
 
 One can loop over arrays and maps in the results to produce simple text
 output:
 
-~~~~ {.sourceCode .bash}
-$ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
-~~~~
+    $ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
-### Find a Specific Port Mapping
+### Find a Specific Port Mapping[¶](#find-a-specific-port-mapping "Permalink to this headline")
 
-The `.Field` syntax doesn't work when the field name begins with a
-number, but the template language's `index` function does. The
-`.NetworkSettings.Ports` section contains a map of the internal port
-mappings to a list of external address/port objects, so to grab just the
-numeric public port, you use `index` to find the specific port map, and
-then `index` 0 contains first object inside of that. Then we ask for the
-`HostPort` field to get the public address.
+The `.Field`{.docutils .literal} syntax doesn’t work when the field name
+begins with a number, but the template language’s `index`{.docutils
+.literal} function does. The `.NetworkSettings.Ports`{.docutils
+.literal} section contains a map of the internal port mappings to a list
+of external address/port objects, so to grab just the numeric public
+port, you use `index`{.docutils .literal} to find the specific port map,
+and then `index`{.docutils .literal} 0 contains first object inside of
+that. Then we ask for the `HostPort`{.docutils .literal} field to get
+the public address.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
-~~~~
+    $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
-### Get config
+### Get config[¶](#get-config "Permalink to this headline")
 
-The `.Field` syntax doesn't work when the field contains JSON data, but
-the template language's custom `json` function does. The `.config`
-section contains complex json object, so to grab it as JSON, you use
-`json` to convert config object into JSON
+The `.Field`{.docutils .literal} syntax doesn’t work when the field
+contains JSON data, but the template language’s custom `json`{.docutils
+.literal} function does. The `.config`{.docutils .literal} section
+contains complex json object, so to grab it as JSON, you use
+`json`{.docutils .literal} to convert config object into JSON
 
-~~~~ {.sourceCode .bash}
-$ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
-~~~~
+    $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
 
-`kill`
-======
+`kill`{.docutils .literal}[¶](#kill "Permalink to this headline")
+=================================================================
 
     Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
 
@@ -757,26 +716,28 @@ $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
       -s, --signal="KILL": Signal to send to the container
 
 The main process inside the container will be sent SIGKILL, or any
-signal specified with option `--signal`.
+signal specified with option `--signal`{.docutils .literal}.
 
-Known Issues (kill)
--------------------
+Known Issues (kill)[¶](#known-issues-kill "Permalink to this headline")
+-----------------------------------------------------------------------
 
--   197 indicates that `docker kill` may leave directories behind and
-    make it difficult to remove the container.
--   3844 lxc 1.0.0 beta3 removed `lcx-kill` which is used by Docker
-    versions before 0.8.0; see the issue for a workaround.
+-   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+    that `docker kill`{.docutils .literal} may leave directories behind
+    and make it difficult to remove the container.
+-   [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
+    1.0.0 beta3 removed `lcx-kill`{.docutils .literal} which is used by
+    Docker versions before 0.8.0; see the issue for a workaround.
 
-`load`
-======
+`load`{.docutils .literal}[¶](#load "Permalink to this headline")
+=================================================================
 
     Usage: docker load < repository.tar
 
     Loads a tarred repository from the standard input stream.
     Restores both images and tags.
 
-`login`
-=======
+`login`{.docutils .literal}[¶](#login "Permalink to this headline")
+===================================================================
 
     Usage: docker login [OPTIONS] [SERVER]
 
@@ -792,8 +753,8 @@ Known Issues (kill)
     example:
     docker login localhost:8080
 
-`logs`
-======
+`logs`{.docutils .literal}[¶](#logs "Permalink to this headline")
+=================================================================
 
     Usage: docker logs [OPTIONS] CONTAINER
 
@@ -801,26 +762,26 @@ Known Issues (kill)
 
     -f, --follow=false: Follow log output
 
-The `docker logs` command is a convenience which batch-retrieves
-whatever logs are present at the time of execution. This does not
-guarantee execution order when combined with a `docker run` (i.e. your
-run may not have generated any logs at the time you execute
-`docker logs`).
+The `docker logs`{.docutils .literal} command is a convenience which
+batch-retrieves whatever logs are present at the time of execution. This
+does not guarantee execution order when combined with a
+`docker run`{.docutils .literal} (i.e. your run may not have generated
+any logs at the time you execute `docker logs`{.docutils .literal}).
 
-The `docker logs --follow` command combines `docker logs` and
-`docker attach`: it will first return all logs from the beginning and
-then continue streaming new output from the container's stdout and
-stderr.
+The `docker logs --follow`{.docutils .literal} command combines
+`docker logs`{.docutils .literal} and `docker attach`{.docutils
+.literal}: it will first return all logs from the beginning and then
+continue streaming new output from the container’s stdout and stderr.
 
-`port`
-======
+`port`{.docutils .literal}[¶](#port "Permalink to this headline")
+=================================================================
 
     Usage: docker port [OPTIONS] CONTAINER PRIVATE_PORT
 
     Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
-`ps`
-====
+`ps`{.docutils .literal}[¶](#ps "Permalink to this headline")
+=============================================================
 
     Usage: docker ps [OPTIONS]
 
@@ -830,90 +791,87 @@ stderr.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
 
-Running `docker ps` showing 2 linked containers.
+Running `docker ps`{.docutils .literal} showing 2 linked containers.
 
-~~~~ {.sourceCode .bash}
-$ docker ps
-CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
-4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
-d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
-fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
-~~~~
+    $ docker ps
+    CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
+    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
+    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
+    fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
 
-The last container is marked as a `Ghost` container. It is a container
-that was running when the docker daemon was restarted (upgraded, or `-H`
-settings changed). The container is still running, but as this docker
-daemon process is not able to manage it, you can't attach to it. To
-bring them out of `Ghost` Status, you need to use `docker kill` or
-`docker restart`.
+The last container is marked as a `Ghost`{.docutils .literal} container.
+It is a container that was running when the docker daemon was restarted
+(upgraded, or `-H`{.docutils .literal} settings changed). The container
+is still running, but as this docker daemon process is not able to
+manage it, you can’t attach to it. To bring them out of
+`Ghost`{.docutils .literal} Status, you need to use
+`docker kill`{.docutils .literal} or `docker restart`{.docutils
+.literal}.
 
-`docker ps` will show only running containers by default. To see all
-containers: `docker ps -a`
+`docker ps`{.docutils .literal} will show only running containers by
+default. To see all containers: `docker ps -a`{.docutils .literal}
 
-`pull`
-======
+`pull`{.docutils .literal}[¶](#pull "Permalink to this headline")
+=================================================================
 
     Usage: docker pull NAME
 
     Pull an image or a repository from the registry
 
-`push`
-======
+`push`{.docutils .literal}[¶](#push "Permalink to this headline")
+=================================================================
 
     Usage: docker push NAME
 
     Push an image or a repository to the registry
 
-`restart`
-=========
+`restart`{.docutils .literal}[¶](#restart "Permalink to this headline")
+=======================================================================
 
     Usage: docker restart [OPTIONS] NAME
 
     Restart a running container
 
-`rm`
-====
+`rm`{.docutils .literal}[¶](#rm "Permalink to this headline")
+=============================================================
 
     Usage: docker rm [OPTIONS] CONTAINER
 
     Remove one or more containers
         --link="": Remove the link instead of the actual container
 
-Known Issues (rm)
------------------
+Known Issues (rm)[¶](#known-issues-rm "Permalink to this headline")
+-------------------------------------------------------------------
 
--   197 indicates that `docker kill` may leave directories behind and
-    make it difficult to remove the container.
+-   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+    that `docker kill`{.docutils .literal} may leave directories behind
+    and make it difficult to remove the container.
 
-Examples:
----------
+Examples:[¶](#id6 "Permalink to this headline")
+-----------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker rm /redis
-/redis
-~~~~
+    $ sudo docker rm /redis
+    /redis
 
-This will remove the container referenced under the link `/redis`.
+This will remove the container referenced under the link
+`/redis`{.docutils .literal}.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker rm --link /webapp/redis
-/webapp/redis
-~~~~
+    $ sudo docker rm --link /webapp/redis
+    /webapp/redis
 
-This will remove the underlying link between `/webapp` and the `/redis`
-containers removing all network communication.
+This will remove the underlying link between `/webapp`{.docutils
+.literal} and the `/redis`{.docutils .literal} containers removing all
+network communication.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker rm `docker ps -a -q`
-~~~~
+    $ sudo docker rm `docker ps -a -q`
 
 This command will delete all stopped containers. The command
-`docker ps -a -q` will return all existing container IDs and pass them
-to the `rm` command which will delete them. Any running containers will
-not be deleted.
+`docker ps -a -q`{.docutils .literal} will return all existing container
+IDs and pass them to the `rm`{.docutils .literal} command which will
+delete them. Any running containers will not be deleted.
 
-`rmi`
-=====
+`rmi`{.docutils .literal}[¶](#rmi "Permalink to this headline")
+===============================================================
 
     Usage: docker rmi IMAGE [IMAGE...]
 
@@ -921,39 +879,37 @@ not be deleted.
 
       -f, --force=false: Force
 
-Removing tagged images
-----------------------
+Removing tagged images[¶](#removing-tagged-images "Permalink to this headline")
+-------------------------------------------------------------------------------
 
-Images can be removed either by their short or long ID's, or their image
+Images can be removed either by their short or long ID’s, or their image
 names. If an image has more than one name, each of them needs to be
 removed before the image is removed.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker images
-REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
-test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
-test                      latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
-test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    $ sudo docker images
+    REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
+    test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test                      latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
 
-$ sudo docker rmi fd484f19954f
-Error: Conflict, cannot delete image fd484f19954f because it is tagged in multiple repositories
-2013/12/11 05:47:16 Error: failed to remove one or more images
+    $ sudo docker rmi fd484f19954f
+    Error: Conflict, cannot delete image fd484f19954f because it is tagged in multiple repositories
+    2013/12/11 05:47:16 Error: failed to remove one or more images
 
-$ sudo docker rmi test1
-Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
-$ sudo docker rmi test2
-Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    $ sudo docker rmi test1
+    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    $ sudo docker rmi test2
+    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
-$ sudo docker images
-REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
-test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
-$ sudo docker rmi test
-Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
-Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
-~~~~
+    $ sudo docker images
+    REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
+    test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    $ sudo docker rmi test
+    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
-`run`
-=====
+`run`{.docutils .literal}[¶](#run "Permalink to this headline")
+===============================================================
 
     Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
@@ -985,191 +941,188 @@ Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
       --name="": Assign the specified name to the container. If no name is specific docker will generate a random name
       -P, --publish-all=false: Publish all exposed ports to the host interfaces
 
-The `docker run` command first `creates` a writeable container layer
-over the specified image, and then `starts` it using the specified
-command. That is, `docker run` is equivalent to the API
-`/containers/create` then `/containers/(id)/start`. Once the container
-is stopped it still exists and can be started back up. See
-`docker ps -a` to view a list of all containers.
+The `docker run`{.docutils .literal} command first `creates`{.docutils
+.literal} a writeable container layer over the specified image, and then
+`starts`{.docutils .literal} it using the specified command. That is,
+`docker run`{.docutils .literal} is equivalent to the API
+`/containers/create`{.docutils .literal} then
+`/containers/(id)/start`{.docutils .literal}. Once the container is
+stopped it still exists and can be started back up. See
+`docker ps -a`{.docutils .literal} to view a list of all containers.
 
-The `docker run` command can be used in combination with `docker commit`
-to change the command that a container runs \<cli\_commit\_examples\>.
+The `docker run`{.docutils .literal} command can be used in combination
+with `docker commit`{.docutils .literal} to [*change the command that a
+container runs*](#cli-commit-examples).
 
-See port\_redirection for more detailed information about the
-`--expose`, `-p`, `-P` and `--link` parameters, and
-working\_with\_links\_names for specific examples using `--link`.
+See [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
+for more detailed information about the `--expose`{.docutils .literal},
+`-p`{.docutils .literal}, `-P`{.docutils .literal} and
+`--link`{.docutils .literal} parameters, and [*Link
+Containers*](../../../use/working_with_links_names/#working-with-links-names)
+for specific examples using `--link`{.docutils .literal}.
 
-Known Issues (run -volumes-from)
---------------------------------
+Known Issues (run -volumes-from)[¶](#known-issues-run-volumes-from "Permalink to this headline")
+------------------------------------------------------------------------------------------------
 
--   2702: "lxc-start: Permission denied - failed to mount" could
-    indicate a permissions problem with AppArmor. Please see the issue
-    for a workaround.
+-   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
+    “lxc-start: Permission denied - failed to mount” could indicate a
+    permissions problem with AppArmor. Please see the issue for a
+    workaround.
 
-Examples:
----------
+Examples:[¶](#id7 "Permalink to this headline")
+-----------------------------------------------
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
-~~~~
+    $ sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 
-This will create a container and print `test` to the console. The
-`cidfile` flag makes Docker attempt to create a new file and write the
-container ID to it. If the file exists already, Docker will return an
-error. Docker will close this file when `docker run` exits.
+This will create a container and print `test`{.docutils .literal} to the
+console. The `cidfile`{.docutils .literal} flag makes Docker attempt to
+create a new file and write the container ID to it. If the file exists
+already, Docker will return an error. Docker will close this file when
+`docker run`{.docutils .literal} exits.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run -t -i --rm ubuntu bash
-root@bc338942ef20:/# mount -t tmpfs none /mnt
-mount: permission denied
-~~~~
+    $ sudo docker run -t -i --rm ubuntu bash
+    root@bc338942ef20:/# mount -t tmpfs none /mnt
+    mount: permission denied
 
 This will *not* work, because by default, most potentially dangerous
-kernel capabilities are dropped; including `cap_sys_admin` (which is
-required to mount filesystems). However, the `-privileged` flag will
-allow it to run:
+kernel capabilities are dropped; including `cap_sys_admin`{.docutils
+.literal} (which is required to mount filesystems). However, the
+`-privileged`{.docutils .literal} flag will allow it to run:
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run --privileged ubuntu bash
-root@50e3f57e16e6:/# mount -t tmpfs none /mnt
-root@50e3f57e16e6:/# df -h
-Filesystem      Size  Used Avail Use% Mounted on
-none            1.9G     0  1.9G   0% /mnt
-~~~~
+    $ sudo docker run --privileged ubuntu bash
+    root@50e3f57e16e6:/# mount -t tmpfs none /mnt
+    root@50e3f57e16e6:/# df -h
+    Filesystem      Size  Used Avail Use% Mounted on
+    none            1.9G     0  1.9G   0% /mnt
 
-The `-privileged` flag gives *all* capabilities to the container, and it
-also lifts all the limitations enforced by the `device` cgroup
-controller. In other words, the container can then do almost everything
-that the host can do. This flag exists to allow special use-cases, like
-running Docker within Docker.
+The `-privileged`{.docutils .literal} flag gives *all* capabilities to
+the container, and it also lifts all the limitations enforced by the
+`device`{.docutils .literal} cgroup controller. In other words, the
+container can then do almost everything that the host can do. This flag
+exists to allow special use-cases, like running Docker within Docker.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker  run -w /path/to/dir/ -i -t  ubuntu pwd
-~~~~
+    $ sudo docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
-The `-w` lets the command being executed inside directory given, here
-`/path/to/dir/`. If the path does not exists it is created inside the
-container.
+The `-w`{.docutils .literal} lets the command being executed inside
+directory given, here `/path/to/dir/`{.docutils .literal}. If the path
+does not exists it is created inside the container.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
-~~~~
+    $ sudo docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
 
-The `-v` flag mounts the current working directory into the container.
-The `-w` lets the command being executed inside the current working
-directory, by changing into the directory to the value returned by
-`pwd`. So this combination executes the command using the container, but
-inside the current working directory.
+The `-v`{.docutils .literal} flag mounts the current working directory
+into the container. The `-w`{.docutils .literal} lets the command being
+executed inside the current working directory, by changing into the
+directory to the value returned by `pwd`{.docutils .literal}. So this
+combination executes the command using the container, but inside the
+current working directory.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run -v /doesnt/exist:/foo -w /foo -i -t ubuntu bash
-~~~~
+    $ sudo docker run -v /doesnt/exist:/foo -w /foo -i -t ubuntu bash
 
-When the host directory of a bind-mounted volume doesn't exist, Docker
+When the host directory of a bind-mounted volume doesn’t exist, Docker
 will automatically create this directory on the host for you. In the
-example above, Docker will create the `/doesnt/exist` folder before
-starting your container.
+example above, Docker will create the `/doesnt/exist`{.docutils
+.literal} folder before starting your container.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
-~~~~
+    $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
 binary (such as that provided by
 [https://get.docker.io](https://get.docker.io)), you give the container
-the full access to create and manipulate the host's docker daemon.
+the full access to create and manipulate the host’s docker daemon.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
-~~~~
+    $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
-This binds port `8080` of the container to port `80` on `127.0.0.1` of
-the host machine. port\_redirection explains in detail how to manipulate
-ports in Docker.
+This binds port `8080`{.docutils .literal} of the container to port
+`80`{.docutils .literal} on `127.0.0.1`{.docutils .literal} of the host
+machine. [*Redirect
+Ports*](../../../use/port_redirection/#port-redirection) explains in
+detail how to manipulate ports in Docker.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run --expose 80 ubuntu bash
-~~~~
+    $ sudo docker run --expose 80 ubuntu bash
 
-This exposes port `80` of the container for use within a link without
-publishing the port to the host system's interfaces. port\_redirection
-explains in detail how to manipulate ports in Docker.
+This exposes port `80`{.docutils .literal} of the container for use
+within a link without publishing the port to the host system’s
+interfaces. [*Redirect
+Ports*](../../../use/port_redirection/#port-redirection) explains in
+detail how to manipulate ports in Docker.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run --name console -t -i ubuntu bash
-~~~~
+    $ sudo docker run --name console -t -i ubuntu bash
 
 This will create and run a new container with the container name being
-`console`.
+`console`{.docutils .literal}.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run --link /redis:redis --name console ubuntu bash
-~~~~
+    $ sudo docker run --link /redis:redis --name console ubuntu bash
 
-The `--link` flag will link the container named `/redis` into the newly
-created container with the alias `redis`. The new container can access
-the network and environment of the redis container via environment
-variables. The `--name` flag will assign the name `console` to the newly
-created container.
+The `--link`{.docutils .literal} flag will link the container named
+`/redis`{.docutils .literal} into the newly created container with the
+alias `redis`{.docutils .literal}. The new container can access the
+network and environment of the redis container via environment
+variables. The `--name`{.docutils .literal} flag will assign the name
+`console`{.docutils .literal} to the newly created container.
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
-~~~~
+    $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
 
-The `--volumes-from` flag mounts all the defined volumes from the
-referenced containers. Containers can be specified by a comma separated
-list or by repetitions of the `--volumes-from` argument. The container
-ID may be optionally suffixed with `:ro` or `:rw` to mount the volumes
-in read-only or read-write mode, respectively. By default, the volumes
-are mounted in the same mode (read write or read only) as the reference
-container.
+The `--volumes-from`{.docutils .literal} flag mounts all the defined
+volumes from the referenced containers. Containers can be specified by a
+comma separated list or by repetitions of the `--volumes-from`{.docutils
+.literal} argument. The container ID may be optionally suffixed with
+`:ro`{.docutils .literal} or `:rw`{.docutils .literal} to mount the
+volumes in read-only or read-write mode, respectively. By default, the
+volumes are mounted in the same mode (read write or read only) as the
+reference container.
 
-### A complete example
+### A complete example[¶](#a-complete-example "Permalink to this headline")
 
-~~~~ {.sourceCode .bash}
-$ sudo docker run -d --name static static-web-files sh
-$ sudo docker run -d --expose=8098 --name riak riakserver
-$ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-$ sudo docker run -d -p 1443:443 --dns=dns.dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
-$ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
-~~~~
+    $ sudo docker run -d --name static static-web-files sh
+    $ sudo docker run -d --expose=8098 --name riak riakserver
+    $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
+    $ sudo docker run -d -p 1443:443 --dns=dns.dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+    $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows 5 containers that might be set up to test a web
 application change:
 
-1.  Start a pre-prepared volume image `static-web-files` (in the
-    background) that has CSS, image and static HTML in it, (with a
-    `VOLUME` instruction in the `Dockerfile` to allow the web server to
-    use those files);
-2.  Start a pre-prepared `riakserver` image, give the container name
-    `riak` and expose port `8098` to any containers that link to it;
-3.  Start the `appserver` image, restricting its memory usage to 100MB,
-    setting two environment variables `DEVELOPMENT` and `BRANCH` and
-    bind-mounting the current directory (`$(pwd)`) in the container in
-    read-only mode as `/app/bin`;
-4.  Start the `webserver`, mapping port `443` in the container to port
-    `1443` on the Docker server, setting the DNS server to
-    `dns.dev.org`, creating a volume to put the log files into (so we
-    can access it from another container), then importing the files from
-    the volume exposed by the `static` container, and linking to all
-    exposed ports from `riak` and `app`. Lastly, we set the hostname to
-    `web.sven.dev.org` so its consistent with the pre-generated SSL
-    certificate;
-5.  Finally, we create a container that runs `tail -f access.log` using
-    the logs volume from the `web` container, setting the workdir to
-    `/var/log/httpd`. The `-rm` option means that when the container
-    exits, the container's layer is removed.
+1.  Start a pre-prepared volume image `static-web-files`{.docutils
+    .literal} (in the background) that has CSS, image and static HTML in
+    it, (with a `VOLUME`{.docutils .literal} instruction in the
+    `Dockerfile`{.docutils .literal} to allow the web server to use
+    those files);
+2.  Start a pre-prepared `riakserver`{.docutils .literal} image, give
+    the container name `riak`{.docutils .literal} and expose port
+    `8098`{.docutils .literal} to any containers that link to it;
+3.  Start the `appserver`{.docutils .literal} image, restricting its
+    memory usage to 100MB, setting two environment variables
+    `DEVELOPMENT`{.docutils .literal} and `BRANCH`{.docutils .literal}
+    and bind-mounting the current directory (`$(pwd)`{.docutils
+    .literal}) in the container in read-only mode as
+    `/app/bin`{.docutils .literal};
+4.  Start the `webserver`{.docutils .literal}, mapping port
+    `443`{.docutils .literal} in the container to port `1443`{.docutils
+    .literal} on the Docker server, setting the DNS server to
+    `dns.dev.org`{.docutils .literal}, creating a volume to put the log
+    files into (so we can access it from another container), then
+    importing the files from the volume exposed by the
+    `static`{.docutils .literal} container, and linking to all exposed
+    ports from `riak`{.docutils .literal} and `app`{.docutils .literal}.
+    Lastly, we set the hostname to `web.sven.dev.org`{.docutils
+    .literal} so its consistent with the pre-generated SSL certificate;
+5.  Finally, we create a container that runs
+    `tail -f access.log`{.docutils .literal} using the logs volume from
+    the `web`{.docutils .literal} container, setting the workdir to
+    `/var/log/httpd`{.docutils .literal}. The `-rm`{.docutils .literal}
+    option means that when the container exits, the container’s layer is
+    removed.
 
-`save`
-======
+`save`{.docutils .literal}[¶](#save "Permalink to this headline")
+=================================================================
 
     Usage: docker save image > repository.tar
 
     Streams a tarred repository to the standard output stream.
     Contains all parent layers, and all tags + versions.
 
-`search`
-========
+`search`{.docutils .literal}[¶](#search "Permalink to this headline")
+=====================================================================
 
     Usage: docker search TERM
 
@@ -1179,8 +1132,8 @@ application change:
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
-`start`
-=======
+`start`{.docutils .literal}[¶](#start "Permalink to this headline")
+===================================================================
 
     Usage: docker start [OPTIONS] CONTAINER
 
@@ -1189,8 +1142,8 @@ application change:
       -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false: Attach container's stdin
 
-`stop`
-======
+`stop`{.docutils .literal}[¶](#stop "Permalink to this headline")
+=================================================================
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
@@ -1201,8 +1154,8 @@ application change:
 The main process inside the container will receive SIGTERM, and after a
 grace period, SIGKILL
 
-`tag`
-=====
+`tag`{.docutils .literal}[¶](#tag "Permalink to this headline")
+===============================================================
 
     Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
@@ -1210,21 +1163,21 @@ grace period, SIGKILL
 
       -f, --force=false: Force
 
-`top`
-=====
+`top`{.docutils .literal}[¶](#top "Permalink to this headline")
+===============================================================
 
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 
-`version`
-=========
+`version`{.docutils .literal}[¶](#version "Permalink to this headline")
+=======================================================================
 
 Show the version of the Docker client, daemon, and latest released
 version.
 
-`wait`
-======
+`wait`{.docutils .literal}[¶](#wait "Permalink to this headline")
+=================================================================
 
     Usage: docker wait [OPTIONS] NAME
 

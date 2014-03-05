@@ -1,157 +1,139 @@
-title
-:   Running a Riak service
+Riak Service[¶](#riak-service "Permalink to this headline")
+===========================================================
 
-description
-:   Build a Docker image with Riak pre-installed
+Note
 
-keywords
-:   docker, example, package installation, networking, riak
-
-Riak Service
-============
+-   This example assumes you have Docker running in daemon mode. For
+    more information please see [*Check your Docker
+    install*](../hello_world/#running-examples).
+-   **If you don’t like sudo** then see [*Giving non-root
+    access*](../../installation/binaries/#dockergroup)
 
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.
 
-Creating a `Dockerfile`
------------------------
+Creating a `Dockerfile`{.docutils .literal}[¶](#creating-a-dockerfile "Permalink to this headline")
+---------------------------------------------------------------------------------------------------
 
-Create an empty file called `Dockerfile`:
+Create an empty file called `Dockerfile`{.docutils .literal}:
 
-~~~~ {.sourceCode .bash}
-touch Dockerfile
-~~~~
+    touch Dockerfile
 
 Next, define the parent image you want to use to build your image on top
 of. We’ll use [Ubuntu](https://index.docker.io/_/ubuntu/) (tag:
-`latest`), which is available on the [docker
+`latest`{.docutils .literal}), which is available on the [docker
 index](http://index.docker.io):
 
-~~~~ {.sourceCode .bash}
-# Riak
-#
-# VERSION       0.1.0
+    # Riak
+    #
+    # VERSION       0.1.0
 
-# Use the Ubuntu base image provided by dotCloud
-FROM ubuntu:latest
-MAINTAINER Hector Castro hector@basho.com
-~~~~
+    # Use the Ubuntu base image provided by dotCloud
+    FROM ubuntu:latest
+    MAINTAINER Hector Castro hector@basho.com
 
 Next, we update the APT cache and apply any updates:
 
-~~~~ {.sourceCode .bash}
-# Update the APT cache
-RUN sed -i.bak 's/main$/main universe/' /etc/apt/sources.list
-RUN apt-get update
-RUN apt-get upgrade -y
-~~~~
+    # Update the APT cache
+    RUN sed -i.bak 's/main$/main universe/' /etc/apt/sources.list
+    RUN apt-get update
+    RUN apt-get upgrade -y
 
 After that, we install and setup a few dependencies:
 
--   `curl` is used to download Basho's APT repository key
--   `lsb-release` helps us derive the Ubuntu release codename
--   `openssh-server` allows us to login to containers remotely and join
-    Riak nodes to form a cluster
--   `supervisor` is used manage the OpenSSH and Riak processes
+-   `curl`{.docutils .literal} is used to download Basho’s APT
+    repository key
+-   `lsb-release`{.docutils .literal} helps us derive the Ubuntu release
+    codename
+-   `openssh-server`{.docutils .literal} allows us to login to
+    containers remotely and join Riak nodes to form a cluster
+-   `supervisor`{.docutils .literal} is used manage the OpenSSH and Riak
+    processes
 
-~~~~ {.sourceCode .bash}
-# Install and setup project dependencies
-RUN apt-get install -y curl lsb-release supervisor openssh-server
+<!-- -->
 
-RUN mkdir -p /var/run/sshd
-RUN mkdir -p /var/log/supervisor
+    # Install and setup project dependencies
+    RUN apt-get install -y curl lsb-release supervisor openssh-server
 
-RUN locale-gen en_US en_US.UTF-8
+    RUN mkdir -p /var/run/sshd
+    RUN mkdir -p /var/log/supervisor
 
-ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+    RUN locale-gen en_US en_US.UTF-8
 
-RUN echo 'root:basho' | chpasswd
-~~~~
+    ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-Next, we add Basho's APT repository:
+    RUN echo 'root:basho' | chpasswd
 
-~~~~ {.sourceCode .bash}
-RUN curl -s http://apt.basho.com/gpg/basho.apt.key | apt-key add --
-RUN echo "deb http://apt.basho.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/basho.list
-RUN apt-get update
-~~~~
+Next, we add Basho’s APT repository:
+
+    RUN curl -s http://apt.basho.com/gpg/basho.apt.key | apt-key add --
+    RUN echo "deb http://apt.basho.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/basho.list
+    RUN apt-get update
 
 After that, we install Riak and alter a few defaults:
 
-~~~~ {.sourceCode .bash}
-# Install Riak and prepare it to run
-RUN apt-get install -y riak
-RUN sed -i.bak 's/127.0.0.1/0.0.0.0/' /etc/riak/app.config
-RUN echo "ulimit -n 4096" >> /etc/default/riak
-~~~~
+    # Install Riak and prepare it to run
+    RUN apt-get install -y riak
+    RUN sed -i.bak 's/127.0.0.1/0.0.0.0/' /etc/riak/app.config
+    RUN echo "ulimit -n 4096" >> /etc/default/riak
 
-Almost there. Next, we add a hack to get us by the lack of `initctl`:
+Almost there. Next, we add a hack to get us by the lack of
+`initctl`{.docutils .literal}:
 
-~~~~ {.sourceCode .bash}
-# Hack for initctl
-# See: https://github.com/dotcloud/docker/issues/1024
-RUN dpkg-divert --local --rename --add /sbin/initctl
-RUN ln -s /bin/true /sbin/initctl
-~~~~
+    # Hack for initctl
+    # See: https://github.com/dotcloud/docker/issues/1024
+    RUN dpkg-divert --local --rename --add /sbin/initctl
+    RUN ln -s /bin/true /sbin/initctl
 
 Then, we expose the Riak Protocol Buffers and HTTP interfaces, along
 with SSH:
 
-~~~~ {.sourceCode .bash}
-# Expose Riak Protocol Buffers and HTTP interfaces, along with SSH
-EXPOSE 8087 8098 22
-~~~~
+    # Expose Riak Protocol Buffers and HTTP interfaces, along with SSH
+    EXPOSE 8087 8098 22
 
-Finally, run `supervisord` so that Riak and OpenSSH are started:
+Finally, run `supervisord`{.docutils .literal} so that Riak and OpenSSH
+are started:
 
-~~~~ {.sourceCode .bash}
-CMD ["/usr/bin/supervisord"]
-~~~~
+    CMD ["/usr/bin/supervisord"]
 
-Create a `supervisord` configuration file
------------------------------------------
+Create a `supervisord`{.docutils .literal} configuration file[¶](#create-a-supervisord-configuration-file "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------------------------
 
-Create an empty file called `supervisord.conf`. Make sure it's at the
-same directory level as your `Dockerfile`:
+Create an empty file called `supervisord.conf`{.docutils .literal}. Make
+sure it’s at the same directory level as your `Dockerfile`{.docutils
+.literal}:
 
-~~~~ {.sourceCode .bash}
-touch supervisord.conf
-~~~~
+    touch supervisord.conf
 
 Populate it with the following program definitions:
 
-~~~~ {.sourceCode .bash}
-[supervisord]
-nodaemon=true
+    [supervisord]
+    nodaemon=true
 
-[program:sshd]
-command=/usr/sbin/sshd -D
-stdout_logfile=/var/log/supervisor/%(program_name)s.log
-stderr_logfile=/var/log/supervisor/%(program_name)s.log
-autorestart=true
+    [program:sshd]
+    command=/usr/sbin/sshd -D
+    stdout_logfile=/var/log/supervisor/%(program_name)s.log
+    stderr_logfile=/var/log/supervisor/%(program_name)s.log
+    autorestart=true
 
-[program:riak]
-command=bash -c ". /etc/default/riak && /usr/sbin/riak console"
-pidfile=/var/log/riak/riak.pid
-stdout_logfile=/var/log/supervisor/%(program_name)s.log
-stderr_logfile=/var/log/supervisor/%(program_name)s.log
-~~~~
+    [program:riak]
+    command=bash -c ". /etc/default/riak && /usr/sbin/riak console"
+    pidfile=/var/log/riak/riak.pid
+    stdout_logfile=/var/log/supervisor/%(program_name)s.log
+    stderr_logfile=/var/log/supervisor/%(program_name)s.log
 
-Build the Docker image for Riak
--------------------------------
+Build the Docker image for Riak[¶](#build-the-docker-image-for-riak "Permalink to this headline")
+-------------------------------------------------------------------------------------------------
 
 Now you should be able to build a Docker image for Riak:
 
-~~~~ {.sourceCode .bash}
-docker build -t "<yourname>/riak" .
-~~~~
+    docker build -t "<yourname>/riak" .
 
-Next steps
-----------
+Next steps[¶](#next-steps "Permalink to this headline")
+-------------------------------------------------------
 
 Riak is a distributed database. Many production deployments consist of
-at least five nodes
-\<http://basho.com/why-your-riak-cluster-should-have-at-least-
-five-nodes/\>\_. See the docker-riak \<https://github.com/hectcastro
-/docker- riak\>\_ project details on how to deploy a Riak cluster using
-Docker and Pipework.
+[at least five
+nodes](http://basho.com/why-your-riak-cluster-should-have-at-least-five-nodes/).
+See the [docker-riak](https://github.com/hectcastro/docker-riak) project
+details on how to deploy a Riak cluster using Docker and Pipework.

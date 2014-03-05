@@ -1,19 +1,16 @@
-title
-:   Installation on Rackspace Cloud
+Rackspace Cloud[¶](#rackspace-cloud "Permalink to this headline")
+=================================================================
 
-description
-:   Please note this project is currently under heavy development. It
-    should not be used in production.
+Note
 
-keywords
-:   Rackspace Cloud, installation, docker, linux, ubuntu
-
-Rackspace Cloud
-===============
+This is a community contributed installation path. The only ‘official’
+installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+installation path. This version may be out of date because it depends on
+some binaries to be updated and published
 
 Installing Docker on Ubuntu provided by Rackspace is pretty
 straightforward, and you should mostly be able to follow the
-ubuntu\_linux installation guide.
+[*Ubuntu*](../ubuntulinux/#ubuntu-linux) installation guide.
 
 **However, there is one caveat:**
 
@@ -21,75 +18,68 @@ If you are using any Linux not already shipping with the 3.8 kernel you
 will need to install it. And this is a little more difficult on
 Rackspace.
 
-Rackspace boots their servers using grub's `menu.lst` and does not like
-non 'virtual' packages (e.g. Xen compatible) kernels there, although
-they do work. This results in `update-grub` not having the expected
-result, and you will need to set the kernel manually.
+Rackspace boots their servers using grub’s `menu.lst`{.docutils
+.literal} and does not like non ‘virtual’ packages (e.g. Xen compatible)
+kernels there, although they do work. This results in
+`update-grub`{.docutils .literal} not having the expected result, and
+you will need to set the kernel manually.
 
 **Do not attempt this on a production machine!**
 
-~~~~ {.sourceCode .bash}
-# update apt
-apt-get update
+    # update apt
+    apt-get update
 
-# install the new kernel
-apt-get install linux-generic-lts-raring
-~~~~
+    # install the new kernel
+    apt-get install linux-generic-lts-raring
 
-Great, now you have the kernel installed in `/boot/`, next you need to
-make it boot next time.
+Great, now you have the kernel installed in `/boot/`{.docutils
+.literal}, next you need to make it boot next time.
 
-~~~~ {.sourceCode .bash}
-# find the exact names
-find /boot/ -name '*3.8*'
+    # find the exact names
+    find /boot/ -name '*3.8*'
 
-# this should return some results
-~~~~
+    # this should return some results
 
-Now you need to manually edit `/boot/grub/menu.lst`, you will find a
-section at the bottom with the existing options. Copy the top one and
-substitute the new kernel into that. Make sure the new kernel is on top,
-and double check the kernel and initrd lines point to the right files.
+Now you need to manually edit `/boot/grub/menu.lst`{.docutils .literal},
+you will find a section at the bottom with the existing options. Copy
+the top one and substitute the new kernel into that. Make sure the new
+kernel is on top, and double check the kernel and initrd lines point to
+the right files.
 
 Take special care to double check the kernel and initrd entries.
 
-~~~~ {.sourceCode .bash}
-# now edit /boot/grub/menu.lst
-vi /boot/grub/menu.lst
-~~~~
+    # now edit /boot/grub/menu.lst
+    vi /boot/grub/menu.lst
 
 It will probably look something like this:
 
     ## ## End Default Options ##
 
-    title      Ubuntu 12.04.2 LTS, kernel 3.8.x generic
-    root       (hd0)
-    kernel     /boot/vmlinuz-3.8.0-19-generic root=/dev/xvda1 ro quiet splash console=hvc0
-    initrd     /boot/initrd.img-3.8.0-19-generic
+    title              Ubuntu 12.04.2 LTS, kernel 3.8.x generic
+    root               (hd0)
+    kernel             /boot/vmlinuz-3.8.0-19-generic root=/dev/xvda1 ro quiet splash console=hvc0
+    initrd             /boot/initrd.img-3.8.0-19-generic
 
-    title      Ubuntu 12.04.2 LTS, kernel 3.2.0-38-virtual
-    root       (hd0)
-    kernel     /boot/vmlinuz-3.2.0-38-virtual root=/dev/xvda1 ro quiet splash console=hvc0
-    initrd     /boot/initrd.img-3.2.0-38-virtual
+    title              Ubuntu 12.04.2 LTS, kernel 3.2.0-38-virtual
+    root               (hd0)
+    kernel             /boot/vmlinuz-3.2.0-38-virtual root=/dev/xvda1 ro quiet splash console=hvc0
+    initrd             /boot/initrd.img-3.2.0-38-virtual
 
-    title      Ubuntu 12.04.2 LTS, kernel 3.2.0-38-virtual (recovery mode)
-    root       (hd0)
-    kernel     /boot/vmlinuz-3.2.0-38-virtual root=/dev/xvda1 ro quiet splash  single
-    initrd     /boot/initrd.img-3.2.0-38-virtual
+    title              Ubuntu 12.04.2 LTS, kernel 3.2.0-38-virtual (recovery mode)
+    root               (hd0)
+    kernel             /boot/vmlinuz-3.2.0-38-virtual root=/dev/xvda1 ro quiet splash  single
+    initrd             /boot/initrd.img-3.2.0-38-virtual
 
 Reboot the server (either via command line or console)
 
-~~~~ {.sourceCode .bash}
-# reboot
-~~~~
+    # reboot
 
 Verify the kernel was updated
 
-~~~~ {.sourceCode .bash}
-uname -a
-# Linux docker-12-04 3.8.0-19-generic #30~precise1-Ubuntu SMP Wed May 1 22:26:36 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
+    uname -a
+    # Linux docker-12-04 3.8.0-19-generic #30~precise1-Ubuntu SMP Wed May 1 22:26:36 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
 
-# nice! 3.8.
-~~~~
+    # nice! 3.8.
 
-Now you can finish with the ubuntu\_linux instructions.
+Now you can finish with the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+instructions.

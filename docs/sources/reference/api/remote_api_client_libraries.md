@@ -1,76 +1,113 @@
-title
-:   Remote API Client Libraries
-
-description
-:   Various client libraries available to use with the Docker remote API
-
-keywords
-:   API, Docker, index, registry, REST, documentation, clients, Python,
-    Ruby, JavaScript, Erlang, Go
-
-Docker Remote API Client Libraries
-==================================
+Docker Remote API Client Libraries[¶](#docker-remote-api-client-libraries "Permalink to this headline")
+=======================================================================================================
 
 These libraries have not been tested by the Docker Maintainers for
 compatibility. Please file issues with the library owners. If you find
 more library implementations, please list them in Docker doc bugs and we
 will add the libraries here.
 
-  -----------------------------------------------------------------------
-  Language/Framewo Name         Repository                        Status
-  rk                                                              
-  ---------------- ------------ --------------------------------- -------
-  Python           docker-py    [https://github.com/dotcloud/dock Active
-                                er-py](https://github.com/dotclou 
-                                d/docker-py)                      
+Language/Framework
 
-  Ruby             docker-clien [https://github.com/geku/docker-c Outdate
-                   t            lient](https://github.com/geku/do d
-                                cker-client)                      
+Name
 
-  Ruby             docker-api   [https://github.com/swipely/docke Active
-                                r-api](https://github.com/swipely 
-                                /docker-api)                      
+Repository
 
-  JavaScript       dockerode    [https://github.com/apocas/docker Active
-  (NodeJS)                      ode](https://github.com/apocas/do 
-                                ckerode)                          
-                                Install via NPM: npm install      
-                                dockerode                         
+Status
 
-  JavaScript       docker.io    [https://github.com/appersonlabs/ Active
-  (NodeJS)                      docker.io](https://github.com/app 
-                                ersonlabs/docker.io)              
-                                Install via NPM: npm install      
-                                docker.io                         
+Python
 
-  JavaScript       docker-js    [https://github.com/dgoujard/dock Active
-                                er-js](https://github.com/dgoujar 
-                                d/docker-js)                      
+docker-py
 
-  JavaScript       docker-cp    [https://github.com/13W/docker-cp Active
-  (Angular)                     ](https://github.com/13W/docker-c 
-  **WebUI**                     p)                                
+[https://github.com/dotcloud/docker-py](https://github.com/dotcloud/docker-py)
 
-  JavaScript       dockerui     [https://github.com/crosbymichael Active
-  (Angular)                     /dockerui](https://github.com/cro 
-  **WebUI**                     sbymichael/dockerui)              
+Active
 
-  Java             docker-java  [https://github.com/kpelykh/docke Active
-                                r-java](https://github.com/kpelyk 
-                                h/docker-java)                    
+Ruby
 
-  Erlang           erldocker    [https://github.com/proger/erldoc Active
-                                ker](https://github.com/proger/er 
-                                ldocker)                          
+docker-client
 
-  Go               go-dockercli [https://github.com/fsouza/go-doc Active
-                   ent          kerclient](https://github.com/fso 
-                                uza/go-dockerclient)              
+[https://github.com/geku/docker-client](https://github.com/geku/docker-client)
 
-  PHP              Alvine       [http://pear.alvine.io/](http://p Active
-                                ear.alvine.io/)                   
-                                (alpha)                           
-  -----------------------------------------------------------------------
+Outdated
 
+Ruby
 
+docker-api
+
+[https://github.com/swipely/docker-api](https://github.com/swipely/docker-api)
+
+Active
+
+JavaScript (NodeJS)
+
+dockerode
+
+[https://github.com/apocas/dockerode](https://github.com/apocas/dockerode)
+Install via NPM: npm install dockerode
+
+Active
+
+JavaScript (NodeJS)
+
+docker.io
+
+[https://github.com/appersonlabs/docker.io](https://github.com/appersonlabs/docker.io)
+Install via NPM: npm install docker.io
+
+Active
+
+JavaScript
+
+docker-js
+
+[https://github.com/dgoujard/docker-js](https://github.com/dgoujard/docker-js)
+
+Active
+
+JavaScript (Angular) **WebUI**
+
+docker-cp
+
+[https://github.com/13W/docker-cp](https://github.com/13W/docker-cp)
+
+Active
+
+JavaScript (Angular) **WebUI**
+
+dockerui
+
+[https://github.com/crosbymichael/dockerui](https://github.com/crosbymichael/dockerui)
+
+Active
+
+Java
+
+docker-java
+
+[https://github.com/kpelykh/docker-java](https://github.com/kpelykh/docker-java)
+
+Active
+
+Erlang
+
+erldocker
+
+[https://github.com/proger/erldocker](https://github.com/proger/erldocker)
+
+Active
+
+Go
+
+go-dockerclient
+
+[https://github.com/fsouza/go-dockerclient](https://github.com/fsouza/go-dockerclient)
+
+Active
+
+PHP
+
+Alvine
+
+[http://pear.alvine.io/](http://pear.alvine.io/) (alpha)
+
+Active

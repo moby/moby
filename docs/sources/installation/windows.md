@@ -1,23 +1,19 @@
-title
-:   Installation on Windows
-
-description
-:   Please note this project is currently under heavy development. It
-    should not be used in production.
-
-keywords
-:   Docker, Docker documentation, Windows, requirements, virtualbox,
-    boot2docker
-
-Windows
-=======
+Windows[¶](#windows "Permalink to this headline")
+=================================================
 
 Docker can run on Windows using a virtualization platform like
 VirtualBox. A Linux distribution is run inside a virtual machine and
-that's where Docker will run.
+that’s where Docker will run.
 
-Installation
-------------
+Installation[¶](#installation "Permalink to this headline")
+-----------------------------------------------------------
+
+Note
+
+Docker is still under heavy development! We don’t recommend using it in
+production yet, but we’re getting closer with each release. Please see
+our blog post, [“Getting to Docker
+1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 1.  Install virtualbox from
     [https://www.virtualbox.org](https://www.virtualbox.org) - or follow
@@ -44,31 +40,32 @@ Installation
 
     5.4. click Choose a virtual CD/DVD disk file
 
-6.  Browse to the path where you've saved the boot2docker.iso, select
+6.  Browse to the path where you’ve saved the boot2docker.iso, select
     the boot2docker.iso and click open.
+
 7.  Click OK on the Settings dialog to save the changes and close the
     window.
+
 8.  Start the virtual machine by clicking the green start button.
+
 9.  The boot2docker virtual machine should boot now.
 
-Running Docker
---------------
+Running Docker[¶](#running-docker "Permalink to this headline")
+---------------------------------------------------------------
 
 boot2docker will log you in automatically so you can start using Docker
 right away.
 
-Let's try the “hello world” example. Run
+Let’s try the “hello world” example. Run
 
-~~~~ {.sourceCode .bash}
-docker run busybox echo hello world
-~~~~
+    docker run busybox echo hello world
 
 This will download the small busybox image and print hello world.
 
-Observations
-------------
+Observations[¶](#observations "Permalink to this headline")
+-----------------------------------------------------------
 
-### Persistent storage
+### Persistent storage[¶](#persistent-storage "Permalink to this headline")
 
 The virtual machine created above lacks any persistent data storage. All
 images and containers will be lost when shutting down or rebooting the

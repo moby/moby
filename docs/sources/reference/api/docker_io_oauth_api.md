@@ -1,17 +1,21 @@
-title
-:   docker.io OAuth API
+[docker.io OAuth API](#id1)[¶](#docker-io-oauth-api "Permalink to this headline")
+=================================================================================
 
-description
-:   API Documentation for docker.io's OAuth flow.
+Table of Contents
 
-keywords
-:   API, Docker, oauth, REST, documentation
+-   [docker.io OAuth API](#docker-io-oauth-api)
+    -   [1. Brief introduction](#brief-introduction)
+    -   [2. Register Your Application](#register-your-application)
+    -   [3. Endpoints](#endpoints)
+        -   [3.1 Get an Authorization Code](#get-an-authorization-code)
+        -   [3.2 Get an Access Token](#get-an-access-token)
+        -   [3.3 Refresh a Token](#refresh-a-token)
 
-docker.io OAuth API
-===================
+    -   [4. Use an Access Token with the
+        API](#use-an-access-token-with-the-api)
 
-1. Brief introduction
----------------------
+[1. Brief introduction](#id2)[¶](#brief-introduction "Permalink to this headline")
+----------------------------------------------------------------------------------
 
 Some docker.io API requests will require an access token to
 authenticate. To get an access token for a user, that user must first
@@ -25,17 +29,15 @@ OAuth 2.0 Authorization Framework](http://tools.ietf.org/html/rfc6749).
 *Also note that all OAuth interactions must take place over https
 connections*
 
-2. Register Your Application
-----------------------------
+[2. Register Your Application](#id3)[¶](#register-your-application "Permalink to this headline")
+------------------------------------------------------------------------------------------------
 
 You will need to register your application with docker.io before users
 will be able to grant your application access to their account
 information. We are currently only allowing applications selectively. To
 request registration of your application send an email to
-
-support-accounts at docker dot com
-
-with the following information:
+[support-accounts@docker.com](mailto:support-accounts%40docker.com) with
+the following information:
 
 -   The name of your application
 -   A description of your application and the service it will provide to
@@ -47,34 +49,222 @@ with the following information:
     application.
 
 When your application is approved you will receive a response from the
-docker.io team with your `client_id` and `client_secret` which your
-application will use in the steps of getting an Authorization Code and
-getting an Access Token.
+docker.io team with your `client_id`{.docutils .literal} and
+`client_secret`{.docutils .literal} which your application will use in
+the steps of getting an Authorization Code and getting an Access Token.
 
-3. Endpoints
-------------
+[3. Endpoints](#id4)[¶](#endpoints "Permalink to this headline")
+----------------------------------------------------------------
 
-### 3.1 Get an Authorization Code
+### [3.1 Get an Authorization Code](#id5)[¶](#get-an-authorization-code "Permalink to this headline")
 
 Once You have registered you are ready to start integrating docker.io
 accounts into your application! The process is usually started by a user
 following a link in your application to an OAuth Authorization endpoint.
 
-### 3.2 Get an Access Token
+ `GET `{.descname}`/api/v1.1/o/authorize/`{.descname}[¶](#get--api-v1.1-o-authorize- "Permalink to this definition")
+:   Request that a docker.io user authorize your application. If the
+    user is not already logged in, they will be prompted to login. The
+    user is then presented with a form to authorize your application for
+    the requested access scope. On submission, the user will be
+    redirected to the specified `redirect_uri`{.docutils .literal} with
+    an Authorization Code.
+
+    Query Parameters:
+
+     
+
+    -   **client\_id** – The `client_id`{.docutils .literal} given to
+        your application at registration.
+    -   **response\_type** – MUST be set to `code`{.docutils .literal}.
+        This specifies that you would like an Authorization Code
+        returned.
+    -   **redirect\_uri** – The URI to redirect back to after the user
+        has authorized your application. If omitted, the first of your
+        registered `response_uris`{.docutils .literal} is used. If
+        included, it must be one of the URIs which were submitted when
+        registering your application.
+    -   **scope** – The extent of access permissions you are requesting.
+        Currently, the scope options are `profile_read`{.docutils
+        .literal}, `profile_write`{.docutils .literal},
+        `email_read`{.docutils .literal}, and `email_write`{.docutils
+        .literal}. Scopes must be separated by a space. If omitted, the
+        default scopes `profile_read email_read`{.docutils .literal} are
+        used.
+    -   **state** – (Recommended) Used by your application to maintain
+        state between the authorization request and callback to protect
+        against CSRF attacks.
+
+    **Example Request**
+
+    Asking the user for authorization.
+
+        GET /api/v1.1/o/authorize/?client_id=TestClientID&response_type=code&redirect_uri=https%3A//my.app/auth_complete/&scope=profile_read%20email_read&state=abc123 HTTP/1.1
+        Host: www.docker.io
+
+    **Authorization Page**
+
+    When the user follows a link, making the above GET request, they
+    will be asked to login to their docker.io account if they are not
+    already and then be presented with the following authorization
+    prompt which asks the user to authorize your application with a
+    description of the requested scopes.
+
+    ![](../../../_images/io_oauth_authorization_page.png)
+
+    Once the user allows or denies your Authorization Request the user
+    will be redirected back to your application. Included in that
+    request will be the following query parameters:
+
+    `code`{.docutils .literal}
+    :   The Authorization code generated by the docker.io authorization
+        server. Present it again to request an Access Token. This code
+        expires in 60 seconds.
+    `state`{.docutils .literal}
+    :   If the `state`{.docutils .literal} parameter was present in the
+        authorization request this will be the exact value received from
+        that request.
+    `error`{.docutils .literal}
+    :   An error message in the event of the user denying the
+        authorization or some other kind of error with the request.
+
+### [3.2 Get an Access Token](#id6)[¶](#get-an-access-token "Permalink to this headline")
 
 Once the user has authorized your application, a request will be made to
-your application's specified `redirect_uri` which includes a `code`
-parameter that you must then use to get an Access Token.
+your application’s specified `redirect_uri`{.docutils .literal} which
+includes a `code`{.docutils .literal} parameter that you must then use
+to get an Access Token.
 
-### 3.3 Refresh a Token
+ `POST `{.descname}`/api/v1.1/o/token/`{.descname}[¶](#post--api-v1.1-o-token- "Permalink to this definition")
+:   Submit your newly granted Authorization Code and your application’s
+    credentials to receive an Access Token and Refresh Token. The code
+    is valid for 60 seconds and cannot be used more than once.
 
-Once the Access Token expires you can use your `refresh_token` to have
-docker.io issue your application a new Access Token, if the user has not
-revoked access from your application.
+    Request Headers:
 
-4. Use an Access Token with the API
------------------------------------
+     
+
+    -   **Authorization** – HTTP basic authentication using your
+        application’s `client_id`{.docutils .literal} and
+        `client_secret`{.docutils .literal}
+
+    Form Parameters:
+
+     
+
+    -   **grant\_type** – MUST be set to `authorization_code`{.docutils
+        .literal}
+    -   **code** – The authorization code received from the user’s
+        redirect request.
+    -   **redirect\_uri** – The same `redirect_uri`{.docutils .literal}
+        used in the authentication request.
+
+    **Example Request**
+
+    Using an authorization code to get an access token.
+
+        POST /api/v1.1/o/token/ HTTP/1.1
+        Host: www.docker.io
+        Authorization: Basic VGVzdENsaWVudElEOlRlc3RDbGllbnRTZWNyZXQ=
+        Accept: application/json
+        Content-Type: application/json
+
+        {
+            "grant_type": "code",
+            "code": "YXV0aG9yaXphdGlvbl9jb2Rl",
+            "redirect_uri": "https://my.app/auth_complete/"
+        }
+
+    **Example Response**
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json;charset=UTF-8
+
+        {
+            "username": "janedoe",
+            "user_id": 42,
+            "access_token": "t6k2BqgRw59hphQBsbBoPPWLqu6FmS",
+            "expires_in": 15552000,
+            "token_type": "Bearer",
+            "scope": "profile_read email_read",
+            "refresh_token": "hJDhLH3cfsUrQlT4MxA6s8xAFEqdgc"
+        }
+
+    In the case of an error, there will be a non-200 HTTP Status and and
+    data detailing the error.
+
+### [3.3 Refresh a Token](#id7)[¶](#refresh-a-token "Permalink to this headline")
+
+Once the Access Token expires you can use your `refresh_token`{.docutils
+.literal} to have docker.io issue your application a new Access Token,
+if the user has not revoked access from your application.
+
+ `POST `{.descname}`/api/v1.1/o/token/`{.descname}[¶](#post--api-v1.1-o-token- "Permalink to this definition")
+:   Submit your `refresh_token`{.docutils .literal} and application’s
+    credentials to receive a new Access Token and Refresh Token. The
+    `refresh_token`{.docutils .literal} can be used only once.
+
+    Request Headers:
+
+     
+
+    -   **Authorization** – HTTP basic authentication using your
+        application’s `client_id`{.docutils .literal} and
+        `client_secret`{.docutils .literal}
+
+    Form Parameters:
+
+     
+
+    -   **grant\_type** – MUST be set to `refresh_token`{.docutils
+        .literal}
+    -   **refresh\_token** – The `refresh_token`{.docutils .literal}
+        which was issued to your application.
+    -   **scope** – (optional) The scope of the access token to be
+        returned. Must not include any scope not originally granted by
+        the user and if omitted is treated as equal to the scope
+        originally granted.
+
+    **Example Request**
+
+    Refreshing an access token.
+
+        POST /api/v1.1/o/token/ HTTP/1.1
+        Host: www.docker.io
+        Authorization: Basic VGVzdENsaWVudElEOlRlc3RDbGllbnRTZWNyZXQ=
+        Accept: application/json
+        Content-Type: application/json
+
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": "hJDhLH3cfsUrQlT4MxA6s8xAFEqdgc",
+        }
+
+    **Example Response**
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json;charset=UTF-8
+
+        {
+            "username": "janedoe",
+            "user_id": 42,
+            "access_token": "t6k2BqgRw59hphQBsbBoPPWLqu6FmS",
+            "expires_in": 15552000,
+            "token_type": "Bearer",
+            "scope": "profile_read email_read",
+            "refresh_token": "hJDhLH3cfsUrQlT4MxA6s8xAFEqdgc"
+        }
+
+    In the case of an error, there will be a non-200 HTTP Status and and
+    data detailing the error.
+
+[4. Use an Access Token with the API](#id8)[¶](#use-an-access-token-with-the-api "Permalink to this headline")
+--------------------------------------------------------------------------------------------------------------
 
 Many of the docker.io API requests will require a Authorization request
-header field. Simply ensure you add this header with "Bearer
-\<`access_token`\>":
+header field. Simply ensure you add this header with “Bearer
+\<`access_token`{.docutils .literal}\>”:
+
+    GET /api/v1.1/resource HTTP/1.1
+    Host: docker.io
+    Authorization: Bearer 2YotnFZFEjr1zCsicMWpAA

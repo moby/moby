@@ -1,19 +1,15 @@
-title
-:   Installation on Google Cloud Platform
+[Google Cloud Platform](https://cloud.google.com/)[¶](#id1 "Permalink to this headline")
+========================================================================================
 
-description
-:   Please note this project is currently under heavy development. It
-    should not be used in production.
+Note
 
-keywords
-:   Docker, Docker documentation, installation, google, Google Compute
-    Engine, Google Cloud Platform
+Docker is still under heavy development! We don’t recommend using it in
+production yet, but we’re getting closer with each release. Please see
+our blog post, [“Getting to Docker
+1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-[Google Cloud Platform](https://cloud.google.com/)
-==================================================
-
-[Compute Engine](https://developers.google.com/compute) QuickStart for [Debian](https://www.debian.org)
--------------------------------------------------------------------------------------------------------
+[Compute Engine](https://developers.google.com/compute) QuickStart for [Debian](https://www.debian.org)[¶](#compute-engine-quickstart-for-debian "Permalink to this headline")
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 1.  Go to [Google Cloud Console](https://cloud.google.com/console) and
     create a new Cloud Project with [Compute Engine
@@ -22,45 +18,45 @@ keywords
     SDK](https://developers.google.com/cloud/sdk/) to use your project
     with the following commands:
 
-~~~~ {.sourceCode .bash}
-$ curl https://dl.google.com/dl/cloudsdk/release/install_google_cloud_sdk.bash | bash
-$ gcloud auth login
-Enter a cloud project id (or leave blank to not set): <google-cloud-project-id>
-~~~~
+<!-- -->
+
+    $ curl https://dl.google.com/dl/cloudsdk/release/install_google_cloud_sdk.bash | bash
+    $ gcloud auth login
+    Enter a cloud project id (or leave blank to not set): <google-cloud-project-id>
 
 3.  Start a new instance, select a zone close to you and the desired
     instance size:
 
-~~~~ {.sourceCode .bash}
-$ gcutil addinstance docker-playground --image=backports-debian-7
-1: europe-west1-a
-...
-4: us-central1-b
->>> <zone-index>
-1: machineTypes/n1-standard-1
-...
-12: machineTypes/g1-small
->>> <machine-type-index>
-~~~~
+<!-- -->
+
+    $ gcutil addinstance docker-playground --image=backports-debian-7
+    1: europe-west1-a
+    ...
+    4: us-central1-b
+    >>> <zone-index>
+    1: machineTypes/n1-standard-1
+    ...
+    12: machineTypes/g1-small
+    >>> <machine-type-index>
 
 4.  Connect to the instance using SSH:
 
-~~~~ {.sourceCode .bash}
-$ gcutil ssh docker-playground
-docker-playground:~$ 
-~~~~
+<!-- -->
+
+    $ gcutil ssh docker-playground
+    docker-playground:~$
 
 5.  Install the latest Docker release and configure it to start when the
     instance boots:
 
-~~~~ {.sourceCode .bash}
-docker-playground:~$ curl get.docker.io | bash
-docker-playground:~$ sudo update-rc.d docker defaults
-~~~~
+<!-- -->
+
+    docker-playground:~$ curl get.docker.io | bash
+    docker-playground:~$ sudo update-rc.d docker defaults
 
 6.  Start a new container:
 
-~~~~ {.sourceCode .bash}
-docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
-docker on GCE \o/
-~~~~
+<!-- -->
+
+    docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
+    docker on GCE \o/

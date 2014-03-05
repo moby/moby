@@ -1,46 +1,39 @@
-title
-:   FAQ
+FAQ[¶](#faq "Permalink to this headline")
+=========================================
 
-description
-:   Most frequently asked questions.
+Most frequently asked questions.[¶](#most-frequently-asked-questions "Permalink to this headline")
+--------------------------------------------------------------------------------------------------
 
-keywords
-:   faq, questions, documentation, docker
-
-FAQ
-===
-
-Most frequently asked questions.
---------------------------------
-
-### How much does Docker cost?
+### How much does Docker cost?[¶](#how-much-does-docker-cost "Permalink to this headline")
 
 > Docker is 100% free, it is open source, so you can use it without
 > paying.
 
-### What open source license are you using?
+### What open source license are you using?[¶](#what-open-source-license-are-you-using "Permalink to this headline")
 
 > We are using the Apache License Version 2.0, see it here:
 > [https://github.com/dotcloud/docker/blob/master/LICENSE](https://github.com/dotcloud/docker/blob/master/LICENSE)
 
-### Does Docker run on Mac OS X or Windows?
+### Does Docker run on Mac OS X or Windows?[¶](#does-docker-run-on-mac-os-x-or-windows "Permalink to this headline")
 
 > Not at this time, Docker currently only runs on Linux, but you can use
 > VirtualBox to run Docker in a virtual machine on your box, and get the
-> best of both worlds. Check out the macosx and windows installation
-> guides. The small Linux distribution boot2docker can be run inside
-> virtual machines on these two operating systems.
+> best of both worlds. Check out the [*Mac OS
+> X*](../installation/mac/#macosx) and
+> [*Windows*](../installation/windows/#windows) installation guides. The
+> small Linux distribution boot2docker can be run inside virtual
+> machines on these two operating systems.
 
-### How do containers compare to virtual machines?
+### How do containers compare to virtual machines?[¶](#how-do-containers-compare-to-virtual-machines "Permalink to this headline")
 
 > They are complementary. VMs are best used to allocate chunks of
 > hardware resources. Containers operate at the process level, which
 > makes them very lightweight and perfect as a unit of software
 > delivery.
 
-### What does Docker add to just plain LXC?
+### What does Docker add to just plain LXC?[¶](#what-does-docker-add-to-just-plain-lxc "Permalink to this headline")
 
-> Docker is not a replacement for LXC. "LXC" refers to capabilities of
+> Docker is not a replacement for LXC. “LXC” refers to capabilities of
 > the Linux kernel (specifically namespaces and control groups) which
 > allow sandboxing processes from one another, and controlling their
 > resource allocations. On top of this low-level foundation of kernel
@@ -58,28 +51,30 @@ Most frequently asked questions.
 >         deployment. If you sent me a copy of your application
 >         installed in a custom LXC configuration, it would almost
 >         certainly not run on my machine the way it does on yours,
->         because it is tied to your machine's specific configuration:
+>         because it is tied to your machine’s specific configuration:
 >         networking, storage, logging, distro, etc. Docker defines an
 >         abstraction for these machine-specific settings, so that the
->         exact same Docker container can run -unchanged - on many
+>         exact same Docker container can run - unchanged - on many
 >         different machines, with many different configurations.
 >
 > -   *Application-centric.*
 >     :   Docker is optimized for the deployment of applications, as
 >         opposed to machines. This is reflected in its API, user
 >         interface, design philosophy and documentation. By contrast,
->         the `lxc` helper scripts focus on containers as lightweight
->         machines - basically servers that boot faster and need less
->         RAM. We think there's more to containers than just that.
+>         the `lxc`{.docutils .literal} helper scripts focus on
+>         containers as lightweight machines - basically servers that
+>         boot faster and need less RAM. We think there’s more to
+>         containers than just that.
 >
 > -   *Automatic build.*
->     :   Docker includes a tool for developers to automatically
->         assemble a container from their source code \<dockerbuilder\>,
->         with full control over application dependencies, build tools,
->         packaging etc. They are free to use
->         `make, maven, chef, puppet, salt,` Debian packages, RPMs,
->         source tarballs, or any combination of the above, regardless
->         of the configuration of the machines.
+>     :   Docker includes [*a tool for developers to automatically
+>         assemble a container from their source
+>         code*](../reference/builder/#dockerbuilder), with full control
+>         over application dependencies, build tools, packaging etc.
+>         They are free to use
+>         `make, maven, chef, puppet, salt,`{.docutils .literal} Debian
+>         packages, RPMs, source tarballs, or any combination of the
+>         above, regardless of the configuration of the machines.
 >
 > -   *Versioning.*
 >     :   Docker includes git-like capabilities for tracking successive
@@ -88,29 +83,31 @@ Most frequently asked questions.
 >         includes how a container was assembled and by whom, so you get
 >         full traceability from the production server all the way back
 >         to the upstream developer. Docker also implements incremental
->         uploads and downloads, similar to `git pull`, so new versions
->         of a container can be transferred by only sending diffs.
+>         uploads and downloads, similar to `git pull`{.docutils
+>         .literal}, so new versions of a container can be transferred
+>         by only sending diffs.
 >
 > -   *Component re-use.*
->     :   Any container can be used as a "base image"
->         \<base\_image\_def\> to create more specialized components.
->         This can be done manually or as part of an automated build.
->         For example you can prepare the ideal Python environment, and
->         use it as a base for 10 different applications. Your ideal
->         Postgresql setup can be re-used for all your future projects.
->         And so on.
+>     :   Any container can be used as a [*“base
+>         image”*](../terms/image/#base-image-def) to create more
+>         specialized components. This can be done manually or as part
+>         of an automated build. For example you can prepare the ideal
+>         Python environment, and use it as a base for 10 different
+>         applications. Your ideal Postgresql setup can be re-used for
+>         all your future projects. And so on.
 >
 > -   *Sharing.*
 >     :   Docker has access to a [public
 >         registry](http://index.docker.io) where thousands of people
 >         have uploaded useful containers: anything from Redis, CouchDB,
 >         Postgres to IRC bouncers to Rails app servers to Hadoop to
->         base images for various Linux distros. The registry
->         \<registryindexspec\> also includes an official "standard
->         library" of useful containers maintained by the Docker team.
->         The registry itself is open-source, so anyone can deploy their
->         own registry to store and transfer private containers, for
->         internal server deployments for example.
+>         base images for various Linux distros. The
+>         [*registry*](../reference/api/registry_index_spec/#registryindexspec)
+>         also includes an official “standard library” of useful
+>         containers maintained by the Docker team. The registry itself
+>         is open-source, so anyone can deploy their own registry to
+>         store and transfer private containers, for internal server
+>         deployments for example.
 >
 > -   *Tool ecosystem.*
 >     :   Docker defines an API for automating and customizing the
@@ -124,18 +121,18 @@ Most frequently asked questions.
 >         establishing itself as the standard for container-based
 >         tooling.
 >
-### What is different between a Docker container and a VM?
+### What is different between a Docker container and a VM?[¶](#what-is-different-between-a-docker-container-and-a-vm "Permalink to this headline")
 
-There's a great StackOverflow answer [showing the
+There’s a great StackOverflow answer [showing the
 differences](http://stackoverflow.com/questions/16047306/how-is-docker-io-different-from-a-normal-virtual-machine).
 
-### Do I lose my data when the container exits?
+### Do I lose my data when the container exits?[¶](#do-i-lose-my-data-when-the-container-exits "Permalink to this headline")
 
 Not at all! Any data that your application writes to disk gets preserved
 in its container until you explicitly delete the container. The file
 system for the container persists even after the container halts.
 
-### How far do Docker containers scale?
+### How far do Docker containers scale?[¶](#how-far-do-docker-containers-scale "Permalink to this headline")
 
 Some of the largest server farms in the world today are based on
 containers. Large web deployments like Google and Twitter, and platform
@@ -143,7 +140,7 @@ providers such as Heroku and dotCloud all run on container technology,
 at a scale of hundreds of thousands or even millions of containers
 running in parallel.
 
-### How do I connect Docker containers?
+### How do I connect Docker containers?[¶](#how-do-i-connect-docker-containers "Permalink to this headline")
 
 Currently the recommended way to link containers is via the link
 primitive. You can see details of how to [work with links
@@ -153,7 +150,7 @@ Also of useful when enabling more flexible service portability is the
 [Ambassador linking
 pattern](http://docs.docker.io/en/latest/use/ambassador_pattern_linking/).
 
-### How do I run more than one process in a Docker container?
+### How do I run more than one process in a Docker container?[¶](#how-do-i-run-more-than-one-process-in-a-docker-container "Permalink to this headline")
 
 Any capable process supervisor such as
 [http://supervisord.org/](http://supervisord.org/), runit, s6, or
@@ -164,7 +161,7 @@ will continue to as well. You can see a more substantial example [that
 uses supervisord
 here](http://docs.docker.io/en/latest/examples/using_supervisord/).
 
-### What platforms does Docker run on?
+### What platforms does Docker run on?[¶](#what-platforms-does-docker-run-on "Permalink to this headline")
 
 Linux:
 
@@ -183,35 +180,37 @@ Cloud:
 -   Google Compute Engine
 -   Rackspace
 
-### How do I report a security issue with Docker?
+### How do I report a security issue with Docker?[¶](#how-do-i-report-a-security-issue-with-docker "Permalink to this headline")
 
-You can learn about the project's security policy
+You can learn about the project’s security policy
 [here](http://www.docker.io/security/) and report security issues to
-this
+this [mailbox](mailto:security%40docker.com).
 
-mailbox (security at docker dot com)
-
-.
-
-### Why do I need to sign my commits to Docker with the DCO?
+### Why do I need to sign my commits to Docker with the DCO?[¶](#why-do-i-need-to-sign-my-commits-to-docker-with-the-dco "Permalink to this headline")
 
 Please read [our blog
 post](http://blog.docker.io/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
 on the introduction of the DCO.
 
-### Can I help by adding some questions and answers?
+### Can I help by adding some questions and answers?[¶](#can-i-help-by-adding-some-questions-and-answers "Permalink to this headline")
 
-Definitely! You can fork the repo\_ and edit the documentation sources.
+Definitely! You can fork [the
+repo](http://www.github.com/dotcloud/docker) and edit the documentation
+sources.
 
-### Where can I find more answers?
+### Where can I find more answers?[¶](#where-can-i-find-more-answers "Permalink to this headline")
 
 > You can find more answers on:
 >
-> -   Docker user mailinglist\_
-> -   Docker developer mailinglist\_
-> -   IRC, docker on freenode\_
-> -   GitHub\_
-> -   Ask questions on Stackoverflow\_
-> -   Join the conversation on Twitter\_
+> -   [Docker user
+>     mailinglist](https://groups.google.com/d/forum/docker-user)
+> -   [Docker developer
+>     mailinglist](https://groups.google.com/d/forum/docker-dev)
+> -   [IRC, docker on freenode](irc://chat.freenode.net#docker)
+> -   [GitHub](http://www.github.com/dotcloud/docker)
+> -   [Ask questions on
+>     Stackoverflow](http://stackoverflow.com/search?q=docker)
+> -   [Join the conversation on Twitter](http://twitter.com/docker)
 
-Looking for something else to read? Checkout the hello\_world example.
+Looking for something else to read? Checkout the [*Hello
+World*](../examples/hello_world/#hello-world) example.

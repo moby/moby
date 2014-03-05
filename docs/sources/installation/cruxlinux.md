@@ -1,14 +1,19 @@
-title
-:   Installation on CRUX Linux
+CRUX Linux[¶](#crux-linux "Permalink to this headline")
+=======================================================
 
-description
-:   Docker installation on CRUX Linux.
+Note
 
-keywords
-:   crux linux, virtualization, Docker, documentation, installation
+Docker is still under heavy development! We don’t recommend using it in
+production yet, but we’re getting closer with each release. Please see
+our blog post, [“Getting to Docker
+1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-CRUX Linux
-==========
+Note
+
+This is a community contributed installation path. The only ‘official’
+installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+installation path. This version may be out of date because it depends on
+some binaries to be updated and published
 
 Installing on CRUX Linux can be handled via the ports from [James
 Mills](http://prologic.shortcircuit.net.au/):
@@ -17,61 +22,65 @@ Mills](http://prologic.shortcircuit.net.au/):
 -   [docker-bin](https://bitbucket.org/prologic/ports/src/tip/docker-bin/)
 -   [docker-git](https://bitbucket.org/prologic/ports/src/tip/docker-git/)
 
-The `docker` port will install the latest tagged version of Docker. The
-`docker-bin` port will install the latest tagged versin of Docker from
-upstream built binaries. The `docker-git` package will build from the
-current master branch.
+The `docker`{.docutils .literal} port will install the latest tagged
+version of Docker. The `docker-bin`{.docutils .literal} port will
+install the latest tagged versin of Docker from upstream built binaries.
+The `docker-git`{.docutils .literal} package will build from the current
+master branch.
 
-Installation
-------------
+Installation[¶](#installation "Permalink to this headline")
+-----------------------------------------------------------
 
 For the time being (*until the CRUX Docker port(s) get into the official
 contrib repository*) you will need to install [James
-Mills'](https://bitbucket.org/prologic/ports) ports repository. You can
+Mills’](https://bitbucket.org/prologic/ports) ports repository. You can
 do so via:
 
-Download the `httpup` file to `/etc/ports/`: :
+Download the `httpup`{.docutils .literal} file to
+`/etc/ports/`{.docutils .literal}:
 
     curl -q -o - http://crux.nu/portdb/?a=getup&q=prologic > /etc/ports/prologic.httpup
 
-Add `prtdir /usr/ports/prologic` to `/etc/prt-get.conf`: :
+Add `prtdir /usr/ports/prologic`{.docutils .literal} to
+`/etc/prt-get.conf`{.docutils .literal}:
 
     vim /etc/prt-get.conf
 
     # or:
     echo "prtdir /usr/ports/prologic" >> /etc/prt-get.conf
 
-Update ports and prt-get cache: :
+Update ports and prt-get cache:
 
     ports -u
     prt-get cache
 
-To install (*and its dependencies*): :
+To install (*and its dependencies*):
 
     prt-get depinst docker
 
-Use `docker-bin` for the upstream binary or `docker-git` to build and
-install from the master branch from git.
+Use `docker-bin`{.docutils .literal} for the upstream binary or
+`docker-git`{.docutils .literal} to build and install from the master
+branch from git.
 
-Kernel Requirements
--------------------
+Kernel Requirements[¶](#kernel-requirements "Permalink to this headline")
+-------------------------------------------------------------------------
 
 To have a working **CRUX+Docker** Host you must ensure your Kernel has
 the necessary modules enabled for LXC containers to function correctly
 and Docker Daemon to work properly.
 
-Please read the `README.rst`: :
+Please read the `README.rst`{.docutils .literal}:
 
     prt-get readme docker
 
-There is a `test_kernel_config.sh` script in the above ports which you
-can use to test your Kernel configuration:
+There is a `test_kernel_config.sh`{.docutils .literal} script in the
+above ports which you can use to test your Kernel configuration:
 
     cd /usr/ports/prologic/docker
     ./test_kernel_config.sh /usr/src/linux/.config
 
-Starting Docker
----------------
+Starting Docker[¶](#starting-docker "Permalink to this headline")
+-----------------------------------------------------------------
 
 There is a rc script created for Docker. To start the Docker service:
 
@@ -80,6 +89,7 @@ There is a rc script created for Docker. To start the Docker service:
 
 To start on system boot:
 
--   Edit `/etc/rc.conf`
--   Put `docker` into the `SERVICES=(...)` array after `net`.
+-   Edit `/etc/rc.conf`{.docutils .literal}
+-   Put `docker`{.docutils .literal} into the `SERVICES=(...)`{.docutils
+    .literal} array after `net`{.docutils .literal}.
 

@@ -1,14 +1,5 @@
-title
-:   Docker Security
-
-description
-:   Review of the Docker Daemon attack surface
-
-keywords
-:   Docker, Docker documentation, security
-
-Docker Security
-===============
+Docker Security[¶](#docker-security "Permalink to this headline")
+=================================================================
 
 > *Adapted from* [Containers & Docker: How Secure are
 > They?](blogsecurity)
@@ -18,19 +9,20 @@ There are three major areas to consider when reviewing Docker security:
 -   the intrinsic security of containers, as implemented by kernel
     namespaces and cgroups;
 -   the attack surface of the Docker daemon itself;
--   the "hardening" security features of the kernel and how they
+-   the “hardening” security features of the kernel and how they
     interact with containers.
 
-Kernel Namespaces
------------------
+Kernel Namespaces[¶](#kernel-namespaces "Permalink to this headline")
+---------------------------------------------------------------------
 
 Docker containers are essentially LXC containers, and they come with the
-same security features. When you start a container with `docker run`,
-behind the scenes Docker uses `lxc-start` to execute the Docker
-container. This creates a set of namespaces and control groups for the
-container. Those namespaces and control groups are not created by Docker
-itself, but by `lxc-start`. This means that as the LXC userland tools
-evolve (and provide additional namespaces and isolation features),
+same security features. When you start a container with
+`docker run`{.docutils .literal}, behind the scenes Docker uses
+`lxc-start`{.docutils .literal} to execute the Docker container. This
+creates a set of namespaces and control groups for the container. Those
+namespaces and control groups are not created by Docker itself, but by
+`lxc-start`{.docutils .literal}. This means that as the LXC userland
+tools evolve (and provide additional namespaces and isolation features),
 Docker will automatically make use of them.
 
 **Namespaces provide the first and most straightforward form of
@@ -44,13 +36,13 @@ of another container. Of course, if the host system is setup
 accordingly, containers can interact with each other through their
 respective network interfaces — just like they can interact with
 external hosts. When you specify public ports for your containers or use
-links \<working\_with\_links\_names\> then IP traffic is allowed between
-containers. They can ping each other, send/receive UDP packets, and
-establish TCP connections, but that can be restricted if necessary. From
-a network architecture point of view, all containers on a given Docker
-host are sitting on bridge interfaces. This means that they are just
-like physical machines connected through a common Ethernet switch; no
-more, no less.
+[*links*](../../use/working_with_links_names/#working-with-links-names)
+then IP traffic is allowed between containers. They can ping each other,
+send/receive UDP packets, and establish TCP connections, but that can be
+restricted if necessary. From a network architecture point of view, all
+containers on a given Docker host are sitting on bridge interfaces. This
+means that they are just like physical machines connected through a
+common Ethernet switch; no more, no less.
 
 How mature is the code providing kernel namespaces and private
 networking? Kernel namespaces were introduced [between kernel version
@@ -66,8 +58,8 @@ could be merged within the mainstream kernel. And OpenVZ was initially
 released in 2005, so both the design and the implementation are pretty
 mature.
 
-Control Groups
---------------
+Control Groups[¶](#control-groups "Permalink to this headline")
+---------------------------------------------------------------
 
 Control Groups are the other key component of Linux Containers. They
 implement resource accounting and limiting. They provide a lot of very
@@ -86,8 +78,8 @@ when some applications start to misbehave.
 Control Groups have been around for a while as well: the code was
 started in 2006, and initially merged in kernel 2.6.24.
 
-Docker Daemon Attack Surface
-----------------------------
+Docker Daemon Attack Surface[¶](#docker-daemon-attack-surface "Permalink to this headline")
+-------------------------------------------------------------------------------------------
 
 Running containers (and applications) with Docker implies running the
 Docker daemon. This daemon currently requires root privileges, and you
@@ -98,13 +90,13 @@ Docker daemon**. This is a direct consequence of some powerful Docker
 features. Specifically, Docker allows you to share a directory between
 the Docker host and a guest container; and it allows you to do so
 without limiting the access rights of the container. This means that you
-can start a container where the `/host` directory will be the `/`
-directory on your host; and the container will be able to alter your
-host filesystem without any restriction. This sounds crazy? Well, you
-have to know that **all virtualization systems allowing filesystem
-resource sharing behave the same way**. Nothing prevents you from
-sharing your root filesystem (or even your root block device) with a
-virtual machine.
+can start a container where the `/host`{.docutils .literal} directory
+will be the `/`{.docutils .literal} directory on your host; and the
+container will be able to alter your host filesystem without any
+restriction. This sounds crazy? Well, you have to know that **all
+virtualization systems allowing filesystem resource sharing behave the
+same way**. Nothing prevents you from sharing your root filesystem (or
+even your root block device) with a virtual machine.
 
 This has a strong security implication: if you instrument Docker from
 e.g. a web server to provision containers through an API, you should be
@@ -123,8 +115,8 @@ socket.
 You can also expose the REST API over HTTP if you explicitly decide so.
 However, if you do that, being aware of the abovementioned security
 implication, you should ensure that it will be reachable only from a
-trusted network or VPN; or protected with e.g. `stunnel` and client SSL
-certificates.
+trusted network or VPN; or protected with e.g. `stunnel`{.docutils
+.literal} and client SSL certificates.
 
 Recent improvements in Linux namespaces will soon allow to run
 full-featured containers without root privileges, thanks to the new user
@@ -152,18 +144,18 @@ containers controlled by Docker. Of course, it is fine to keep your
 favorite admin tools (probably at least an SSH server), as well as
 existing monitoring/supervision processes (e.g. NRPE, collectd, etc).
 
-Linux Kernel Capabilities
--------------------------
+Linux Kernel Capabilities[¶](#linux-kernel-capabilities "Permalink to this headline")
+-------------------------------------------------------------------------------------
 
 By default, Docker starts containers with a very restricted set of
 capabilities. What does that mean?
 
-Capabilities turn the binary "root/non-root" dichotomy into a
+Capabilities turn the binary “root/non-root” dichotomy into a
 fine-grained access control system. Processes (like web servers) that
 just need to bind on a port below 1024 do not have to run as root: they
-can just be granted the `net_bind_service` capability instead. And there
-are many other capabilities, for almost all the specific areas where
-root privileges are usually needed.
+can just be granted the `net_bind_service`{.docutils .literal}
+capability instead. And there are many other capabilities, for almost
+all the specific areas where root privileges are usually needed.
 
 This means a lot for container security; let’s see why!
 
@@ -176,25 +168,27 @@ infrastructure around the container:
 
 -   SSH access will typically be managed by a single server running in
     the Docker host;
--   `cron`, when necessary, should run as a user process, dedicated and
-    tailored for the app that needs its scheduling service, rather than
-    as a platform-wide facility;
+-   `cron`{.docutils .literal}, when necessary, should run as a user
+    process, dedicated and tailored for the app that needs its
+    scheduling service, rather than as a platform-wide facility;
 -   log management will also typically be handed to Docker, or by
     third-party services like Loggly or Splunk;
 -   hardware management is irrelevant, meaning that you never need to
-    run `udevd` or equivalent daemons within containers;
+    run `udevd`{.docutils .literal} or equivalent daemons within
+    containers;
 -   network management happens outside of the containers, enforcing
     separation of concerns as much as possible, meaning that a container
-    should never need to perform `ifconfig`, `route`, or ip commands
-    (except when a container is specifically engineered to behave like a
-    router or firewall, of course).
+    should never need to perform `ifconfig`{.docutils .literal},
+    `route`{.docutils .literal}, or ip commands (except when a container
+    is specifically engineered to behave like a router or firewall, of
+    course).
 
-This means that in most cases, containers will not need "real" root
+This means that in most cases, containers will not need “real” root
 privileges *at all*. And therefore, containers can run with a reduced
-capability set; meaning that "root" within a container has much less
-privileges than the real "root". For instance, it is possible to:
+capability set; meaning that “root” within a container has much less
+privileges than the real “root”. For instance, it is possible to:
 
--   deny all "mount" operations;
+-   deny all “mount” operations;
 -   deny access to raw sockets (to prevent packet spoofing);
 -   deny access to some filesystem operations, like creating new device
     nodes, changing the owner of files, or altering attributes
@@ -206,7 +200,7 @@ This means that even if an intruder manages to escalate to root within a
 container, it will be much harder to do serious damage, or to escalate
 to the host.
 
-This won't affect regular web apps; but malicious users will find that
+This won’t affect regular web apps; but malicious users will find that
 the arsenal at their disposal has shrunk considerably! You can see [the
 list of dropped capabilities in the Docker
 code](https://github.com/dotcloud/docker/blob/v0.5.0/lxc_template.go#L97),
@@ -217,15 +211,15 @@ Of course, you can always enable extra capabilities if you really need
 them (for instance, if you want to use a FUSE-based filesystem), but by
 default, Docker containers will be locked down to ensure maximum safety.
 
-Other Kernel Security Features
-------------------------------
+Other Kernel Security Features[¶](#other-kernel-security-features "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
 
 Capabilities are just one of the many security features provided by
 modern Linux kernels. It is also possible to leverage existing,
 well-known systems like TOMOYO, AppArmor, SELinux, GRSEC, etc. with
 Docker.
 
-While Docker currently only enables capabilities, it doesn't interfere
+While Docker currently only enables capabilities, it doesn’t interfere
 with the other systems. This means that there are many different ways to
 harden a Docker host. Here are a few examples.
 
@@ -248,8 +242,8 @@ with e.g. special network topologies or shared filesystems, you can
 expect to see tools to harden existing Docker containers without
 affecting Docker’s core.
 
-Conclusions
------------
+Conclusions[¶](#conclusions "Permalink to this headline")
+---------------------------------------------------------
 
 Docker containers are, by default, quite secure; especially if you take
 care of running your processes inside the containers as non-privileged

@@ -1,166 +1,1270 @@
-title
-:   Remote API v1.6
+[Docker Remote API v1.6](#id1)[¶](#docker-remote-api-v1-6 "Permalink to this headline")
+=======================================================================================
 
-description
-:   API Documentation for Docker
+Table of Contents
 
-keywords
-:   API, Docker, rcli, REST, documentation
+-   [Docker Remote API v1.6](#docker-remote-api-v1-6)
+    -   [1. Brief introduction](#brief-introduction)
+    -   [2. Endpoints](#endpoints)
+        -   [2.1 Containers](#containers)
+            -   [List containers](#list-containers)
+            -   [Create a container](#create-a-container)
+            -   [Inspect a container](#inspect-a-container)
+            -   [List processes running inside a
+                container](#list-processes-running-inside-a-container)
+            -   [Inspect changes on a container’s
+                filesystem](#inspect-changes-on-a-container-s-filesystem)
+            -   [Export a container](#export-a-container)
+            -   [Start a container](#start-a-container)
+            -   [Stop a container](#stop-a-container)
+            -   [Restart a container](#restart-a-container)
+            -   [Kill a container](#kill-a-container)
+            -   [Attach to a container](#attach-to-a-container)
+            -   [Wait a container](#wait-a-container)
+            -   [Remove a container](#remove-a-container)
+            -   [Copy files or folders from a
+                container](#copy-files-or-folders-from-a-container)
 
-orphan
-:   
+        -   [2.2 Images](#images)
+            -   [List Images](#list-images)
+            -   [Create an image](#create-an-image)
+            -   [Insert a file in an image](#insert-a-file-in-an-image)
+            -   [Inspect an image](#inspect-an-image)
+            -   [Get the history of an
+                image](#get-the-history-of-an-image)
+            -   [Push an image on the
+                registry](#push-an-image-on-the-registry)
+            -   [Tag an image into a
+                repository](#tag-an-image-into-a-repository)
+            -   [Remove an image](#remove-an-image)
+            -   [Search images](#search-images)
 
-Docker Remote API v1.6
-======================
+        -   [2.3 Misc](#misc)
+            -   [Build an image from Dockerfile via
+                stdin](#build-an-image-from-dockerfile-via-stdin)
+            -   [Check auth configuration](#check-auth-configuration)
+            -   [Display system-wide
+                information](#display-system-wide-information)
+            -   [Show the docker version
+                information](#show-the-docker-version-information)
+            -   [Create a new image from a container’s
+                changes](#create-a-new-image-from-a-container-s-changes)
+            -   [Monitor Docker’s events](#monitor-docker-s-events)
 
-1. Brief introduction
----------------------
+    -   [3. Going further](#going-further)
+        -   [3.1 Inside ‘docker run’](#inside-docker-run)
+        -   [3.2 Hijacking](#hijacking)
+        -   [3.3 CORS Requests](#cors-requests)
+
+[1. Brief introduction](#id2)[¶](#brief-introduction "Permalink to this headline")
+----------------------------------------------------------------------------------
 
 -   The Remote API has replaced rcli
--   The daemon listens on `unix:///var/run/docker.sock`, but you can
-    bind\_docker.
+-   The daemon listens on `unix:///var/run/docker.sock`{.docutils
+    .literal}, but you can [*Bind Docker to another host/port or a Unix
+    socket*](../../../use/basics/#bind-docker).
 -   The API tends to be REST, but for some complex commands, like
-    `attach` or `pull`, the HTTP connection is hijacked to transport
-    `stdout, stdin` and `stderr`
+    `attach`{.docutils .literal} or `pull`{.docutils .literal}, the HTTP
+    connection is hijacked to transport `stdout, stdin`{.docutils
+    .literal} and `stderr`{.docutils .literal}
 
-2. Endpoints
-------------
+[2. Endpoints](#id3)[¶](#endpoints "Permalink to this headline")
+----------------------------------------------------------------
 
-### 2.1 Containers
+### [2.1 Containers](#id4)[¶](#containers "Permalink to this headline")
 
-#### List containers
+#### [List containers](#id5)[¶](#list-containers "Permalink to this headline")
 
-#### Create a container
+ `GET `{.descname}`/containers/json`{.descname}[¶](#get--containers-json "Permalink to this definition")
+:   List containers
 
-#### Inspect a container
+    **Example request**:
 
-#### List processes running inside a container
+        GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 
-#### Inspect changes on a container's filesystem
+    **Example response**:
 
-#### Export a container
+        HTTP/1.1 200 OK
+        Content-Type: application/json
 
-#### Start a container
+        [
+             {
+                     "Id": "8dfafdbc3a40",
+                     "Image": "base:latest",
+                     "Command": "echo 1",
+                     "Created": 1367854155,
+                     "Status": "Exit 0",
+                     "Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
+                     "SizeRw":12288,
+                     "SizeRootFs":0
+             },
+             {
+                     "Id": "9cd87474be90",
+                     "Image": "base:latest",
+                     "Command": "echo 222222",
+                     "Created": 1367854155,
+                     "Status": "Exit 0",
+                     "Ports":[],
+                     "SizeRw":12288,
+                     "SizeRootFs":0
+             },
+             {
+                     "Id": "3176a2479c92",
+                     "Image": "base:latest",
+                     "Command": "echo 3333333333333333",
+                     "Created": 1367854154,
+                     "Status": "Exit 0",
+                     "Ports":[],
+                     "SizeRw":12288,
+                     "SizeRootFs":0
+             },
+             {
+                     "Id": "4cb07b47f9fb",
+                     "Image": "base:latest",
+                     "Command": "echo 444444444444444444444444444444444",
+                     "Created": 1367854152,
+                     "Status": "Exit 0",
+                     "Ports":[],
+                     "SizeRw":12288,
+                     "SizeRootFs":0
+             }
+        ]
 
-#### Stop a container
+    Query Parameters:
 
-#### Restart a container
+     
 
-#### Kill a container
+    -   **all** – 1/True/true or 0/False/false, Show all containers.
+        Only running containers are shown by default
+    -   **limit** – Show `limit`{.docutils .literal} last created
+        containers, include non-running ones.
+    -   **since** – Show only containers created since Id, include
+        non-running ones.
+    -   **before** – Show only containers created before Id, include
+        non-running ones.
+    -   **size** – 1/True/true or 0/False/false, Show the containers
+        sizes
 
-#### Attach to a container
+    Status Codes:
 
-#### Wait a container
+    -   **200** – no error
+    -   **400** – bad parameter
+    -   **500** – server error
 
-#### Remove a container
+#### [Create a container](#id6)[¶](#create-a-container "Permalink to this headline")
 
-#### Copy files or folders from a container
+ `POST `{.descname}`/containers/create`{.descname}[¶](#post--containers-create "Permalink to this definition")
+:   Create a container
 
-### 2.2 Images
+    **Example request**:
 
-#### List Images
+        POST /containers/create HTTP/1.1
+        Content-Type: application/json
 
-#### Create an image
+        {
+             "Hostname":"",
+             "User":"",
+             "Memory":0,
+             "MemorySwap":0,
+             "AttachStdin":false,
+             "AttachStdout":true,
+             "AttachStderr":true,
+             "ExposedPorts":{},
+             "Tty":false,
+             "OpenStdin":false,
+             "StdinOnce":false,
+             "Env":null,
+             "Cmd":[
+                     "date"
+             ],
+             "Dns":null,
+             "Image":"base",
+             "Volumes":{},
+             "VolumesFrom":"",
+             "WorkingDir":""
+        }
 
-#### Insert a file in an image
+    **Example response**:
 
-#### Inspect an image
+        HTTP/1.1 201 OK
+        Content-Type: application/json
 
-#### Get the history of an image
+        {
+             "Id":"e90e34656806"
+             "Warnings":[]
+        }
 
-> Content-Type: application/json
->
-> [
-> :   {
->     :   "Id":"b750fe79269d", "Created":1364102658,
->         "CreatedBy":"/bin/bash"
->
->     }, { "Id":"27cf78414709", "Created":1364068391, "CreatedBy":"" }
->
-> ]
->
-> > statuscode 200
-> > :   no error
-> >
-> > statuscode 404
-> > :   no such image
-> >
-> > statuscode 500
-> > :   server error
-> >
-#### Push an image on the registry
+    Json Parameters:
 
-#### Tag an image into a repository
+     
 
-#### Remove an image
+    -   **config** – the container’s configuration
 
-#### Search images
+    Query Parameters:
 
-### 2.3 Misc
+     
 
-#### Build an image from Dockerfile via stdin
+    -   **name** – container name to use
 
-#### Check auth configuration
+    Status Codes:
 
-> Content-Type: application/json
->
-> {
-> :   "username":"hannibal", "password:"xxxx", "email":
->     "hannibal@a-team.com" ("hannibal at a-team dot com")
->     ,
->     "serveraddress":"[https://index.docker.io/v1/](https://index.docker.io/v1/)"
->
-> }
->
-> > **Example response**:
-> >
-> > statuscode 200
-> > :   no error
-> >
-> > statuscode 204
-> > :   no error
-> >
-> > statuscode 500
-> > :   server error
-> >
-#### Display system-wide information
+    -   **201** – no error
+    -   **404** – no such container
+    -   **406** – impossible to attach (container not running)
+    -   **500** – server error
 
-#### Show the docker version information
+    **More Complex Example request, in 2 steps.** **First, use create to
+    expose a Private Port, which can be bound back to a Public Port at
+    startup**:
 
-#### Create a new image from a container's changes
+        POST /containers/create HTTP/1.1
+        Content-Type: application/json
 
-#### Monitor Docker's events
+        {
+             "Cmd":[
+                     "/usr/sbin/sshd","-D"
+             ],
+             "Image":"image-with-sshd",
+             "ExposedPorts":{"22/tcp":{}}
+             }
 
-3. Going further
-----------------
+    **Example response**:
 
-### 3.1 Inside 'docker run'
+        HTTP/1.1 201 OK
+        Content-Type: application/json
 
-Here are the steps of 'docker run' :
+        {
+             "Id":"e90e34656806"
+             "Warnings":[]
+        }
+
+    **Second, start (using the ID returned above) the image we just
+    created, mapping the ssh port 22 to something on the host**:
+
+        POST /containers/e90e34656806/start HTTP/1.1
+        Content-Type: application/json
+
+        {
+             "PortBindings": { "22/tcp": [{ "HostPort": "11022" }]}
+             }
+
+    **Example response**:
+
+        HTTP/1.1 204 No Content
+        Content-Type: text/plain; charset=utf-8
+        Content-Length: 0
+
+    **Now you can ssh into your new container on port 11022.**
+
+#### [Inspect a container](#id7)[¶](#inspect-a-container "Permalink to this headline")
+
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}[¶](#get--containers-(id)-json "Permalink to this definition")
+:   Return low-level information on the container `id`{.docutils
+    .literal}
+
+    **Example request**:
+
+        GET /containers/4fa6e0f0c678/json HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+                     "Id": "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2",
+                     "Created": "2013-05-07T14:51:42.041847+02:00",
+                     "Path": "date",
+                     "Args": [],
+                     "Config": {
+                             "Hostname": "4fa6e0f0c678",
+                             "User": "",
+                             "Memory": 0,
+                             "MemorySwap": 0,
+                             "AttachStdin": false,
+                             "AttachStdout": true,
+                             "AttachStderr": true,
+                             "ExposedPorts": {},
+                             "Tty": false,
+                             "OpenStdin": false,
+                             "StdinOnce": false,
+                             "Env": null,
+                             "Cmd": [
+                                     "date"
+                             ],
+                             "Dns": null,
+                             "Image": "base",
+                             "Volumes": {},
+                             "VolumesFrom": "",
+                             "WorkingDir":""
+
+                     },
+                     "State": {
+                             "Running": false,
+                             "Pid": 0,
+                             "ExitCode": 0,
+                             "StartedAt": "2013-05-07T14:51:42.087658+02:01360",
+                             "Ghost": false
+                     },
+                     "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+                     "NetworkSettings": {
+                             "IpAddress": "",
+                             "IpPrefixLen": 0,
+                             "Gateway": "",
+                             "Bridge": "",
+                             "PortMapping": null
+                     },
+                     "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+                     "ResolvConfPath": "/etc/resolv.conf",
+                     "Volumes": {}
+        }
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [List processes running inside a container](#id8)[¶](#list-processes-running-inside-a-container "Permalink to this headline")
+
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}[¶](#get--containers-(id)-top "Permalink to this definition")
+:   List processes running inside the container `id`{.docutils .literal}
+
+    **Example request**:
+
+        GET /containers/4fa6e0f0c678/top HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+             "Titles":[
+                     "USER",
+                     "PID",
+                     "%CPU",
+                     "%MEM",
+                     "VSZ",
+                     "RSS",
+                     "TTY",
+                     "STAT",
+                     "START",
+                     "TIME",
+                     "COMMAND"
+                     ],
+             "Processes":[
+                     ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
+                     ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
+             ]
+        }
+
+    Query Parameters:
+
+     
+
+    -   **ps\_args** – ps arguments to use (eg. aux)
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Inspect changes on a container’s filesystem](#id9)[¶](#inspect-changes-on-a-container-s-filesystem "Permalink to this headline")
+
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/changes`{.descname}[¶](#get--containers-(id)-changes "Permalink to this definition")
+:   Inspect changes on container `id`{.docutils .literal} ‘s filesystem
+
+    **Example request**:
+
+        GET /containers/4fa6e0f0c678/changes HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+             {
+                     "Path":"/dev",
+                     "Kind":0
+             },
+             {
+                     "Path":"/dev/kmsg",
+                     "Kind":1
+             },
+             {
+                     "Path":"/test",
+                     "Kind":1
+             }
+        ]
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Export a container](#id10)[¶](#export-a-container "Permalink to this headline")
+
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/export`{.descname}[¶](#get--containers-(id)-export "Permalink to this definition")
+:   Export the contents of container `id`{.docutils .literal}
+
+    **Example request**:
+
+        GET /containers/4fa6e0f0c678/export HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/octet-stream
+
+        {{ STREAM }}
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Start a container](#id11)[¶](#start-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/start`{.descname}[¶](#post--containers-(id)-start "Permalink to this definition")
+:   Start the container `id`{.docutils .literal}
+
+    **Example request**:
+
+        POST /containers/(id)/start HTTP/1.1
+        Content-Type: application/json
+
+        {
+             "Binds":["/tmp:/tmp"],
+             "LxcConf":{"lxc.utsname":"docker"},
+             "ContainerIDFile": "",
+             "Privileged": false,
+             "PortBindings": {"22/tcp": [{HostIp:"", HostPort:""}]},
+             "Links": [],
+             "PublishAllPorts": false
+        }
+
+    **Example response**:
+
+        HTTP/1.1 204 No Content
+        Content-Type: text/plain
+
+    Json Parameters:
+
+     
+
+    -   **hostConfig** – the container’s host configuration (optional)
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Stop a container](#id12)[¶](#stop-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/stop`{.descname}[¶](#post--containers-(id)-stop "Permalink to this definition")
+:   Stop the container `id`{.docutils .literal}
+
+    **Example request**:
+
+        POST /containers/e90e34656806/stop?t=5 HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Query Parameters:
+
+     
+
+    -   **t** – number of seconds to wait before killing the container
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Restart a container](#id13)[¶](#restart-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/restart`{.descname}[¶](#post--containers-(id)-restart "Permalink to this definition")
+:   Restart the container `id`{.docutils .literal}
+
+    **Example request**:
+
+        POST /containers/e90e34656806/restart?t=5 HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Query Parameters:
+
+     
+
+    -   **t** – number of seconds to wait before killing the container
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Kill a container](#id14)[¶](#kill-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/kill`{.descname}[¶](#post--containers-(id)-kill "Permalink to this definition")
+:   Kill the container `id`{.docutils .literal}
+
+    **Example request**:
+
+        POST /containers/e90e34656806/kill HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Query Parameters:
+
+     
+
+    -   **signal** – Signal to send to the container (integer). When not
+        set, SIGKILL is assumed and the call will waits for the
+        container to exit.
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Attach to a container](#id15)[¶](#attach-to-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}[¶](#post--containers-(id)-attach "Permalink to this definition")
+:   Attach to the container `id`{.docutils .literal}
+
+    **Example request**:
+
+        POST /containers/16253994b7c4/attach?logs=1&stream=0&stdout=1 HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/vnd.docker.raw-stream
+
+        {{ STREAM }}
+
+    Query Parameters:
+
+     
+
+    -   **logs** – 1/True/true or 0/False/false, return logs. Default
+        false
+    -   **stream** – 1/True/true or 0/False/false, return stream.
+        Default false
+    -   **stdin** – 1/True/true or 0/False/false, if stream=true, attach
+        to stdin. Default false
+    -   **stdout** – 1/True/true or 0/False/false, if logs=true, return
+        stdout log, if stream=true, attach to stdout. Default false
+    -   **stderr** – 1/True/true or 0/False/false, if logs=true, return
+        stderr log, if stream=true, attach to stderr. Default false
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **400** – bad parameter
+    -   **404** – no such container
+    -   **500** – server error
+
+    **Stream details**:
+
+    When using the TTY setting is enabled in
+    [`POST /containers/create`{.xref .http .http-post .docutils
+    .literal}](../docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
+    the stream is the raw data from the process PTY and client’s stdin.
+    When the TTY is disabled, then the stream is multiplexed to separate
+    stdout and stderr.
+
+    The format is a **Header** and a **Payload** (frame).
+
+    **HEADER**
+
+    The header will contain the information on which stream write the
+    stream (stdout or stderr). It also contain the size of the
+    associated frame encoded on the last 4 bytes (uint32).
+
+    It is encoded on the first 8 bytes like this:
+
+        header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+
+    `STREAM_TYPE`{.docutils .literal} can be:
+
+    -   0: stdin (will be writen on stdout)
+    -   1: stdout
+    -   2: stderr
+
+    `SIZE1, SIZE2, SIZE3, SIZE4`{.docutils .literal} are the 4 bytes of
+    the uint32 size encoded as big endian.
+
+    **PAYLOAD**
+
+    The payload is the raw stream.
+
+    **IMPLEMENTATION**
+
+    The simplest way to implement the Attach protocol is the following:
+
+    1.  Read 8 bytes
+    2.  chose stdout or stderr depending on the first byte
+    3.  Extract the frame size from the last 4 byets
+    4.  Read the extracted size and output it on the correct output
+    5.  Goto 1)
+
+#### [Wait a container](#id16)[¶](#wait-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/wait`{.descname}[¶](#post--containers-(id)-wait "Permalink to this definition")
+:   Block until container `id`{.docutils .literal} stops, then returns
+    the exit code
+
+    **Example request**:
+
+        POST /containers/16253994b7c4/wait HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"StatusCode":0}
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Remove a container](#id17)[¶](#remove-a-container "Permalink to this headline")
+
+ `DELETE `{.descname}`/containers/`{.descname}(*id*)[¶](#delete--containers-(id) "Permalink to this definition")
+:   Remove the container `id`{.docutils .literal} from the filesystem
+
+    **Example request**:
+
+        DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Query Parameters:
+
+     
+
+    -   **v** – 1/True/true or 0/False/false, Remove the volumes
+        associated to the container. Default false
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **400** – bad parameter
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Copy files or folders from a container](#id18)[¶](#copy-files-or-folders-from-a-container "Permalink to this headline")
+
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/copy`{.descname}[¶](#post--containers-(id)-copy "Permalink to this definition")
+:   Copy files or folders of container `id`{.docutils .literal}
+
+    **Example request**:
+
+        POST /containers/4fa6e0f0c678/copy HTTP/1.1
+        Content-Type: application/json
+
+        {
+             "Resource":"test.txt"
+        }
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/octet-stream
+
+        {{ STREAM }}
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+### [2.2 Images](#id19)[¶](#images "Permalink to this headline")
+
+#### [List Images](#id20)[¶](#list-images "Permalink to this headline")
+
+ `GET `{.descname}`/images/`{.descname}(*format*)[¶](#get--images-(format) "Permalink to this definition")
+:   List images `format`{.docutils .literal} could be json or viz (json
+    default)
+
+    **Example request**:
+
+        GET /images/json?all=0 HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+             {
+                     "Repository":"base",
+                     "Tag":"ubuntu-12.10",
+                     "Id":"b750fe79269d",
+                     "Created":1364102658,
+                     "Size":24653,
+                     "VirtualSize":180116135
+             },
+             {
+                     "Repository":"base",
+                     "Tag":"ubuntu-quantal",
+                     "Id":"b750fe79269d",
+                     "Created":1364102658,
+                     "Size":24653,
+                     "VirtualSize":180116135
+             }
+        ]
+
+    **Example request**:
+
+        GET /images/viz HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: text/plain
+
+        digraph docker {
+        "d82cbacda43a" -> "074be284591f"
+        "1496068ca813" -> "08306dc45919"
+        "08306dc45919" -> "0e7893146ac2"
+        "b750fe79269d" -> "1496068ca813"
+        base -> "27cf78414709" [style=invis]
+        "f71189fff3de" -> "9a33b36209ed"
+        "27cf78414709" -> "b750fe79269d"
+        "0e7893146ac2" -> "d6434d954665"
+        "d6434d954665" -> "d82cbacda43a"
+        base -> "e9aa60c60128" [style=invis]
+        "074be284591f" -> "f71189fff3de"
+        "b750fe79269d" [label="b750fe79269d\nbase",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+        "e9aa60c60128" [label="e9aa60c60128\nbase2",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+        "9a33b36209ed" [label="9a33b36209ed\ntest",shape=box,fillcolor="paleturquoise",style="filled,rounded"];
+        base [style=invisible]
+        }
+
+    Query Parameters:
+
+     
+
+    -   **all** – 1/True/true or 0/False/false, Show all containers.
+        Only running containers are shown by default
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **400** – bad parameter
+    -   **500** – server error
+
+#### [Create an image](#id21)[¶](#create-an-image "Permalink to this headline")
+
+ `POST `{.descname}`/images/create`{.descname}[¶](#post--images-create "Permalink to this definition")
+:   Create an image, either by pull it from the registry or by importing
+    it
+
+    **Example request**:
+
+        POST /images/create?fromImage=base HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"status":"Pulling..."}
+        {"status":"Pulling", "progress":"1/? (n/a)"}
+        {"error":"Invalid..."}
+        ...
+
+    When using this endpoint to pull an image from the registry, the
+    `X-Registry-Auth`{.docutils .literal} header can be used to include
+    a base64-encoded AuthConfig object.
+
+    Query Parameters:
+
+     
+
+    -   **fromImage** – name of the image to pull
+    -   **fromSrc** – source to import, - means stdin
+    -   **repo** – repository
+    -   **tag** – tag
+    -   **registry** – the registry to pull from
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+#### [Insert a file in an image](#id22)[¶](#insert-a-file-in-an-image "Permalink to this headline")
+
+ `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}[¶](#post--images-(name)-insert "Permalink to this definition")
+:   Insert a file from `url`{.docutils .literal} in the image
+    `name`{.docutils .literal} at `path`{.docutils .literal}
+
+    **Example request**:
+
+        POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"status":"Inserting..."}
+        {"status":"Inserting", "progress":"1/? (n/a)"}
+        {"error":"Invalid..."}
+        ...
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+#### [Inspect an image](#id23)[¶](#inspect-an-image "Permalink to this headline")
+
+ `GET `{.descname}`/images/`{.descname}(*name*)`/json`{.descname}[¶](#get--images-(name)-json "Permalink to this definition")
+:   Return low-level information on the image `name`{.docutils .literal}
+
+    **Example request**:
+
+        GET /images/base/json HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+             "id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+             "parent":"27cf784147099545",
+             "created":"2013-03-23T22:24:18.818426-07:00",
+             "container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+             "container_config":
+                     {
+                             "Hostname":"",
+                             "User":"",
+                             "Memory":0,
+                             "MemorySwap":0,
+                             "AttachStdin":false,
+                             "AttachStdout":false,
+                             "AttachStderr":false,
+                             "ExposedPorts":{},
+                             "Tty":true,
+                             "OpenStdin":true,
+                             "StdinOnce":false,
+                             "Env":null,
+                             "Cmd": ["/bin/bash"]
+                             ,"Dns":null,
+                             "Image":"base",
+                             "Volumes":null,
+                             "VolumesFrom":"",
+                             "WorkingDir":""
+                     },
+             "Size": 6824592
+        }
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such image
+    -   **500** – server error
+
+#### [Get the history of an image](#id24)[¶](#get-the-history-of-an-image "Permalink to this headline")
+
+ `GET `{.descname}`/images/`{.descname}(*name*)`/history`{.descname}[¶](#get--images-(name)-history "Permalink to this definition")
+:   Return the history of the image `name`{.docutils .literal}
+
+    **Example request**:
+
+        GET /images/base/history HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+             {
+                     "Id":"b750fe79269d",
+                     "Created":1364102658,
+                     "CreatedBy":"/bin/bash"
+             },
+             {
+                     "Id":"27cf78414709",
+                     "Created":1364068391,
+                     "CreatedBy":""
+             }
+        ]
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such image
+    -   **500** – server error
+
+#### [Push an image on the registry](#id25)[¶](#push-an-image-on-the-registry "Permalink to this headline")
+
+ `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}[¶](#post--images-(name)-push "Permalink to this definition")
+:   Push the image `name`{.docutils .literal} on the registry
+
+    **Example request**:
+
+        POST /images/test/push HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+    {“status”:”Pushing...”} {“status”:”Pushing”, “progress”:”1/? (n/a)”}
+    {“error”:”Invalid...”} ...
+
+    > The `X-Registry-Auth`{.docutils .literal} header can be used to
+    > include a base64-encoded AuthConfig object.
+
+    Query Parameters:
+
+     
+
+    -   **registry** – the registry you wan to push, optional
+
+    Status Codes:
+
+    -   **200** – no error :statuscode 404: no such image :statuscode
+        500: server error
+
+#### [Tag an image into a repository](#id26)[¶](#tag-an-image-into-a-repository "Permalink to this headline")
+
+ `POST `{.descname}`/images/`{.descname}(*name*)`/tag`{.descname}[¶](#post--images-(name)-tag "Permalink to this definition")
+:   Tag the image `name`{.docutils .literal} into a repository
+
+    **Example request**:
+
+        POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 201 OK
+
+    Query Parameters:
+
+     
+
+    -   **repo** – The repository to tag in
+    -   **force** – 1/True/true or 0/False/false, default false
+
+    Status Codes:
+
+    -   **201** – no error
+    -   **400** – bad parameter
+    -   **404** – no such image
+    -   **409** – conflict
+    -   **500** – server error
+
+#### [Remove an image](#id27)[¶](#remove-an-image "Permalink to this headline")
+
+ `DELETE `{.descname}`/images/`{.descname}(*name*)[¶](#delete--images-(name) "Permalink to this definition")
+:   Remove the image `name`{.docutils .literal} from the filesystem
+
+    **Example request**:
+
+        DELETE /images/test HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-type: application/json
+
+        [
+         {"Untagged":"3e2f21a89f"},
+         {"Deleted":"3e2f21a89f"},
+         {"Deleted":"53b4f83ac9"}
+        ]
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such image
+    -   **409** – conflict
+    -   **500** – server error
+
+#### [Search images](#id28)[¶](#search-images "Permalink to this headline")
+
+ `GET `{.descname}`/images/search`{.descname}[¶](#get--images-search "Permalink to this definition")
+:   Search for an image in the docker index
+
+    **Example request**:
+
+        GET /images/search?term=sshd HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+             {
+                     "Name":"cespare/sshd",
+                     "Description":""
+             },
+             {
+                     "Name":"johnfuller/sshd",
+                     "Description":""
+             },
+             {
+                     "Name":"dhrp/mongodb-sshd",
+                     "Description":""
+             }
+        ]
+
+        :query term: term to search
+        :statuscode 200: no error
+        :statuscode 500: server error
+
+### [2.3 Misc](#id29)[¶](#misc "Permalink to this headline")
+
+#### [Build an image from Dockerfile via stdin](#id30)[¶](#build-an-image-from-dockerfile-via-stdin "Permalink to this headline")
+
+ `POST `{.descname}`/build`{.descname}[¶](#post--build "Permalink to this definition")
+:   Build an image from Dockerfile via stdin
+
+    **Example request**:
+
+        POST /build HTTP/1.1
+
+        {{ STREAM }}
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+
+        {{ STREAM }}
+
+    The stream must be a tar archive compressed with one of the
+    following algorithms: identity (no compression), gzip, bzip2, xz.
+    The archive must include a file called Dockerfile at its root. It
+    may include any number of other files, which will be accessible in
+    the build context (See the ADD build command).
+
+    The Content-type header should be set to “application/tar”.
+
+    Query Parameters:
+
+     
+
+    -   **t** – repository name (and optionally a tag) to be applied to
+        the resulting image in case of success
+    -   **q** – suppress verbose build output
+    -   **nocache** – do not use the cache when building the image
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+#### [Check auth configuration](#id31)[¶](#check-auth-configuration "Permalink to this headline")
+
+ `POST `{.descname}`/auth`{.descname}[¶](#post--auth "Permalink to this definition")
+:   Get the default username and email
+
+    **Example request**:
+
+        POST /auth HTTP/1.1
+        Content-Type: application/json
+
+        {
+             "username":"hannibal",
+             "password:"xxxx",
+             "email":"hannibal@a-team.com",
+             "serveraddress":"https://index.docker.io/v1/"
+        }
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **204** – no error
+    -   **500** – server error
+
+#### [Display system-wide information](#id32)[¶](#display-system-wide-information "Permalink to this headline")
+
+ `GET `{.descname}`/info`{.descname}[¶](#get--info "Permalink to this definition")
+:   Display system-wide information
+
+    **Example request**:
+
+        GET /info HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+             "Containers":11,
+             "Images":16,
+             "Debug":false,
+             "NFd": 11,
+             "NGoroutines":21,
+             "MemoryLimit":true,
+             "SwapLimit":false,
+             "IPv4Forwarding":true
+        }
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+#### [Show the docker version information](#id33)[¶](#show-the-docker-version-information "Permalink to this headline")
+
+ `GET `{.descname}`/version`{.descname}[¶](#get--version "Permalink to this definition")
+:   Show the docker version information
+
+    **Example request**:
+
+        GET /version HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+             "Version":"0.2.2",
+             "GitCommit":"5a2a5cc+CHANGES",
+             "GoVersion":"go1.0.3"
+        }
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+#### [Create a new image from a container’s changes](#id34)[¶](#create-a-new-image-from-a-container-s-changes "Permalink to this headline")
+
+ `POST `{.descname}`/commit`{.descname}[¶](#post--commit "Permalink to this definition")
+:   Create a new image from a container’s changes
+
+    **Example request**:
+
+        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        Content-Type: application/json
+
+        {
+            "Cmd": ["cat", "/world"],
+            "ExposedPorts":{"22/tcp":{}}
+        }
+
+    **Example response**:
+
+        HTTP/1.1 201 OK
+            Content-Type: application/vnd.docker.raw-stream
+
+        {"Id":"596069db4bf5"}
+
+    Query Parameters:
+
+     
+
+    -   **container** – source container
+    -   **repo** – repository
+    -   **tag** – tag
+    -   **m** – commit message
+    -   **author** – author (eg. “John Hannibal Smith
+        \<[hannibal@a-team.com](mailto:hannibal%40a-team.com)\>”)
+
+    Status Codes:
+
+    -   **201** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+#### [Monitor Docker’s events](#id35)[¶](#monitor-docker-s-events "Permalink to this headline")
+
+ `GET `{.descname}`/events`{.descname}[¶](#get--events "Permalink to this definition")
+:   Get events from docker, either in real time via streaming, or via
+    polling (using since)
+
+    **Example request**:
+
+        GET /events?since=1374067924
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+        {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
+        {"status":"stop","id":"dfdf82bd3881","from":"base:latest","time":1374067966}
+        {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
+
+    Query Parameters:
+
+     
+
+    -   **since** – timestamp used for polling
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+[3. Going further](#id36)[¶](#going-further "Permalink to this headline")
+-------------------------------------------------------------------------
+
+### [3.1 Inside ‘docker run’](#id37)[¶](#inside-docker-run "Permalink to this headline")
+
+Here are the steps of ‘docker run’ :
 
 -   Create the container
--   If the status code is 404, it means the image doesn't exists:
+
+-   If the status code is 404, it means the image doesn’t exists:
     :   -   Try to pull it
         -   Then retry to create the container
 
 -   Start the container
+
 -   If you are not in detached mode:
     :   -   Attach to the container, using logs=1 (to have stdout and
-            stderr from the container's start) and stream=1
+            stderr from the container’s start) and stream=1
 
 -   If in detached mode or only stdin is attached:
-    :   -   Display the container's id
+    :   -   Display the container’s id
 
-### 3.2 Hijacking
+### [3.2 Hijacking](#id38)[¶](#hijacking "Permalink to this headline")
 
 In this version of the API, /attach, uses hijacking to transport stdin,
 stdout and stderr on the same socket. This might change in the future.
 
-### 3.3 CORS Requests
+### [3.3 CORS Requests](#id39)[¶](#cors-requests "Permalink to this headline")
 
 To enable cross origin requests to the remote api add the flag
-"-api-enable-cors" when running docker in daemon mode.
+“-api-enable-cors” when running docker in daemon mode.
 
-~~~~ {.sourceCode .bash}
-docker -d -H="192.168.1.9:4243" -api-enable-cors
-~~~~
+    docker -d -H="192.168.1.9:4243" -api-enable-cors

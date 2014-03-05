@@ -1,42 +1,57 @@
-title
-:   Dockerfile Reference
-
-description
-:   Dockerfiles use a simple DSL which allows you to automate the steps
-    you would normally manually take to create an image.
-
-keywords
-:   builder, docker, Dockerfile, automation, image creation
-
-Dockerfile Reference
-====================
+[Dockerfile Reference](#id2)[¶](#dockerfile-reference "Permalink to this headline")
+===================================================================================
 
 **Docker can act as a builder** and read instructions from a text
-`Dockerfile` to automate the steps you would otherwise take manually to
-create an image. Executing `docker build` will run your steps and commit
-them along the way, giving you a final image.
+`Dockerfile`{.docutils .literal} to automate the steps you would
+otherwise take manually to create an image. Executing
+`docker build`{.docutils .literal} will run your steps and commit them
+along the way, giving you a final image.
 
-1. Usage
---------
+Table of Contents
 
-To build \<cli\_build\> an image from a source repository, create a
-description file called `Dockerfile` at the root of your repository.
-This file will describe the steps to assemble the image.
+-   [Dockerfile Reference](#dockerfile-reference)
+    -   [1. Usage](#usage)
+    -   [2. Format](#format)
+    -   [3. Instructions](#instructions)
+        -   [3.1 FROM](#from)
+        -   [3.2 MAINTAINER](#maintainer)
+        -   [3.3 RUN](#run)
+            -   [Known Issues (RUN)](#known-issues-run)
 
-Then call `docker build` with the path of your source repository as
-argument (for example, `.`):
+        -   [3.4 CMD](#cmd)
+        -   [3.5 EXPOSE](#expose)
+        -   [3.6 ENV](#env)
+        -   [3.7 ADD](#add)
+        -   [3.8 ENTRYPOINT](#entrypoint)
+        -   [3.9 VOLUME](#volume)
+        -   [3.10 USER](#user)
+        -   [3.11 WORKDIR](#workdir)
+        -   [3.11 ONBUILD](#onbuild)
 
-> `sudo docker build .`
+    -   [4. Dockerfile Examples](#dockerfile-examples)
+
+[1. Usage](#id3)[¶](#usage "Permalink to this headline")
+--------------------------------------------------------
+
+To [*build*](../commandline/cli/#cli-build) an image from a source
+repository, create a description file called `Dockerfile`{.docutils
+.literal} at the root of your repository. This file will describe the
+steps to assemble the image.
+
+Then call `docker build`{.docutils .literal} with the path of your
+source repository as argument (for example, `.`{.docutils .literal}):
+
+> `sudo docker build .`{.docutils .literal}
 
 The path to the source repository defines where to find the *context* of
 the build. The build is run by the Docker daemon, not by the CLI, so the
 whole context must be transferred to the daemon. The Docker CLI reports
-"Uploading context" when the context is sent to the daemon.
+“Uploading context” when the context is sent to the daemon.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
-> `sudo docker build -t shykes/myapp .`
+> `sudo docker build -t shykes/myapp .`{.docutils .literal}
 
 The Docker daemon will run your steps one-by-one, committing the result
 to a new image if necessary, before finally outputting the ID of your
@@ -44,31 +59,32 @@ new image. The Docker daemon will automatically clean up the context you
 sent.
 
 Note that each instruction is run independently, and causes a new image
-to be created - so `RUN cd /tmp` will not have any effect on the next
-instructions.
+to be created - so `RUN cd /tmp`{.docutils .literal} will not have any
+effect on the next instructions.
 
 Whenever possible, Docker will re-use the intermediate images,
-accelerating `docker build` significantly (indicated by `Using cache`:
+accelerating `docker build`{.docutils .literal} significantly (indicated
+by `Using cache`{.docutils .literal}:
 
-~~~~ {.sourceCode .bash}
-$ docker build -t SvenDowideit/ambassador .
-Uploading context 10.24 kB
-Uploading context 
-Step 1 : FROM docker-ut
- ---> cbba202fe96b
-Step 2 : MAINTAINER SvenDowideit@home.org.au
- ---> Using cache
- ---> 51182097be13
-Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
- ---> Using cache
- ---> 1a5ffc17324d
-Successfully built 1a5ffc17324d
-~~~~
+    $ docker build -t SvenDowideit/ambassador .
+    Uploading context 10.24 kB
+    Uploading context
+    Step 1 : FROM docker-ut
+     ---> cbba202fe96b
+    Step 2 : MAINTAINER SvenDowideit@home.org.au
+     ---> Using cache
+     ---> 51182097be13
+    Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
+     ---> Using cache
+     ---> 1a5ffc17324d
+    Successfully built 1a5ffc17324d
 
-When you're done with your build, you're ready to look into image\_push.
+When you’re done with your build, you’re ready to look into [*Pushing a
+repository to its
+registry*](../../use/workingwithrepository/#image-push).
 
-2. Format
----------
+[2. Format](#id4)[¶](#format "Permalink to this headline")
+----------------------------------------------------------
 
 Here is the format of the Dockerfile:
 
@@ -79,84 +95,97 @@ The Instruction is not case-sensitive, however convention is for them to
 be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker evaluates the instructions in a Dockerfile in order. **The first
-instruction must be FROM** in order to specify the base\_image\_def from
-which you are building.
+instruction must be \`FROM\`** in order to specify the [*Base
+Image*](../../terms/image/#base-image-def) from which you are building.
 
-Docker will treat lines that *begin* with `#` as a comment. A `#` marker
-anywhere else in the line will be treated as an argument. This allows
-statements like:
+Docker will treat lines that *begin* with `#`{.docutils .literal} as a
+comment. A `#`{.docutils .literal} marker anywhere else in the line will
+be treated as an argument. This allows statements like:
 
     # Comment
     RUN echo 'we are running some # of cool things'
 
-3. Instructions
----------------
+[3. Instructions](#id5)[¶](#instructions "Permalink to this headline")
+----------------------------------------------------------------------
 
-Here is the set of instructions you can use in a `Dockerfile` for
-building images.
+Here is the set of instructions you can use in a `Dockerfile`{.docutils
+.literal} for building images.
 
-### 3.1 FROM
+### [3.1 FROM](#id6)[¶](#from "Permalink to this headline")
 
-> `FROM <image>`
+> `FROM <image>`{.docutils .literal}
 
 Or
 
-> `FROM <image>:<tag>`
+> `FROM <image>:<tag>`{.docutils .literal}
 
-The `FROM` instruction sets the base\_image\_def for subsequent
-instructions. As such, a valid Dockerfile must have `FROM` as its first
-instruction. The image can be any valid image -- it is especially easy
-to start by **pulling an image** from the using\_public\_repositories.
+The `FROM`{.docutils .literal} instruction sets the [*Base
+Image*](../../terms/image/#base-image-def) for subsequent instructions.
+As such, a valid Dockerfile must have `FROM`{.docutils .literal} as its
+first instruction. The image can be any valid image – it is especially
+easy to start by **pulling an image** from the [*Public
+Repositories*](../../use/workingwithrepository/#using-public-repositories).
 
-`FROM` must be the first non-comment instruction in the `Dockerfile`.
+`FROM`{.docutils .literal} must be the first non-comment instruction in
+the `Dockerfile`{.docutils .literal}.
 
-`FROM` can appear multiple times within a single Dockerfile in order to
-create multiple images. Simply make a note of the last image id output
-by the commit before each new `FROM` command.
+`FROM`{.docutils .literal} can appear multiple times within a single
+Dockerfile in order to create multiple images. Simply make a note of the
+last image id output by the commit before each new `FROM`{.docutils
+.literal} command.
 
-If no `tag` is given to the `FROM` instruction, `latest` is assumed. If
-the used tag does not exist, an error will be returned.
+If no `tag`{.docutils .literal} is given to the `FROM`{.docutils
+.literal} instruction, `latest`{.docutils .literal} is assumed. If the
+used tag does not exist, an error will be returned.
 
-### 3.2 MAINTAINER
+### [3.2 MAINTAINER](#id7)[¶](#maintainer "Permalink to this headline")
 
-> `MAINTAINER <name>`
+> `MAINTAINER <name>`{.docutils .literal}
 
-The `MAINTAINER` instruction allows you to set the *Author* field of the
-generated images.
+The `MAINTAINER`{.docutils .literal} instruction allows you to set the
+*Author* field of the generated images.
 
-### 3.3 RUN
+### [3.3 RUN](#id8)[¶](#run "Permalink to this headline")
 
 RUN has 2 forms:
 
--   `RUN <command>` (the command is run in a shell - `/bin/sh -c`)
--   `RUN ["executable", "param1", "param2"]` (*exec* form)
+-   `RUN <command>`{.docutils .literal} (the command is run in a shell -
+    `/bin/sh -c`{.docutils .literal})
+-   `RUN ["executable", "param1", "param2"]`{.docutils .literal} (*exec*
+    form)
 
-The `RUN` instruction will execute any commands in a new layer on top of
-the current image and commit the results. The resulting committed image
-will be used for the next step in the Dockerfile.
+The `RUN`{.docutils .literal} instruction will execute any commands in a
+new layer on top of the current image and commit the results. The
+resulting committed image will be used for the next step in the
+Dockerfile.
 
-Layering `RUN` instructions and generating commits conforms to the core
-concepts of Docker where commits are cheap and containers can be created
-from any point in an image's history, much like source control.
+Layering `RUN`{.docutils .literal} instructions and generating commits
+conforms to the core concepts of Docker where commits are cheap and
+containers can be created from any point in an image’s history, much
+like source control.
 
 The *exec* form makes it possible to avoid shell string munging, and to
-`RUN` commands using a base image that does not contain `/bin/sh`.
+`RUN`{.docutils .literal} commands using a base image that does not
+contain `/bin/sh`{.docutils .literal}.
 
-#### Known Issues (RUN)
+#### [Known Issues (RUN)](#id9)[¶](#known-issues-run "Permalink to this headline")
 
--   783 is about file permissions problems that can occur when using the
-    AUFS file system. You might notice it during an attempt to `rm` a
-    file, for example. The issue describes a workaround.
--   2424 Locale will not be set automatically.
+-   [Issue 783](https://github.com/dotcloud/docker/issues/783) is about
+    file permissions problems that can occur when using the AUFS file
+    system. You might notice it during an attempt to `rm`{.docutils
+    .literal} a file, for example. The issue describes a workaround.
+-   [Issue 2424](https://github.com/dotcloud/docker/issues/2424) Locale
+    will not be set automatically.
 
-### 3.4 CMD
+### [3.4 CMD](#id10)[¶](#cmd "Permalink to this headline")
 
 CMD has three forms:
 
--   `CMD ["executable","param1","param2"]` (like an *exec*, preferred
-    form)
--   `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
--   `CMD command param1 param2` (as a *shell*)
+-   `CMD ["executable","param1","param2"]`{.docutils .literal} (like an
+    *exec*, preferred form)
+-   `CMD ["param1","param2"]`{.docutils .literal} (as *default
+    parameters to ENTRYPOINT*)
+-   `CMD command param1 param2`{.docutils .literal} (as a *shell*)
 
 There can only be one CMD in a Dockerfile. If you list more than one CMD
 then only the last CMD will take effect.
@@ -165,219 +194,239 @@ then only the last CMD will take effect.
 container.** These defaults can include an executable, or they can omit
 the executable, in which case you must specify an ENTRYPOINT as well.
 
-When used in the shell or exec formats, the `CMD` instruction sets the
-command to be executed when running the image. This is functionally
-equivalent to running `docker commit -run '{"Cmd": <command>}'` outside
+When used in the shell or exec formats, the `CMD`{.docutils .literal}
+instruction sets the command to be executed when running the image. This
+is functionally equivalent to running
+`docker commit -run '{"Cmd": <command>}'`{.docutils .literal} outside
 the builder.
 
-If you use the *shell* form of the CMD, then the `<command>` will
-execute in `/bin/sh -c`:
+If you use the *shell* form of the CMD, then the `<command>`{.docutils
+.literal} will execute in `/bin/sh -c`{.docutils .literal}:
 
-~~~~ {.sourceCode .bash}
-FROM ubuntu
-CMD echo "This is a test." | wc -
-~~~~
+    FROM ubuntu
+    CMD echo "This is a test." | wc -
 
-If you want to **run your** `<command>` **without a shell** then you
-must express the command as a JSON array and give the full path to the
-executable. **This array form is the preferred format of CMD.** Any
-additional parameters must be individually expressed as strings in the
-array:
+If you want to **run your** `<command>`{.docutils .literal} **without a
+shell** then you must express the command as a JSON array and give the
+full path to the executable. **This array form is the preferred format
+of CMD.** Any additional parameters must be individually expressed as
+strings in the array:
 
-~~~~ {.sourceCode .bash}
-FROM ubuntu
-CMD ["/usr/bin/wc","--help"]
-~~~~
+    FROM ubuntu
+    CMD ["/usr/bin/wc","--help"]
 
 If you would like your container to run the same executable every time,
-then you should consider using `ENTRYPOINT` in combination with `CMD`.
-See dockerfile\_entrypoint.
+then you should consider using `ENTRYPOINT`{.docutils .literal} in
+combination with `CMD`{.docutils .literal}. See [*3.8
+ENTRYPOINT*](#dockerfile-entrypoint).
 
-If the user specifies arguments to `docker run` then they will override
-the default specified in CMD.
+If the user specifies arguments to `docker run`{.docutils .literal} then
+they will override the default specified in CMD.
 
-> **note**
->
-> Don't confuse `RUN` with `CMD`. `RUN` actually runs a
-> :   command and commits the result; `CMD` does not execute anything at
->     build time, but specifies the intended command for the image.
->
-### 3.5 EXPOSE
+Note
 
-> `EXPOSE <port> [<port>...]`
+Don’t confuse `RUN`{.docutils .literal} with `CMD`{.docutils .literal}.
+`RUN`{.docutils .literal} actually runs a command and commits the
+result; `CMD`{.docutils .literal} does not execute anything at build
+time, but specifies the intended command for the image.
 
-The `EXPOSE` instruction exposes ports for use within links. This is
-functionally equivalent to running
-`docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'` outside the
-builder. Refer to port\_redirection for detailed information.
+### [3.5 EXPOSE](#id11)[¶](#expose "Permalink to this headline")
 
-### 3.6 ENV
+> `EXPOSE <port> [<port>...]`{.docutils .literal}
 
-> `ENV <key> <value>`
+The `EXPOSE`{.docutils .literal} instruction exposes ports for use
+within links. This is functionally equivalent to running
+`docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`{.docutils
+.literal} outside the builder. Refer to [*Redirect
+Ports*](../../use/port_redirection/#port-redirection) for detailed
+information.
 
-The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be passed to all future `RUN` instructions.
-This is functionally equivalent to prefixing the command with
-`<key>=<value>`
+### [3.6 ENV](#id12)[¶](#env "Permalink to this headline")
 
-The environment variables set using `ENV` will persist when a container
-is run from the resulting image. You can view the values using
-`docker inspect`, and change them using
-`docker run --env <key>=<value>`.
+> `ENV <key> <value>`{.docutils .literal}
 
-> **note**
->
-> One example where this can cause unexpected consequenses, is setting
-> :   `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the
->     container is run interactively; for example:
->     `docker run -t -i image bash`
->
-### 3.7 ADD
+The `ENV`{.docutils .literal} instruction sets the environment variable
+`<key>`{.docutils .literal} to the value `<value>`{.docutils .literal}.
+This value will be passed to all future `RUN`{.docutils .literal}
+instructions. This is functionally equivalent to prefixing the command
+with `<key>=<value>`{.docutils .literal}
 
-> `ADD <src> <dest>`
+The environment variables set using `ENV`{.docutils .literal} will
+persist when a container is run from the resulting image. You can view
+the values using `docker inspect`{.docutils .literal}, and change them
+using `docker run --env <key>=<value>`{.docutils .literal}.
 
-The `ADD` instruction will copy new files from \<src\> and add them to
-the container's filesystem at path `<dest>`.
+Note
 
-`<src>` must be the path to a file or directory relative to the source
-directory being built (also called the *context* of the build) or a
-remote file URL.
+One example where this can cause unexpected consequenses, is setting
+`ENV DEBIAN_FRONTEND noninteractive`{.docutils .literal}. Which will
+persist when the container is run interactively; for example:
+`docker run -t -i image bash`{.docutils .literal}
 
-`<dest>` is the absolute path to which the source will be copied inside
-the destination container.
+### [3.7 ADD](#id13)[¶](#add "Permalink to this headline")
+
+> `ADD <src> <dest>`{.docutils .literal}
+
+The `ADD`{.docutils .literal} instruction will copy new files from
+\<src\> and add them to the container’s filesystem at path
+`<dest>`{.docutils .literal}.
+
+`<src>`{.docutils .literal} must be the path to a file or directory
+relative to the source directory being built (also called the *context*
+of the build) or a remote file URL.
+
+`<dest>`{.docutils .literal} is the absolute path to which the source
+will be copied inside the destination container.
 
 All new files and directories are created with mode 0755, uid and gid 0.
 
-> **note**
->
-> if you build using STDIN (`docker build - < somefile`), there is no
-> build context, so the Dockerfile can only contain an URL based ADD
-> statement.
+Note
 
-> **note**
->
-> if your URL files are protected using authentication, you will need to
-> use an `RUN wget` , `RUN curl` or other tool from within the container
-> as ADD does not support authentication.
+if you build using STDIN (`docker build - < somefile`{.docutils
+.literal}), there is no build context, so the Dockerfile can only
+contain an URL based ADD statement.
+
+Note
+
+if your URL files are protected using authentication, you will need to
+use an `RUN wget`{.docutils .literal} , `RUN curl`{.docutils .literal}
+or other tool from within the container as ADD does not support
+authentication.
 
 The copy obeys the following rules:
 
--   The `<src>` path must be inside the *context* of the build; you
-    cannot `ADD ../something /something`, because the first step of a
-    `docker build` is to send the context directory (and subdirectories)
-    to the docker daemon.
--   If `<src>` is a URL and `<dest>` does not end with a trailing slash,
-    then a file is downloaded from the URL and copied to `<dest>`.
--   If `<src>` is a URL and `<dest>` does end with a trailing slash,
-    then the filename is inferred from the URL and the file is
-    downloaded to `<dest>/<filename>`. For instance,
-    `ADD http://example.com/foobar /` would create the file `/foobar`.
-    The URL must have a nontrivial path so that an appropriate filename
-    can be discovered in this case (`http://example.com` will not work).
--   If `<src>` is a directory, the entire directory is copied, including
-    filesystem metadata.
--   If `<src>` is a *local* tar archive in a recognized compression
-    format (identity, gzip, bzip2 or xz) then it is unpacked as a
-    directory. Resources from *remote* URLs are **not** decompressed.
+-   The `<src>`{.docutils .literal} path must be inside the *context* of
+    the build; you cannot `ADD ../something /something`{.docutils
+    .literal}, because the first step of a `docker build`{.docutils
+    .literal} is to send the context directory (and subdirectories) to
+    the docker daemon.
+
+-   If `<src>`{.docutils .literal} is a URL and `<dest>`{.docutils
+    .literal} does not end with a trailing slash, then a file is
+    downloaded from the URL and copied to `<dest>`{.docutils .literal}.
+
+-   If `<src>`{.docutils .literal} is a URL and `<dest>`{.docutils
+    .literal} does end with a trailing slash, then the filename is
+    inferred from the URL and the file is downloaded to
+    `<dest>/<filename>`{.docutils .literal}. For instance,
+    `ADD http://example.com/foobar /`{.docutils .literal} would create
+    the file `/foobar`{.docutils .literal}. The URL must have a
+    nontrivial path so that an appropriate filename can be discovered in
+    this case (`http://example.com`{.docutils .literal} will not work).
+
+-   If `<src>`{.docutils .literal} is a directory, the entire directory
+    is copied, including filesystem metadata.
+
+-   If `<src>`{.docutils .literal} is a *local* tar archive in a
+    recognized compression format (identity, gzip, bzip2 or xz) then it
+    is unpacked as a directory. Resources from *remote* URLs are **not**
+    decompressed.
 
     When a directory is copied or unpacked, it has the same behavior as
-    `tar -x`: the result is the union of
+    `tar -x`{.docutils .literal}: the result is the union of
 
     1.  whatever existed at the destination path and
     2.  the contents of the source tree,
 
-    with conflicts resolved in favor of "2." on a file-by-file basis.
+    with conflicts resolved in favor of “2.” on a file-by-file basis.
 
--   If `<src>` is any other kind of file, it is copied individually
-    along with its metadata. In this case, if `<dest>` ends with a
-    trailing slash `/`, it will be considered a directory and the
-    contents of `<src>` will be written at `<dest>/base(<src>)`.
--   If `<dest>` does not end with a trailing slash, it will be
-    considered a regular file and the contents of `<src>` will be
-    written at `<dest>`.
--   If `<dest>` doesn't exist, it is created along with all missing
-    directories in its path.
+-   If `<src>`{.docutils .literal} is any other kind of file, it is
+    copied individually along with its metadata. In this case, if
+    `<dest>`{.docutils .literal} ends with a trailing slash
+    `/`{.docutils .literal}, it will be considered a directory and the
+    contents of `<src>`{.docutils .literal} will be written at
+    `<dest>/base(<src>)`{.docutils .literal}.
 
-### 3.8 ENTRYPOINT
+-   If `<dest>`{.docutils .literal} does not end with a trailing slash,
+    it will be considered a regular file and the contents of
+    `<src>`{.docutils .literal} will be written at `<dest>`{.docutils
+    .literal}.
+
+-   If `<dest>`{.docutils .literal} doesn’t exist, it is created along
+    with all missing directories in its path.
+
+### [3.8 ENTRYPOINT](#id14)[¶](#entrypoint "Permalink to this headline")
 
 ENTRYPOINT has two forms:
 
--   `ENTRYPOINT ["executable", "param1", "param2"]` (like an *exec*,
-    preferred form)
--   `ENTRYPOINT command param1 param2` (as a *shell*)
+-   `ENTRYPOINT ["executable", "param1", "param2"]`{.docutils .literal}
+    (like an *exec*, preferred form)
+-   `ENTRYPOINT command param1 param2`{.docutils .literal} (as a
+    *shell*)
 
-There can only be one `ENTRYPOINT` in a Dockerfile. If you have more
-than one `ENTRYPOINT`, then only the last one in the Dockerfile will
-have an effect.
+There can only be one `ENTRYPOINT`{.docutils .literal} in a Dockerfile.
+If you have more than one `ENTRYPOINT`{.docutils .literal}, then only
+the last one in the Dockerfile will have an effect.
 
-An `ENTRYPOINT` helps you to configure a container that you can run as
-an executable. That is, when you specify an `ENTRYPOINT`, then the whole
-container runs as if it was just that executable.
+An `ENTRYPOINT`{.docutils .literal} helps you to configure a container
+that you can run as an executable. That is, when you specify an
+`ENTRYPOINT`{.docutils .literal}, then the whole container runs as if it
+was just that executable.
 
-The `ENTRYPOINT` instruction adds an entry command that will **not** be
-overwritten when arguments are passed to `docker run`, unlike the
-behavior of `CMD`. This allows arguments to be passed to the entrypoint.
-i.e. `docker run <image> -d` will pass the "-d" argument to the
-ENTRYPOINT.
+The `ENTRYPOINT`{.docutils .literal} instruction adds an entry command
+that will **not** be overwritten when arguments are passed to
+`docker run`{.docutils .literal}, unlike the behavior of `CMD`{.docutils
+.literal}. This allows arguments to be passed to the entrypoint. i.e.
+`docker run <image> -d`{.docutils .literal} will pass the “-d” argument
+to the ENTRYPOINT.
 
 You can specify parameters either in the ENTRYPOINT JSON array (as in
-"like an exec" above), or by using a CMD statement. Parameters in the
-ENTRYPOINT will not be overridden by the `docker run` arguments, but
-parameters specified via CMD will be overridden by `docker run`
-arguments.
+“like an exec” above), or by using a CMD statement. Parameters in the
+ENTRYPOINT will not be overridden by the `docker run`{.docutils
+.literal} arguments, but parameters specified via CMD will be overridden
+by `docker run`{.docutils .literal} arguments.
 
-Like a `CMD`, you can specify a plain string for the ENTRYPOINT and it
-will execute in `/bin/sh -c`:
+Like a `CMD`{.docutils .literal}, you can specify a plain string for the
+ENTRYPOINT and it will execute in `/bin/sh -c`{.docutils .literal}:
 
-~~~~ {.sourceCode .bash}
-FROM ubuntu
-ENTRYPOINT wc -l -
-~~~~
+    FROM ubuntu
+    ENTRYPOINT wc -l -
 
-For example, that Dockerfile's image will *always* take stdin as input
-("-") and print the number of lines ("-l"). If you wanted to make this
+For example, that Dockerfile’s image will *always* take stdin as input
+(“-”) and print the number of lines (“-l”). If you wanted to make this
 optional but default, you could use a CMD:
 
-~~~~ {.sourceCode .bash}
-FROM ubuntu
-CMD ["-l", "-"]
-ENTRYPOINT ["/usr/bin/wc"]
-~~~~
+    FROM ubuntu
+    CMD ["-l", "-"]
+    ENTRYPOINT ["/usr/bin/wc"]
 
-### 3.9 VOLUME
+### [3.9 VOLUME](#id15)[¶](#volume "Permalink to this headline")
 
-> `VOLUME ["/data"]`
+> `VOLUME ["/data"]`{.docutils .literal}
 
-The `VOLUME` instruction will create a mount point with the specified
-name and mark it as holding externally mounted volumes from native host
-or other containers. For more information/examples and mounting
-instructions via docker client, refer to volume\_def documentation.
+The `VOLUME`{.docutils .literal} instruction will create a mount point
+with the specified name and mark it as holding externally mounted
+volumes from native host or other containers. For more
+information/examples and mounting instructions via docker client, refer
+to [*Share Directories via
+Volumes*](../../use/working_with_volumes/#volume-def) documentation.
 
-### 3.10 USER
+### [3.10 USER](#id16)[¶](#user "Permalink to this headline")
 
-> `USER daemon`
+> `USER daemon`{.docutils .literal}
 
-The `USER` instruction sets the username or UID to use when running the
-image.
+The `USER`{.docutils .literal} instruction sets the username or UID to
+use when running the image.
 
-### 3.11 WORKDIR
+### [3.11 WORKDIR](#id17)[¶](#workdir "Permalink to this headline")
 
-> `WORKDIR /path/to/workdir`
+> `WORKDIR /path/to/workdir`{.docutils .literal}
 
-The `WORKDIR` instruction sets the working directory for the `RUN`,
-`CMD` and `ENTRYPOINT` Dockerfile commands that follow it.
+The `WORKDIR`{.docutils .literal} instruction sets the working directory
+for the `RUN`{.docutils .literal}, `CMD`{.docutils .literal} and
+`ENTRYPOINT`{.docutils .literal} Dockerfile commands that follow it.
 
 It can be used multiple times in the one Dockerfile.
 
-### 3.11 ONBUILD
+### [3.11 ONBUILD](#id18)[¶](#onbuild "Permalink to this headline")
 
-> `ONBUILD [INSTRUCTION]`
+> `ONBUILD [INSTRUCTION]`{.docutils .literal}
 
-The `ONBUILD` instruction adds to the image a "trigger" instruction to
-be executed at a later time, when the image is used as the base for
-another build. The trigger will be executed in the context of the
-downstream build, as if it had been inserted immediately after the
-*FROM* instruction in the downstream Dockerfile.
+The `ONBUILD`{.docutils .literal} instruction adds to the image a
+“trigger” instruction to be executed at a later time, when the image is
+used as the base for another build. The trigger will be executed in the
+context of the downstream build, as if it had been inserted immediately
+after the *FROM* instruction in the downstream Dockerfile.
 
 Any build instruction can be registered as a trigger.
 
@@ -388,7 +437,7 @@ daemon which may be customized with user-specific configuration.
 For example, if your image is a reusable python application builder, it
 will require application source code to be added in a particular
 directory, and it might require a build script to be called *after*
-that. You can't just call *ADD* and *RUN* now, because you don't yet
+that. You can’t just call *ADD* and *RUN* now, because you don’t yet
 have access to the application source code, and it will be different for
 each application build. You could simply provide application developers
 with a boilerplate Dockerfile to copy-paste into their application, but
@@ -398,7 +447,7 @@ mixes with application-specific code.
 The solution is to use *ONBUILD* to register in advance instructions to
 run later, during the next build stage.
 
-Here's how it works:
+Here’s how it works:
 
 1.  When it encounters an *ONBUILD* instruction, the builder adds a
     trigger to the metadata of the image being built. The instruction
@@ -414,78 +463,70 @@ Here's how it works:
     build to fail. If all triggers succeed, the FROM instruction
     completes and the build continues as usual.
 4.  Triggers are cleared from the final image after being executed. In
-    other words they are not inherited by "grand-children" builds.
+    other words they are not inherited by “grand-children” builds.
 
 For example you might add something like this:
 
-~~~~ {.sourceCode .bash}
-[...]
-ONBUILD ADD . /app/src
-ONBUILD RUN /usr/local/bin/python-build --dir /app/src
-[...]
-~~~~
+    [...]
+    ONBUILD ADD . /app/src
+    ONBUILD RUN /usr/local/bin/python-build --dir /app/src
+    [...]
 
-> **warning**
->
-> Chaining ONBUILD instructions using ONBUILD ONBUILD isn't allowed.
+Warning
 
-> **warning**
->
-> ONBUILD may not trigger FROM or MAINTAINER instructions.
+Chaining ONBUILD instructions using ONBUILD ONBUILD isn’t allowed.
 
-4. Dockerfile Examples
-----------------------
+Warning
 
-~~~~ {.sourceCode .bash}
-# Nginx
-#
-# VERSION               0.0.1
+ONBUILD may not trigger FROM or MAINTAINER instructions.
 
-FROM      ubuntu
-MAINTAINER Guillaume J. Charmes <guillaume@dotcloud.com>
+[4. Dockerfile Examples](#id19)[¶](#dockerfile-examples "Permalink to this headline")
+-------------------------------------------------------------------------------------
 
-# make sure the package repository is up to date
-RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-RUN apt-get update
+    # Nginx
+    #
+    # VERSION               0.0.1
 
-RUN apt-get install -y inotify-tools nginx apache2 openssh-server
-~~~~
+    FROM      ubuntu
+    MAINTAINER Guillaume J. Charmes <guillaume@dotcloud.com>
 
-~~~~ {.sourceCode .bash}
-# Firefox over VNC
-#
-# VERSION               0.3
+    # make sure the package repository is up to date
+    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
+    RUN apt-get update
 
-FROM ubuntu
-# make sure the package repository is up to date
-RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-RUN apt-get update
+    RUN apt-get install -y inotify-tools nginx apache2 openssh-server
 
-# Install vnc, xvfb in order to create a 'fake' display and firefox
-RUN apt-get install -y x11vnc xvfb firefox
-RUN mkdir /.vnc
-# Setup a password
-RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
-# Autostart firefox (might not be the best way, but it does the trick)
-RUN bash -c 'echo "firefox" >> /.bashrc'
+    # Firefox over VNC
+    #
+    # VERSION               0.3
 
-EXPOSE 5900
-CMD    ["x11vnc", "-forever", "-usepw", "-create"]
-~~~~
+    FROM ubuntu
+    # make sure the package repository is up to date
+    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
+    RUN apt-get update
 
-~~~~ {.sourceCode .bash}
-# Multiple images example
-#
-# VERSION               0.1
+    # Install vnc, xvfb in order to create a 'fake' display and firefox
+    RUN apt-get install -y x11vnc xvfb firefox
+    RUN mkdir /.vnc
+    # Setup a password
+    RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
+    # Autostart firefox (might not be the best way, but it does the trick)
+    RUN bash -c 'echo "firefox" >> /.bashrc'
 
-FROM ubuntu
-RUN echo foo > bar
-# Will output something like ===> 907ad6c2736f
+    EXPOSE 5900
+    CMD    ["x11vnc", "-forever", "-usepw", "-create"]
 
-FROM ubuntu
-RUN echo moo > oink
-# Will output something like ===> 695d7793cbe4
+    # Multiple images example
+    #
+    # VERSION               0.1
 
-# You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
-# /oink.
-~~~~
+    FROM ubuntu
+    RUN echo foo > bar
+    # Will output something like ===> 907ad6c2736f
+
+    FROM ubuntu
+    RUN echo moo > oink
+    # Will output something like ===> 695d7793cbe4
+
+    # You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+    # /oink.

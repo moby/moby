@@ -1,16 +1,7 @@
-title
-:   File Systems
+File System[¶](#file-system "Permalink to this headline")
+=========================================================
 
-description
-:   How Linux organizes its persistent storage
-
-keywords
-:   containers, files, linux
-
-File System
-===========
-
-![image](images/docker-filesystems-generic.png)
+![](../../_images/docker-filesystems-generic.png)
 
 In order for a Linux system to run, it typically needs two [file
 systems](http://en.wikipedia.org/wiki/Filesystem):
@@ -26,9 +17,10 @@ initrd disk image.
 
 The **root file system** includes the typical directory structure we
 associate with Unix-like operating systems:
-`/dev, /proc, /bin, /etc, /lib, /usr,` and `/tmp` plus all the
-configuration files, binaries and libraries required to run user
-applications (like bash, ls, and so forth).
+`/dev, /proc, /bin, /etc, /lib, /usr,`{.docutils .literal} and
+`/tmp`{.docutils .literal} plus all the configuration files, binaries
+and libraries required to run user applications (like bash, ls, and so
+forth).
 
 While there can be important kernel differences between different Linux
 distributions, the contents and organization of the root file system are
@@ -36,4 +28,4 @@ usually what make your software packages dependent on one distribution
 versus another. Docker can help solve this problem by running multiple
 distributions at the same time.
 
-![image](images/docker-filesystems-multiroot.png)
+![](../../_images/docker-filesystems-multiroot.png)

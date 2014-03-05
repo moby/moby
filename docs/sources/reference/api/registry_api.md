@@ -1,17 +1,8 @@
-title
-:   Registry API
+Docker Registry API[¶](#docker-registry-api "Permalink to this headline")
+=========================================================================
 
-description
-:   API Documentation for Docker Registry
-
-keywords
-:   API, Docker, index, registry, REST, documentation
-
-Docker Registry API
-===================
-
-1. Brief introduction
----------------------
+1. Brief introduction[¶](#brief-introduction "Permalink to this headline")
+--------------------------------------------------------------------------
 
 -   This is the REST API for the Docker Registry
 -   It stores the images and the graph for a set of repositories
@@ -55,44 +46,454 @@ grasp the context, here are some examples of registries:
     control. It can optionally delegate additional authorization to the
     Index, but it is not mandatory.
 
-> **note**
->
-> Mirror registries and private registries which do not use the Index
-> don’t even need to run the registry code. They can be implemented by
-> any kind of transport implementing HTTP GET and PUT. Read-only
-> registries can be powered by a simple static HTTP server.
+Note
 
-> **note**
->
-> The latter implies that while HTTP is the protocol of choice for a registry, multiple schemes are possible (and in some cases, trivial):
-> :   -   HTTP with GET (and PUT for read-write registries);
->     -   local mount point;
->     -   remote docker addressed through SSH.
->
+Mirror registries and private registries which do not use the Index
+don’t even need to run the registry code. They can be implemented by any
+kind of transport implementing HTTP GET and PUT. Read-only registries
+can be powered by a simple static HTTP server.
+
+Note
+
+The latter implies that while HTTP is the protocol of choice for a registry, multiple schemes are possible (and in some cases, trivial):
+:   -   HTTP with GET (and PUT for read-write registries);
+    -   local mount point;
+    -   remote docker addressed through SSH.
+
 The latter would only require two new commands in docker, e.g.
-`registryget` and `registryput`, wrapping access to the local filesystem
-(and optionally doing consistency checks). Authentication and
-authorization are then delegated to SSH (e.g. with public keys).
+`registryget`{.docutils .literal} and `registryput`{.docutils .literal},
+wrapping access to the local filesystem (and optionally doing
+consistency checks). Authentication and authorization are then delegated
+to SSH (e.g. with public keys).
 
-2. Endpoints
-------------
+2. Endpoints[¶](#endpoints "Permalink to this headline")
+--------------------------------------------------------
 
-### 2.1 Images
+### 2.1 Images[¶](#images "Permalink to this headline")
 
-#### Layer
+#### Layer[¶](#layer "Permalink to this headline")
 
-#### Image
+ `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}[¶](#get--v1-images-(image_id)-layer "Permalink to this definition")
+:   get image layer for a given `image_id`{.docutils .literal}
 
-#### Ancestry
+    **Example Request**:
 
-### 2.2 Tags
+        GET /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/layer HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Authorization: Token signature=123abc,repository="foo/bar",access=read
 
-### 2.3 Repositories
+    Parameters:
 
-### 2.4 Status
+    -   **image\_id** – the id for the layer you want to get
 
-3 Authorization
----------------
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        X-Docker-Registry-Version: 0.6.0
+        Cookie: (Cookie provided by the Registry)
+
+        {layer binary data stream}
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Image not found
+
+ `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}[¶](#put--v1-images-(image_id)-layer "Permalink to this definition")
+:   put image layer for a given `image_id`{.docutils .literal}
+
+    **Example Request**:
+
+        PUT /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/layer HTTP/1.1
+        Host: registry-1.docker.io
+        Transfer-Encoding: chunked
+        Authorization: Token signature=123abc,repository="foo/bar",access=write
+
+        {layer binary data stream}
+
+    Parameters:
+
+    -   **image\_id** – the id for the layer you want to get
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Image not found
+
+#### Image[¶](#image "Permalink to this headline")
+
+ `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}[¶](#put--v1-images-(image_id)-json "Permalink to this definition")
+:   put image for a given `image_id`{.docutils .literal}
+
+    **Example Request**:
+
+        PUT /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/json HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+        {
+            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
+            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
+            created: "2013-04-30T17:46:10.843673+03:00",
+            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
+            container_config: {
+                Hostname: "host-test",
+                User: "",
+                Memory: 0,
+                MemorySwap: 0,
+                AttachStdin: false,
+                AttachStdout: false,
+                AttachStderr: false,
+                PortSpecs: null,
+                Tty: false,
+                OpenStdin: false,
+                StdinOnce: false,
+                Env: null,
+                Cmd: [
+                "/bin/bash",
+                "-c",
+                "apt-get -q -yy -f install libevent-dev"
+                ],
+                Dns: null,
+                Image: "imagename/blah",
+                Volumes: { },
+                VolumesFrom: ""
+            },
+            docker_version: "0.1.7"
+        }
+
+    Parameters:
+
+    -   **image\_id** – the id for the layer you want to get
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+
+ `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}[¶](#get--v1-images-(image_id)-json "Permalink to this definition")
+:   get image for a given `image_id`{.docutils .literal}
+
+    **Example Request**:
+
+        GET /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/json HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+    Parameters:
+
+    -   **image\_id** – the id for the layer you want to get
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+        X-Docker-Size: 456789
+        X-Docker-Checksum: b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087
+
+        {
+            id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",
+            parent: "aeee6396d62273d180a49c96c62e45438d87c7da4a5cf5d2be6bee4e21bc226f",
+            created: "2013-04-30T17:46:10.843673+03:00",
+            container: "8305672a76cc5e3d168f97221106ced35a76ec7ddbb03209b0f0d96bf74f6ef7",
+            container_config: {
+                Hostname: "host-test",
+                User: "",
+                Memory: 0,
+                MemorySwap: 0,
+                AttachStdin: false,
+                AttachStdout: false,
+                AttachStderr: false,
+                PortSpecs: null,
+                Tty: false,
+                OpenStdin: false,
+                StdinOnce: false,
+                Env: null,
+                Cmd: [
+                "/bin/bash",
+                "-c",
+                "apt-get -q -yy -f install libevent-dev"
+                ],
+                Dns: null,
+                Image: "imagename/blah",
+                Volumes: { },
+                VolumesFrom: ""
+            },
+            docker_version: "0.1.7"
+        }
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Image not found
+
+#### Ancestry[¶](#ancestry "Permalink to this headline")
+
+ `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/ancestry`{.descname}[¶](#get--v1-images-(image_id)-ancestry "Permalink to this definition")
+:   get ancestry for an image given an `image_id`{.docutils .literal}
+
+    **Example Request**:
+
+        GET /v1/images/088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c/ancestry HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+    Parameters:
+
+    -   **image\_id** – the id for the layer you want to get
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ["088b4502f51920fbd9b7c503e87c7a2c05aa3adc3d35e79c031fa126b403200f",
+         "aeee63968d87c7da4a5cf5d2be6bee4e21bc226fd62273d180a49c96c62e4543",
+         "bfa4c5326bc764280b0863b46a4b20d940bc1897ef9c1dfec060604bdc383280",
+         "6ab5893c6927c15a15665191f2c6cf751f5056d8b95ceee32e43c5e8a3648544"]
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Image not found
+
+### 2.2 Tags[¶](#tags "Permalink to this headline")
+
+ `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags`{.descname}[¶](#get--v1-repositories-(namespace)-(repository)-tags "Permalink to this definition")
+:   get all of the tags for the given repo.
+
+    **Example Request**:
+
+        GET /v1/repositories/foo/bar/tags HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+        Cookie: (Cookie provided by the Registry)
+
+    Parameters:
+
+    -   **namespace** – namespace for the repo
+    -   **repository** – name for the repo
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        {
+            "latest": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
+            "0.1.1":  "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"
+        }
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Repository not found
+
+ `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)[¶](#get--v1-repositories-(namespace)-(repository)-tags-(tag) "Permalink to this definition")
+:   get a tag for the given repo.
+
+    **Example Request**:
+
+        GET /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+        Cookie: (Cookie provided by the Registry)
+
+    Parameters:
+
+    -   **namespace** – namespace for the repo
+    -   **repository** – name for the repo
+    -   **tag** – name of tag you want to get
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Tag not found
+
+ `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)[¶](#delete--v1-repositories-(namespace)-(repository)-tags-(tag) "Permalink to this definition")
+:   delete the tag for the repo
+
+    **Example Request**:
+
+        DELETE /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+    Parameters:
+
+    -   **namespace** – namespace for the repo
+    -   **repository** – name for the repo
+    -   **tag** – name of tag you want to delete
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Tag not found
+
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)[¶](#put--v1-repositories-(namespace)-(repository)-tags-(tag) "Permalink to this definition")
+:   put a tag for the given repo.
+
+    **Example Request**:
+
+        PUT /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+        "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
+
+    Parameters:
+
+    -   **namespace** – namespace for the repo
+    -   **repository** – name for the repo
+    -   **tag** – name of tag you want to add
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **400** – Invalid data
+    -   **401** – Requires authorization
+    -   **404** – Image not found
+
+### 2.3 Repositories[¶](#repositories "Permalink to this headline")
+
+ `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/`{.descname}[¶](#delete--v1-repositories-(namespace)-(repository)- "Permalink to this definition")
+:   delete a repository
+
+    **Example Request**:
+
+        DELETE /v1/repositories/foo/bar/ HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+        Cookie: (Cookie provided by the Registry)
+
+        ""
+
+    Parameters:
+
+    -   **namespace** – namespace for the repo
+    -   **repository** – name for the repo
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    Status Codes:
+
+    -   **200** – OK
+    -   **401** – Requires authorization
+    -   **404** – Repository not found
+
+### 2.4 Status[¶](#status "Permalink to this headline")
+
+ `GET `{.descname}`/v1/_ping`{.descname}[¶](#get--v1-_ping "Permalink to this definition")
+:   Check status of the registry. This endpoint is also used to
+    determine if the registry supports SSL.
+
+    **Example Request**:
+
+        GET /v1/_ping HTTP/1.1
+        Host: registry-1.docker.io
+        Accept: application/json
+        Content-Type: application/json
+
+        ""
+
+    **Example Response**:
+
+        HTTP/1.1 200
+        Vary: Accept
+        Content-Type: application/json
+        X-Docker-Registry-Version: 0.6.0
+
+        ""
+
+    Status Codes:
+
+    -   **200** – OK
+
+3 Authorization[¶](#authorization "Permalink to this headline")
+---------------------------------------------------------------
 
 This is where we describe the authorization process, including the
 tokens and cookies.
