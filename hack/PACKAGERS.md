@@ -16,6 +16,11 @@ same distro!
 You can also join the IRC channel - #docker and #docker-dev on Freenode are both
 active and friendly.
 
+We like to refer to Tianon ("@tianon" on GitHub and "tianon" on IRC) as our
+"Packagers Relations", since he's always working to make sure our packagers have
+a good, healthy upstream to work with (both in our communication and in our
+build scripts). If you're having any kind of trouble, feel free to ping him
+directly.
 
 ## Package Name
 
