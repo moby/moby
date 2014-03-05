@@ -5,6 +5,7 @@ package nsinit
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
@@ -31,8 +32,6 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	syncPipe.Close()
 
 	if console != "" {
-		// close pipes so that we can replace it with the pty
-		closeStdPipes()
 		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
@@ -50,14 +49,20 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 		}
 	}
 
-	/*
-		if err := system.ParentDeathSignal(); err != nil {
-			return fmt.Errorf("parent death signal %s", err)
-		}
+	/* this is commented out so that we get the current Ghost functionality
+	if err := system.ParentDeathSignal(); err != nil {
+		return fmt.Errorf("parent death signal %s", err)
+	}
 	*/
+
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
+
+	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
+		return err
+	}
+
 	if err := setupNetwork(container, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
@@ -67,13 +72,8 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := finalizeNamespace(container); err != nil {
 		return fmt.Errorf("finalize namespace %s", err)
 	}
-	return system.Execv(args[0], args[0:], container.Env)
-}
 
-func closeStdPipes() {
-	os.Stdin.Close()
-	os.Stdout.Close()
-	os.Stderr.Close()
+	return system.Execv(args[0], args[0:], container.Env)
 }
 
 func setupUser(container *libcontainer.Container) error {
@@ -109,8 +109,8 @@ func setupUser(container *libcontainer.Container) error {
 // dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
 // the slave's fd is 0, or stdin
 func dupSlave(slave *os.File) error {
-	if slave.Fd() != 0 {
-		return fmt.Errorf("slave fd not 0 %d", slave.Fd())
+	if err := system.Dup2(slave.Fd(), 0); err != nil {
+		return err
 	}
 	if err := system.Dup2(slave.Fd(), 1); err != nil {
 		return err

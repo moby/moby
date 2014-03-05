@@ -37,6 +37,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 	if c.Privileged {
 		container.Capabilities = nil
 		container.Cgroups.DeviceAccess = true
+		container.Context["apparmor_profile"] = "unconfined"
 	}
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CpuShares
@@ -77,6 +78,9 @@ func getDefaultTemplate() *libcontainer.Container {
 		Cgroups: &cgroups.Cgroup{
 			Parent:       "docker",
 			DeviceAccess: false,
+		},
+		Context: libcontainer.Context{
+			"apparmor_profile": "docker-default",
 		},
 	}
 }
