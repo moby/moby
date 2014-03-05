@@ -44,18 +44,24 @@ need to package Docker your way, without denaturing it in the process.
 
 To build Docker, you will need the following:
 
-* An amd64 machine
 * A recent version of git and mercurial
 * Go version 1.2 or later
+* A clean checkout of the source added to a valid [Go
+  workspace](http://golang.org/doc/code.html#Workspaces) under the path
+  *src/github.com/dotcloud/docker* (unless you plan to use `AUTO_GOPATH`,
+  explained in more detail below).
+
+To build the Docker daemon, you will additionally need:
+
+* An amd64/x86_64 machine running Linux
 * SQLite version 3.7.9 or later
 * libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version
   2.02.89 or later
 * btrfs-progs version 3.8 or later (including commit e5cb128 from 2013-01-07)
   for the necessary btrfs headers
-* A clean checkout of the source added to a valid [Go
-  workspace](http://golang.org/doc/code.html#Workspaces) under the path
-  *src/github.com/dotcloud/docker* (unless you plan to use `AUTO_GOPATH`,
-  explained in more detail below).
+
+Be sure to also check out Docker's Dockerfile for the most up-to-date list of
+these build-time dependencies.
 
 ### Go Dependencies
 
