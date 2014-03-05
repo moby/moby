@@ -45,7 +45,7 @@ var funcMap = template.FuncMap{
 }
 
 var (
-	ErrConnectionRefused = errors.New("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+	ErrConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 )
 
 func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
@@ -523,7 +523,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil, false))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
-			encounteredError = fmt.Errorf("Error: failed to  restart one or more containers")
+			encounteredError = fmt.Errorf("Error: failed to restart one or more containers")
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
@@ -563,7 +563,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	var tty bool
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
-			return fmt.Errorf("Impossible to start and attach multiple containers at once.")
+			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
 		body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false))
@@ -1008,7 +1008,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		if username == "" {
 			username = "<user>"
 		}
-		return fmt.Errorf("Impossible to push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
+		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
 	}
 
 	v := url.Values{}
@@ -1588,7 +1588,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	if !container.State.Running {
-		return fmt.Errorf("Impossible to attach to a stopped container, start it first")
+		return fmt.Errorf("You cannot attach to a stopped container, start it first")
 	}
 
 	if container.Config.Tty && cli.isTerminal {
@@ -1744,10 +1744,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	var containerIDFile io.WriteCloser
 	if len(hostConfig.ContainerIDFile) > 0 {
 		if _, err := os.Stat(hostConfig.ContainerIDFile); err == nil {
-			return fmt.Errorf("cid file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
+			return fmt.Errorf("Container ID file found, make sure the other container isn't running or delete %s", hostConfig.ContainerIDFile)
 		}
 		if containerIDFile, err = os.Create(hostConfig.ContainerIDFile); err != nil {
-			return fmt.Errorf("failed to create the container ID file: %s", err)
+			return fmt.Errorf("Failed to create the container ID file: %s", err)
 		}
 		defer containerIDFile.Close()
 	}
@@ -1808,7 +1808,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if len(hostConfig.ContainerIDFile) > 0 {
 		if _, err = containerIDFile.Write([]byte(runResult.Get("Id"))); err != nil {
-			return fmt.Errorf("failed to write the container ID to the file: %s", err)
+			return fmt.Errorf("Failed to write the container ID to the file: %s", err)
 		}
 	}
 
@@ -2101,7 +2101,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 			return nil, -1, err
 		}
 		if len(body) == 0 {
-			return nil, resp.StatusCode, fmt.Errorf("Error: request returned %s for api route and version %s, check if the server supports the requested api version", http.StatusText(resp.StatusCode), req.URL)
+			return nil, resp.StatusCode, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(resp.StatusCode), req.URL)
 		}
 		return nil, resp.StatusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
@@ -2143,7 +2143,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 		}
 		return err
 	}
@@ -2152,7 +2152,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	defer clientconn.Close()
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 		}
 		return err
 	}
@@ -2199,7 +2199,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	dial, err := net.Dial(cli.proto, cli.addr)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Can't connect to docker daemon. Is 'docker -d' running on this host?")
+			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 		}
 		return err
 	}
