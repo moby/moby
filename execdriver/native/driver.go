@@ -246,6 +246,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 		"-console", console,
 		"-pipe", fmt.Sprint(syncFd),
 		"-root", filepath.Join(d.driver.root, d.c.ID),
+		"--",
 	}, args...)
 
 	// set this to nil so that when we set the clone flags anything else is reset
