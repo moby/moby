@@ -1,0 +1,93 @@
+<div id="topmostnav" class="navbar navbar-static-top">
+    <div class="navbar-inner">
+	    <a class="brand" href="/" title="{{ site_name }}"><img src="http://www.docker.io/static/img/docker-top-logo.png"> </a>
+            <ul class="nav navbar-nav pull-right">
+                <li><a href="/" title="Homepage">Home</a></li>
+                <li class=""><a href="/learn_more/" title="Learn more about Docker">Learn More</a></li>
+                <li class=""><a href="/gettingstarted/" title="Get Started with Docker">Getting started</a></li>
+                <li class=""><a href="/community/" title="The Docker Community">Community</a></li>
+                <li class="active"><a href="http://docs.docker.io" title="Docker Documentation">Documentation</a></li>
+                <li><a href="http://blog.docker.io" title="Blog">Blog</a></li>
+                <li><a href="https://index.docker.io" title="Docker Image Index, find images here">INDEX </a></li>
+           </ul>
+   </div>
+</div>
+
+<div id="stickynav" class="navbar navbar-default navbar-static-top navbar-inverse" role="navigation">
+    <div class="Ncontainer">
+
+
+        <!-- Collapsed navigation -->
+        <div class="navbar-header">
+            <!-- Expander button -->
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+
+        </div>
+
+        <!-- Expanded navigation -->
+        <div class="navbar-collapse collapse">
+            <!-- Main navigation -->
+            <ul class="nav navbar-nav">
+            {% for nav_item in nav %}
+            {% if nav_item.children %}
+                <li class="dropdown{% if nav_item.active %} active{% endif %}">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">{{ nav_item.title }} <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                    {% for nav_item in nav_item.children %}
+                        <li {% if nav_item.active %}class="active"{% endif %}>
+                            <a href="{{ nav_item.url }}">{{ nav_item.title }}</a>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% else %}
+                <li {% if nav_item.active %}class="active"{% endif %}>
+                    <a href="{{ nav_item.url }}">{{ nav_item.title }}</a>
+                </li>
+            {% endif %}
+            {% endfor %}
+            </ul>
+
+            <!-- Search, Navigation and Repo links -->
+            <ul class="nav navbar-nav navbar-right">
+                {% if include_search %}
+                <li>
+                    <a href="#searchModal" data-toggle="modal"><i class="fa fa-search"></i> Search</a>
+                </li>
+                {% endif %}
+		<li>
+<form id="search_box_header" class="navbar-index-search pull-right"><span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span><input id="st-search-input" type="text" class="search-query ui-autocomplete-input" placeholder="search" autocomplete="off"></form>
+		</li>
+                <li {% if not previous_page %}class="disabled"{% endif %}>
+                    <a rel="next" {% if previous_page %}href="{{ previous_page.url }}"{% endif %}>
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </li>
+                <li {% if not next_page %}class="disabled"{% endif %}>
+                    <a rel="prev" {% if next_page %}href="{{ next_page.url }}"{% endif %}>
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </li>
+                {% if repo_url %}
+                <li>
+                    <a href="{{ repo_url }}">
+                        {% if repo_name == 'GitHub' %}
+                            <i class="fa fa-github"></i>
+                        {% elif repo_name == 'Bitbucket' %}
+                            <i class="fa fa-bitbucket"></i>
+                        {% endif %}
+                        {{ repo_name }}
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+
+
+    </div>
+</div>
