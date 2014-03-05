@@ -1,0 +1,21 @@
+FROM 		debian
+MAINTAINER	SvenDowideit@docker.com
+#
+#    docker build -t docsconvert - < Dockerfile.convert && docker run -t -i -p 8000:8000 -v $(pwd):/docs docsconvert
+#
+
+RUN 	apt-get update && apt-get install -yq make python-pip python-setuptools
+RUN	pip install mkdocs
+
+RUN	apt-get install -yq vim-tiny git pandoc make
+
+# pip installs from docs/requirements.txt, but here to increase cacheability
+#RUN 	pip install Sphinx==1.2.1
+#RUN 	pip install sphinxcontrib-httpdomain==1.2.0
+RUN 	pip install Sphinx
+RUN 	pip install sphinxcontrib-httpdomain
+
+WORKDIR	/docs
+
+CMD	bash
+EXPOSE	8000
