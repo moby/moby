@@ -142,30 +142,46 @@ dependencies to be installed (see below).
 
 The test suite will also download a small test container, so you will need internet connectivity.
 
-## Runtime dependencies
+## Dependencies
+
+### Runtime
 
 To run properly, docker needs the following software to be installed at runtime:
 
 * iproute2 version 3.5 or later (build after 2012-05-21), and specifically the "ip" utility
 * iptables version 1.4 or later
-* The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later
 * Git version 1.7 or later
 * XZ Utils 4.9 or later
 
-## Kernel dependencies
+### Kernel
 
-Docker in daemon mode has specific kernel requirements. For details, see
-http://docs.docker.io/en/latest/installation/kernel/
+Docker in daemon mode has specific kernel requirements. Most pre-packaged
+kernels include the necessary options enabled. If you are building your own
+kernel, you will either need to discover the options necessary via trial and
+error, or check out the [Gentoo
+ebuild](https://github.com/tianon/docker-overlay/blob/master/app-emulation/docker/docker-9999.ebuild),
+in which a list is maintained.
 
 Note that Docker also has a client mode, which can run on virtually any linux kernel (it even builds
 on OSX!).
 
+### Optional
+
+Some of Docker's features are activated by using optional command-line flags or
+by having support for them in the kernel or userspace. A few examples include:
+
+* LXC execution driver (requires version 0.8 or later of the LXC utility scripts)
+* AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
+  least the "auplink" utility from aufs-tools)
+* BTRFS graph driver (requires BTRFS support enabled in the kernel)
+
 ## Init script
 
 Docker expects to run as a daemon at machine startup. Your package will need to include a script
-for your distro''s process supervisor of choice.
+for your distro's process supervisor of choice. Be sure to check out the
+"contrib/init" folder in case a suitable init script already exists!
 
-Docker should be run as root, with the following arguments:
+In general, Docker should be run as root, with the following arguments:
 
 ```bash
 docker -d
