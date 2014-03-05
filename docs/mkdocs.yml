@@ -1,0 +1,109 @@
+site_name: Docker
+site_url: http://docs.docker.io/
+site_url: /
+site_description: Docker documentation.
+site_favicon: theme/docker/static/favicon.png
+
+dev_addr: '0.0.0.0:8000'
+
+#repo_url: https://github.com/dotcloud/docker/
+
+docs_dir: sources
+
+
+#theme: spacelab
+theme_dir: ./theme/mkdocs/
+#theme_center_lead: true
+#include_search: true
+
+copyright: Copyright &copy; 2014, Docker.
+#google_analytics: ['UA-27795084-5', 'mkdocs.org']
+
+
+pages:
+- ['index.md', 'Home']
+#- ['user-guide/writing-your-docs.md', 'User Guide', 'Writing your docs']
+#- ['user-guide/styling-your-docs.md', 'User Guide', 'Styling your docs']
+#- ['user-guide/configuration.md', 'User Guide', 'Configuration']
+#- ['about/license.md', 'About', 'License']
+#./faq.md
+
+
+
+  #- ['reference/commandline/index.md', 'reference/commandline', 'index']
+- ['reference/commandline/cli.md', 'Reference Guide', 'Command Line']
+- ['reference/builder.md', 'Reference Guide', 'Dockerfile']
+- ['reference/run.md', 'Reference Guide', 'Run Reference']
+- ['articles/runmetrics.md', 'Reference Guide', 'Runtime Metrics']
+- ['articles/security.md', 'Reference Guide', 'Security']
+  #- ['articles/index.md', 'Reference Guide', 'index']
+- ['articles/baseimages.md', 'Reference Guide', 'Create a Base Image']
+  #- ['reference/index.md', 'Reference Guide', 'index']
+- ['reference/api/index_api.md', 'API Reference', 'Docker Index API']
+- ['reference/api/registry_api.md', 'API Reference', 'Docker Registry API']
+- ['reference/api/registry_index_spec.md', 'API Reference', 'Registry & Index Spec']
+  #- ['reference/api/index.md', 'API Reference', 'index']
+- ['reference/api/docker_remote_api.md', 'API Reference', 'Docker Remote API']
+- ['reference/api/docker_remote_api_v1.0.md', 'API Reference', 'Docker Remote API 1.0']
+- ['reference/api/docker_remote_api_v1.1.md', 'API Reference', 'Docker Remote API v.1']
+- ['reference/api/docker_remote_api_v1.2.md', 'API Reference', 'Docker Remote API v1.2']
+- ['reference/api/docker_remote_api_v1.3.md', 'API Reference', 'Docker Remote API v1.3']
+- ['reference/api/docker_remote_api_v1.4.md', 'API Reference', 'Docker Remote API v1.4']
+- ['reference/api/docker_remote_api_v1.5.md', 'API Reference', 'Docker Remote API v1.5']
+- ['reference/api/docker_remote_api_v1.6.md', 'API Reference', 'Docker Remote API v1.6']
+- ['reference/api/docker_remote_api_v1.7.md', 'API Reference', 'Docker Remote API v1.7']
+- ['reference/api/docker_remote_api_v1.8.md', 'API Reference', 'Docker Remote API v1.8']
+- ['reference/api/docker_remote_api_v1.9.md', 'API Reference', 'Docker Remote API v1.9']
+- ['reference/api/remote_api_client_libraries.md', 'API Reference', 'Docker Remote API Client Libraries']
+#./toctree.md
+- ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
+- ['installation/gentoolinux.md', 'Installation', 'Gentoo']
+- ['installation/google.md', 'Installation', 'Google Cloud Platform']
+  #- ['installation/index.md', 'Installation', 'index']
+- ['installation/rackspace.md', 'Installation', 'Rackspace Cloud']
+- ['installation/archlinux.md', 'Installation', 'Arch Linux']
+- ['installation/frugalware.md', 'Installation', 'FrugalWare']
+- ['installation/fedora.md', 'Installation', 'Fedora']
+- ['installation/ubuntulinux.md', 'Installation', 'Ubuntu']
+- ['installation/openSUSE.md', 'Installation', 'openSUSE']
+- ['installation/amazon.md', 'Installation', 'Amazon EC2']
+- ['installation/binaries.md', 'Installation', 'Binaries']
+- ['installation/cruxlinux.md', 'Installation', 'CRUX Linux']
+- ['installation/mac.md', 'Installation', 'Mac OS X']
+- ['installation/windows.md', 'Installation', 'Microsoft Windows']
+
+- ['examples/running_riak_service.md', 'Examples', 'Running Riak Service']
+- ['examples/nodejs_web_app.md', 'Examples', 'nodejs_web_app']
+- ['examples/hello_world.md', 'Examples', 'hello_world']
+- ['examples/python_web_app.md', 'Examples', 'python_web_app']
+- ['examples/using_supervisord.md', 'Examples', 'using_supervisord']
+  #- ['examples/index.md', 'Examples', 'index']
+- ['examples/running_ssh_service.md', 'Examples', 'running_ssh_service']
+- ['examples/couchdb_data_volumes.md', 'Examples', 'couchdb_data_volumes']
+- ['examples/mongodb.md', 'Examples', 'mongodb']
+- ['examples/postgresql_service.md', 'Examples', 'postgresql_service']
+- ['examples/running_redis_service.md', 'Examples', 'running_redis_service']
+- ['examples/cfengine_process_management.md', 'Examples', 'cfengine_process_management']
+- ['use/working_with_links_names.md', 'Examples', 'working_with_links_names']
+- ['use/working_with_volumes.md', 'Examples', 'working_with_volumes']
+- ['use/basics.md', 'Examples', 'basics']
+  #- ['use/index.md', 'Examples', 'index']
+- ['use/puppet.md', 'Examples', 'puppet']
+  ##- ['use/workingwithrepository.md', 'Examples', 'workingwithrepository']
+- ['use/host_integration.md', 'Examples', 'host_integration']
+- ['use/port_redirection.md', 'Examples', 'port_redirection']
+- ['use/ambassador_pattern_linking.md', 'Examples', 'ambassador_pattern_linking']
+- ['use/networking.md', 'Examples', 'networking']
+
+- ['contributing/contributing.md', 'Contributing', 'Contributing']
+  #- ['contributing/index.md', 'Contributing', 'index']
+- ['contributing/devenvironment.md', 'Contributing', 'Development Environment']
+
+  #- ['static_files/README.md', 'static_files', 'README']
+  #- ['terms/layer.md', 'terms', 'layer']
+  #- ['terms/index.md', 'terms', 'index']
+  #- ['terms/registry.md', 'terms', 'registry']
+  #- ['terms/container.md', 'terms', 'container']
+  #- ['terms/repository.md', 'terms', 'repository']
+  #- ['terms/filesystem.md', 'terms', 'filesystem']
+  #- ['terms/image.md', 'terms', 'image']
