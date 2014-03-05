@@ -814,7 +814,7 @@ func TestImagesViz(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		if err := cli.CmdImages("-viz"); err != nil {
+		if err := cli.CmdImages("--viz"); err != nil {
 			t.Fatal(err)
 		}
 		stdoutPipe.Close()
@@ -847,7 +847,7 @@ func TestImagesViz(t *testing.T) {
 
 		for _, regexp := range compiledRegexps {
 			if !regexp.MatchString(cmdOutput) {
-				t.Fatalf("images -viz content '%s' did not match regexp '%s'", cmdOutput, regexp)
+				t.Fatalf("images --viz content '%s' did not match regexp '%s'", cmdOutput, regexp)
 			}
 		}
 	})
@@ -864,7 +864,7 @@ func TestImagesTree(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		if err := cli.CmdImages("-tree"); err != nil {
+		if err := cli.CmdImages("--tree"); err != nil {
 			t.Fatal(err)
 		}
 		stdoutPipe.Close()
@@ -896,7 +896,7 @@ func TestImagesTree(t *testing.T) {
 
 		for _, regexp := range compiledRegexps {
 			if !regexp.MatchString(cmdOutput) {
-				t.Fatalf("images -tree content '%s' did not match regexp '%s'", cmdOutput, regexp)
+				t.Fatalf("images --tree content '%s' did not match regexp '%s'", cmdOutput, regexp)
 			}
 		}
 	})
@@ -928,8 +928,8 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 }
 
 // #2098 - Docker cidFiles only contain short version of the containerId
-//sudo docker run -cidfile /tmp/docker_test.cid ubuntu echo "test"
-// TestRunCidFile tests that run -cidfile returns the longid
+//sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
+// TestRunCidFile tests that run --cidfile returns the longid
 func TestRunCidFile(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 
@@ -945,7 +945,7 @@ func TestRunCidFile(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		if err := cli.CmdRun("-cidfile", tmpCidFile, unitTestImageID, "ls"); err != nil {
+		if err := cli.CmdRun("--cidfile", tmpCidFile, unitTestImageID, "ls"); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -967,7 +967,7 @@ func TestRunCidFile(t *testing.T) {
 		id := string(buffer)
 
 		if len(id) != len("2bf44ea18873287bd9ace8a4cb536a7cbe134bed67e805fdf2f58a57f69b320c") {
-			t.Fatalf("-cidfile should be a long id, not '%s'", id)
+			t.Fatalf("--cidfile should be a long id, not '%s'", id)
 		}
 		//test that its a valid cid? (though the container is gone..)
 		//remove the file and dir.
