@@ -161,6 +161,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		err      error
 	)
 
+	_, err = exec.LookPath("git")
+	hasGit := err == nil
 	if cmd.Arg(0) == "-" {
 		// As a special case, 'docker build -' will build from an empty context with the
 		// contents of stdin as a Dockerfile
@@ -169,7 +171,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 		context, err = archive.Generate("Dockerfile", string(dockerfile))
-	} else if utils.IsURL(cmd.Arg(0)) && !utils.IsGIT(cmd.Arg(0)) {
+	} else if utils.IsURL(cmd.Arg(0)) && (!utils.IsGIT(cmd.Arg(0)) || !hasGit) {
 		isRemote = true
 	} else {
 		root := cmd.Arg(0)
