@@ -17,4 +17,9 @@ do
         pandoc -f html -t markdown -o ${name}.md ${name}.html
 
 	rm ${name}.html
+
+	#TODO: remove or fixup the meta-data
+
+	# git it all so we can test
+	git add ${name}.md
 done
