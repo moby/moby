@@ -8,8 +8,8 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/execdrivers"
 	"github.com/dotcloud/docker/execdriver/lxc"
-	"github.com/dotcloud/docker/execdriver/native"
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
@@ -732,22 +732,8 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		sysInitPath = localCopy
 	}
 
-	var (
-		ed      execdriver.Driver
-		sysInfo = sysinfo.New(false)
-	)
-
-	switch config.ExecDriver {
-	case "lxc":
-		// we want to five the lxc driver the full docker root because it needs
-		// to access and write config and template files in /var/lib/docker/containers/*
-		// to be backwards compatible
-		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
-	case "native":
-		ed, err = native.NewDriver(path.Join(config.Root, "execdriver", "native"))
-	default:
-		return nil, fmt.Errorf("unknown exec driver %s", config.ExecDriver)
-	}
+	sysInfo := sysinfo.New(false)
+	ed, err := execdrivers.NewDriver(config.ExecDriver, config.Root, sysInfo)
 	if err != nil {
 		return nil, err
 	}
