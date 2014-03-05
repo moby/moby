@@ -32,8 +32,6 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	syncPipe.Close()
 
 	if console != "" {
-		// close pipes so that we can replace it with the pty
-		//		closeStdPipes()
 		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
@@ -51,10 +49,10 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 		}
 	}
 
-	/*
-		if err := system.ParentDeathSignal(); err != nil {
-			return fmt.Errorf("parent death signal %s", err)
-		}
+	/* this is commented out so that we get the current Ghost functionality
+	if err := system.ParentDeathSignal(); err != nil {
+		return fmt.Errorf("parent death signal %s", err)
+	}
 	*/
 
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
@@ -62,9 +60,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
-		if err != apparmor.ErrAppArmorDisabled {
-			return err
-		}
+		return err
 	}
 
 	if err := setupNetwork(container, context); err != nil {
