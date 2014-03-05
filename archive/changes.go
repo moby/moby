@@ -3,6 +3,7 @@ package archive
 import (
 	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
@@ -202,7 +203,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Rdev != newStat.Rdev ||
 				// Don't look at size for dirs, its not a good measure of change
 				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				!sameFsTimeSpec(getLastModification(oldStat), getLastModification(newStat)) ||
+				!sameFsTimeSpec(system.GetLastModification(oldStat), system.GetLastModification(newStat)) ||
 				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
 					Path: newChild.path(),
@@ -278,7 +279,7 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			return err
 		}
 
-		info.capability, _ = Lgetxattr(path, "security.capability")
+		info.capability, _ = system.Lgetxattr(path, "security.capability")
 
 		parent.children[info.name] = info
 
