@@ -290,13 +290,13 @@ type Flag struct {
 func sortFlags(flags map[string]*Flag) []*Flag {
 	var list sort.StringSlice
 	for _, f := range flags {
+		fName := strings.TrimPrefix(f.Names[0], "#")
 		if len(f.Names) == 1 {
-			list = append(list, f.Names[0])
+			list = append(list, fName)
 			continue
 		}
 
 		found := false
-		fName := strings.TrimPrefix(strings.TrimPrefix(f.Names[0], "#"), "-")
 		for _, name := range list {
 			if name == fName {
 				found = true
