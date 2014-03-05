@@ -12,6 +12,7 @@ var (
 )
 
 func init() {
+	flag.Bool([]string{"#hp", "#-halp"}, false, "display the halp")
 	flag.BoolVar(&b, []string{"b"}, false, "a simple bool")
 	flag.BoolVar(&b2, []string{"-bool"}, false, "a simple bool")
 	flag.IntVar(&i, []string{"#integer", "-integer"}, -1, "a simple integer")

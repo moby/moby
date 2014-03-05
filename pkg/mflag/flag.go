@@ -404,7 +404,9 @@ func (f *FlagSet) PrintDefaults() {
 				names = append(names, name)
 			}
 		}
-		fmt.Fprintf(f.out(), format, strings.Join(names, ", -"), flag.DefValue, flag.Usage)
+		if len(names) > 0 {
+			fmt.Fprintf(f.out(), format, strings.Join(names, ", -"), flag.DefValue, flag.Usage)
+		}
 	})
 }
 
