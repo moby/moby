@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
@@ -60,6 +61,9 @@ type driver struct {
 
 func NewDriver(root string) (*driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
+		return nil, err
+	}
+	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
 	return &driver{

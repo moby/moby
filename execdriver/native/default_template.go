@@ -80,7 +80,7 @@ func getDefaultTemplate() *libcontainer.Container {
 			DeviceAccess: false,
 		},
 		Context: libcontainer.Context{
-			"apparmor_profile": "lxc-container-default",
+			"apparmor_profile": "docker-default",
 		},
 	}
 }
