@@ -527,7 +527,7 @@ For example:
     Show the history of an image
 
       --no-trunc=false: Don't truncate output
-      -q, --quiet=false: only show numeric IDs
+      -q, --quiet=false: Only show numeric IDs
 
 To see how the ``docker:latest`` image was built:
 
@@ -574,11 +574,11 @@ To see how the ``docker:latest`` image was built:
 
     List images
 
-      -a, --all=false: show all images (by default filter out the intermediate images used to build)
+      -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
-      -q, --quiet=false: only show numeric IDs
-      --tree=false: output graph in tree format
-      --viz=false: output graph in graphviz format
+      -q, --quiet=false: Only show numeric IDs
+      --tree=false: Output graph in tree format
+      --viz=false: Output graph in graphviz format
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -874,9 +874,9 @@ Known Issues (kill)
 
     Register or Login to the docker registry server
 
-    -e, --email="": email
-    -p, --password="": password
-    -u, --username="": username
+    -e, --email="": Email
+    -p, --password="": Password
+    -u, --username="": Username
 
     If you want to login to a private registry you can
     specify this by adding the server name.
