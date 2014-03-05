@@ -233,9 +233,9 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	var username, password, email string
 
-	cmd.StringVar(&username, []string{"u", "-username"}, "", "username")
-	cmd.StringVar(&password, []string{"p", "-password"}, "", "password")
-	cmd.StringVar(&email, []string{"e", "-email"}, "", "email")
+	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
+	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
+	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
 	err := cmd.Parse(args)
 	if err != nil {
 		return nil
@@ -831,7 +831,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
 	cmd := cli.Subcmd("history", "[OPTIONS] IMAGE", "Show the history of an image")
-	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "only show numeric IDs")
+	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 
 	if err := cmd.Parse(args); err != nil {
@@ -1102,11 +1102,11 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := cli.Subcmd("images", "[OPTIONS] [NAME]", "List images")
-	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "only show numeric IDs")
-	all := cmd.Bool([]string{"a", "-all"}, false, "show all images (by default filter out the intermediate images used to build)")
+	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
+	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate images used to build)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-	flViz := cmd.Bool([]string{"v", "#viz", "-viz"}, false, "output graph in graphviz format")
-	flTree := cmd.Bool([]string{"t", "#tree", "-tree"}, false, "output graph in tree format")
+	flViz := cmd.Bool([]string{"v", "#viz", "-viz"}, false, "Output graph in graphviz format")
+	flTree := cmd.Bool([]string{"t", "#tree", "-tree"}, false, "Output graph in tree format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
