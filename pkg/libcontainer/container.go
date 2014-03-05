@@ -20,7 +20,8 @@ type Container struct {
 	Namespaces   Namespaces      `json:"namespaces,omitempty"`   // namespaces to apply
 	Capabilities Capabilities    `json:"capabilities,omitempty"` // capabilities to drop
 	Networks     []*Network      `json:"networks,omitempty"`     // nil for host's network stack
-	Cgroups      *cgroups.Cgroup `json:"cgroups,omitempty"`
+	Cgroups      *cgroups.Cgroup `json:"cgroups,omitempty"`      // cgroups
+	Context      Context         `json:"context,omitempty"`      // generic context for specific options (apparmor, selinux)
 }
 
 // Network defines configuration for a container's networking stack
