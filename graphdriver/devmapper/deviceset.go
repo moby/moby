@@ -39,6 +39,13 @@ type DevInfo struct {
 	// first get (since we need to mount to set up the device
 	// a bit first).
 	floating bool `json:"-"`
+
+	// The global DeviceSet lock guarantees that we serialize all
+	// the calls to libdevmapper (which is not threadsafe), but we
+	// sometimes release that lock while sleeping. In that case
+	// this per-device lock is still held, protecting against
+	// other accesses to the device that we're doing the wait on.
+	lock sync.Mutex `json:"-"`
 }
 
 type MetaData struct {
@@ -47,7 +54,7 @@ type MetaData struct {
 
 type DeviceSet struct {
 	MetaData
-	sync.Mutex
+	sync.Mutex       // Protects Devices map and serializes calls into libdevmapper
 	root             string
 	devicePrefix     string
 	TransactionId    uint64
@@ -569,6 +576,9 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 		return fmt.Errorf("Error adding device for '%s': can't find device for parent '%s'", hash, baseHash)
 	}
 
+	baseInfo.lock.Lock()
+	defer baseInfo.lock.Unlock()
+
 	deviceId := devices.allocateDeviceId()
 
 	if err := devices.createSnapDevice(devices.getPoolDevName(), deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
@@ -635,6 +645,14 @@ func (devices *DeviceSet) deleteDevice(hash string) error {
 func (devices *DeviceSet) DeleteDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
+
+	info := devices.Devices[hash]
+	if info == nil {
+		return fmt.Errorf("Unknown device %s", hash)
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
 
 	return devices.deleteDevice(hash)
 }
@@ -773,20 +791,26 @@ func (devices *DeviceSet) Shutdown() error {
 	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 
 	for _, info := range devices.Devices {
+		info.lock.Lock()
 		if info.mountCount > 0 {
 			if err := sysUnmount(info.mountPath, 0); err != nil {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
 			}
 		}
+		info.lock.Unlock()
 	}
 
 	for _, d := range devices.Devices {
+		d.lock.Lock()
+
 		if err := devices.waitClose(d.Hash); err != nil {
 			utils.Errorf("Warning: error waiting for device %s to unmount: %s\n", d.Hash, err)
 		}
 		if err := devices.deactivateDevice(d.Hash); err != nil {
 			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
 		}
+
+		d.lock.Unlock()
 	}
 
 	if err := devices.deactivatePool(); err != nil {
@@ -804,6 +828,9 @@ func (devices *DeviceSet) MountDevice(hash, path string) error {
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
 	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
 
 	if info.mountCount > 0 {
 		if path != info.mountPath {
@@ -850,6 +877,9 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 	if info == nil {
 		return fmt.Errorf("UnmountDevice: no such device %s\n", hash)
 	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
 
 	if mode == UnmountFloat {
 		if info.floating {
@@ -920,6 +950,10 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	if info == nil {
 		return false
 	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
 	devinfo, _ := getInfo(info.Name())
 	return devinfo != nil && devinfo.Exists != 0
 }
@@ -973,6 +1007,9 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 	if info == nil {
 		return nil, fmt.Errorf("No device %s", hash)
 	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
 
 	status := &DevStatus{
 		DeviceId:      info.DeviceId,
