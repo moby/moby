@@ -44,7 +44,7 @@ func main() {
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
-	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
+	flag.Var(&flHosts, []string{"H", "-host"}, "The socket to bind to in daemon mode, specified using tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
 
 	flag.Parse()
 

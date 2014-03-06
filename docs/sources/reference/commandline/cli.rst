@@ -68,9 +68,9 @@ Commands
 
 ::
 
-    Usage of docker:
+    Usage:
       -D, --debug=false: Enable debug mode
-      -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
+      -H, --host=[]: The socket to bind to in daemon mode, specified using tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
@@ -87,7 +87,9 @@ Commands
       -v, --version=false: Print version information and quit
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
-The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+    Options with [] may be specified multiple times.
+
+The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
 daemon and client.  To run the daemon you provide the ``-d`` flag.
 
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
