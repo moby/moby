@@ -88,7 +88,7 @@ curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/maste
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
 
-Pull requests mustn't contain commits from other users or branches.
+Pull requests must not contain commits from other users or branches.
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Be
