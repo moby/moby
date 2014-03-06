@@ -2,11 +2,9 @@ page_title: Registry Documentation
 page_description: Documentation for docker Registry and Registry API
 page_keywords: docker, registry, api, index
 
-Registry & Index Spec
-===========================================================================
+# Registry & Index Spec
 
-1. The 3 roles
-------------------------------------------------------------
+## 1. The 3 roles
 
 ### 1.1 Index
 
@@ -92,8 +90,7 @@ supports:
 -   Push / Pull on the registry
 -   Client authentication on the Index
 
-2. Workflow
-------------------------------------------------------
+## 2. Workflow
 
 ### 2.1 Pull
 
@@ -399,8 +396,7 @@ undone.
     >
     > **Return** HTTP 200
 
-3. How to use the Registry in standalone mode
---------------------------------------------------------------------------------------------------------------------------
+## 3. How to use the Registry in standalone mode
 
 The Index has two main purposes (along with its fancy social features):
 
@@ -450,8 +446,7 @@ specific Index, it’ll be the private entity responsibility (basically
 the organization who uses Docker in a private environment) to maintain
 the Index and the Docker’s configuration among its consumers.
 
-4. The API
-----------------------------------------------------
+## 4. The API
 
 The first version of the api is available here:
 [https://github.com/jpetazzo/docker/blob/acd51ecea8f5d3c02b00a08176171c59442df8b3/docs/images-repositories-push-pull.md](https://github.com/jpetazzo/docker/blob/acd51ecea8f5d3c02b00a08176171c59442df8b3/docs/images-repositories-push-pull.md)
@@ -605,8 +600,7 @@ DELETE /v1/repositories/\<namespace\>/\<repo\_name\>
 
 Return 202 OK
 
-5. Chaining Registries
-----------------------------------------------------------------------------
+## 5. Chaining Registries
 
 It’s possible to chain Registries server for several reasons:
 
@@ -629,8 +623,7 @@ On every request, a special header can be returned:
 On the next request, the client will always pick a server from this
 list.
 
-6. Authentication & Authorization
-------------------------------------------------------------------------------------------------
+## 6. Authentication & Authorization
 
 ### 6.1 On the Index
 
@@ -693,8 +686,7 @@ Next request:
     GET /(...)
     Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="
 
-7 Document Version
----------------------------------------------------------------------
+## 7 Document Version
 
 -   1.0 : May 6th 2013 : initial release
 -   1.1 : June 1st 2013 : Added Delete Repository and way to handle new

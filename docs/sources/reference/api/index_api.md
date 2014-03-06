@@ -2,18 +2,15 @@ page_title: Index API
 page_description: API Documentation for Docker Index
 page_keywords: API, Docker, index, REST, documentation
 
-Docker Index API
-===================================================================
+# Docker Index API
 
-1. Brief introduction
---------------------------------------------------------------------------
+## 1. Brief introduction
 
 -   This is the REST API for the Docker index
 -   Authorization is done with basic auth over SSL
 -   Not all commands require authentication, only those noted as such.
 
-2. Endpoints
---------------------------------------------------------
+## 2. Endpoints
 
 ### 2.1 Repository
 

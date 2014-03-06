@@ -2,8 +2,7 @@ page_title: Installation from Binaries
 page_description: This instruction set is meant for hackers who want to try out Docker on a variety of environments.
 page_keywords: binaries, installation, docker, documentation, linux
 
-Binaries
-===================================================
+# Binaries
 
 Note
 
@@ -19,8 +18,7 @@ Before following these directions, you should really check if a packaged
 version of Docker is already available for your distribution. We have
 packages for many distributions, and more keep showing up all the time!
 
-Check runtime dependencies
----------------------------------------------------------------------------------------
+## Check runtime dependencies
 
 To run properly, docker needs the following software to be installed at
 runtime:
@@ -34,8 +32,7 @@ runtime:
 -   Git version 1.7 or later
 -   XZ Utils 4.9 or later
 
-Check kernel dependencies
--------------------------------------------------------------------------------------
+## Check kernel dependencies
 
 Docker in daemon mode has specific kernel requirements. For details,
 check your distribution in [*Installation*](../#installation-list).
@@ -43,20 +40,17 @@ check your distribution in [*Installation*](../#installation-list).
 Note that Docker also has a client mode, which can run on virtually any
 linux kernel (it even builds on OSX!).
 
-Get the docker binary:
-------------------------------------------------------------------------------
+## Get the docker binary:
 
     wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
     chmod +x docker
 
-Run the docker daemon
------------------------------------------------------------------------------
+## Run the docker daemon
 
     # start the docker in daemon mode from the directory you unpacked
     sudo ./docker -d &
 
-Giving non-root access
--------------------------------------------------------------------------------
+## Giving non-root access
 
 The `docker` daemon always runs as the root user,
 and since Docker version 0.5.2, the `docker` daemon
@@ -77,8 +71,7 @@ Warning
 
 The *docker* group is root-equivalent.
 
-Upgrades
----------------------------------------------------
+## Upgrades
 
 To upgrade your manual installation of Docker, first kill the docker
 daemon:
@@ -87,8 +80,7 @@ daemon:
 
 Then follow the regular installation steps.
 
-Run your first container!
-------------------------------------------------------------------------------------
+## Run your first container!
 
     # check your docker version
     sudo ./docker version

@@ -2,8 +2,7 @@ page_title: Running a Riak service
 page_description: Build a Docker image with Riak pre-installed
 page_keywords: docker, example, package installation, networking, riak
 
-Riak Service
-===========================================================
+# Riak Service
 
 Note
 
@@ -16,8 +15,7 @@ Note
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.
 
-Creating a `Dockerfile`
----------------------------------------------------------------------------------------------------
+## Creating a `Dockerfile`
 
 Create an empty file called `Dockerfile`:
 
@@ -100,8 +98,7 @@ are started:
 
     CMD ["/usr/bin/supervisord"]
 
-Create a `supervisord` configuration file
----------------------------------------------------------------------------------------------------------------------------------------
+## Create a `supervisord` configuration file
 
 Create an empty file called `supervisord.conf`. Make
 sure it’s at the same directory level as your `Dockerfile`{.docutils
@@ -126,15 +123,13 @@ Populate it with the following program definitions:
     stdout_logfile=/var/log/supervisor/%(program_name)s.log
     stderr_logfile=/var/log/supervisor/%(program_name)s.log
 
-Build the Docker image for Riak
--------------------------------------------------------------------------------------------------
+## Build the Docker image for Riak
 
 Now you should be able to build a Docker image for Riak:
 
     docker build -t "<yourname>/riak" .
 
-Next steps
--------------------------------------------------------
+## Next steps
 
 Riak is a distributed database. Many production deployments consist of
 [at least five

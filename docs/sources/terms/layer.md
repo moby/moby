@@ -2,15 +2,13 @@ page_title: Layers
 page_description: Organizing the Docker Root File System
 page_keywords: containers, lxc, concepts, explanation, image, container
 
-Layers
-===============================================
+# Layers
 
 In a traditional Linux boot, the kernel first mounts the root [*File
 System*](../filesystem/#filesystem-def) as read-only, checks its
 integrity, and then switches the whole rootfs volume to read-write mode.
 
-Layer
----------------------------------------------
+## Layer
 
 When Docker mounts the rootfs, it starts read-only, as in a traditional
 Linux boot, but then, instead of changing the file system to read-write
@@ -29,8 +27,7 @@ copied to the upper layer and changes go into the copy. The version of
 the file on the lower layer cannot be seen by the applications anymore,
 but it is there, unchanged.
 
-Union File System
----------------------------------------------------------------------
+## Union File System
 
 We call the union of the read-write layer and all the read-only layers a
 **union file system**.

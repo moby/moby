@@ -2,11 +2,9 @@ page_title: First steps with Docker
 page_description: Common usage and commands
 page_keywords: Examples, Usage, basic commands, docker, documentation, examples
 
-First steps with Docker
-=================================================================================
+# First steps with Docker
 
-Check your Docker install
--------------------------------------------------------------------------------------
+## Check your Docker install
 
 This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
@@ -22,8 +20,7 @@ privileges to access Docker on your machine.
 Please refer to [*Installation*](../../installation/#installation-list)
 for installation instructions.
 
-Download a pre-built image
----------------------------------------------------------------------------------------
+## Download a pre-built image
 
     # Download an ubuntu image
     sudo docker pull ubuntu
@@ -42,8 +39,7 @@ characters of the full image ID - which can be found using
 `docker inspect` or
 `docker images -notrunc=true`
 
-Running an interactive shell
--------------------------------------------------------------------------------------------
+## Running an interactive shell
 
     # Run an interactive shell in the ubuntu image,
     # allocate a tty, attach stdin and stdout
@@ -52,8 +48,7 @@ Running an interactive shell
     # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
     sudo docker run -i -t ubuntu /bin/bash
 
-Bind Docker to another host/port or a Unix socket
--------------------------------------------------------------------------------------------------------------------------------------
+## Bind Docker to another host/port or a Unix socket
 
 Warning
 
@@ -107,8 +102,7 @@ to listen on both TCP and a Unix socket
     # OR use the TCP port
     sudo docker -H tcp://127.0.0.1:4243 pull ubuntu
 
-Starting a long-running worker process
----------------------------------------------------------------------------------------------------------------
+## Starting a long-running worker process
 
     # Start a very useful long-running process
     JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
@@ -119,14 +113,12 @@ Starting a long-running worker process
     # Kill the job
     sudo docker kill $JOB
 
-Listing containers
------------------------------------------------------------------------
+## Listing containers
 
     sudo docker ps # Lists only running containers
     sudo docker ps -a # Lists all containers
 
-Controlling containers
--------------------------------------------------------------------------------
+## Controlling containers
 
     # Start a new container
     JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
@@ -147,8 +139,7 @@ Controlling containers
     docker stop $JOB # Container must be stopped to remove it
     docker rm $JOB
 
-Bind a service on a TCP port
--------------------------------------------------------------------------------------------
+## Bind a service on a TCP port
 
     # Bind port 4444 of this container, and tell netcat to listen on it
     JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
@@ -162,8 +153,7 @@ Bind a service on a TCP port
     # Verify that the network connection worked
     echo "Daemon received: $(sudo docker logs $JOB)"
 
-Committing (saving) a container state
------------------------------------------------------------------------------------------------------------
+## Committing (saving) a container state
 
 Save your containers state to a container image, so the state can be
 re-used.

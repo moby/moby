@@ -1,6 +1,5 @@
 
-Glossary
-===================================================
+# Glossary
 
 Definitions of terms used in Docker documentation.
 

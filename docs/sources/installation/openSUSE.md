@@ -2,8 +2,7 @@ page_title: Installation on openSUSE
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: openSUSE, virtualbox, docker, documentation, installation
 
-openSUSE
-===================================================
+# openSUSE
 
 Note
 
@@ -23,8 +22,7 @@ Docker is available in **openSUSE 12.3 and later**. Please note that due
 to the current Docker limitations Docker is able to run only on the **64
 bit** architecture.
 
-Installation
------------------------------------------------------------
+## Installation
 
 The `docker` package from the [Virtualization
 project](https://build.opensuse.org/project/show/Virtualization) on

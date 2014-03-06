@@ -2,8 +2,7 @@ page_title: Remote API v1.10
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
-[Docker Remote API v1.10](#id1)
-=========================================================================================
+# [Docker Remote API v1.10](#id1)
 
 Table of Contents
 
@@ -64,8 +63,7 @@ Table of Contents
         -   [3.2 Hijacking](#hijacking)
         -   [3.3 CORS Requests](#cors-requests)
 
-[1. Brief introduction](#id2)
-----------------------------------------------------------------------------------
+## [1. Brief introduction](#id2)
 
 -   The Remote API has replaced rcli
 -   The daemon listens on `unix:///var/run/docker.sock`{.docutils
@@ -76,8 +74,7 @@ Table of Contents
     connection is hijacked to transport `stdout, stdin`{.docutils
     .literal} and `stderr`
 
-[2. Endpoints](#id3)
-----------------------------------------------------------------
+## [2. Endpoints](#id3)
 
 ### [2.1 Containers](#id4)
 
@@ -1265,8 +1262,7 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-[3. Going further](#id38)
--------------------------------------------------------------------------
+## [3. Going further](#id38)
 
 ### [3.1 Inside ‘docker run’](#id39)
 

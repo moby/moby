@@ -2,8 +2,7 @@ page_title: docker.io Accounts API
 page_description: API Documentation for docker.io accounts.
 page_keywords: API, Docker, accounts, REST, documentation
 
-[docker.io Accounts API](#id1)
-=======================================================================================
+# [docker.io Accounts API](#id1)
 
 Table of Contents
 
@@ -20,8 +19,7 @@ Table of Contents
         -   [1.6 Delete email address for a
             user](#delete-email-address-for-a-user)
 
-[1. Endpoints](#id2)
-----------------------------------------------------------------
+## [1. Endpoints](#id2)
 
 ### [1.1 Get a single user](#id3)
 

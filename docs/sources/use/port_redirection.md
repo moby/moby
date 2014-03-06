@@ -2,8 +2,7 @@ page_title: Redirect Ports
 page_description: usage about port redirection
 page_keywords: Usage, basic port, docker, documentation, examples
 
-Redirect Ports
-===============================================================
+# Redirect Ports
 
 Interacting with a service is commonly done through a connection to a
 port. When this service runs inside a container, one can connect to the
@@ -25,8 +24,7 @@ container, Docker provide ways to bind the container port to an
 interface of the host system. To simplify communication between
 containers, Docker provides the linking mechanism.
 
-Auto map all exposed ports on the host
----------------------------------------------------------------------------------------------------------------
+## Auto map all exposed ports on the host
 
 To bind all the exposed container ports to the host automatically, use
 `docker run -P <imageid>`. The mapped host ports
@@ -36,8 +34,7 @@ you will need to use `docker ps`,
 `docker port <container_id> <port>` to determine
 what they are.
 
-Binding a port to a host interface
--------------------------------------------------------------------------------------------------------
+## Binding a port to a host interface
 
 To bind a port of the container to a specific interface of the host
 system, use the `-p` parameter of the
@@ -81,8 +78,7 @@ when using dynamically allocated ports:
     docker port dyn-bound 8080
     127.0.0.1:49160
 
-Linking a container
--------------------------------------------------------------------------
+## Linking a container
 
 Communication between two containers can also be established in a
 docker-specific way called linking.

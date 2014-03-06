@@ -2,8 +2,7 @@ page_title: Container
 page_description: Definitions of a container
 page_keywords: containers, lxc, concepts, explanation, image, container
 
-Container
-=====================================================
+# Container
 
 ![](../../_images/docker-filesystems-busyboxrw.png)
 
@@ -17,8 +16,7 @@ Image*](../image/#parent-image-def) and some additional information like
 its unique id, networking configuration, and resource limits is called a
 **container**.
 
-Container State
------------------------------------------------------------------
+## Container State
 
 Containers can change, and so they have state. A container may be
 **running** or **exited**.
@@ -37,8 +35,7 @@ You can promote a container to an [*Image*](../image/#image-def) with
 `docker commit`. Once a container is an image, you
 can use it as a parent for new containers.
 
-Container IDs
--------------------------------------------------------------
+## Container IDs
 
 All containers are identified by a 64 hexadecimal digit string
 (internally a 256bit value). To simplify their use, a short ID of the

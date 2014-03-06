@@ -2,8 +2,7 @@ page_title: Runtime Metrics
 page_description: Measure the behavior of running containers
 page_keywords: docker, metrics, CPU, memory, disk, IO, run, runtime
 
-Runtime Metrics
-=================================================================
+# Runtime Metrics
 
 Linux Containers rely on [control
 groups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
@@ -12,8 +11,7 @@ CPU, memory, and block I/O usage. You can access those metrics and
 obtain network usage metrics as well. This is relevant for “pure” LXC
 containers, as well as for Docker containers.
 
-Control Groups
-----------------------------------------------------
+## Control Groups
 
 Control groups are exposed through a pseudo-filesystem. In recent
 distros, you should find this filesystem under
@@ -31,8 +29,7 @@ To figure out where your control groups are mounted, you can run:
 
     grep cgroup /proc/mounts
 
-Enumerating Cgroups
--------------------------------------------------------------------------
+## Enumerating Cgroups
 
 You can look into `/proc/cgroups` to see the
 different control group subsystems known to the system, the hierarchy
@@ -46,8 +43,7 @@ particular group”, while `/lxc/pumpkin` means that
 the process is likely to be a member of a container named
 `pumpkin`.
 
-Finding the Cgroup for a Given Container
--------------------------------------------------------------------------------------------------------------------
+## Finding the Cgroup for a Given Container
 
 For each container, one cgroup will be created in each hierarchy. On
 older systems with older versions of the LXC userland tools, the name of
@@ -66,8 +62,7 @@ Putting everything together to look at the memory metrics for a Docker
 container, take a look at
 `/sys/fs/cgroup/memory/lxc/<longid>/`.
 
-Metrics from Cgroups: Memory, CPU, Block IO
-----------------------------------------------------------------------------------------------------------------------
+## Metrics from Cgroups: Memory, CPU, Block IO
 
 For each subsystem (memory, CPU, and block I/O), you will find one or
 more pseudo-files containing statistics.
@@ -263,8 +258,7 @@ blkio.io\_queued
     not perform more I/O, its queue size can increase just because the
     device load increases because of other devices.
 
-Network Metrics
------------------------------------------------------------------
+## Network Metrics
 
 Network metrics are not exposed directly by control groups. There is a
 good explanation for that: network interfaces exist within the context
@@ -382,8 +376,7 @@ this:
     ln -sf /proc/$PID/ns/net /var/run/netns/$CID
     ip netns exec $CID netstat -i
 
-Tips for high-performance metric collection
--------------------------------------------------------------------------------------------------------------------------
+## Tips for high-performance metric collection
 
 Note that running a new process each time you want to update metrics is
 (relatively) expensive. If you want to collect metrics at high
@@ -408,8 +401,7 @@ you close that file descriptor).
 The right approach would be to keep track of the first PID of each
 container, and re-open the namespace pseudo-file each time.
 
-Collecting metrics when a container exits
----------------------------------------------------------------------------------------------------------------------
+## Collecting metrics when a container exits
 
 Sometimes, you do not care about real time metric collection, but when a
 container exits, you want to know how much CPU, memory, etc. it has

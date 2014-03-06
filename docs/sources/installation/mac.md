@@ -2,8 +2,7 @@ page_title: Installation on Mac OS X 10.6 Snow Leopard
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
 
-Mac OS X
-===================================================
+# Mac OS X
 
 Note
 
@@ -19,8 +18,7 @@ our blog post, [“Getting to Docker
 
 Docker is supported on Mac OS X 10.6 “Snow Leopard” or newer.
 
-How To Install Docker On Mac OS X
------------------------------------------------------------------------------------------------------
+## How To Install Docker On Mac OS X
 
 ### VirtualBox
 
@@ -73,8 +71,7 @@ Run the following commands to get it downloaded and set up:
 
 And that’s it! Let’s check out how to use it.
 
-How To Use Docker On Mac OS X
----------------------------------------------------------------------------------------------
+## How To Use Docker On Mac OS X
 
 ### The `docker` daemon (via boot2docker)
 
@@ -130,8 +127,7 @@ If you feel the need to connect to the VM, you can simply run:
 You can now continue with the [*Hello
 World*](../../examples/hello_world/#hello-world) example.
 
-Learn More
--------------------------------------------------------
+## Learn More
 
 ### boot2docker:
 

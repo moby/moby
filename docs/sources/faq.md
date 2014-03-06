@@ -2,11 +2,9 @@ page_title: FAQ
 page_description: Most frequently asked questions.
 page_keywords: faq, questions, documentation, docker
 
-FAQ
-=========================================
+# FAQ
 
-Most frequently asked questions.
---------------------------------------------------------------------------------------------------
+## Most frequently asked questions.
 
 ### How much does Docker cost?
 

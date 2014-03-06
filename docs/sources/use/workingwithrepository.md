@@ -2,8 +2,7 @@ page_title: Share Images via Repositories
 page_description: Repositories allow users to share images.
 page_keywords: repo, repositories, usage, pull image, push image, image, documentation
 
-Share Images via Repositories
-=============================================================================================
+# Share Images via Repositories
 
 A *repository* is a shareable collection of tagged
 [*images*](../../terms/image/#image-def) that together create the file
@@ -26,14 +25,12 @@ repositories. You can host your own Registry too! Docker acts as a
 client for these services via `docker search, pull, login`{.docutils
 .literal} and `push`.
 
-Local Repositories
------------------------------------------------------------------------
+## Local Repositories
 
 Docker images which have been created and labeled on your local Docker
 server need to be pushed to a Public or Private registry to be shared.
 
-Public Repositories
--------------------------------------------------------------------------
+## Public Repositories
 
 There are two types of public repositories: *top-level* repositories
 which are controlled by the Docker team, and *user* repositories created
@@ -55,8 +52,7 @@ repositories in these examples.
 -   User images are not checked, it is therefore up to you whether or
     not you trust the creator of this image.
 
-Find Public Images on the Central Index
------------------------------------------------------------------------------------------------------------------
+## Find Public Images on the Central Index
 
 You can search the Central Index [online](https://index.docker.io) or
 using the command line interface. Searching can find images by name,
@@ -94,8 +90,7 @@ What can you do with that image? Check out the
 [*Examples*](../../examples/#example-list) and, when you’re ready with
 your own image, come back here to learn how to share it.
 
-Contributing to the Central Registry
------------------------------------------------------------------------------------------------------------
+## Contributing to the Central Registry
 
 Anyone can pull public images from the Central Registry, but if you
 would like to share one of your own images, then you must register a
@@ -113,8 +108,7 @@ also prompt you to enter a password and your e-mail address. It will
 then automatically log you in. Now you’re ready to commit and push your
 own images!
 
-Committing a Container to a Named Image
------------------------------------------------------------------------------------------------------------------
+## Committing a Container to a Named Image
 
 When you make changes to an existing image, those changes get saved to a
 container’s file system. You can then promote that container to become
@@ -127,8 +121,7 @@ above) and a meaningful name for the image.
     # format is "sudo docker commit <container_id> <username>/<imagename>"
     $ sudo docker commit $CONTAINER_ID myname/kickassapp
 
-Pushing a repository to its registry
------------------------------------------------------------------------------------------------------------
+## Pushing a repository to its registry
 
 In order to push an repository to its registry you need to have named an
 image, or committed your container to a named image (see above)
@@ -139,8 +132,7 @@ or tag.
     # format is "docker push <username>/<repo_name>"
     $ sudo docker push myname/kickassapp
 
-Trusted Builds
----------------------------------------------------------------
+## Trusted Builds
 
 Trusted Builds automate the building and updating of images from GitHub,
 directly on `docker.io` servers. It works by adding
@@ -180,8 +172,7 @@ GitHub repository.
 You can create multiple Trusted Builds per repository and configure them
 to point to specific `Dockerfile`‘s or Git branches.
 
-Private Registry
--------------------------------------------------------------------
+## Private Registry
 
 Private registries and private shared repositories are only possible by
 hosting [your own
@@ -209,8 +200,7 @@ See also
 [Docker Blog: How to use your own
 registry](http://blog.docker.io/2013/07/how-to-use-your-own-registry/)
 
-Authentication file
--------------------------------------------------------------------------
+## Authentication file
 
 The authentication is stored in a json file, `.dockercfg`{.docutils
 .literal} located in your home directory. It supports multiple registry

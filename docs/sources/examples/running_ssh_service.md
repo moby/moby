@@ -2,8 +2,7 @@ page_title: Running an SSH service
 page_description: Installing and running an sshd service
 page_keywords: docker, example, package installation, networking
 
-SSH Daemon Service
-=======================================================================
+# SSH Daemon Service
 
 Note
 

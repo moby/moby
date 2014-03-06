@@ -2,8 +2,7 @@ page_title: Installation on Red Hat Enterprise Linux
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos
 
-Red Hat Enterprise Linux
-===================================================================================
+# Red Hat Enterprise Linux
 
 Note
 
@@ -30,8 +29,7 @@ to create and maintain additional packages for the RHEL distribution.
 Also note that due to the current Docker limitations, Docker is able to
 run only on the **64 bit** architecture.
 
-Installation
------------------------------------------------------------
+## Installation
 
 Firstly, you need to install the EPEL repository. Please follow the
 [EPEL installation
@@ -70,8 +68,7 @@ Now let’s verify that Docker is working.
 **Done!**, now continue with the [*Hello
 World*](../../examples/hello_world/#hello-world) example.
 
-Issues?
-------------------------------------------------
+## Issues?
 
 If you have any issues - please report them directly in the [Red Hat
 Bugzilla for docker-io

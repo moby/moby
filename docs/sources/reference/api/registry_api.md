@@ -2,11 +2,9 @@ page_title: Registry API
 page_description: API Documentation for Docker Registry
 page_keywords: API, Docker, index, registry, REST, documentation
 
-Docker Registry API
-=========================================================================
+# Docker Registry API
 
-1. Brief introduction
---------------------------------------------------------------------------
+## 1. Brief introduction
 
 -   This is the REST API for the Docker Registry
 -   It stores the images and the graph for a set of repositories
@@ -70,8 +68,7 @@ wrapping access to the local filesystem (and optionally doing
 consistency checks). Authentication and authorization are then delegated
 to SSH (e.g. with public keys).
 
-2. Endpoints
---------------------------------------------------------
+## 2. Endpoints
 
 ### 2.1 Images
 
@@ -496,8 +493,7 @@ to SSH (e.g. with public keys).
 
     -   **200** – OK
 
-3 Authorization
----------------------------------------------------------------
+## 3 Authorization
 
 This is where we describe the authorization process, including the
 tokens and cookies.

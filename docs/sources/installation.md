@@ -1,6 +1,5 @@
 
-Installation
-===========================================================
+# Installation
 
 There are a number of ways to install Docker, depending on where you
 want to run the daemon. The [*Ubuntu*](ubuntulinux/#ubuntu-linux)

@@ -1,6 +1,5 @@
 
-Reference Manual
-===================================================================
+# Reference Manual
 
 Contents:
 

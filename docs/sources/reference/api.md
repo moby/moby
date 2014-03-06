@@ -1,6 +1,5 @@
 
-APIs
-===========================================
+# APIs
 
 Your programs and scripts can access Docker’s functionality via these
 interfaces:

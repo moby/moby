@@ -2,8 +2,7 @@ page_title: Process Management with CFEngine
 page_description: Managing containerized processes with CFEngine
 page_keywords: cfengine, process, management, usage, docker, documentation
 
-Process Management with CFEngine
-===================================================================================================
+# Process Management with CFEngine
 
 Create Docker containers with managed processes.
 
@@ -20,8 +19,7 @@ containers, we can alleviate a few of the issues that may arise:
     daemon (cf-execd) lives. With CFEngine, we are able to decouple the
     life of the container from the uptime of the service it provides.
 
-How it works
------------------------------------------------------------
+## How it works
 
 CFEngine, together with the cfe-docker integration policies, are
 installed as part of the Dockerfile. This builds CFEngine into our
@@ -50,8 +48,7 @@ application leaves a process with the basename of the command. This can
 be made more flexible by making some minor adjustments to the CFEngine
 policies, if desired.
 
-Usage
----------------------------------------------
+## Usage
 
 This example assumes you have Docker installed and working. We will
 install and manage `apache2` and `sshd`{.docutils
@@ -142,8 +139,7 @@ CFEngine.
     service apache2 status
      Apache2 is running (pid 173).
 
-Adapting to your applications
----------------------------------------------------------------------------------------------
+## Adapting to your applications
 
 To make sure your applications get managed in the same manner, there are
 just two things you need to adjust from the above example:

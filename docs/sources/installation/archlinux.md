@@ -2,8 +2,7 @@ page_title: Installation on Arch Linux
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: arch linux, virtualization, docker, documentation, installation
 
-Arch Linux
-=======================================================
+# Arch Linux
 
 Note
 
@@ -30,8 +29,7 @@ or the following AUR package:
 The docker package will install the latest tagged version of docker. The
 docker-git package will build from the current master branch.
 
-Dependencies
------------------------------------------------------------
+## Dependencies
 
 Docker depends on several packages which are specified as dependencies
 in the packages. The core dependencies are:
@@ -42,8 +40,7 @@ in the packages. The core dependencies are:
 -   lxc
 -   sqlite
 
-Installation
------------------------------------------------------------
+## Installation
 
 For the normal package a simple
 
@@ -60,8 +57,7 @@ Repository](https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing
 for information on building and installing packages from the AUR if you
 have not done so before.
 
-Starting Docker
------------------------------------------------------------------
+## Starting Docker
 
 There is a systemd service unit created for docker. To start the docker
 service:

@@ -2,8 +2,7 @@ page_title: Hello world example
 page_description: A simple hello world example with Docker
 page_keywords: docker, example, hello world
 
-Check your Docker install
-=====================================================================================
+# Check your Docker install
 
 This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
@@ -19,8 +18,7 @@ privileges to access docker on your machine.
 Please refer to [*Installation*](../../installation/#installation-list)
 for installation instructions.
 
-Hello World
-=========================================================
+# Hello World
 
 Note
 
@@ -63,8 +61,7 @@ See the example in action
 
 * * * * *
 
-Hello World Daemon
-=======================================================================
+# Hello World Daemon
 
 Note
 

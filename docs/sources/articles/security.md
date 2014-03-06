@@ -2,8 +2,7 @@ page_title: Docker Security
 page_description: Review of the Docker Daemon attack surface
 page_keywords: Docker, Docker documentation, security
 
-Docker Security
-=================================================================
+# Docker Security
 
 > *Adapted from* [Containers & Docker: How Secure are
 > They?](blogsecurity)
@@ -16,8 +15,7 @@ There are three major areas to consider when reviewing Docker security:
 -   the “hardening” security features of the kernel and how they
     interact with containers.
 
-Kernel Namespaces
----------------------------------------------------------------------
+## Kernel Namespaces
 
 Docker containers are essentially LXC containers, and they come with the
 same security features. When you start a container with
@@ -62,8 +60,7 @@ could be merged within the mainstream kernel. And OpenVZ was initially
 released in 2005, so both the design and the implementation are pretty
 mature.
 
-Control Groups
----------------------------------------------------------------
+## Control Groups
 
 Control Groups are the other key component of Linux Containers. They
 implement resource accounting and limiting. They provide a lot of very
@@ -82,8 +79,7 @@ when some applications start to misbehave.
 Control Groups have been around for a while as well: the code was
 started in 2006, and initially merged in kernel 2.6.24.
 
-Docker Daemon Attack Surface
--------------------------------------------------------------------------------------------
+## Docker Daemon Attack Surface
 
 Running containers (and applications) with Docker implies running the
 Docker daemon. This daemon currently requires root privileges, and you
@@ -148,8 +144,7 @@ containers controlled by Docker. Of course, it is fine to keep your
 favorite admin tools (probably at least an SSH server), as well as
 existing monitoring/supervision processes (e.g. NRPE, collectd, etc).
 
-Linux Kernel Capabilities
--------------------------------------------------------------------------------------
+## Linux Kernel Capabilities
 
 By default, Docker starts containers with a very restricted set of
 capabilities. What does that mean?
@@ -215,8 +210,7 @@ Of course, you can always enable extra capabilities if you really need
 them (for instance, if you want to use a FUSE-based filesystem), but by
 default, Docker containers will be locked down to ensure maximum safety.
 
-Other Kernel Security Features
------------------------------------------------------------------------------------------------
+## Other Kernel Security Features
 
 Capabilities are just one of the many security features provided by
 modern Linux kernels. It is also possible to leverage existing,
@@ -246,8 +240,7 @@ with e.g. special network topologies or shared filesystems, you can
 expect to see tools to harden existing Docker containers without
 affecting Docker’s core.
 
-Conclusions
----------------------------------------------------------
+## Conclusions
 
 Docker containers are, by default, quite secure; especially if you take
 care of running your processes inside the containers as non-privileged

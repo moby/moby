@@ -1,6 +1,5 @@
 
-Examples
-===================================================
+# Examples
 
 Here are some examples of how to use Docker to create running processes,
 starting from a very simple *Hello World* and progressing to more

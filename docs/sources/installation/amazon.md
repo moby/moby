@@ -2,8 +2,7 @@ page_title: Installation on Amazon EC2
 page_description: Please note this project is currently under heavy development. It should not be used in production. 
 page_keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
 
-Amazon EC2
-=======================================================
+# Amazon EC2
 
 Note
 
@@ -20,8 +19,7 @@ There are several ways to install Docker on AWS EC2:
 **You’ll need an** [AWS account](http://aws.amazon.com/) **first, of
 course.**
 
-Amazon QuickStart
----------------------------------------------------------------------
+## Amazon QuickStart
 
 1.  **Choose an image:**
     -   Launch the [Create Instance
@@ -63,8 +61,7 @@ Once you’ve got Docker installed, you’re ready to try it out – head on
 over to the [*First steps with Docker*](../../use/basics/) or
 [*Examples*](../../examples/) section.
 
-Standard Ubuntu Installation
--------------------------------------------------------------------------------------------
+## Standard Ubuntu Installation
 
 If you want a more hands-on installation, then you can follow the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions installing Docker

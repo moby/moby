@@ -2,8 +2,7 @@ page_title: Running a Node.js app on CentOS
 page_description: Installing and running a Node.js app on CentOS
 page_keywords: docker, example, package installation, node, centos
 
-Node.js Web App
-=================================================================
+# Node.js Web App
 
 Note
 
@@ -19,8 +18,7 @@ Docker images from a parent image using a `Dockerfile`{.docutils
 application running on CentOS. You can get the full source code at
 [https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
 
-Create Node.js app
------------------------------------------------------------------------
+## Create Node.js app
 
 First, create a `package.json` file that describes
 your app and its dependencies:
@@ -57,8 +55,7 @@ In the next steps, we’ll look at how you can run this app inside a
 CentOS container using Docker. First, you’ll need to build a Docker
 image of your app.
 
-Creating a `Dockerfile`
----------------------------------------------------------------------------------------------------
+## Creating a `Dockerfile`
 
 Create an empty file called `Dockerfile`:
 
@@ -133,8 +130,7 @@ Your `Dockerfile` should now look like this:
     EXPOSE  8080
     CMD ["node", "/src/index.js"]
 
-Building your image
--------------------------------------------------------------------------
+## Building your image
 
 Go to the directory that has your `Dockerfile` and
 run the following command to build a Docker image. The `-t`{.docutils
@@ -152,8 +148,7 @@ Your image will now be listed by Docker:
     > centos                     6.4       539c0211cd76    8 weeks ago
     > gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
 
-Run the image
--------------------------------------------------------------
+## Run the image
 
 Running your image with `-d` runs the container in
 detached mode, leaving the container running in the background. The
@@ -173,8 +168,7 @@ Print the output of your app:
     > # Example
     > Running on http://localhost:8080
 
-Test
--------------------------------------------
+## Test
 
 To test your app, get the the port of your app that Docker mapped:
 

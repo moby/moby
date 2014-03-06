@@ -2,8 +2,7 @@ page_title: Installation on Gentoo
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: gentoo linux, virtualization, docker, documentation, installation
 
-Gentoo
-===============================================
+# Gentoo
 
 Note
 
@@ -38,8 +37,7 @@ what’s in the overlay, and between the latest version in the overlay and
 what’s in the portage tree. Please be patient, and the latest version
 should propagate shortly.
 
-Installation
------------------------------------------------------------
+## Installation
 
 The package should properly pull in all the necessary dependencies and
 prompt for all necessary kernel options. The ebuilds for 0.7+ include
@@ -55,8 +53,7 @@ and especially missing kernel configuration flags and/or dependencies,
 repository](https://github.com/tianon/docker-overlay/issues) or ping
 tianon directly in the \#docker IRC channel on the freenode network.
 
-Starting Docker
------------------------------------------------------------------
+## Starting Docker
 
 Ensure that you are running a kernel that includes all the necessary
 modules and/or configuration for LXC (and optionally for device-mapper

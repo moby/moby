@@ -2,8 +2,7 @@ page_title: Installation on Fedora
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: Docker, Docker documentation, Fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
 
-Fedora
-===============================================
+# Fedora
 
 Note
 
@@ -23,8 +22,7 @@ Docker is available in **Fedora 19 and later**. Please note that due to
 the current Docker limitations Docker is able to run only on the **64
 bit** architecture.
 
-Installation
------------------------------------------------------------
+## Installation
 
 The `docker-io` package provides Docker on Fedora.
 

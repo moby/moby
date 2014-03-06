@@ -2,8 +2,7 @@ page_title: Running a Redis service
 page_description: Installing and running an redis service
 page_keywords: docker, example, package installation, networking, redis
 
-Redis Service
-=============================================================
+# Redis Service
 
 Note
 
@@ -16,8 +15,7 @@ Note
 Very simple, no frills, Redis service attached to a web application
 using a link.
 
-Create a docker container for Redis
----------------------------------------------------------------------------------------------------------
+## Create a docker container for Redis
 
 Firstly, we create a `Dockerfile` for our new Redis
 image.
@@ -33,8 +31,7 @@ Replace `<your username>` with your own user name.
 
     sudo docker build -t <your username>/redis .
 
-Run the service
------------------------------------------------------------------
+## Run the service
 
 Use the image we’ve just created and name your container
 `redis`.
@@ -48,8 +45,7 @@ database.
 
     sudo docker run --name redis -d <your username>/redis
 
-Create your web application container
--------------------------------------------------------------------------------------------------------------
+## Create your web application container
 
 Next we can create a container for our application. We’re going to use
 the `-link` flag to create a link to the

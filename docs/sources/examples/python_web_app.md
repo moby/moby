@@ -2,8 +2,7 @@ page_title: Python Web app example
 page_description: Building your own python web app using docker
 page_keywords: docker, example, python, web app
 
-Python Web App
-===============================================================
+# Python Web App
 
 Note
 
@@ -22,8 +21,7 @@ Docker images by making changes to a running container, and then saving
 the results as a new image. We will do that by making a simple ‘hello
 world’ Flask web application image.
 
-Download the initial image
----------------------------------------------------------------------------------------
+## Download the initial image
 
 Download the `shykes/pybuilder` Docker image from
 the `http://index.docker.io` registry.
@@ -42,8 +40,7 @@ see [shykes/pybuilder](https://github.com/shykes/pybuilder) ), when the
 `Dockerfile` format was different, but the image can
 still be used now.
 
-Interactively make some modifications
--------------------------------------------------------------------------------------------------------------
+## Interactively make some modifications
 
 We then start a new container running interactively using the image.
 First, we set a `URL` variable that points to a
@@ -62,8 +59,7 @@ commands, try things out, and then exit when you’re done.
     [...]
     $$ exit
 
-Commit the container to create a new image
------------------------------------------------------------------------------------------------------------------------
+## Commit the container to create a new image
 
 Save the changes we just made in the container to a new image called
 `/builds/github.com/shykes/helloflask/master`. You
@@ -76,8 +72,7 @@ now have 3 different ways to refer to the container: name
     $ sudo docker commit pybuilder_run /builds/github.com/shykes/helloflask/master
     c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9
 
-Run the new image to start the web worker
----------------------------------------------------------------------------------------------------------------------
+## Run the new image to start the web worker
 
 Use the new image to create a new container with network port 5000
 mapped to a local port
@@ -90,8 +85,7 @@ mapped to a local port
     must be mapped from the container to the host system.
 -   **/usr/local/bin/runapp** is the command which starts the web app.
 
-View the container logs
----------------------------------------------------------------------------------
+## View the container logs
 
 View the logs for the new `web_worker` container and
 if everything worked as planned you should see the line
@@ -104,8 +98,7 @@ in the logs.
     $ sudo docker logs -f web_worker
      * Running on http://0.0.0.0:5000/
 
-See the webapp output
------------------------------------------------------------------------------
+## See the webapp output
 
 Look up the public-facing port which is NAT-ed. Find the private port
 used by the container and store it inside of the `WEB_PORT`{.docutils
@@ -121,8 +114,7 @@ everything worked as planned you should see the line
     $ curl http://127.0.0.1:$WEB_PORT
     Hello world!
 
-Clean up example containers and images
----------------------------------------------------------------------------------------------------------------
+## Clean up example containers and images
 
     $ sudo docker ps --all
 

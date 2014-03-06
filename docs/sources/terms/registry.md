@@ -2,8 +2,7 @@ page_title: Registry
 page_description: Definition of an Registry
 page_keywords: containers, lxc, concepts, explanation, image, repository, container
 
-Registry
-===================================================
+# Registry
 
 A Registry is a hosted service containing
 [*repositories*](../repository/#repository-def) of

@@ -2,8 +2,7 @@ page_title: Installation on Rackspace Cloud
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: Rackspace Cloud, installation, docker, linux, ubuntu
 
-Rackspace Cloud
-=================================================================
+# Rackspace Cloud
 
 Note
 

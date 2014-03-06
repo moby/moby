@@ -2,8 +2,7 @@ page_title: Installation on Ubuntu
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
 
-Ubuntu
-===============================================
+# Ubuntu
 
 Warning
 
@@ -26,8 +25,7 @@ Docker is supported on the following versions of Ubuntu:
 Please read [*Docker and UFW*](#ufw), if you plan to use [UFW
 (Uncomplicated Firewall)](https://help.ubuntu.com/community/UFW)
 
-Ubuntu Precise 12.04 (LTS) (64-bit)
------------------------------------------------------------------------------------------------------
+## Ubuntu Precise 12.04 (LTS) (64-bit)
 
 This installation path should work at all times.
 
@@ -94,8 +92,7 @@ Type `exit` to exit
 **Done!**, now continue with the [*Hello
 World*](../../examples/hello_world/#hello-world) example.
 
-Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
--------------------------------------------------------------------------------------------------------------------------
+## Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
 
 These instructions cover both Ubuntu Raring 13.04 and Saucy 13.10.
 
@@ -190,8 +187,7 @@ To install the latest version of docker, use the standard
     # install the latest
     sudo apt-get install lxc-docker
 
-Memory and Swap Accounting
----------------------------------------------------------------------------------------
+## Memory and Swap Accounting
 
 If want to enable memory and swap accounting, you must add the following
 command-line parameters to your kernel:
@@ -211,8 +207,7 @@ And replace it by the following one:
 
 Then run `update-grub`, and reboot.
 
-Troubleshooting
------------------------------------------------------------------
+## Troubleshooting
 
 On Linux Mint, the `cgroup-lite` package is not
 installed by default. Before Docker will work correctly, you will need
@@ -220,8 +215,7 @@ to install this via:
 
     sudo apt-get update && sudo apt-get install cgroup-lite
 
-Docker and UFW
----------------------------------------------------------------
+## Docker and UFW
 
 Docker uses a bridge to manage container networking. By default, UFW
 drops all forwarding traffic. As a result you will need to enable UFW
@@ -244,8 +238,7 @@ incoming connections on the Docker port (default 4243):
 
     sudo ufw allow 4243/tcp
 
-Docker and local DNS server warnings
------------------------------------------------------------------------------------------------------------
+## Docker and local DNS server warnings
 
 Systems which are running Ubuntu or an Ubuntu derivative on the desktop
 will use 127.0.0.1 as the default nameserver in /etc/resolv.conf.
@@ -298,8 +291,7 @@ Warning
 
 This might make DNS resolution slower on some networks.
 
-Mirrors
--------------------------------------------------
+## Mirrors
 
 You should `ping get.docker.io` and compare the
 latency to the following mirrors, and pick whichever one is best for

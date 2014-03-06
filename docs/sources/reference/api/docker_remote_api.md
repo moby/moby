@@ -2,11 +2,9 @@ page_title: Remote API
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
-Docker Remote API
-=====================================================================
+# Docker Remote API
 
-1. Brief introduction
---------------------------------------------------------------------------
+## 1. Brief introduction
 
 -   The Remote API is replacing rcli
 -   By default the Docker daemon listens on unix:///var/run/docker.sock
@@ -20,8 +18,7 @@ Docker Remote API
     side, so the client has to send the authConfig as POST in
     /images/(name)/push
 
-2. Versions
-------------------------------------------------------
+## 2. Versions
 
 The current version of the API is 1.10
 

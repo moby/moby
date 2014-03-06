@@ -15,5 +15,7 @@ RUN	apt-get install -yq vim-tiny git pandoc make
 RUN 	pip install Sphinx
 RUN 	pip install sphinxcontrib-httpdomain
 
+WORKDIR	/docs
+
 CMD	bash
 EXPOSE	8000

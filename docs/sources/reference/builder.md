@@ -2,8 +2,7 @@ page_title: Dockerfile Reference
 page_description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
 page_keywords: builder, docker, Dockerfile, automation, image creation
 
-[Dockerfile Reference](#id2)
-===================================================================================
+# [Dockerfile Reference](#id2)
 
 **Docker can act as a builder** and read instructions from a text
 `Dockerfile` to automate the steps you would
@@ -34,8 +33,7 @@ Table of Contents
 
     -   [4. Dockerfile Examples](#dockerfile-examples)
 
-[1. Usage](#id3)
---------------------------------------------------------
+## [1. Usage](#id3)
 
 To [*build*](../commandline/cli/#cli-build) an image from a source
 repository, create a description file called `Dockerfile`{.docutils
@@ -87,8 +85,7 @@ When you’re done with your build, you’re ready to look into [*Pushing a
 repository to its
 registry*](../../use/workingwithrepository/#image-push).
 
-[2. Format](#id4)
-----------------------------------------------------------
+## [2. Format](#id4)
 
 Here is the format of the Dockerfile:
 
@@ -109,8 +106,7 @@ be treated as an argument. This allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
-[3. Instructions](#id5)
-----------------------------------------------------------------------
+## [3. Instructions](#id5)
 
 Here is the set of instructions you can use in a `Dockerfile`{.docutils
 .literal} for building images.
@@ -484,8 +480,7 @@ Warning
 
 ONBUILD may not trigger FROM or MAINTAINER instructions.
 
-[4. Dockerfile Examples](#id19)
--------------------------------------------------------------------------------------
+## [4. Dockerfile Examples](#id19)
 
     # Nginx
     #

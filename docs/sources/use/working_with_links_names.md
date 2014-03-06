@@ -2,16 +2,14 @@ page_title: Link Containers
 page_description: How to create and use both links and names
 page_keywords: Examples, Usage, links, linking, docker, documentation, examples, names, name, container naming
 
-Link Containers
-=================================================================
+# Link Containers
 
 From version 0.6.5 you are now able to `name` a
 container and `link` it to another container by
 referring to its name. This will create a parent -\> child relationship
 where the parent container can see selected information about its child.
 
-Container Naming
--------------------------------------------------------------------
+## Container Naming
 
 New in version v0.6.5.
 
@@ -27,8 +25,7 @@ You can see this name using the `docker ps` command.
     CONTAINER ID        IMAGE                            COMMAND             CREATED             STATUS              PORTS               NAMES
     2522602a0d99        ubuntu:12.04                     /bin/bash           14 seconds ago      Exit 0                                  test
 
-Links: service discovery for docker
---------------------------------------------------------------------------------------------------------
+## Links: service discovery for docker
 
 New in version v0.6.5.
 

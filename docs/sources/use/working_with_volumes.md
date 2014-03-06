@@ -2,8 +2,7 @@ page_title: Share Directories via Volumes
 page_description: How to create and share volumes
 page_keywords: Examples, Usage, volume, docker, documentation, examples
 
-Share Directories via Volumes
-=============================================================================================
+# Share Directories via Volumes
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
@@ -28,8 +27,7 @@ Each container can have zero or more data volumes.
 
 New in version v0.3.0.
 
-Getting Started
------------------------------------------------------------------
+## Getting Started
 
 Using data volumes is as simple as adding a `-v`
 parameter to the `docker run` command. The
@@ -164,8 +162,7 @@ elsewhere:
 You can use the basic techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
-Known Issues
------------------------------------------------------------
+## Known Issues
 
 -   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
     “lxc-start: Permission denied - failed to mount” could indicate a

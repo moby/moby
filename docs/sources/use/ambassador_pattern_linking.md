@@ -2,8 +2,7 @@ page_title: Link via an Ambassador Container
 page_description: Using the Ambassador pattern to abstract (network) services
 page_keywords: Examples, Usage, links, docker, documentation, examples, names, name, container naming
 
-Link via an Ambassador Container
-===================================================================================================
+# Link via an Ambassador Container
 
 Rather than hardcoding network links between a service consumer and
 provider, Docker encourages service portability.
@@ -33,8 +32,7 @@ Using the `svendowideit/ambassador` container, the
 link wiring is controlled entirely from the `docker run`{.docutils
 .literal} parameters.
 
-Two host Example
--------------------------------------------------------------------
+## Two host Example
 
 Start actual redis server on one Docker host
 
@@ -59,8 +57,7 @@ linking to the local redis ambassador.
     redis 172.17.0.160:6379> ping
     PONG
 
-How it works
------------------------------------------------------------
+## How it works
 
 The following example shows what the `svendowideit/ambassador`{.docutils
 .literal} container does automatically (with a tiny amount of
@@ -125,8 +122,7 @@ and get the redis-cli image so we can talk over the ambassador bridge
     redis 172.17.0.160:6379> ping
     PONG
 
-The svendowideit/ambassador Dockerfile
----------------------------------------------------------------------------------------------------------------
+## The svendowideit/ambassador Dockerfile
 
 The `svendowideit/ambassador` image is a small
 busybox image with `socat` built in. When you start

@@ -2,8 +2,7 @@ page_title: Configure Networking
 page_description: Docker networking
 page_keywords: network, networking, bridge, docker, documentation
 
-Configure Networking
-===========================================================================
+# Configure Networking
 
 Docker uses Linux bridge capabilities to provide network connectivity to
 containers. The `docker0` bridge interface is
@@ -46,8 +45,7 @@ Above, `docker0` acts as a bridge for the
 `vethQCDY1N` interface which is dedicated to the
 52f811c5d3d6 container.
 
-How to use a specific IP address range
----------------------------------------------------------------------------------------------------------------
+## How to use a specific IP address range
 
 Docker will try hard to find an IP range that is not used by the host.
 Even though it works for most cases, it’s not bullet-proof and sometimes
@@ -108,8 +106,7 @@ In this scenario:
     bridge      name    bridge id               STP enabled     interfaces
     bridge0             8000.fe7c2e0faebd       no              vethAQI2QT
 
-Container intercommunication
--------------------------------------------------------------------------------------------
+## Container intercommunication
 
 The value of the Docker daemon’s `icc` parameter
 determines whether containers can communicate with each other over the
@@ -123,8 +120,7 @@ bridge network.
 Docker uses `iptables` under the hood to either
 accept or drop communication between containers.
 
-What is the vethXXXX device?
-------------------------------------------------------------------------------------------
+## What is the vethXXXX device?
 
 Well. Things get complicated here.
 
@@ -138,8 +134,7 @@ comes in one side will come out the other side.
 All the plumbing is delegated to Linux network capabilities (check the
 ip link command) and the namespaces infrastructure.
 
-I want more
----------------------------------------------------------
+## I want more
 
 Jérôme Petazzoni has create `pipework` to connect
 together containers in arbitrarily complex scenarios :

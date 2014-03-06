@@ -2,8 +2,7 @@ page_title: Docker Run Reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
-[Docker Run Reference](#id2)
-===================================================================================
+# [Docker Run Reference](#id2)
 
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its
@@ -26,8 +25,7 @@ Table of Contents
     -   [Overriding `Dockerfile` Image
         Defaults](#overriding-dockerfile-image-defaults)
 
-[General Form](#id3)
--------------------------------------------------------------------
+## [General Form](#id3)
 
 As you’ve seen in the [*Examples*](../../examples/#example-list), the
 basic run command takes this form:
@@ -54,8 +52,7 @@ control over runtime behavior to the operator, allowing them to override
 all defaults set by the developer during `docker build`{.docutils
 .literal} and nearly all the defaults set by the Docker runtime itself.
 
-[Operator Exclusive Options](#id4)
------------------------------------------------------------------------------------------------
+## [Operator Exclusive Options](#id4)
 
 Only the operator (the person executing `docker run`{.docutils
 .literal}) can set the following options.
@@ -225,8 +222,7 @@ Note that in the future, a given host’s Docker daemon may not use LXC,
 so this is an implementation-specific configuration meant for operators
 already familiar with using LXC directly.
 
-[Overriding `Dockerfile` Image Defaults](#id5)
------------------------------------------------------------------------------------------------------------------------------------------
+## [Overriding `Dockerfile` Image Defaults](#id5)
 
 When a developer builds an image from a
 [*Dockerfile*](../builder/#dockerbuilder) or when she commits it, the

@@ -2,8 +2,7 @@ page_title: docker.io OAuth API
 page_description: API Documentation for docker.io's OAuth flow.
 page_keywords: API, Docker, oauth, REST, documentation
 
-[docker.io OAuth API](#id1)
-=================================================================================
+# [docker.io OAuth API](#id1)
 
 Table of Contents
 
@@ -18,8 +17,7 @@ Table of Contents
     -   [4. Use an Access Token with the
         API](#use-an-access-token-with-the-api)
 
-[1. Brief introduction](#id2)
-----------------------------------------------------------------------------------
+## [1. Brief introduction](#id2)
 
 Some docker.io API requests will require an access token to
 authenticate. To get an access token for a user, that user must first
@@ -33,8 +31,7 @@ OAuth 2.0 Authorization Framework](http://tools.ietf.org/html/rfc6749).
 *Also note that all OAuth interactions must take place over https
 connections*
 
-[2. Register Your Application](#id3)
-------------------------------------------------------------------------------------------------
+## [2. Register Your Application](#id3)
 
 You will need to register your application with docker.io before users
 will be able to grant your application access to their account
@@ -57,8 +54,7 @@ docker.io team with your `client_id` and
 `client_secret` which your application will use in
 the steps of getting an Authorization Code and getting an Access Token.
 
-[3. Endpoints](#id4)
-----------------------------------------------------------------
+## [3. Endpoints](#id4)
 
 ### [3.1 Get an Authorization Code](#id5)
 
@@ -262,8 +258,7 @@ if the user has not revoked access from your application.
     In the case of an error, there will be a non-200 HTTP Status and and
     data detailing the error.
 
-[4. Use an Access Token with the API](#id8)
---------------------------------------------------------------------------------------------------------------
+## [4. Use an Access Token with the API](#id8)
 
 Many of the docker.io API requests will require a Authorization request
 header field. Simply ensure you add this header with “Bearer

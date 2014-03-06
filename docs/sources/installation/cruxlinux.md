@@ -2,8 +2,7 @@ page_title: Installation on CRUX Linux
 page_description: Docker installation on CRUX Linux.
 page_keywords: crux linux, virtualization, Docker, documentation, installation
 
-CRUX Linux
-=======================================================
+# CRUX Linux
 
 Note
 
@@ -32,8 +31,7 @@ install the latest tagged versin of Docker from upstream built binaries.
 The `docker-git` package will build from the current
 master branch.
 
-Installation
------------------------------------------------------------
+## Installation
 
 For the time being (*until the CRUX Docker port(s) get into the official
 contrib repository*) you will need to install [James
@@ -66,8 +64,7 @@ Use `docker-bin` for the upstream binary or
 `docker-git` to build and install from the master
 branch from git.
 
-Kernel Requirements
--------------------------------------------------------------------------
+## Kernel Requirements
 
 To have a working **CRUX+Docker** Host you must ensure your Kernel has
 the necessary modules enabled for LXC containers to function correctly
@@ -83,8 +80,7 @@ above ports which you can use to test your Kernel configuration:
     cd /usr/ports/prologic/docker
     ./test_kernel_config.sh /usr/src/linux/.config
 
-Starting Docker
------------------------------------------------------------------
+## Starting Docker
 
 There is a rc script created for Docker. To start the Docker service:
 

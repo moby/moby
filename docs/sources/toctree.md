@@ -2,8 +2,7 @@ page_title: Documentation
 page_description: -- todo: change me
 page_keywords: todo, docker, documentation, installation, usage, examples, contributing, faq, command line, concepts
 
-Documentation
-=============================================================
+# Documentation
 
 This documentation has the following resources:
 

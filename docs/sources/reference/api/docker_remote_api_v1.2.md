@@ -2,8 +2,7 @@ page_title: Remote API v1.2
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
-[Docker Remote API v1.2](#id1)
-=======================================================================================
+# [Docker Remote API v1.2](#id1)
 
 Table of Contents
 
@@ -55,8 +54,7 @@ Table of Contents
         -   [3.2 Hijacking](#hijacking)
         -   [3.3 CORS Requests](#cors-requests)
 
-[1. Brief introduction](#id2)
-----------------------------------------------------------------------------------
+## [1. Brief introduction](#id2)
 
 -   The Remote API is replacing rcli
 -   Default port in the docker daemon is 4243
@@ -64,8 +62,7 @@ Table of Contents
     or pull, the HTTP connection is hijacked to transport stdout stdin
     and stderr
 
-[2. Endpoints](#id3)
-----------------------------------------------------------------
+## [2. Endpoints](#id3)
 
 ### [2.1 Containers](#id4)
 
@@ -999,8 +996,7 @@ HTTP Hijack method in order to stream.
     -   **404** – no such container
     -   **500** – server error
 
-[3. Going further](#id33)
--------------------------------------------------------------------------
+## [3. Going further](#id33)
 
 ### [3.1 Inside ‘docker run’](#id34)
 

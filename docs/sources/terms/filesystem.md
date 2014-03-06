@@ -2,8 +2,7 @@ page_title: File Systems
 page_description: How Linux organizes its persistent storage
 page_keywords: containers, files, linux
 
-File System
-=========================================================
+# File System
 
 ![](../../_images/docker-filesystems-generic.png)
 

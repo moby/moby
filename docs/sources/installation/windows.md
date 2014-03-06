@@ -2,15 +2,13 @@ page_title: Installation on Windows
 page_description: Please note this project is currently under heavy development. It should not be used in production.
 page_keywords: Docker, Docker documentation, Windows, requirements, virtualbox, boot2docker
 
-Windows
-=================================================
+# Windows
 
 Docker can run on Windows using a virtualization platform like
 VirtualBox. A Linux distribution is run inside a virtual machine and
 that’s where Docker will run.
 
-Installation
------------------------------------------------------------
+## Installation
 
 Note
 
@@ -54,8 +52,7 @@ our blog post, [“Getting to Docker
 
 9.  The boot2docker virtual machine should boot now.
 
-Running Docker
----------------------------------------------------------------
+## Running Docker
 
 boot2docker will log you in automatically so you can start using Docker
 right away.
@@ -66,8 +63,7 @@ Let’s try the “hello world” example. Run
 
 This will download the small busybox image and print hello world.
 
-Observations
------------------------------------------------------------
+## Observations
 
 ### Persistent storage
 

@@ -2,8 +2,7 @@ page_title: PostgreSQL service How-To
 page_description: Running and installing a PostgreSQL service
 page_keywords: docker, example, package installation, postgresql
 
-PostgreSQL Service
-=======================================================================
+# PostgreSQL Service
 
 Note
 
@@ -13,8 +12,7 @@ Note
 -   **If you don’t like sudo** then see [*Giving non-root
     access*](../../installation/binaries/#dockergroup)
 
-Installing PostgreSQL on Docker
--------------------------------------------------------------------------------------------------
+## Installing PostgreSQL on Docker
 
 Assuming there is no Docker image that suits your needs in [the
 index](http://index.docker.io), you can create one yourself.

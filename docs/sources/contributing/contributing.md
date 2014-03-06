@@ -2,8 +2,7 @@ page_title: Contribution Guidelines
 page_description: Contribution guidelines: create issues, conventions, pull requests
 page_keywords: contributing, docker, documentation, help, guideline
 
-Contributing to Docker
-===============================================================================
+# Contributing to Docker
 
 Want to hack on Docker? Awesome!
 

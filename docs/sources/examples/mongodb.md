@@ -2,8 +2,7 @@ page_title: Building a Docker Image with MongoDB
 page_description: How to build a Docker image with MongoDB pre-installed
 page_keywords: docker, example, package installation, networking, mongodb
 
-Building an Image with MongoDB
-===============================================================================================
+# Building an Image with MongoDB
 
 Note
 
@@ -18,8 +17,7 @@ images with MongoDB pre-installed. We will do that by constructing a
 `Dockerfile` that downloads a base image, adds an
 apt source and installs the database software on Ubuntu.
 
-Creating a `Dockerfile`
----------------------------------------------------------------------------------------------------
+## Creating a `Dockerfile`
 
 Create an empty file called `Dockerfile`:
 
