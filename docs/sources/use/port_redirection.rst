@@ -85,7 +85,7 @@ dynamically allocated ports:
 .. code-block:: bash
 
    # Bind to a dynamically allocated port
-   docker run -p 127.0.0.1::8080 -name dyn-bound <image> <cmd>
+   docker run -p 127.0.0.1::8080 --name dyn-bound <image> <cmd>
 
    # Lookup the actual port
    docker port dyn-bound 8080
@@ -121,7 +121,7 @@ Dockerfile:
 .. code-block:: bash
 
     # Expose port 80
-    docker run -expose 80 -name server <image> <cmd>
+    docker run -expose 80 --name server <image> <cmd>
 
 The ``client`` then links to the ``server``:
 
