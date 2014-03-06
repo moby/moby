@@ -995,7 +995,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
     Usage: docker rm [OPTIONS] CONTAINER
 
     Remove one or more containers
-        --link="": Remove the link instead of the actual container
+        -l, --link="": Remove the link instead of the actual container
+        -f, --force=false: Force removal of running container
 
 Known Issues (rm)
 ~~~~~~~~~~~~~~~~~

@@ -199,6 +199,68 @@ func TestCreateRmVolumes(t *testing.T) {
 	}
 }
 
+func TestCreateRmRunning(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	config, hostConfig, _, err := runconfig.Parse([]string{"-name", "foo", unitTestImageID, "sleep 300"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createTestContainer(eng, config, t)
+
+	job := eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err := job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	}
+
+	job = eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test cannot remove running container
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("forceRemove", false)
+	if err := job.Run(); err == nil {
+		t.Fatal("Expected container delete to fail")
+	}
+
+	// Test can force removal of running container
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("forceRemove", true)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("containers")
+	job.SetenvBool("all", true)
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(outs.Data) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(outs.Data))
+	}
+}
+
 func TestCommit(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()

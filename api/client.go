@@ -890,6 +890,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := cli.Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated to the container")
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of running container")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -904,6 +905,9 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	}
 	if *link {
 		val.Set("link", "1")
+	}
+	if *force {
+		val.Set("force", "1")
 	}
 
 	var encounteredError error
