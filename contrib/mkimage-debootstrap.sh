@@ -13,7 +13,7 @@ variant='minbase'
 # packages to include by default in the image (see -i option)
 include='iproute,iputils-ping'
 # architecture of the image
-arch='amd64' # intentionally undocumented for now
+arch='amd64' # Docker officially only supports 64bit/amd64 currently, hence undocumented below
 skipDetection=
 strictDebootstrap=
 justTar=
@@ -32,7 +32,7 @@ usage() {
 	echo >&2 "  -s # skip version detection and tagging (ie, precise also tagged as 12.04)"
 	echo >&2 "     # note that this will also skip adding universe and/or security/updates to sources.list"
 	echo >&2 "  -t # just create a tarball, especially for dockerbrew (uses repo as tarball name)"
-	echo >&2 "  -a $arch # change default architecture"
+	#echo >&2 "  -a $arch # change default architecture" # intentionally undocumented for now
 	
 	echo >&2
 	echo >&2 "   ie: $0 username/debian squeeze"
@@ -140,11 +140,11 @@ set -x
 
 # bootstrap
 mkdir -p "$target"
-variantarg=
-if [ "z$variant" != "z" ]; then
-    variantarg=--variant="$variant"
+variantArg=
+if [ "$variant" ]; then
+    variantArg=--variant="$variant"
 fi
-sudo http_proxy=$http_proxy debootstrap --verbose $variantarg --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
+sudo http_proxy=$http_proxy debootstrap --verbose $variantArg --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
 
 cd "$target"
 
