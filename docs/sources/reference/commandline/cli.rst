@@ -1289,12 +1289,47 @@ explains in detail how to manipulate ports in Docker.
 
     $ sudo docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
 
-This sets environmental variables to the container. For illustration all three
-flags are shown here. Where -e and --env can be repeated, take an environment 
-variable and value, or if no "=" is provided, then that variable's current
-value is passed through (i.e. $MYVAR1 from the host is set to $MYVAR1 in the
-container). The --env-file flag takes a filename as an argument and expects each
-line to be a VAR=VAL format.
+This sets environmental variables in the container. For illustration all three
+flags are shown here. Where ``-e``, ``--env`` take an environment variable and
+value, or if no "=" is provided, then that variable's current value is passed
+through (i.e. $MYVAR1 from the host is set to $MYVAR1 in the container). All
+three flags, ``-e``, ``--env``  and ``--env-file`` can be repeated.
+
+Regardless of the order of these three flags, the ``--env-file`` are processed
+first, and then ``-e``/``--env`` flags. So that they can override VAR as needed.
+
+.. code-block:: bash
+
+    $ cat ./env.list
+    TEST_FOO=BAR
+    $ sudo docker run --env TEST_FOO="This is a test" --env-file ./env.list busybox env | grep TEST_FOO
+    TEST_FOO=This is a test
+
+The ``--env-file`` flag takes a filename as an argument and expects each line
+to be in the VAR=VAL format.  The VAL is Unquoted, so if you need a multi-line
+value, then use `\n` escape characters inside of a double quoted VAL. Single
+quotes are literal. An example of a file passed with ``--env-file``
+
+.. code-block:: bash
+
+    $ cat ./env.list
+    TEST_FOO=BAR
+    TEST_APP_DEST_HOST=10.10.0.127
+    TEST_APP_DEST_PORT=8888
+    TEST_SOME_MULTILINE_VAR="this is first line\nthis is second line"
+    TEST_SOME_LITERAL_VAR='this\nwill\nall\nbe\none\nline'
+    $ sudo docker run --env-file ./env.list busybox env
+    HOME=/
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    HOSTNAME=215d54a814bc
+    TEST_FOO=BAR
+    TEST_APP_DEST_HOST=10.10.0.127
+    TEST_APP_DEST_PORT=8888
+    TEST_SOME_MULTILINE_VAR=this is first line
+    this is second line
+    TEST_SOME_LITERAL_VAR='this\nwill\nall\nbe\none\nline'
+    container=lxc
+
 
 .. code-block:: bash
 

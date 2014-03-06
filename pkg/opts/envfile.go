@@ -2,9 +2,10 @@ package opts
 
 import (
 	"bufio"
-	"bytes"
-	"io"
+	"fmt"
 	"os"
+	"strconv"
+	"strings"
 )
 
 /*
@@ -17,30 +18,20 @@ func ParseEnvFile(filename string) ([]string, error) {
 	}
 	defer fh.Close()
 
-	var (
-		lines       []string = []string{}
-		line, chunk []byte
-	)
-	reader := bufio.NewReader(fh)
-	line, isPrefix, err := reader.ReadLine()
-
-	for err == nil {
-		if isPrefix {
-			chunk = append(chunk, line...)
-		} else if !isPrefix && len(chunk) > 0 {
-			line = chunk
-			chunk = []byte{}
-		} else {
-			chunk = []byte{}
+	lines := []string{}
+	scanner := bufio.NewScanner(fh)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// line is not empty, and not starting with '#'
+		if len(line) > 0 && !strings.HasPrefix(line, "#") && strings.Contains(line, "=") {
+			data := strings.SplitN(line, "=", 2)
+			key := data[0]
+			val := data[1]
+			if str, err := strconv.Unquote(data[1]); err == nil {
+				val = str
+			}
+			lines = append(lines, fmt.Sprintf("%s=%s", key, val))
 		}
-
-		if !isPrefix && len(line) > 0 && bytes.Contains(line, []byte("=")) {
-			lines = append(lines, string(line))
-		}
-		line, isPrefix, err = reader.ReadLine()
-	}
-	if err != nil && err != io.EOF {
-		return []string{}, err
 	}
 	return lines, nil
 }
