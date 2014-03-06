@@ -18,6 +18,7 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 		export LDFLAGS_STATIC="" # we just need a simple client for these platforms (TODO this might change someday)
+		export BUILDTAGS="netgo"
 		source "$(dirname "$BASH_SOURCE")/binary" "$DEST/$platform"
 	)
 done

@@ -1,3 +1,5 @@
+// +build apparmor
+
 package apparmor
 
 // #cgo LDFLAGS: -lapparmor
