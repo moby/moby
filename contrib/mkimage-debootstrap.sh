@@ -8,6 +8,7 @@ set -e
 #  SUITE can be any Debian or Ubuntu release name supported by debootstrap
 
 # debootstrap variant (see -v option)
+# set only variant= if you don't want minbase by default
 variant='minbase'
 # packages to include by default in the image (see -i option)
 include='iproute,iputils-ping'
