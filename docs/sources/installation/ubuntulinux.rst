@@ -64,7 +64,7 @@ Installation
    an earlier version, you will need to follow them again.
 
 Docker is available as a Debian package, which makes installation
-easy. **See the :ref:`installmirrors` section below if you are not in
+easy. **See the** :ref:`installmirrors` **section below if you are not in
 the United States.** Other sources of the Debian packages may be
 faster for you to install.
 
