@@ -1,4 +1,8 @@
-FrugalWare[¶](#frugalware "Permalink to this headline")
+page_title: Installation on FrugalWare
+page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_keywords: frugalware linux, virtualization, docker, documentation, installation
+
+FrugalWare
 =======================================================
 
 Note
@@ -22,7 +26,7 @@ Installing on FrugalWare is handled via the official packages:
 
 The lxc-docker package will install the latest tagged version of Docker.
 
-Dependencies[¶](#dependencies "Permalink to this headline")
+Dependencies
 -----------------------------------------------------------
 
 Docker depends on several packages which are specified as dependencies
@@ -36,7 +40,7 @@ in the packages. The core dependencies are:
 -   iproute2
 -   bridge-utils
 
-Installation[¶](#installation "Permalink to this headline")
+Installation
 -----------------------------------------------------------
 
 A simple
@@ -45,7 +49,7 @@ A simple
 
 is all that is needed.
 
-Starting Docker[¶](#starting-docker "Permalink to this headline")
+Starting Docker
 -----------------------------------------------------------------
 
 There is a systemd service unit created for Docker. To start Docker as

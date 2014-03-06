@@ -1,4 +1,5 @@
-Articles[¶](#articles "Permalink to this headline")
+
+Articles
 ===================================================
 
 -   [Docker Security](security/)

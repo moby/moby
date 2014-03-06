@@ -1,4 +1,8 @@
-Using Supervisor with Docker[¶](#using-supervisor-with-docker "Permalink to this headline")
+page_title: Using Supervisor with Docker
+page_description: How to use Supervisor process management with Docker
+page_keywords: docker, supervisor, process management
+
+Using Supervisor with Docker
 ===========================================================================================
 
 Note
@@ -13,7 +17,7 @@ Traditionally a Docker container runs a single process when it is
 launched, for example an Apache daemon or a SSH server daemon. Often
 though you want to run more than one process in a container. There are a
 number of ways you can achieve this ranging from using a simple Bash
-script as the value of your container’s `CMD`{.docutils .literal}
+script as the value of your container’s `CMD`
 instruction to installing a process management tool.
 
 In this example we’re going to make use of the process management tool,
@@ -22,10 +26,10 @@ our container. Using Supervisor allows us to better control, manage, and
 restart the processes we want to run. To demonstrate this we’re going to
 install and manage both an SSH daemon and an Apache daemon.
 
-Creating a Dockerfile[¶](#creating-a-dockerfile "Permalink to this headline")
+Creating a Dockerfile
 -----------------------------------------------------------------------------
 
-Let’s start by creating a basic `Dockerfile`{.docutils .literal} for our
+Let’s start by creating a basic `Dockerfile` for our
 new image.
 
     FROM ubuntu:latest
@@ -34,7 +38,7 @@ new image.
     RUN apt-get update
     RUN apt-get upgrade -y
 
-Installing Supervisor[¶](#installing-supervisor "Permalink to this headline")
+Installing Supervisor
 -----------------------------------------------------------------------------
 
 We can now install our SSH and Apache daemons as well as Supervisor in
@@ -44,21 +48,21 @@ our container.
     RUN mkdir -p /var/run/sshd
     RUN mkdir -p /var/log/supervisor
 
-Here we’re installing the `openssh-server`{.docutils .literal},
-`apache2`{.docutils .literal} and `supervisor`{.docutils .literal}
+Here we’re installing the `openssh-server`,
+`apache2` and `supervisor`{.docutils .literal}
 (which provides the Supervisor daemon) packages. We’re also creating two
 new directories that are needed to run our SSH daemon and Supervisor.
 
-Adding Supervisor’s configuration file[¶](#adding-supervisor-s-configuration-file "Permalink to this headline")
+Adding Supervisor’s configuration file
 ---------------------------------------------------------------------------------------------------------------
 
 Now let’s add a configuration file for Supervisor. The default file is
-called `supervisord.conf`{.docutils .literal} and is located in
-`/etc/supervisor/conf.d/`{.docutils .literal}.
+called `supervisord.conf` and is located in
+`/etc/supervisor/conf.d/`.
 
     ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-Let’s see what is inside our `supervisord.conf`{.docutils .literal}
+Let’s see what is inside our `supervisord.conf`
 file.
 
     [supervisord]
@@ -70,40 +74,40 @@ file.
     [program:apache2]
     command=/bin/bash -c "source /etc/apache2/envvars && exec /usr/sbin/apache2 -DFOREGROUND"
 
-The `supervisord.conf`{.docutils .literal} configuration file contains
+The `supervisord.conf` configuration file contains
 directives that configure Supervisor and the processes it manages. The
-first block `[supervisord]`{.docutils .literal} provides configuration
+first block `[supervisord]` provides configuration
 for Supervisor itself. We’re using one directive, `nodaemon`{.docutils
 .literal} which tells Supervisor to run interactively rather than
 daemonize.
 
 The next two blocks manage the services we wish to control. Each block
 controls a separate process. The blocks contain a single directive,
-`command`{.docutils .literal}, which specifies what command to run to
+`command`, which specifies what command to run to
 start each process.
 
-Exposing ports and running Supervisor[¶](#exposing-ports-and-running-supervisor "Permalink to this headline")
+Exposing ports and running Supervisor
 -------------------------------------------------------------------------------------------------------------
 
-Now let’s finish our `Dockerfile`{.docutils .literal} by exposing some
-required ports and specifying the `CMD`{.docutils .literal} instruction
+Now let’s finish our `Dockerfile` by exposing some
+required ports and specifying the `CMD` instruction
 to start Supervisor when our container launches.
 
     EXPOSE 22 80
     CMD ["/usr/bin/supervisord"]
 
 Here we’ve exposed ports 22 and 80 on the container and we’re running
-the `/usr/bin/supervisord`{.docutils .literal} binary when the container
+the `/usr/bin/supervisord` binary when the container
 launches.
 
-Building our container[¶](#building-our-container "Permalink to this headline")
+Building our container
 -------------------------------------------------------------------------------
 
 We can now build our new container.
 
     sudo docker build -t <yourname>/supervisord .
 
-Running our Supervisor container[¶](#running-our-supervisor-container "Permalink to this headline")
+Running our Supervisor container
 ---------------------------------------------------------------------------------------------------
 
 Once we’ve got a built image we can launch a container from it.
@@ -117,8 +121,8 @@ Once we’ve got a built image we can launch a container from it.
     . . .
 
 We’ve launched a new container interactively using the
-`docker run`{.docutils .literal} command. That container has run
+`docker run` command. That container has run
 Supervisor and launched the SSH and Apache daemons with it. We’ve
-specified the `-p`{.docutils .literal} flag to expose ports 22 and 80.
+specified the `-p` flag to expose ports 22 and 80.
 From here we can now identify the exposed ports and connect to one or
 both of the SSH and Apache daemons.

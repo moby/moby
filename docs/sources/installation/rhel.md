@@ -1,4 +1,8 @@
-Red Hat Enterprise Linux[¶](#red-hat-enterprise-linux "Permalink to this headline")
+page_title: Installation on Red Hat Enterprise Linux
+page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos
+
+Red Hat Enterprise Linux
 ===================================================================================
 
 Note
@@ -26,28 +30,28 @@ to create and maintain additional packages for the RHEL distribution.
 Also note that due to the current Docker limitations, Docker is able to
 run only on the **64 bit** architecture.
 
-Installation[¶](#installation "Permalink to this headline")
+Installation
 -----------------------------------------------------------
 
 Firstly, you need to install the EPEL repository. Please follow the
 [EPEL installation
 instructions](https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F).
 
-The `docker-io`{.docutils .literal} package provides Docker on EPEL.
+The `docker-io` package provides Docker on EPEL.
 
-If you already have the (unrelated) `docker`{.docutils .literal} package
-installed, it will conflict with `docker-io`{.docutils .literal}.
+If you already have the (unrelated) `docker` package
+installed, it will conflict with `docker-io`.
 There’s a [bug
 report](https://bugzilla.redhat.com/show_bug.cgi?id=1043676) filed for
-it. To proceed with `docker-io`{.docutils .literal} installation, please
-remove `docker`{.docutils .literal} first.
+it. To proceed with `docker-io` installation, please
+remove `docker` first.
 
-Next, let’s install the `docker-io`{.docutils .literal} package which
+Next, let’s install the `docker-io` package which
 will install Docker on our host.
 
     sudo yum -y install docker-io
 
-To update the `docker-io`{.docutils .literal} package
+To update the `docker-io` package
 
     sudo yum -y update docker-io
 
@@ -66,7 +70,7 @@ Now let’s verify that Docker is working.
 **Done!**, now continue with the [*Hello
 World*](../../examples/hello_world/#hello-world) example.
 
-Issues?[¶](#issues "Permalink to this headline")
+Issues?
 ------------------------------------------------
 
 If you have any issues - please report them directly in the [Red Hat

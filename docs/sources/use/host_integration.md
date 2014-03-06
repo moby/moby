@@ -1,21 +1,25 @@
-Automatically Start Containers[¶](#automatically-start-containers "Permalink to this headline")
+page_title: Automatically Start Containers
+page_description: How to generate scripts for upstart, systemd, etc.
+page_keywords: systemd, upstart, supervisor, docker, documentation, host integration
+
+Automatically Start Containers
 ===============================================================================================
 
 You can use your Docker containers with process managers like
-`upstart`{.docutils .literal}, `systemd`{.docutils .literal} and
-`supervisor`{.docutils .literal}.
+`upstart`, `systemd`{.docutils .literal} and
+`supervisor`.
 
-Introduction[¶](#introduction "Permalink to this headline")
+Introduction
 -----------------------------------------------------------
 
 If you want a process manager to manage your containers you will need to
-run the docker daemon with the `-r=false`{.docutils .literal} so that
+run the docker daemon with the `-r=false` so that
 docker will not automatically restart your containers when the host is
 restarted.
 
 When you have finished setting up your image and are happy with your
 running container, you may want to use a process manager to manage it.
-When your run `docker start -a`{.docutils .literal} docker will
+When your run `docker start -a` docker will
 automatically attach to the process and forward all signals so that the
 process manager can detect when a container stops and correctly restart
 it.
@@ -23,12 +27,12 @@ it.
 Here are a few sample scripts for systemd and upstart to integrate with
 docker.
 
-Sample Upstart Script[¶](#sample-upstart-script "Permalink to this headline")
+Sample Upstart Script
 -----------------------------------------------------------------------------
 
 In this example we’ve already created a container to run Redis with an
 id of 0a7e070b698b. To create an upstart script for our container, we
-create a file named `/etc/init/redis.conf`{.docutils .literal} and place
+create a file named `/etc/init/redis.conf` and place
 the following into it:
 
     description "Redis container"
@@ -46,11 +50,11 @@ the following into it:
     end script
 
 Next, we have to configure docker so that it’s run with the option
-`-r=false`{.docutils .literal}. Run the following command:
+`-r=false`. Run the following command:
 
     $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' > /etc/default/docker"
 
-Sample systemd Script[¶](#sample-systemd-script "Permalink to this headline")
+Sample systemd Script
 -----------------------------------------------------------------------------
 
     [Unit]

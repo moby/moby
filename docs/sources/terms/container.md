@@ -1,4 +1,8 @@
-Container[¶](#container "Permalink to this headline")
+page_title: Container
+page_description: Definitions of a container
+page_keywords: containers, lxc, concepts, explanation, image, container
+
+Container
 =====================================================
 
 ![](../../_images/docker-filesystems-busyboxrw.png)
@@ -13,7 +17,7 @@ Image*](../image/#parent-image-def) and some additional information like
 its unique id, networking configuration, and resource limits is called a
 **container**.
 
-Container State[¶](#container-state "Permalink to this headline")
+Container State
 -----------------------------------------------------------------
 
 Containers can change, and so they have state. A container may be
@@ -30,10 +34,10 @@ in a container), but the file system is just as it was when the
 container was stopped.
 
 You can promote a container to an [*Image*](../image/#image-def) with
-`docker commit`{.docutils .literal}. Once a container is an image, you
+`docker commit`. Once a container is an image, you
 can use it as a parent for new containers.
 
-Container IDs[¶](#container-ids "Permalink to this headline")
+Container IDs
 -------------------------------------------------------------
 
 All containers are identified by a 64 hexadecimal digit string

@@ -1,4 +1,8 @@
-Using Puppet[¶](#using-puppet "Permalink to this headline")
+page_title: Puppet Usage
+page_description: Installating and using Puppet
+page_keywords: puppet, installation, usage, docker, documentation
+
+Using Puppet
 ===========================================================
 
 Note
@@ -8,7 +12,7 @@ Please note this is a community contributed installation path. The only
 [*Ubuntu*](../../installation/ubuntulinux/#ubuntu-linux) installation
 path. This version may sometimes be out of date.
 
-Requirements[¶](#requirements "Permalink to this headline")
+Requirements
 -----------------------------------------------------------
 
 To use this guide you’ll need a working installation of Puppet from
@@ -17,7 +21,7 @@ To use this guide you’ll need a working installation of Puppet from
 The module also currently uses the official PPA so only works with
 Ubuntu.
 
-Installation[¶](#installation "Permalink to this headline")
+Installation
 -----------------------------------------------------------
 
 The module is available on the [Puppet
@@ -30,17 +34,17 @@ It can also be found on
 [GitHub](https://www.github.com/garethr/garethr-docker) if you would
 rather download the source.
 
-Usage[¶](#usage "Permalink to this headline")
+Usage
 ---------------------------------------------
 
 The module provides a puppet class for installing Docker and two defined
 types for managing images and containers.
 
-### Installation[¶](#id1 "Permalink to this headline")
+### Installation
 
     include 'docker'
 
-### Images[¶](#images "Permalink to this headline")
+### Images
 
 The next step is probably to install a Docker image. For this, we have a
 defined type which can be used like so:
@@ -61,7 +65,7 @@ longer need with:
       ensure => 'absent',
     }
 
-### Containers[¶](#containers "Permalink to this headline")
+### Containers
 
 Now you have an image where you can run commands within a container
 managed by Docker.

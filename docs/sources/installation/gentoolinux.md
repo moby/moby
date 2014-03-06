@@ -1,4 +1,8 @@
-Gentoo[¶](#gentoo "Permalink to this headline")
+page_title: Installation on Gentoo
+page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_keywords: gentoo linux, virtualization, docker, documentation, installation
+
+Gentoo
 ===============================================
 
 Note
@@ -20,11 +24,11 @@ methods. The first and best way if you’re looking for a stable
 experience is to use the official app-emulation/docker package directly
 in the portage tree.
 
-If you’re looking for a `-bin`{.docutils .literal} ebuild, a live
+If you’re looking for a `-bin` ebuild, a live
 ebuild, or bleeding edge ebuild changes/fixes, the second installation
 method is to use the overlay provided at
 [https://github.com/tianon/docker-overlay](https://github.com/tianon/docker-overlay)
-which can be added using `app-portage/layman`{.docutils .literal}. The
+which can be added using `app-portage/layman`. The
 most accurate and up-to-date documentation for properly installing and
 using the overlay can be found in [the overlay
 README](https://github.com/tianon/docker-overlay/blob/master/README.md#using-this-overlay).
@@ -34,7 +38,7 @@ what’s in the overlay, and between the latest version in the overlay and
 what’s in the portage tree. Please be patient, and the latest version
 should propagate shortly.
 
-Installation[¶](#installation "Permalink to this headline")
+Installation
 -----------------------------------------------------------
 
 The package should properly pull in all the necessary dependencies and
@@ -51,14 +55,14 @@ and especially missing kernel configuration flags and/or dependencies,
 repository](https://github.com/tianon/docker-overlay/issues) or ping
 tianon directly in the \#docker IRC channel on the freenode network.
 
-Starting Docker[¶](#starting-docker "Permalink to this headline")
+Starting Docker
 -----------------------------------------------------------------
 
 Ensure that you are running a kernel that includes all the necessary
 modules and/or configuration for LXC (and optionally for device-mapper
 and/or AUFS, depending on the storage driver you’ve decided to use).
 
-### OpenRC[¶](#openrc "Permalink to this headline")
+### OpenRC
 
 To start the docker daemon:
 
@@ -68,7 +72,7 @@ To start on system boot:
 
     sudo rc-update add docker default
 
-### systemd[¶](#systemd "Permalink to this headline")
+### systemd
 
 To start the docker daemon:
 

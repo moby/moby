@@ -1,4 +1,5 @@
-Reference Manual[¶](#reference-manual "Permalink to this headline")
+
+Reference Manual
 ===================================================================
 
 Contents:

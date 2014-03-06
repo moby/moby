@@ -1,4 +1,5 @@
-Examples[¶](#examples "Permalink to this headline")
+
+Examples
 ===================================================
 
 Here are some examples of how to use Docker to create running processes,

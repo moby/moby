@@ -1,4 +1,8 @@
-Image[¶](#image "Permalink to this headline")
+page_title: Images
+page_description: Definition of an image
+page_keywords: containers, lxc, concepts, explanation, image, container
+
+Image
 =============================================
 
 ![](../../_images/docker-filesystems-debian.png)
@@ -14,7 +18,7 @@ images do not have state.
 
 ![](../../_images/docker-filesystems-debianrw.png)
 
-Parent Image[¶](#parent-image "Permalink to this headline")
+Parent Image
 -----------------------------------------------------------
 
 ![](../../_images/docker-filesystems-multilayer.png)
@@ -23,12 +27,12 @@ Each image may depend on one more image which forms the layer beneath
 it. We sometimes say that the lower image is the **parent** of the upper
 image.
 
-Base Image[¶](#base-image "Permalink to this headline")
+Base Image
 -------------------------------------------------------
 
 An image that has no parent is a **base image**.
 
-Image IDs[¶](#image-ids "Permalink to this headline")
+Image IDs
 -----------------------------------------------------
 
 All images are identified by a 64 hexadecimal digit string (internally a

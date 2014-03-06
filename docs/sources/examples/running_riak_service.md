@@ -1,4 +1,8 @@
-Riak Service[¶](#riak-service "Permalink to this headline")
+page_title: Running a Riak service
+page_description: Build a Docker image with Riak pre-installed
+page_keywords: docker, example, package installation, networking, riak
+
+Riak Service
 ===========================================================
 
 Note
@@ -12,16 +16,16 @@ Note
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.
 
-Creating a `Dockerfile`{.docutils .literal}[¶](#creating-a-dockerfile "Permalink to this headline")
+Creating a `Dockerfile`
 ---------------------------------------------------------------------------------------------------
 
-Create an empty file called `Dockerfile`{.docutils .literal}:
+Create an empty file called `Dockerfile`:
 
     touch Dockerfile
 
 Next, define the parent image you want to use to build your image on top
 of. We’ll use [Ubuntu](https://index.docker.io/_/ubuntu/) (tag:
-`latest`{.docutils .literal}), which is available on the [docker
+`latest`), which is available on the [docker
 index](http://index.docker.io):
 
     # Riak
@@ -41,13 +45,13 @@ Next, we update the APT cache and apply any updates:
 
 After that, we install and setup a few dependencies:
 
--   `curl`{.docutils .literal} is used to download Basho’s APT
+-   `curl` is used to download Basho’s APT
     repository key
--   `lsb-release`{.docutils .literal} helps us derive the Ubuntu release
+-   `lsb-release` helps us derive the Ubuntu release
     codename
--   `openssh-server`{.docutils .literal} allows us to login to
+-   `openssh-server` allows us to login to
     containers remotely and join Riak nodes to form a cluster
--   `supervisor`{.docutils .literal} is used manage the OpenSSH and Riak
+-   `supervisor` is used manage the OpenSSH and Riak
     processes
 
 <!-- -->
@@ -78,7 +82,7 @@ After that, we install Riak and alter a few defaults:
     RUN echo "ulimit -n 4096" >> /etc/default/riak
 
 Almost there. Next, we add a hack to get us by the lack of
-`initctl`{.docutils .literal}:
+`initctl`:
 
     # Hack for initctl
     # See: https://github.com/dotcloud/docker/issues/1024
@@ -91,15 +95,15 @@ with SSH:
     # Expose Riak Protocol Buffers and HTTP interfaces, along with SSH
     EXPOSE 8087 8098 22
 
-Finally, run `supervisord`{.docutils .literal} so that Riak and OpenSSH
+Finally, run `supervisord` so that Riak and OpenSSH
 are started:
 
     CMD ["/usr/bin/supervisord"]
 
-Create a `supervisord`{.docutils .literal} configuration file[¶](#create-a-supervisord-configuration-file "Permalink to this headline")
+Create a `supervisord` configuration file
 ---------------------------------------------------------------------------------------------------------------------------------------
 
-Create an empty file called `supervisord.conf`{.docutils .literal}. Make
+Create an empty file called `supervisord.conf`. Make
 sure it’s at the same directory level as your `Dockerfile`{.docutils
 .literal}:
 
@@ -122,14 +126,14 @@ Populate it with the following program definitions:
     stdout_logfile=/var/log/supervisor/%(program_name)s.log
     stderr_logfile=/var/log/supervisor/%(program_name)s.log
 
-Build the Docker image for Riak[¶](#build-the-docker-image-for-riak "Permalink to this headline")
+Build the Docker image for Riak
 -------------------------------------------------------------------------------------------------
 
 Now you should be able to build a Docker image for Riak:
 
     docker build -t "<yourname>/riak" .
 
-Next steps[¶](#next-steps "Permalink to this headline")
+Next steps
 -------------------------------------------------------
 
 Riak is a distributed database. Many production deployments consist of

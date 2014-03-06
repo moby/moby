@@ -1,4 +1,5 @@
-Glossary[¶](#glossary "Permalink to this headline")
+
+Glossary
 ===================================================
 
 Definitions of terms used in Docker documentation.

@@ -1,4 +1,8 @@
-Redirect Ports[¶](#redirect-ports "Permalink to this headline")
+page_title: Redirect Ports
+page_description: usage about port redirection
+page_keywords: Usage, basic port, docker, documentation, examples
+
+Redirect Ports
 ===============================================================
 
 Interacting with a service is commonly done through a connection to a
@@ -21,23 +25,23 @@ container, Docker provide ways to bind the container port to an
 interface of the host system. To simplify communication between
 containers, Docker provides the linking mechanism.
 
-Auto map all exposed ports on the host[¶](#auto-map-all-exposed-ports-on-the-host "Permalink to this headline")
+Auto map all exposed ports on the host
 ---------------------------------------------------------------------------------------------------------------
 
 To bind all the exposed container ports to the host automatically, use
-`docker run -P <imageid>`{.docutils .literal}. The mapped host ports
+`docker run -P <imageid>`. The mapped host ports
 will be auto-selected from a pool of unused ports (49000..49900), and
-you will need to use `docker ps`{.docutils .literal},
-`docker inspect <container_id>`{.docutils .literal} or
-`docker port <container_id> <port>`{.docutils .literal} to determine
+you will need to use `docker ps`,
+`docker inspect <container_id>` or
+`docker port <container_id> <port>` to determine
 what they are.
 
-Binding a port to a host interface[¶](#binding-a-port-to-a-host-interface "Permalink to this headline")
+Binding a port to a host interface
 -------------------------------------------------------------------------------------------------------
 
 To bind a port of the container to a specific interface of the host
-system, use the `-p`{.docutils .literal} parameter of the
-`docker run`{.docutils .literal} command:
+system, use the `-p` parameter of the
+`docker run` command:
 
     # General syntax
     docker run -p [([<host_interface>:[host_port]])|(<host_port>):]<container_port>[/udp] <image> <cmd>
@@ -66,7 +70,7 @@ example:
     # Bind UDP port 5353 of the container to UDP port 53 on 127.0.0.1 of the host machine.
     docker run -p 127.0.0.1:53:5353/udp <image> <cmd>
 
-The command `docker port`{.docutils .literal} lists the interface and
+The command `docker port` lists the interface and
 port on the host machine bound to a given container port. It is useful
 when using dynamically allocated ports:
 
@@ -77,47 +81,47 @@ when using dynamically allocated ports:
     docker port dyn-bound 8080
     127.0.0.1:49160
 
-Linking a container[¶](#linking-a-container "Permalink to this headline")
+Linking a container
 -------------------------------------------------------------------------
 
 Communication between two containers can also be established in a
 docker-specific way called linking.
 
 To briefly present the concept of linking, let us consider two
-containers: `server`{.docutils .literal}, containing the service, and
-`client`{.docutils .literal}, accessing the service. Once
-`server`{.docutils .literal} is running, `client`{.docutils .literal} is
+containers: `server`, containing the service, and
+`client`, accessing the service. Once
+`server` is running, `client`{.docutils .literal} is
 started and links to server. Linking sets environment variables in
-`client`{.docutils .literal} giving it some information about
-`server`{.docutils .literal}. In this sense, linking is a method of
+`client` giving it some information about
+`server`. In this sense, linking is a method of
 service discovery.
 
 Let us now get back to our topic of interest; communication between the
 two containers. We mentioned that the tricky part about this
-communication was that the IP address of `server`{.docutils .literal}
+communication was that the IP address of `server`
 was not fixed. Therefore, some of the environment variables are going to
-be used to inform `client`{.docutils .literal} about this IP address.
+be used to inform `client` about this IP address.
 This process called exposure, is possible because `client`{.docutils
-.literal} is started after `server`{.docutils .literal} has been
+.literal} is started after `server` has been
 started.
 
-Here is a full example. On `server`{.docutils .literal}, the port of
+Here is a full example. On `server`, the port of
 interest is exposed. The exposure is done either through the
-`-expose`{.docutils .literal} parameter to the `docker run`{.docutils
-.literal} command, or the `EXPOSE`{.docutils .literal} build command in
+`-expose` parameter to the `docker run`{.docutils
+.literal} command, or the `EXPOSE` build command in
 a Dockerfile:
 
     # Expose port 80
     docker run -expose 80 -name server <image> <cmd>
 
-The `client`{.docutils .literal} then links to the `server`{.docutils
+The `client` then links to the `server`{.docutils
 .literal}:
 
     # Link
     docker run -name client -link server:linked-server <image> <cmd>
 
-`client`{.docutils .literal} locally refers to `server`{.docutils
-.literal} as `linked-server`{.docutils .literal}. The following
+`client` locally refers to `server`{.docutils
+.literal} as `linked-server`. The following
 environment variables, among others, are available on `client`{.docutils
 .literal}:
 
@@ -130,9 +134,9 @@ environment variables, among others, are available on `client`{.docutils
     LINKED-SERVER_PORT_80_TCP_ADDR=172.17.0.8
     LINKED-SERVER_PORT_80_TCP_PORT=80
 
-This tells `client`{.docutils .literal} that a service is running on
-port 80 of `server`{.docutils .literal} and that `server`{.docutils
+This tells `client` that a service is running on
+port 80 of `server` and that `server`{.docutils
 .literal} is accessible at the IP address 172.17.0.8
 
-Note: Using the `-p`{.docutils .literal} parameter also exposes the
+Note: Using the `-p` parameter also exposes the
 port..

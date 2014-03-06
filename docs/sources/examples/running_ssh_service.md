@@ -1,4 +1,8 @@
-SSH Daemon Service[¶](#ssh-daemon-service "Permalink to this headline")
+page_title: Running an SSH service
+page_description: Installing and running an sshd service
+page_keywords: docker, example, package installation, networking
+
+SSH Daemon Service
 =======================================================================
 
 Note
@@ -35,16 +39,16 @@ Build the image using:
 
     $ sudo docker build -rm -t eg_sshd .
 
-Then run it. You can then use `docker port`{.docutils .literal} to find
+Then run it. You can then use `docker port` to find
 out what host port the container’s port 22 is mapped to:
 
     $ sudo docker run -d -P -name test_sshd eg_sshd
     $ sudo docker port test_sshd 22
     0.0.0.0:49154
 
-And now you can ssh to port `49154`{.docutils .literal} on the Docker
-daemon’s host IP address (`ip address`{.docutils .literal} or
-`ifconfig`{.docutils .literal} can tell you that):
+And now you can ssh to port `49154` on the Docker
+daemon’s host IP address (`ip address` or
+`ifconfig` can tell you that):
 
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.

@@ -1,4 +1,8 @@
-Rackspace Cloud[¶](#rackspace-cloud "Permalink to this headline")
+page_title: Installation on Rackspace Cloud
+page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_keywords: Rackspace Cloud, installation, docker, linux, ubuntu
+
+Rackspace Cloud
 =================================================================
 
 Note
@@ -21,7 +25,7 @@ Rackspace.
 Rackspace boots their servers using grub’s `menu.lst`{.docutils
 .literal} and does not like non ‘virtual’ packages (e.g. Xen compatible)
 kernels there, although they do work. This results in
-`update-grub`{.docutils .literal} not having the expected result, and
+`update-grub` not having the expected result, and
 you will need to set the kernel manually.
 
 **Do not attempt this on a production machine!**
@@ -40,7 +44,7 @@ Great, now you have the kernel installed in `/boot/`{.docutils
 
     # this should return some results
 
-Now you need to manually edit `/boot/grub/menu.lst`{.docutils .literal},
+Now you need to manually edit `/boot/grub/menu.lst`,
 you will find a section at the bottom with the existing options. Copy
 the top one and substitute the new kernel into that. Make sure the new
 kernel is on top, and double check the kernel and initrd lines point to

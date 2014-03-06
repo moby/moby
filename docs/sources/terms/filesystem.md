@@ -1,4 +1,8 @@
-File System[¶](#file-system "Permalink to this headline")
+page_title: File Systems
+page_description: How Linux organizes its persistent storage
+page_keywords: containers, files, linux
+
+File System
 =========================================================
 
 ![](../../_images/docker-filesystems-generic.png)
@@ -17,8 +21,8 @@ initrd disk image.
 
 The **root file system** includes the typical directory structure we
 associate with Unix-like operating systems:
-`/dev, /proc, /bin, /etc, /lib, /usr,`{.docutils .literal} and
-`/tmp`{.docutils .literal} plus all the configuration files, binaries
+`/dev, /proc, /bin, /etc, /lib, /usr,` and
+`/tmp` plus all the configuration files, binaries
 and libraries required to run user applications (like bash, ls, and so
 forth).
 

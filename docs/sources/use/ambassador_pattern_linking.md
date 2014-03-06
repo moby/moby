@@ -1,4 +1,8 @@
-Link via an Ambassador Container[¶](#link-via-an-ambassador-container "Permalink to this headline")
+page_title: Link via an Ambassador Container
+page_description: Using the Ambassador pattern to abstract (network) services
+page_keywords: Examples, Usage, links, docker, documentation, examples, names, name, container naming
+
+Link via an Ambassador Container
 ===================================================================================================
 
 Rather than hardcoding network links between a service consumer and
@@ -8,8 +12,8 @@ eg, instead of
 
     (consumer) --> (redis)
 
-requiring you to restart the `consumer`{.docutils .literal} to attach it
-to a different `redis`{.docutils .literal} service, you can add
+requiring you to restart the `consumer` to attach it
+to a different `redis` service, you can add
 ambassadors
 
     (consumer) --> (redis-ambassador) --> (redis)
@@ -19,17 +23,17 @@ ambassadors
     (consumer) --> (redis-ambassador) ---network---> (redis-ambassador) --> (redis)
 
 When you need to rewire your consumer to talk to a different redis
-server, you can just restart the `redis-ambassador`{.docutils .literal}
+server, you can just restart the `redis-ambassador`
 container that the consumer is connected to.
 
 This pattern also allows you to transparently move the redis server to a
 different docker host from the consumer.
 
-Using the `svendowideit/ambassador`{.docutils .literal} container, the
+Using the `svendowideit/ambassador` container, the
 link wiring is controlled entirely from the `docker run`{.docutils
 .literal} parameters.
 
-Two host Example[¶](#two-host-example "Permalink to this headline")
+Two host Example
 -------------------------------------------------------------------
 
 Start actual redis server on one Docker host
@@ -43,11 +47,11 @@ outside world
 
 On the other host, you can set up another ambassador setting environment
 variables for each remote port we want to proxy to the
-`big-server`{.docutils .literal}
+`big-server`
 
     client-server $ docker run -d -name redis_ambassador -expose 6379 -e REDIS_PORT_6379_TCP=tcp://192.168.1.52:6379 svendowideit/ambassador
 
-Then on the `client-server`{.docutils .literal} host, you can use a
+Then on the `client-server` host, you can use a
 redis client container to talk to the remote redis server, just by
 linking to the local redis ambassador.
 
@@ -55,12 +59,12 @@ linking to the local redis ambassador.
     redis 172.17.0.160:6379> ping
     PONG
 
-How it works[¶](#how-it-works "Permalink to this headline")
+How it works
 -----------------------------------------------------------
 
 The following example shows what the `svendowideit/ambassador`{.docutils
 .literal} container does automatically (with a tiny amount of
-`sed`{.docutils .literal})
+`sed`)
 
 On the docker host (192.168.1.52) that redis will run on:
 
@@ -121,18 +125,18 @@ and get the redis-cli image so we can talk over the ambassador bridge
     redis 172.17.0.160:6379> ping
     PONG
 
-The svendowideit/ambassador Dockerfile[¶](#the-svendowideit-ambassador-dockerfile "Permalink to this headline")
+The svendowideit/ambassador Dockerfile
 ---------------------------------------------------------------------------------------------------------------
 
-The `svendowideit/ambassador`{.docutils .literal} image is a small
-busybox image with `socat`{.docutils .literal} built in. When you start
-the container, it uses a small `sed`{.docutils .literal} script to parse
+The `svendowideit/ambassador` image is a small
+busybox image with `socat` built in. When you start
+the container, it uses a small `sed` script to parse
 out the (possibly multiple) link environment variables to set up the
 port forwarding. On the remote host, you need to set the variable using
-the `-e`{.docutils .literal} command line option.
+the `-e` command line option.
 
 `-expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379`{.docutils
-.literal} will forward the local `1234`{.docutils .literal} port to the
+.literal} will forward the local `1234` port to the
 remote IP and port - in this case `192.168.1.52:6379`{.docutils
 .literal}.
 

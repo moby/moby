@@ -1,7 +1,11 @@
-Docker Registry API[¶](#docker-registry-api "Permalink to this headline")
+page_title: Registry API
+page_description: API Documentation for Docker Registry
+page_keywords: API, Docker, index, registry, REST, documentation
+
+Docker Registry API
 =========================================================================
 
-1. Brief introduction[¶](#brief-introduction "Permalink to this headline")
+1. Brief introduction
 --------------------------------------------------------------------------
 
 -   This is the REST API for the Docker Registry
@@ -61,20 +65,20 @@ The latter implies that while HTTP is the protocol of choice for a registry, mul
     -   remote docker addressed through SSH.
 
 The latter would only require two new commands in docker, e.g.
-`registryget`{.docutils .literal} and `registryput`{.docutils .literal},
+`registryget` and `registryput`{.docutils .literal},
 wrapping access to the local filesystem (and optionally doing
 consistency checks). Authentication and authorization are then delegated
 to SSH (e.g. with public keys).
 
-2. Endpoints[¶](#endpoints "Permalink to this headline")
+2. Endpoints
 --------------------------------------------------------
 
-### 2.1 Images[¶](#images "Permalink to this headline")
+### 2.1 Images
 
-#### Layer[¶](#layer "Permalink to this headline")
+#### Layer
 
- `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}[¶](#get--v1-images-(image_id)-layer "Permalink to this definition")
-:   get image layer for a given `image_id`{.docutils .literal}
+ `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}
+:   get image layer for a given `image_id`
 
     **Example Request**:
 
@@ -103,8 +107,8 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Image not found
 
- `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}[¶](#put--v1-images-(image_id)-layer "Permalink to this definition")
-:   put image layer for a given `image_id`{.docutils .literal}
+ `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}
+:   put image layer for a given `image_id`
 
     **Example Request**:
 
@@ -134,10 +138,10 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Image not found
 
-#### Image[¶](#image "Permalink to this headline")
+#### Image
 
- `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}[¶](#put--v1-images-(image_id)-json "Permalink to this definition")
-:   put image for a given `image_id`{.docutils .literal}
+ `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}
+:   put image for a given `image_id`
 
     **Example Request**:
 
@@ -196,8 +200,8 @@ to SSH (e.g. with public keys).
     -   **200** – OK
     -   **401** – Requires authorization
 
- `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}[¶](#get--v1-images-(image_id)-json "Permalink to this definition")
-:   get image for a given `image_id`{.docutils .literal}
+ `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}
+:   get image for a given `image_id`
 
     **Example Request**:
 
@@ -257,10 +261,10 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Image not found
 
-#### Ancestry[¶](#ancestry "Permalink to this headline")
+#### Ancestry
 
- `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/ancestry`{.descname}[¶](#get--v1-images-(image_id)-ancestry "Permalink to this definition")
-:   get ancestry for an image given an `image_id`{.docutils .literal}
+ `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/ancestry`{.descname}
+:   get ancestry for an image given an `image_id`
 
     **Example Request**:
 
@@ -292,9 +296,9 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Image not found
 
-### 2.2 Tags[¶](#tags "Permalink to this headline")
+### 2.2 Tags
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags`{.descname}[¶](#get--v1-repositories-(namespace)-(repository)-tags "Permalink to this definition")
+ `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags`{.descname}
 :   get all of the tags for the given repo.
 
     **Example Request**:
@@ -329,7 +333,7 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Repository not found
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)[¶](#get--v1-repositories-(namespace)-(repository)-tags-(tag) "Permalink to this definition")
+ `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)
 :   get a tag for the given repo.
 
     **Example Request**:
@@ -362,7 +366,7 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Tag not found
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)[¶](#delete--v1-repositories-(namespace)-(repository)-tags-(tag) "Permalink to this definition")
+ `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)
 :   delete the tag for the repo
 
     **Example Request**:
@@ -394,7 +398,7 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Tag not found
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)[¶](#put--v1-repositories-(namespace)-(repository)-tags-(tag) "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)
 :   put a tag for the given repo.
 
     **Example Request**:
@@ -429,9 +433,9 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Image not found
 
-### 2.3 Repositories[¶](#repositories "Permalink to this headline")
+### 2.3 Repositories
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/`{.descname}[¶](#delete--v1-repositories-(namespace)-(repository)- "Permalink to this definition")
+ `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/`{.descname}
 :   delete a repository
 
     **Example Request**:
@@ -464,9 +468,9 @@ to SSH (e.g. with public keys).
     -   **401** – Requires authorization
     -   **404** – Repository not found
 
-### 2.4 Status[¶](#status "Permalink to this headline")
+### 2.4 Status
 
- `GET `{.descname}`/v1/_ping`{.descname}[¶](#get--v1-_ping "Permalink to this definition")
+ `GET `{.descname}`/v1/_ping`{.descname}
 :   Check status of the registry. This endpoint is also used to
     determine if the registry supports SSL.
 
@@ -492,7 +496,7 @@ to SSH (e.g. with public keys).
 
     -   **200** – OK
 
-3 Authorization[¶](#authorization "Permalink to this headline")
+3 Authorization
 ---------------------------------------------------------------
 
 This is where we describe the authorization process, including the

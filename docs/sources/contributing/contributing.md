@@ -1,4 +1,8 @@
-Contributing to Docker[¶](#contributing-to-docker "Permalink to this headline")
+page_title: Contribution Guidelines
+page_description: Contribution guidelines: create issues, conventions, pull requests
+page_keywords: contributing, docker, documentation, help, guideline
+
+Contributing to Docker
 ===============================================================================
 
 Want to hack on Docker? Awesome!

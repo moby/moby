@@ -1,4 +1,5 @@
-Installation[¶](#installation "Permalink to this headline")
+
+Installation
 ===========================================================
 
 There are a number of ways to install Docker, depending on where you

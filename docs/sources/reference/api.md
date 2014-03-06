@@ -1,4 +1,5 @@
-APIs[¶](#apis "Permalink to this headline")
+
+APIs
 ===========================================
 
 Your programs and scripts can access Docker’s functionality via these

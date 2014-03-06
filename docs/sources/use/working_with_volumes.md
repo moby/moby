@@ -1,4 +1,8 @@
-Share Directories via Volumes[¶](#share-directories-via-volumes "Permalink to this headline")
+page_title: Share Directories via Volumes
+page_description: How to create and share volumes
+page_keywords: Examples, Usage, volume, docker, documentation, examples
+
+Share Directories via Volumes
 =============================================================================================
 
 A *data volume* is a specially-designated directory within one or more
@@ -18,25 +22,25 @@ for persistent or shared data:
 -   **Volumes persist until no containers use them** as they are a
     reference counted resource. The container does not need to be
     running to share its volumes, but running it can help protect it
-    against accidental removal via `docker rm`{.docutils .literal}.
+    against accidental removal via `docker rm`.
 
 Each container can have zero or more data volumes.
 
 New in version v0.3.0.
 
-Getting Started[¶](#getting-started "Permalink to this headline")
+Getting Started
 -----------------------------------------------------------------
 
-Using data volumes is as simple as adding a `-v`{.docutils .literal}
-parameter to the `docker run`{.docutils .literal} command. The
-`-v`{.docutils .literal} parameter can be used more than once in order
+Using data volumes is as simple as adding a `-v`
+parameter to the `docker run` command. The
+`-v` parameter can be used more than once in order
 to create more volumes within the new container. To create a new
 container with two new volumes:
 
     $ docker run -v /var/volume1 -v /var/volume2 busybox true
 
 This command will create the new container with two new volumes that
-exits instantly (`true`{.docutils .literal} is pretty much the smallest,
+exits instantly (`true` is pretty much the smallest,
 simplest program that you can run). Once created you can mount its
 volumes in any other container using the `-volumes-from`{.docutils
 .literal} option; irrespective of whether the container is running or
@@ -51,7 +55,7 @@ more new volumes to any container created from that image:
     VOLUME        ["/var/volume1", "/var/volume2"]
     CMD           ["/bin/true"]
 
-### Creating and mounting a Data Volume Container[¶](#creating-and-mounting-a-data-volume-container "Permalink to this headline")
+### Creating and mounting a Data Volume Container
 
 If you have some persistent data that you want to share between
 containers, or want to use from non-persistent containers, its best to
@@ -59,7 +63,7 @@ create a named Data Volume Container, and then to mount the data from
 it.
 
 Create a named container with volumes to share (`/var/volume1`{.docutils
-.literal} and `/var/volume2`{.docutils .literal}):
+.literal} and `/var/volume2`):
 
     $ docker run -v /var/volume1 -v /var/volume2 -name DATA busybox true
 
@@ -67,12 +71,12 @@ Then mount those data volumes into your application containers:
 
     $ docker run -t -i -rm -volumes-from DATA -name client1 ubuntu bash
 
-You can use multiple `-volumes-from`{.docutils .literal} parameters to
+You can use multiple `-volumes-from` parameters to
 bring together multiple data volumes from multiple containers.
 
 Interestingly, you can mount the volumes that came from the
-`DATA`{.docutils .literal} container in yet another container via the
-`client1`{.docutils .literal} middleman container:
+`DATA` container in yet another container via the
+`client1` middleman container:
 
     $ docker run -t -i -rm -volumes-from client1 -name client2 ubuntu bash
 
@@ -85,19 +89,19 @@ container, or the middleman, the volumes will not be deleted until there
 are no containers still referencing those volumes. This allows you to
 upgrade, or effectively migrate data volumes between containers.
 
-### Mount a Host Directory as a Container Volume:[¶](#mount-a-host-directory-as-a-container-volume "Permalink to this headline")
+### Mount a Host Directory as a Container Volume:
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
 
-You must specify an absolute path for `host-dir`{.docutils .literal}. If
-`host-dir`{.docutils .literal} is missing from the command, then docker
-creates a new volume. If `host-dir`{.docutils .literal} is present but
+You must specify an absolute path for `host-dir`. If
+`host-dir` is missing from the command, then docker
+creates a new volume. If `host-dir` is present but
 points to a non-existent directory on the host, Docker will
 automatically create this directory and use it as the source of the
 bind-mount.
 
 Note that this is not available from a Dockerfile due the portability
-and sharing purpose of it. The `host-dir`{.docutils .literal} volumes
+and sharing purpose of it. The `host-dir` volumes
 are entirely host-dependent and might not work on any other machine.
 
 For example:
@@ -106,41 +110,41 @@ For example:
 
 The command above mounts the host directory `/var/logs`{.docutils
 .literal} into the container with read only permissions as
-`/var/host_logs`{.docutils .literal}.
+`/var/host_logs`.
 
 New in version v0.5.0.
 
-### Note for OS/X users and remote daemon users:[¶](#note-for-os-x-users-and-remote-daemon-users "Permalink to this headline")
+### Note for OS/X users and remote daemon users:
 
-OS/X users run `boot2docker`{.docutils .literal} to create a minimalist
+OS/X users run `boot2docker` to create a minimalist
 virtual machine running the docker daemon. That virtual machine then
 launches docker commands on behalf of the OS/X command line. The means
-that `host directories`{.docutils .literal} refer to directories in the
-`boot2docker`{.docutils .literal} virtual machine, not the OS/X
+that `host directories` refer to directories in the
+`boot2docker` virtual machine, not the OS/X
 filesystem.
 
 Similarly, anytime when the docker daemon is on a remote machine, the
-`host directories`{.docutils .literal} always refer to directories on
+`host directories` always refer to directories on
 the daemon’s machine.
 
-### Backup, restore, or migrate data volumes[¶](#backup-restore-or-migrate-data-volumes "Permalink to this headline")
+### Backup, restore, or migrate data volumes
 
-You cannot back up volumes using `docker export`{.docutils .literal},
-`docker save`{.docutils .literal} and `docker cp`{.docutils .literal}
+You cannot back up volumes using `docker export`,
+`docker save` and `docker cp`{.docutils .literal}
 because they are external to images. Instead you can use
-`--volumes-from`{.docutils .literal} to start a new container that can
+`--volumes-from` to start a new container that can
 access the data-container’s volume. For example:
 
     $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
 
--   `-rm`{.docutils .literal} - remove the container when it exits
--   `--volumes-from DATA`{.docutils .literal} - attach to the volumes
-    shared by the `DATA`{.docutils .literal} container
--   `-v $(pwd):/backup`{.docutils .literal} - bind mount the current
+-   `-rm` - remove the container when it exits
+-   `--volumes-from DATA` - attach to the volumes
+    shared by the `DATA` container
+-   `-v $(pwd):/backup` - bind mount the current
     directory into the container; to write the tar file to
--   `busybox`{.docutils .literal} - a small simpler image - good for
+-   `busybox` - a small simpler image - good for
     quick maintenance
--   `tar cvf /backup/backup.tar /data`{.docutils .literal} - creates an
+-   `tar cvf /backup/backup.tar /data` - creates an
     uncompressed tar file of all the files in the `/data`{.docutils
     .literal} directory
 
@@ -160,7 +164,7 @@ elsewhere:
 You can use the basic techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
-Known Issues[¶](#known-issues "Permalink to this headline")
+Known Issues
 -----------------------------------------------------------
 
 -   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):

@@ -1,4 +1,8 @@
-Building an Image with MongoDB[¶](#building-an-image-with-mongodb "Permalink to this headline")
+page_title: Building a Docker Image with MongoDB
+page_description: How to build a Docker image with MongoDB pre-installed
+page_keywords: docker, example, package installation, networking, mongodb
+
+Building an Image with MongoDB
 ===============================================================================================
 
 Note
@@ -11,19 +15,19 @@ Note
 
 The goal of this example is to show how you can build your own Docker
 images with MongoDB pre-installed. We will do that by constructing a
-`Dockerfile`{.docutils .literal} that downloads a base image, adds an
+`Dockerfile` that downloads a base image, adds an
 apt source and installs the database software on Ubuntu.
 
-Creating a `Dockerfile`{.docutils .literal}[¶](#creating-a-dockerfile "Permalink to this headline")
+Creating a `Dockerfile`
 ---------------------------------------------------------------------------------------------------
 
-Create an empty file called `Dockerfile`{.docutils .literal}:
+Create an empty file called `Dockerfile`:
 
     touch Dockerfile
 
 Next, define the parent image you want to use to build your own image on
 top of. Here, we’ll use [Ubuntu](https://index.docker.io/_/ubuntu/)
-(tag: `latest`{.docutils .literal}) available on the [docker
+(tag: `latest`) available on the [docker
 index](http://index.docker.io):
 
     FROM    ubuntu:latest
@@ -36,8 +40,8 @@ add the 10gen repo to our apt sources list.
     RUN echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | tee /etc/apt/sources.list.d/10gen.list
 
 Then, we don’t want Ubuntu to complain about init not being available so
-we’ll divert `/sbin/initctl`{.docutils .literal} to
-`/bin/true`{.docutils .literal} so it thinks everything is working.
+we’ll divert `/sbin/initctl` to
+`/bin/true` so it thinks everything is working.
 
     # Hack for initctl not being available in Ubuntu
     RUN dpkg-divert --local --rename --add /sbin/initctl
@@ -58,18 +62,18 @@ file)
     RUN mkdir -p /data/db
 
 Finally, we’ll expose the standard port that MongoDB runs on, 27107, as
-well as define an `ENTRYPOINT`{.docutils .literal} instruction for the
+well as define an `ENTRYPOINT` instruction for the
 container.
 
     EXPOSE 27017
     ENTRYPOINT ["usr/bin/mongod"]
 
 Now, lets build the image which will go through the
-`Dockerfile`{.docutils .literal} we made and run all of the commands.
+`Dockerfile` we made and run all of the commands.
 
     sudo docker build -t <yourname>/mongodb .
 
-Now you should be able to run `mongod`{.docutils .literal} as a daemon
+Now you should be able to run `mongod` as a daemon
 and be able to connect on the local port!
 
     # Regular style

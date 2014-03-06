@@ -1,4 +1,8 @@
-Create a Base Image[¶](#create-a-base-image "Permalink to this headline")
+page_title: Create a Base Image
+page_description: How to create base images
+page_keywords: Examples, Usage, base image, docker, documentation, examples
+
+Create a Base Image
 =========================================================================
 
 So you want to create your own [*Base
@@ -8,7 +12,7 @@ The specific process will depend heavily on the Linux distribution you
 want to package. We have some examples below, and you are encouraged to
 submit pull requests to contribute new ones.
 
-Create a full image using tar[¶](#create-a-full-image-using-tar "Permalink to this headline")
+Create a full image using tar
 ---------------------------------------------------------------------------------------------
 
 In general, you’ll want to start with a working machine that is running
@@ -39,17 +43,17 @@ GitHub Repo:
 -   [Debian /
     Ubuntu](https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debootstrap.sh)
 
-Creating a simple base image using `scratch`{.docutils .literal}[¶](#creating-a-simple-base-image-using-scratch "Permalink to this headline")
+Creating a simple base image using `scratch`
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
 There is a special repository in the Docker registry called
-`scratch`{.docutils .literal}, which was created using an empty tar
+`scratch`, which was created using an empty tar
 file:
 
     $ tar cv --files-from /dev/null | docker import - scratch
 
-which you can `docker pull`{.docutils .literal}. You can then use that
-image to base your new minimal containers `FROM`{.docutils .literal}:
+which you can `docker pull`. You can then use that
+image to base your new minimal containers `FROM`:
 
     FROM scratch
     ADD true-asm /true

@@ -1,4 +1,8 @@
-Node.js Web App[¶](#node-js-web-app "Permalink to this headline")
+page_title: Running a Node.js app on CentOS
+page_description: Installing and running a Node.js app on CentOS
+page_keywords: docker, example, package installation, node, centos
+
+Node.js Web App
 =================================================================
 
 Note
@@ -15,10 +19,10 @@ Docker images from a parent image using a `Dockerfile`{.docutils
 application running on CentOS. You can get the full source code at
 [https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
 
-Create Node.js app[¶](#create-node-js-app "Permalink to this headline")
+Create Node.js app
 -----------------------------------------------------------------------
 
-First, create a `package.json`{.docutils .literal} file that describes
+First, create a `package.json` file that describes
 your app and its dependencies:
 
     {
@@ -32,7 +36,7 @@ your app and its dependencies:
       }
     }
 
-Then, create an `index.js`{.docutils .literal} file that defines a web
+Then, create an `index.js` file that defines a web
 app using the [Express.js](http://expressjs.com/) framework:
 
     var express = require('express');
@@ -53,14 +57,14 @@ In the next steps, we’ll look at how you can run this app inside a
 CentOS container using Docker. First, you’ll need to build a Docker
 image of your app.
 
-Creating a `Dockerfile`{.docutils .literal}[¶](#creating-a-dockerfile "Permalink to this headline")
+Creating a `Dockerfile`
 ---------------------------------------------------------------------------------------------------
 
-Create an empty file called `Dockerfile`{.docutils .literal}:
+Create an empty file called `Dockerfile`:
 
     touch Dockerfile
 
-Open the `Dockerfile`{.docutils .literal} in your favorite text editor
+Open the `Dockerfile` in your favorite text editor
 and add the following line that defines the version of Docker the image
 requires to build (this example uses Docker 0.3.4):
 
@@ -68,7 +72,7 @@ requires to build (this example uses Docker 0.3.4):
 
 Next, define the parent image you want to use to build your own image on
 top of. Here, we’ll use [CentOS](https://index.docker.io/_/centos/)
-(tag: `6.4`{.docutils .literal}) available on the [Docker
+(tag: `6.4`) available on the [Docker
 index](https://index.docker.io/):
 
     FROM    centos:6.4
@@ -76,7 +80,7 @@ index](https://index.docker.io/):
 Since we’re building a Node.js app, you’ll have to install Node.js as
 well as npm on your CentOS image. Node.js is required to run your app
 and npm to install your app’s dependencies defined in
-`package.json`{.docutils .literal}. To install the right package for
+`package.json`. To install the right package for
 CentOS, we’ll use the instructions from the [Node.js
 wiki](https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager#rhelcentosscientific-linux-6):
 
@@ -86,32 +90,32 @@ wiki](https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager
     RUN     yum install -y npm
 
 To bundle your app’s source code inside the Docker image, use the
-`ADD`{.docutils .literal} instruction:
+`ADD` instruction:
 
     # Bundle app source
     ADD . /src
 
-Install your app dependencies using the `npm`{.docutils .literal}
+Install your app dependencies using the `npm`
 binary:
 
     # Install app dependencies
     RUN cd /src; npm install
 
-Your app binds to port `8080`{.docutils .literal} so you’ll use the
-`EXPOSE`{.docutils .literal} instruction to have it mapped by the
-`docker`{.docutils .literal} daemon:
+Your app binds to port `8080` so you’ll use the
+`EXPOSE` instruction to have it mapped by the
+`docker` daemon:
 
     EXPOSE  8080
 
 Last but not least, define the command to run your app using
-`CMD`{.docutils .literal} which defines your runtime, i.e.
-`node`{.docutils .literal}, and the path to our app, i.e.
-`src/index.js`{.docutils .literal} (see the step where we added the
+`CMD` which defines your runtime, i.e.
+`node`, and the path to our app, i.e.
+`src/index.js` (see the step where we added the
 source to the container):
 
     CMD ["node", "/src/index.js"]
 
-Your `Dockerfile`{.docutils .literal} should now look like this:
+Your `Dockerfile` should now look like this:
 
     # DOCKER-VERSION 0.3.4
     FROM    centos:6.4
@@ -129,13 +133,13 @@ Your `Dockerfile`{.docutils .literal} should now look like this:
     EXPOSE  8080
     CMD ["node", "/src/index.js"]
 
-Building your image[¶](#building-your-image "Permalink to this headline")
+Building your image
 -------------------------------------------------------------------------
 
-Go to the directory that has your `Dockerfile`{.docutils .literal} and
+Go to the directory that has your `Dockerfile` and
 run the following command to build a Docker image. The `-t`{.docutils
 .literal} flag let’s you tag your image so it’s easier to find later
-using the `docker images`{.docutils .literal} command:
+using the `docker images` command:
 
     sudo docker build -t <your username>/centos-node-hello .
 
@@ -148,12 +152,12 @@ Your image will now be listed by Docker:
     > centos                     6.4       539c0211cd76    8 weeks ago
     > gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
 
-Run the image[¶](#run-the-image "Permalink to this headline")
+Run the image
 -------------------------------------------------------------
 
-Running your image with `-d`{.docutils .literal} runs the container in
+Running your image with `-d` runs the container in
 detached mode, leaving the container running in the background. The
-`-p`{.docutils .literal} flag redirects a public port to a private port
+`-p` flag redirects a public port to a private port
 in the container. Run the image you previously built:
 
     sudo docker run -p 49160:8080 -d <your username>/centos-node-hello
@@ -169,7 +173,7 @@ Print the output of your app:
     > # Example
     > Running on http://localhost:8080
 
-Test[¶](#test "Permalink to this headline")
+Test
 -------------------------------------------
 
 To test your app, get the the port of your app that Docker mapped:
@@ -180,11 +184,11 @@ To test your app, get the the port of your app that Docker mapped:
     > ID            IMAGE                          COMMAND              ...   PORTS
     > ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
 
-In the example above, Docker mapped the `8080`{.docutils .literal} port
-of the container to `49160`{.docutils .literal}.
+In the example above, Docker mapped the `8080` port
+of the container to `49160`.
 
-Now you can call your app using `curl`{.docutils .literal} (install if
-needed via: `sudo apt-get install curl`{.docutils .literal}):
+Now you can call your app using `curl` (install if
+needed via: `sudo apt-get install curl`):
 
     curl -i localhost:49160
 

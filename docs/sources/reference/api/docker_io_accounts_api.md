@@ -1,4 +1,8 @@
-[docker.io Accounts API](#id1)[¶](#docker-io-accounts-api "Permalink to this headline")
+page_title: docker.io Accounts API
+page_description: API Documentation for docker.io accounts.
+page_keywords: API, Docker, accounts, REST, documentation
+
+[docker.io Accounts API](#id1)
 =======================================================================================
 
 Table of Contents
@@ -16,12 +20,12 @@ Table of Contents
         -   [1.6 Delete email address for a
             user](#delete-email-address-for-a-user)
 
-[1. Endpoints](#id2)[¶](#endpoints "Permalink to this headline")
+[1. Endpoints](#id2)
 ----------------------------------------------------------------
 
-### [1.1 Get a single user](#id3)[¶](#get-a-single-user "Permalink to this headline")
+### [1.1 Get a single user](#id3)
 
- `GET `{.descname}`/api/v1.1/users/:username/`{.descname}[¶](#get--api-v1.1-users--username- "Permalink to this definition")
+ `GET `{.descname}`/api/v1.1/users/:username/`{.descname}
 :   Get profile info for the specified user.
 
     Parameters:
@@ -42,7 +46,7 @@ Table of Contents
     -   **401** – authentication error.
     -   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
-        `profile_read`{.docutils .literal} scope.
+        `profile_read` scope.
     -   **404** – the specified username does not exist.
 
     **Example request**:
@@ -72,9 +76,9 @@ Table of Contents
             "is_active": true
         }
 
-### [1.2 Update a single user](#id4)[¶](#update-a-single-user "Permalink to this headline")
+### [1.2 Update a single user](#id4)
 
- `PATCH `{.descname}`/api/v1.1/users/:username/`{.descname}[¶](#patch--api-v1.1-users--username- "Permalink to this definition")
+ `PATCH `{.descname}`/api/v1.1/users/:username/`{.descname}
 :   Update profile info for the specified user.
 
     Parameters:
@@ -109,7 +113,7 @@ Table of Contents
     -   **401** – authentication error.
     -   **403** – permission error, authenticated user must be the user
         whose data is being updated, OAuth access tokens must have
-        `profile_write`{.docutils .literal} scope.
+        `profile_write` scope.
     -   **404** – the specified username does not exist.
 
     **Example request**:
@@ -145,9 +149,9 @@ Table of Contents
             "is_active": true
         }
 
-### [1.3 List email addresses for a user](#id5)[¶](#list-email-addresses-for-a-user "Permalink to this headline")
+### [1.3 List email addresses for a user](#id5)
 
- `GET `{.descname}`/api/v1.1/users/:username/emails/`{.descname}[¶](#get--api-v1.1-users--username-emails- "Permalink to this definition")
+ `GET `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   List email info for the specified user.
 
     Parameters:
@@ -168,7 +172,7 @@ Table of Contents
     -   **401** – authentication error.
     -   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
-        `email_read`{.docutils .literal} scope.
+        `email_read` scope.
     -   **404** – the specified username does not exist.
 
     **Example request**:
@@ -191,9 +195,9 @@ Table of Contents
             }
         ]
 
-### [1.4 Add email address for a user](#id6)[¶](#add-email-address-for-a-user "Permalink to this headline")
+### [1.4 Add email address for a user](#id6)
 
- `POST `{.descname}`/api/v1.1/users/:username/emails/`{.descname}[¶](#post--api-v1.1-users--username-emails- "Permalink to this definition")
+ `POST `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   Add a new email address to the specified user’s account. The email
     address must be verified separately, a confirmation email is not
     automatically sent.
@@ -220,7 +224,7 @@ Table of Contents
     -   **401** – authentication error.
     -   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
-        `email_write`{.docutils .literal} scope.
+        `email_write` scope.
     -   **404** – the specified username does not exist.
 
     **Example request**:
@@ -246,9 +250,9 @@ Table of Contents
             "primary": false
         }
 
-### [1.5 Update an email address for a user](#id7)[¶](#update-an-email-address-for-a-user "Permalink to this headline")
+### [1.5 Update an email address for a user](#id7)
 
- `PATCH `{.descname}`/api/v1.1/users/:username/emails/`{.descname}[¶](#patch--api-v1.1-users--username-emails- "Permalink to this definition")
+ `PATCH `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   Update an email address for the specified user to either verify an
     email address or set it as the primary email for the user. You
     cannot use this endpoint to un-verify an email address. You cannot
@@ -266,9 +270,9 @@ Table of Contents
 
     -   **email** (*string*) – the email address to be updated.
     -   **verified** (*boolean*) – (optional) whether the email address
-        is verified, must be `true`{.docutils .literal} or absent.
+        is verified, must be `true` or absent.
     -   **primary** (*boolean*) – (optional) whether to set the email
-        address as the primary email, must be `true`{.docutils .literal}
+        address as the primary email, must be `true`
         or absent.
 
     Request Headers:
@@ -287,7 +291,7 @@ Table of Contents
     -   **401** – authentication error.
     -   **403** – permission error, authenticated user must be the user
         whose data is being updated, OAuth access tokens must have
-        `email_write`{.docutils .literal} scope.
+        `email_write` scope.
     -   **404** – the specified username or email address does not
         exist.
 
@@ -316,9 +320,9 @@ Table of Contents
             "primary": false
         }
 
-### [1.6 Delete email address for a user](#id8)[¶](#delete-email-address-for-a-user "Permalink to this headline")
+### [1.6 Delete email address for a user](#id8)
 
- `DELETE `{.descname}`/api/v1.1/users/:username/emails/`{.descname}[¶](#delete--api-v1.1-users--username-emails- "Permalink to this definition")
+ `DELETE `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   Delete an email address from the specified user’s account. You
     cannot delete a user’s primary email address.
 
@@ -344,7 +348,7 @@ Table of Contents
     -   **401** – authentication error.
     -   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
-        `email_write`{.docutils .literal} scope.
+        `email_write` scope.
     -   **404** – the specified username or email address does not
         exist.
 

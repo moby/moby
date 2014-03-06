@@ -1,4 +1,8 @@
-Runtime Metrics[¶](#runtime-metrics "Permalink to this headline")
+page_title: Runtime Metrics
+page_description: Measure the behavior of running containers
+page_keywords: docker, metrics, CPU, memory, disk, IO, run, runtime
+
+Runtime Metrics
 =================================================================
 
 Linux Containers rely on [control
@@ -8,17 +12,17 @@ CPU, memory, and block I/O usage. You can access those metrics and
 obtain network usage metrics as well. This is relevant for “pure” LXC
 containers, as well as for Docker containers.
 
-Control Groups[¶](#id1 "Permalink to this headline")
+Control Groups
 ----------------------------------------------------
 
 Control groups are exposed through a pseudo-filesystem. In recent
 distros, you should find this filesystem under
-`/sys/fs/cgroup`{.docutils .literal}. Under that directory, you will see
+`/sys/fs/cgroup`. Under that directory, you will see
 multiple sub-directories, called devices, freezer, blkio, etc.; each
 sub-directory actually corresponds to a different cgroup hierarchy.
 
 On older systems, the control groups might be mounted on
-`/cgroup`{.docutils .literal}, without distinct hierarchies. In that
+`/cgroup`, without distinct hierarchies. In that
 case, instead of seeing the sub-directories, you will see a bunch of
 files in that directory, and possibly some directories corresponding to
 existing containers.
@@ -27,22 +31,22 @@ To figure out where your control groups are mounted, you can run:
 
     grep cgroup /proc/mounts
 
-Enumerating Cgroups[¶](#enumerating-cgroups "Permalink to this headline")
+Enumerating Cgroups
 -------------------------------------------------------------------------
 
-You can look into `/proc/cgroups`{.docutils .literal} to see the
+You can look into `/proc/cgroups` to see the
 different control group subsystems known to the system, the hierarchy
 they belong to, and how many groups they contain.
 
-You can also look at `/proc/<pid>/cgroup`{.docutils .literal} to see
+You can also look at `/proc/<pid>/cgroup` to see
 which control groups a process belongs to. The control group will be
 shown as a path relative to the root of the hierarchy mountpoint; e.g.
-`/`{.docutils .literal} means “this process has not been assigned into a
-particular group”, while `/lxc/pumpkin`{.docutils .literal} means that
+`/` means “this process has not been assigned into a
+particular group”, while `/lxc/pumpkin` means that
 the process is likely to be a member of a container named
-`pumpkin`{.docutils .literal}.
+`pumpkin`.
 
-Finding the Cgroup for a Given Container[¶](#finding-the-cgroup-for-a-given-container "Permalink to this headline")
+Finding the Cgroup for a Given Container
 -------------------------------------------------------------------------------------------------------------------
 
 For each container, one cgroup will be created in each hierarchy. On
@@ -53,31 +57,31 @@ of the LXC tools, the cgroup will be `lxc/<container_name>.`{.docutils
 
 For Docker containers using cgroups, the container name will be the full
 ID or long ID of the container. If a container shows up as ae836c95b4c3
-in `docker ps`{.docutils .literal}, its long ID might be something like
+in `docker ps`, its long ID might be something like
 `ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`{.docutils
-.literal}. You can look it up with `docker inspect`{.docutils .literal}
-or `docker ps -notrunc`{.docutils .literal}.
+.literal}. You can look it up with `docker inspect`
+or `docker ps -notrunc`.
 
 Putting everything together to look at the memory metrics for a Docker
 container, take a look at
-`/sys/fs/cgroup/memory/lxc/<longid>/`{.docutils .literal}.
+`/sys/fs/cgroup/memory/lxc/<longid>/`.
 
-Metrics from Cgroups: Memory, CPU, Block IO[¶](#metrics-from-cgroups-memory-cpu-block-io "Permalink to this headline")
+Metrics from Cgroups: Memory, CPU, Block IO
 ----------------------------------------------------------------------------------------------------------------------
 
 For each subsystem (memory, CPU, and block I/O), you will find one or
 more pseudo-files containing statistics.
 
-### Memory Metrics: `memory.stat`{.docutils .literal}[¶](#memory-metrics-memory-stat "Permalink to this headline")
+### Memory Metrics: `memory.stat`
 
 Memory metrics are found in the “memory” cgroup. Note that the memory
 control group adds a little overhead, because it does very fine-grained
 accounting of the memory usage on your host. Therefore, many distros
 chose to not enable it by default. Generally, to enable it, all you have
 to do is to add some kernel command-line parameters:
-`cgroup_enable=memory swapaccount=1`{.docutils .literal}.
+`cgroup_enable=memory swapaccount=1`.
 
-The metrics are in the pseudo-file `memory.stat`{.docutils .literal}.
+The metrics are in the pseudo-file `memory.stat`.
 Here is what it will look like:
 
     cache 11492564992
@@ -109,7 +113,7 @@ Here is what it will look like:
     total_active_file 4489052160
     total_unevictable 32768
 
-The first half (without the `total_`{.docutils .literal} prefix)
+The first half (without the `total_` prefix)
 contains statistics relevant to the processes within the cgroup,
 excluding sub-cgroups. The second half (with the `total_`{.docutils
 .literal} prefix) includes sub-cgroups as well.
@@ -126,10 +130,10 @@ cache
     that can be associated precisely with a block on a block device.
     When you read from and write to files on disk, this amount will
     increase. This will be the case if you use “conventional” I/O
-    (`open`{.docutils .literal}, `read`{.docutils .literal},
-    `write`{.docutils .literal} syscalls) as well as mapped files (with
-    `mmap`{.docutils .literal}). It also accounts for the memory used by
-    `tmpfs`{.docutils .literal} mounts, though the reasons are unclear.
+    (`open`, `read`{.docutils .literal},
+    `write` syscalls) as well as mapped files (with
+    `mmap`). It also accounts for the memory used by
+    `tmpfs` mounts, though the reasons are unclear.
 rss
 :   the amount of memory that *doesn’t* correspond to anything on disk:
     stacks, heaps, and anonymous memory maps.
@@ -143,8 +147,8 @@ pgfault and pgmajfault
     happens when a process accesses a part of its virtual memory space
     which is nonexistent or protected. The former can happen if the
     process is buggy and tries to access an invalid address (it will
-    then be sent a `SIGSEGV`{.docutils .literal} signal, typically
-    killing it with the famous `Segmentation fault`{.docutils .literal}
+    then be sent a `SIGSEGV` signal, typically
+    killing it with the famous `Segmentation fault`
     message). The latter can happen when the process reads from a memory
     zone which has been swapped out, or which corresponds to a mapped
     file: in that case, the kernel will load the page from disk, and let
@@ -164,7 +168,7 @@ active\_anon and inactive\_anon
     words, that’s the equivalent of the rss counter described above. In
     fact, the very definition of the rss counter is **active\_anon** +
     **inactive\_anon** - **tmpfs** (where tmpfs is the amount of memory
-    used up by `tmpfs`{.docutils .literal} filesystems mounted by this
+    used up by `tmpfs` filesystems mounted by this
     control group). Now, what’s the difference between “active” and
     “inactive”? Pages are initially “active”; and at regular intervals,
     the kernel sweeps over the memory, and tags some pages as
@@ -201,34 +205,34 @@ it also means that when a cgroup is terminated, it could increase the
 memory usage of another cgroup, because they are not splitting the cost
 anymore for those memory pages.
 
-### CPU metrics: `cpuacct.stat`{.docutils .literal}[¶](#cpu-metrics-cpuacct-stat "Permalink to this headline")
+### CPU metrics: `cpuacct.stat`
 
 Now that we’ve covered memory metrics, everything else will look very
 simple in comparison. CPU metrics will be found in the
-`cpuacct`{.docutils .literal} controller.
+`cpuacct` controller.
 
 For each container, you will find a pseudo-file `cpuacct.stat`{.docutils
 .literal}, containing the CPU usage accumulated by the processes of the
-container, broken down between `user`{.docutils .literal} and
-`system`{.docutils .literal} time. If you’re not familiar with the
-distinction, `user`{.docutils .literal} is the time during which the
+container, broken down between `user` and
+`system` time. If you’re not familiar with the
+distinction, `user` is the time during which the
 processes were in direct control of the CPU (i.e. executing process
-code), and `system`{.docutils .literal} is the time during which the CPU
+code), and `system` is the time during which the CPU
 was executing system calls on behalf of those processes.
 
 Those times are expressed in ticks of 1/100th of a second. Actually,
 they are expressed in “user jiffies”. There are `USER_HZ`{.docutils
 .literal} *“jiffies”* per second, and on x86 systems,
-`USER_HZ`{.docutils .literal} is 100. This used to map exactly to the
+`USER_HZ` is 100. This used to map exactly to the
 number of scheduler “ticks” per second; but with the advent of higher
 frequency scheduling, as well as [tickless
 kernels](http://lwn.net/Articles/549580/), the number of kernel ticks
 wasn’t relevant anymore. It stuck around anyway, mainly for legacy and
 compatibility reasons.
 
-### Block I/O metrics[¶](#block-i-o-metrics "Permalink to this headline")
+### Block I/O metrics
 
-Block I/O is accounted in the `blkio`{.docutils .literal} controller.
+Block I/O is accounted in the `blkio` controller.
 Different metrics are scattered across different files. While you can
 find in-depth details in the
 [blkio-controller](https://www.kernel.org/doc/Documentation/cgroups/blkio-controller.txt)
@@ -259,7 +263,7 @@ blkio.io\_queued
     not perform more I/O, its queue size can increase just because the
     device load increases because of other devices.
 
-Network Metrics[¶](#network-metrics "Permalink to this headline")
+Network Metrics
 -----------------------------------------------------------------
 
 Network metrics are not exposed directly by control groups. There is a
@@ -267,17 +271,17 @@ good explanation for that: network interfaces exist within the context
 of *network namespaces*. The kernel could probably accumulate metrics
 about packets and bytes sent and received by a group of processes, but
 those metrics wouldn’t be very useful. You want per-interface metrics
-(because traffic happening on the local `lo`{.docutils .literal}
+(because traffic happening on the local `lo`
 interface doesn’t really count). But since processes in a single cgroup
 can belong to multiple network namespaces, those metrics would be harder
 to interpret: multiple network namespaces means multiple `lo`{.docutils
-.literal} interfaces, potentially multiple `eth0`{.docutils .literal}
+.literal} interfaces, potentially multiple `eth0`
 interfaces, etc.; so this is why there is no easy way to gather network
 metrics with control groups.
 
 Instead we can gather network metrics from other sources:
 
-### IPtables[¶](#iptables "Permalink to this headline")
+### IPtables
 
 IPtables (or rather, the netfilter framework for which iptables is just
 an interface) can do some serious accounting.
@@ -287,7 +291,7 @@ traffic on a web server:
 
     iptables -I OUTPUT -p tcp --sport 80
 
-There is no `-j`{.docutils .literal} or `-g`{.docutils .literal} flag,
+There is no `-j` or `-g`{.docutils .literal} flag,
 so the rule will just count matched packets and go to the following
 rule.
 
@@ -295,28 +299,28 @@ Later, you can check the values of the counters, with:
 
     iptables -nxvL OUTPUT
 
-Technically, `-n`{.docutils .literal} is not required, but it will
+Technically, `-n` is not required, but it will
 prevent iptables from doing DNS reverse lookups, which are probably
 useless in this scenario.
 
 Counters include packets and bytes. If you want to setup metrics for
 container traffic like this, you could execute a `for`{.docutils
-.literal} loop to add two `iptables`{.docutils .literal} rules per
+.literal} loop to add two `iptables` rules per
 container IP address (one in each direction), in the `FORWARD`{.docutils
 .literal} chain. This will only meter traffic going through the NAT
 layer; you will also have to add traffic going through the userland
 proxy.
 
 Then, you will need to check those counters on a regular basis. If you
-happen to use `collectd`{.docutils .literal}, there is a nice plugin to
+happen to use `collectd`, there is a nice plugin to
 automate iptables counters collection.
 
-### Interface-level counters[¶](#interface-level-counters "Permalink to this headline")
+### Interface-level counters
 
 Since each container has a virtual Ethernet interface, you might want to
 check directly the TX and RX counters of this interface. You will notice
 that each container is associated to a virtual Ethernet interface in
-your host, with a name like `vethKk8Zqi`{.docutils .literal}. Figuring
+your host, with a name like `vethKk8Zqi`. Figuring
 out which interface corresponds to which container is, unfortunately,
 difficult.
 
@@ -325,7 +329,7 @@ containers*. To accomplish this, you can run an executable from the host
 environment within the network namespace of a container using **ip-netns
 magic**.
 
-The `ip-netns exec`{.docutils .literal} command will let you execute any
+The `ip-netns exec` command will let you execute any
 program (present in the host system) within any network namespace
 visible to the current process. This means that your host will be able
 to enter the network namespace of your containers, but your containers
@@ -341,16 +345,16 @@ For example:
 
     ip netns exec mycontainer netstat -i
 
-`ip netns`{.docutils .literal} finds the “mycontainer” container by
+`ip netns` finds the “mycontainer” container by
 using namespaces pseudo-files. Each process belongs to one network
-namespace, one PID namespace, one `mnt`{.docutils .literal} namespace,
+namespace, one PID namespace, one `mnt` namespace,
 etc., and those namespaces are materialized under
-`/proc/<pid>/ns/`{.docutils .literal}. For example, the network
+`/proc/<pid>/ns/`. For example, the network
 namespace of PID 42 is materialized by the pseudo-file
-`/proc/42/ns/net`{.docutils .literal}.
+`/proc/42/ns/net`.
 
-When you run `ip netns exec mycontainer ...`{.docutils .literal}, it
-expects `/var/run/netns/mycontainer`{.docutils .literal} to be one of
+When you run `ip netns exec mycontainer ...`, it
+expects `/var/run/netns/mycontainer` to be one of
 those pseudo-files. (Symlinks are accepted.)
 
 In other words, to execute a command within the network namespace of a
@@ -359,17 +363,17 @@ container, we need to:
 -   Find out the PID of any process within the container that we want to
     investigate;
 -   Create a symlink from `/var/run/netns/<somename>`{.docutils
-    .literal} to `/proc/<thepid>/ns/net`{.docutils .literal}
--   Execute `ip netns exec <somename> ....`{.docutils .literal}
+    .literal} to `/proc/<thepid>/ns/net`
+-   Execute `ip netns exec <somename> ....`
 
 Please review [*Enumerating Cgroups*](#run-findpid) to learn how to find
 the cgroup of a pprocess running in the container of which you want to
 measure network usage. From there, you can examine the pseudo-file named
-`tasks`{.docutils .literal}, which containes the PIDs that are in the
+`tasks`, which containes the PIDs that are in the
 control group (i.e. in the container). Pick any one of them.
 
 Putting everything together, if the “short ID” of a container is held in
-the environment variable `$CID`{.docutils .literal}, then you can do
+the environment variable `$CID`, then you can do
 this:
 
     TASKS=/sys/fs/cgroup/devices/$CID*/tasks
@@ -378,7 +382,7 @@ this:
     ln -sf /proc/$PID/ns/net /var/run/netns/$CID
     ip netns exec $CID netstat -i
 
-Tips for high-performance metric collection[¶](#tips-for-high-performance-metric-collection "Permalink to this headline")
+Tips for high-performance metric collection
 -------------------------------------------------------------------------------------------------------------------------
 
 Note that running a new process each time you want to update metrics is
@@ -390,10 +394,10 @@ time.
 Here is how to collect metrics from a single process. You will have to
 write your metric collector in C (or any language that lets you do
 low-level system calls). You need to use a special system call,
-`setns()`{.docutils .literal}, which lets the current process enter any
+`setns()`, which lets the current process enter any
 arbitrary namespace. It requires, however, an open file descriptor to
 the namespace pseudo-file (remember: that’s the pseudo-file in
-`/proc/<pid>/ns/net`{.docutils .literal}).
+`/proc/<pid>/ns/net`).
 
 However, there is a catch: you must not keep this file descriptor open.
 If you do, when the last process of the control group exits, the
@@ -404,7 +408,7 @@ you close that file descriptor).
 The right approach would be to keep track of the first PID of each
 container, and re-open the namespace pseudo-file each time.
 
-Collecting metrics when a container exits[¶](#collecting-metrics-when-a-container-exits "Permalink to this headline")
+Collecting metrics when a container exits
 ---------------------------------------------------------------------------------------------------------------------
 
 Sometimes, you do not care about real time metric collection, but when a
@@ -428,7 +432,7 @@ the tasks file to check if it’s the last process of the control group.
 previous section, you should also move the process to the appropriate
 network namespace.)
 
-When the container exits, `lxc-start`{.docutils .literal} will try to
+When the container exits, `lxc-start` will try to
 delete the control groups. It will fail, since the control group is
 still in use; but that’s fine. You process should now detect that it is
 the only one remaining in the group. Now is the right time to collect
@@ -436,7 +440,7 @@ all the metrics you need!
 
 Finally, your process should move itself back to the root control group,
 and remove the container control group. To remove a control group, just
-`rmdir`{.docutils .literal} its directory. It’s counter-intuitive to
-`rmdir`{.docutils .literal} a directory as it still contains files; but
+`rmdir` its directory. It’s counter-intuitive to
+`rmdir` a directory as it still contains files; but
 remember that this is a pseudo-filesystem, so usual rules don’t apply.
 After the cleanup is done, the collection process can exit safely.

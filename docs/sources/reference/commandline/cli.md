@@ -1,8 +1,12 @@
-Command Line Help[¶](#command-line-help "Permalink to this headline")
+page_title: Command Line Interface
+page_description: Docker's CLI command description and usage
+page_keywords: Docker, Docker documentation, CLI, command line
+
+Command Line Help
 =====================================================================
 
-To list available commands, either run `docker`{.docutils .literal} with
-no parameters or execute `docker help`{.docutils .literal}:
+To list available commands, either run `docker` with
+no parameters or execute `docker help`:
 
     $ sudo docker
       Usage: docker [OPTIONS] COMMAND [arg...]
@@ -12,51 +16,51 @@ no parameters or execute `docker help`{.docutils .literal}:
 
       ...
 
-Options[¶](#options "Permalink to this headline")
+Options
 =================================================
 
 Single character commandline options can be combined, so rather than
-typing `docker run -t -i --name test busybox sh`{.docutils .literal},
+typing `docker run -t -i --name test busybox sh`,
 you can write `docker run -ti --name test busybox sh`{.docutils
 .literal}.
 
-Boolean[¶](#boolean "Permalink to this headline")
+Boolean
 -------------------------------------------------
 
-Boolean options look like `-d=false`{.docutils .literal}. The value you
+Boolean options look like `-d=false`. The value you
 see is the default value which gets set if you do **not** use the
-boolean flag. If you do call `run -d`{.docutils .literal}, that sets the
-opposite boolean value, so in this case, `true`{.docutils .literal}, and
-so `docker run -d`{.docutils .literal} **will** run in “detached” mode,
+boolean flag. If you do call `run -d`, that sets the
+opposite boolean value, so in this case, `true`, and
+so `docker run -d` **will** run in “detached” mode,
 in the background. Other boolean options are similar – specifying them
 will set the value to the opposite of the default value.
 
-Multi[¶](#multi "Permalink to this headline")
+Multi
 ---------------------------------------------
 
-Options like `-a=[]`{.docutils .literal} indicate they can be specified
+Options like `-a=[]` indicate they can be specified
 multiple times:
 
     docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
 
 Sometimes this can use a more complex value string, as for
-`-v`{.docutils .literal}:
+`-v`:
 
     docker run -v /host:/container example/mysql
 
-Strings and Integers[¶](#strings-and-integers "Permalink to this headline")
+Strings and Integers
 ---------------------------------------------------------------------------
 
-Options like `-name=""`{.docutils .literal} expect a string, and they
-can only be specified once. Options like `-c=0`{.docutils .literal}
+Options like `-name=""` expect a string, and they
+can only be specified once. Options like `-c=0`
 expect an integer, and they can only be specified once.
 
 * * * * *
 
-Commands[¶](#commands "Permalink to this headline")
+Commands
 ===================================================
 
-`daemon`{.docutils .literal}[¶](#daemon "Permalink to this headline")
+`daemon`
 =====================================================================
 
     Usage of docker:
@@ -80,13 +84,13 @@ Commands[¶](#commands "Permalink to this headline")
 
 The Docker daemon is the persistent process that manages containers.
 Docker uses the same binary for both the daemon and client. To run the
-daemon you provide the `-d`{.docutils .literal} flag.
+daemon you provide the `-d` flag.
 
 To force Docker to use devicemapper as the storage driver, use
-`docker -d -s devicemapper`{.docutils .literal}.
+`docker -d -s devicemapper`.
 
 To set the DNS server for all Docker containers, use
-`docker -d -dns 8.8.8.8`{.docutils .literal}.
+`docker -d -dns 8.8.8.8`.
 
 To run the daemon with debug output, use `docker -d -D`{.docutils
 .literal}.
@@ -94,8 +98,8 @@ To run the daemon with debug output, use `docker -d -D`{.docutils
 To use lxc as the execution driver, use `docker -d -e lxc`{.docutils
 .literal}.
 
-The docker client will also honor the `DOCKER_HOST`{.docutils .literal}
-environment variable to set the `-H`{.docutils .literal} flag for the
+The docker client will also honor the `DOCKER_HOST`
+environment variable to set the `-H` flag for the
 client.
 
     docker -H tcp://0.0.0.0:4243 ps
@@ -106,16 +110,16 @@ client.
 
 To run the daemon with [systemd socket
 activation](http://0pointer.de/blog/projects/socket-activation.html),
-use `docker -d -H fd://`{.docutils .literal}. Using `fd://`{.docutils
+use `docker -d -H fd://`. Using `fd://`{.docutils
 .literal} will work perfectly for most setups but you can also specify
-individual sockets too `docker -d -H fd://3`{.docutils .literal}. If the
+individual sockets too `docker -d -H fd://3`. If the
 specified socket activated files aren’t found then docker will exit. You
 can find examples of using systemd socket activation with docker and
 systemd in the [docker source
 tree](https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`{.docutils .literal}) and for `/tmp`{.docutils
+(`/var/lib/docker`) and for `/tmp`{.docutils
 .literal}. TMPDIR and the data directory can be set like this:
 
     TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
@@ -123,7 +127,7 @@ Docker supports softlinks for the Docker data directory
     export TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
-`attach`{.docutils .literal}[¶](#attach "Permalink to this headline")
+`attach`
 =====================================================================
 
     Usage: docker attach CONTAINER
@@ -134,16 +138,16 @@ Docker supports softlinks for the Docker data directory
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
 You can detach from the container again (and leave it running) with
-`CTRL-c`{.docutils .literal} (for a quiet exit) or `CTRL-\`{.docutils
+`CTRL-c` (for a quiet exit) or `CTRL-\`{.docutils
 .literal} to get a stacktrace of the Docker client when it quits. When
 you detach from the container’s process the exit code will be returned
 to the client.
 
-To stop a container, use `docker stop`{.docutils .literal}.
+To stop a container, use `docker stop`.
 
-To kill the container, use `docker kill`{.docutils .literal}.
+To kill the container, use `docker kill`.
 
-Examples:[¶](#examples "Permalink to this headline")
+Examples:
 ----------------------------------------------------
 
     $ ID=$(sudo docker run -d ubuntu /usr/bin/top -b)
@@ -178,7 +182,7 @@ Examples:[¶](#examples "Permalink to this headline")
     ^C$
     $ sudo docker stop $ID
 
-`build`{.docutils .literal}[¶](#build "Permalink to this headline")
+`build`
 ===================================================================
 
     Usage: docker build [OPTIONS] PATH | URL | -
@@ -189,11 +193,11 @@ Examples:[¶](#examples "Permalink to this headline")
       --no-cache: Do not use the cache when building the image.
       --rm=true: Remove intermediate containers after a successful build
 
-The files at `PATH`{.docutils .literal} or `URL`{.docutils .literal} are
+The files at `PATH` or `URL`{.docutils .literal} are
 called the “context” of the build. The build process may refer to any of
 the files in the context, for example when using an
 [*ADD*](../../builder/#dockerfile-add) instruction. When a single
-`Dockerfile`{.docutils .literal} is given as `URL`{.docutils .literal},
+`Dockerfile` is given as `URL`{.docutils .literal},
 then no context is set. When a Git repository is set as `URL`{.docutils
 .literal}, then the repository is used as the context. Git repositories
 are cloned with their submodules (git clone –recursive).
@@ -202,7 +206,7 @@ See also
 
 [*Dockerfile Reference*](../../builder/#dockerbuilder).
 
-Examples:[¶](#id1 "Permalink to this headline")
+Examples:
 -----------------------------------------------
 
     $ sudo docker build .
@@ -231,49 +235,49 @@ Examples:[¶](#id1 "Permalink to this headline")
     Removing intermediate container 9c9e81692ae9
     Removing intermediate container 02071fceb21b
 
-This example specifies that the `PATH`{.docutils .literal} is
-`.`{.docutils .literal}, and so all the files in the local directory get
-tar’d and sent to the Docker daemon. The `PATH`{.docutils .literal}
+This example specifies that the `PATH` is
+`.`, and so all the files in the local directory get
+tar’d and sent to the Docker daemon. The `PATH`
 specifies where to find the files for the “context” of the build on the
 Docker daemon. Remember that the daemon could be running on a remote
-machine and that no parsing of the `Dockerfile`{.docutils .literal}
+machine and that no parsing of the `Dockerfile`
 happens at the client side (where you’re running
-`docker build`{.docutils .literal}). That means that *all* the files at
-`PATH`{.docutils .literal} get sent, not just the ones listed to
+`docker build`). That means that *all* the files at
+`PATH` get sent, not just the ones listed to
 [*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`{.docutils
 .literal}.
 
 The transfer of context from the local machine to the Docker daemon is
-what the `docker`{.docutils .literal} client means when you see the
+what the `docker` client means when you see the
 “Uploading context” message.
 
 If you wish to keep the intermediate containers after the build is
-complete, you must use `--rm=false`{.docutils .literal}. This does not
+complete, you must use `--rm=false`. This does not
 affect the build cache.
 
     $ sudo docker build -t vieux/apache:2.0 .
 
 This will build like the previous example, but it will then tag the
 resulting image. The repository name will be `vieux/apache`{.docutils
-.literal} and the tag will be `2.0`{.docutils .literal}
+.literal} and the tag will be `2.0`
 
     $ sudo docker build - < Dockerfile
 
-This will read a `Dockerfile`{.docutils .literal} from *stdin* without
+This will read a `Dockerfile` from *stdin* without
 context. Due to the lack of a context, no contents of any local
-directory will be sent to the `docker`{.docutils .literal} daemon. Since
-there is no context, a `Dockerfile`{.docutils .literal} `ADD`{.docutils
+directory will be sent to the `docker` daemon. Since
+there is no context, a `Dockerfile` `ADD`{.docutils
 .literal} only works if it refers to a remote URL.
 
     $ sudo docker build github.com/creack/docker-firefox
 
 This will clone the GitHub repository and use the cloned repository as
-context. The `Dockerfile`{.docutils .literal} at the root of the
-repository is used as `Dockerfile`{.docutils .literal}. Note that you
+context. The `Dockerfile` at the root of the
+repository is used as `Dockerfile`. Note that you
 can specify an arbitrary Git repository by using the `git://`{.docutils
 .literal} schema.
 
-`commit`{.docutils .literal}[¶](#commit "Permalink to this headline")
+`commit`
 =====================================================================
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
@@ -285,7 +289,7 @@ can specify an arbitrary Git repository by using the `git://`{.docutils
       --run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-Commit an existing container[¶](#commit-an-existing-container "Permalink to this headline")
+Commit an existing container
 -------------------------------------------------------------------------------------------
 
     $ sudo docker ps
@@ -298,14 +302,14 @@ Commit an existing container[¶](#commit-an-existing-container "Permalink to thi
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
     SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
-Change the command that a container runs[¶](#change-the-command-that-a-container-runs "Permalink to this headline")
+Change the command that a container runs
 -------------------------------------------------------------------------------------------------------------------
 
 Sometimes you have an application container running just a service and
 you need to make a quick change and then change it back.
 
-In this example, we run a container with `ls`{.docutils .literal} and
-then change the image to run `ls /etc`{.docutils .literal}.
+In this example, we run a container with `ls` and
+then change the image to run `ls /etc`.
 
     $ docker run -t -name test ubuntu ls
     bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
@@ -317,14 +321,14 @@ then change the image to run `ls /etc`{.docutils .literal}.
     apt                     host.conf        lsb-base             rc2.d
     ...
 
-### Full -run example[¶](#full-run-example "Permalink to this headline")
+### Full -run example
 
-The `--run`{.docutils .literal} JSON hash changes the `Config`{.docutils
+The `--run` JSON hash changes the `Config`{.docutils
 .literal} section when running `docker inspect CONTAINERID`{.docutils
-.literal} or `config`{.docutils .literal} when running
-`docker inspect IMAGEID`{.docutils .literal}.
+.literal} or `config` when running
+`docker inspect IMAGEID`.
 
-(Multiline is okay within a single quote `'`{.docutils .literal})
+(Multiline is okay within a single quote `'`)
 
     $ sudo docker commit -run='
     {
@@ -356,7 +360,7 @@ The `--run`{.docutils .literal} JSON hash changes the `Config`{.docutils
         "AttachStdout" : false
     }' $CONTAINER_ID
 
-`cp`{.docutils .literal}[¶](#cp "Permalink to this headline")
+`cp`
 =============================================================
 
     Usage: docker cp CONTAINER:PATH HOSTPATH
@@ -367,7 +371,7 @@ The `--run`{.docutils .literal} JSON hash changes the `Config`{.docutils
     $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
     $ sudo docker cp blue_frog:/etc/hosts .
 
-`diff`{.docutils .literal}[¶](#diff "Permalink to this headline")
+`diff`
 =================================================================
 
     Usage: docker diff CONTAINER
@@ -376,9 +380,9 @@ The `--run`{.docutils .literal} JSON hash changes the `Config`{.docutils
 
 There are 3 events that are listed in the ‘diff’:
 
-1.  `` `A` ``{.docutils .literal} - Add
-2.  `` `D` ``{.docutils .literal} - Delete
-3.  `` `C` ``{.docutils .literal} - Change
+1.  `` `A` `` - Add
+2.  `` `D` `` - Delete
+3.  `` `C` `` - Change
 
 For example:
 
@@ -396,7 +400,7 @@ For example:
     A /go/src/github.com/dotcloud/docker/.git
     ....
 
-`events`{.docutils .literal}[¶](#events "Permalink to this headline")
+`events`
 =====================================================================
 
     Usage: docker events
@@ -406,27 +410,27 @@ For example:
     --since="": Show previously created events and then stream.
                (either seconds since epoch, or date string as below)
 
-Examples[¶](#cli-events-example "Permalink to this headline")
+Examples
 -------------------------------------------------------------
 
 You’ll need two shells for this example.
 
-### Shell 1: Listening for events[¶](#shell-1-listening-for-events "Permalink to this headline")
+### Shell 1: Listening for events
 
     $ sudo docker events
 
-### Shell 2: Start and Stop a Container[¶](#shell-2-start-and-stop-a-container "Permalink to this headline")
+### Shell 2: Start and Stop a Container
 
     $ sudo docker start 4386fb97867d
     $ sudo docker stop 4386fb97867d
 
-### Shell 1: (Again .. now showing events)[¶](#shell-1-again-now-showing-events "Permalink to this headline")
+### Shell 1: (Again .. now showing events)
 
     [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-### Show events in the past from a specified time[¶](#show-events-in-the-past-from-a-specified-time "Permalink to this headline")
+### Show events in the past from a specified time
 
     $ sudo docker events -since 1378216169
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
@@ -441,7 +445,7 @@ You’ll need two shells for this example.
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-`export`{.docutils .literal}[¶](#export "Permalink to this headline")
+`export`
 =====================================================================
 
     Usage: docker export CONTAINER
@@ -452,7 +456,7 @@ For example:
 
     $ sudo docker export red_panda > latest.tar
 
-`history`{.docutils .literal}[¶](#history "Permalink to this headline")
+`history`
 =======================================================================
 
     Usage: docker history [OPTIONS] IMAGE
@@ -462,7 +466,7 @@ For example:
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: only show numeric IDs
 
-To see how the `docker:latest`{.docutils .literal} image was built:
+To see how the `docker:latest` image was built:
 
     $ docker history docker
     ID                  CREATED             CREATED BY
@@ -494,7 +498,7 @@ To see how the `docker:latest`{.docutils .literal} image was built:
     ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
     ubuntu:12.04        6 months ago
 
-`images`{.docutils .literal}[¶](#images "Permalink to this headline")
+`images`
 =====================================================================
 
     Usage: docker images [OPTIONS] [NAME]
@@ -507,7 +511,7 @@ To see how the `docker:latest`{.docutils .literal} image was built:
       --tree=false: output graph in tree format
       --viz=false: output graph in graphviz format
 
-Listing the most recently created images[¶](#listing-the-most-recently-created-images "Permalink to this headline")
+Listing the most recently created images
 -------------------------------------------------------------------------------------------------------------------
 
     $ sudo docker images | head
@@ -522,7 +526,7 @@ Listing the most recently created images[¶](#listing-the-most-recently-created-
     tryout                        latest              2629d1fa0b81        23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ce        24 hours ago        1.089 GB
 
-Listing the full length image IDs[¶](#listing-the-full-length-image-ids "Permalink to this headline")
+Listing the full length image IDs
 -----------------------------------------------------------------------------------------------------
 
     $ sudo docker images --no-trunc | head
@@ -537,7 +541,7 @@ Listing the full length image IDs[¶](#listing-the-full-length-image-ids "Permal
     tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
 
-Displaying images visually[¶](#displaying-images-visually "Permalink to this headline")
+Displaying images visually
 ---------------------------------------------------------------------------------------
 
     $ sudo docker images --viz | dot -Tpng -o docker.png
@@ -545,7 +549,7 @@ Displaying images visually[¶](#displaying-images-visually "Permalink to this he
 ![Example inheritance graph of Docker
 images.](../../../_images/docker_images.gif)
 
-Displaying image hierarchy[¶](#displaying-image-hierarchy "Permalink to this headline")
+Displaying image hierarchy
 ---------------------------------------------------------------------------------------
 
     $ sudo docker images --tree
@@ -572,7 +576,7 @@ Displaying image hierarchy[¶](#displaying-image-hierarchy "Permalink to this he
                             └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
                               └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
 
-`import`{.docutils .literal}[¶](#import "Permalink to this headline")
+`import`
 =====================================================================
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
@@ -580,37 +584,37 @@ Displaying image hierarchy[¶](#displaying-image-hierarchy "Permalink to this he
     Create an empty filesystem image and import the contents of the tarball
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
-At this time, the URL must start with `http`{.docutils .literal} and
+At this time, the URL must start with `http` and
 point to a single file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or
 .txz) containing a root filesystem. If you would like to import from a
-local directory or archive, you can use the `-`{.docutils .literal}
+local directory or archive, you can use the `-`
 parameter to take the data from *stdin*.
 
-Examples[¶](#id3 "Permalink to this headline")
+Examples
 ----------------------------------------------
 
-### Import from a remote location[¶](#import-from-a-remote-location "Permalink to this headline")
+### Import from a remote location
 
 This will create a new untagged image.
 
     $ sudo docker import http://example.com/exampleimage.tgz
 
-### Import from a local file[¶](#import-from-a-local-file "Permalink to this headline")
+### Import from a local file
 
 Import to docker via pipe and *stdin*.
 
     $ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
 
-### Import from a local directory[¶](#import-from-a-local-directory "Permalink to this headline")
+### Import from a local directory
 
     $ sudo tar -c . | docker import - exampleimagedir
 
-Note the `sudo`{.docutils .literal} in this example – you must preserve
+Note the `sudo` in this example – you must preserve
 the ownership of the files (especially root ownership) during the
 archiving with tar. If you are not root (or the sudo command) when you
 tar, then the ownerships might not get preserved.
 
-`info`{.docutils .literal}[¶](#info "Permalink to this headline")
+`info`
 =================================================================
 
     Usage: docker info
@@ -629,28 +633,28 @@ tar, then the ownerships might not get preserved.
     Kernel Version: 3.8.0-33-generic
     WARNING: No swap limit support
 
-`insert`{.docutils .literal}[¶](#insert "Permalink to this headline")
+`insert`
 =====================================================================
 
     Usage: docker insert IMAGE URL PATH
 
     Insert a file from URL in the IMAGE at PATH
 
-Use the specified `IMAGE`{.docutils .literal} as the parent for a new
+Use the specified `IMAGE` as the parent for a new
 image which adds a [*layer*](../../../terms/layer/#layer-def) containing
-the new file. The `insert`{.docutils .literal} command does not modify
+the new file. The `insert` command does not modify
 the original image, and the new image has the contents of the parent
 image, plus the new file.
 
-Examples[¶](#id4 "Permalink to this headline")
+Examples
 ----------------------------------------------
 
-### Insert file from GitHub[¶](#insert-file-from-github "Permalink to this headline")
+### Insert file from GitHub
 
     $ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/master/postinstall /tmp/postinstall.sh
     06fd35556d7b
 
-`inspect`{.docutils .literal}[¶](#inspect "Permalink to this headline")
+`inspect`
 =======================================================================
 
     Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
@@ -665,48 +669,48 @@ specified, the given template will be executed for each result.
 Go’s [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
 
-Examples[¶](#id5 "Permalink to this headline")
+Examples
 ----------------------------------------------
 
-### Get an instance’s IP Address[¶](#get-an-instance-s-ip-address "Permalink to this headline")
+### Get an instance’s IP Address
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
     $ sudo docker inspect --format='{{.NetworkSettings.IPAddress}}' $INSTANCE_ID
 
-### List All Port Bindings[¶](#list-all-port-bindings "Permalink to this headline")
+### List All Port Bindings
 
 One can loop over arrays and maps in the results to produce simple text
 output:
 
     $ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
-### Find a Specific Port Mapping[¶](#find-a-specific-port-mapping "Permalink to this headline")
+### Find a Specific Port Mapping
 
-The `.Field`{.docutils .literal} syntax doesn’t work when the field name
+The `.Field` syntax doesn’t work when the field name
 begins with a number, but the template language’s `index`{.docutils
 .literal} function does. The `.NetworkSettings.Ports`{.docutils
 .literal} section contains a map of the internal port mappings to a list
 of external address/port objects, so to grab just the numeric public
-port, you use `index`{.docutils .literal} to find the specific port map,
-and then `index`{.docutils .literal} 0 contains first object inside of
-that. Then we ask for the `HostPort`{.docutils .literal} field to get
+port, you use `index` to find the specific port map,
+and then `index` 0 contains first object inside of
+that. Then we ask for the `HostPort` field to get
 the public address.
 
     $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
-### Get config[¶](#get-config "Permalink to this headline")
+### Get config
 
-The `.Field`{.docutils .literal} syntax doesn’t work when the field
+The `.Field` syntax doesn’t work when the field
 contains JSON data, but the template language’s custom `json`{.docutils
-.literal} function does. The `.config`{.docutils .literal} section
+.literal} function does. The `.config` section
 contains complex json object, so to grab it as JSON, you use
-`json`{.docutils .literal} to convert config object into JSON
+`json` to convert config object into JSON
 
     $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
 
-`kill`{.docutils .literal}[¶](#kill "Permalink to this headline")
+`kill`
 =================================================================
 
     Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
@@ -716,19 +720,19 @@ contains complex json object, so to grab it as JSON, you use
       -s, --signal="KILL": Signal to send to the container
 
 The main process inside the container will be sent SIGKILL, or any
-signal specified with option `--signal`{.docutils .literal}.
+signal specified with option `--signal`.
 
-Known Issues (kill)[¶](#known-issues-kill "Permalink to this headline")
+Known Issues (kill)
 -----------------------------------------------------------------------
 
 -   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
-    that `docker kill`{.docutils .literal} may leave directories behind
+    that `docker kill` may leave directories behind
     and make it difficult to remove the container.
 -   [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
-    1.0.0 beta3 removed `lcx-kill`{.docutils .literal} which is used by
+    1.0.0 beta3 removed `lcx-kill` which is used by
     Docker versions before 0.8.0; see the issue for a workaround.
 
-`load`{.docutils .literal}[¶](#load "Permalink to this headline")
+`load`
 =================================================================
 
     Usage: docker load < repository.tar
@@ -736,7 +740,7 @@ Known Issues (kill)[¶](#known-issues-kill "Permalink to this headline")
     Loads a tarred repository from the standard input stream.
     Restores both images and tags.
 
-`login`{.docutils .literal}[¶](#login "Permalink to this headline")
+`login`
 ===================================================================
 
     Usage: docker login [OPTIONS] [SERVER]
@@ -753,7 +757,7 @@ Known Issues (kill)[¶](#known-issues-kill "Permalink to this headline")
     example:
     docker login localhost:8080
 
-`logs`{.docutils .literal}[¶](#logs "Permalink to this headline")
+`logs`
 =================================================================
 
     Usage: docker logs [OPTIONS] CONTAINER
@@ -762,25 +766,25 @@ Known Issues (kill)[¶](#known-issues-kill "Permalink to this headline")
 
     -f, --follow=false: Follow log output
 
-The `docker logs`{.docutils .literal} command is a convenience which
+The `docker logs` command is a convenience which
 batch-retrieves whatever logs are present at the time of execution. This
 does not guarantee execution order when combined with a
-`docker run`{.docutils .literal} (i.e. your run may not have generated
-any logs at the time you execute `docker logs`{.docutils .literal}).
+`docker run` (i.e. your run may not have generated
+any logs at the time you execute `docker logs`).
 
-The `docker logs --follow`{.docutils .literal} command combines
-`docker logs`{.docutils .literal} and `docker attach`{.docutils
+The `docker logs --follow` command combines
+`docker logs` and `docker attach`{.docutils
 .literal}: it will first return all logs from the beginning and then
 continue streaming new output from the container’s stdout and stderr.
 
-`port`{.docutils .literal}[¶](#port "Permalink to this headline")
+`port`
 =================================================================
 
     Usage: docker port [OPTIONS] CONTAINER PRIVATE_PORT
 
     Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
-`ps`{.docutils .literal}[¶](#ps "Permalink to this headline")
+`ps`
 =============================================================
 
     Usage: docker ps [OPTIONS]
@@ -791,7 +795,7 @@ continue streaming new output from the container’s stdout and stderr.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
 
-Running `docker ps`{.docutils .literal} showing 2 linked containers.
+Running `docker ps` showing 2 linked containers.
 
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
@@ -799,40 +803,40 @@ Running `docker ps`{.docutils .literal} showing 2 linked containers.
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
     fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
 
-The last container is marked as a `Ghost`{.docutils .literal} container.
+The last container is marked as a `Ghost` container.
 It is a container that was running when the docker daemon was restarted
-(upgraded, or `-H`{.docutils .literal} settings changed). The container
+(upgraded, or `-H` settings changed). The container
 is still running, but as this docker daemon process is not able to
 manage it, you can’t attach to it. To bring them out of
-`Ghost`{.docutils .literal} Status, you need to use
-`docker kill`{.docutils .literal} or `docker restart`{.docutils
+`Ghost` Status, you need to use
+`docker kill` or `docker restart`{.docutils
 .literal}.
 
-`docker ps`{.docutils .literal} will show only running containers by
-default. To see all containers: `docker ps -a`{.docutils .literal}
+`docker ps` will show only running containers by
+default. To see all containers: `docker ps -a`
 
-`pull`{.docutils .literal}[¶](#pull "Permalink to this headline")
+`pull`
 =================================================================
 
     Usage: docker pull NAME
 
     Pull an image or a repository from the registry
 
-`push`{.docutils .literal}[¶](#push "Permalink to this headline")
+`push`
 =================================================================
 
     Usage: docker push NAME
 
     Push an image or a repository to the registry
 
-`restart`{.docutils .literal}[¶](#restart "Permalink to this headline")
+`restart`
 =======================================================================
 
     Usage: docker restart [OPTIONS] NAME
 
     Restart a running container
 
-`rm`{.docutils .literal}[¶](#rm "Permalink to this headline")
+`rm`
 =============================================================
 
     Usage: docker rm [OPTIONS] CONTAINER
@@ -840,37 +844,37 @@ default. To see all containers: `docker ps -a`{.docutils .literal}
     Remove one or more containers
         --link="": Remove the link instead of the actual container
 
-Known Issues (rm)[¶](#known-issues-rm "Permalink to this headline")
+Known Issues (rm)
 -------------------------------------------------------------------
 
 -   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
-    that `docker kill`{.docutils .literal} may leave directories behind
+    that `docker kill` may leave directories behind
     and make it difficult to remove the container.
 
-Examples:[¶](#id6 "Permalink to this headline")
+Examples:
 -----------------------------------------------
 
     $ sudo docker rm /redis
     /redis
 
 This will remove the container referenced under the link
-`/redis`{.docutils .literal}.
+`/redis`.
 
     $ sudo docker rm --link /webapp/redis
     /webapp/redis
 
 This will remove the underlying link between `/webapp`{.docutils
-.literal} and the `/redis`{.docutils .literal} containers removing all
+.literal} and the `/redis` containers removing all
 network communication.
 
     $ sudo docker rm `docker ps -a -q`
 
 This command will delete all stopped containers. The command
-`docker ps -a -q`{.docutils .literal} will return all existing container
-IDs and pass them to the `rm`{.docutils .literal} command which will
+`docker ps -a -q` will return all existing container
+IDs and pass them to the `rm` command which will
 delete them. Any running containers will not be deleted.
 
-`rmi`{.docutils .literal}[¶](#rmi "Permalink to this headline")
+`rmi`
 ===============================================================
 
     Usage: docker rmi IMAGE [IMAGE...]
@@ -879,7 +883,7 @@ delete them. Any running containers will not be deleted.
 
       -f, --force=false: Force
 
-Removing tagged images[¶](#removing-tagged-images "Permalink to this headline")
+Removing tagged images
 -------------------------------------------------------------------------------
 
 Images can be removed either by their short or long ID’s, or their image
@@ -908,7 +912,7 @@ removed before the image is removed.
     Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
-`run`{.docutils .literal}[¶](#run "Permalink to this headline")
+`run`
 ===============================================================
 
     Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
@@ -941,27 +945,27 @@ removed before the image is removed.
       --name="": Assign the specified name to the container. If no name is specific docker will generate a random name
       -P, --publish-all=false: Publish all exposed ports to the host interfaces
 
-The `docker run`{.docutils .literal} command first `creates`{.docutils
+The `docker run` command first `creates`{.docutils
 .literal} a writeable container layer over the specified image, and then
-`starts`{.docutils .literal} it using the specified command. That is,
-`docker run`{.docutils .literal} is equivalent to the API
-`/containers/create`{.docutils .literal} then
-`/containers/(id)/start`{.docutils .literal}. Once the container is
+`starts` it using the specified command. That is,
+`docker run` is equivalent to the API
+`/containers/create` then
+`/containers/(id)/start`. Once the container is
 stopped it still exists and can be started back up. See
-`docker ps -a`{.docutils .literal} to view a list of all containers.
+`docker ps -a` to view a list of all containers.
 
-The `docker run`{.docutils .literal} command can be used in combination
-with `docker commit`{.docutils .literal} to [*change the command that a
+The `docker run` command can be used in combination
+with `docker commit` to [*change the command that a
 container runs*](#cli-commit-examples).
 
 See [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
-for more detailed information about the `--expose`{.docutils .literal},
-`-p`{.docutils .literal}, `-P`{.docutils .literal} and
-`--link`{.docutils .literal} parameters, and [*Link
+for more detailed information about the `--expose`,
+`-p`, `-P`{.docutils .literal} and
+`--link` parameters, and [*Link
 Containers*](../../../use/working_with_links_names/#working-with-links-names)
-for specific examples using `--link`{.docutils .literal}.
+for specific examples using `--link`.
 
-Known Issues (run -volumes-from)[¶](#known-issues-run-volumes-from "Permalink to this headline")
+Known Issues (run -volumes-from)
 ------------------------------------------------------------------------------------------------
 
 -   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
@@ -969,16 +973,16 @@ Known Issues (run -volumes-from)[¶](#known-issues-run-volumes-from "Permalink t
     permissions problem with AppArmor. Please see the issue for a
     workaround.
 
-Examples:[¶](#id7 "Permalink to this headline")
+Examples:
 -----------------------------------------------
 
     $ sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 
-This will create a container and print `test`{.docutils .literal} to the
-console. The `cidfile`{.docutils .literal} flag makes Docker attempt to
+This will create a container and print `test` to the
+console. The `cidfile` flag makes Docker attempt to
 create a new file and write the container ID to it. If the file exists
 already, Docker will return an error. Docker will close this file when
-`docker run`{.docutils .literal} exits.
+`docker run` exits.
 
     $ sudo docker run -t -i --rm ubuntu bash
     root@bc338942ef20:/# mount -t tmpfs none /mnt
@@ -987,7 +991,7 @@ already, Docker will return an error. Docker will close this file when
 This will *not* work, because by default, most potentially dangerous
 kernel capabilities are dropped; including `cap_sys_admin`{.docutils
 .literal} (which is required to mount filesystems). However, the
-`-privileged`{.docutils .literal} flag will allow it to run:
+`-privileged` flag will allow it to run:
 
     $ sudo docker run --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
@@ -995,24 +999,24 @@ kernel capabilities are dropped; including `cap_sys_admin`{.docutils
     Filesystem      Size  Used Avail Use% Mounted on
     none            1.9G     0  1.9G   0% /mnt
 
-The `-privileged`{.docutils .literal} flag gives *all* capabilities to
+The `-privileged` flag gives *all* capabilities to
 the container, and it also lifts all the limitations enforced by the
-`device`{.docutils .literal} cgroup controller. In other words, the
+`device` cgroup controller. In other words, the
 container can then do almost everything that the host can do. This flag
 exists to allow special use-cases, like running Docker within Docker.
 
     $ sudo docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
-The `-w`{.docutils .literal} lets the command being executed inside
-directory given, here `/path/to/dir/`{.docutils .literal}. If the path
+The `-w` lets the command being executed inside
+directory given, here `/path/to/dir/`. If the path
 does not exists it is created inside the container.
 
     $ sudo docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
 
-The `-v`{.docutils .literal} flag mounts the current working directory
-into the container. The `-w`{.docutils .literal} lets the command being
+The `-v` flag mounts the current working directory
+into the container. The `-w` lets the command being
 executed inside the current working directory, by changing into the
-directory to the value returned by `pwd`{.docutils .literal}. So this
+directory to the value returned by `pwd`. So this
 combination executes the command using the container, but inside the
 current working directory.
 
@@ -1032,15 +1036,15 @@ the full access to create and manipulate the host’s docker daemon.
 
     $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
-This binds port `8080`{.docutils .literal} of the container to port
-`80`{.docutils .literal} on `127.0.0.1`{.docutils .literal} of the host
+This binds port `8080` of the container to port
+`80` on `127.0.0.1`{.docutils .literal} of the host
 machine. [*Redirect
 Ports*](../../../use/port_redirection/#port-redirection) explains in
 detail how to manipulate ports in Docker.
 
     $ sudo docker run --expose 80 ubuntu bash
 
-This exposes port `80`{.docutils .literal} of the container for use
+This exposes port `80` of the container for use
 within a link without publishing the port to the host system’s
 interfaces. [*Redirect
 Ports*](../../../use/port_redirection/#port-redirection) explains in
@@ -1049,29 +1053,29 @@ detail how to manipulate ports in Docker.
     $ sudo docker run --name console -t -i ubuntu bash
 
 This will create and run a new container with the container name being
-`console`{.docutils .literal}.
+`console`.
 
     $ sudo docker run --link /redis:redis --name console ubuntu bash
 
-The `--link`{.docutils .literal} flag will link the container named
-`/redis`{.docutils .literal} into the newly created container with the
-alias `redis`{.docutils .literal}. The new container can access the
+The `--link` flag will link the container named
+`/redis` into the newly created container with the
+alias `redis`. The new container can access the
 network and environment of the redis container via environment
-variables. The `--name`{.docutils .literal} flag will assign the name
-`console`{.docutils .literal} to the newly created container.
+variables. The `--name` flag will assign the name
+`console` to the newly created container.
 
     $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
 
-The `--volumes-from`{.docutils .literal} flag mounts all the defined
+The `--volumes-from` flag mounts all the defined
 volumes from the referenced containers. Containers can be specified by a
 comma separated list or by repetitions of the `--volumes-from`{.docutils
 .literal} argument. The container ID may be optionally suffixed with
-`:ro`{.docutils .literal} or `:rw`{.docutils .literal} to mount the
+`:ro` or `:rw`{.docutils .literal} to mount the
 volumes in read-only or read-write mode, respectively. By default, the
 volumes are mounted in the same mode (read write or read only) as the
 reference container.
 
-### A complete example[¶](#a-complete-example "Permalink to this headline")
+### A complete example
 
     $ sudo docker run -d --name static static-web-files sh
     $ sudo docker run -d --expose=8098 --name riak riakserver
@@ -1084,36 +1088,36 @@ application change:
 
 1.  Start a pre-prepared volume image `static-web-files`{.docutils
     .literal} (in the background) that has CSS, image and static HTML in
-    it, (with a `VOLUME`{.docutils .literal} instruction in the
-    `Dockerfile`{.docutils .literal} to allow the web server to use
+    it, (with a `VOLUME` instruction in the
+    `Dockerfile` to allow the web server to use
     those files);
-2.  Start a pre-prepared `riakserver`{.docutils .literal} image, give
-    the container name `riak`{.docutils .literal} and expose port
-    `8098`{.docutils .literal} to any containers that link to it;
-3.  Start the `appserver`{.docutils .literal} image, restricting its
+2.  Start a pre-prepared `riakserver` image, give
+    the container name `riak` and expose port
+    `8098` to any containers that link to it;
+3.  Start the `appserver` image, restricting its
     memory usage to 100MB, setting two environment variables
-    `DEVELOPMENT`{.docutils .literal} and `BRANCH`{.docutils .literal}
+    `DEVELOPMENT` and `BRANCH`{.docutils .literal}
     and bind-mounting the current directory (`$(pwd)`{.docutils
     .literal}) in the container in read-only mode as
-    `/app/bin`{.docutils .literal};
-4.  Start the `webserver`{.docutils .literal}, mapping port
-    `443`{.docutils .literal} in the container to port `1443`{.docutils
+    `/app/bin`;
+4.  Start the `webserver`, mapping port
+    `443` in the container to port `1443`{.docutils
     .literal} on the Docker server, setting the DNS server to
-    `dns.dev.org`{.docutils .literal}, creating a volume to put the log
+    `dns.dev.org`, creating a volume to put the log
     files into (so we can access it from another container), then
     importing the files from the volume exposed by the
-    `static`{.docutils .literal} container, and linking to all exposed
-    ports from `riak`{.docutils .literal} and `app`{.docutils .literal}.
+    `static` container, and linking to all exposed
+    ports from `riak` and `app`{.docutils .literal}.
     Lastly, we set the hostname to `web.sven.dev.org`{.docutils
     .literal} so its consistent with the pre-generated SSL certificate;
 5.  Finally, we create a container that runs
-    `tail -f access.log`{.docutils .literal} using the logs volume from
-    the `web`{.docutils .literal} container, setting the workdir to
-    `/var/log/httpd`{.docutils .literal}. The `-rm`{.docutils .literal}
+    `tail -f access.log` using the logs volume from
+    the `web` container, setting the workdir to
+    `/var/log/httpd`. The `-rm`{.docutils .literal}
     option means that when the container exits, the container’s layer is
     removed.
 
-`save`{.docutils .literal}[¶](#save "Permalink to this headline")
+`save`
 =================================================================
 
     Usage: docker save image > repository.tar
@@ -1121,7 +1125,7 @@ application change:
     Streams a tarred repository to the standard output stream.
     Contains all parent layers, and all tags + versions.
 
-`search`{.docutils .literal}[¶](#search "Permalink to this headline")
+`search`
 =====================================================================
 
     Usage: docker search TERM
@@ -1132,7 +1136,7 @@ application change:
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
-`start`{.docutils .literal}[¶](#start "Permalink to this headline")
+`start`
 ===================================================================
 
     Usage: docker start [OPTIONS] CONTAINER
@@ -1142,7 +1146,7 @@ application change:
       -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false: Attach container's stdin
 
-`stop`{.docutils .literal}[¶](#stop "Permalink to this headline")
+`stop`
 =================================================================
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
@@ -1154,7 +1158,7 @@ application change:
 The main process inside the container will receive SIGTERM, and after a
 grace period, SIGKILL
 
-`tag`{.docutils .literal}[¶](#tag "Permalink to this headline")
+`tag`
 ===============================================================
 
     Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
@@ -1163,20 +1167,20 @@ grace period, SIGKILL
 
       -f, --force=false: Force
 
-`top`{.docutils .literal}[¶](#top "Permalink to this headline")
+`top`
 ===============================================================
 
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 
-`version`{.docutils .literal}[¶](#version "Permalink to this headline")
+`version`
 =======================================================================
 
 Show the version of the Docker client, daemon, and latest released
 version.
 
-`wait`{.docutils .literal}[¶](#wait "Permalink to this headline")
+`wait`
 =================================================================
 
     Usage: docker wait [OPTIONS] NAME

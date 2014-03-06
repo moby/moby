@@ -1,25 +1,29 @@
-Docker Index API[¶](#docker-index-api "Permalink to this headline")
+page_title: Index API
+page_description: API Documentation for Docker Index
+page_keywords: API, Docker, index, REST, documentation
+
+Docker Index API
 ===================================================================
 
-1. Brief introduction[¶](#brief-introduction "Permalink to this headline")
+1. Brief introduction
 --------------------------------------------------------------------------
 
 -   This is the REST API for the Docker index
 -   Authorization is done with basic auth over SSL
 -   Not all commands require authentication, only those noted as such.
 
-2. Endpoints[¶](#endpoints "Permalink to this headline")
+2. Endpoints
 --------------------------------------------------------
 
-### 2.1 Repository[¶](#repository "Permalink to this headline")
+### 2.1 Repository
 
-#### Repositories[¶](#repositories "Permalink to this headline")
+#### Repositories
 
-##### User Repo[¶](#user-repo "Permalink to this headline")
+##### User Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}[¶](#put--v1-repositories-(namespace)-(repo_name)- "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}
 :   Create a user repository with the given `namespace`{.docutils
-    .literal} and `repo_name`{.docutils .literal}.
+    .literal} and `repo_name`.
 
     **Example Request**:
 
@@ -55,9 +59,9 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}[¶](#delete--v1-repositories-(namespace)-(repo_name)- "Permalink to this definition")
+ `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}
 :   Delete a user repository with the given `namespace`{.docutils
-    .literal} and `repo_name`{.docutils .literal}.
+    .literal} and `repo_name`.
 
     **Example Request**:
 
@@ -94,9 +98,9 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active
 
-##### Library Repo[¶](#library-repo "Permalink to this headline")
+##### Library Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}[¶](#put--v1-repositories-(repo_name)- "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}
 :   Create a library repository with the given `repo_name`{.docutils
     .literal}. This is a restricted feature only available to docker
     admins.
@@ -137,7 +141,7 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}[¶](#delete--v1-repositories-(repo_name)- "Permalink to this definition")
+ `DELETE `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}
 :   Delete a library repository with the given `repo_name`{.docutils
     .literal}. This is a restricted feature only available to docker
     admins.
@@ -179,11 +183,11 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active
 
-#### Repository Images[¶](#repository-images "Permalink to this headline")
+#### Repository Images
 
-##### User Repo Images[¶](#user-repo-images "Permalink to this headline")
+##### User Repo Images
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}[¶](#put--v1-repositories-(namespace)-(repo_name)-images "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}
 :   Update the images for a user repo.
 
     **Example Request**:
@@ -217,7 +221,7 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active or permission denied
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}[¶](#get--v1-repositories-(namespace)-(repo_name)-images "Permalink to this definition")
+ `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}
 :   get the images for a user repo.
 
     **Example Request**:
@@ -247,9 +251,9 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **200** – OK
     -   **404** – Not found
 
-##### Library Repo Images[¶](#library-repo-images "Permalink to this headline")
+##### Library Repo Images
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}[¶](#put--v1-repositories-(repo_name)-images "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}
 :   Update the images for a library repo.
 
     **Example Request**:
@@ -282,7 +286,7 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active or permission denied
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}[¶](#get--v1-repositories-(repo_name)-images "Permalink to this definition")
+ `GET `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}
 :   get the images for a library repo.
 
     **Example Request**:
@@ -311,11 +315,11 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **200** – OK
     -   **404** – Not found
 
-#### Repository Authorization[¶](#repository-authorization "Permalink to this headline")
+#### Repository Authorization
 
-##### Library Repo[¶](#id1 "Permalink to this headline")
+##### Library Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/auth`{.descname}[¶](#put--v1-repositories-(repo_name)-auth "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/auth`{.descname}
 :   authorize a token for a library repo
 
     **Example Request**:
@@ -343,9 +347,9 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **403** – Permission denied
     -   **404** – Not found
 
-##### User Repo[¶](#id2 "Permalink to this headline")
+##### User Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/auth`{.descname}[¶](#put--v1-repositories-(namespace)-(repo_name)-auth "Permalink to this definition")
+ `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/auth`{.descname}
 :   authorize a token for a user repo
 
     **Example Request**:
@@ -374,11 +378,11 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **403** – Permission denied
     -   **404** – Not found
 
-### 2.2 Users[¶](#users "Permalink to this headline")
+### 2.2 Users
 
-#### User Login[¶](#user-login "Permalink to this headline")
+#### User Login
 
- `GET `{.descname}`/v1/users`{.descname}[¶](#get--v1-users "Permalink to this definition")
+ `GET `{.descname}`/v1/users`{.descname}
 :   If you want to check your login, you can try this endpoint
 
     **Example Request**:
@@ -402,9 +406,9 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **401** – Unauthorized
     -   **403** – Account is not Active
 
-#### User Register[¶](#user-register "Permalink to this headline")
+#### User Register
 
- `POST `{.descname}`/v1/users`{.descname}[¶](#post--v1-users "Permalink to this definition")
+ `POST `{.descname}`/v1/users`{.descname}
 :   Registering a new account.
 
     **Example request**:
@@ -440,9 +444,9 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **201** – User Created
     -   **400** – Errors (invalid json, missing or invalid fields, etc)
 
-#### Update User[¶](#update-user "Permalink to this headline")
+#### Update User
 
- `PUT `{.descname}`/v1/users/`{.descname}(*username*)`/`{.descname}[¶](#put--v1-users-(username)- "Permalink to this definition")
+ `PUT `{.descname}`/v1/users/`{.descname}(*username*)`/`{.descname}
 :   Change a password or email address for given user. If you pass in an
     email, it will add it to your account, it will not remove the old
     one. Passwords will be updated.
@@ -482,13 +486,13 @@ Docker Index API[¶](#docker-index-api "Permalink to this headline")
     -   **403** – Account is not Active
     -   **404** – User not found
 
-### 2.3 Search[¶](#search "Permalink to this headline")
+### 2.3 Search
 
 If you need to search the index, this is the endpoint you would use.
 
-#### Search[¶](#id3 "Permalink to this headline")
+#### Search
 
- `GET `{.descname}`/v1/search`{.descname}[¶](#get--v1-search "Permalink to this definition")
+ `GET `{.descname}`/v1/search`{.descname}
 :   Search the Index given a search term. It accepts
     [GET](http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3)
     only.

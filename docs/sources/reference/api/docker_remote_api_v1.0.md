@@ -1,4 +1,8 @@
-[Docker Remote API v1.0](#id1)[¶](#docker-remote-api-v1-0 "Permalink to this headline")
+page_title: Remote API v1.0
+page_description: API Documentation for Docker
+page_keywords: API, Docker, rcli, REST, documentation
+
+[Docker Remote API v1.0](#id1)
 =======================================================================================
 
 Table of Contents
@@ -53,7 +57,7 @@ Table of Contents
         -   [3.1 Inside ‘docker run’](#inside-docker-run)
         -   [3.2 Hijacking](#hijacking)
 
-[1. Brief introduction](#id2)[¶](#brief-introduction "Permalink to this headline")
+[1. Brief introduction](#id2)
 ----------------------------------------------------------------------------------
 
 -   The Remote API is replacing rcli
@@ -62,14 +66,14 @@ Table of Contents
     or pull, the HTTP connection is hijacked to transport stdout stdin
     and stderr
 
-[2. Endpoints](#id3)[¶](#endpoints "Permalink to this headline")
+[2. Endpoints](#id3)
 ----------------------------------------------------------------
 
-### [2.1 Containers](#id4)[¶](#containers "Permalink to this headline")
+### [2.1 Containers](#id4)
 
-#### [List containers](#id5)[¶](#list-containers "Permalink to this headline")
+#### [List containers](#id5)
 
- `GET `{.descname}`/containers/json`{.descname}[¶](#get--containers-json "Permalink to this definition")
+ `GET `{.descname}`/containers/json`{.descname}
 :   List containers
 
     **Example request**:
@@ -118,7 +122,7 @@ Table of Contents
 
     -   **all** – 1/True/true or 0/False/false, Show all containers.
         Only running containers are shown by default
-    -   **limit** – Show `limit`{.docutils .literal} last created
+    -   **limit** – Show `limit` last created
         containers, include non-running ones.
     -   **since** – Show only containers created since Id, include
         non-running ones.
@@ -131,9 +135,9 @@ Table of Contents
     -   **400** – bad parameter
     -   **500** – server error
 
-#### [Create a container](#id6)[¶](#create-a-container "Permalink to this headline")
+#### [Create a container](#id6)
 
- `POST `{.descname}`/containers/create`{.descname}[¶](#post--containers-create "Permalink to this definition")
+ `POST `{.descname}`/containers/create`{.descname}
 :   Create a container
 
     **Example request**:
@@ -186,9 +190,9 @@ Table of Contents
     -   **406** – impossible to attach (container not running)
     -   **500** – server error
 
-#### [Inspect a container](#id7)[¶](#inspect-a-container "Permalink to this headline")
+#### [Inspect a container](#id7)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}[¶](#get--containers-(id)-json "Permalink to this definition")
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}
 :   Return low-level information on the container `id`{.docutils
     .literal}
 
@@ -253,10 +257,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Inspect changes on a container’s filesystem](#id8)[¶](#inspect-changes-on-a-container-s-filesystem "Permalink to this headline")
+#### [Inspect changes on a container’s filesystem](#id8)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/changes`{.descname}[¶](#get--containers-(id)-changes "Permalink to this definition")
-:   Inspect changes on container `id`{.docutils .literal} ‘s filesystem
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/changes`{.descname}
+:   Inspect changes on container `id` ‘s filesystem
 
     **Example request**:
 
@@ -288,10 +292,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Export a container](#id9)[¶](#export-a-container "Permalink to this headline")
+#### [Export a container](#id9)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/export`{.descname}[¶](#get--containers-(id)-export "Permalink to this definition")
-:   Export the contents of container `id`{.docutils .literal}
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/export`{.descname}
+:   Export the contents of container `id`
 
     **Example request**:
 
@@ -310,10 +314,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Start a container](#id10)[¶](#start-a-container "Permalink to this headline")
+#### [Start a container](#id10)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/start`{.descname}[¶](#post--containers-(id)-start "Permalink to this definition")
-:   Start the container `id`{.docutils .literal}
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/start`{.descname}
+:   Start the container `id`
 
     **Example request**:
 
@@ -329,10 +333,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Stop a container](#id11)[¶](#stop-a-container "Permalink to this headline")
+#### [Stop a container](#id11)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/stop`{.descname}[¶](#post--containers-(id)-stop "Permalink to this definition")
-:   Stop the container `id`{.docutils .literal}
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/stop`{.descname}
+:   Stop the container `id`
 
     **Example request**:
 
@@ -354,10 +358,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Restart a container](#id12)[¶](#restart-a-container "Permalink to this headline")
+#### [Restart a container](#id12)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/restart`{.descname}[¶](#post--containers-(id)-restart "Permalink to this definition")
-:   Restart the container `id`{.docutils .literal}
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/restart`{.descname}
+:   Restart the container `id`
 
     **Example request**:
 
@@ -379,10 +383,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Kill a container](#id13)[¶](#kill-a-container "Permalink to this headline")
+#### [Kill a container](#id13)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/kill`{.descname}[¶](#post--containers-(id)-kill "Permalink to this definition")
-:   Kill the container `id`{.docutils .literal}
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/kill`{.descname}
+:   Kill the container `id`
 
     **Example request**:
 
@@ -398,10 +402,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Attach to a container](#id14)[¶](#attach-to-a-container "Permalink to this headline")
+#### [Attach to a container](#id14)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}[¶](#post--containers-(id)-attach "Permalink to this definition")
-:   Attach to the container `id`{.docutils .literal}
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}
+:   Attach to the container `id`
 
     **Example request**:
 
@@ -436,10 +440,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Wait a container](#id15)[¶](#wait-a-container "Permalink to this headline")
+#### [Wait a container](#id15)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/wait`{.descname}[¶](#post--containers-(id)-wait "Permalink to this definition")
-:   Block until container `id`{.docutils .literal} stops, then returns
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/wait`{.descname}
+:   Block until container `id` stops, then returns
     the exit code
 
     **Example request**:
@@ -459,10 +463,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-#### [Remove a container](#id16)[¶](#remove-a-container "Permalink to this headline")
+#### [Remove a container](#id16)
 
- `DELETE `{.descname}`/containers/`{.descname}(*id*)[¶](#delete--containers-(id) "Permalink to this definition")
-:   Remove the container `id`{.docutils .literal} from the filesystem
+ `DELETE `{.descname}`/containers/`{.descname}(*id*)
+:   Remove the container `id` from the filesystem
 
     **Example request**:
 
@@ -486,12 +490,12 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-### [2.2 Images](#id17)[¶](#images "Permalink to this headline")
+### [2.2 Images](#id17)
 
-#### [List Images](#id18)[¶](#list-images "Permalink to this headline")
+#### [List Images](#id18)
 
- `GET `{.descname}`/images/`{.descname}(*format*)[¶](#get--images-(format) "Permalink to this definition")
-:   List images `format`{.docutils .literal} could be json or viz (json
+ `GET `{.descname}`/images/`{.descname}(*format*)
+:   List images `format` could be json or viz (json
     default)
 
     **Example request**:
@@ -558,9 +562,9 @@ Table of Contents
     -   **400** – bad parameter
     -   **500** – server error
 
-#### [Create an image](#id19)[¶](#create-an-image "Permalink to this headline")
+#### [Create an image](#id19)
 
- `POST `{.descname}`/images/create`{.descname}[¶](#post--images-create "Permalink to this definition")
+ `POST `{.descname}`/images/create`{.descname}
 :   Create an image, either by pull it from the registry or by importing
     it
 
@@ -590,11 +594,11 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-#### [Insert a file in an image](#id20)[¶](#insert-a-file-in-an-image "Permalink to this headline")
+#### [Insert a file in an image](#id20)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}[¶](#post--images-(name)-insert "Permalink to this definition")
-:   Insert a file from `url`{.docutils .literal} in the image
-    `name`{.docutils .literal} at `path`{.docutils .literal}
+ `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
+:   Insert a file from `url` in the image
+    `name` at `path`{.docutils .literal}
 
     **Example request**:
 
@@ -611,10 +615,10 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-#### [Inspect an image](#id21)[¶](#inspect-an-image "Permalink to this headline")
+#### [Inspect an image](#id21)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/json`{.descname}[¶](#get--images-(name)-json "Permalink to this definition")
-:   Return low-level information on the image `name`{.docutils .literal}
+ `GET `{.descname}`/images/`{.descname}(*name*)`/json`{.descname}
+:   Return low-level information on the image `name`
 
     **Example request**:
 
@@ -658,10 +662,10 @@ Table of Contents
     -   **404** – no such image
     -   **500** – server error
 
-#### [Get the history of an image](#id22)[¶](#get-the-history-of-an-image "Permalink to this headline")
+#### [Get the history of an image](#id22)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/history`{.descname}[¶](#get--images-(name)-history "Permalink to this definition")
-:   Return the history of the image `name`{.docutils .literal}
+ `GET `{.descname}`/images/`{.descname}(*name*)`/history`{.descname}
+:   Return the history of the image `name`
 
     **Example request**:
 
@@ -691,10 +695,10 @@ Table of Contents
     -   **404** – no such image
     -   **500** – server error
 
-#### [Push an image on the registry](#id23)[¶](#push-an-image-on-the-registry "Permalink to this headline")
+#### [Push an image on the registry](#id23)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}[¶](#post--images-(name)-push "Permalink to this definition")
-:   Push the image `name`{.docutils .literal} on the registry
+ `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
+:   Push the image `name` on the registry
 
     > **Example request**:
     >
@@ -719,10 +723,10 @@ Table of Contents
     -   **404** – no such image
     -   **500** – server error
 
-#### [Tag an image into a repository](#id24)[¶](#tag-an-image-into-a-repository "Permalink to this headline")
+#### [Tag an image into a repository](#id24)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/tag`{.descname}[¶](#post--images-(name)-tag "Permalink to this definition")
-:   Tag the image `name`{.docutils .literal} into a repository
+ `POST `{.descname}`/images/`{.descname}(*name*)`/tag`{.descname}
+:   Tag the image `name` into a repository
 
     **Example request**:
 
@@ -746,10 +750,10 @@ Table of Contents
     -   **404** – no such image
     -   **500** – server error
 
-#### [Remove an image](#id25)[¶](#remove-an-image "Permalink to this headline")
+#### [Remove an image](#id25)
 
- `DELETE `{.descname}`/images/`{.descname}(*name*)[¶](#delete--images-(name) "Permalink to this definition")
-:   Remove the image `name`{.docutils .literal} from the filesystem
+ `DELETE `{.descname}`/images/`{.descname}(*name*)
+:   Remove the image `name` from the filesystem
 
     **Example request**:
 
@@ -765,9 +769,9 @@ Table of Contents
     -   **404** – no such image
     -   **500** – server error
 
-#### [Search images](#id26)[¶](#search-images "Permalink to this headline")
+#### [Search images](#id26)
 
- `GET `{.descname}`/images/search`{.descname}[¶](#get--images-search "Permalink to this definition")
+ `GET `{.descname}`/images/search`{.descname}
 :   Search for an image in the docker index
 
     **Example request**:
@@ -798,11 +802,11 @@ Table of Contents
         :statuscode 200: no error
         :statuscode 500: server error
 
-### [2.3 Misc](#id27)[¶](#misc "Permalink to this headline")
+### [2.3 Misc](#id27)
 
-#### [Build an image from Dockerfile via stdin](#id28)[¶](#build-an-image-from-dockerfile-via-stdin "Permalink to this headline")
+#### [Build an image from Dockerfile via stdin](#id28)
 
- `POST `{.descname}`/build`{.descname}[¶](#post--build "Permalink to this definition")
+ `POST `{.descname}`/build`{.descname}
 :   Build an image from Dockerfile via stdin
 
     **Example request**:
@@ -829,9 +833,9 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-#### [Get default username and email](#id29)[¶](#get-default-username-and-email "Permalink to this headline")
+#### [Get default username and email](#id29)
 
- `GET `{.descname}`/auth`{.descname}[¶](#get--auth "Permalink to this definition")
+ `GET `{.descname}`/auth`{.descname}
 :   Get the default username and email
 
     **Example request**:
@@ -853,9 +857,9 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-#### [Check auth configuration and store it](#id30)[¶](#check-auth-configuration-and-store-it "Permalink to this headline")
+#### [Check auth configuration and store it](#id30)
 
- `POST `{.descname}`/auth`{.descname}[¶](#post--auth "Permalink to this definition")
+ `POST `{.descname}`/auth`{.descname}
 :   Get the default username and email
 
     **Example request**:
@@ -879,9 +883,9 @@ Table of Contents
     -   **204** – no error
     -   **500** – server error
 
-#### [Display system-wide information](#id31)[¶](#display-system-wide-information "Permalink to this headline")
+#### [Display system-wide information](#id31)
 
- `GET `{.descname}`/info`{.descname}[¶](#get--info "Permalink to this definition")
+ `GET `{.descname}`/info`{.descname}
 :   Display system-wide information
 
     **Example request**:
@@ -908,9 +912,9 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-#### [Show the docker version information](#id32)[¶](#show-the-docker-version-information "Permalink to this headline")
+#### [Show the docker version information](#id32)
 
- `GET `{.descname}`/version`{.descname}[¶](#get--version "Permalink to this definition")
+ `GET `{.descname}`/version`{.descname}
 :   Show the docker version information
 
     **Example request**:
@@ -933,9 +937,9 @@ Table of Contents
     -   **200** – no error
     -   **500** – server error
 
-#### [Create a new image from a container’s changes](#id33)[¶](#create-a-new-image-from-a-container-s-changes "Permalink to this headline")
+#### [Create a new image from a container’s changes](#id33)
 
- `POST `{.descname}`/commit`{.descname}[¶](#post--commit "Permalink to this definition")
+ `POST `{.descname}`/commit`{.descname}
 :   Create a new image from a container’s changes
     >
     > **Example request**:
@@ -972,10 +976,10 @@ Table of Contents
     -   **404** – no such container
     -   **500** – server error
 
-[3. Going further](#id34)[¶](#going-further "Permalink to this headline")
+[3. Going further](#id34)
 -------------------------------------------------------------------------
 
-### [3.1 Inside ‘docker run’](#id35)[¶](#inside-docker-run "Permalink to this headline")
+### [3.1 Inside ‘docker run’](#id35)
 
 Here are the steps of ‘docker run’ :
 
@@ -994,7 +998,7 @@ Here are the steps of ‘docker run’ :
 -   If in detached mode or only stdin is attached:
     :   -   Display the container’s id
 
-### [3.2 Hijacking](#id36)[¶](#hijacking "Permalink to this headline")
+### [3.2 Hijacking](#id36)
 
 In this first version of the API, some of the endpoints, like /attach,
 /pull or /push uses hijacking to transport stdin, stdout and stderr on

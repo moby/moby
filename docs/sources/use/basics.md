@@ -1,7 +1,11 @@
-First steps with Docker[¶](#first-steps-with-docker "Permalink to this headline")
+page_title: First steps with Docker
+page_description: Common usage and commands
+page_keywords: Examples, Usage, basic commands, docker, documentation, examples
+
+First steps with Docker
 =================================================================================
 
-Check your Docker install[¶](#check-your-docker-install "Permalink to this headline")
+Check your Docker install
 -------------------------------------------------------------------------------------
 
 This guide assumes you have a working installation of Docker. To check
@@ -10,7 +14,7 @@ your Docker install, run the following command:
     # Check that you have a working install
     docker info
 
-If you get `docker: command not found`{.docutils .literal} or something
+If you get `docker: command not found` or something
 like `/var/lib/docker/repositories: permission denied`{.docutils
 .literal} you may have an incomplete docker installation or insufficient
 privileges to access Docker on your machine.
@@ -18,13 +22,13 @@ privileges to access Docker on your machine.
 Please refer to [*Installation*](../../installation/#installation-list)
 for installation instructions.
 
-Download a pre-built image[¶](#download-a-pre-built-image "Permalink to this headline")
+Download a pre-built image
 ---------------------------------------------------------------------------------------
 
     # Download an ubuntu image
     sudo docker pull ubuntu
 
-This will find the `ubuntu`{.docutils .literal} image by name in the
+This will find the `ubuntu` image by name in the
 [*Central Index*](../workingwithrepository/#searching-central-index) and
 download it from the top-level Central Repository to a local image
 cache.
@@ -32,13 +36,13 @@ cache.
 Note
 
 When the image has successfully downloaded, you will see a 12 character
-hash `539c0211cd76: Download complete`{.docutils .literal} which is the
+hash `539c0211cd76: Download complete` which is the
 short form of the image ID. These short image IDs are the first 12
 characters of the full image ID - which can be found using
-`docker inspect`{.docutils .literal} or
-`docker images -notrunc=true`{.docutils .literal}
+`docker inspect` or
+`docker images -notrunc=true`
 
-Running an interactive shell[¶](#running-an-interactive-shell "Permalink to this headline")
+Running an interactive shell
 -------------------------------------------------------------------------------------------
 
     # Run an interactive shell in the ubuntu image,
@@ -48,52 +52,52 @@ Running an interactive shell[¶](#running-an-interactive-shell "Permalink to thi
     # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
     sudo docker run -i -t ubuntu /bin/bash
 
-Bind Docker to another host/port or a Unix socket[¶](#bind-docker-to-another-host-port-or-a-unix-socket "Permalink to this headline")
+Bind Docker to another host/port or a Unix socket
 -------------------------------------------------------------------------------------------------------------------------------------
 
 Warning
 
-Changing the default `docker`{.docutils .literal} daemon binding to a
+Changing the default `docker` daemon binding to a
 TCP port or Unix *docker* user group will increase your security risks
 by allowing non-root users to gain *root* access on the host. Make sure
-you control access to `docker`{.docutils .literal}. If you are binding
+you control access to `docker`. If you are binding
 to a TCP port, anyone with access to that port has full Docker access;
 so it is not advisable on an open network.
 
-With `-H`{.docutils .literal} it is possible to make the Docker daemon
+With `-H` it is possible to make the Docker daemon
 to listen on a specific IP and port. By default, it will listen on
-`unix:///var/run/docker.sock`{.docutils .literal} to allow only local
+`unix:///var/run/docker.sock` to allow only local
 connections by the *root* user. You *could* set it to
-`0.0.0.0:4243`{.docutils .literal} or a specific host IP to give access
+`0.0.0.0:4243` or a specific host IP to give access
 to everybody, but that is **not recommended** because then it is trivial
 for someone to gain root access to the host where the daemon is running.
 
-Similarly, the Docker client can use `-H`{.docutils .literal} to connect
+Similarly, the Docker client can use `-H` to connect
 to a custom port.
 
-`-H`{.docutils .literal} accepts host and port assignment in the
-following format: `tcp://[host][:port]`{.docutils .literal} or
-`unix://path`{.docutils .literal}
+`-H` accepts host and port assignment in the
+following format: `tcp://[host][:port]` or
+`unix://path`
 
 For example:
 
--   `tcp://host:4243`{.docutils .literal} -\> tcp connection on
+-   `tcp://host:4243` -\> tcp connection on
     host:4243
--   `unix://path/to/socket`{.docutils .literal} -\> unix socket located
-    at `path/to/socket`{.docutils .literal}
+-   `unix://path/to/socket` -\> unix socket located
+    at `path/to/socket`
 
-`-H`{.docutils .literal}, when empty, will default to the same value as
-when no `-H`{.docutils .literal} was passed in.
+`-H`, when empty, will default to the same value as
+when no `-H` was passed in.
 
-`-H`{.docutils .literal} also accepts short form for TCP bindings:
-`host[:port]`{.docutils .literal} or `:port`{.docutils .literal}
+`-H` also accepts short form for TCP bindings:
+`host[:port]` or `:port`{.docutils .literal}
 
     # Run docker in daemon mode
     sudo <path to>/docker -H 0.0.0.0:5555 -d &
     # Download an ubuntu image
     sudo docker -H :5555 pull ubuntu
 
-You can use multiple `-H`{.docutils .literal}, for example, if you want
+You can use multiple `-H`, for example, if you want
 to listen on both TCP and a Unix socket
 
     # Run docker in daemon mode
@@ -103,7 +107,7 @@ to listen on both TCP and a Unix socket
     # OR use the TCP port
     sudo docker -H tcp://127.0.0.1:4243 pull ubuntu
 
-Starting a long-running worker process[¶](#starting-a-long-running-worker-process "Permalink to this headline")
+Starting a long-running worker process
 ---------------------------------------------------------------------------------------------------------------
 
     # Start a very useful long-running process
@@ -115,13 +119,13 @@ Starting a long-running worker process[¶](#starting-a-long-running-worker-proce
     # Kill the job
     sudo docker kill $JOB
 
-Listing containers[¶](#listing-containers "Permalink to this headline")
+Listing containers
 -----------------------------------------------------------------------
 
     sudo docker ps # Lists only running containers
     sudo docker ps -a # Lists all containers
 
-Controlling containers[¶](#controlling-containers "Permalink to this headline")
+Controlling containers
 -------------------------------------------------------------------------------
 
     # Start a new container
@@ -143,7 +147,7 @@ Controlling containers[¶](#controlling-containers "Permalink to this headline")
     docker stop $JOB # Container must be stopped to remove it
     docker rm $JOB
 
-Bind a service on a TCP port[¶](#bind-a-service-on-a-tcp-port "Permalink to this headline")
+Bind a service on a TCP port
 -------------------------------------------------------------------------------------------
 
     # Bind port 4444 of this container, and tell netcat to listen on it
@@ -158,7 +162,7 @@ Bind a service on a TCP port[¶](#bind-a-service-on-a-tcp-port "Permalink to thi
     # Verify that the network connection worked
     echo "Daemon received: $(sudo docker logs $JOB)"
 
-Committing (saving) a container state[¶](#committing-saving-a-container-state "Permalink to this headline")
+Committing (saving) a container state
 -----------------------------------------------------------------------------------------------------------
 
 Save your containers state to a container image, so the state can be
@@ -167,7 +171,7 @@ re-used.
 When you commit your container only the differences between the image
 the container was created from and the current state of the container
 will be stored (as a diff). See which images you already have using the
-`docker images`{.docutils .literal} command.
+`docker images` command.
 
     # Commit your container to a new named image
     sudo docker commit <container_id> <some_name>

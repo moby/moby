@@ -1,4 +1,8 @@
-[Google Cloud Platform](https://cloud.google.com/)[¶](#id1 "Permalink to this headline")
+page_title: Installation on Google Cloud Platform
+page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_keywords: Docker, Docker documentation, installation, google, Google Compute Engine, Google Cloud Platform
+
+[Google Cloud Platform](https://cloud.google.com/)
 ========================================================================================
 
 Note
@@ -8,7 +12,7 @@ production yet, but we’re getting closer with each release. Please see
 our blog post, [“Getting to Docker
 1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-[Compute Engine](https://developers.google.com/compute) QuickStart for [Debian](https://www.debian.org)[¶](#compute-engine-quickstart-for-debian "Permalink to this headline")
+[Compute Engine](https://developers.google.com/compute) QuickStart for [Debian](https://www.debian.org)
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 1.  Go to [Google Cloud Console](https://cloud.google.com/console) and

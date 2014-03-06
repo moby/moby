@@ -1,4 +1,8 @@
-Check your Docker install[¶](#check-your-docker-install "Permalink to this headline")
+page_title: Hello world example
+page_description: A simple hello world example with Docker
+page_keywords: docker, example, hello world
+
+Check your Docker install
 =====================================================================================
 
 This guide assumes you have a working installation of Docker. To check
@@ -7,7 +11,7 @@ your Docker install, run the following command:
     # Check that you have a working install
     $ sudo docker info
 
-If you get `docker: command not found`{.docutils .literal} or something
+If you get `docker: command not found` or something
 like `/var/lib/docker/repositories: permission denied`{.docutils
 .literal} you may have an incomplete Docker installation or insufficient
 privileges to access docker on your machine.
@@ -15,7 +19,7 @@ privileges to access docker on your machine.
 Please refer to [*Installation*](../../installation/#installation-list)
 for installation instructions.
 
-Hello World[¶](#hello-world "Permalink to this headline")
+Hello World
 =========================================================
 
 Note
@@ -28,21 +32,21 @@ Note
 
 This is the most basic example available for using Docker.
 
-Download the small base image named `busybox`{.docutils .literal}:
+Download the small base image named `busybox`:
 
     # Download a busybox image
     $ sudo docker pull busybox
 
-The `busybox`{.docutils .literal} image is a minimal Linux system. You
+The `busybox` image is a minimal Linux system. You
 can do the same with any number of other images, such as
-`debian`{.docutils .literal}, `ubuntu`{.docutils .literal} or
-`centos`{.docutils .literal}. The images can be found and retrieved
+`debian`, `ubuntu`{.docutils .literal} or
+`centos`. The images can be found and retrieved
 using the [Docker index](http://index.docker.io).
 
     $ sudo docker run busybox /bin/echo hello world
 
-This command will run a simple `echo`{.docutils .literal} command, that
-will echo `hello world`{.docutils .literal} back to the console over
+This command will run a simple `echo` command, that
+will echo `hello world` back to the console over
 standard out.
 
 **Explanation:**
@@ -59,7 +63,7 @@ See the example in action
 
 * * * * *
 
-Hello World Daemon[¶](#hello-world-daemon "Permalink to this headline")
+Hello World Daemon
 =======================================================================
 
 Note
@@ -81,7 +85,7 @@ continue to do this until we stop it.
     CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container made
-from the `ubuntu`{.docutils .literal} image.
+from the `ubuntu` image.
 
 -   **“sudo docker run -d “** run a command in a new container. We pass
     “-d” so it runs as a daemon.

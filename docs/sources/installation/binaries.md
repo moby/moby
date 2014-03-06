@@ -1,4 +1,8 @@
-Binaries[¶](#binaries "Permalink to this headline")
+page_title: Installation from Binaries
+page_description: This instruction set is meant for hackers who want to try out Docker on a variety of environments.
+page_keywords: binaries, installation, docker, documentation, linux
+
+Binaries
 ===================================================
 
 Note
@@ -15,7 +19,7 @@ Before following these directions, you should really check if a packaged
 version of Docker is already available for your distribution. We have
 packages for many distributions, and more keep showing up all the time!
 
-Check runtime dependencies[¶](#check-runtime-dependencies "Permalink to this headline")
+Check runtime dependencies
 ---------------------------------------------------------------------------------------
 
 To run properly, docker needs the following software to be installed at
@@ -30,7 +34,7 @@ runtime:
 -   Git version 1.7 or later
 -   XZ Utils 4.9 or later
 
-Check kernel dependencies[¶](#check-kernel-dependencies "Permalink to this headline")
+Check kernel dependencies
 -------------------------------------------------------------------------------------
 
 Docker in daemon mode has specific kernel requirements. For details,
@@ -39,41 +43,41 @@ check your distribution in [*Installation*](../#installation-list).
 Note that Docker also has a client mode, which can run on virtually any
 linux kernel (it even builds on OSX!).
 
-Get the docker binary:[¶](#get-the-docker-binary "Permalink to this headline")
+Get the docker binary:
 ------------------------------------------------------------------------------
 
     wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
     chmod +x docker
 
-Run the docker daemon[¶](#run-the-docker-daemon "Permalink to this headline")
+Run the docker daemon
 -----------------------------------------------------------------------------
 
     # start the docker in daemon mode from the directory you unpacked
     sudo ./docker -d &
 
-Giving non-root access[¶](#giving-non-root-access "Permalink to this headline")
+Giving non-root access
 -------------------------------------------------------------------------------
 
-The `docker`{.docutils .literal} daemon always runs as the root user,
-and since Docker version 0.5.2, the `docker`{.docutils .literal} daemon
+The `docker` daemon always runs as the root user,
+and since Docker version 0.5.2, the `docker` daemon
 binds to a Unix socket instead of a TCP port. By default that Unix
 socket is owned by the user *root*, and so, by default, you can access
-it with `sudo`{.docutils .literal}.
+it with `sudo`.
 
 Starting in version 0.5.3, if you (or your Docker installer) create a
 Unix group called *docker* and add users to it, then the
-`docker`{.docutils .literal} daemon will make the ownership of the Unix
+`docker` daemon will make the ownership of the Unix
 socket read/writable by the *docker* group when the daemon starts. The
-`docker`{.docutils .literal} daemon must always run as the root user,
-but if you run the `docker`{.docutils .literal} client as a user in the
-*docker* group then you don’t need to add `sudo`{.docutils .literal} to
+`docker` daemon must always run as the root user,
+but if you run the `docker` client as a user in the
+*docker* group then you don’t need to add `sudo` to
 all the client commands.
 
 Warning
 
 The *docker* group is root-equivalent.
 
-Upgrades[¶](#upgrades "Permalink to this headline")
+Upgrades
 ---------------------------------------------------
 
 To upgrade your manual installation of Docker, first kill the docker
@@ -83,7 +87,7 @@ daemon:
 
 Then follow the regular installation steps.
 
-Run your first container![¶](#run-your-first-container "Permalink to this headline")
+Run your first container!
 ------------------------------------------------------------------------------------
 
     # check your docker version

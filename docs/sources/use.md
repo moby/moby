@@ -1,4 +1,5 @@
-Use[¶](#use "Permalink to this headline")
+
+Use
 =========================================
 
 Contents:

@@ -1,4 +1,8 @@
-Amazon EC2[¶](#amazon-ec2 "Permalink to this headline")
+page_title: Installation on Amazon EC2
+page_description: Please note this project is currently under heavy development. It should not be used in production. 
+page_keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
+
+Amazon EC2
 =======================================================
 
 Note
@@ -16,26 +20,26 @@ There are several ways to install Docker on AWS EC2:
 **You’ll need an** [AWS account](http://aws.amazon.com/) **first, of
 course.**
 
-Amazon QuickStart[¶](#amazon-quickstart "Permalink to this headline")
+Amazon QuickStart
 ---------------------------------------------------------------------
 
 1.  **Choose an image:**
     -   Launch the [Create Instance
         Wizard](https://console.aws.amazon.com/ec2/v2/home?#LaunchInstanceWizard:)
         menu on your AWS Console.
-    -   Click the `Select`{.docutils .literal} button for a 64Bit Ubuntu
+    -   Click the `Select` button for a 64Bit Ubuntu
         image. For example: Ubuntu Server 12.04.3 LTS
     -   For testing you can use the default (possibly free)
-        `t1.micro`{.docutils .literal} instance (more info on
+        `t1.micro` instance (more info on
         [pricing](http://aws.amazon.com/en/ec2/pricing/)).
-    -   Click the `Next: Configure Instance Details`{.docutils .literal}
+    -   Click the `Next: Configure Instance Details`
         button at the bottom right.
 
 2.  **Tell CloudInit to install Docker:**
     -   When you’re on the “Configure Instance Details” step, expand the
         “Advanced Details” section.
     -   Under “User data”, select “As text”.
-    -   Enter `#include https://get.docker.io`{.docutils .literal} into
+    -   Enter `#include https://get.docker.io` into
         the instance *User Data*.
         [CloudInit](https://help.ubuntu.com/community/CloudInit) is part
         of the Ubuntu image you chose; it will bootstrap Docker by
@@ -49,17 +53,17 @@ Security Group to allow SSH.** By default all incoming ports to your new
 instance will be blocked by the AWS Security Group, so you might just
 get timeouts when you try to connect.
 
-Installing with `get.docker.io`{.docutils .literal} (as above) will
-create a service named `lxc-docker`{.docutils .literal}. It will also
+Installing with `get.docker.io` (as above) will
+create a service named `lxc-docker`. It will also
 set up a [*docker group*](../binaries/#dockergroup) and you may want to
 add the *ubuntu* user to it so that you don’t have to use
-`sudo`{.docutils .literal} for every Docker command.
+`sudo` for every Docker command.
 
 Once you’ve got Docker installed, you’re ready to try it out – head on
 over to the [*First steps with Docker*](../../use/basics/) or
 [*Examples*](../../examples/) section.
 
-Standard Ubuntu Installation[¶](#standard-ubuntu-installation "Permalink to this headline")
+Standard Ubuntu Installation
 -------------------------------------------------------------------------------------------
 
 If you want a more hands-on installation, then you can follow the

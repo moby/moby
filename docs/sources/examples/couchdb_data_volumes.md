@@ -1,4 +1,8 @@
-CouchDB Service[¶](#couchdb-service "Permalink to this headline")
+page_title: Sharing data between 2 couchdb databases
+page_description: Sharing data between 2 couchdb databases
+page_keywords: docker, example, package installation, networking, couchdb, data volumes
+
+CouchDB Service
 =================================================================
 
 Note
@@ -13,26 +17,26 @@ Here’s an example of using data volumes to share the same data between
 two CouchDB containers. This could be used for hot upgrades, testing
 different versions of CouchDB on the same data, etc.
 
-Create first database[¶](#create-first-database "Permalink to this headline")
+Create first database
 -----------------------------------------------------------------------------
 
-Note that we’re marking `/var/lib/couchdb`{.docutils .literal} as a data
+Note that we’re marking `/var/lib/couchdb` as a data
 volume.
 
     COUCH1=$(sudo docker run -d -p 5984 -v /var/lib/couchdb shykes/couchdb:2013-05-03)
 
-Add data to the first database[¶](#add-data-to-the-first-database "Permalink to this headline")
+Add data to the first database
 -----------------------------------------------------------------------------------------------
 
 We’re assuming your Docker host is reachable at `localhost`{.docutils
-.literal}. If not, replace `localhost`{.docutils .literal} with the
+.literal}. If not, replace `localhost` with the
 public IP of your Docker host.
 
     HOST=localhost
     URL="http://$HOST:$(sudo docker port $COUCH1 5984 | grep -Po '\d+$')/_utils/"
     echo "Navigate to $URL in your browser, and use the couch interface to add data"
 
-Create second database[¶](#create-second-database "Permalink to this headline")
+Create second database
 -------------------------------------------------------------------------------
 
 This time, we’re requesting shared access to `$COUCH1`{.docutils
@@ -40,7 +44,7 @@ This time, we’re requesting shared access to `$COUCH1`{.docutils
 
     COUCH2=$(sudo docker run -d -p 5984 --volumes-from $COUCH1 shykes/couchdb:2013-05-03)
 
-Browse data on the second database[¶](#browse-data-on-the-second-database "Permalink to this headline")
+Browse data on the second database
 -------------------------------------------------------------------------------------------------------
 
     HOST=localhost

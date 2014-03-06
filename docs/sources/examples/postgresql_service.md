@@ -1,4 +1,8 @@
-PostgreSQL Service[¶](#postgresql-service "Permalink to this headline")
+page_title: PostgreSQL service How-To
+page_description: Running and installing a PostgreSQL service
+page_keywords: docker, example, package installation, postgresql
+
+PostgreSQL Service
 =======================================================================
 
 Note
@@ -9,7 +13,7 @@ Note
 -   **If you don’t like sudo** then see [*Giving non-root
     access*](../../installation/binaries/#dockergroup)
 
-Installing PostgreSQL on Docker[¶](#installing-postgresql-on-docker "Permalink to this headline")
+Installing PostgreSQL on Docker
 -------------------------------------------------------------------------------------------------
 
 Assuming there is no Docker image that suits your needs in [the
@@ -91,21 +95,21 @@ or we can access it from our host (or the network).
 
 Note
 
-The `-rm`{.docutils .literal} removes the container and its image when
+The `-rm` removes the container and its image when
 the container exists successfully.
 
-### Using container linking[¶](#using-container-linking "Permalink to this headline")
+### Using container linking
 
 Containers can be linked to another container’s ports directly using
-`-link remote_name:local_alias`{.docutils .literal} in the client’s
-`docker run`{.docutils .literal}. This will set a number of environment
+`-link remote_name:local_alias` in the client’s
+`docker run`. This will set a number of environment
 variables that can then be used to connect:
 
     $ sudo docker run -rm -t -i -link pg_test:pg eg_postgresql bash
 
     postgres@7ef98b1b7243:/$ psql -h $PG_PORT_5432_TCP_ADDR -p $PG_PORT_5432_TCP_PORT -d docker -U docker --password
 
-### Connecting from your host system[¶](#connecting-from-your-host-system "Permalink to this headline")
+### Connecting from your host system
 
 Assuming you have the postgresql-client installed, you can use the
 host-mapped port to test as well. You need to use `docker ps`{.docutils
@@ -117,9 +121,9 @@ first:
     5e24362f27f6        eg_postgresql:latest   /usr/lib/postgresql/   About an hour ago   Up About an hour    0.0.0.0:49153->5432/tcp                    pg_test
     $ psql -h localhost -p 49153 -d docker -U docker --password
 
-### Testing the database[¶](#testing-the-database "Permalink to this headline")
+### Testing the database
 
-Once you have authenticated and have a `docker =#`{.docutils .literal}
+Once you have authenticated and have a `docker =#`
 prompt, you can create a table and populate it.
 
     psql (9.3.1)
@@ -138,7 +142,7 @@ prompt, you can create a table and populate it.
      San Francisco | (-194,53)
     (1 row)
 
-### Using the container volumes[¶](#using-the-container-volumes "Permalink to this headline")
+### Using the container volumes
 
 You can use the defined volumes to inspect the PostgreSQL log files and
 to backup your configuration and data:

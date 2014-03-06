@@ -1,20 +1,24 @@
-FAQ[¶](#faq "Permalink to this headline")
+page_title: FAQ
+page_description: Most frequently asked questions.
+page_keywords: faq, questions, documentation, docker
+
+FAQ
 =========================================
 
-Most frequently asked questions.[¶](#most-frequently-asked-questions "Permalink to this headline")
+Most frequently asked questions.
 --------------------------------------------------------------------------------------------------
 
-### How much does Docker cost?[¶](#how-much-does-docker-cost "Permalink to this headline")
+### How much does Docker cost?
 
 > Docker is 100% free, it is open source, so you can use it without
 > paying.
 
-### What open source license are you using?[¶](#what-open-source-license-are-you-using "Permalink to this headline")
+### What open source license are you using?
 
 > We are using the Apache License Version 2.0, see it here:
 > [https://github.com/dotcloud/docker/blob/master/LICENSE](https://github.com/dotcloud/docker/blob/master/LICENSE)
 
-### Does Docker run on Mac OS X or Windows?[¶](#does-docker-run-on-mac-os-x-or-windows "Permalink to this headline")
+### Does Docker run on Mac OS X or Windows?
 
 > Not at this time, Docker currently only runs on Linux, but you can use
 > VirtualBox to run Docker in a virtual machine on your box, and get the
@@ -24,14 +28,14 @@ Most frequently asked questions.[¶](#most-frequently-asked-questions "Permalink
 > small Linux distribution boot2docker can be run inside virtual
 > machines on these two operating systems.
 
-### How do containers compare to virtual machines?[¶](#how-do-containers-compare-to-virtual-machines "Permalink to this headline")
+### How do containers compare to virtual machines?
 
 > They are complementary. VMs are best used to allocate chunks of
 > hardware resources. Containers operate at the process level, which
 > makes them very lightweight and perfect as a unit of software
 > delivery.
 
-### What does Docker add to just plain LXC?[¶](#what-does-docker-add-to-just-plain-lxc "Permalink to this headline")
+### What does Docker add to just plain LXC?
 
 > Docker is not a replacement for LXC. “LXC” refers to capabilities of
 > the Linux kernel (specifically namespaces and control groups) which
@@ -61,7 +65,7 @@ Most frequently asked questions.[¶](#most-frequently-asked-questions "Permalink
 >     :   Docker is optimized for the deployment of applications, as
 >         opposed to machines. This is reflected in its API, user
 >         interface, design philosophy and documentation. By contrast,
->         the `lxc`{.docutils .literal} helper scripts focus on
+>         the `lxc` helper scripts focus on
 >         containers as lightweight machines - basically servers that
 >         boot faster and need less RAM. We think there’s more to
 >         containers than just that.
@@ -72,7 +76,7 @@ Most frequently asked questions.[¶](#most-frequently-asked-questions "Permalink
 >         code*](../reference/builder/#dockerbuilder), with full control
 >         over application dependencies, build tools, packaging etc.
 >         They are free to use
->         `make, maven, chef, puppet, salt,`{.docutils .literal} Debian
+>         `make, maven, chef, puppet, salt,` Debian
 >         packages, RPMs, source tarballs, or any combination of the
 >         above, regardless of the configuration of the machines.
 >
@@ -121,18 +125,18 @@ Most frequently asked questions.[¶](#most-frequently-asked-questions "Permalink
 >         establishing itself as the standard for container-based
 >         tooling.
 >
-### What is different between a Docker container and a VM?[¶](#what-is-different-between-a-docker-container-and-a-vm "Permalink to this headline")
+### What is different between a Docker container and a VM?
 
 There’s a great StackOverflow answer [showing the
 differences](http://stackoverflow.com/questions/16047306/how-is-docker-io-different-from-a-normal-virtual-machine).
 
-### Do I lose my data when the container exits?[¶](#do-i-lose-my-data-when-the-container-exits "Permalink to this headline")
+### Do I lose my data when the container exits?
 
 Not at all! Any data that your application writes to disk gets preserved
 in its container until you explicitly delete the container. The file
 system for the container persists even after the container halts.
 
-### How far do Docker containers scale?[¶](#how-far-do-docker-containers-scale "Permalink to this headline")
+### How far do Docker containers scale?
 
 Some of the largest server farms in the world today are based on
 containers. Large web deployments like Google and Twitter, and platform
@@ -140,7 +144,7 @@ providers such as Heroku and dotCloud all run on container technology,
 at a scale of hundreds of thousands or even millions of containers
 running in parallel.
 
-### How do I connect Docker containers?[¶](#how-do-i-connect-docker-containers "Permalink to this headline")
+### How do I connect Docker containers?
 
 Currently the recommended way to link containers is via the link
 primitive. You can see details of how to [work with links
@@ -150,7 +154,7 @@ Also of useful when enabling more flexible service portability is the
 [Ambassador linking
 pattern](http://docs.docker.io/en/latest/use/ambassador_pattern_linking/).
 
-### How do I run more than one process in a Docker container?[¶](#how-do-i-run-more-than-one-process-in-a-docker-container "Permalink to this headline")
+### How do I run more than one process in a Docker container?
 
 Any capable process supervisor such as
 [http://supervisord.org/](http://supervisord.org/), runit, s6, or
@@ -161,7 +165,7 @@ will continue to as well. You can see a more substantial example [that
 uses supervisord
 here](http://docs.docker.io/en/latest/examples/using_supervisord/).
 
-### What platforms does Docker run on?[¶](#what-platforms-does-docker-run-on "Permalink to this headline")
+### What platforms does Docker run on?
 
 Linux:
 
@@ -180,25 +184,25 @@ Cloud:
 -   Google Compute Engine
 -   Rackspace
 
-### How do I report a security issue with Docker?[¶](#how-do-i-report-a-security-issue-with-docker "Permalink to this headline")
+### How do I report a security issue with Docker?
 
 You can learn about the project’s security policy
 [here](http://www.docker.io/security/) and report security issues to
 this [mailbox](mailto:security%40docker.com).
 
-### Why do I need to sign my commits to Docker with the DCO?[¶](#why-do-i-need-to-sign-my-commits-to-docker-with-the-dco "Permalink to this headline")
+### Why do I need to sign my commits to Docker with the DCO?
 
 Please read [our blog
 post](http://blog.docker.io/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
 on the introduction of the DCO.
 
-### Can I help by adding some questions and answers?[¶](#can-i-help-by-adding-some-questions-and-answers "Permalink to this headline")
+### Can I help by adding some questions and answers?
 
 Definitely! You can fork [the
 repo](http://www.github.com/dotcloud/docker) and edit the documentation
 sources.
 
-### Where can I find more answers?[¶](#where-can-i-find-more-answers "Permalink to this headline")
+### Where can I find more answers?
 
 > You can find more answers on:
 >

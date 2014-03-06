@@ -1,4 +1,8 @@
-Mac OS X[¶](#mac-os-x "Permalink to this headline")
+page_title: Installation on Mac OS X 10.6 Snow Leopard
+page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
+
+Mac OS X
 ===================================================
 
 Note
@@ -15,20 +19,20 @@ our blog post, [“Getting to Docker
 
 Docker is supported on Mac OS X 10.6 “Snow Leopard” or newer.
 
-How To Install Docker On Mac OS X[¶](#how-to-install-docker-on-mac-os-x "Permalink to this headline")
+How To Install Docker On Mac OS X
 -----------------------------------------------------------------------------------------------------
 
-### VirtualBox[¶](#virtualbox "Permalink to this headline")
+### VirtualBox
 
 Docker on OS X needs VirtualBox to run. To begin with, head over to
 [VirtualBox Download Page](https://www.virtualbox.org/wiki/Downloads)
-and get the tool for `OS X hosts x86/amd64`{.docutils .literal}.
+and get the tool for `OS X hosts x86/amd64`.
 
 Once the download is complete, open the disk image, run the set up file
-(i.e. `VirtualBox.pkg`{.docutils .literal}) and install VirtualBox. Do
+(i.e. `VirtualBox.pkg`) and install VirtualBox. Do
 not simply copy the package without running the installer.
 
-### boot2docker[¶](#boot2docker "Permalink to this headline")
+### boot2docker
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
 handy script to easily manage the VM running the `docker`{.docutils
@@ -48,10 +52,10 @@ Run the following commands to get boot2docker:
     # Mark it executable
     chmod +x boot2docker
 
-### Docker OS X Client[¶](#docker-os-x-client "Permalink to this headline")
+### Docker OS X Client
 
-The `docker`{.docutils .literal} daemon is accessed using the
-`docker`{.docutils .literal} client.
+The `docker` daemon is accessed using the
+`docker` client.
 
 Run the following commands to get it downloaded and set up:
 
@@ -69,12 +73,12 @@ Run the following commands to get it downloaded and set up:
 
 And that’s it! Let’s check out how to use it.
 
-How To Use Docker On Mac OS X[¶](#how-to-use-docker-on-mac-os-x "Permalink to this headline")
+How To Use Docker On Mac OS X
 ---------------------------------------------------------------------------------------------
 
-### The `docker`{.docutils .literal} daemon (via boot2docker)[¶](#the-docker-daemon-via-boot2docker "Permalink to this headline")
+### The `docker` daemon (via boot2docker)
 
-Inside the `~/bin`{.docutils .literal} directory, run the following
+Inside the `~/bin` directory, run the following
 commands:
 
     # Initiate the VM
@@ -88,10 +92,10 @@ commands:
 
     # Usage ./boot2docker {init|start|up|pause|stop|restart|status|info|delete|ssh|download}
 
-### The `docker`{.docutils .literal} client[¶](#the-docker-client "Permalink to this headline")
+### The `docker` client
 
-Once the VM with the `docker`{.docutils .literal} daemon is up, you can
-use the `docker`{.docutils .literal} client just like any other
+Once the VM with the `docker` daemon is up, you can
+use the `docker` client just like any other
 application.
 
     docker version
@@ -102,7 +106,7 @@ application.
     # Git commit (server): c348c04
     # Go version (server): go1.2
 
-### Forwarding VM Port Range to Host[¶](#forwarding-vm-port-range-to-host "Permalink to this headline")
+### Forwarding VM Port Range to Host
 
 If we take the port range that docker uses by default with the -P option
 (49000-49900), and forward same range from host to vm, we’ll be able to
@@ -114,7 +118,7 @@ interact with our containers as if they were running locally:
      VBoxManage modifyvm "boot2docker-vm" --natpf1 "udp-port$i,udp,,$i,,$i";
     done
 
-### SSH-ing The VM[¶](#ssh-ing-the-vm "Permalink to this headline")
+### SSH-ing The VM
 
 If you feel the need to connect to the VM, you can simply run:
 
@@ -126,19 +130,19 @@ If you feel the need to connect to the VM, you can simply run:
 You can now continue with the [*Hello
 World*](../../examples/hello_world/#hello-world) example.
 
-Learn More[¶](#learn-more "Permalink to this headline")
+Learn More
 -------------------------------------------------------
 
-### boot2docker:[¶](#id1 "Permalink to this headline")
+### boot2docker:
 
 See the GitHub page for
 [boot2docker](https://github.com/boot2docker/boot2docker).
 
-### If SSH complains about keys:[¶](#if-ssh-complains-about-keys "Permalink to this headline")
+### If SSH complains about keys:
 
     ssh-keygen -R '[localhost]:2022'
 
-### Upgrading to a newer release of boot2docker[¶](#upgrading-to-a-newer-release-of-boot2docker "Permalink to this headline")
+### Upgrading to a newer release of boot2docker
 
 To upgrade an initialised VM, you can use the following 3 commands. Your
 persistence disk will not be changed, so you won’t lose your images and
@@ -148,10 +152,10 @@ containers:
     ./boot2docker download
     ./boot2docker start
 
-### About the way Docker works on Mac OS X:[¶](#about-the-way-docker-works-on-mac-os-x "Permalink to this headline")
+### About the way Docker works on Mac OS X:
 
-Docker has two key components: the `docker`{.docutils .literal} daemon
-and the `docker`{.docutils .literal} client. The tool works by client
+Docker has two key components: the `docker` daemon
+and the `docker` client. The tool works by client
 commanding the daemon. In order to work and do its magic, the daemon
 makes use of some Linux Kernel features (e.g. LXC, name spaces etc.),
 which are not supported by OS X. Therefore, the solution of getting

@@ -1,4 +1,8 @@
-Setting Up a Dev Environment[¶](#setting-up-a-dev-environment "Permalink to this headline")
+page_title: Setting Up a Dev Environment
+page_description: Guides on how to contribute to docker
+page_keywords: Docker, documentation, developers, contributing, dev environment
+
+Setting Up a Dev Environment
 ===========================================================================================
 
 To make it easier to contribute to Docker, we provide a standard
@@ -7,7 +11,7 @@ used for all tests, builds and releases. The standard development
 environment defines all build dependencies: system libraries and
 binaries, go environment, go dependencies, etc.
 
-Step 1: Install Docker[¶](#step-1-install-docker "Permalink to this headline")
+Step 1: Install Docker
 ------------------------------------------------------------------------------
 
 Docker’s build environment itself is a Docker container, so the first
@@ -18,18 +22,18 @@ system](https://docs.docker.io/en/latest/installation/). Make sure you
 have a working, up-to-date docker installation, then continue to the
 next step.
 
-Step 2: Install tools used for this tutorial[¶](#step-2-install-tools-used-for-this-tutorial "Permalink to this headline")
+Step 2: Install tools used for this tutorial
 --------------------------------------------------------------------------------------------------------------------------
 
-Install `git`{.docutils .literal}; honest, it’s very good. You can use
+Install `git`; honest, it’s very good. You can use
 other ways to get the Docker source, but they’re not anywhere near as
 easy.
 
-Install `make`{.docutils .literal}. This tutorial uses our base Makefile
+Install `make`. This tutorial uses our base Makefile
 to kick off the docker containers in a repeatable and consistent way.
 Again, you can do it in other ways but you need to do more work.
 
-Step 3: Check out the Source[¶](#step-3-check-out-the-source "Permalink to this headline")
+Step 3: Check out the Source
 ------------------------------------------------------------------------------------------
 
     git clone http://git@github.com/dotcloud/docker
@@ -38,7 +42,7 @@ Step 3: Check out the Source[¶](#step-3-check-out-the-source "Permalink to this
 To checkout a different revision just use `git checkout`{.docutils
 .literal} with the name of branch or revision number.
 
-Step 4: Build the Environment[¶](#step-4-build-the-environment "Permalink to this headline")
+Step 4: Build the Environment
 --------------------------------------------------------------------------------------------
 
 This following command will build a development environment using the
@@ -51,7 +55,7 @@ This command will take some time to complete when you first execute it.
 If the build is successful, congratulations! You have produced a clean
 build of docker, neatly encapsulated in a standard build environment.
 
-Step 5: Build the Docker Binary[¶](#step-5-build-the-docker-binary "Permalink to this headline")
+Step 5: Build the Docker Binary
 ------------------------------------------------------------------------------------------------
 
 To create the Docker binary, run this command:
@@ -59,12 +63,12 @@ To create the Docker binary, run this command:
     sudo make binary
 
 This will create the Docker binary in
-`./bundles/<version>-dev/binary/`{.docutils .literal}
+`./bundles/<version>-dev/binary/`
 
-### Using your built Docker binary[¶](#using-your-built-docker-binary "Permalink to this headline")
+### Using your built Docker binary
 
 The binary is available outside the container in the directory
-`./bundles/<version>-dev/binary/`{.docutils .literal}. You can swap your
+`./bundles/<version>-dev/binary/`. You can swap your
 host docker executable with this binary for live testing - for example,
 on ubuntu:
 
@@ -75,7 +79,7 @@ Note
 Its safer to run the tests below before swapping your hosts docker
 binary.
 
-Step 5: Run the Tests[¶](#step-5-run-the-tests "Permalink to this headline")
+Step 5: Run the Tests
 ----------------------------------------------------------------------------
 
 To execute the test cases, run this command:
@@ -117,7 +121,7 @@ eg.
 
 > TESTFLAGS=’-run \^TestBuild\$’ make test
 
-Step 6: Use Docker[¶](#step-6-use-docker "Permalink to this headline")
+Step 6: Use Docker
 ----------------------------------------------------------------------
 
 You can run an interactive session in the newly built container:
@@ -126,7 +130,7 @@ You can run an interactive session in the newly built container:
 
     # type 'exit' or Ctrl-D to exit
 
-Extra Step: Build and view the Documentation[¶](#extra-step-build-and-view-the-documentation "Permalink to this headline")
+Extra Step: Build and view the Documentation
 --------------------------------------------------------------------------------------------------------------------------
 
 If you want to read the documentation from a local website, or are

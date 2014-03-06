@@ -1,4 +1,8 @@
-Redis Service[¶](#redis-service "Permalink to this headline")
+page_title: Running a Redis service
+page_description: Installing and running an redis service
+page_keywords: docker, example, package installation, networking, redis
+
+Redis Service
 =============================================================
 
 Note
@@ -12,10 +16,10 @@ Note
 Very simple, no frills, Redis service attached to a web application
 using a link.
 
-Create a docker container for Redis[¶](#create-a-docker-container-for-redis "Permalink to this headline")
+Create a docker container for Redis
 ---------------------------------------------------------------------------------------------------------
 
-Firstly, we create a `Dockerfile`{.docutils .literal} for our new Redis
+Firstly, we create a `Dockerfile` for our new Redis
 image.
 
     FROM        ubuntu:12.10
@@ -24,18 +28,18 @@ image.
     EXPOSE      6379
     ENTRYPOINT  ["/usr/bin/redis-server"]
 
-Next we build an image from our `Dockerfile`{.docutils .literal}.
-Replace `<your username>`{.docutils .literal} with your own user name.
+Next we build an image from our `Dockerfile`.
+Replace `<your username>` with your own user name.
 
     sudo docker build -t <your username>/redis .
 
-Run the service[¶](#run-the-service "Permalink to this headline")
+Run the service
 -----------------------------------------------------------------
 
 Use the image we’ve just created and name your container
-`redis`{.docutils .literal}.
+`redis`.
 
-Running the service with `-d`{.docutils .literal} runs the container in
+Running the service with `-d` runs the container in
 detached mode, leaving the container running in the background.
 
 Importantly, we’re not exposing any ports on our container. Instead
@@ -44,26 +48,26 @@ database.
 
     sudo docker run --name redis -d <your username>/redis
 
-Create your web application container[¶](#create-your-web-application-container "Permalink to this headline")
+Create your web application container
 -------------------------------------------------------------------------------------------------------------
 
 Next we can create a container for our application. We’re going to use
-the `-link`{.docutils .literal} flag to create a link to the
-`redis`{.docutils .literal} container we’ve just created with an alias
-of `db`{.docutils .literal}. This will create a secure tunnel to the
-`redis`{.docutils .literal} container and expose the Redis instance
+the `-link` flag to create a link to the
+`redis` container we’ve just created with an alias
+of `db`. This will create a secure tunnel to the
+`redis` container and expose the Redis instance
 running inside that container to only this container.
 
     sudo docker run --link redis:db -i -t ubuntu:12.10 /bin/bash
 
 Once inside our freshly created container we need to install Redis to
-get the `redis-cli`{.docutils .literal} binary to test our connection.
+get the `redis-cli` binary to test our connection.
 
     apt-get update
     apt-get -y install redis-server
     service redis-server stop
 
-As we’ve used the `--link redis:db`{.docutils .literal} option, Docker
+As we’ve used the `--link redis:db` option, Docker
 has created some environment variables in our web application container.
 
     env | grep DB_
@@ -77,9 +81,9 @@ has created some environment variables in our web application container.
     DB_PORT_6379_TCP_PROTO=tcp
 
 We can see that we’ve got a small list of environment variables prefixed
-with `DB`{.docutils .literal}. The `DB`{.docutils .literal} comes from
+with `DB`. The `DB`{.docutils .literal} comes from
 the link alias specified when we launched the container. Let’s use the
-`DB_PORT_6379_TCP_ADDR`{.docutils .literal} variable to connect to our
+`DB_PORT_6379_TCP_ADDR` variable to connect to our
 Redis container.
 
     redis-cli -h $DB_PORT_6379_TCP_ADDR
@@ -91,5 +95,5 @@ Redis container.
     redis 172.17.0.33:6379> exit
 
 We could easily use this or other environment variables in our web
-application to make a connection to our `redis`{.docutils .literal}
+application to make a connection to our `redis`
 container.

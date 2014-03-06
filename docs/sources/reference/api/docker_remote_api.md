@@ -1,7 +1,11 @@
-Docker Remote API[¶](#docker-remote-api "Permalink to this headline")
+page_title: Remote API
+page_description: API Documentation for Docker
+page_keywords: API, Docker, rcli, REST, documentation
+
+Docker Remote API
 =====================================================================
 
-1. Brief introduction[¶](#brief-introduction "Permalink to this headline")
+1. Brief introduction
 --------------------------------------------------------------------------
 
 -   The Remote API is replacing rcli
@@ -16,7 +20,7 @@ Docker Remote API[¶](#docker-remote-api "Permalink to this headline")
     side, so the client has to send the authConfig as POST in
     /images/(name)/push
 
-2. Versions[¶](#versions "Permalink to this headline")
+2. Versions
 ------------------------------------------------------
 
 The current version of the API is 1.10
@@ -27,69 +31,69 @@ Calling /images/\<name\>/insert is the same as calling
 You can still call an old version of the api using
 /v1.0/images/\<name\>/insert
 
-### v1.10[¶](#v1-10 "Permalink to this headline")
+### v1.10
 
-#### Full Documentation[¶](#full-documentation "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.10*](../docker_remote_api_v1.10/)
 
-#### What’s new[¶](#what-s-new "Permalink to this headline")
+#### What’s new
 
- `DELETE `{.descname}`/images/`{.descname}(*name*)[¶](#delete--images-(name) "Permalink to this definition")
+ `DELETE `{.descname}`/images/`{.descname}(*name*)
 :   **New!** You can now use the force parameter to force delete of an
     image, even if it’s tagged in multiple repositories.
 
-### v1.9[¶](#v1-9 "Permalink to this headline")
+### v1.9
 
-#### Full Documentation[¶](#id1 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.9*](../docker_remote_api_v1.9/)
 
-#### What’s new[¶](#id2 "Permalink to this headline")
+#### What’s new
 
- `POST `{.descname}`/build`{.descname}[¶](#post--build "Permalink to this definition")
+ `POST `{.descname}`/build`{.descname}
 :   **New!** This endpoint now takes a serialized ConfigFile which it
     uses to resolve the proper registry auth credentials for pulling the
     base image. Clients which previously implemented the version
     accepting an AuthConfig object must be updated.
 
-### v1.8[¶](#v1-8 "Permalink to this headline")
+### v1.8
 
-#### Full Documentation[¶](#id3 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.8*](../docker_remote_api_v1.8/)
 
-#### What’s new[¶](#id4 "Permalink to this headline")
+#### What’s new
 
- `POST `{.descname}`/build`{.descname}[¶](#post--build "Permalink to this definition")
+ `POST `{.descname}`/build`{.descname}
 :   **New!** This endpoint now returns build status as json stream. In
     case of a build error, it returns the exit status of the failed
     command.
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}[¶](#get--containers-(id)-json "Permalink to this definition")
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}
 :   **New!** This endpoint now returns the host config for the
     container.
 
- `POST `{.descname}`/images/create`{.descname}[¶](#post--images-create "Permalink to this definition")
+ `POST `{.descname}`/images/create`{.descname}
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}[¶](#post--images-(name)-insert "Permalink to this definition")
+ `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}[¶](#post--images-(name)-push "Permalink to this definition")
+ `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
 :   **New!** progressDetail object was added in the JSON. It’s now
     possible to get the current value and the total of the progress
     without having to parse the string.
 
-### v1.7[¶](#v1-7 "Permalink to this headline")
+### v1.7
 
-#### Full Documentation[¶](#id5 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.7*](../docker_remote_api_v1.7/)
 
-#### What’s new[¶](#id6 "Permalink to this headline")
+#### What’s new
 
- `GET `{.descname}`/images/json`{.descname}[¶](#get--images-json "Permalink to this definition")
+ `GET `{.descname}`/images/json`{.descname}
 :   The format of the json returned from this uri changed. Instead of an
     entry for each repo/tag on an image, each image is only represented
     once, with a nested attribute indicating the repo/tags that apply to
@@ -173,20 +177,20 @@ You can still call an old version of the api using
           }
         ]
 
- `GET `{.descname}`/images/viz`{.descname}[¶](#get--images-viz "Permalink to this definition")
-:   This URI no longer exists. The `images -viz`{.docutils .literal}
+ `GET `{.descname}`/images/viz`{.descname}
+:   This URI no longer exists. The `images -viz`
     output is now generated in the client, using the
-    `/images/json`{.docutils .literal} data.
+    `/images/json` data.
 
-### v1.6[¶](#v1-6 "Permalink to this headline")
+### v1.6
 
-#### Full Documentation[¶](#id7 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.6*](../docker_remote_api_v1.6/)
 
-#### What’s new[¶](#id8 "Permalink to this headline")
+#### What’s new
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}[¶](#post--containers-(id)-attach "Permalink to this definition")
+ `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}
 :   **New!** You can now split stderr from stdout. This is done by
     prefixing a header to each transmition. See
     [`POST /containers/(id)/attach`{.xref .http .http-post .docutils
@@ -194,61 +198,61 @@ You can still call an old version of the api using
     The WebSocket attach is unchanged. Note that attach calls on the
     previous API version didn’t change. Stdout and stderr are merged.
 
-### v1.5[¶](#v1-5 "Permalink to this headline")
+### v1.5
 
-#### Full Documentation[¶](#id9 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.5*](../docker_remote_api_v1.5/)
 
-#### What’s new[¶](#id10 "Permalink to this headline")
+#### What’s new
 
- `POST `{.descname}`/images/create`{.descname}[¶](#post--images-create "Permalink to this definition")
+ `POST `{.descname}`/images/create`{.descname}
 :   **New!** You can now pass registry credentials (via an AuthConfig
     object) through the X-Registry-Auth header
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}[¶](#post--images-(name)-push "Permalink to this definition")
+ `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
 :   **New!** The AuthConfig object now needs to be passed through the
     X-Registry-Auth header
 
- `GET `{.descname}`/containers/json`{.descname}[¶](#get--containers-json "Permalink to this definition")
+ `GET `{.descname}`/containers/json`{.descname}
 :   **New!** The format of the Ports entry has been changed to a list of
     dicts each containing PublicPort, PrivatePort and Type describing a
     port mapping.
 
-### v1.4[¶](#v1-4 "Permalink to this headline")
+### v1.4
 
-#### Full Documentation[¶](#id11 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.4*](../docker_remote_api_v1.4/)
 
-#### What’s new[¶](#id12 "Permalink to this headline")
+#### What’s new
 
- `POST `{.descname}`/images/create`{.descname}[¶](#post--images-create "Permalink to this definition")
+ `POST `{.descname}`/images/create`{.descname}
 :   **New!** When pulling a repo, all images are now downloaded in
     parallel.
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}[¶](#get--containers-(id)-top "Permalink to this definition")
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}
 :   **New!** You can now use ps args with docker top, like docker top
     \<container\_id\> aux
 
- `GET `{.descname}`/events:`{.descname}[¶](#get--events- "Permalink to this definition")
+ `GET `{.descname}`/events:`{.descname}
 :   **New!** Image’s name added in the events
 
-### v1.3[¶](#v1-3 "Permalink to this headline")
+### v1.3
 
 docker v0.5.0
 [51f6c4a](https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
 
-#### Full Documentation[¶](#id13 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.3*](../docker_remote_api_v1.3/)
 
-#### What’s new[¶](#id14 "Permalink to this headline")
+#### What’s new
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}[¶](#get--containers-(id)-top "Permalink to this definition")
+ `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}
 :   List the processes running inside a container.
 
- `GET `{.descname}`/events:`{.descname}[¶](#get--events- "Permalink to this definition")
+ `GET `{.descname}`/events:`{.descname}
 :   **New!** Monitor docker’s events via streaming or via polling
 
 Builder (/build):
@@ -272,53 +276,53 @@ Start containers (/containers/\<id\>/start):
 -   You can now pass host-specific configuration (e.g. bind mounts) in
     the POST body for start calls
 
-### v1.2[¶](#v1-2 "Permalink to this headline")
+### v1.2
 
 docker v0.4.2
 [2e7649b](https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
 
-#### Full Documentation[¶](#id15 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.2*](../docker_remote_api_v1.2/)
 
-#### What’s new[¶](#id16 "Permalink to this headline")
+#### What’s new
 
 The auth configuration is now handled by the client.
 
 The client should send it’s authConfig as POST on each call of
 /images/(name)/push
 
- `GET `{.descname}`/auth`{.descname}[¶](#get--auth "Permalink to this definition")
+ `GET `{.descname}`/auth`{.descname}
 :   **Deprecated.**
 
- `POST `{.descname}`/auth`{.descname}[¶](#post--auth "Permalink to this definition")
+ `POST `{.descname}`/auth`{.descname}
 :   Only checks the configuration but doesn’t store it on the server
 
     Deleting an image is now improved, will only untag the image if it
     has children and remove all the untagged parents if has any.
 
- `POST `{.descname}`/images/<name>/delete`{.descname}[¶](#post--images--name--delete "Permalink to this definition")
+ `POST `{.descname}`/images/<name>/delete`{.descname}
 :   Now returns a JSON structure with the list of images
     deleted/untagged.
 
-### v1.1[¶](#v1-1 "Permalink to this headline")
+### v1.1
 
 docker v0.4.0
 [a8ae398](https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
 
-#### Full Documentation[¶](#id17 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.1*](../docker_remote_api_v1.1/)
 
-#### What’s new[¶](#id18 "Permalink to this headline")
+#### What’s new
 
- `POST `{.descname}`/images/create`{.descname}[¶](#post--images-create "Permalink to this definition")
+ `POST `{.descname}`/images/create`{.descname}
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}[¶](#post--images-(name)-insert "Permalink to this definition")
+ `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}[¶](#post--images-(name)-push "Permalink to this definition")
+ `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
 :   Uses json stream instead of HTML hijack, it looks like this:
 
     >     HTTP/1.1 200 OK
@@ -329,15 +333,15 @@ docker v0.4.0
     >     {"error":"Invalid..."}
     >     ...
 
-### v1.0[¶](#v1-0 "Permalink to this headline")
+### v1.0
 
 docker v0.3.4
 [8d73740](https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
 
-#### Full Documentation[¶](#id19 "Permalink to this headline")
+#### Full Documentation
 
 [*Docker Remote API v1.0*](../docker_remote_api_v1.0/)
 
-#### What’s new[¶](#id20 "Permalink to this headline")
+#### What’s new
 
 Initial version

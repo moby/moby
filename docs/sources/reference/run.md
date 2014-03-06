@@ -1,15 +1,19 @@
-[Docker Run Reference](#id2)[¶](#docker-run-reference "Permalink to this headline")
+page_title: Docker Run Reference 
+page_description: Configure containers at runtime
+page_keywords: docker, run, configure, runtime
+
+[Docker Run Reference](#id2)
 ===================================================================================
 
 **Docker runs processes in isolated containers**. When an operator
-executes `docker run`{.docutils .literal}, she starts a process with its
+executes `docker run`, she starts a process with its
 own file system, its own networking, and its own isolated process tree.
 The [*Image*](../../terms/image/#image-def) which starts the process may
 define defaults related to the binary to run, the networking to expose,
-and more, but `docker run`{.docutils .literal} gives final control to
+and more, but `docker run` gives final control to
 the operator who starts the container from the image. That’s the main
 reason [*run*](../commandline/cli/#cli-run) has more options than any
-other `docker`{.docutils .literal} command.
+other `docker` command.
 
 Every one of the [*Examples*](../../examples/#example-list) shows
 running containers, and so here we try to give more in-depth guidance.
@@ -19,10 +23,10 @@ Table of Contents
 -   [Docker Run Reference](#docker-run-reference)
     -   [General Form](#general-form)
     -   [Operator Exclusive Options](#operator-exclusive-options)
-    -   [Overriding `Dockerfile`{.docutils .literal} Image
+    -   [Overriding `Dockerfile` Image
         Defaults](#overriding-dockerfile-image-defaults)
 
-[General Form](#id3)[¶](#general-form "Permalink to this headline")
+[General Form](#id3)
 -------------------------------------------------------------------
 
 As you’ve seen in the [*Examples*](../../examples/#example-list), the
@@ -30,10 +34,10 @@ basic run command takes this form:
 
     docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
-To learn how to interpret the types of `[OPTIONS]`{.docutils .literal},
+To learn how to interpret the types of `[OPTIONS]`,
 see [*Options*](../commandline/cli/#cli-options).
 
-The list of `[OPTIONS]`{.docutils .literal} breaks down into two groups:
+The list of `[OPTIONS]` breaks down into two groups:
 
 1.  Settings exclusive to operators, including:
     -   Detached or Foreground running,
@@ -45,12 +49,12 @@ The list of `[OPTIONS]`{.docutils .literal} breaks down into two groups:
 2.  Setting shared between operators and developers, where operators can
     override defaults developers set in images at build time.
 
-Together, the `docker run [OPTIONS]`{.docutils .literal} give complete
+Together, the `docker run [OPTIONS]` give complete
 control over runtime behavior to the operator, allowing them to override
 all defaults set by the developer during `docker build`{.docutils
 .literal} and nearly all the defaults set by the Docker runtime itself.
 
-[Operator Exclusive Options](#id4)[¶](#operator-exclusive-options "Permalink to this headline")
+[Operator Exclusive Options](#id4)
 -----------------------------------------------------------------------------------------------
 
 Only the operator (the person executing `docker run`{.docutils
@@ -71,7 +75,7 @@ Only the operator (the person executing `docker run`{.docutils
 -   [Runtime Privilege and LXC
     Configuration](#runtime-privilege-and-lxc-configuration)
 
-### [Detached vs Foreground](#id6)[¶](#detached-vs-foreground "Permalink to this headline")
+### [Detached vs Foreground](#id6)
 
 When starting a Docker container, you must first decide if you want to
 run the container in the background in a “detached” mode or in the
@@ -79,21 +83,21 @@ default foreground mode:
 
     -d=false: Detached mode: Run container in the background, print new container id
 
-#### [Detached (-d)](#id7)[¶](#detached-d "Permalink to this headline")
+#### [Detached (-d)](#id7)
 
-In detached mode (`-d=true`{.docutils .literal} or just `-d`{.docutils
+In detached mode (`-d=true` or just `-d`{.docutils
 .literal}), all I/O should be done through network connections or shared
 volumes because the container is no longer listening to the commandline
-where you executed `docker run`{.docutils .literal}. You can reattach to
-a detached container with `docker`{.docutils .literal}
+where you executed `docker run`. You can reattach to
+a detached container with `docker`
 [*attach*](../commandline/cli/#cli-attach). If you choose to run a
 container in the detached mode, then you cannot use the `-rm`{.docutils
 .literal} option.
 
-#### [Foreground](#id8)[¶](#foreground "Permalink to this headline")
+#### [Foreground](#id8)
 
-In foreground mode (the default when `-d`{.docutils .literal} is not
-specified), `docker run`{.docutils .literal} can start the process in
+In foreground mode (the default when `-d` is not
+specified), `docker run` can start the process in
 the container and attach the console to the process’s standard input,
 output, and standard error. It can even pretend to be a TTY (this is
 what most commandline executables expect) and pass along signals. All of
@@ -104,23 +108,23 @@ that is configurable:
     -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
     -i=false       : Keep STDIN open even if not attached
 
-If you do not specify `-a`{.docutils .literal} then Docker will [attach
+If you do not specify `-a` then Docker will [attach
 everything
 (stdin,stdout,stderr)](https://github.com/dotcloud/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
 You can specify to which of the three standard streams
-(`stdin`{.docutils .literal}, `stdout`{.docutils .literal},
-`stderr`{.docutils .literal}) you’d like to connect instead, as in:
+(`stdin`, `stdout`{.docutils .literal},
+`stderr`) you’d like to connect instead, as in:
 
     docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 For interactive processes (like a shell) you will typically want a tty
-as well as persistent standard input (`stdin`{.docutils .literal}), so
-you’ll use `-i -t`{.docutils .literal} together in most interactive
+as well as persistent standard input (`stdin`), so
+you’ll use `-i -t` together in most interactive
 cases.
 
-### [Container Identification](#id9)[¶](#container-identification "Permalink to this headline")
+### [Container Identification](#id9)
 
-#### [Name (-name)](#id10)[¶](#name-name "Permalink to this headline")
+#### [Name (-name)](#id10)
 
 The operator can identify a container in three ways:
 
@@ -130,7 +134,7 @@ The operator can identify a container in three ways:
 -   Name (“evil\_ptolemy”)
 
 The UUID identifiers come from the Docker daemon, and if you do not
-assign a name to the container with `-name`{.docutils .literal} then the
+assign a name to the container with `-name` then the
 daemon will also generate a random string name too. The name can become
 a handy way to add meaning to a container since you can use this name
 when defining
@@ -138,7 +142,7 @@ when defining
 (or any other place you need to identify a container). This works for
 both background and foreground Docker containers.
 
-#### [PID Equivalent](#id11)[¶](#pid-equivalent "Permalink to this headline")
+#### [PID Equivalent](#id11)
 
 And finally, to help with automation, you can have Docker write the
 container ID out to a file of your choosing. This is similar to how some
@@ -147,21 +151,21 @@ PID files):
 
     -cidfile="": Write the container ID to the file
 
-### [Network Settings](#id12)[¶](#network-settings "Permalink to this headline")
+### [Network Settings](#id12)
 
     -n=true   : Enable networking for this container
     -dns=[]   : Set custom dns servers for the container
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
-with `docker run -n`{.docutils .literal} which disables all incoming and
+with `docker run -n` which disables all incoming and
 outgoing networking. In cases like this, you would perform I/O through
 files or STDIN/STDOUT only.
 
 Your container will use the same DNS servers as the host by default, but
-you can override this with `-dns`{.docutils .literal}.
+you can override this with `-dns`.
 
-### [Clean Up (-rm)](#id13)[¶](#clean-up-rm "Permalink to this headline")
+### [Clean Up (-rm)](#id13)
 
 By default a container’s file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
@@ -169,11 +173,11 @@ final state) and you retain all your data by default. But if you are
 running short-term **foreground** processes, these container file
 systems can really pile up. If instead you’d like Docker to
 **automatically clean up the container and remove the file system when
-the container exits**, you can add the `-rm`{.docutils .literal} flag:
+the container exits**, you can add the `-rm` flag:
 
     -rm=false: Automatically remove the container when it exits (incompatible with -d)
 
-### [Runtime Constraints on CPU and Memory](#id14)[¶](#runtime-constraints-on-cpu-and-memory "Permalink to this headline")
+### [Runtime Constraints on CPU and Memory](#id14)
 
 The operator can also adjust the performance parameters of the
 container:
@@ -182,17 +186,17 @@ container:
     -c=0 : CPU shares (relative weight)
 
 The operator can constrain the memory available to a container easily
-with `docker run -m`{.docutils .literal}. If the host supports swap
-memory, then the `-m`{.docutils .literal} memory setting can be larger
+with `docker run -m`. If the host supports swap
+memory, then the `-m` memory setting can be larger
 than physical RAM.
 
 Similarly the operator can increase the priority of this container with
-the `-c`{.docutils .literal} option. By default, all containers run at
+the `-c` option. By default, all containers run at
 the same priority and get the same proportion of CPU cycles, but you can
 tell the kernel to give more shares of CPU time to one or more
 containers when you start them via Docker.
 
-### [Runtime Privilege and LXC Configuration](#id15)[¶](#runtime-privilege-and-lxc-configuration "Permalink to this headline")
+### [Runtime Privilege and LXC Configuration](#id15)
 
     -privileged=false: Give extended privileges to this container
     -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -205,7 +209,7 @@ by default a container is not allowed to access any devices, but a
 and documentation on [cgroups
 devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
-When the operator executes `docker run -privileged`{.docutils .literal},
+When the operator executes `docker run -privileged`,
 Docker will enable to access to all devices on the host as well as set
 some configuration in AppArmor to allow the container nearly all the
 same access to the host as processes running outside containers on the
@@ -214,14 +218,14 @@ host. Additional information about running with `-privileged`{.docutils
 Blog](http://blog.docker.io/2013/09/docker-can-now-run-within-docker/).
 
 An operator can also specify LXC options using one or more
-`-lxc-conf`{.docutils .literal} parameters. These can be new parameters
+`-lxc-conf` parameters. These can be new parameters
 or override existing parameters from the
 [lxc-template.go](https://github.com/dotcloud/docker/blob/master/execdriver/lxc/lxc_template.go).
 Note that in the future, a given host’s Docker daemon may not use LXC,
 so this is an implementation-specific configuration meant for operators
 already familiar with using LXC directly.
 
-[Overriding `Dockerfile`{.docutils .literal} Image Defaults](#id5)[¶](#overriding-dockerfile-image-defaults "Permalink to this headline")
+[Overriding `Dockerfile` Image Defaults](#id5)
 -----------------------------------------------------------------------------------------------------------------------------------------
 
 When a developer builds an image from a
@@ -229,11 +233,11 @@ When a developer builds an image from a
 developer can set a number of default parameters that take effect when
 the image starts up as a container.
 
-Four of the `Dockerfile`{.docutils .literal} commands cannot be
-overridden at runtime: `FROM, MAINTAINER, RUN`{.docutils .literal}, and
-`ADD`{.docutils .literal}. Everything else has a corresponding override
-in `docker run`{.docutils .literal}. We’ll go through what the developer
-might have set in each `Dockerfile`{.docutils .literal} instruction and
+Four of the `Dockerfile` commands cannot be
+overridden at runtime: `FROM, MAINTAINER, RUN`, and
+`ADD`. Everything else has a corresponding override
+in `docker run`. We’ll go through what the developer
+might have set in each `Dockerfile` instruction and
 how the operator can override that setting.
 
 -   [CMD (Default Command or Options)](#cmd-default-command-or-options)
@@ -245,41 +249,41 @@ how the operator can override that setting.
 -   [USER](#user)
 -   [WORKDIR](#workdir)
 
-### [CMD (Default Command or Options)](#id16)[¶](#cmd-default-command-or-options "Permalink to this headline")
+### [CMD (Default Command or Options)](#id16)
 
-Recall the optional `COMMAND`{.docutils .literal} in the Docker
+Recall the optional `COMMAND` in the Docker
 commandline:
 
     docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 This command is optional because the person who created the
-`IMAGE`{.docutils .literal} may have already provided a default
-`COMMAND`{.docutils .literal} using the `Dockerfile`{.docutils .literal}
-`CMD`{.docutils .literal}. As the operator (the person running a
+`IMAGE` may have already provided a default
+`COMMAND` using the `Dockerfile`{.docutils .literal}
+`CMD`. As the operator (the person running a
 container from the image), you can override that `CMD`{.docutils
-.literal} just by specifying a new `COMMAND`{.docutils .literal}.
+.literal} just by specifying a new `COMMAND`.
 
-If the image also specifies an `ENTRYPOINT`{.docutils .literal} then the
-`CMD`{.docutils .literal} or `COMMAND`{.docutils .literal} get appended
-as arguments to the `ENTRYPOINT`{.docutils .literal}.
+If the image also specifies an `ENTRYPOINT` then the
+`CMD` or `COMMAND`{.docutils .literal} get appended
+as arguments to the `ENTRYPOINT`.
 
-### [ENTRYPOINT (Default Command to Execute at Runtime](#id17)[¶](#entrypoint-default-command-to-execute-at-runtime "Permalink to this headline")
+### [ENTRYPOINT (Default Command to Execute at Runtime](#id17)
 
     -entrypoint="": Overwrite the default entrypoint set by the image
 
-The ENTRYPOINT of an image is similar to a `COMMAND`{.docutils .literal}
+The ENTRYPOINT of an image is similar to a `COMMAND`
 because it specifies what executable to run when the container starts,
 but it is (purposely) more difficult to override. The
-`ENTRYPOINT`{.docutils .literal} gives a container its default nature or
-behavior, so that when you set an `ENTRYPOINT`{.docutils .literal} you
+`ENTRYPOINT` gives a container its default nature or
+behavior, so that when you set an `ENTRYPOINT` you
 can run the container *as if it were that binary*, complete with default
 options, and you can pass in more options via the `COMMAND`{.docutils
 .literal}. But, sometimes an operator may want to run something else
 inside the container, so you can override the default
-`ENTRYPOINT`{.docutils .literal} at runtime by using a string to specify
-the new `ENTRYPOINT`{.docutils .literal}. Here is an example of how to
+`ENTRYPOINT` at runtime by using a string to specify
+the new `ENTRYPOINT`. Here is an example of how to
 run a shell in a container that has been set up to automatically run
-something else (like `/usr/bin/redis-server`{.docutils .literal}):
+something else (like `/usr/bin/redis-server`):
 
     docker run -i -t -entrypoint /bin/bash example/redis
 
@@ -288,13 +292,13 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     docker run -i -t -entrypoint /bin/bash example/redis -c ls -l
     docker run -i -t -entrypoint /usr/bin/redis-cli example/redis --help
 
-### [EXPOSE (Incoming Ports)](#id18)[¶](#expose-incoming-ports "Permalink to this headline")
+### [EXPOSE (Incoming Ports)](#id18)
 
-The `Dockerfile`{.docutils .literal} doesn’t give much control over
-networking, only providing the `EXPOSE`{.docutils .literal} instruction
+The `Dockerfile` doesn’t give much control over
+networking, only providing the `EXPOSE` instruction
 to give a hint to the operator about what incoming ports might provide
 services. The following options work with or override the
-`Dockerfile`{.docutils .literal}‘s exposed defaults:
+`Dockerfile`‘s exposed defaults:
 
     -expose=[]: Expose a port from the container
                 without publishing it to your host
@@ -305,39 +309,39 @@ services. The following options work with or override the
                 (use 'docker port' to see the actual mapping)
     -link=""  : Add link to another container (name:alias)
 
-As mentioned previously, `EXPOSE`{.docutils .literal} (and
-`-expose`{.docutils .literal}) make a port available **in** a container
+As mentioned previously, `EXPOSE` (and
+`-expose`) make a port available **in** a container
 for incoming connections. The port number on the inside of the container
 (where the service listens) does not need to be the same number as the
 port exposed on the outside of the container (where clients connect), so
 inside the container you might have an HTTP service listening on port 80
-(and so you `EXPOSE 80`{.docutils .literal} in the
-`Dockerfile`{.docutils .literal}), but outside the container the port
+(and so you `EXPOSE 80` in the
+`Dockerfile`), but outside the container the port
 might be 42800.
 
 To help a new client container reach the server container’s internal
-port operator `-expose`{.docutils .literal}‘d by the operator or
-`EXPOSE`{.docutils .literal}‘d by the developer, the operator has three
-choices: start the server container with `-P`{.docutils .literal} or
-`-p,`{.docutils .literal} or start the client container with
-`-link`{.docutils .literal}.
+port operator `-expose`‘d by the operator or
+`EXPOSE`‘d by the developer, the operator has three
+choices: start the server container with `-P` or
+`-p,` or start the client container with
+`-link`.
 
-If the operator uses `-P`{.docutils .literal} or `-p`{.docutils
+If the operator uses `-P` or `-p`{.docutils
 .literal} then Docker will make the exposed port accessible on the host
 and the ports will be available to any client that can reach the host.
 To find the map between the host ports and the exposed ports, use
-`docker port`{.docutils .literal})
+`docker port`)
 
-If the operator uses `-link`{.docutils .literal} when starting the new
+If the operator uses `-link` when starting the new
 client container, then the client container can access the exposed port
 via a private networking interface. Docker will set some environment
 variables in the client container to help indicate which interface and
 port to use.
 
-### [ENV (Environment Variables)](#id19)[¶](#env-environment-variables "Permalink to this headline")
+### [ENV (Environment Variables)](#id19)
 
 The operator can **set any environment variable** in the container by
-using one or more `-e`{.docutils .literal} flags, even overriding those
+using one or more `-e` flags, even overriding those
 already defined by the developer with a Dockefile `ENV`{.docutils
 .literal}:
 
@@ -354,7 +358,7 @@ already defined by the developer with a Dockefile `ENV`{.docutils
 Similarly the operator can set the **hostname** with `-h`{.docutils
 .literal}.
 
-`-link name:alias`{.docutils .literal} also sets environment variables,
+`-link name:alias` also sets environment variables,
 using the *alias* string to define environment variables within the
 container that give the IP and PORT information for connecting to the
 service container. Let’s imagine we have a container running Redis:
@@ -373,7 +377,7 @@ service container. Let’s imagine we have a container running Redis:
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 
 Yet we can get information about the Redis container’s exposed ports
-with `-link`{.docutils .literal}. Choose an alias that will form a valid
+with `-link`. Choose an alias that will form a valid
 environment variable!
 
     $ docker run -rm -link redis-name:redis_alias -entrypoint /bin/bash dockerfiles/redis -c export
@@ -397,7 +401,7 @@ client:
     $ docker run -i -t -rm -link redis-name:redis_alias -entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
     172.17.0.32:6379>
 
-### [VOLUME (Shared Filesystems)](#id20)[¶](#volume-shared-filesystems "Permalink to this headline")
+### [VOLUME (Shared Filesystems)](#id20)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
            If "container-dir" is missing, then docker creates a new volume.
@@ -406,25 +410,25 @@ client:
 The volumes commands are complex enough to have their own documentation
 in section [*Share Directories via
 Volumes*](../../use/working_with_volumes/#volume-def). A developer can
-define one or more `VOLUME`{.docutils .literal}s associated with an
+define one or more `VOLUME`s associated with an
 image, but only the operator can give access from one container to
 another (or from a container to a volume mounted on the host).
 
-### [USER](#id21)[¶](#user "Permalink to this headline")
+### [USER](#id21)
 
-The default user within a container is `root`{.docutils .literal} (id =
+The default user within a container is `root` (id =
 0), but if the developer created additional users, those are accessible
 too. The developer can set a default user to run the first process with
-the `Dockerfile USER`{.docutils .literal} command, but the operator can
+the `Dockerfile USER` command, but the operator can
 override it
 
     -u="": Username or UID
 
-### [WORKDIR](#id22)[¶](#workdir "Permalink to this headline")
+### [WORKDIR](#id22)
 
 The default working directory for running binaries within a container is
-the root directory (`/`{.docutils .literal}), but the developer can set
-a different default with the `Dockerfile WORKDIR`{.docutils .literal}
+the root directory (`/`), but the developer can set
+a different default with the `Dockerfile WORKDIR`
 command. The operator can override this with:
 
     -w="": Working directory inside the container

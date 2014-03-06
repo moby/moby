@@ -1,4 +1,5 @@
-Contributing[¶](#contributing "Permalink to this headline")
+
+Contributing
 ===========================================================
 
 -   [Contributing to Docker](contributing/)
