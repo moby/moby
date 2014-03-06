@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        {% if page_description %}<meta name="description" content="{{ page_description }}">{% endif %}
+        {% if site_author %}<meta name="author" content="{{ site_author }}">{% endif %}
+        {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+        {% if favicon %}<link rel="shortcut icon" href="{{ favicon }}">
+        {% else %}<link rel="shortcut icon" href="{{ base_url }}/img/favicon.ico">{% endif %}
+
+        <title>{{ page_title }}</title>
+
+        <link href="{{ base_url }}/css/bootstrap-custom.min.css" rel="stylesheet">
+        <link href="{{ base_url }}/css/font-awesome-4.0.3.css" rel="stylesheet">
+        <link href="{{ base_url }}/css/prettify-1.0.css" rel="stylesheet">
+        <link href="{{ base_url }}/css/base.css" rel="stylesheet">
+
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+        <![endif]-->
+
+        {% if config.theme_center_lead %}
+        <style>
+            div.col-md-9 h1:first-of-type {
+                text-align: center;
+                font-size: 60px;
+                font-weight: 300;
+            }
+
+            div.col-md-9 p:first-of-type {
+                text-align: center;
+            }
+        </style>
+        {% endif %}
+    </head>
+
+    <body>
+
+        {% include "nav.html" %}
+
+        <div class="container">
+            <div class="col-md-3">{% include "toc.html" %}</div>
+            <div class="col-md-9" role="main">{% include "content.html" %}</div>
+        </div>
+
+        {% if include_search %}{% include "search.html" %}{% endif %}
+
+        <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+        <script src="{{ base_url }}/js/bootstrap-3.0.3.min.js"></script>
+        <script src="{{ base_url }}/js/prettify-1.0.min.js"></script>
+        <script src="{{ base_url }}/js/base.js"></script>
+    </body>
+</html>
