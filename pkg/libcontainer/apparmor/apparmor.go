@@ -1,9 +1,12 @@
 package apparmor
 
+// #cgo LDFLAGS: -lapparmor
+// #include <sys/apparmor.h>
+// #include <stdlib.h>
+import "C"
 import (
-	"fmt"
 	"io/ioutil"
-	"os"
+	"unsafe"
 )
 
 func IsEnabled() bool {
@@ -16,13 +19,10 @@ func ApplyProfile(pid int, name string) error {
 		return nil
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("/proc/%d/attr/current", pid), os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
 
-	if _, err := fmt.Fprintf(f, "changeprofile %s", name); err != nil {
+	if _, err := C.aa_change_onexec(cName); err != nil {
 		return err
 	}
 	return nil
