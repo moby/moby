@@ -35,7 +35,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		term.SetMaster(master)
 	}
 
-	command := ns.commandFactory.Create(container, console, syncPipe.child.Fd(), args)
+	command := ns.commandFactory.Create(container, console, syncPipe.child, args)
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}

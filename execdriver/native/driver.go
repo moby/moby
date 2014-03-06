@@ -239,7 +239,7 @@ type dockerCommandFactory struct {
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFd uintptr, args []string) *exec.Cmd {
+func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFile *os.File, args []string) *exec.Cmd {
 	// we need to join the rootfs because nsinit will setup the rootfs and chroot
 	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
 
@@ -248,7 +248,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 		initPath,
 		"-driver", DriverName,
 		"-console", console,
-		"-pipe", fmt.Sprint(syncFd),
+		"-pipe", "3",
 		"-root", filepath.Join(d.driver.root, d.c.ID),
 		"--",
 	}, args...)
@@ -256,6 +256,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 	// set this to nil so that when we set the clone flags anything else is reset
 	d.c.SysProcAttr = nil
 	system.SetCloneFlags(&d.c.Cmd, uintptr(nsinit.GetNamespaceFlags(container.Namespaces)))
+	d.c.ExtraFiles = []*os.File{syncFile}
 
 	d.c.Env = container.Env
 	d.c.Dir = d.c.Rootfs

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
 )
@@ -22,7 +21,6 @@ func NewSyncPipe() (s *SyncPipe, err error) {
 	if err != nil {
 		return nil, err
 	}
-	system.UsetCloseOnExec(s.child.Fd())
 	return s, nil
 }
 
