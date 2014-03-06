@@ -116,15 +116,13 @@ type Command struct {
 	Config     []string   `json:"config"`  //  generic values that specific drivers can consume
 	Resources  *Resources `json:"resources"`
 
-	Terminal Terminal `json:"-"` // standard or tty terminal
-	Console  string   `json:"-"` // dev/console path
+	Terminal     Terminal `json:"-"`             // standard or tty terminal
+	Console      string   `json:"-"`             // dev/console path
+	ContainerPid int      `json:"container_pid"` // the pid for the process inside a container
 }
 
 // Return the pid of the process
 // If the process is nil -1 will be returned
 func (c *Command) Pid() int {
-	if c.Process == nil {
-		return -1
-	}
-	return c.Process.Pid
+	return c.ContainerPid
 }

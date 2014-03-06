@@ -166,9 +166,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}()
 
 	// Poll lxc for RUNNING status
-	if err := d.waitForStart(c, waitLock); err != nil {
+	pid, err := d.waitForStart(c, waitLock)
+	if err != nil {
 		return -1, err
 	}
+	c.ContainerPid = pid
 
 	if startCallback != nil {
 		startCallback(c)
@@ -242,7 +244,8 @@ func (d *driver) kill(c *execdriver.Command, sig int) error {
 	return nil
 }
 
-func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) error {
+// wait for the process to start and return the pid for the process
+func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (int, error) {
 	var (
 		err    error
 		output []byte
@@ -255,10 +258,7 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) err
 		select {
 		case <-waitLock:
 			// If the process dies while waiting for it, just return
-			return nil
-			if c.ProcessState != nil && c.ProcessState.Exited() {
-				return nil
-			}
+			return -1, nil
 		default:
 		}
 
@@ -266,19 +266,23 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) err
 		if err != nil {
 			output, err = d.getInfo(c.ID)
 			if err != nil {
-				return err
+				return -1, err
 			}
 		}
-		if strings.Contains(string(output), "RUNNING") {
-			return nil
+		info, err := parseLxcInfo(string(output))
+		if err != nil {
+			return -1, err
+		}
+		if info.Running {
+			return info.Pid, nil
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	return execdriver.ErrNotRunning
+	return -1, execdriver.ErrNotRunning
 }
 
 func (d *driver) getInfo(id string) ([]byte, error) {
-	return exec.Command("lxc-info", "-s", "-n", id).CombinedOutput()
+	return exec.Command("lxc-info", "-n", id).CombinedOutput()
 }
 
 type info struct {

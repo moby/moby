@@ -271,6 +271,7 @@ type dockerStateWriter struct {
 }
 
 func (d *dockerStateWriter) WritePid(pid int) error {
+	d.c.ContainerPid = pid
 	err := d.dsw.WritePid(pid)
 	if d.callback != nil {
 		d.callback(d.c)
