@@ -162,6 +162,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	_, err = exec.LookPath("git")
 	hasGit := err == nil
+
+	if err := utils.ValidTag(*tag); err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
 	if cmd.Arg(0) == "-" {
 		// As a special case, 'docker build -' will build from an empty context with the
 		// contents of stdin as a Dockerfile
@@ -1043,6 +1049,11 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return nil
 	}
 
+	if err := utils.ValidTag(name); err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
 	cli.LoadConfigFile()
 
 	// Resolve the Repository name from fqn to hostname + name
@@ -1473,6 +1484,11 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return err
 	}
 
+	if err := utils.ValidTags(name, repository, tag); err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
 	v := url.Values{}
 	v.Set("container", name)
 	v.Set("repo", repository)
@@ -1760,6 +1776,11 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
 	}
 
+	if err := utils.ValidTags(cmd.Arg(0), repository, tag); err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
 	v := url.Values{}
 
 	//Check if the given image name can be resolved
@@ -1782,11 +1803,18 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 func (cli *DockerCli) CmdRun(args ...string) error {
 	// FIXME: just use runconfig.Parse already
 	config, hostConfig, cmd, err := runconfig.ParseSubcommand(cli.Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container"), args, nil)
+
 	if err != nil {
 		return err
 	}
+
 	if config.Image == "" {
 		cmd.Usage()
+		return nil
+	}
+
+	if err := utils.ValidTag(config.Image); err != nil {
+		fmt.Println(err)
 		return nil
 	}
 

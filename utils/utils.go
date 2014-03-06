@@ -25,6 +25,11 @@ import (
 	"time"
 )
 
+var (
+	validTagNameChars   = `[a-z0-9-_.]`
+	validTagNamePattern = regexp.MustCompile(`^` + validTagNameChars + `+$`)
+)
+
 // A common interface to access the Fatal method of
 // both testing.B and testing.T.
 type Fataler interface {
@@ -877,6 +882,37 @@ func GetReleaseVersion() string {
 		return ""
 	}
 	return strings.TrimSpace(string(body))
+}
+
+// Check a tag name for validity. Uses validTagNameChars and
+// validTagNamePattern to determine eligibility.
+//
+// Returns a formatted error if the tag name is invalid, otherwise nil.
+//
+func ValidTag(imageName string) error {
+	// these come from runtime.go
+	if !validTagNamePattern.MatchString(imageName) {
+		return fmt.Errorf("Invalid image or tag name (%s), only %s are allowed", imageName, validTagNameChars)
+	}
+
+	return nil
+}
+
+// Plural of ValidTag() -- checks multiple strings. Note that empty strings are
+// valid in this call, which is the only way (other than the multiple
+// arguments) it differs from ValidTag().
+//
+// Returns a formatted error if any tag name is invalid, otherwise nil.
+//
+
+func ValidTags(imageNames ...string) error {
+	for _, img := range imageNames {
+		if err := ValidTag(img); img != "" && err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Get a repos name and returns the right reposName + tag
