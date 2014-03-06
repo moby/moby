@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
+# This script allows the creation of Debian or Ubuntu Docker images, using debootsrap.
+
+# The script will accept two arguments (see usage) : 
+#  REPO is the local repository name for docker images
+#  SUITE can be any Debian or Ubuntu release name supported by debootstrap
+
+# debootstrap variant (see -v option)
 variant='minbase'
+# packages to include by default in the image (see -i option)
 include='iproute,iputils-ping'
+# architecture of the image
 arch='amd64' # intentionally undocumented for now
 skipDetection=
 strictDebootstrap=
@@ -11,7 +20,7 @@ justTar=
 usage() {
 	echo >&2
 	
-	echo >&2 "usage: $0 [options] repo suite [mirror]"
+	echo >&2 "usage: $0 [options] REPO SUITE [mirror]"
 	
 	echo >&2
 	echo >&2 'options: (not recommended)'
@@ -22,6 +31,7 @@ usage() {
 	echo >&2 "  -s # skip version detection and tagging (ie, precise also tagged as 12.04)"
 	echo >&2 "     # note that this will also skip adding universe and/or security/updates to sources.list"
 	echo >&2 "  -t # just create a tarball, especially for dockerbrew (uses repo as tarball name)"
+	echo >&2 "  -a $arch # change default architecture"
 	
 	echo >&2
 	echo >&2 "   ie: $0 username/debian squeeze"
@@ -39,6 +49,7 @@ usage() {
 	echo >&2
 }
 
+# Define default suite names to be able to tag images in the repository
 # these should match the names found at http://www.debian.org/releases/
 debianStable=wheezy
 debianUnstable=sid
@@ -128,10 +139,15 @@ set -x
 
 # bootstrap
 mkdir -p "$target"
-sudo http_proxy=$http_proxy debootstrap --verbose --variant="$variant" --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
+variantarg=
+if [ "z$variant" != "z" ]; then
+    variantarg=--variant="$variant"
+fi
+sudo http_proxy=$http_proxy debootstrap --verbose $variantarg --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
 
 cd "$target"
 
+# Perform Docker specific tweaks (not run when -d option is present)
 if [ -z "$strictDebootstrap" ]; then
 	# prevent init scripts from running during install/update
 	#  policy-rc.d (for most scripts)
