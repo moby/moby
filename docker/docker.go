@@ -42,6 +42,7 @@ func main() {
 		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "native", "Force the docker runtime to use a specific exec driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
+		flHelp               = flag.Bool([]string{"h"}, false, "Display help text")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
@@ -52,6 +53,11 @@ func main() {
 		showVersion()
 		return
 	}
+	if *flHelp {
+		api.ParseCommands("", "")
+		return
+	}
+
 	if flHosts.Len() == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
 
