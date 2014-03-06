@@ -701,7 +701,7 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 	var err error
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		devices.sawBusy = false
 		err = removeDevice(devname)
 		if err == nil {
@@ -713,7 +713,9 @@ func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 
 		// If we see EBUSY it may be a transient error,
 		// sleep a bit a retry a few times.
-		time.Sleep(5 * time.Millisecond)
+		devices.Unlock()
+		time.Sleep(10 * time.Millisecond)
+		devices.Lock()
 	}
 	if err != nil {
 		return err
@@ -746,7 +748,9 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 			break
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		devices.Unlock()
+		time.Sleep(10 * time.Millisecond)
+		devices.Lock()
 	}
 	if i == 1000 {
 		return fmt.Errorf("Timeout while waiting for device %s to be removed", devname)
