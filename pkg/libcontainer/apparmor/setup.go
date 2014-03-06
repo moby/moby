@@ -21,7 +21,6 @@ profile docker-default flags=(attach_disconnected,mediate_deleted) {
   capability,
   file,
   umount,
-  dbus,
 
   # ignore DENIED message on / remount
   deny mount options=(ro, remount) -> /,
