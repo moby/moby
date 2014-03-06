@@ -148,6 +148,15 @@ This will cause the build scripts to set up a reasonable `GOPATH` that
 automatically and properly includes both dotcloud/docker from the local
 directory, and the local "./vendor" directory as necessary.
 
+### `DOCKER_BUILDTAGS`
+
+If you're building a binary that may need to be used on platforms that include
+AppArmor, you will need to set `DOCKER_BUILDTAGS` as follows:
+
+```bash
+export DOCKER_BUILDTAGS='apparmor'
+```
+
 ### Static Daemon
 
 If it is feasible within the constraints of your distribution, you should
