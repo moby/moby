@@ -59,10 +59,6 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 
-	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
-		return err
-	}
-
 	if err := setupNetwork(container, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
@@ -73,6 +69,9 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 		return fmt.Errorf("finalize namespace %s", err)
 	}
 
+	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
+		return err
+	}
 	return system.Execv(args[0], args[0:], container.Env)
 }
 

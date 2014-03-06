@@ -84,7 +84,7 @@ fi
 # Use these flags when compiling the tests and final binary
 LDFLAGS='-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'" -X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'" -w'
 LDFLAGS_STATIC='-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
-BUILDFLAGS='-tags netgo -a'
+BUILDFLAGS=( -a -tags "netgo $DOCKER_BUILDTAGS" )
 
 HAVE_GO_TEST_COVER=
 if \
@@ -113,7 +113,7 @@ go_test_dir() {
 	(
 		set -x
 		cd "$dir"
-		go test ${testcover[@]} -ldflags "$LDFLAGS" $BUILDFLAGS $TESTFLAGS
+		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
 }
 
