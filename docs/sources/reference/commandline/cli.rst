@@ -71,6 +71,7 @@ Commands
     Usage of docker:
       -D, --debug=false: Enable debug mode
       -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
+      -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
