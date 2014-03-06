@@ -189,20 +189,7 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
-	return d.kill(c, sig)
-}
-
-func (d *driver) Restore(c *execdriver.Command) error {
-	for {
-		output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	return KillLxc(c.ID, sig)
 }
 
 func (d *driver) version() string {
@@ -225,16 +212,16 @@ func (d *driver) version() string {
 	return version
 }
 
-func (d *driver) kill(c *execdriver.Command, sig int) error {
+func KillLxc(id string, sig int) error {
 	var (
 		err    error
 		output []byte
 	)
 	_, err = exec.LookPath("lxc-kill")
 	if err == nil {
-		output, err = exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+		output, err = exec.Command("lxc-kill", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	} else {
-		output, err = exec.Command("lxc-stop", "-k", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+		output, err = exec.Command("lxc-stop", "-k", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	}
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)

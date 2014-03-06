@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 const (
@@ -109,41 +108,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
-	return syscall.Kill(p.Process.Pid, syscall.Signal(sig))
-}
-
-func (d *driver) Restore(c *execdriver.Command) error {
-	var nspid int
-	f, err := os.Open(filepath.Join(d.root, c.ID, "pid"))
-	if err != nil {
-		return err
-	}
-	defer d.removeContainerRoot(c.ID)
-
-	if _, err := fmt.Fscanf(f, "%d", &nspid); err != nil {
-		f.Close()
-		return err
-	}
-	f.Close()
-
-	if _, err := os.FindProcess(nspid); err != nil {
-		return fmt.Errorf("finding existing pid %d %s", nspid, err)
-	}
-	c.Process = &os.Process{
-		Pid: nspid,
-	}
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for _ = range ticker.C {
-		if err := syscall.Kill(nspid, 0); err != nil {
-			if strings.Contains(err.Error(), "no such process") {
-				return nil
-			}
-			return fmt.Errorf("signal error %s", err)
-		}
-	}
-	return nil
+	err := syscall.Kill(p.Process.Pid, syscall.Signal(sig))
+	d.removeContainerRoot(p.ID)
+	return err
 }
 
 func (d *driver) Info(id string) execdriver.Info {
