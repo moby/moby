@@ -48,11 +48,9 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-	/*
-		if err := system.ParentDeathSignal(); err != nil {
-			return fmt.Errorf("parent death signal %s", err)
-		}
-	*/
+	if err := system.ParentDeathSignal(); err != nil {
+		return fmt.Errorf("parent death signal %s", err)
+	}
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
