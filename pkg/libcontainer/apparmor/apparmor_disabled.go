@@ -1,4 +1,4 @@
-// +build !apparmor !linux !amd64
+// +build !cgo !apparmor !linux !amd64
 
 package apparmor
 
