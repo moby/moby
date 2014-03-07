@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"os"
 )
 
 // createContainer populates and configures the container type with the
@@ -44,6 +45,9 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
 	}
+	// check to see if we are running in ramdisk to disable pivot root
+	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
+
 	return container
 }
 
