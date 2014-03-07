@@ -784,17 +784,19 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		utils.Errorf("Error running container: %s", err)
 	}
 
-	container.State.SetStopped(exitCode)
+	if container.runtime.srv.IsRunning() {
+		container.State.SetStopped(exitCode)
 
-	// FIXME: there is a race condition here which causes this to fail during the unit tests.
-	// If another goroutine was waiting for Wait() to return before removing the container's root
-	// from the filesystem... At this point it may already have done so.
-	// This is because State.setStopped() has already been called, and has caused Wait()
-	// to return.
-	// FIXME: why are we serializing running state to disk in the first place?
-	//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
-	if err := container.ToDisk(); err != nil {
-		utils.Errorf("Error dumping container state to disk: %s\n", err)
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+		if err := container.ToDisk(); err != nil {
+			utils.Errorf("Error dumping container state to disk: %s\n", err)
+		}
 	}
 
 	// Cleanup

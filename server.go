@@ -29,10 +29,6 @@ import (
 	"time"
 )
 
-func (srv *Server) Close() error {
-	return srv.runtime.Close()
-}
-
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
@@ -2330,6 +2326,7 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
+		running:     true,
 	}
 	runtime.srv = srv
 	return srv, nil
@@ -2379,6 +2376,24 @@ func (srv *Server) GetEvents() []utils.JSONMessage {
 	return srv.events
 }
 
+func (srv *Server) SetRunning(status bool) {
+	srv.Lock()
+	defer srv.Unlock()
+
+	srv.running = status
+}
+
+func (srv *Server) IsRunning() bool {
+	srv.RLock()
+	defer srv.RUnlock()
+	return srv.running
+}
+
+func (srv *Server) Close() error {
+	srv.SetRunning(false)
+	return srv.runtime.Close()
+}
+
 type Server struct {
 	sync.RWMutex
 	runtime     *Runtime
@@ -2387,4 +2402,5 @@ type Server struct {
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
 	Eng         *engine.Engine
+	running     bool
 }
