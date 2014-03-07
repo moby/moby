@@ -1,5 +1,21 @@
-<div class="navbar navbar-default navbar-fixed-top" role="navigation">
-    <div class="container">
+<div id="topmostnav" class="navbar navbar-static-top">
+    <div class="navbar-inner">
+	    <a class="brand" href="/" title="{{ site_name }}"><img src="http://www.docker.io/static/img/docker-top-logo.png"> </a>
+            <ul class="nav navbar-nav pull-right">
+                <li><a href="/" title="Homepage">Home</a></li>
+                <li class=""><a href="/learn_more/" title="Learn more about Docker">Learn More</a></li>
+                <li class=""><a href="/gettingstarted/" title="Get Started with Docker">Getting started</a></li>
+                <li class=""><a href="/community/" title="The Docker Community">Community</a></li>
+                <li class="active"><a href="http://docs.docker.io" title="Docker Documentation">Documentation</a></li>
+                <li><a href="http://blog.docker.io" title="Blog">Blog</a></li>
+                <li><a href="https://index.docker.io" title="Docker Image Index, find images here">INDEX </a></li>
+           </ul>
+   </div>
+</div>
+
+<div class="navbar navbar-default Wnavbar-fixed-top navbar-inverse" role="navigation">
+    <div class="Ncontainer">
+
 
         <!-- Collapsed navigation -->
         <div class="navbar-header">
@@ -12,7 +28,7 @@
             </button>
 
             <!-- Main title -->
-            <a class="navbar-brand" href="{{ homepage_url }}">SVEN {{ site_name }}</a>
+	    <a class="navbar-brand" href="{{ homepage_url }}">{{ site_name }}</a>
         </div>
 
         <!-- Expanded navigation -->
@@ -70,5 +86,7 @@
                 {% endif %}
             </ul>
         </div>
+
+
     </div>
 </div>
