@@ -82,9 +82,23 @@ if [ ! "$GOPATH" ]; then
 fi
 
 # Use these flags when compiling the tests and final binary
-LDFLAGS='-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'" -X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'" -w'
-LDFLAGS_STATIC='-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
+LDFLAGS='
+	-w
+	-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'"
+'
+LDFLAGS_STATIC='-linkmode external'
+EXTLDFLAGS_STATIC='-static'
 BUILDFLAGS=( -a -tags "netgo $DOCKER_BUILDTAGS" )
+
+# A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
+# PLEASE do not use these anywhere else.
+EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
+LDFLAGS_STATIC_DOCKER="
+	$LDFLAGS_STATIC
+	-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true
+	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
+"
 
 HAVE_GO_TEST_COVER=
 if \

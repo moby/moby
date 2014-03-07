@@ -17,7 +17,7 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		mkdir -p "$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
-		export LDFLAGS_STATIC="" # we just need a simple client for these platforms (TODO this might change someday)
+		export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms (TODO this might change someday)
 		source "$(dirname "$BASH_SOURCE")/binary" "$DEST/$platform"
 	)
 done
