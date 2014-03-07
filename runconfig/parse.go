@@ -79,7 +79,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
-	cmd.Var(&flEnvFile, []string{"#env-file", "-env-file"}, "Read in a line delimited file of ENV variables")
+	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of ENV variables")
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
