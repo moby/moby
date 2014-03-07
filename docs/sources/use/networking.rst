@@ -148,6 +148,6 @@ ip link command) and the namespaces infrastructure.
 I want more
 ------------
 
-Jérôme Petazzoni has create ``pipework`` to connect together
+Jérôme Petazzoni has created ``pipework`` to connect together
 containers in arbitrarily complex scenarios :
 https://github.com/jpetazzo/pipework
