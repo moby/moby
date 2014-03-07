@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
+	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
@@ -34,7 +35,7 @@ import (
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	srv, err := NewServer(job.Eng, DaemonConfigFromJob(job))
+	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
 	if err != nil {
 		return job.Error(err)
 	}
@@ -2318,7 +2319,7 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 	return job.Errorf("No such container: %s", name)
 }
 
-func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
+func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error) {
 	runtime, err := NewRuntime(config, eng)
 	if err != nil {
 		return nil, err

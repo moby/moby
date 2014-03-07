@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
@@ -53,7 +54,7 @@ type Runtime struct {
 	volumes        *Graph
 	srv            *Server
 	eng            *engine.Engine
-	config         *DaemonConfig
+	config         *daemonconfig.Config
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
@@ -624,7 +625,7 @@ func (runtime *Runtime) RegisterLink(parent, child *Container, alias string) err
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
+func NewRuntime(config *daemonconfig.Config, eng *engine.Engine) (*Runtime, error) {
 	runtime, err := NewRuntimeFromDirectory(config, eng)
 	if err != nil {
 		return nil, err
@@ -632,7 +633,7 @@ func NewRuntime(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
+func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Runtime, error) {
 
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
