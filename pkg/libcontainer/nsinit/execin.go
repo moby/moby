@@ -4,6 +4,7 @@ package nsinit
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/system"
 	"os"
@@ -29,7 +30,11 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 		closeFds()
 		return -1, err
 	}
-
+	processLabel, err := label.GetPidCon(nspid)
+	if err != nil {
+		closeFds()
+		return -1, err
+	}
 	// foreach namespace fd, use setns to join an existing container's namespaces
 	for _, fd := range fds {
 		if fd > 0 {
@@ -73,6 +78,10 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 	}
 dropAndExec:
 	if err := finalizeNamespace(container); err != nil {
+		return -1, err
+	}
+	err = label.SetProcessLabel(processLabel)
+	if err != nil {
 		return -1, err
 	}
 	if err := system.Execv(args[0], args[0:], container.Env); err != nil {

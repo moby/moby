@@ -22,7 +22,8 @@ func init() {
 
 type Driver struct {
 	*DeviceSet
-	home string
+	home       string
+	MountLabel string
 }
 
 var Init = func(home string) (graphdriver.Driver, error) {
@@ -60,13 +61,13 @@ func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }
 
-func (d *Driver) Create(id, parent string) error {
+func (d *Driver) Create(id, parent string, label string) error {
+	d.MountLabel = label
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}
-
 	mp := path.Join(d.home, "mnt", id)
-	if err := d.mount(id, mp); err != nil {
+	if err := d.mount(id, mp, d.MountLabel); err != nil {
 		return err
 	}
 
@@ -109,7 +110,7 @@ func (d *Driver) Remove(id string) error {
 
 func (d *Driver) Get(id string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
-	if err := d.mount(id, mp); err != nil {
+	if err := d.mount(id, mp, d.MountLabel); err != nil {
 		return "", err
 	}
 
@@ -122,13 +123,13 @@ func (d *Driver) Put(id string) {
 	}
 }
 
-func (d *Driver) mount(id, mountPoint string) error {
+func (d *Driver) mount(id, mountPoint string, label string) error {
 	// Create the target directories if they don't exist
 	if err := osMkdirAll(mountPoint, 0755); err != nil && !osIsExist(err) {
 		return err
 	}
 	// Mount the device
-	return d.DeviceSet.MountDevice(id, mountPoint)
+	return d.DeviceSet.MountDevice(id, mountPoint, label)
 }
 
 func (d *Driver) Exists(id string) bool {

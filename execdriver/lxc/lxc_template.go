@@ -2,6 +2,7 @@ package lxc
 
 import (
 	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/pkg/label"
 	"strings"
 	"text/template"
 )
@@ -29,6 +30,9 @@ lxc.pts = 1024
 
 # disable the main console
 lxc.console = none
+{{if .ProcessLabel}}
+lxc.se_context = {{.ProcessLabel}}
+{{end}}
 
 # no controlling tty at all
 lxc.tty = 1
@@ -85,8 +89,8 @@ lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noe
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
 {{end}}
 
-lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
-lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
+lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" .MountLabel}} 0 0
+lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" .MountLabel}} 0 0
 
 {{if .Privileged}}
 {{if .AppArmor}}
@@ -139,6 +143,7 @@ func init() {
 	funcMap := template.FuncMap{
 		"getMemorySwap":     getMemorySwap,
 		"escapeFstabSpaces": escapeFstabSpaces,
+		"formatMountLabel":  label.FormatMountLabel,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {
