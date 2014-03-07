@@ -290,7 +290,7 @@ type flagSlice []string
 
 func (p flagSlice) Len() int { return len(p) }
 func (p flagSlice) Less(i, j int) bool {
-	pi, pj := p[i], p[j]
+	pi, pj := strings.ToLower(p[i]), strings.ToLower(p[j])
 	if pi[0] == '-' {
 		pi = pi[1:]
 	}
