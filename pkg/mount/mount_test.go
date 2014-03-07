@@ -108,3 +108,24 @@ func TestMountReadonly(t *testing.T) {
 		t.Fatal("Should not be able to open a ro file as rw")
 	}
 }
+
+func TestFindFsType(t *testing.T) {
+	mounts := []*MountInfo{
+		{
+			Mountpoint: "/",
+			Fstype:     "ext3",
+		},
+		{
+			Mountpoint: "/var",
+			Fstype:     "tmpfs",
+		},
+	}
+
+	fsType, err := searchForFsType("/var/lib/docker", mounts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fsType != "tmpfs" {
+		t.Fatalf("expected fstype to be tmpfs got %s", fsType)
+	}
+}

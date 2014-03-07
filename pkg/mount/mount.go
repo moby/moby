@@ -1,6 +1,8 @@
 package mount
 
 import (
+	"fmt"
+	"path/filepath"
 	"time"
 )
 
@@ -64,4 +66,34 @@ func ForceUnmount(target string) (err error) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return
+}
+
+// FindMountType takes a given path and finds it's filesystem type
+func FindMountType(path string) (string, error) {
+	mounts, err := GetMounts()
+	if err != nil {
+		return "", err
+	}
+	return searchForFsType(path, mounts)
+}
+
+// walk up the path until we find path's or path's parent's mountpoint and get the
+// fstype
+func searchForFsType(path string, mounts []*MountInfo) (string, error) {
+	var (
+		origpath = path
+		cache    = make(map[string]string, len(mounts))
+	)
+	for _, m := range mounts {
+		cache[m.Mountpoint] = m.Fstype
+	}
+
+	for path != "" {
+		if t, exists := cache[path]; exists {
+			return t, nil
+		}
+		path = filepath.Dir(path)
+	}
+	return "", fmt.Errorf("no filesystem type found for %s", origpath)
+
 }
