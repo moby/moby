@@ -4,9 +4,9 @@ DEST=$1
 
 set -e
 
-TEXTRESET=$'\033[0m' # reset the foreground colour
 RED=$'\033[31m'
 GREEN=$'\033[32m'
+TEXTRESET=$'\033[0m' # reset the foreground colour
 
 # Run Docker's test suite, including sub-packages, and store their output as a bundle
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
@@ -22,7 +22,7 @@ bundle_test() {
 		for test_dir in $(find_dirs '*_test.go'); do
 			echo
 
-			if ! LDFLAGS="$LDFLAGS $LDFLAGS_STATIC" go_test_dir "$test_dir"; then
+			if ! LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER" go_test_dir "$test_dir"; then
 				TESTS_FAILED+=("$test_dir")
 				echo
 				echo "${RED}Tests failed: $test_dir${TEXTRESET}"
