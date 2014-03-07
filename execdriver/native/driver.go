@@ -74,9 +74,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err := d.validateCommand(c); err != nil {
 		return -1, err
 	}
+	container, err := createContainer(c)
+	if err != nil {
+		return -1, err
+	}
 	var (
 		term        nsinit.Terminal
-		container   = createContainer(c)
 		factory     = &dockerCommandFactory{c: c, driver: d}
 		stateWriter = &dockerStateWriter{
 			callback: startCallback,

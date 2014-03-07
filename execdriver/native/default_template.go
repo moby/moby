@@ -5,12 +5,13 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"os"
+	"github.com/dotcloud/docker/pkg/mount"
+	"path/filepath"
 )
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func createContainer(c *execdriver.Command) *libcontainer.Container {
+func createContainer(c *execdriver.Command) (*libcontainer.Container, error) {
 	container := getDefaultTemplate()
 
 	container.Hostname = getEnv("HOSTNAME", c.Env)
@@ -45,10 +46,18 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
 	}
-	// check to see if we are running in ramdisk to disable pivot root
-	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
-	return container
+	// because the rootfs mount point can be mounted as aufs, or other, a better way
+	// to detect if we are running on a ramdisk is to look at the rootfs's parent's
+	// filesystem type
+	isRamdisk, err := isRootInRamdisk(filepath.Dir(c.Rootfs))
+	if err != nil {
+		return nil, err
+	}
+	// so when we are running on ramdisk do not pivot root
+	container.NoPivotRoot = isRamdisk
+
+	return container, nil
 }
 
 // getDefaultTemplate returns the docker default for
@@ -87,4 +96,12 @@ func getDefaultTemplate() *libcontainer.Container {
 			"apparmor_profile": "docker-default",
 		},
 	}
+}
+
+func isRootInRamdisk(rootfs string) (bool, error) {
+	fsType, err := mount.FindMountType(rootfs)
+	if err != nil {
+		return false, err
+	}
+	return fsType == "tmpfs" || fsType == "rootfs" || fsType == "ramfs", nil
 }
