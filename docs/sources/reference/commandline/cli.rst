@@ -1096,7 +1096,7 @@ image is removed.
       --cidfile="": Write the container ID to the file
       -d, --detach=false: Detached mode: Run container in the background, print new container id
       -e, --env=[]: Set environment variables
-      -h, --host="": Container host name
+      -h, --hostname="": Container host name
       -i, --interactive=false: Keep stdin open even if not attached
       --privileged=false: Give extended privileges to this container
       -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
