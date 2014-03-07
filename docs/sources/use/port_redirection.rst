@@ -149,4 +149,4 @@ This tells ``client`` that a service is running on port 80 of
 ``server`` and that ``server`` is accessible at the IP address
 172.17.0.8
 
-Note: Using the ``-p`` parameter also exposes the port..
+Note: Using the ``-p`` parameter also exposes the port.
