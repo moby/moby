@@ -85,7 +85,7 @@ func init() {
 	os.Setenv("TEST", "1")
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		sysinit.SysInit()
 		return
 	}
@@ -123,19 +123,8 @@ func init() {
 }
 
 func setupBaseImage() {
-	eng, err := engine.New(unitTestStoreBase)
-	if err != nil {
-		log.Fatalf("Can't initialize engine at %s: %s", unitTestStoreBase, err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", unitTestStoreBase)
-	job.SetenvBool("Autorestart", false)
-	job.Setenv("BridgeIface", unitTestNetworkBridge)
-	if err := job.Run(); err != nil {
-		log.Fatalf("Unable to create a runtime for tests: %s", err)
-	}
-
-	job = eng.Job("inspect", unitTestImageName, "image")
+	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
+	job := eng.Job("inspect", unitTestImageName, "image")
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
 	if err := job.Run(); err != nil || img.Get("id") != unitTestImageID {
@@ -575,18 +564,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	root := eng.Root()
-	eng, err := engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", false)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
+	eng = newTestEngine(t, false, eng.Root())
 	runtime2 := mkRuntimeFromEngine(eng, t)
 	if len(runtime2.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
@@ -609,108 +587,6 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	container2.State.SetStopped(0)
-}
-
-func TestReloadContainerLinks(t *testing.T) {
-	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
-	// and we want to set it to true.
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eng, err := engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	runtime1 := mkRuntimeFromEngine(eng, t)
-	defer nuke(runtime1)
-	// Create a container with one instance of docker
-	container1, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
-	defer runtime1.Destroy(container1)
-
-	// Create a second container meant to be killed
-	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
-	defer runtime1.Destroy(container2)
-
-	// Start the container non blocking
-	if err := container2.Start(); err != nil {
-		t.Fatal(err)
-	}
-	// Add a link to container 2
-	// FIXME @shykes: setting hostConfig.Links seems redundant with calling RegisterLink().
-	// Why do we need it @crosbymichael?
-	// container1.hostConfig.Links = []string{"/" + container2.ID + ":first"}
-	if err := runtime1.RegisterLink(container1, container2, "first"); err != nil {
-		t.Fatal(err)
-	}
-	if err := container1.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	if !container2.State.IsRunning() {
-		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
-	}
-
-	if !container1.State.IsRunning() {
-		t.Fatalf("Container %s should appear as running but isn't", container1.ID)
-	}
-
-	if len(runtime1.List()) != 2 {
-		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
-	}
-
-	// Here are are simulating a docker restart - that is, reloading all containers
-	// from scratch
-	eng, err = engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job = eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", false)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	runtime2 := mkRuntimeFromEngine(eng, t)
-	if len(runtime2.List()) != 2 {
-		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
-	}
-	runningCount := 0
-	for _, c := range runtime2.List() {
-		if c.State.IsRunning() {
-			runningCount++
-		}
-	}
-	if runningCount != 2 {
-		t.Fatalf("Expected 2 container alive, %d found", runningCount)
-	}
-
-	// FIXME: we no longer test if containers were registered in the right order,
-	// because there is no public
-	// Make sure container 2 ( the child of container 1 ) was registered and started first
-	// with the runtime
-	//
-	containers := runtime2.List()
-	if len(containers) == 0 {
-		t.Fatalf("Runtime has no containers")
-	}
-	first := containers[0]
-	if first.ID != container2.ID {
-		t.Fatalf("Container 2 %s should be registered first in the runtime", container2.ID)
-	}
-
-	// Verify that the link is still registered in the runtime
-	if c := runtime2.Get(container1.Name); c == nil {
-		t.Fatal("Named container is no longer registered after restart")
-	}
 }
 
 func TestDefaultContainerName(t *testing.T) {

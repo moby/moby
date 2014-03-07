@@ -23,11 +23,11 @@ func prepareVolumesForContainer(container *Container) error {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
+		if err := applyVolumesFrom(container); err != nil {
+			return err
+		}
 	}
 
-	if err := applyVolumesFrom(container); err != nil {
-		return err
-	}
 	if err := createVolumes(container); err != nil {
 		return err
 	}

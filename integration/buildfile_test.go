@@ -924,3 +924,45 @@ func TestBuildOnBuildTrigger(t *testing.T) {
 	}
 	// FIXME: test that the 'foobar' file was created in the final build.
 }
+
+func TestBuildOnBuildForbiddenChainedTrigger(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+	from {IMAGE}
+	onbuild onbuild run echo test
+	`,
+		nil, nil,
+	},
+		t, nil, true,
+	)
+	if err == nil {
+		t.Fatal("Error should not be nil")
+	}
+}
+
+func TestBuildOnBuildForbiddenFromTrigger(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+	from {IMAGE}
+	onbuild from {IMAGE}
+	`,
+		nil, nil,
+	},
+		t, nil, true,
+	)
+	if err == nil {
+		t.Fatal("Error should not be nil")
+	}
+}
+
+func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
+	_, err := buildImage(testContextTemplate{`
+	from {IMAGE}
+	onbuild maintainer test
+	`,
+		nil, nil,
+	},
+		t, nil, true,
+	)
+	if err == nil {
+		t.Fatal("Error should not be nil")
+	}
+}

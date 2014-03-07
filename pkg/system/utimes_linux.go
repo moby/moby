@@ -1,17 +1,9 @@
-package archive
+package system
 
 import (
 	"syscall"
 	"unsafe"
 )
-
-func getLastAccess(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Atim
-}
-
-func getLastModification(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Mtim
-}
 
 func LUtimesNano(path string, ts []syscall.Timespec) error {
 	// These are not currently available in syscall

@@ -112,10 +112,10 @@ EOF
 		    --after-remove /tmp/postrm \
 		    --architecture "$PACKAGE_ARCHITECTURE" \
 		    --prefix / \
-		    --depends lxc \
-		    --depends aufs-tools \
 		    --depends iptables \
+		    --deb-recommends aufs-tools \
 		    --deb-recommends ca-certificates \
+		    --deb-recommends git \
 		    --deb-recommends xz-utils \
 		    --description "$PACKAGE_DESCRIPTION" \
 		    --maintainer "$PACKAGE_MAINTAINER" \

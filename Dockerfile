@@ -62,7 +62,7 @@ RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-RUN	curl -s https://go.googlecode.com/files/go1.2.src.tar.gz | tar -v -C /usr/local -xz
+RUN	curl -s https://go.googlecode.com/files/go1.2.1.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:$PATH
 ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
 RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
@@ -87,6 +87,7 @@ RUN	git config --global user.email 'docker-dummy@example.com'
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
+ENV	DOCKER_BUILDTAGS	apparmor
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]

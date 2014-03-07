@@ -2,7 +2,6 @@ package docker
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/auth"
@@ -30,18 +29,10 @@ import (
 	"time"
 )
 
-func (srv *Server) Close() error {
-	return srv.runtime.Close()
-}
-
-func init() {
-	engine.Register("initserver", jobInitServer)
-}
-
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
-func jobInitServer(job *engine.Job) engine.Status {
+func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
 	srv, err := NewServer(job.Eng, DaemonConfigFromJob(job))
 	if err != nil {
@@ -830,7 +821,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.runtime.execDriver.Name())
-	v.SetInt("NEventsListener", len(srv.events))
+	v.SetInt("NEventsListener", len(srv.listeners))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
@@ -1336,7 +1327,12 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	defer srv.poolRemove("pull", localName+":"+tag)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
+	hostname, remoteName, err := registry.ResolveRepositoryName(localName)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1504,11 +1500,12 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	checksum, err = r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
+	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
 	if err != nil {
 		return "", err
 	}
 	imgData.Checksum = checksum
+	imgData.ChecksumPayload = checksumPayload
 	// Send the checksum
 	if err := r.PushImageChecksumRegistry(imgData, ep, token); err != nil {
 		return "", err
@@ -1538,7 +1535,12 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	defer srv.poolRemove("push", localName)
 
 	// Resolve the Repository name from fqn to endpoint + name
-	endpoint, remoteName, err := registry.ResolveRepositoryName(localName)
+	hostname, remoteName, err := registry.ResolveRepositoryName(localName)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1635,11 +1637,11 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return job.Errorf("Minimum memory limit allowed is 512k")
 	}
 	if config.Memory > 0 && !srv.runtime.sysInfo.MemoryLimit {
-		job.Errorf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		job.Errorf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		config.Memory = 0
 	}
 	if config.Memory > 0 && !srv.runtime.sysInfo.SwapLimit {
-		job.Errorf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		job.Errorf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}
 	resolvConf, err := utils.GetResolvConf()
@@ -1647,7 +1649,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		job.Errorf("WARNING: Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", defaultDns)
+		job.Errorf("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", defaultDns)
 		config.Dns = defaultDns
 	}
 
@@ -1663,7 +1665,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	if !container.Config.NetworkDisabled && srv.runtime.sysInfo.IPv4ForwardingDisabled {
-		job.Errorf("WARNING: IPv4 forwarding is disabled.\n")
+		job.Errorf("IPv4 forwarding is disabled.\n")
 	}
 	srv.LogEvent("create", container.ID, srv.runtime.repositories.ImageName(container.Image))
 	// FIXME: this is necessary because runtime.Create might return a nil container
@@ -1673,7 +1675,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		job.Printf("%s\n", container.ID)
 	}
 	for _, warning := range buildWarnings {
-		return job.Errorf("%s\n", warning)
+		job.Errorf("%s\n", warning)
 	}
 	return engine.StatusOK
 }
@@ -1707,6 +1709,7 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
+	forceRemove := job.GetenvBool("forceRemove")
 
 	container := srv.runtime.Get(name)
 
@@ -1744,7 +1747,13 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 
 	if container != nil {
 		if container.State.IsRunning() {
-			return job.Errorf("Impossible to remove a running container, please stop it first")
+			if forceRemove {
+				if err := container.Stop(5); err != nil {
+					return job.Errorf("Could not stop running container, cannot remove - %v", err)
+				}
+			} else {
+				return job.Errorf("Impossible to remove a running container, please stop it first or use -f")
+			}
 		}
 		if err := srv.runtime.Destroy(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
@@ -1814,102 +1823,33 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-var ErrImageReferenced = errors.New("Image referenced by a repository")
-
-func (srv *Server) deleteImageAndChildren(id string, imgs *engine.Table, byParents map[string][]*Image) error {
-	// If the image is referenced by a repo, do not delete
-	if len(srv.runtime.repositories.ByID()[id]) != 0 {
-		return ErrImageReferenced
-	}
-	// If the image is not referenced but has children, go recursive
-	referenced := false
-	for _, img := range byParents[id] {
-		if err := srv.deleteImageAndChildren(img.ID, imgs, byParents); err != nil {
-			if err != ErrImageReferenced {
-				return err
-			}
-			referenced = true
-		}
-	}
-	if referenced {
-		return ErrImageReferenced
-	}
-
-	// If the image is not referenced and has no children, remove it
-	byParents, err := srv.runtime.graph.ByParent()
-	if err != nil {
-		return err
-	}
-	if len(byParents[id]) == 0 && srv.canDeleteImage(id) == nil {
-		if err := srv.runtime.repositories.DeleteAll(id); err != nil {
-			return err
-		}
-		err := srv.runtime.graph.Delete(id)
-		if err != nil {
-			return err
-		}
-		out := &engine.Env{}
-		out.Set("Deleted", id)
-		imgs.Add(out)
-		srv.LogEvent("delete", id, "")
-		return nil
-	}
-	return nil
-}
-
-func (srv *Server) deleteImageParents(img *Image, imgs *engine.Table) error {
-	if img.Parent != "" {
-		parent, err := srv.runtime.graph.Get(img.Parent)
-		if err != nil {
-			return err
-		}
-		byParents, err := srv.runtime.graph.ByParent()
-		if err != nil {
-			return err
-		}
-		// Remove all children images
-		if err := srv.deleteImageAndChildren(img.Parent, imgs, byParents); err != nil {
-			return err
-		}
-		return srv.deleteImageParents(parent, imgs)
-	}
-	return nil
-}
-
-func (srv *Server) DeleteImage(name string, autoPrune bool) (*engine.Table, error) {
+func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force bool) error {
 	var (
 		repoName, tag string
-		img, err      = srv.runtime.repositories.LookupImage(name)
-		imgs          = engine.NewTable("", 0)
 		tags          = []string{}
 	)
 
+	repoName, tag = utils.ParseRepositoryTag(name)
+	if tag == "" {
+		tag = DEFAULTTAG
+	}
+
+	img, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
-		return nil, fmt.Errorf("No such image: %s", name)
-	}
-
-	// FIXME: What does autoPrune mean ?
-	if !autoPrune {
-		if err := srv.runtime.graph.Delete(img.ID); err != nil {
-			return nil, fmt.Errorf("Cannot delete image %s: %s", name, err)
+		if r, _ := srv.runtime.repositories.Get(repoName); r != nil {
+			return fmt.Errorf("No such image: %s:%s", repoName, tag)
 		}
-		return nil, nil
+		return fmt.Errorf("No such image: %s", name)
 	}
 
-	if !strings.Contains(img.ID, name) {
-		repoName, tag = utils.ParseRepositoryTag(name)
+	if strings.Contains(img.ID, name) {
+		repoName = ""
+		tag = ""
 	}
 
-	// If we have a repo and the image is not referenced anywhere else
-	// then just perform an untag and do not validate.
-	//
-	// i.e. only validate if we are performing an actual delete and not
-	// an untag op
-	if repoName != "" && len(srv.runtime.repositories.ByID()[img.ID]) == 1 {
-		// Prevent deletion if image is used by a container
-		if err := srv.canDeleteImage(img.ID); err != nil {
-			return nil, err
-		}
+	byParents, err := srv.runtime.graph.ByParent()
+	if err != nil {
+		return err
 	}
 
 	//If delete by id, see if the id belong only to one repository
@@ -1921,51 +1861,68 @@ func (srv *Server) DeleteImage(name string, autoPrune bool) (*engine.Table, erro
 				if parsedTag != "" {
 					tags = append(tags, parsedTag)
 				}
-			} else if repoName != parsedRepo {
+			} else if repoName != parsedRepo && !force {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
-				return nil, fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories", utils.TruncateID(img.ID))
+				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
 			}
 		}
 	} else {
 		tags = append(tags, tag)
 	}
 
+	if !first && len(tags) > 0 {
+		return nil
+	}
+
 	//Untag the current image
 	for _, tag := range tags {
 		tagDeleted, err := srv.runtime.repositories.Delete(repoName, tag)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if tagDeleted {
 			out := &engine.Env{}
-			out.Set("Untagged", img.ID)
+			out.Set("Untagged", repoName+":"+tag)
 			imgs.Add(out)
 			srv.LogEvent("untag", img.ID, "")
 		}
 	}
+	tags = srv.runtime.repositories.ByID()[img.ID]
+	if (len(tags) <= 1 && repoName == "") || len(tags) == 0 {
+		if len(byParents[img.ID]) == 0 {
+			if err := srv.canDeleteImage(img.ID); err != nil {
+				return err
+			}
+			if err := srv.runtime.repositories.DeleteAll(img.ID); err != nil {
+				return err
+			}
+			if err := srv.runtime.graph.Delete(img.ID); err != nil {
+				return err
+			}
+			out := &engine.Env{}
+			out.Set("Deleted", img.ID)
+			imgs.Add(out)
+			srv.LogEvent("delete", img.ID, "")
+			if img.Parent != "" {
+				err := srv.DeleteImage(img.Parent, imgs, false, force)
+				if first {
+					return err
+				}
 
-	if len(srv.runtime.repositories.ByID()[img.ID]) == 0 {
-		if err := srv.deleteImageAndChildren(img.ID, imgs, nil); err != nil {
-			if err != ErrImageReferenced {
-				return imgs, err
 			}
-		} else if err := srv.deleteImageParents(img, imgs); err != nil {
-			if err != ErrImageReferenced {
-				return imgs, err
-			}
+
 		}
 	}
-	return imgs, nil
+	return nil
 }
 
 func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
-
-	imgs, err := srv.DeleteImage(job.Args[0], job.GetenvBool("autoPrune"))
-	if err != nil {
+	imgs := engine.NewTable("", 0)
+	if err := srv.DeleteImage(job.Args[0], imgs, true, job.GetenvBool("force")); err != nil {
 		return job.Error(err)
 	}
 	if len(imgs.Data) == 0 {
@@ -2369,6 +2326,7 @@ func NewServer(eng *engine.Engine, config *DaemonConfig) (*Server, error) {
 		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[string]chan utils.JSONMessage),
+		running:     true,
 	}
 	runtime.srv = srv
 	return srv, nil
@@ -2418,6 +2376,24 @@ func (srv *Server) GetEvents() []utils.JSONMessage {
 	return srv.events
 }
 
+func (srv *Server) SetRunning(status bool) {
+	srv.Lock()
+	defer srv.Unlock()
+
+	srv.running = status
+}
+
+func (srv *Server) IsRunning() bool {
+	srv.RLock()
+	defer srv.RUnlock()
+	return srv.running
+}
+
+func (srv *Server) Close() error {
+	srv.SetRunning(false)
+	return srv.runtime.Close()
+}
+
 type Server struct {
 	sync.RWMutex
 	runtime     *Runtime
@@ -2426,4 +2402,5 @@ type Server struct {
 	events      []utils.JSONMessage
 	listeners   map[string]chan utils.JSONMessage
 	Eng         *engine.Engine
+	running     bool
 }

@@ -299,7 +299,7 @@ func TestInit(t *testing.T) {
 			}
 		}()
 	}()
-	// Put all tests in a funciton to make sure the garbage collection will
+	// Put all tests in a function to make sure the garbage collection will
 	// occur.
 
 	// Call GC to cleanup runtime.Finalizers

@@ -67,14 +67,14 @@ Once inside our freshly created container we need to install Redis to get the
     apt-get -y install redis-server
     service redis-server stop
 
-Now we can test the connection. Firstly, let's look at the available environmental 
-variables in our web application container. We can use these to get the IP and port 
-of our ``redis`` container.
+As we've used the ``--link redis:db`` option, Docker has created some environment 
+variables in our web application container.
 
 .. code-block:: bash
 
-    env
-    . . .
+    env | grep DB_
+    
+    # Should return something similar to this with your values 
     DB_NAME=/violet_wolf/db
     DB_PORT_6379_TCP_PORT=6379
     DB_PORT=tcp://172.17.0.33:6379

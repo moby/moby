@@ -27,7 +27,7 @@ and we will add the libraries here.
 | JavaScript (NodeJS)  | docker.io      | https://github.com/appersonlabs/docker.io  | Active   |
 |                      |                | Install via NPM: `npm install docker.io`   |          |
 +----------------------+----------------+--------------------------------------------+----------+
-| JavaScript           | docker-js      | https://github.com/dgoujard/docker-js      | Active   |
+| JavaScript           | docker-js      | https://github.com/dgoujard/docker-js      | Outdated |
 +----------------------+----------------+--------------------------------------------+----------+
 | JavaScript (Angular) | docker-cp      | https://github.com/13W/docker-cp           | Active   |
 | **WebUI**            |                |                                            |          |
@@ -42,4 +42,6 @@ and we will add the libraries here.
 | Go                   | go-dockerclient| https://github.com/fsouza/go-dockerclient  | Active   |
 +----------------------+----------------+--------------------------------------------+----------+
 | PHP                  | Alvine         | http://pear.alvine.io/ (alpha)             | Active   |
++----------------------+----------------+--------------------------------------------+----------+
+| PHP                  | Docker-PHP     | http://stage1.github.io/docker-php/        | Active   |
 +----------------------+----------------+--------------------------------------------+----------+

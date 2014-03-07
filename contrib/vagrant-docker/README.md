@@ -31,7 +31,7 @@ stop on runlevel [!2345]
 respawn
 
 script
-    /usr/bin/docker -d -H=tcp://0.0.0.0:4243/
+    /usr/bin/docker -d -H=tcp://0.0.0.0:4243
 end script
 ```
 
