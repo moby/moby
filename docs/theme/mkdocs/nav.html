@@ -13,7 +13,7 @@
    </div>
 </div>
 
-<div class="navbar navbar-default Wnavbar-fixed-top navbar-inverse" role="navigation">
+<div id="stickynav" class="navbar navbar-default navbar-static-top navbar-inverse" role="navigation">
     <div class="Ncontainer">
 
 
@@ -62,6 +62,9 @@
                     <a href="#searchModal" data-toggle="modal"><i class="fa fa-search"></i> Search</a>
                 </li>
                 {% endif %}
+		<li>
+<form id="search_box_header" class="navbar-index-search pull-right"><span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span><input id="st-search-input" type="text" class="search-query ui-autocomplete-input" placeholder="search" autocomplete="off"></form>
+		</li>
                 <li {% if not previous_page %}class="disabled"{% endif %}>
                     <a rel="next" {% if previous_page %}href="{{ previous_page.url }}"{% endif %}>
                         <i class="fa fa-arrow-left"></i> Previous

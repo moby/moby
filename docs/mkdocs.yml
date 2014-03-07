@@ -5,7 +5,7 @@ site_favicon: theme/docker/static/favicon.png
 
 dev_addr: '0.0.0.0:8000'
 
-repo_url: https://github.com/dotcloud/docker/
+#repo_url: https://github.com/dotcloud/docker/
 
 docs_dir: sources
 
@@ -13,6 +13,7 @@ docs_dir: sources
 #theme: spacelab
 theme_dir: ./theme/mkdocs/
 #theme_center_lead: true
+#include_search: true
 
 copyright: Copyright &copy; 2014, Docker.
 #google_analytics: ['UA-27795084-5', 'mkdocs.org']
