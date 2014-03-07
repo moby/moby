@@ -5,7 +5,6 @@ package nsinit
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/system"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -51,27 +50,14 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
-
-	pivotDir, err := ioutil.TempDir(rootfs, ".pivot_root")
-	if err != nil {
-		return fmt.Errorf("can't create pivot_root dir %s", pivotDir, err)
+	if err := system.Mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
+		return fmt.Errorf("mount move %s into / %s", rootfs, err)
 	}
-	if err := system.Pivotroot(rootfs, pivotDir); err != nil {
-		return fmt.Errorf("pivot_root %s", err)
+	if err := system.Chroot("."); err != nil {
+		return fmt.Errorf("chroot . %s", err)
 	}
 	if err := system.Chdir("/"); err != nil {
 		return fmt.Errorf("chdir / %s", err)
-	}
-
-	// path to pivot dir now changed, update
-	pivotDir = filepath.Join("/", filepath.Base(pivotDir))
-
-	if err := system.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
-		return fmt.Errorf("unmount pivot_root dir %s", err)
-	}
-
-	if err := os.Remove(pivotDir); err != nil {
-		return fmt.Errorf("remove pivot_root dir %s", err)
 	}
 
 	system.Umask(0022)
