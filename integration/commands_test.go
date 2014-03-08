@@ -3,11 +3,11 @@ package docker
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -36,7 +36,7 @@ func closeWrap(args ...io.Closer) error {
 	return nil
 }
 
-func setRaw(t *testing.T, c *docker.Container) *term.State {
+func setRaw(t *testing.T, c *runtime.Container) *term.State {
 	pty, err := c.GetPtyMaster()
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func setRaw(t *testing.T, c *docker.Container) *term.State {
 	return state
 }
 
-func unsetRaw(t *testing.T, c *docker.Container, state *term.State) {
+func unsetRaw(t *testing.T, c *runtime.Container, state *term.State) {
 	pty, err := c.GetPtyMaster()
 	if err != nil {
 		t.Fatal(err)
@@ -56,8 +56,8 @@ func unsetRaw(t *testing.T, c *docker.Container, state *term.State) {
 	term.RestoreTerminal(pty.Fd(), state)
 }
 
-func waitContainerStart(t *testing.T, timeout time.Duration) *docker.Container {
-	var container *docker.Container
+func waitContainerStart(t *testing.T, timeout time.Duration) *runtime.Container {
+	var container *runtime.Container
 
 	setTimeout(t, "Waiting for the container to be started timed out", timeout, func() {
 		for {

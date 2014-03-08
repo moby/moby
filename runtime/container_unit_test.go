@@ -1,4 +1,4 @@
-package docker
+package runtime
 
 import (
 	"github.com/dotcloud/docker/nat"
@@ -132,14 +132,14 @@ func TestParseNetworkOptsUdp(t *testing.T) {
 }
 
 func TestGetFullName(t *testing.T) {
-	name, err := getFullName("testing")
+	name, err := GetFullContainerName("testing")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if name != "/testing" {
 		t.Fatalf("Expected /testing got %s", name)
 	}
-	if _, err := getFullName(""); err == nil {
+	if _, err := GetFullContainerName(""); err == nil {
 		t.Fatal("Error should not be nil")
 	}
 }

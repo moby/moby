@@ -1,4 +1,4 @@
-package docker
+package runtime
 
 import (
 	"container/list"
@@ -40,7 +40,7 @@ import (
 const MaxImageDepth = 127
 
 var (
-	defaultDns                = []string{"8.8.8.8", "8.8.4.4"}
+	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
 	validContainerNameChars   = `[a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
@@ -54,7 +54,7 @@ type Runtime struct {
 	idIndex        *utils.TruncIndex
 	sysInfo        *sysinfo.SysInfo
 	volumes        *graph.Graph
-	srv            *Server
+	srv            Server
 	eng            *engine.Engine
 	config         *daemonconfig.Config
 	containerGraph *graphdb.Database
@@ -500,8 +500,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 
 	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
-		runtime.config.Dns = defaultDns
+		runtime.config.Dns = DefaultDns
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
@@ -578,7 +577,7 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-func getFullName(name string) (string, error) {
+func GetFullContainerName(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("Container name cannot be empty")
 	}
@@ -589,7 +588,7 @@ func getFullName(name string) (string, error) {
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	fullName, err := getFullName(name)
+	fullName, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -605,7 +604,7 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
-	name, err := getFullName(name)
+	name, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -890,6 +889,42 @@ func (runtime *Runtime) Nuke() error {
 // can go away.
 func (runtime *Runtime) Graph() *graph.Graph {
 	return runtime.graph
+}
+
+func (runtime *Runtime) Repositories() *graph.TagStore {
+	return runtime.repositories
+}
+
+func (runtime *Runtime) Config() *daemonconfig.Config {
+	return runtime.config
+}
+
+func (runtime *Runtime) SystemConfig() *sysinfo.SysInfo {
+	return runtime.sysInfo
+}
+
+func (runtime *Runtime) SystemInitPath() string {
+	return runtime.sysInitPath
+}
+
+func (runtime *Runtime) GraphDriver() graphdriver.Driver {
+	return runtime.driver
+}
+
+func (runtime *Runtime) ExecutionDriver() execdriver.Driver {
+	return runtime.execDriver
+}
+
+func (runtime *Runtime) Volumes() *graph.Graph {
+	return runtime.volumes
+}
+
+func (runtime *Runtime) ContainerGraph() *graphdb.Database {
+	return runtime.containerGraph
+}
+
+func (runtime *Runtime) SetServer(server Server) {
+	runtime.srv = server
 }
 
 // History is a convenience type for storing a list of containers,

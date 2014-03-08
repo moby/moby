@@ -5,12 +5,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
@@ -600,7 +600,7 @@ func TestGetContainersByName(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	outContainer := &docker.Container{}
+	outContainer := &runtime.Container{}
 	if err := json.Unmarshal(r.Body.Bytes(), outContainer); err != nil {
 		t.Fatal(err)
 	}

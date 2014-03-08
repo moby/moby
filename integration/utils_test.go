@@ -18,6 +18,7 @@ import (
 	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -27,7 +28,7 @@ import (
 
 // Create a temporary runtime suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkRuntime(f utils.Fataler) *docker.Runtime {
+func mkRuntime(f utils.Fataler) *runtime.Runtime {
 	eng := newTestEngine(f, false, "")
 	return mkRuntimeFromEngine(eng, f)
 	// FIXME:
@@ -139,7 +140,7 @@ func assertHttpError(r *httptest.ResponseRecorder, t utils.Fataler) {
 	}
 }
 
-func getContainer(eng *engine.Engine, id string, t utils.Fataler) *docker.Container {
+func getContainer(eng *engine.Engine, id string, t utils.Fataler) *runtime.Container {
 	runtime := mkRuntimeFromEngine(eng, t)
 	c := runtime.Get(id)
 	if c == nil {
@@ -160,14 +161,14 @@ func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *docker.Server {
 	return srv
 }
 
-func mkRuntimeFromEngine(eng *engine.Engine, t utils.Fataler) *docker.Runtime {
+func mkRuntimeFromEngine(eng *engine.Engine, t utils.Fataler) *runtime.Runtime {
 	iRuntime := eng.Hack_GetGlobalVar("httpapi.runtime")
 	if iRuntime == nil {
 		panic("Legacy runtime field not set in engine")
 	}
-	runtime, ok := iRuntime.(*docker.Runtime)
+	runtime, ok := iRuntime.(*runtime.Runtime)
 	if !ok {
-		panic("Legacy runtime field in engine does not cast to *docker.Runtime")
+		panic("Legacy runtime field in engine does not cast to *runtime.Runtime")
 	}
 	return runtime
 }
@@ -249,7 +250,7 @@ func readFile(src string, t *testing.T) (content string) {
 // dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Container, *runconfig.HostConfig, error) {
+func mkContainer(r *runtime.Runtime, args []string, t *testing.T) (*runtime.Container, *runconfig.HostConfig, error) {
 	config, hc, _, err := runconfig.Parse(args, nil)
 	defer func() {
 		if err != nil && t != nil {
@@ -280,7 +281,7 @@ func mkContainer(r *docker.Runtime, args []string, t *testing.T) (*docker.Contai
 // and return its standard output as a string.
 // The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
 // If t is not nil, call t.Fatal() at the first error. Otherwise return errors normally.
-func runContainer(eng *engine.Engine, r *docker.Runtime, args []string, t *testing.T) (output string, err error) {
+func runContainer(eng *engine.Engine, r *runtime.Runtime, args []string, t *testing.T) (output string, err error) {
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)

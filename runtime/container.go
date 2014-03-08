@@ -1,4 +1,4 @@
-package docker
+package runtime
 
 import (
 	"encoding/json"
@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-const defaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 var (
 	ErrNotATTY               = errors.New("The PTY is not a file")
@@ -174,7 +174,7 @@ func (container *Container) ToDisk() (err error) {
 	if err != nil {
 		return
 	}
-	return container.writeHostConfig()
+	return container.WriteHostConfig()
 }
 
 func (container *Container) readHostConfig() error {
@@ -193,7 +193,7 @@ func (container *Container) readHostConfig() error {
 	return json.Unmarshal(data, container.hostConfig)
 }
 
-func (container *Container) writeHostConfig() (err error) {
+func (container *Container) WriteHostConfig() (err error) {
 	data, err := json.Marshal(container.hostConfig)
 	if err != nil {
 		return
@@ -451,7 +451,7 @@ func (container *Container) Start() (err error) {
 	// Setup environment
 	env := []string{
 		"HOME=/",
-		"PATH=" + defaultPathEnv,
+		"PATH=" + DefaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
@@ -693,7 +693,7 @@ func (container *Container) allocateNetwork() error {
 			return err
 		}
 		container.Config.PortSpecs = nil
-		if err := container.writeHostConfig(); err != nil {
+		if err := container.WriteHostConfig(); err != nil {
 			return err
 		}
 	}
@@ -751,7 +751,7 @@ func (container *Container) allocateNetwork() error {
 		}
 		bindings[port] = binding
 	}
-	container.writeHostConfig()
+	container.WriteHostConfig()
 
 	container.NetworkSettings.Ports = bindings
 
@@ -850,7 +850,7 @@ func (container *Container) cleanup() {
 	}
 }
 
-func (container *Container) kill(sig int) error {
+func (container *Container) KillSig(sig int) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -866,7 +866,7 @@ func (container *Container) Kill() error {
 	}
 
 	// 1. Send SIGKILL
-	if err := container.kill(9); err != nil {
+	if err := container.KillSig(9); err != nil {
 		return err
 	}
 
@@ -891,10 +891,10 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := container.kill(15); err != nil {
+	if err := container.KillSig(15); err != nil {
 		utils.Debugf("Error sending kill SIGTERM: %s", err)
 		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.kill(9); err != nil {
+		if err := container.KillSig(9); err != nil {
 			return err
 		}
 	}
@@ -1140,4 +1140,22 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 		return nil, ErrNoTTY
 	}
 	return ttyConsole.Master(), nil
+}
+
+func (container *Container) HostConfig() *runconfig.HostConfig {
+	return container.hostConfig
+}
+
+func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
+	container.hostConfig = hostConfig
+}
+
+func (container *Container) DisableLink(name string) {
+	if container.activeLinks != nil {
+		if link, exists := container.activeLinks[name]; exists {
+			link.Disable()
+		} else {
+			utils.Debugf("Could not find active link for %s", name)
+		}
+	}
 }
