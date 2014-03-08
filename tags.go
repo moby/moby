@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
@@ -65,7 +66,7 @@ func (store *TagStore) Reload() error {
 	return nil
 }
 
-func (store *TagStore) LookupImage(name string) (*Image, error) {
+func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 	// (so we can pass all errors here)
 	repos, tag := utils.ParseRepositoryTag(name)
@@ -195,7 +196,7 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
-func (store *TagStore) GetImage(repoName, tagOrID string) (*Image, error) {
+func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) {
 	repo, err := store.Get(repoName)
 	if err != nil {
 		return nil, err

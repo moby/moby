@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -902,7 +903,7 @@ func TestImagesTree(t *testing.T) {
 	})
 }
 
-func buildTestImages(t *testing.T, eng *engine.Engine) *docker.Image {
+func buildTestImages(t *testing.T, eng *engine.Engine) *image.Image {
 
 	var testBuilder = testContextTemplate{
 		`

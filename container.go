@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/runconfig"
@@ -992,7 +993,7 @@ func (container *Container) Changes() ([]archive.Change, error) {
 	return container.runtime.Changes(container)
 }
 
-func (container *Container) GetImage() (*Image, error) {
+func (container *Container) GetImage() (*image.Image, error) {
 	if container.runtime == nil {
 		return nil, fmt.Errorf("Can't get image of unregistered container")
 	}

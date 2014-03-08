@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/sysinit"
@@ -172,7 +173,7 @@ func spawnGlobalDaemon() {
 
 // FIXME: test that ImagePull(json=true) send correct json output
 
-func GetTestImage(runtime *docker.Runtime) *docker.Image {
+func GetTestImage(runtime *docker.Runtime) *image.Image {
 	imgs, err := runtime.Graph().Map()
 	if err != nil {
 		log.Fatalf("Unable to get the test image: %s", err)

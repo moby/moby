@@ -15,6 +15,7 @@ import (
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/image"
 	_ "github.com/dotcloud/docker/networkdriver/lxc"
 	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
@@ -396,7 +397,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 
 	// Generate id
-	id := GenerateID()
+	id := utils.GenerateRandomID()
 
 	if name == "" {
 		name, err = generateRandomName(runtime)
@@ -539,7 +540,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*Image, error) {
+func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
 	if err := container.Mount(); err != nil {

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
 	"os"
 	"path"
@@ -30,7 +31,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	img := &Image{ID: testImageID}
+	img := &image.Image{ID: testImageID}
 	// FIXME: this fails on Darwin with:
 	// tags_unit_test.go:36: mkdir /var/folders/7g/b3ydb5gx4t94ndr_cljffbt80000gq/T/docker-test569b-tRunner-075013689/vfs/dir/foo/etc/postgres: permission denied
 	if err := graph.Register(nil, archive, img); err != nil {

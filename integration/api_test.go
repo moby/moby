@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -287,7 +288,7 @@ func TestGetImagesByName(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	img := &docker.Image{}
+	img := &image.Image{}
 	if err := json.Unmarshal(r.Body.Bytes(), img); err != nil {
 		t.Fatal(err)
 	}

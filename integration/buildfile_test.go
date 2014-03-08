@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
@@ -350,7 +351,7 @@ func TestBuild(t *testing.T) {
 	}
 }
 
-func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*docker.Image, error) {
+func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*image.Image, error) {
 	if eng == nil {
 		eng = NewTestEngine(t)
 		runtime := mkRuntimeFromEngine(eng, t)

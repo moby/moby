@@ -1,20 +1,16 @@
-package docker
+package image
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -30,8 +26,9 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
-	graph           *Graph
 	Size            int64
+
+	graph Graph
 }
 
 func LoadImage(root string) (*Image, error) {
@@ -45,7 +42,7 @@ func LoadImage(root string) (*Image, error) {
 	if err := json.Unmarshal(jsonData, img); err != nil {
 		return nil, err
 	}
-	if err := ValidateID(img.ID); err != nil {
+	if err := utils.ValidateID(img.ID); err != nil {
 		return nil, err
 	}
 
@@ -72,7 +69,7 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 	var (
 		size   int64
 		err    error
-		driver = img.graph.driver
+		driver = img.graph.Driver()
 	)
 	if err := os.MkdirAll(layer, 0755); err != nil {
 		return err
@@ -136,6 +133,10 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 	return nil
 }
 
+func (img *Image) SetGraph(graph Graph) {
+	img.graph = graph
+}
+
 // SaveSize stores the current `size` value of `img` in the directory `root`.
 func (img *Image) SaveSize(root string) error {
 	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(img.Size))), 0600); err != nil {
@@ -153,7 +154,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if img.graph == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
 	}
-	driver := img.graph.driver
+	driver := img.graph.Driver()
 	if differ, ok := driver.(graphdriver.Differ); ok {
 		return differ.Diff(img.ID)
 	}
@@ -199,33 +200,6 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 		driver.Put(img.ID)
 		return err
 	}), nil
-}
-
-func ValidateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("Image id can't be empty")
-	}
-	if strings.Contains(id, ":") {
-		return fmt.Errorf("Invalid character in image id: ':'")
-	}
-	return nil
-}
-
-func GenerateID() string {
-	for {
-		id := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, id); err != nil {
-			panic(err) // This shouldn't happen
-		}
-		value := hex.EncodeToString(id)
-		// if we try to parse the truncated for as an int and we don't have
-		// an error then the value is all numberic and causes issues when
-		// used as a hostname. ref #3869
-		if _, err := strconv.Atoi(utils.TruncateID(value)); err == nil {
-			continue
-		}
-		return value
-	}
 }
 
 // Image includes convenience proxy functions to its graph
@@ -274,16 +248,16 @@ func (img *Image) root() (string, error) {
 	if img.graph == nil {
 		return "", fmt.Errorf("Can't lookup root of unregistered image")
 	}
-	return img.graph.imageRoot(img.ID), nil
+	return img.graph.ImageRoot(img.ID), nil
 }
 
-func (img *Image) getParentsSize(size int64) int64 {
+func (img *Image) GetParentsSize(size int64) int64 {
 	parentImage, err := img.GetParent()
 	if err != nil || parentImage == nil {
 		return size
 	}
 	size += parentImage.Size
-	return parentImage.getParentsSize(size)
+	return parentImage.GetParentsSize(size)
 }
 
 // Depth returns the number of parents for a

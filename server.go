@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -362,8 +363,8 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) exportImage(image *Image, tempdir string) error {
-	for i := image; i != nil; {
+func (srv *Server) exportImage(img *image.Image, tempdir string) error {
+	for i := img; i != nil; {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, i.ID)
 		if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
@@ -580,7 +581,7 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 			utils.Debugf("Error reading embedded tar", err)
 			return err
 		}
-		img, err := NewImgJSON(imageJson)
+		img, err := image.NewImgJSON(imageJson)
 		if err != nil {
 			utils.Debugf("Error unmarshalling json", err)
 			return err
@@ -690,7 +691,7 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 	job.Stdout.Write([]byte("digraph docker {\n"))
 
 	var (
-		parentImage *Image
+		parentImage *image.Image
 		err         error
 	)
 	for _, image := range images {
@@ -722,7 +723,7 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 
 func (srv *Server) Images(job *engine.Job) engine.Status {
 	var (
-		allImages map[string]*Image
+		allImages map[string]*image.Image
 		err       error
 	)
 	if job.GetenvBool("all") {
@@ -757,7 +758,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 				out.Set("Id", image.ID)
 				out.SetInt64("Created", image.Created.Unix())
 				out.SetInt64("Size", image.Size)
-				out.SetInt64("VirtualSize", image.getParentsSize(0)+image.Size)
+				out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
 				lookup[id] = out
 			}
 
@@ -778,7 +779,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 			out.Set("Id", image.ID)
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)
-			out.SetInt64("VirtualSize", image.getParentsSize(0)+image.Size)
+			out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
 			outs.Add(out)
 		}
 	}
@@ -838,7 +839,7 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	name := job.Args[0]
-	image, err := srv.runtime.repositories.LookupImage(name)
+	foundImage, err := srv.runtime.repositories.LookupImage(name)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -855,7 +856,7 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 	}
 
 	outs := engine.NewTable("Created", 0)
-	err = image.WalkHistory(func(img *Image) error {
+	err = foundImage.WalkHistory(func(img *image.Image) error {
 		out := &engine.Env{}
 		out.Set("Id", img.ID)
 		out.SetInt64("Created", img.Created.Unix())
@@ -1098,7 +1099,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 				// FIXME: Keep going in case of error?
 				return err
 			}
-			img, err := NewImgJSON(imgJSON)
+			img, err := image.NewImgJSON(imgJSON)
 			if err != nil {
 				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 				return fmt.Errorf("Failed to parse json: %s", err)
@@ -1946,7 +1947,7 @@ func (srv *Server) canDeleteImage(imgID string) error {
 			return err
 		}
 
-		if err := parent.WalkHistory(func(p *Image) error {
+		if err := parent.WalkHistory(func(p *image.Image) error {
 			if imgID == p.ID {
 				return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", utils.TruncateID(imgID), utils.TruncateID(container.ID))
 			}
@@ -1958,7 +1959,7 @@ func (srv *Server) canDeleteImage(imgID string) error {
 	return nil
 }
 
-func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*Image, error) {
+func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
 
 	// Retrieve all images
 	images, err := srv.runtime.graph.Map()
@@ -1976,7 +1977,7 @@ func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*Imag
 	}
 
 	// Loop on the children of the given image and check the config
-	var match *Image
+	var match *image.Image
 	for elem := range imageMap[imgID] {
 		img, err := srv.runtime.graph.Get(elem)
 		if err != nil {
@@ -2242,7 +2243,7 @@ func (srv *Server) ContainerInspect(name string) (*Container, error) {
 	return nil, fmt.Errorf("No such container: %s", name)
 }
 
-func (srv *Server) ImageInspect(name string) (*Image, error) {
+func (srv *Server) ImageInspect(name string) (*image.Image, error) {
 	if image, err := srv.runtime.repositories.LookupImage(name); err == nil && image != nil {
 		return image, nil
 	}
