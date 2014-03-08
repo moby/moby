@@ -2,9 +2,9 @@ package docker
 
 import (
 	"errors"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
@@ -25,7 +25,7 @@ func TestMount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, nil, "Testing", "", nil)
+	image, err := graph.Create(archive, "", "", "Testing", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestGraphCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	img, err := graph.Create(archive, nil, "Testing", "", nil)
+	img, err := graph.Create(archive, "", "", "Testing", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,12 +165,12 @@ func TestDeletePrefix(t *testing.T) {
 	assertNImages(graph, t, 0)
 }
 
-func createTestImage(graph *docker.Graph, t *testing.T) *image.Image {
+func createTestImage(graph *graph.Graph, t *testing.T) *image.Image {
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
-	img, err := graph.Create(archive, nil, "Test image", "", nil)
+	img, err := graph.Create(archive, "", "", "Test image", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 0)
-	img, err := graph.Create(archive, nil, "Bla bla", "", nil)
+	img, err := graph.Create(archive, "", "", "Bla bla", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Test 2 create (same name) / 1 delete
-	img1, err := graph.Create(archive, nil, "Testing", "", nil)
+	img1, err := graph.Create(archive, "", "", "Testing", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = graph.Create(archive, nil, "Testing", "", nil); err != nil {
+	if _, err = graph.Create(archive, "", "", "Testing", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 2)
@@ -280,7 +280,7 @@ func TestByParent(t *testing.T) {
  * HELPER FUNCTIONS
  */
 
-func assertNImages(graph *docker.Graph, t *testing.T, n int) {
+func assertNImages(graph *graph.Graph, t *testing.T, n int) {
 	if images, err := graph.Map(); err != nil {
 		t.Fatal(err)
 	} else if actualN := len(images); actualN != n {
@@ -288,7 +288,7 @@ func assertNImages(graph *docker.Graph, t *testing.T, n int) {
 	}
 }
 
-func tempGraph(t *testing.T) (*docker.Graph, graphdriver.Driver) {
+func tempGraph(t *testing.T) (*graph.Graph, graphdriver.Driver) {
 	tmp, err := ioutil.TempDir("", "docker-graph-")
 	if err != nil {
 		t.Fatal(err)
@@ -297,14 +297,14 @@ func tempGraph(t *testing.T) (*docker.Graph, graphdriver.Driver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := docker.NewGraph(tmp, driver)
+	graph, err := graph.NewGraph(tmp, driver)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return graph, driver
 }
 
-func nukeGraph(graph *docker.Graph) {
+func nukeGraph(graph *graph.Graph) {
 	graph.Driver().Cleanup()
 	os.RemoveAll(graph.Root)
 }

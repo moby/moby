@@ -216,7 +216,7 @@ func createVolumes(container *Container) error {
 		return err
 	}
 
-	volumesDriver := container.runtime.volumes.driver
+	volumesDriver := container.runtime.volumes.Driver()
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
 		volPath = filepath.Clean(volPath)
@@ -246,7 +246,7 @@ func createVolumes(container *Container) error {
 			// Do not pass a container as the parameter for the volume creation.
 			// The graph driver using the container's information ( Image ) to
 			// create the parent.
-			c, err := container.runtime.volumes.Create(nil, nil, "", "", nil)
+			c, err := container.runtime.volumes.Create(nil, "", "", "", "", nil, nil)
 			if err != nil {
 				return err
 			}

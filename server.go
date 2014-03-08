@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/registry"
@@ -334,7 +335,7 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		}
 
 		// write repositories
-		rootRepoMap := map[string]Repository{}
+		rootRepoMap := map[string]graph.Repository{}
 		rootRepoMap[name] = rootRepo
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
@@ -547,7 +548,7 @@ func (srv *Server) ImageLoad(job *engine.Job) engine.Status {
 
 	repositoriesJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
 	if err == nil {
-		repositories := map[string]Repository{}
+		repositories := map[string]graph.Repository{}
 		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
 			return job.Error(err)
 		}
@@ -1617,7 +1618,7 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 		defer progressReader.Close()
 		archive = progressReader
 	}
-	img, err := srv.runtime.graph.Create(archive, nil, "Imported from "+src, "", nil)
+	img, err := srv.runtime.graph.Create(archive, "", "", "Imported from "+src, "", nil, nil)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1664,7 +1665,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		if srv.runtime.graph.IsNotExist(err) {
 			_, tag := utils.ParseRepositoryTag(config.Image)
 			if tag == "" {
-				tag = DEFAULTTAG
+				tag = graph.DEFAULTTAG
 			}
 			return job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}
@@ -1837,7 +1838,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force boo
 
 	repoName, tag = utils.ParseRepositoryTag(name)
 	if tag == "" {
-		tag = DEFAULTTAG
+		tag = graph.DEFAULTTAG
 	}
 
 	img, err := srv.runtime.repositories.LookupImage(name)

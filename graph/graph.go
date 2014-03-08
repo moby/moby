@@ -1,4 +1,4 @@
-package docker
+package graph
 
 import (
 	"fmt"
@@ -128,7 +128,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.ArchiveReader, container *Container, comment, author string, config *runconfig.Config) (*image.Image, error) {
+func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
 	img := &image.Image{
 		ID:            utils.GenerateRandomID(),
 		Comment:       comment,
@@ -139,10 +139,10 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, container *Container
 		Architecture:  runtime.GOARCH,
 		OS:            runtime.GOOS,
 	}
-	if container != nil {
-		img.Parent = container.Image
-		img.Container = container.ID
-		img.ContainerConfig = *container.Config
+	if containerID != "" {
+		img.Parent = containerImage
+		img.Container = containerID
+		img.ContainerConfig = *containerConfig
 	}
 	if err := graph.Register(nil, layerData, img); err != nil {
 		return nil, err
@@ -247,7 +247,7 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
-func setupInitLayer(initLayer string) error {
+func SetupInitLayer(initLayer string) error {
 	for pth, typ := range map[string]string{
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",

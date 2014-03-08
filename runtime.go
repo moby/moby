@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/execdriver/native"
+	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
@@ -48,11 +49,11 @@ type Runtime struct {
 	repository     string
 	sysInitPath    string
 	containers     *list.List
-	graph          *Graph
-	repositories   *TagStore
+	graph          *graph.Graph
+	repositories   *graph.TagStore
 	idIndex        *utils.TruncIndex
 	sysInfo        *sysinfo.SysInfo
-	volumes        *Graph
+	volumes        *graph.Graph
 	srv            *Server
 	eng            *engine.Engine
 	config         *daemonconfig.Config
@@ -486,7 +487,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 	defer runtime.driver.Put(initID)
 
-	if err := setupInitLayer(initPath); err != nil {
+	if err := graph.SetupInitLayer(initPath); err != nil {
 		return nil, nil, err
 	}
 
@@ -555,7 +556,16 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	defer rwTar.Close()
 
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
+	var (
+		containerID, containerImage string
+		containerConfig             *runconfig.Config
+	)
+	if container != nil {
+		containerID = container.ID
+		containerImage = container.Image
+		containerConfig = container.Config
+	}
+	img, err := runtime.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}
@@ -654,13 +664,13 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 
 	if ad, ok := driver.(*aufs.Driver); ok {
 		utils.Debugf("Migrating existing containers")
-		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
+		if err := ad.Migrate(config.Root, graph.SetupInitLayer); err != nil {
 			return nil, err
 		}
 	}
 
 	utils.Debugf("Creating images graph")
-	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
+	g, err := graph.NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
 	}
@@ -672,12 +682,12 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		return nil, err
 	}
 	utils.Debugf("Creating volumes graph")
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
+	volumes, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
 	utils.Debugf("Creating repository list")
-	repositories, err := NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -878,7 +888,7 @@ func (runtime *Runtime) Nuke() error {
 // which need direct access to runtime.graph.
 // Once the tests switch to using engine and jobs, this method
 // can go away.
-func (runtime *Runtime) Graph() *Graph {
+func (runtime *Runtime) Graph() *graph.Graph {
 	return runtime.graph
 }
 

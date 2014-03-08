@@ -1,4 +1,4 @@
-package docker
+package graph
 
 import (
 	"encoding/json"
