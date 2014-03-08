@@ -1007,7 +1007,11 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out.Set("Id", container.ID)
 		out.SetList("Names", names[container.ID])
 		out.Set("Image", srv.runtime.repositories.ImageName(container.Image))
-		out.Set("Command", fmt.Sprintf("%s %s", container.Path, strings.Join(container.Args, " ")))
+		if len(container.Args) > 0 {
+			out.Set("Command", fmt.Sprintf("\"%s %s\"", container.Path, strings.Join(container.Args, " ")))
+		} else {
+			out.Set("Command", fmt.Sprintf("\"%s\"", container.Path))
+		}
 		out.SetInt64("Created", container.Created.Unix())
 		out.Set("Status", container.State.String())
 		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
