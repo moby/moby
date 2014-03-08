@@ -933,8 +933,14 @@ new output from the container's stdout and stderr.
     List containers
 
       -a, --all=false: Show all containers. Only running containers are shown by default.
+      --before-id="": Show only container created before Id, include non-running ones.
+      -l, --latest=false: Show only the latest created container, include non-running ones.
+      -n=-1: Show n last created containers, include non-running ones.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
+      -s, --size=false: Display sizes, not to be used with -q
+      --since-id="": Show only containers created since Id, include non-running ones.
+
 
 Running ``docker ps`` showing 2 linked containers.
 
