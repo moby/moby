@@ -991,6 +991,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
     Restart a running container
 
+       -t, --time=10: Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10
+
 .. _cli_rm:
 
 ``rm``
