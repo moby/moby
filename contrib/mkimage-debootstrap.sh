@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
+# This script allows the creation of Debian or Ubuntu Docker images, using debootsrap.
+
+# The script will accept two arguments (see usage) : 
+#  REPO is the local repository name for docker images
+#  SUITE can be any Debian or Ubuntu release name supported by debootstrap
+
+# debootstrap variant (see -v option)
+# set only variant= if you don't want minbase by default
 variant='minbase'
+# packages to include by default in the image (see -i option)
 include='iproute,iputils-ping'
-arch='amd64' # intentionally undocumented for now
+# architecture of the image
+arch='amd64' # Docker officially only supports 64bit/amd64 currently, hence undocumented below
 skipDetection=
 strictDebootstrap=
 justTar=
@@ -11,7 +21,7 @@ justTar=
 usage() {
 	echo >&2
 	
-	echo >&2 "usage: $0 [options] repo suite [mirror]"
+	echo >&2 "usage: $0 [options] REPO SUITE [mirror]"
 	
 	echo >&2
 	echo >&2 'options: (not recommended)'
@@ -22,6 +32,7 @@ usage() {
 	echo >&2 "  -s # skip version detection and tagging (ie, precise also tagged as 12.04)"
 	echo >&2 "     # note that this will also skip adding universe and/or security/updates to sources.list"
 	echo >&2 "  -t # just create a tarball, especially for dockerbrew (uses repo as tarball name)"
+	#echo >&2 "  -a $arch # change default architecture" # intentionally undocumented for now
 	
 	echo >&2
 	echo >&2 "   ie: $0 username/debian squeeze"
@@ -39,6 +50,7 @@ usage() {
 	echo >&2
 }
 
+# Define default suite names to be able to tag images in the repository
 # these should match the names found at http://www.debian.org/releases/
 debianStable=wheezy
 debianUnstable=sid
@@ -128,10 +140,15 @@ set -x
 
 # bootstrap
 mkdir -p "$target"
-sudo http_proxy=$http_proxy debootstrap --verbose --variant="$variant" --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
+variantArg=
+if [ "$variant" ]; then
+    variantArg=--variant="$variant"
+fi
+sudo http_proxy=$http_proxy debootstrap --verbose $variantArg --include="$include" --arch="$arch" "$suite" "$target" "$mirror"
 
 cd "$target"
 
+# Perform Docker specific tweaks (not run when -d option is present)
 if [ -z "$strictDebootstrap" ]; then
 	# prevent init scripts from running during install/update
 	#  policy-rc.d (for most scripts)
@@ -219,6 +236,8 @@ if [ -z "$strictDebootstrap" ]; then
 	
 	# make sure our packages lists are as up to date as we can get them
 	sudo chroot . apt-get update
+
+	sudo chroot . apt-get upgrade --yes
 fi
 
 if [ "$justTar" ]; then
