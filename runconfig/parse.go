@@ -59,7 +59,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flDeployEnv       = cmd.String([]string{"#deploy-env", "-deploy-env"}, "", "Deployment Environment")
+		flDeployEnv       = cmd.String([]string{"#deploy-env", "-deploy-env"}, "", "Set container deployment environment, e.g. production")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -179,7 +179,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 			ports[p] = struct{}{}
 		}
 	}
-
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
