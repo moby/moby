@@ -1131,6 +1131,7 @@ image is removed.
       -t, --tty=false: Allocate a pseudo-tty
       -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
+      --uidmap=[]: Map host UID range into the container: <host UID>:<container UID>:<size> (e.g.  --uidmap="100000:0:10000")
       -v, --volume=[]: Create a bind mount to a directory or file with: [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
@@ -1279,6 +1280,20 @@ list or by repetitions of the ``--volumes-from`` argument. The container
 ID may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
 in the same mode (read write or read only) as the reference container.
+
+.. code-block:: bash
+
+   $ touch /tmp/uid100000 && chown 100000:100000 /tmp/uid100000 && sudo docker run --uidmap="100000:0:10000" -v="/tmp:/mnt:rw" -i -t ubuntu ls -lh /mnt/uid100000
+   -rw-r--r--. 1 root root 0 Mar 10 19:16 /mnt/uid100000
+
+Using UID namespaces, processes in the container can run with a virtual set of
+UIDs that map to a set of real UIDs on the host.  For instance, a process
+running as UID 10000 on the host could be UID 0 (root) in the container, or a
+file with UID 11000 on the host could appear as UID 1000 within the container.
+``--uidmap`` flag specifies the range of host UIDs that are mapped into the
+container.  In the example above, 10000 host UIDs starting from 100000 are
+mapped to 10000 virtual UIDs starting from 0 in the container.  UID 100000 on
+the host would then become the root in the container.
 
 A complete example
 ..................

@@ -16,6 +16,7 @@ func Init(home string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
+	d.fixPermissions()
 	return d, nil
 }
 
@@ -35,6 +36,19 @@ func (d *Driver) Cleanup() error {
 	return nil
 }
 
+// Fix the permissions of home and dir in case they were  already created 0700 by an earlier Docker version
+func (d *Driver) fixPermissions() error {
+	dir := d.dir("id")
+	if err := os.Chmod(path.Dir(dir), 0711); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Chmod(d.home, 0711); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
+}
+
 func copyDir(src, dst string) error {
 	if output, err := exec.Command("cp", "-aT", "--reflink=auto", src, dst).CombinedOutput(); err != nil {
 		return fmt.Errorf("Error VFS copying directory: %s (%s)", err, output)
@@ -44,10 +58,10 @@ func copyDir(src, dst string) error {
 
 func (d *Driver) Create(id string, parent string) error {
 	dir := d.dir(id)
-	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
+	if err := os.MkdirAll(path.Dir(dir), 0711); err != nil {
 		return err
 	}
-	if err := os.Mkdir(dir, 0700); err != nil {
+	if err := os.Mkdir(dir, 0711); err != nil {
 		return err
 	}
 	if parent == "" {

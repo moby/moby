@@ -645,7 +645,13 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 
 	runtimeRepo := path.Join(config.Root, "containers")
 
-	if err := os.MkdirAll(runtimeRepo, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(runtimeRepo, 0711); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	// Change to 0755 in case it was already created 0700 by an earlier
+	// Docker version.  MkdirAll doesn't fail if the dir already exists.
+	if err := os.Chmod(runtimeRepo, 0711); err != nil {
 		return nil, err
 	}
 
@@ -663,6 +669,9 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 	// We don't want to use a complex driver like aufs or devmapper
 	// for volumes, just a plain filesystem
 	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root)
+	if err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -706,13 +715,17 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 
 	if sysInitPath != localCopy {
 		// When we find a suitable dockerinit binary (even if it's our local binary), we copy it into config.Root at localCopy for future use (so that the original can go away without that being a problem, for example during a package upgrade).
-		if err := os.Mkdir(path.Dir(localCopy), 0700); err != nil && !os.IsExist(err) {
+		if err := os.Mkdir(path.Dir(localCopy), 0711); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
 		if _, err := utils.CopyFile(sysInitPath, localCopy); err != nil {
 			return nil, err
 		}
-		if err := os.Chmod(localCopy, 0700); err != nil {
+		// Change to 0711 in case it was already created 0700 by an earlier Docker version
+		if err := os.Chmod(path.Dir(localCopy), 0711); err != nil {
+			return nil, err
+		}
+		if err := os.Chmod(localCopy, 0711); err != nil {
 			return nil, err
 		}
 		sysInitPath = localCopy

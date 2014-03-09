@@ -1047,3 +1047,38 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 	}
 	return realPath, nil
 }
+
+func ParseUidMap(opt string) (int64, int64, int64, error) {
+	// Some simplifying defaults
+	cUid := int64(0)
+	size := int64(10000)
+	hUid := int64(100000)
+
+	var e1, e2, e3 error
+
+	parts := strings.SplitN(opt, ":", 3)
+	switch len(parts) {
+	case 3:
+		if parts[2] != "" {
+			size, e1 = strconv.ParseInt(parts[2], 10, 64)
+		}
+		fallthrough
+	case 2:
+		if parts[1] != "" {
+			cUid, e2 = strconv.ParseInt(parts[1], 10, 64)
+		}
+		fallthrough
+	case 1:
+		if parts[0] != "" {
+			hUid, e3 = strconv.ParseInt(parts[0], 10, 64)
+		}
+	default:
+		return -1, -1, -1, fmt.Errorf("Bad format: %s", opt)
+	}
+
+	if e1 != nil || e2 != nil || e3 != nil {
+		return -1, -1, -1, fmt.Errorf("Bad format: %s", opt)
+	}
+
+	return cUid, hUid, size, nil
+}
