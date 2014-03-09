@@ -85,7 +85,13 @@ func New(root string) (*Engine, error) {
 		}
 	}
 
-	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(root, 0711); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	// Change to 0711 in case it was already created 0700 by an earlier
+	// Docker version.  MkdirAll doesn't fail if the dir already exists.
+        if err := os.Chmod(root, 0711); err != nil {
 		return nil, err
 	}
 
