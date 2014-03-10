@@ -98,6 +98,16 @@ pages:
 - ['use/ambassador_pattern_linking.md', 'examples', 'ambassador_pattern_linking']
 - ['use/networking.md', 'examples', 'networking']
 
+- ['examples/deploy_dbms.md', 'examples', 'deploying_dbms']
+- ['examples/deploy_web_apps.md', 'examples', 'deploying_web_applications']
+
+- ['introduction/0_index.md', 'introduction', 'home']
+- ['introduction/1_understanding_docker.md', 'introduction', 'docker']
+- ['introduction/2_technology.md.md', 'introduction', 'technology']
+- ['introduction/3_dockerfile.md', 'introduction', 'dockerfile']
+- ['introduction/4_installation.md', 'introduction', 'installation']
+
+
   #- ['static_files/README.md', 'static_files', 'README']
   #- ['terms/layer.md', 'terms', 'layer']
   #- ['terms/index.md', 'terms', 'index']
