@@ -252,50 +252,39 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 }
 
 // this method matches a auth configuration to a server address or a url
-func (config *ConfigFile) ResolveAuthConfig(registry string) AuthConfig {
-	if registry == IndexServerAddress() || len(registry) == 0 {
+func (config *ConfigFile) ResolveAuthConfig(hostname string) AuthConfig {
+	if hostname == IndexServerAddress() || len(hostname) == 0 {
 		// default to the index server
 		return config.Configs[IndexServerAddress()]
 	}
-	// if it's not the index server there are three cases:
-	//
-	// 1. a full config url -> it should be used as is
-	// 2. a full url, but with the wrong protocol
-	// 3. a hostname, with an optional port
-	//
-	// as there is only one auth entry which is fully qualified we need to start
-	// parsing and matching
 
-	swapProtocol := func(url string) string {
-		if strings.HasPrefix(url, "http:") {
-			return strings.Replace(url, "http:", "https:", 1)
-		}
-		if strings.HasPrefix(url, "https:") {
-			return strings.Replace(url, "https:", "http:", 1)
-		}
-		return url
+	// First try the happy case
+	if c, found := config.Configs[hostname]; found {
+		return c
 	}
 
-	resolveIgnoringProtocol := func(url string) AuthConfig {
-		if c, found := config.Configs[url]; found {
-			return c
+	convertToHostname := func(url string) string {
+		stripped := url
+		if strings.HasPrefix(url, "http://") {
+			stripped = strings.Replace(url, "http://", "", 1)
+		} else if strings.HasPrefix(url, "https://") {
+			stripped = strings.Replace(url, "https://", "", 1)
 		}
-		registrySwappedProtocol := swapProtocol(url)
-		// now try to match with the different protocol
-		if c, found := config.Configs[registrySwappedProtocol]; found {
-			return c
-		}
-		return AuthConfig{}
+
+		nameParts := strings.SplitN(stripped, "/", 2)
+
+		return nameParts[0]
 	}
 
-	// match both protocols as it could also be a server name like httpfoo
-	if strings.HasPrefix(registry, "http:") || strings.HasPrefix(registry, "https:") {
-		return resolveIgnoringProtocol(registry)
+	// Maybe they have a legacy config file, we will iterate the keys converting
+	// them to the new format and testing
+	normalizedHostename := convertToHostname(hostname)
+	for registry, config := range config.Configs {
+		if registryHostname := convertToHostname(registry); registryHostname == normalizedHostename {
+			return config
+		}
 	}
 
-	url := "https://" + registry
-	if !strings.Contains(registry, "/") {
-		url = url + "/v1/"
-	}
-	return resolveIgnoringProtocol(url)
+	// When all else fails, return an empty auth config
+	return AuthConfig{}
 }

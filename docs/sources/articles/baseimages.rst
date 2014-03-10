@@ -13,8 +13,8 @@ The specific process will depend heavily on the Linux distribution you
 want to package. We have some examples below, and you are encouraged
 to submit pull requests to contribute new ones.
 
-Getting Started
-...............
+Create a full image using tar
+.............................
 
 In general, you'll want to start with a working machine that is
 running the distribution you'd like to package as a base image, though
@@ -44,3 +44,22 @@ Docker GitHub Repo:
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-yum.sh>`_
 * `Debian / Ubuntu
   <https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debootstrap.sh>`_
+
+
+Creating a simple base image using ``scratch``
+..............................................
+
+There is a special repository in the Docker registry called ``scratch``, which 
+was created using an empty tar file::
+
+    $ tar cv --files-from /dev/null | docker import - scratch
+
+which you can ``docker pull``. You can then use that image to base your new 
+minimal containers ``FROM``::
+
+    FROM scratch
+    ADD true-asm /true
+    CMD ["/true"]
+
+The Dockerfile above is from extremely minimal image - 
+`tianon/true <https://github.com/tianon/dockerfiles/tree/master/true>`_.

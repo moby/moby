@@ -18,10 +18,11 @@ the docker daemon with the ``-r=false`` so that docker will not automatically
 restart your containers when the host is restarted.  
 
 When you have finished setting up your image and are happy with your
-running container, you may want to use a process manager to manage
+running container, you can then attach a process manager to manage
 it.  When your run ``docker start -a`` docker will automatically attach 
-to the process and forward all signals so that the process manager can 
-detect when a container stops and correctly restart it.  
+to the running container, or start it if needed and forward all signals 
+so that the process manager can detect when a container stops and correctly
+restart it.  
 
 Here are a few sample scripts for systemd and upstart to integrate with docker.
 
@@ -29,9 +30,10 @@ Here are a few sample scripts for systemd and upstart to integrate with docker.
 Sample Upstart Script
 ---------------------
 
-In this example we've already created a container to run Redis with an id of
-0a7e070b698b.  To create an upstart script for our container, we create a file
-named ``/etc/init/redis.conf`` and place the following into it:
+In this example we've already created a container to run Redis with 
+``--name redis_server``.  To create an upstart script for our container, 
+we create a file named ``/etc/init/redis.conf`` and place the following 
+into it:
 
 .. code-block:: bash
 
@@ -46,7 +48,7 @@ named ``/etc/init/redis.conf`` and place the following into it:
      while [ ! -e $FILE ] ; do
        inotifywait -t 2 -e create $(dirname $FILE)
      done
-     /usr/bin/docker start -a 0a7e070b698b
+     /usr/bin/docker start -a redis_server
    end script
 
 Next, we have to configure docker so that it's run with the option ``-r=false``.
@@ -69,8 +71,8 @@ Sample systemd Script
 
     [Service]
     Restart=always
-    ExecStart=/usr/bin/docker start -a 0a7e070b698b
-    ExecStop=/usr/bin/docker stop -t 2 0a7e070b698b
+    ExecStart=/usr/bin/docker start -a redis_server
+    ExecStop=/usr/bin/docker stop -t 2 redis_server
 
     [Install]
     WantedBy=local.target

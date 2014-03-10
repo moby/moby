@@ -29,42 +29,36 @@ bundle_ubuntu() {
 	cp contrib/udev/80-docker.rules $DIR/etc/udev/rules.d/
 
 	# Include our init scripts
-	mkdir -p $DIR/etc
-	cp -R contrib/init/upstart $DIR/etc/init
-	cp -R contrib/init/sysvinit $DIR/etc/init.d
-	mkdir -p $DIR/lib/systemd
-	cp -R contrib/init/systemd $DIR/lib/systemd/system
-
+	mkdir -p $DIR/etc/init
+	cp contrib/init/upstart/docker.conf $DIR/etc/init/
+	mkdir -p $DIR/etc/init.d
+	cp contrib/init/sysvinit-debian/docker $DIR/etc/init.d/
 	mkdir -p $DIR/etc/default
-	cat > $DIR/etc/default/docker <<'EOF'
-# Docker Upstart and SysVinit configuration file
-
-# Customize location of Docker binary (especially for development testing).
-#DOCKER="/usr/local/bin/docker"
-
-# Use DOCKER_OPTS to modify the daemon startup options.
-#DOCKER_OPTS="-dns 8.8.8.8"
-
-# If you need Docker to use an HTTP proxy, it can also be specified here.
-#export http_proxy=http://127.0.0.1:3128/
-EOF
+	cp contrib/init/sysvinit-debian/docker.default $DIR/etc/default/docker
+	mkdir -p $DIR/lib/systemd/system
+	cp contrib/init/systemd/docker.service $DIR/lib/systemd/system/
 
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
 	mkdir -p $DIR/usr/bin
-	# Copy the binary
-	# This will fail if the binary bundle hasn't been built
 	cp $DEST/../binary/docker-$VERSION $DIR/usr/bin/docker
 
 	# Generate postinst/prerm/postrm scripts
-	cat > /tmp/postinst <<'EOF'
+	cat > $DEST/postinst <<'EOF'
 #!/bin/sh
 set -e
 set -u
 
-getent group docker > /dev/null || groupadd --system docker || true
+if [ "$1" = 'configure' ] && [ -z "$2" ]; then
+	if ! getent group docker > /dev/null; then
+		groupadd --system docker
+	fi
+fi
 
-update-rc.d docker defaults > /dev/null || true
+if ! { [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; }; then
+	# we only need to do this if upstart isn't in charge
+	update-rc.d docker defaults > /dev/null || true
+fi
 if [ -n "$2" ]; then
 	_dh_action=restart
 else
@@ -74,7 +68,7 @@ service docker $_dh_action 2>/dev/null || true
 
 #DEBHELPER#
 EOF
-	cat > /tmp/prerm <<'EOF'
+	cat > $DEST/prerm <<'EOF'
 #!/bin/sh
 set -e
 set -u
@@ -83,7 +77,7 @@ service docker stop 2>/dev/null || true
 
 #DEBHELPER#
 EOF
-	cat > /tmp/postrm <<'EOF'
+	cat > $DEST/postrm <<'EOF'
 #!/bin/sh
 set -e
 set -u
@@ -101,50 +95,61 @@ fi
 #DEBHELPER#
 EOF
 	# TODO swaths of these were borrowed from debhelper's auto-inserted stuff, because we're still using fpm - we need to use debhelper instead, and somehow reconcile Ubuntu that way
-	chmod +x /tmp/postinst /tmp/prerm
+	chmod +x $DEST/postinst $DEST/prerm $DEST/postrm
 
 	(
+		# switch directories so we create *.deb in the right folder
 		cd $DEST
+
+		# create lxc-docker-VERSION package
 		fpm -s dir -C $DIR \
-		    --name lxc-docker-$VERSION --version $PKGVERSION \
-		    --after-install /tmp/postinst \
-		    --before-remove /tmp/prerm \
-		    --after-remove /tmp/postrm \
-		    --architecture "$PACKAGE_ARCHITECTURE" \
-		    --prefix / \
-		    --depends lxc \
-		    --depends aufs-tools \
-		    --depends iptables \
-		    --deb-recommends ca-certificates \
-		    --deb-recommends xz-utils \
-		    --description "$PACKAGE_DESCRIPTION" \
-		    --maintainer "$PACKAGE_MAINTAINER" \
-		    --conflicts docker \
-		    --conflicts docker.io \
-		    --conflicts lxc-docker-virtual-package \
-		    --provides lxc-docker \
-		    --provides lxc-docker-virtual-package \
-		    --replaces lxc-docker \
-		    --replaces lxc-docker-virtual-package \
-		    --url "$PACKAGE_URL" \
-		    --license "$PACKAGE_LICENSE" \
-		    --config-files /etc/udev/rules.d/80-docker.rules \
-		    --config-files /etc/init/docker.conf \
-		    --config-files /etc/init.d/docker \
-		    --config-files /etc/default/docker \
-		    --deb-compression gz \
-		    -t deb .
+			--name lxc-docker-$VERSION --version $PKGVERSION \
+			--after-install $DEST/postinst \
+			--before-remove $DEST/prerm \
+			--after-remove $DEST/postrm \
+			--architecture "$PACKAGE_ARCHITECTURE" \
+			--prefix / \
+			--depends iptables \
+			--deb-recommends aufs-tools \
+			--deb-recommends ca-certificates \
+			--deb-recommends git \
+			--deb-recommends xz-utils \
+			--deb-suggests cgroup-lite \
+			--description "$PACKAGE_DESCRIPTION" \
+			--maintainer "$PACKAGE_MAINTAINER" \
+			--conflicts docker \
+			--conflicts docker.io \
+			--conflicts lxc-docker-virtual-package \
+			--provides lxc-docker \
+			--provides lxc-docker-virtual-package \
+			--replaces lxc-docker \
+			--replaces lxc-docker-virtual-package \
+			--url "$PACKAGE_URL" \
+			--license "$PACKAGE_LICENSE" \
+			--config-files /etc/udev/rules.d/80-docker.rules \
+			--config-files /etc/init/docker.conf \
+			--config-files /etc/init.d/docker \
+			--config-files /etc/default/docker \
+			--deb-compression gz \
+			-t deb .
+		# TODO replace "Suggests: cgroup-lite" with "Recommends: cgroupfs-mount | cgroup-lite" once cgroupfs-mount is available
+
+		# create empty lxc-docker wrapper package
 		fpm -s empty \
-		    --name lxc-docker --version $PKGVERSION \
-		    --architecture "$PACKAGE_ARCHITECTURE" \
-		    --depends lxc-docker-$VERSION \
-		    --description "$PACKAGE_DESCRIPTION" \
-		    --maintainer "$PACKAGE_MAINTAINER" \
-		    --url "$PACKAGE_URL" \
-		    --license "$PACKAGE_LICENSE" \
-		    --deb-compression gz \
-		    -t deb
+			--name lxc-docker --version $PKGVERSION \
+			--architecture "$PACKAGE_ARCHITECTURE" \
+			--depends lxc-docker-$VERSION \
+			--description "$PACKAGE_DESCRIPTION" \
+			--maintainer "$PACKAGE_MAINTAINER" \
+			--url "$PACKAGE_URL" \
+			--license "$PACKAGE_LICENSE" \
+			--deb-compression gz \
+			-t deb
 	)
+
+	# clean up after ourselves so we have a clean output directory
+	rm $DEST/postinst $DEST/prerm $DEST/postrm
+	rm -r $DIR
 }
 
 bundle_ubuntu

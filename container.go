@@ -10,10 +10,8 @@ import (
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
 	"log"
@@ -24,6 +22,8 @@ import (
 	"syscall"
 	"time"
 )
+
+const defaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 var (
 	ErrNotATTY               = errors.New("The PTY is not a file")
@@ -55,13 +55,13 @@ type Container struct {
 	HostsPath      string
 	Name           string
 	Driver         string
+	ExecDriver     string
 
 	command   *execdriver.Command
 	stdout    *utils.WriteBroadcaster
 	stderr    *utils.WriteBroadcaster
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
-	ptyMaster io.Closer
 
 	runtime *Runtime
 
@@ -210,56 +210,6 @@ func (container *Container) generateEnvConfig(env []string) error {
 		return err
 	}
 	ioutil.WriteFile(p, data, 0600)
-	return nil
-}
-
-func (container *Container) setupPty() error {
-	ptyMaster, ptySlave, err := pty.Open()
-	if err != nil {
-		return err
-	}
-	container.ptyMaster = ptyMaster
-	container.command.Stdout = ptySlave
-	container.command.Stderr = ptySlave
-	container.command.Console = ptySlave.Name()
-
-	// Copy the PTYs to our broadcasters
-	go func() {
-		defer container.stdout.CloseWriters()
-		utils.Debugf("startPty: begin of stdout pipe")
-		io.Copy(container.stdout, ptyMaster)
-		utils.Debugf("startPty: end of stdout pipe")
-	}()
-
-	// stdin
-	if container.Config.OpenStdin {
-		container.command.Stdin = ptySlave
-		container.command.SysProcAttr.Setctty = true
-		go func() {
-			defer container.stdin.Close()
-			utils.Debugf("startPty: begin of stdin pipe")
-			io.Copy(ptyMaster, container.stdin)
-			utils.Debugf("startPty: end of stdin pipe")
-		}()
-	}
-	return nil
-}
-
-func (container *Container) setupStd() error {
-	container.command.Stdout = container.stdout
-	container.command.Stderr = container.stderr
-	if container.Config.OpenStdin {
-		stdin, err := container.command.StdinPipe()
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer stdin.Close()
-			utils.Debugf("start: begin of stdin pipe")
-			io.Copy(stdin, container.stdin)
-			utils.Debugf("start: end of stdin pipe")
-		}()
-	}
 	return nil
 }
 
@@ -500,7 +450,7 @@ func (container *Container) Start() (err error) {
 	// Setup environment
 	env := []string{
 		"HOME=/",
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PATH=" + defaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
 	}
 
@@ -558,10 +508,10 @@ func (container *Container) Start() (err error) {
 		}
 	}
 
-	for _, elem := range container.Config.Env {
-		env = append(env, elem)
-	}
-
+	// because the env on the container can override certain default values
+	// we need to replace the 'env' keys where they match and append anything
+	// else.
+	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
 	if err := container.generateEnvConfig(env); err != nil {
 		return err
 	}
@@ -583,6 +533,7 @@ func (container *Container) Start() (err error) {
 	}
 
 	populateCommand(container)
+	container.command.Env = env
 
 	// Setup logging of stdout and stderr to disk
 	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
@@ -592,17 +543,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	container.waitLock = make(chan struct{})
-
-	// Setuping pipes and/or Pty
-	var setup func() error
-	if container.Config.Tty {
-		setup = container.setupPty
-	} else {
-		setup = container.setupStd
-	}
-	if err := setup(); err != nil {
-		return err
-	}
 
 	callbackLock := make(chan struct{})
 	callback := func(command *execdriver.Command) {
@@ -838,16 +778,25 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		exitCode int
 	)
 
-	if container.command == nil {
-		// This happends when you have a GHOST container with lxc
-		populateCommand(container)
-		err = container.runtime.RestoreCommand(container)
-	} else {
-		exitCode, err = container.runtime.Run(container, callback)
-	}
-
+	pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
+	exitCode, err = container.runtime.Run(container, pipes, callback)
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
+	}
+
+	if container.runtime.srv.IsRunning() {
+		container.State.SetStopped(exitCode)
+
+		// FIXME: there is a race condition here which causes this to fail during the unit tests.
+		// If another goroutine was waiting for Wait() to return before removing the container's root
+		// from the filesystem... At this point it may already have done so.
+		// This is because State.setStopped() has already been called, and has caused Wait()
+		// to return.
+		// FIXME: why are we serializing running state to disk in the first place?
+		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+		if err := container.ToDisk(); err != nil {
+			utils.Errorf("Error dumping container state to disk: %s\n", err)
+		}
 	}
 
 	// Cleanup
@@ -858,22 +807,11 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
 
-	container.State.SetStopped(exitCode)
-
 	if container.runtime != nil && container.runtime.srv != nil {
 		container.runtime.srv.LogEvent("die", container.ID, container.runtime.repositories.ImageName(container.Image))
 	}
 
 	close(container.waitLock)
-
-	// FIXME: there is a race condition here which causes this to fail during the unit tests.
-	// If another goroutine was waiting for Wait() to return before removing the container's root
-	// from the filesystem... At this point it may already have done so.
-	// This is because State.setStopped() has already been called, and has caused Wait()
-	// to return.
-	// FIXME: why are we serializing running state to disk in the first place?
-	//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
-	container.ToDisk()
 
 	return err
 }
@@ -887,7 +825,6 @@ func (container *Container) cleanup() {
 			link.Disable()
 		}
 	}
-
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
 			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
@@ -899,10 +836,9 @@ func (container *Container) cleanup() {
 	if err := container.stderr.CloseWriters(); err != nil {
 		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
-
-	if container.ptyMaster != nil {
-		if err := container.ptyMaster.Close(); err != nil {
-			utils.Errorf("%s: Error closing Pty master: %s", container.ID, err)
+	if container.command != nil && container.command.Terminal != nil {
+		if err := container.command.Terminal.Close(); err != nil {
+			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
@@ -994,11 +930,7 @@ func (container *Container) Wait() int {
 }
 
 func (container *Container) Resize(h, w int) error {
-	pty, ok := container.ptyMaster.(*os.File)
-	if !ok {
-		return fmt.Errorf("ptyMaster does not have Fd() method")
-	}
-	return term.SetWinsize(pty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return container.command.Terminal.Resize(h, w)
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
@@ -1202,11 +1134,9 @@ func (container *Container) Exposes(p nat.Port) bool {
 }
 
 func (container *Container) GetPtyMaster() (*os.File, error) {
-	if container.ptyMaster == nil {
+	ttyConsole, ok := container.command.Terminal.(execdriver.TtyTerminal)
+	if !ok {
 		return nil, ErrNoTTY
 	}
-	if pty, ok := container.ptyMaster.(*os.File); ok {
-		return pty, nil
-	}
-	return nil, ErrNotATTY
+	return ttyConsole.Master(), nil
 }

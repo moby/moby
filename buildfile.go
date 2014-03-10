@@ -110,13 +110,21 @@ func (b *buildFile) CmdFrom(name string) error {
 		b.config = image.Config
 	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+defaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
 		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
 	}
 	for n, step := range b.config.OnBuild {
+		splitStep := strings.Split(step, " ")
+		stepInstruction := strings.ToUpper(strings.Trim(splitStep[0], " "))
+		switch stepInstruction {
+		case "ONBUILD":
+			return fmt.Errorf("Source image contains forbidden chained `ONBUILD ONBUILD` trigger: %s", step)
+		case "MAINTAINER", "FROM":
+			return fmt.Errorf("Source image contains forbidden %s trigger: %s", stepInstruction, step)
+		}
 		if err := b.BuildStep(fmt.Sprintf("onbuild-%d", n), step); err != nil {
 			return err
 		}
@@ -128,6 +136,14 @@ func (b *buildFile) CmdFrom(name string) error {
 // The ONBUILD command declares a build instruction to be executed in any future build
 // using the current image as a base.
 func (b *buildFile) CmdOnbuild(trigger string) error {
+	splitTrigger := strings.Split(trigger, " ")
+	triggerInstruction := strings.ToUpper(strings.Trim(splitTrigger[0], " "))
+	switch triggerInstruction {
+	case "ONBUILD":
+		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+	case "MAINTAINER", "FROM":
+		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
+	}
 	b.config.OnBuild = append(b.config.OnBuild, trigger)
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }

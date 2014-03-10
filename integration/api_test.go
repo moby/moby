@@ -3,7 +3,6 @@ package docker
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go/src/pkg/archive/tar"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"
@@ -12,7 +11,9 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1175,6 +1176,8 @@ func TestGetEnabledCors(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	eng := NewTestEngine(t)
+	//we expect errors, so we disable stderr
+	eng.Stderr = ioutil.Discard
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	initialImages := getImages(eng, t, true, "")

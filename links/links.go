@@ -72,7 +72,7 @@ func (l *Link) ToEnv() []string {
 			if len(parts) != 2 {
 				continue
 			}
-			// Ignore a few variables that are added during docker build
+			// Ignore a few variables that are added during docker build (and not really relevant to linked containers)
 			if parts[0] == "HOME" || parts[0] == "PATH" {
 				continue
 			}

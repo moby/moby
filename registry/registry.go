@@ -2,6 +2,7 @@ package registry
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -91,7 +92,7 @@ func validateRepositoryName(repositoryName string) error {
 	return nil
 }
 
-// Resolves a repository name to a endpoint + name
+// Resolves a repository name to a hostname + name
 func ResolveRepositoryName(reposName string) (string, string, error) {
 	if strings.Contains(reposName, "://") {
 		// It cannot contain a scheme!
@@ -117,11 +118,8 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	if err := validateRepositoryName(reposName); err != nil {
 		return "", "", err
 	}
-	endpoint, err := ExpandAndVerifyRegistryUrl(hostname)
-	if err != nil {
-		return "", "", err
-	}
-	return endpoint, reposName, err
+
+	return hostname, reposName, nil
 }
 
 // this method expands the registry name as used in the prefix of a repo
@@ -388,6 +386,7 @@ func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, 
 	}
 	setTokenAuth(req, token)
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
+	req.Header.Set("X-Docker-Checksum-Payload", imgData.ChecksumPayload)
 
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
@@ -446,26 +445,28 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	return nil
 }
 
-func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string, jsonRaw []byte) (checksum string, err error) {
+func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string, jsonRaw []byte) (checksum string, checksumPayload string, err error) {
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
-	tarsumLayer := &utils.TarSum{Reader: layer}
+	h := sha256.New()
+	checksumLayer := &utils.CheckSum{Reader: layer, Hash: h}
+	tarsumLayer := &utils.TarSum{Reader: checksumLayer}
 
 	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
 	setTokenAuth(req, token)
 	res, err := doWithCookies(r.client, req)
 	if err != nil {
-		return "", fmt.Errorf("Failed to upload layer: %s", err)
+		return "", "", fmt.Errorf("Failed to upload layer: %s", err)
 	}
 	if rc, ok := layer.(io.Closer); ok {
 		if err := rc.Close(); err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 	defer res.Body.Close()
@@ -473,11 +474,13 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return "", utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
+			return "", "", utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
-		return "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
+		return "", "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
 	}
-	return tarsumLayer.Sum(jsonRaw), nil
+
+	checksumPayload = "sha256:" + checksumLayer.Sum()
+	return tarsumLayer.Sum(jsonRaw), checksumPayload, nil
 }
 
 // push a tag on the registry.
@@ -671,9 +674,10 @@ type RepositoryData struct {
 }
 
 type ImgData struct {
-	ID       string `json:"id"`
-	Checksum string `json:"checksum,omitempty"`
-	Tag      string `json:",omitempty"`
+	ID              string `json:"id"`
+	Checksum        string `json:"checksum,omitempty"`
+	ChecksumPayload string `json:"-"`
+	Tag             string `json:",omitempty"`
 }
 
 type Registry struct {

@@ -173,9 +173,13 @@ git push origin $VERSION
 It's very important that we don't make the tag until after the official
 release is uploaded to get.docker.io!
 
-### 10. Go to github to merge the `bump_$VERSION` into release
+### 10. Go to github to merge the `bump_$VERSION` branch into release
 
-Merging the pull request to the release branch will automatically
+Don't delete the leftover branch just yet, as we will need it for the next step.
+
+### 11. Go to github to merge the `bump_$VERSION` branch into docs
+
+Merging the pull request to the docs branch will automatically
 update the documentation on the "latest" revision of the docs. You
 should see the updated docs 5-10 minutes after the merge. The docs
 will appear on http://docs.docker.io/. For more information about
@@ -184,7 +188,7 @@ documentation releases, see `docs/README.md`.
 Don't forget to push that pretty blue button to delete the leftover
 branch afterwards!
 
-### 11. Create a new pull request to merge release back into master
+### 12. Create a new pull request to merge release back into master
 
 ```bash
 git checkout master
@@ -202,7 +206,7 @@ echo "https://github.com/dotcloud/docker/compare/master...merge_release_$VERSION
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 12. Rejoice and Evangelize!
+### 13. Rejoice and Evangelize!
 
 Congratulations! You're done.
 

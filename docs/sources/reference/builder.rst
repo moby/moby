@@ -74,7 +74,7 @@ When you're done with your build, you're ready to look into
 2. Format
 =========
 
-The Dockerfile format is quite simple:
+Here is the format of the Dockerfile:
 
 ::
 
@@ -466,6 +466,8 @@ For example you might add something like this:
     ONBUILD RUN /usr/local/bin/python-build --dir /app/src
     [...]
 
+.. warning:: Chaining ONBUILD instructions using `ONBUILD ONBUILD` isn't allowed.
+.. warning:: ONBUILD may not trigger FROM or MAINTAINER instructions.
 
 .. _dockerfile_examples:
 
