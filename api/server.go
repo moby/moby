@@ -147,9 +147,15 @@ func postJobsKill(eng *engine.Engine, version version.Version, w http.ResponseWr
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.GetJob(vars["name"])
-	if err := job.Kill(); err != nil {
+	if err := parseForm(r); err != nil {
 		return err
+	}
+	if sig := r.Form.Get("signal"); sig == "2" || sig == "3" {
+		if job := eng.GetJob(vars["name"]); job != nil {
+			if err := job.Kill(); err != nil {
+				return err
+			}
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil

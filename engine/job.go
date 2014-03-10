@@ -50,6 +50,10 @@ func (job *Job) Kill() error {
 	return nil
 }
 
+func (job *Job) Status() Status {
+	return job.status
+}
+
 // Run executes the job and blocks until the job completes.
 // If the job returns a failure status, an error is returned
 // which includes the status.

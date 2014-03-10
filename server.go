@@ -1065,7 +1065,7 @@ func (srv *Server) ImageTag(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
+func (srv *Server) pullImage(job *engine.Job, r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
 	history, err := r.GetRemoteHistory(imgID, endpoint, token)
 	if err != nil {
 		return err
@@ -1076,6 +1076,10 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 
 	for i := len(history) - 1; i >= 0; i-- {
 		id := history[i]
+
+		if job.Status() == engine.StatusKilled {
+			return fmt.Errorf("Killed")
+		}
 
 		// ensure no two downloads of the same layer happen at the same time
 		if c, err := srv.poolAdd("pull", "layer:"+id); err != nil {
@@ -1117,7 +1121,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 	return nil
 }
 
-func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
+func (srv *Server) pullRepository(job *engine.Job, r *registry.Registry, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
 	out.Write(sf.FormatStatus("", "Pulling repository %s", localName))
 
 	repoData, err := r.GetRepositoryData(remoteName)
@@ -1195,7 +1199,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			var lastErr error
 			for _, ep := range repoData.Endpoints {
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
-				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
+				if err := srv.pullImage(job, r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 					// Its not ideal that only the last error  is returned, it would be better to concatenate the errors.
 					// As the error is also given to the output stream the user will see the error.
 					lastErr = err
@@ -1208,7 +1212,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			if !success {
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, %s", img.Tag, localName, lastErr), nil))
 				if parallel {
-					errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
+					errors <- fmt.Errorf("Error pulling the image")
 					return
 				}
 			}
@@ -1346,7 +1350,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName = remoteName
 	}
 
-	if err = srv.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
+	if err = srv.pullRepository(job, r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
 		return job.Error(err)
 	}
 
@@ -1395,7 +1399,7 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[stri
 	return imageList, tagsByImage, nil
 }
 
-func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushRepository(job *engine.Job, r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	utils.Debugf("Local repo: %s", localRepo)
 	imgList, tagsByImage, err := srv.getImageList(localRepo)
@@ -1448,7 +1452,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
 				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 			} else {
-				if _, err := srv.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
+				if _, err := srv.pushImage(job, r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
 					// FIXME: Continue on error?
 					return err
 				}
@@ -1471,7 +1475,7 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
+func (srv *Server) pushImage(job *engine.Job, r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(srv.runtime.Graph().Root, imgID, "json"))
 	if err != nil {
@@ -1555,7 +1559,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.Repositories().Repositories[localName]; exists {
-			if err := srv.pushRepository(r, job.Stdout, localName, remoteName, localRepo, sf); err != nil {
+			if err := srv.pushRepository(job, r, job.Stdout, localName, remoteName, localRepo, sf); err != nil {
 				return job.Error(err)
 			}
 			return engine.StatusOK
@@ -1565,7 +1569,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 
 	var token []string
 	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := srv.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
+	if _, err := srv.pushImage(job, r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
