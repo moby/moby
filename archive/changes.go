@@ -293,10 +293,17 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 
 // Compare two directories and generate an array of Change objects describing the changes
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
-	oldRoot, err := collectFileInfo(oldDir)
-	if err != nil {
-		return nil, err
+	var oldRoot *FileInfo
+	var err error
+	if oldDir != "" {
+		oldRoot, err = collectFileInfo(oldDir)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		oldRoot = newRootFileInfo()
 	}
+
 	newRoot, err := collectFileInfo(newDir)
 	if err != nil {
 		return nil, err

@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
+	_ "github.com/dotcloud/docker/graphdriver/overlayfs"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
 	_ "github.com/dotcloud/docker/networkdriver/lxc"
 	"github.com/dotcloud/docker/networkdriver/portallocator"
