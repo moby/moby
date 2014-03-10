@@ -26,3 +26,4 @@ to more substantial services like those which you might find in production.
    using_supervisord
    cfengine_process_management
    python_web_app
+   https
