@@ -14,13 +14,15 @@
 #  VMs, bare metal, OpenStack clusters, public clouds and more.
 ### END INIT INFO
 
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
 BASE=$(basename $0)
 
+# modify these in /etc/default/$BASE (/etc/default/docker)
 DOCKER=/usr/bin/$BASE
 DOCKER_PIDFILE=/var/run/$BASE.pid
 DOCKER_OPTS=
-
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+DOCKER_DESC="Docker"
 
 # Get lsb functions
 . /lib/lsb/init-functions
@@ -30,8 +32,8 @@ if [ -f /etc/default/$BASE ]; then
 fi
 
 # see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it)
-if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | /bin/grep -q upstart; then
-	log_failure_msg "Docker is managed via upstart, try using service $BASE $1"
+if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
+	log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
 	exit 1
 fi
 
@@ -43,7 +45,7 @@ fi
 
 fail_unless_root() {
 	if [ "$(id -u)" != '0' ]; then
-		log_failure_msg "Docker must be run as root"
+		log_failure_msg "$DOCKER_DESC must be run as root"
 		exit 1
 	fi
 }
@@ -51,21 +53,37 @@ fail_unless_root() {
 case "$1" in
 	start)
 		fail_unless_root
-		log_begin_msg "Starting Docker: $BASE"
-		mount | grep cgroup >/dev/null || mount -t cgroup none /sys/fs/cgroup 2>/dev/null
+
+		if ! grep -q cgroup /proc/mounts; then
+			# rough approximation of cgroupfs-mount
+			mount -t tmpfs -o uid=0,gid=0,mode=0755 cgroup /sys/fs/cgroup
+			for sys in $(cut -d'	' -f1 /proc/cgroups); do
+				mkdir -p /sys/fs/cgroup/$sys
+				if ! mount -n -t cgroup -o $sys cgroup /sys/fs/cgroup/$sys 2>/dev/null; then
+					rmdir /sys/fs/cgroup/$sys 2>/dev/null || true
+				fi
+			done
+		fi
+
+		touch /var/log/docker.log
+		chgrp docker /var/log/docker.log
+
+		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
+			--no-close \
 			--exec "$DOCKER" \
 			--pidfile "$DOCKER_PIDFILE" \
-			-- -d -p "$DOCKER_PIDFILE" \
-			$DOCKER_OPTS
+			-- \
+				-d -p "$DOCKER_PIDFILE" \
+				$DOCKER_OPTS \
+					> /var/log/docker.log 2>&1
 		log_end_msg $?
 		;;
 
 	stop)
 		fail_unless_root
-		log_begin_msg "Stopping Docker: $BASE"
-		start-stop-daemon --stop \
-			--pidfile "$DOCKER_PIDFILE"
+		log_begin_msg "Stopping $DOCKER_DESC: $BASE"
+		start-stop-daemon --stop --pidfile "$DOCKER_PIDFILE"
 		log_end_msg $?
 		;;
 
