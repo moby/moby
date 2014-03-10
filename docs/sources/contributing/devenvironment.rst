@@ -92,14 +92,6 @@ To execute the test cases, run this command:
 
 	sudo make test
 
-
-Note: if you're running the tests in vagrant, you need to specify a dns entry in 
-the command (either edit the Makefile, or run the step manually): 
-
-.. code-block:: bash
-
-	sudo docker run -dns 8.8.8.8 -privileged -v `pwd`:/go/src/github.com/dotcloud/docker docker hack/make.sh test
-
 If the test are successful then the tail of the output should look something like this
 
 .. code-block:: bash
@@ -130,7 +122,10 @@ If the test are successful then the tail of the output should look something lik
 	PASS
 	ok  	github.com/dotcloud/docker/utils	0.017s
 
+If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
+You can use this to select certain tests to run, eg.
 
+    TESTFLAGS='-run ^TestBuild$' make test
 
 
 Step 6: Use Docker

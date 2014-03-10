@@ -2,5 +2,12 @@
 
 DEST=$1
 
-go build -o $DEST/docker-$VERSION -ldflags "$LDFLAGS $LDFLAGS_STATIC" $BUILDFLAGS ./docker
+go build \
+	-o $DEST/docker-$VERSION \
+	"${BUILDFLAGS[@]}" \
+	-ldflags "
+		$LDFLAGS
+		$LDFLAGS_STATIC_DOCKER
+	" \
+	./docker
 echo "Created binary: $DEST/docker-$VERSION"

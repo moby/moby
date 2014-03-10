@@ -1,5 +1,5 @@
 :title: Running an SSH service
-:description: A screencast of installing and running an sshd service
+:description: Installing and running an sshd service
 :keywords: docker, example, package installation, networking
 
 .. _running_ssh_service:
@@ -9,101 +9,41 @@ SSH Daemon Service
 
 .. include:: example_header.inc
 
+The following Dockerfile sets up an sshd service in a container that you can use
+to connect to and inspect other container's volumes, or to get quick access to a
+test container.
 
-**Video:**
+.. literalinclude:: running_ssh_service.Dockerfile
 
-I've created a little screencast to show how to create an SSHd service
-and connect to it. It is something like 11 minutes and not entirely
-smooth, but it gives you a good idea.
-
-.. note::
-   This screencast was created before Docker version 0.5.2, so the
-   daemon is unprotected and available via a TCP port. When you run
-   through the same steps in a newer version of Docker, you will
-   need to add ``sudo`` in front of each ``docker`` command in order
-   to reach the daemon over its protected Unix socket.
-
-.. raw:: html
-
-   <iframe width="815" height="450" frameborder="0"
-           sandbox="allow-same-origin allow-scripts" 
-   srcdoc="<body><script type=&quot;text/javascript&quot; 
-           src=&quot;https://asciinema.org/a/2637.js&quot; 
-           id=&quot;asciicast-2637&quot; async></script></body>">
-   </iframe>
-        
-You can also get this sshd container by using:
+Build the image using:
 
 .. code-block:: bash
 
-    sudo docker pull dhrp/sshd
+    $ sudo docker build -rm -t eg_sshd .
 
-
-The password is ``screencast``.
-
-**Video's Transcription:**
+Then run it. You can then use ``docker port`` to find out what host port the container's
+port 22 is mapped to:
 
 .. code-block:: bash
 
-         # Hello! We are going to try and install openssh on a container and run it as a service
-         # let's pull ubuntu to get a base ubuntu image. 
-         $ docker pull ubuntu
-         # I had it so it was quick
-         # now let's connect using -i for interactive and with -t for terminal 
-         # we execute /bin/bash to get a prompt.
-         $ docker run -i -t ubuntu /bin/bash
-         # yes! we are in!
-         # now lets install openssh
-         $ apt-get update
-         $ apt-get install openssh-server
-         # ok. lets see if we can run it.
-         $ which sshd
-         # we need to create privilege separation directory
-         $ mkdir /var/run/sshd
-         $ /usr/sbin/sshd
-         $ exit
-         # now let's commit it 
-         # which container was it?
-         $ docker ps -a |more
-         $ docker commit a30a3a2f2b130749995f5902f079dc6ad31ea0621fac595128ec59c6da07feea dhrp/sshd 
-         # I gave the name dhrp/sshd for the container
-         # now we can run it again 
-         $ docker run -d dhrp/sshd /usr/sbin/sshd -D # D for daemon mode 
-         # is it running?
-         $ docker ps
-         # yes!
-         # let's stop it 
-         $ docker stop 0ebf7cec294755399d063f4b1627980d4cbff7d999f0bc82b59c300f8536a562
-         $ docker ps
-         # and reconnect, but now open a port to it
-         $ docker run -d -p 22 dhrp/sshd /usr/sbin/sshd -D 
-         $ docker port b2b407cf22cf8e7fa3736fa8852713571074536b1d31def3fdfcd9fa4fd8c8c5 22
-         # it has now given us a port to connect to
-         # we have to connect using a public ip of our host
-         $ hostname
-         # *ifconfig* is deprecated, better use *ip addr show* now
-         $ ifconfig
-         $ ssh root@192.168.33.10 -p 49153
-         # Ah! forgot to set root passwd
-         $ docker commit b2b407cf22cf8e7fa3736fa8852713571074536b1d31def3fdfcd9fa4fd8c8c5 dhrp/sshd 
-         $ docker ps -a
-         $ docker run -i -t dhrp/sshd /bin/bash
-         $ passwd
-         $ exit
-         $ docker commit 9e863f0ca0af31c8b951048ba87641d67c382d08d655c2e4879c51410e0fedc1 dhrp/sshd
-         $ docker run -d -p 22 dhrp/sshd /usr/sbin/sshd -D
-         $ docker port a0aaa9558c90cf5c7782648df904a82365ebacce523e4acc085ac1213bfe2206 22
-         # *ifconfig* is deprecated, better use *ip addr show* now
-         $ ifconfig
-         $ ssh root@192.168.33.10 -p 49154
-         # Thanks for watching, Thatcher thatcher@dotcloud.com
-         
-Update:
--------
+    $ sudo docker run -d -P -name test_sshd eg_sshd
+    $ sudo docker port test_sshd 22
+    0.0.0.0:49154
 
-For Ubuntu 13.10 using stackbrew/ubuntu, you may need do these additional steps:
+And now you can ssh to port ``49154`` on the Docker daemon's host IP address 
+(``ip address`` or ``ifconfig`` can tell you that):
 
-1. change /etc/pam.d/sshd, pam_loginuid line 'required' to 'optional'
-2. echo LANG=\"en_US.UTF-8\" > /etc/default/locale
+.. code-block:: bash
 
+    $ ssh root@192.168.1.2 -p 49154
+    # The password is ``screencast``.
+    $$
 
+Finally, clean up after your test by stopping and removing the container, and
+then removing the image.
+
+.. code-block:: bash
+
+    $ sudo docker stop test_sshd
+    $ sudo docker rm test_sshd
+    $ sudo docker rmi eg_sshd

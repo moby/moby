@@ -2,12 +2,13 @@ package archive
 
 import (
 	"bytes"
-	"code.google.com/p/go/src/pkg/archive/tar"
 	"compress/bzip2"
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -165,6 +166,13 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 			hdr.Devmajor = int64(major(uint64(stat.Rdev)))
 			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 		}
+
+	}
+
+	capability, _ := system.Lgetxattr(path, "security.capability")
+	if capability != nil {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs["security.capability"] = string(capability)
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
@@ -251,6 +259,12 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 		return err
 	}
 
+	for key, value := range hdr.Xattrs {
+		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
+			return err
+		}
+	}
+
 	// There is no LChmod, so ignore mode for symlink. Also, this
 	// must happen after chown, as that can modify the file mode
 	if hdr.Typeflag != tar.TypeSymlink {
@@ -262,11 +276,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
 	if hdr.Typeflag != tar.TypeSymlink {
-		if err := UtimesNano(path, ts); err != nil {
+		if err := system.UtimesNano(path, ts); err != nil {
 			return err
 		}
 	} else {
-		if err := LUtimesNano(path, ts); err != nil {
+		if err := system.LUtimesNano(path, ts); err != nil {
 			return err
 		}
 	}

@@ -2,7 +2,7 @@
 :description: API Documentation for Docker
 :keywords: API, Docker, rcli, REST, documentation
 
-.. COMMENT use http://pythonhosted.org/sphinxcontrib-httpdomain/ to
+.. COMMENT use https://pythonhosted.org/sphinxcontrib-httpdomain/ to
 .. document the REST API.
 
 =================
@@ -26,14 +26,35 @@ Docker Remote API
 2. Versions
 ===========
 
-The current version of the API is 1.9
+The current version of the API is 1.10
 
 Calling /images/<name>/insert is the same as calling
-/v1.9/images/<name>/insert
+/v1.10/images/<name>/insert
 
 You can still call an old version of the api using
 /v1.0/images/<name>/insert
 
+
+v1.10
+*****
+
+Full Documentation
+------------------
+
+:doc:`docker_remote_api_v1.10`
+
+What's new
+----------
+
+.. http:delete:: /images/(name)
+
+   **New!** You can now use the force parameter to force delete of an image, even if it's
+   tagged in multiple repositories.
+
+.. http:delete:: /containers/(id)
+
+  **New!** You can now use the force paramter to force delete a container, even if
+  it is currently running
 
 v1.9
 ****

@@ -1,0 +1,50 @@
+{
+    "hostname": "koye",
+    "tty": true,
+    "environment": [
+        "HOME=/",
+        "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
+        "container=docker",
+        "TERM=xterm-256color"
+    ],
+    "namespaces": [
+        "NEWIPC",
+        "NEWNS",
+        "NEWPID",
+        "NEWUTS",
+        "NEWNET"
+    ],
+    "capabilities": [
+        "SETPCAP",
+        "SYS_MODULE",
+        "SYS_RAWIO",
+        "SYS_PACCT",
+        "SYS_ADMIN",
+        "SYS_NICE",
+        "SYS_RESOURCE",
+        "SYS_TIME",
+        "SYS_TTY_CONFIG",
+        "MKNOD",
+        "AUDIT_WRITE",
+        "AUDIT_CONTROL",
+        "MAC_OVERRIDE",
+        "MAC_ADMIN",
+        "NET_ADMIN"
+    ],
+    "networks": [{
+            "type": "veth",
+            "context": {
+                "bridge": "docker0",
+                "prefix": "dock"
+            },
+            "address": "172.17.0.100/16",
+            "gateway": "172.17.42.1",
+            "mtu": 1500
+        }
+    ],
+    "cgroups": {
+        "name": "docker-koye",
+        "parent": "docker",
+        "memory": 5248000
+    }
+}

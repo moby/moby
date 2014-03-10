@@ -74,7 +74,7 @@ func (job *Job) Run() error {
 		return err
 	}
 	if job.status != 0 {
-		return fmt.Errorf("%s: %s", job.Name, errorMessage)
+		return fmt.Errorf("%s", errorMessage)
 	}
 	return nil
 }
@@ -100,6 +100,10 @@ func (job *Job) StatusString() string {
 // String returns a human-readable description of `job`
 func (job *Job) String() string {
 	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
+}
+
+func (job *Job) Env() *Env {
+	return job.env
 }
 
 func (job *Job) EnvExists(key string) (value bool) {
@@ -197,11 +201,14 @@ func (job *Job) Printf(format string, args ...interface{}) (n int, err error) {
 }
 
 func (job *Job) Errorf(format string, args ...interface{}) Status {
+	if format[len(format)-1] != '\n' {
+		format = format + "\n"
+	}
 	fmt.Fprintf(job.Stderr, format, args...)
 	return StatusErr
 }
 
 func (job *Job) Error(err error) Status {
-	fmt.Fprintf(job.Stderr, "%s", err)
+	fmt.Fprintf(job.Stderr, "%s\n", err)
 	return StatusErr
 }

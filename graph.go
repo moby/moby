@@ -257,6 +257,7 @@ func setupInitLayer(initLayer string) error {
 		"/etc/resolv.conf": "file",
 		"/etc/hosts":       "file",
 		"/etc/hostname":    "file",
+		"/dev/console":     "file",
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {

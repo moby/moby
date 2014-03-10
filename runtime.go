@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/execdriver/native"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
@@ -153,12 +154,39 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		info := runtime.execDriver.Info(container.ID)
+		if container.State.IsGhost() {
+			utils.Debugf("killing ghost %s", container.ID)
 
+			existingPid := container.State.Pid
+			container.State.SetGhost(false)
+			container.State.SetStopped(0)
+
+			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
+				lxc.KillLxc(container.ID, 9)
+			} else {
+				command := &execdriver.Command{
+					ID: container.ID,
+				}
+				command.Process = &os.Process{Pid: existingPid}
+				runtime.execDriver.Kill(command, 9)
+			}
+			// ensure that the filesystem is also unmounted
+			unmountVolumesForContainer(container)
+			if err := container.Unmount(); err != nil {
+				utils.Debugf("ghost unmount error %s", err)
+			}
+		}
+
+		info := runtime.execDriver.Info(container.ID)
 		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
+				unmountVolumesForContainer(container)
+				if err := container.Unmount(); err != nil {
+					utils.Debugf("restart unmount error %s", err)
+				}
+
 				container.State.SetGhost(false)
 				container.State.SetStopped(0)
 				if err := container.Start(); err != nil {
@@ -171,15 +199,6 @@ func (runtime *Runtime) Register(container *Container) error {
 					return err
 				}
 			}
-		} else {
-			utils.Debugf("Reconnecting to container %v", container.ID)
-
-			if err := container.allocateNetwork(); err != nil {
-				return err
-			}
-
-			container.waitLock = make(chan struct{})
-			go container.monitor(nil)
 		}
 	} else {
 		// When the container is not running, we still initialize the waitLock
@@ -362,7 +381,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 
 	warnings := []string{}
 	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
-		warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
+		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
 	}
 
 	if img.Config != nil {
@@ -395,7 +414,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
-		if !strings.HasSuffix(err.Error(), "name are not unique") {
+		if !graphdb.IsNonUniqueNameError(err) {
 			return nil, nil, err
 		}
 
@@ -446,6 +465,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 		NetworkSettings: &NetworkSettings{},
 		Name:            name,
 		Driver:          runtime.driver.String(),
+		ExecDriver:      runtime.execDriver.Name(),
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
@@ -701,9 +721,22 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		sysInitPath = localCopy
 	}
 
-	sysInfo := sysinfo.New(false)
+	var (
+		ed      execdriver.Driver
+		sysInfo = sysinfo.New(false)
+	)
 
-	ed, err := lxc.NewDriver(config.Root, sysInfo.AppArmor)
+	switch config.ExecDriver {
+	case "lxc":
+		// we want to five the lxc driver the full docker root because it needs
+		// to access and write config and template files in /var/lib/docker/containers/*
+		// to be backwards compatible
+		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
+	case "native":
+		ed, err = native.NewDriver(path.Join(config.Root, "execdriver", "native"))
+	default:
+		return nil, fmt.Errorf("unknown exec driver %s", config.ExecDriver)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -812,16 +845,12 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 	}), nil
 }
 
-func (runtime *Runtime) Run(c *Container, startCallback execdriver.StartCallback) (int, error) {
-	return runtime.execDriver.Run(c.command, startCallback)
+func (runtime *Runtime) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return runtime.execDriver.Run(c.command, pipes, startCallback)
 }
 
 func (runtime *Runtime) Kill(c *Container, sig int) error {
 	return runtime.execDriver.Kill(c.command, sig)
-}
-
-func (runtime *Runtime) RestoreCommand(c *Container) error {
-	return runtime.execDriver.Restore(c.command)
 }
 
 // Nuke kills all containers then removes all content

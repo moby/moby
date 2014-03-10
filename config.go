@@ -25,6 +25,7 @@ type DaemonConfig struct {
 	BridgeIP                    string
 	InterContainerCommunication bool
 	GraphDriver                 string
+	ExecDriver                  string
 	Mtu                         int
 	DisableNetwork              bool
 }
@@ -43,6 +44,7 @@ func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
 		DefaultIp:                   net.ParseIP(job.Getenv("DefaultIp")),
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
+		ExecDriver:                  job.Getenv("ExecDriver"),
 	}
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns

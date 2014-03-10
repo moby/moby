@@ -12,6 +12,7 @@ const LxcTemplate = `
 lxc.network.type = veth
 lxc.network.link = {{.Network.Bridge}}
 lxc.network.name = eth0
+lxc.network.mtu = {{.Network.Mtu}}
 {{else}}
 # network is disabled (-n=false)
 lxc.network.type = empty

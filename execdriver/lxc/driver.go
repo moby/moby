@@ -76,7 +76,10 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
-func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	if err := execdriver.SetTerminal(c, pipes); err != nil {
+		return -1, err
+	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
 		return -1, err
@@ -163,9 +166,11 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 	}()
 
 	// Poll lxc for RUNNING status
-	if err := d.waitForStart(c, waitLock); err != nil {
+	pid, err := d.waitForStart(c, waitLock)
+	if err != nil {
 		return -1, err
 	}
+	c.ContainerPid = pid
 
 	if startCallback != nil {
 		startCallback(c)
@@ -186,43 +191,39 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
-	return d.kill(c, sig)
-}
-
-func (d *driver) Restore(c *execdriver.Command) error {
-	for {
-		output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(output), "RUNNING") {
-			return nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	return KillLxc(c.ID, sig)
 }
 
 func (d *driver) version() string {
-	version := ""
-	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
-		outputStr := string(output)
-		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
-			version = strings.TrimSpace(strings.SplitN(outputStr, ":", 2)[1])
+	var (
+		version string
+		output  []byte
+		err     error
+	)
+	if _, errPath := exec.LookPath("lxc-version"); errPath == nil {
+		output, err = exec.Command("lxc-version").CombinedOutput()
+	} else {
+		output, err = exec.Command("lxc-start", "--version").CombinedOutput()
+	}
+	if err == nil {
+		version = strings.TrimSpace(string(output))
+		if parts := strings.SplitN(version, ":", 2); len(parts) == 2 {
+			version = strings.TrimSpace(parts[1])
 		}
 	}
 	return version
 }
 
-func (d *driver) kill(c *execdriver.Command, sig int) error {
+func KillLxc(id string, sig int) error {
 	var (
 		err    error
 		output []byte
 	)
 	_, err = exec.LookPath("lxc-kill")
 	if err == nil {
-		output, err = exec.Command("lxc-kill", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+		output, err = exec.Command("lxc-kill", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	} else {
-		output, err = exec.Command("lxc-stop", "-k", "-n", c.ID, strconv.Itoa(sig)).CombinedOutput()
+		output, err = exec.Command("lxc-stop", "-k", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	}
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)
@@ -230,7 +231,8 @@ func (d *driver) kill(c *execdriver.Command, sig int) error {
 	return nil
 }
 
-func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) error {
+// wait for the process to start and return the pid for the process
+func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (int, error) {
 	var (
 		err    error
 		output []byte
@@ -243,10 +245,7 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) err
 		select {
 		case <-waitLock:
 			// If the process dies while waiting for it, just return
-			return nil
-			if c.ProcessState != nil && c.ProcessState.Exited() {
-				return nil
-			}
+			return -1, nil
 		default:
 		}
 
@@ -254,19 +253,23 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) err
 		if err != nil {
 			output, err = d.getInfo(c.ID)
 			if err != nil {
-				return err
+				return -1, err
 			}
 		}
-		if strings.Contains(string(output), "RUNNING") {
-			return nil
+		info, err := parseLxcInfo(string(output))
+		if err != nil {
+			return -1, err
+		}
+		if info.Running {
+			return info.Pid, nil
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	return execdriver.ErrNotRunning
+	return -1, execdriver.ErrNotRunning
 }
 
 func (d *driver) getInfo(id string) ([]byte, error) {
-	return exec.Command("lxc-info", "-s", "-n", id).CombinedOutput()
+	return exec.Command("lxc-info", "-n", id).CombinedOutput()
 }
 
 type info struct {
@@ -298,9 +301,8 @@ func (d *driver) Info(id string) execdriver.Info {
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
-	// memory is chosen randomly, any cgroup used by docker works
-	subsystem := "memory"
-
+	// cpu is chosen because it is the only non optional subsystem in cgroups
+	subsystem := "cpu"
 	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
 	if err != nil {
 		return pids, err

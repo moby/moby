@@ -57,12 +57,6 @@ var (
 	currentInterfaces = make(map[string]*networkInterface)
 )
 
-func init() {
-	if err := engine.Register("init_networkdriver", InitDriver); err != nil {
-		panic(err)
-	}
-}
-
 func InitDriver(job *engine.Job) engine.Status {
 	var (
 		network        *net.IPNet
