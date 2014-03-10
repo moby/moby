@@ -401,6 +401,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job.SetenvBool("parallel", version.GreaterThan("1.3"))
 		job.SetenvJson("metaHeaders", metaHeaders)
 		job.SetenvJson("authConfig", authConfig)
+		w.Header().Set("Job-ID", fmt.Sprintf("%d", job.ID))
 	} else { //import
 		job = eng.Job("import", r.Form.Get("fromSrc"), r.Form.Get("repo"), tag)
 		job.Stdin.Add(r.Body)
@@ -514,6 +515,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	job := eng.Job("push", vars["name"])
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
+	w.Header().Set("Job-ID", fmt.Sprintf("%d", job.ID))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
 		streamJSON(job, w, true)

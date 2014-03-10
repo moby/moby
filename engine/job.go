@@ -22,6 +22,7 @@ import (
 // This allows for richer error reporting.
 //
 type Job struct {
+	ID      int64
 	Eng     *Engine
 	Name    string
 	Args    []string

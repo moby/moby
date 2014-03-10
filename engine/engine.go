@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"runtime"
 	"sort"
@@ -129,6 +130,7 @@ func (eng *Engine) commands() []string {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
+		ID:     rand.Int63(),
 		Eng:    eng,
 		Name:   name,
 		Args:   args,
