@@ -143,6 +143,18 @@ func getVersion(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	return nil
 }
 
+func postJobsKill(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	job := eng.GetJob(vars["name"])
+	if err := job.Kill(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postContainersKill(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1024,6 +1036,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/jobs/{name:.*}/kill":          postJobsKill,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

@@ -1155,7 +1155,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 		repoData.ImgList[id].Tag = askedTag
 	}
 
-	errors := make(chan error)
+	errors := make(chan error, len(repoData.ImgList))
 	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
