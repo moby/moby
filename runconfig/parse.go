@@ -3,8 +3,8 @@ package runconfig
 import (
 	"fmt"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"

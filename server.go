@@ -1995,7 +1995,7 @@ func (srv *Server) RegisterLinks(container *runtime.Container, hostConfig *runco
 
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
-			parts, err := parseLink(l)
+			parts, err := utils.PartParser("name:alias", l)
 			if err != nil {
 				return err
 			}
