@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -24,7 +25,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"os/signal"
+	gosignal "os/signal"
 	"path"
 	"reflect"
 	"regexp"
@@ -533,7 +534,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	sigc := make(chan os.Signal, 1)
-	utils.CatchAll(sigc)
+	signal.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
 			if s == syscall.SIGCHLD {
@@ -581,7 +582,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 		if !container.Config.Tty {
 			sigc := cli.forwardAllSignals(cmd.Arg(0))
-			defer utils.StopCatch(sigc)
+			defer signal.StopCatch(sigc)
 		}
 
 		var in io.ReadCloser
@@ -1614,7 +1615,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	if *proxy && !container.Config.Tty {
 		sigc := cli.forwardAllSignals(cmd.Arg(0))
-		defer utils.StopCatch(sigc)
+		defer signal.StopCatch(sigc)
 	}
 
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
@@ -1818,7 +1819,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if sigProxy {
 		sigc := cli.forwardAllSignals(runResult.Get("Id"))
-		defer utils.StopCatch(sigc)
+		defer signal.StopCatch(sigc)
 	}
 
 	var (
@@ -2320,7 +2321,7 @@ func (cli *DockerCli) monitorTtySize(id string) error {
 	cli.resizeTty(id)
 
 	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGWINCH)
+	gosignal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
 		for _ = range sigchan {
 			cli.resizeTty(id)

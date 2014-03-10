@@ -1,4 +1,4 @@
-package utils
+package signal
 
 import (
 	"os"
@@ -13,11 +13,9 @@ func CatchAll(sigc chan os.Signal) {
 		syscall.SIGBUS,
 		syscall.SIGCHLD,
 		syscall.SIGCONT,
-		syscall.SIGEMT,
 		syscall.SIGFPE,
 		syscall.SIGHUP,
 		syscall.SIGILL,
-		syscall.SIGINFO,
 		syscall.SIGINT,
 		syscall.SIGIO,
 		syscall.SIGIOT,

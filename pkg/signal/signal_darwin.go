@@ -1,4 +1,4 @@
-package utils
+package signal
 
 import (
 	"os"
@@ -12,22 +12,20 @@ func CatchAll(sigc chan os.Signal) {
 		syscall.SIGALRM,
 		syscall.SIGBUS,
 		syscall.SIGCHLD,
-		syscall.SIGCLD,
 		syscall.SIGCONT,
+		syscall.SIGEMT,
 		syscall.SIGFPE,
 		syscall.SIGHUP,
 		syscall.SIGILL,
+		syscall.SIGINFO,
 		syscall.SIGINT,
 		syscall.SIGIO,
 		syscall.SIGIOT,
 		syscall.SIGKILL,
 		syscall.SIGPIPE,
-		syscall.SIGPOLL,
 		syscall.SIGPROF,
-		syscall.SIGPWR,
 		syscall.SIGQUIT,
 		syscall.SIGSEGV,
-		syscall.SIGSTKFLT,
 		syscall.SIGSTOP,
 		syscall.SIGSYS,
 		syscall.SIGTERM,
@@ -35,7 +33,6 @@ func CatchAll(sigc chan os.Signal) {
 		syscall.SIGTSTP,
 		syscall.SIGTTIN,
 		syscall.SIGTTOU,
-		syscall.SIGUNUSED,
 		syscall.SIGURG,
 		syscall.SIGUSR1,
 		syscall.SIGUSR2,
