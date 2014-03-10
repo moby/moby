@@ -92,20 +92,10 @@ func ValidateAttach(val string) (string, error) {
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := parseLink(val); err != nil {
+	if _, err := utils.PartParser("name:alias", val); err != nil {
 		return val, err
 	}
 	return val, nil
-}
-
-// FIXME: this is a duplicate of docker.utils.parseLink.
-// 	it can't be moved to a separate links/ package because
-//	links depends on Container which is defined in the core.
-//
-// Links come in the format of
-// name:alias
-func parseLink(rawLink string) (map[string]string, error) {
-	return utils.PartParser("name:alias", rawLink)
 }
 
 func ValidatePath(val string) (string, error) {
