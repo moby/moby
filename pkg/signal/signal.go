@@ -7,7 +7,7 @@ import (
 
 func CatchAll(sigc chan os.Signal) {
 	handledSigs := []os.Signal{}
-	for _, s := range signalMap {
+	for _, s := range SignalMap {
 		handledSigs = append(handledSigs, s)
 	}
 	signal.Notify(sigc, handledSigs...)

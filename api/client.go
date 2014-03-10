@@ -540,7 +540,17 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			if s == syscall.SIGCHLD {
 				continue
 			}
-			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil, false)); err != nil {
+			var sig string
+			for sigStr, sigN := range signal.SignalMap {
+				if sigN == s {
+					sig = sigStr
+					break
+				}
+			}
+			if sig == "" {
+				utils.Errorf("Unsupported signal: %d. Discarding.", s)
+			}
+			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
 		}
