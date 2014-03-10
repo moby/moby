@@ -16,7 +16,7 @@ set -e
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "make" from
-#   your checkout of the Docker repository. 
+#   your checkout of the Docker repository.
 #   the Makefile will do a "docker build -t docker ." and then
 #   "docker run hack/make.sh" in the resulting container image.
 #
@@ -53,9 +53,9 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(cat ./VERSION)
-if [ -d .git ] && command -v git &> /dev/null; then
+if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
-	if [ -n "$(git status --porcelain)" ]; then
+	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-dirty"
 	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
@@ -68,10 +68,37 @@ else
 	exit 1
 fi
 
+if [ "$AUTO_GOPATH" ]; then
+	rm -rf .gopath
+	mkdir -p .gopath/src/github.com/dotcloud
+	ln -sf ../../../.. .gopath/src/github.com/dotcloud/docker
+	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
+fi
+
+if [ ! "$GOPATH" ]; then
+	echo >&2 'error: missing GOPATH; please see http://golang.org/doc/code.html#GOPATH'
+	echo >&2 '  alternatively, set AUTO_GOPATH=1'
+	exit 1
+fi
+
 # Use these flags when compiling the tests and final binary
-LDFLAGS='-X main.GITCOMMIT "'$GITCOMMIT'" -X main.VERSION "'$VERSION'" -w'
-LDFLAGS_STATIC='-X github.com/dotcloud/docker/utils.IAMSTATIC true -linkmode external -extldflags "-lpthread -static -Wl,--unresolved-symbols=ignore-in-object-files"'
-BUILDFLAGS='-tags netgo -a'
+LDFLAGS='
+	-w
+	-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'"
+'
+LDFLAGS_STATIC='-linkmode external'
+EXTLDFLAGS_STATIC='-static'
+BUILDFLAGS=( -a -tags "netgo $DOCKER_BUILDTAGS" )
+
+# A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
+# PLEASE do not use these anywhere else.
+EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
+LDFLAGS_STATIC_DOCKER="
+	$LDFLAGS_STATIC
+	-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true
+	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
+"
 
 HAVE_GO_TEST_COVER=
 if \
@@ -88,19 +115,30 @@ fi
 #
 go_test_dir() {
 	dir=$1
+	coverpkg=$2
 	testcover=()
 	if [ "$HAVE_GO_TEST_COVER" ]; then
 		# if our current go install has -cover, we want to use it :)
 		mkdir -p "$DEST/coverprofiles"
 		coverprofile="docker${dir#.}"
 		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -cover -coverprofile "$coverprofile" )
+		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
 		set -x
 		cd "$dir"
-		go test ${testcover[@]} -ldflags "$LDFLAGS" $BUILDFLAGS $TESTFLAGS
+		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
+}
+
+# This helper function walks the current directory looking for directories
+# holding certain files ($1 parameter), and prints their paths on standard
+# output, one per line.
+find_dirs() {
+	find -not \( \
+		\( -wholename './vendor' -o -wholename './integration' -o -wholename './contrib' -o -wholename './pkg/mflag/example' \) \
+		-prune \
+	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
 }
 
 bundle() {

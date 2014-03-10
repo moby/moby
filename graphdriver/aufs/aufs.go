@@ -34,6 +34,10 @@ import (
 	"sync"
 )
 
+var (
+	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
+)
+
 func init() {
 	graphdriver.Register("aufs", Init)
 }
@@ -100,7 +104,7 @@ func supportsAufs() error {
 			return nil
 		}
 	}
-	return fmt.Errorf("AUFS was not found in /proc/filesystems")
+	return ErrAufsNotSupported
 }
 
 func (a Driver) rootPath() string {
@@ -271,7 +275,7 @@ func (a *Driver) Diff(id string) (archive.Archive, error) {
 	})
 }
 
-func (a *Driver) ApplyDiff(id string, diff archive.Archive) error {
+func (a *Driver) ApplyDiff(id string, diff archive.ArchiveReader) error {
 	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 

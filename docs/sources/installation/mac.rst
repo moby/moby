@@ -1,4 +1,4 @@
-:title: Requirements and Installation on Mac OS X 10.6 Snow Leopard
+:title: Installation on Mac OS X 10.6 Snow Leopard
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
 
@@ -39,7 +39,7 @@ boot2docker
 ``docker`` daemon. It also takes care of the installation for the OS image
 that is used for the job.
 
-.. _GitHub page: https://github.com/steeve/boot2docker
+.. _GitHub page: https://github.com/boot2docker/boot2docker
 
 Open up a new terminal window, if you have not already.
 
@@ -49,10 +49,10 @@ Run the following commands to get boot2docker:
 
     # Enter the installation directory
     cd ~/bin
-    
+
     # Get the file
-    curl https://raw.github.com/steeve/boot2docker/master/boot2docker > boot2docker
-    
+    curl https://raw.github.com/boot2docker/boot2docker/master/boot2docker > boot2docker
+
     # Mark it executable
     chmod +x boot2docker
 
@@ -67,13 +67,13 @@ Run the following commands to get it downloaded and set up:
 
     # Get the file
     curl -o docker https://get.docker.io/builds/Darwin/x86_64/docker-latest
-    
+
     # Mark it executable
     chmod +x docker
 
     # Set the environment variable for the docker daemon
-    export DOCKER_HOST=tcp://
-    
+    export DOCKER_HOST=tcp://127.0.0.1:4243
+
     # Copy the executable file
     sudo cp docker /usr/local/bin/
 
@@ -94,7 +94,7 @@ Inside the ``~/bin`` directory, run the following commands:
 
     # Run the VM (the docker daemon)
     ./boot2docker up
-    
+
     # To see all available commands:
     ./boot2docker
 
@@ -115,6 +115,21 @@ client just like any other application.
     # Server version: 0.7.5
     # Git commit (server): c348c04
     # Go version (server): go1.2
+
+Forwarding VM Port Range to Host
+--------------------------------
+
+If we take the port range that docker uses by default with the -P option
+(49000-49900), and forward same range from host to vm, we'll be able to interact
+with our containers as if they were running locally:
+
+.. code-block:: bash
+
+   # vm must be powered off
+   for i in {49000..49900}; do
+    VBoxManage modifyvm "boot2docker-vm" --natpf1 "tcp-port$i,tcp,,$i,,$i";
+    VBoxManage modifyvm "boot2docker-vm" --natpf1 "udp-port$i,udp,,$i,,$i";
+   done
 
 SSH-ing The VM
 --------------
@@ -138,7 +153,7 @@ boot2docker:
 
 See the GitHub page for `boot2docker`_.
 
-.. _boot2docker: https://github.com/steeve/boot2docker
+.. _boot2docker: https://github.com/boot2docker/boot2docker
 
 If SSH complains about keys:
 ----------------------------
@@ -146,6 +161,18 @@ If SSH complains about keys:
 .. code-block:: bash
 
     ssh-keygen -R '[localhost]:2022'
+
+Upgrading to a newer release of boot2docker
+-------------------------------------------
+
+To upgrade an initialised VM, you can use the following 3 commands. Your persistence
+disk will not be changed, so you won't lose your images and containers:
+
+.. code-block:: bash
+
+    ./boot2docker stop
+    ./boot2docker download
+    ./boot2docker start
 
 About the way Docker works on Mac OS X:
 ---------------------------------------

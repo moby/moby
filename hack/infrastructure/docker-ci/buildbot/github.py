@@ -17,7 +17,7 @@
 """
 github_buildbot.py is based on git_buildbot.py
 
-github_buildbot.py will determine the repository information from the JSON 
+github_buildbot.py will determine the repository information from the JSON
 HTTP POST it receives from github.com and build the appropriate repository.
 If your github repository is private, you must add a ssh key to the github
 repository for the user who initiated the build on the buildslave.
@@ -88,7 +88,8 @@ def getChanges(request, options = None):
         payload = json.loads(request.args['payload'][0])
         import urllib,datetime
         fname = str(datetime.datetime.now()).replace(' ','_').replace(':','-')[:19]
-        open('github_{0}.json'.format(fname),'w').write(json.dumps(json.loads(urllib.unquote(request.args['payload'][0])), sort_keys = True, indent = 2))
+        # Github event debug
+        # open('github_{0}.json'.format(fname),'w').write(json.dumps(json.loads(urllib.unquote(request.args['payload'][0])), sort_keys = True, indent = 2))
 
         if 'pull_request' in payload:
             user = payload['pull_request']['user']['login']
@@ -142,13 +143,13 @@ def process_change(payload, user, repo, repo_url, project):
                     'category'   : 'github_pullrequest',
                     'who'        : '{0} - PR#{1}'.format(user,payload['number']),
                     'files'      : [],
-                    'comments'   : payload['pull_request']['title'], 
+                    'comments'   : payload['pull_request']['title'],
                     'revision'   : newrev,
                     'when'       : convertTime(payload['pull_request']['updated_at']),
                     'branch'     : branch,
                     'revlink'    : '{0}/commit/{1}'.format(repo_url,newrev),
                     'repository' : repo_url,
-                    'project'  : project  }] 
+                    'project'  : project  }]
                 return changes
             for commit in payload['commits']:
                 files = []

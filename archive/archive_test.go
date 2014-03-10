@@ -1,9 +1,9 @@
 package archive
 
 import (
-	"archive/tar"
 	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -67,12 +67,13 @@ func tarUntar(t *testing.T, origin string, compression Compression) error {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer archive.Close()
 
 	buf := make([]byte, 10)
 	if _, err := archive.Read(buf); err != nil {
 		return err
 	}
-	archive = io.MultiReader(bytes.NewReader(buf), archive)
+	wrap := io.MultiReader(bytes.NewReader(buf), archive)
 
 	detectedCompression := DetectCompression(buf)
 	if detectedCompression.Extension() != compression.Extension() {
@@ -84,7 +85,7 @@ func tarUntar(t *testing.T, origin string, compression Compression) error {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	if err := Untar(archive, tmp, nil); err != nil {
+	if err := Untar(wrap, tmp, nil); err != nil {
 		return err
 	}
 	if _, err := os.Stat(tmp); err != nil {

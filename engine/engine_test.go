@@ -1,9 +1,12 @@
 package engine
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -15,6 +18,8 @@ func TestRegister(t *testing.T) {
 	if err := Register("dummy1", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	// Register is global so let's cleanup to avoid conflicts
+	defer unregister("dummy1")
 
 	eng := newTestEngine(t)
 
@@ -31,6 +36,7 @@ func TestRegister(t *testing.T) {
 	if err := eng.Register("dummy2", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	defer unregister("dummy2")
 }
 
 func TestJob(t *testing.T) {
@@ -47,6 +53,7 @@ func TestJob(t *testing.T) {
 	}
 
 	eng.Register("dummy2", h)
+	defer unregister("dummy2")
 	job2 := eng.Job("dummy2", "--level=awesome")
 
 	if job2.handler == nil {
@@ -58,12 +65,42 @@ func TestJob(t *testing.T) {
 	}
 }
 
+func TestEngineCommands(t *testing.T) {
+	eng := newTestEngine(t)
+	defer os.RemoveAll(eng.Root())
+	handler := func(job *Job) Status { return StatusOK }
+	eng.Register("foo", handler)
+	eng.Register("bar", handler)
+	eng.Register("echo", handler)
+	eng.Register("die", handler)
+	var output bytes.Buffer
+	commands := eng.Job("commands")
+	commands.Stdout.Add(&output)
+	commands.Run()
+	expected := "bar\ncommands\ndie\necho\nfoo\n"
+	if result := output.String(); result != expected {
+		t.Fatalf("Unexpected output:\nExpected = %v\nResult   = %v\n", expected, result)
+	}
+}
+
 func TestEngineRoot(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "docker-test-TestEngineCreateDir")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
+	// We expect Root to resolve to an absolute path.
+	// FIXME: this should not be necessary.
+	// Until the above FIXME is implemented, let's check for the
+	// current behavior.
+	tmp, err = filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp, err = filepath.Abs(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	dir := path.Join(tmp, "dir")
 	eng, err := New(dir)
 	if err != nil {
@@ -99,5 +136,42 @@ func TestEngineLogf(t *testing.T) {
 		t.Fatal(err)
 	} else if n < len(input) {
 		t.Fatalf("Test: Logf() should print at least as much as the input\ninput=%d\nprinted=%d", len(input), n)
+	}
+}
+
+func TestParseJob(t *testing.T) {
+	eng := newTestEngine(t)
+	defer os.RemoveAll(eng.Root())
+	// Verify that the resulting job calls to the right place
+	var called bool
+	eng.Register("echo", func(job *Job) Status {
+		called = true
+		return StatusOK
+	})
+	input := "echo DEBUG=1 hello world VERBOSITY=42"
+	job, err := eng.ParseJob(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Name != "echo" {
+		t.Fatalf("Invalid job name: %v", job.Name)
+	}
+	if strings.Join(job.Args, ":::") != "hello:::world" {
+		t.Fatalf("Invalid job args: %v", job.Args)
+	}
+	if job.Env().Get("DEBUG") != "1" {
+		t.Fatalf("Invalid job env: %v", job.Env)
+	}
+	if job.Env().Get("VERBOSITY") != "42" {
+		t.Fatalf("Invalid job env: %v", job.Env)
+	}
+	if len(job.Env().Map()) != 2 {
+		t.Fatalf("Invalid job env: %v", job.Env)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatalf("Job was not called")
 	}
 }

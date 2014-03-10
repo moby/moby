@@ -1,16 +1,19 @@
 package docker
 
 import (
-	"archive/tar"
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -45,7 +48,7 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Close()
-	expected := docker.VERSION
+	expected := dockerversion.VERSION
 	if result := v.Get("Version"); result != expected {
 		t.Errorf("Expected version %s, %s found", expected, result)
 	}
@@ -308,7 +311,7 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 	beginLen := len(outs.Data)
 
-	containerID := createTestContainer(eng, &docker.Config{
+	containerID := createTestContainer(eng, &runconfig.Config{
 		Image: unitTestImageID,
 		Cmd:   []string{"echo", "test"},
 	}, t)
@@ -345,7 +348,7 @@ func TestGetContainersExport(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test"},
 		},
@@ -387,13 +390,84 @@ func TestGetContainersExport(t *testing.T) {
 	}
 }
 
+func TestSaveImageAndThenLoad(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	// save image
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+	tarball := r.Body
+
+	// delete the image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	// make sure there is no image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("%d NotFound expected, received %d\n", http.StatusNotFound, r.Code)
+	}
+
+	// load the image
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("POST", "/images/load", tarball)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+
+	// finally make sure the image is there
+	r = httptest.NewRecorder()
+	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
+	}
+}
+
 func TestGetContainersChanges(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"/bin/rm", "/etc/passwd"},
 		},
@@ -432,7 +506,7 @@ func TestGetContainersTop(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/sh", "-c", "cat"},
 			OpenStdin: true,
@@ -509,7 +583,7 @@ func TestGetContainersByName(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"echo", "test"},
 		},
@@ -541,7 +615,7 @@ func TestPostCommit(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test"},
 		},
@@ -577,7 +651,7 @@ func TestPostContainersCreate(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	configJSON, err := json.Marshal(&docker.Config{
+	configJSON, err := json.Marshal(&runconfig.Config{
 		Image:  unitTestImageID,
 		Memory: 33554432,
 		Cmd:    []string{"touch", "/test"},
@@ -619,7 +693,7 @@ func TestPostContainersKill(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -658,7 +732,7 @@ func TestPostContainersRestart(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
@@ -704,7 +778,7 @@ func TestPostContainersStart(t *testing.T) {
 
 	containerID := createTestContainer(
 		eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -712,7 +786,7 @@ func TestPostContainersStart(t *testing.T) {
 		t,
 	)
 
-	hostConfigJSON, err := json.Marshal(&docker.HostConfig{})
+	hostConfigJSON, err := json.Marshal(&runconfig.HostConfig{})
 
 	req, err := http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
 	if err != nil {
@@ -757,7 +831,7 @@ func TestRunErrorBindMountRootSource(t *testing.T) {
 
 	containerID := createTestContainer(
 		eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -765,7 +839,7 @@ func TestRunErrorBindMountRootSource(t *testing.T) {
 		t,
 	)
 
-	hostConfigJSON, err := json.Marshal(&docker.HostConfig{
+	hostConfigJSON, err := json.Marshal(&runconfig.HostConfig{
 		Binds: []string{"/:/tmp"},
 	})
 
@@ -791,7 +865,7 @@ func TestPostContainersStop(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/top"},
 			OpenStdin: true,
@@ -831,7 +905,7 @@ func TestPostContainersWait(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/sleep", "1"},
 			OpenStdin: true,
@@ -869,7 +943,7 @@ func TestPostContainersAttach(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/cat"},
 			OpenStdin: true,
@@ -947,7 +1021,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image:     unitTestImageID,
 			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
 			OpenStdin: true,
@@ -1028,7 +1102,7 @@ func TestDeleteContainers(t *testing.T) {
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test"},
 		},
@@ -1102,6 +1176,8 @@ func TestGetEnabledCors(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	eng := NewTestEngine(t)
+	//we expect errors, so we disable stderr
+	eng.Stderr = ioutil.Discard
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	initialImages := getImages(eng, t, true, "")
@@ -1163,7 +1239,7 @@ func TestPostContainersCopy(t *testing.T) {
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
-		&docker.Config{
+		&runconfig.Config{
 			Image: unitTestImageID,
 			Cmd:   []string{"touch", "/test.txt"},
 		},
@@ -1212,6 +1288,34 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("The created test file has not been found in the copied output")
+	}
+}
+
+func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkRuntimeFromEngine(eng, t).Nuke()
+
+	r := httptest.NewRecorder()
+
+	var copyData engine.Env
+	copyData.Set("Resource", "/test.txt")
+	copyData.Set("HostPath", ".")
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := copyData.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/id_not_found/copy", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusNotFound {
+		t.Fatalf("404 expected for id_not_found Container, received %v", r.Code)
 	}
 }
 

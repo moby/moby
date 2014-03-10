@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/execdriver"
-	_ "github.com/dotcloud/docker/execdriver/chroot"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
+	_ "github.com/dotcloud/docker/execdriver/native"
 	"io/ioutil"
 	"log"
 	"os"
@@ -27,18 +27,12 @@ func setupEnv(args *execdriver.InitArgs) {
 
 func executeProgram(args *execdriver.InitArgs) error {
 	setupEnv(args)
+
 	dockerInitFct, err := execdriver.GetInitFunc(args.Driver)
 	if err != nil {
 		panic(err)
 	}
 	return dockerInitFct(args)
-
-	if args.Driver == "lxc" {
-		// Will never reach
-	} else if args.Driver == "chroot" {
-	}
-
-	return nil
 }
 
 // Sys Init code
@@ -59,19 +53,21 @@ func SysInit() {
 		privileged = flag.Bool("privileged", false, "privileged mode")
 		mtu        = flag.Int("mtu", 1500, "interface mtu")
 		driver     = flag.String("driver", "", "exec driver")
+		pipe       = flag.Int("pipe", 0, "sync pipe fd")
+		console    = flag.String("console", "", "console (pty slave) path")
+		root       = flag.String("root", ".", "root path for configuration files")
 	)
 	flag.Parse()
 
 	// Get env
 	var env []string
-	content, err := ioutil.ReadFile("/.dockerenv")
+	content, err := ioutil.ReadFile(".dockerenv")
 	if err != nil {
 		log.Fatalf("Unable to load environment variables: %v", err)
 	}
 	if err := json.Unmarshal(content, &env); err != nil {
 		log.Fatalf("Unable to unmarshal environment variables: %v", err)
 	}
-
 	// Propagate the plugin-specific container env variable
 	env = append(env, "container="+os.Getenv("container"))
 
@@ -85,6 +81,9 @@ func SysInit() {
 		Args:       flag.Args(),
 		Mtu:        *mtu,
 		Driver:     *driver,
+		Console:    *console,
+		Pipe:       *pipe,
+		Root:       *root,
 	}
 
 	if err := executeProgram(args); err != nil {

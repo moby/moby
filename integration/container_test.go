@@ -3,7 +3,7 @@ package docker
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -20,7 +20,7 @@ func TestIDFormat(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container1, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
@@ -234,7 +234,7 @@ func TestCommitAutoRun(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := runtime.Commit(container1, "", "", "unit test commited image", "", &docker.Config{Cmd: []string{"cat", "/world"}})
+	img, err := runtime.Commit(container1, "", "", "unit test commited image", "", &runconfig.Config{Cmd: []string{"cat", "/world"}})
 	if err != nil {
 		t.Error(err)
 	}
@@ -415,7 +415,7 @@ func TestOutput(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "-n", "foobar"},
 		},
@@ -438,7 +438,7 @@ func TestContainerNetwork(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"ping", "-c", "1", "127.0.0.1"},
 		},
@@ -460,7 +460,7 @@ func TestKillDifferentUser(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image:     GetTestImage(runtime).ID,
 		Cmd:       []string{"cat"},
 		OpenStdin: true,
@@ -520,7 +520,7 @@ func TestCreateVolume(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, hc, _, err := docker.ParseRun([]string{"-v", "/var/lib/data", unitTestImageID, "echo", "hello", "world"}, nil)
+	config, hc, _, err := runconfig.Parse([]string{"-v", "/var/lib/data", unitTestImageID, "echo", "hello", "world"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -552,7 +552,7 @@ func TestCreateVolume(t *testing.T) {
 func TestKill(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
@@ -596,7 +596,7 @@ func TestExitCode(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	trueContainer, _, err := runtime.Create(&docker.Config{
+	trueContainer, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/true"},
 	}, "")
@@ -611,7 +611,7 @@ func TestExitCode(t *testing.T) {
 		t.Fatalf("Unexpected exit code %d (expected 0)", code)
 	}
 
-	falseContainer, _, err := runtime.Create(&docker.Config{
+	falseContainer, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"/bin/false"},
 	}, "")
@@ -630,7 +630,7 @@ func TestExitCode(t *testing.T) {
 func TestRestart(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"echo", "-n", "foobar"},
 	},
@@ -661,7 +661,7 @@ func TestRestart(t *testing.T) {
 func TestRestartStdin(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
 
@@ -739,7 +739,7 @@ func TestUser(t *testing.T) {
 	defer nuke(runtime)
 
 	// Default user must be root
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 	},
@@ -758,7 +758,7 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a username
-	container, _, err = runtime.Create(&docker.Config{
+	container, _, err = runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
@@ -779,7 +779,7 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a UID
-	container, _, err = runtime.Create(&docker.Config{
+	container, _, err = runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
@@ -800,7 +800,7 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a different user by uid
-	container, _, err = runtime.Create(&docker.Config{
+	container, _, err = runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
@@ -823,7 +823,7 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a different user by username
-	container, _, err = runtime.Create(&docker.Config{
+	container, _, err = runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
@@ -844,7 +844,7 @@ func TestUser(t *testing.T) {
 	}
 
 	// Test an wrong username
-	container, _, err = runtime.Create(&docker.Config{
+	container, _, err = runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"id"},
 
@@ -866,7 +866,7 @@ func TestMultipleContainers(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container1, _, err := runtime.Create(&docker.Config{
+	container1, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
@@ -877,7 +877,7 @@ func TestMultipleContainers(t *testing.T) {
 	}
 	defer runtime.Destroy(container1)
 
-	container2, _, err := runtime.Create(&docker.Config{
+	container2, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
@@ -921,7 +921,7 @@ func TestMultipleContainers(t *testing.T) {
 func TestStdin(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
 
@@ -966,7 +966,7 @@ func TestStdin(t *testing.T) {
 func TestTty(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"cat"},
 
@@ -1013,7 +1013,7 @@ func TestEnv(t *testing.T) {
 	os.Setenv("TRICKY", "tri\ncky\n")
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-	config, _, _, err := docker.ParseRun([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(runtime).ID, "env"}, nil)
+	config, _, _, err := runconfig.Parse([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(runtime).ID, "env"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1044,7 +1044,6 @@ func TestEnv(t *testing.T) {
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/",
-		"container=lxc",
 		"HOSTNAME=" + utils.TruncateID(container.ID),
 		"FALSE=true",
 		"TRUE=false",
@@ -1067,7 +1066,7 @@ func TestEntrypoint(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:      GetTestImage(runtime).ID,
 			Entrypoint: []string{"/bin/echo"},
 			Cmd:        []string{"-n", "foobar"},
@@ -1091,7 +1090,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:      GetTestImage(runtime).ID,
 			Entrypoint: []string{"/bin/echo", "foobar"},
 		},
@@ -1114,7 +1113,7 @@ func BenchmarkRunSequencial(b *testing.B) {
 	runtime := mkRuntime(b)
 	defer nuke(runtime)
 	for i := 0; i < b.N; i++ {
-		container, _, err := runtime.Create(&docker.Config{
+		container, _, err := runtime.Create(&runconfig.Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"echo", "-n", "foo"},
 		},
@@ -1147,7 +1146,7 @@ func BenchmarkRunParallel(b *testing.B) {
 		complete := make(chan error)
 		tasks = append(tasks, complete)
 		go func(i int, complete chan error) {
-			container, _, err := runtime.Create(&docker.Config{
+			container, _, err := runtime.Create(&runconfig.Config{
 				Image: GetTestImage(runtime).ID,
 				Cmd:   []string{"echo", "-n", "foo"},
 			},
@@ -1301,7 +1300,7 @@ func TestFromVolumesInReadonlyMode(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"/bin/echo", "-n", "foobar"},
 			Volumes: map[string]struct{}{"/test": {}},
@@ -1321,7 +1320,7 @@ func TestFromVolumesInReadonlyMode(t *testing.T) {
 	}
 
 	container2, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: container.ID + ":ro",
@@ -1362,7 +1361,7 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"/bin/echo", "-n", "foobar"},
 			Volumes: map[string]struct{}{"/test": {}},
@@ -1382,7 +1381,7 @@ func TestVolumesFromReadonlyMount(t *testing.T) {
 	}
 
 	container2, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: container.ID,
@@ -1418,7 +1417,7 @@ func TestRestartWithVolumes(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"echo", "-n", "foobar"},
 		Volumes: map[string]struct{}{"/test": {}},
@@ -1462,7 +1461,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
@@ -1491,7 +1490,7 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	}
 
 	container2, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"cat", "/test/foo"},
 			VolumesFrom: container.ID,
@@ -1529,7 +1528,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, hc, _, err := docker.ParseRun([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1581,8 +1580,8 @@ func TestPrivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
-		t.Fatal("Could not mknod into privileged container")
+	if output, err := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatalf("Could not mknod into privileged container %s %v", output, err)
 	}
 }
 
@@ -1617,7 +1616,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image:   GetTestImage(runtime).ID,
 		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 		Volumes: map[string]struct{}{"/test": {}},
@@ -1646,7 +1645,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	}
 
 	container2, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"sh", "-c", "echo -n bar > /other/foo"},
 			Volumes: map[string]struct{}{"/other": {}},
@@ -1668,7 +1667,7 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	}
 
 	container3, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:       GetTestImage(runtime).ID,
 			Cmd:         []string{"/bin/echo", "-n", "foobar"},
 			VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ","),
@@ -1696,7 +1695,7 @@ func TestRestartGhost(t *testing.T) {
 	defer nuke(runtime)
 
 	container, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image:   GetTestImage(runtime).ID,
 			Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
 			Volumes: map[string]struct{}{"/test": {}},

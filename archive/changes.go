@@ -1,9 +1,11 @@
 package archive
 
 import (
-	"archive/tar"
+	"bytes"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os"
 	"path/filepath"
@@ -126,10 +128,11 @@ func Changes(layers []string, rw string) ([]Change, error) {
 }
 
 type FileInfo struct {
-	parent   *FileInfo
-	name     string
-	stat     syscall.Stat_t
-	children map[string]*FileInfo
+	parent     *FileInfo
+	name       string
+	stat       syscall.Stat_t
+	children   map[string]*FileInfo
+	capability []byte
 }
 
 func (root *FileInfo) LookUp(path string) *FileInfo {
@@ -200,7 +203,8 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Rdev != newStat.Rdev ||
 				// Don't look at size for dirs, its not a good measure of change
 				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				!sameFsTimeSpec(getLastModification(oldStat), getLastModification(newStat)) {
+				!sameFsTimeSpec(system.GetLastModification(oldStat), system.GetLastModification(newStat)) ||
+				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,
@@ -274,6 +278,8 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 		if err := syscall.Lstat(path, &info.stat); err != nil {
 			return err
 		}
+
+		info.capability, _ = system.Lgetxattr(path, "security.capability")
 
 		parent.children[info.name] = info
 

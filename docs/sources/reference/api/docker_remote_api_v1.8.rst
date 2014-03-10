@@ -118,6 +118,7 @@ Create a container
                 "User":"",
                 "Memory":0,
                 "MemorySwap":0,
+                "CpuShares":0,
                 "AttachStdin":false,
                 "AttachStdout":true,
                 "AttachStderr":true,
@@ -153,7 +154,15 @@ Create a container
                 "Warnings":[]
            }
 
-        :jsonparam config: the container's configuration
+        :jsonparam Hostname: Container host name
+        :jsonparam User: Username or UID
+        :jsonparam Memory: Memory Limit in bytes
+        :jsonparam CpuShares: CPU shares (relative weight)
+        :jsonparam AttachStdin: 1/True/true or 0/False/false, attach to standard input. Default false
+        :jsonparam AttachStdout: 1/True/true or 0/False/false, attach to standard output. Default false
+        :jsonparam AttachStderr: 1/True/true or 0/False/false, attach to standard error. Default false
+        :jsonparam Tty: 1/True/true or 0/False/false, allocate a pseudo-tty. Default false
+        :jsonparam OpenStdin: 1/True/true or 0/False/false, keep stdin open even if not attached. Default false
         :query name: Assign the specified name to the container. Must match ``/?[a-zA-Z0-9_-]+``.
         :statuscode 201: no error
         :statuscode 404: no such container
@@ -394,7 +403,11 @@ Start a container
            HTTP/1.1 204 No Content
            Content-Type: text/plain
 
-        :jsonparam hostConfig: the container's host configuration (optional)
+        :jsonparam Binds: Create a bind mount to a directory or file with [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
+        :jsonparam LxcConf: Map of custom lxc options
+        :jsonparam PortBindings: Expose ports from the container, optionally publishing them via the HostPort flag
+        :jsonparam PublishAllPorts: 1/True/true or 0/False/false, publish all exposed ports to the host interfaces. Default false
+        :jsonparam Privileged: 1/True/true or 0/False/false, give extended privileges to this container. Default false
         :statuscode 204: no error
         :statuscode 404: no such container
         :statuscode 500: server error
@@ -892,11 +905,11 @@ Tag an image into a repository
 
         .. sourcecode:: http
 
-           HTTP/1.1 200 OK
+           HTTP/1.1 201 OK
 
         :query repo: The repository to tag in
         :query force: 1/True/true or 0/False/false, default false
-        :statuscode 200: no error
+        :statuscode 201: no error
         :statuscode 400: bad parameter
         :statuscode 404: no such image
         :statuscode 409: conflict

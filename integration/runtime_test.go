@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -83,7 +85,7 @@ func init() {
 	os.Setenv("TEST", "1")
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		sysinit.SysInit()
 		return
 	}
@@ -121,19 +123,8 @@ func init() {
 }
 
 func setupBaseImage() {
-	eng, err := engine.New(unitTestStoreBase)
-	if err != nil {
-		log.Fatalf("Can't initialize engine at %s: %s", unitTestStoreBase, err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", unitTestStoreBase)
-	job.SetenvBool("Autorestart", false)
-	job.Setenv("BridgeIface", unitTestNetworkBridge)
-	if err := job.Run(); err != nil {
-		log.Fatalf("Unable to create a runtime for tests: %s", err)
-	}
-
-	job = eng.Job("inspect", unitTestImageName, "image")
+	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
+	job := eng.Job("inspect", unitTestImageName, "image")
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
 	if err := job.Run(); err != nil || img.Get("id") != unitTestImageID {
@@ -169,9 +160,14 @@ func spawnGlobalDaemon() {
 			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
+
 	// Give some time to ListenAndServer to actually start
 	// FIXME: use inmem transports instead of tcp
 	time.Sleep(time.Second)
+
+	if err := eng.Job("acceptconnections").Run(); err != nil {
+		log.Fatalf("Unable to accept connections for test api: %s", err)
+	}
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
@@ -199,7 +195,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Errorf("Expected 0 containers, %v found", len(runtime.List()))
 	}
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
@@ -242,23 +238,23 @@ func TestRuntimeCreate(t *testing.T) {
 
 	// Test that conflict error displays correct details
 	testContainer, _, _ := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{"ls", "-al"},
 		},
 		"conflictname",
 	)
-	if _, _, err := runtime.Create(&docker.Config{Image: GetTestImage(runtime).ID, Cmd: []string{"ls", "-al"}}, testContainer.Name); err == nil || !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
+	if _, _, err := runtime.Create(&runconfig.Config{Image: GetTestImage(runtime).ID, Cmd: []string{"ls", "-al"}}, testContainer.Name); err == nil || !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
 		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %s", err.Error())
 	}
 
 	// Make sure create with bad parameters returns an error
-	if _, _, err = runtime.Create(&docker.Config{Image: GetTestImage(runtime).ID}, ""); err == nil {
+	if _, _, err = runtime.Create(&runconfig.Config{Image: GetTestImage(runtime).ID}, ""); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
 	if _, _, err := runtime.Create(
-		&docker.Config{
+		&runconfig.Config{
 			Image: GetTestImage(runtime).ID,
 			Cmd:   []string{},
 		},
@@ -267,7 +263,7 @@ func TestRuntimeCreate(t *testing.T) {
 		t.Fatal("Builder.Create should throw an error when Cmd is empty")
 	}
 
-	config := &docker.Config{
+	config := &runconfig.Config{
 		Image:     GetTestImage(runtime).ID,
 		Cmd:       []string{"/bin/ls"},
 		PortSpecs: []string{"80"},
@@ -280,7 +276,7 @@ func TestRuntimeCreate(t *testing.T) {
 	}
 
 	// test expose 80:8000
-	container, warnings, err := runtime.Create(&docker.Config{
+	container, warnings, err := runtime.Create(&runconfig.Config{
 		Image:     GetTestImage(runtime).ID,
 		Cmd:       []string{"ls", "-al"},
 		PortSpecs: []string{"80:8000"},
@@ -299,7 +295,7 @@ func TestDestroy(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	}, "")
@@ -368,7 +364,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 		eng     = NewTestEngine(t)
 		runtime = mkRuntimeFromEngine(eng, t)
 		port    = 5554
-		p       docker.Port
+		p       nat.Port
 	)
 	defer func() {
 		if err != nil {
@@ -387,8 +383,8 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 		} else {
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
-		ep := make(map[docker.Port]struct{}, 1)
-		p = docker.Port(fmt.Sprintf("%s/%s", strPort, proto))
+		ep := make(map[nat.Port]struct{}, 1)
+		p = nat.Port(fmt.Sprintf("%s/%s", strPort, proto))
 		ep[p] = struct{}{}
 
 		jobCreate := eng.Job("create")
@@ -411,8 +407,8 @@ func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *doc
 	}
 
 	jobStart := eng.Job("start", id)
-	portBindings := make(map[docker.Port][]docker.PortBinding)
-	portBindings[p] = []docker.PortBinding{
+	portBindings := make(map[nat.Port][]nat.PortBinding)
+	portBindings[p] = []nat.PortBinding{
 		{},
 	}
 	if err := jobStart.SetenvJson("PortsBindings", portBindings); err != nil {
@@ -568,18 +564,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	root := eng.Root()
-	eng, err := engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", false)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
+	eng = newTestEngine(t, false, eng.Root())
 	runtime2 := mkRuntimeFromEngine(eng, t)
 	if len(runtime2.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
@@ -604,114 +589,12 @@ func TestRestore(t *testing.T) {
 	container2.State.SetStopped(0)
 }
 
-func TestReloadContainerLinks(t *testing.T) {
-	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
-	// and we want to set it to true.
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eng, err := engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	runtime1 := mkRuntimeFromEngine(eng, t)
-	defer nuke(runtime1)
-	// Create a container with one instance of docker
-	container1, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
-	defer runtime1.Destroy(container1)
-
-	// Create a second container meant to be killed
-	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
-	defer runtime1.Destroy(container2)
-
-	// Start the container non blocking
-	if err := container2.Start(); err != nil {
-		t.Fatal(err)
-	}
-	// Add a link to container 2
-	// FIXME @shykes: setting hostConfig.Links seems redundant with calling RegisterLink().
-	// Why do we need it @crosbymichael?
-	// container1.hostConfig.Links = []string{"/" + container2.ID + ":first"}
-	if err := runtime1.RegisterLink(container1, container2, "first"); err != nil {
-		t.Fatal(err)
-	}
-	if err := container1.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	if !container2.State.IsRunning() {
-		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
-	}
-
-	if !container1.State.IsRunning() {
-		t.Fatalf("Container %s should appear as running but isn't", container1.ID)
-	}
-
-	if len(runtime1.List()) != 2 {
-		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
-	}
-
-	// Here are are simulating a docker restart - that is, reloading all containers
-	// from scratch
-	eng, err = engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job = eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", false)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	runtime2 := mkRuntimeFromEngine(eng, t)
-	if len(runtime2.List()) != 2 {
-		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
-	}
-	runningCount := 0
-	for _, c := range runtime2.List() {
-		if c.State.IsRunning() {
-			runningCount++
-		}
-	}
-	if runningCount != 2 {
-		t.Fatalf("Expected 2 container alive, %d found", runningCount)
-	}
-
-	// FIXME: we no longer test if containers were registered in the right order,
-	// because there is no public
-	// Make sure container 2 ( the child of container 1 ) was registered and started first
-	// with the runtime
-	//
-	containers := runtime2.List()
-	if len(containers) == 0 {
-		t.Fatalf("Runtime has no containers")
-	}
-	first := containers[0]
-	if first.ID != container2.ID {
-		t.Fatalf("Container 2 %s should be registered first in the runtime", container2.ID)
-	}
-
-	// Verify that the link is still registered in the runtime
-	if c := runtime2.Get(container1.Name); c == nil {
-		t.Fatal("Named container is no longer registered after restart")
-	}
-}
-
 func TestDefaultContainerName(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -735,7 +618,7 @@ func TestRandomContainerName(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, _, _, err := docker.ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -766,7 +649,7 @@ func TestContainerNameValidation(t *testing.T) {
 		{"abc-123_AAA.1", true},
 		{"\000asdf", false},
 	} {
-		config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+		config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 		if err != nil {
 			if !test.Valid {
 				continue
@@ -807,7 +690,7 @@ func TestLinkChildContainer(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -823,7 +706,7 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
 	}
 
-	config, _, _, err = docker.ParseRun([]string{GetTestImage(runtime).ID, "echo test"}, nil)
+	config, _, _, err = runconfig.Parse([]string{GetTestImage(runtime).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -849,7 +732,7 @@ func TestGetAllChildren(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, _, _, err := docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -865,7 +748,7 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
 	}
 
-	config, _, _, err = docker.ParseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err = runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -902,7 +785,7 @@ func TestDestroyWithInitLayer(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
 
-	container, _, err := runtime.Create(&docker.Config{
+	container, _, err := runtime.Create(&runconfig.Config{
 		Image: GetTestImage(runtime).ID,
 		Cmd:   []string{"ls", "-al"},
 	}, "")

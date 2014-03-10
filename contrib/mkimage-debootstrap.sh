@@ -44,6 +44,8 @@ debianStable=wheezy
 debianUnstable=sid
 # this should match the name found at http://releases.ubuntu.com/
 ubuntuLatestLTS=precise
+# this should match the name found at http://releases.tanglu.org/
+tangluLatest=aequorea
 
 while getopts v:i:a:p:dst name; do
 	case "$name" in
@@ -201,11 +203,23 @@ if [ -z "$strictDebootstrap" ]; then
 					s/ $suite-updates main/ ${suite}-security main/
 				" etc/apt/sources.list
 				;;
+			Tanglu)
+				# add the updates repository
+				if [ "$suite" = "$tangluLatest" ]; then
+					# ${suite}-updates only applies to stable Tanglu versions
+					sudo sed -i "p; s/ $suite main$/ ${suite}-updates main/" etc/apt/sources.list
+				fi
+				;;
+			SteamOS)
+				# add contrib and non-free
+				sudo sed -i "s/ $suite main$/ $suite main contrib non-free/" etc/apt/sources.list
+				;;
 		esac
 	fi
 	
 	# make sure our packages lists are as up to date as we can get them
 	sudo chroot . apt-get update
+	sudo chroot . apt-get dist-upgrade -y
 fi
 
 if [ "$justTar" ]; then
@@ -244,6 +258,28 @@ else
 					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
 					if [ "$lsbRelease" ]; then
 						# tag specific Ubuntu version number, if available (12.04, etc.)
+						$docker tag $repo:$suite $repo:$lsbRelease
+					fi
+				fi
+				;;
+			Tanglu)
+				if [ "$suite" = "$tangluLatest" ]; then
+					# tag latest
+					$docker tag $repo:$suite $repo:latest
+				fi
+				if [ -r etc/lsb-release ]; then
+					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
+					if [ "$lsbRelease" ]; then
+						# tag specific Tanglu version number, if available (1.0, 2.0, etc.)
+						$docker tag $repo:$suite $repo:$lsbRelease
+					fi
+				fi
+				;;
+			SteamOS)
+				if [ -r etc/lsb-release ]; then
+					lsbRelease="$(. etc/lsb-release && echo "$DISTRIB_RELEASE")"
+					if [ "$lsbRelease" ]; then
+						# tag specific SteamOS version number, if available (1.0, 2.0, etc.)
 						$docker tag $repo:$suite $repo:$lsbRelease
 					fi
 				fi

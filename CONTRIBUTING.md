@@ -88,7 +88,7 @@ curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/maste
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
 
-Pull requests mustn't contain commits from other users or branches.
+Pull requests must not contain commits from other users or branches.
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Be
@@ -109,6 +109,18 @@ name and email address match your git configuration. The AUTHORS file is
 regenerated occasionally from the git commit history, so a mismatch may result
 in your changes being overwritten.
 
+### Merge approval
+
+Docker maintainers use LGTM (looks good to me) in comments on the code review
+to indicate acceptance.
+
+A change requires LGTMs from an absolute majority of the maintainers of each
+component affected. For example, if a change affects docs/ and registry/, it
+needs an absolute majority from the maintainers of docs/ AND, separately, an
+absolute majority of the maintainers of registry.
+
+For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
+
 ### Sign your work
 
 The sign-off is a simple line at the end of the explanation for the
@@ -117,7 +129,7 @@ pass it on as an open-source patch.  The rules are pretty simple: if you
 can certify the below:
 
 ```
-Docker Developer Grant and Certificate of Origin 1.1
+Docker Developer Certificate of Origin 1.1
 
 By making a contribution to the Docker Project ("Project"), I represent and
 warrant that:
@@ -158,16 +170,21 @@ curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/mas
 
 * Note: the above script expects to find your GitHub user name in ``git config --get github.user``
 
+#### Small patch exception
+
+There are several exceptions to the signing requirement. Currently these are:
+
+* Your patch fixes spelling or grammar errors.
+* Your patch is a single line change to documentation.
+
 If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.io)
-
-
 
 ### How can I become a maintainer?
 
 * Step 1: learn the component inside out
 * Step 2: make yourself useful by contributing code, bugfixes, support etc.
 * Step 3: volunteer on the irc channel (#docker@freenode)
-* Step 4: propose yourself at a scheduled #docker-meeting
+* Step 4: propose yourself at a scheduled docker meeting in #docker-dev
 
 Don't forget: being a maintainer is a time investment. Make sure you will have time to make yourself available.
 You don't have to be a maintainer to make a difference on the project!

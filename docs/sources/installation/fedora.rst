@@ -1,4 +1,4 @@
-:title: Requirements and Installation on Fedora
+:title: Installation on Fedora
 :description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: Docker, Docker documentation, Fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
 

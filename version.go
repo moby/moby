@@ -1,16 +1,13 @@
 package docker
 
 import (
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/utils"
 	"runtime"
 )
 
-func init() {
-	engine.Register("version", jobVersion)
-}
-
-func jobVersion(job *engine.Job) engine.Status {
+func GetVersion(job *engine.Job) engine.Status {
 	if _, err := dockerVersion().WriteTo(job.Stdout); err != nil {
 		job.Errorf("%s", err)
 		return engine.StatusErr
@@ -22,8 +19,8 @@ func jobVersion(job *engine.Job) engine.Status {
 // environment.
 func dockerVersion() *engine.Env {
 	v := &engine.Env{}
-	v.Set("Version", VERSION)
-	v.Set("GitCommit", GITCOMMIT)
+	v.Set("Version", dockerversion.VERSION)
+	v.Set("GitCommit", dockerversion.GITCOMMIT)
 	v.Set("GoVersion", runtime.Version())
 	v.Set("Os", runtime.GOOS)
 	v.Set("Arch", runtime.GOARCH)

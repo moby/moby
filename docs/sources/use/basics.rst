@@ -50,6 +50,7 @@ Running an interactive shell
   # allocate a tty, attach stdin and stdout
   # To detach the tty without exiting the shell,
   # use the escape sequence Ctrl-p + Ctrl-q
+  # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
   sudo docker run -i -t ubuntu /bin/bash
 
 .. _bind_docker:
@@ -59,10 +60,10 @@ Bind Docker to another host/port or a Unix socket
 
 .. warning:: Changing the default ``docker`` daemon binding to a TCP
    port or Unix *docker* user group will increase your security risks
-   by allowing non-root users to potentially gain *root* access on the
-   host (`e.g. #1369
-   <https://github.com/dotcloud/docker/issues/1369>`_). Make sure you
-   control access to ``docker``.
+   by allowing non-root users to gain *root* access on the
+   host. Make sure you control access to ``docker``. If you are binding 
+   to a TCP port, anyone with access to that port has full Docker access;
+   so it is not advisable on an open network.
 
 With ``-H`` it is possible to make the Docker daemon to listen on a
 specific IP and port. By default, it will listen on
@@ -121,12 +122,38 @@ Starting a long-running worker process
   sudo docker kill $JOB
 
 
-Listing all running containers
-------------------------------
+Listing containers
+------------------
 
 .. code-block:: bash
 
-  sudo docker ps
+  sudo docker ps # Lists only running containers
+  sudo docker ps -a # Lists all containers
+
+
+Controlling containers
+----------------------
+.. code-block:: bash
+
+  # Start a new container
+  JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+
+  # Stop the container
+  docker stop $JOB
+
+  # Start the container
+  docker start $JOB
+
+  # Restart the container
+  docker restart $JOB
+
+  # SIGKILL a container
+  docker kill $JOB
+
+  # Remove a container
+  docker stop $JOB # Container must be stopped to remove it
+  docker rm $JOB
+
 
 Bind a service on a TCP port
 ------------------------------
