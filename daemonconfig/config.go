@@ -1,4 +1,4 @@
-package docker
+package daemonconfig
 
 import (
 	"net"
@@ -13,7 +13,7 @@ const (
 )
 
 // FIXME: separate runtime configuration from http api configuration
-type DaemonConfig struct {
+type Config struct {
 	Pidfile                     string
 	Root                        string
 	AutoRestart                 bool
@@ -32,8 +32,8 @@ type DaemonConfig struct {
 
 // ConfigFromJob creates and returns a new DaemonConfig object
 // by parsing the contents of a job's environment.
-func DaemonConfigFromJob(job *engine.Job) *DaemonConfig {
-	config := &DaemonConfig{
+func ConfigFromJob(job *engine.Job) *Config {
+	config := &Config{
 		Pidfile:                     job.Getenv("Pidfile"),
 		Root:                        job.Getenv("Root"),
 		AutoRestart:                 job.GetenvBool("AutoRestart"),

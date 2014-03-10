@@ -2,10 +2,11 @@ package docker
 
 import (
 	"errors"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -24,7 +25,7 @@ func TestMount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, nil, "Testing", "", nil)
+	image, err := graph.Create(archive, "", "", "Testing", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,8 +68,8 @@ func TestInterruptedRegister(t *testing.T) {
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
 	badArchive, w := io.Pipe() // Use a pipe reader as a fake archive which never yields data
-	image := &docker.Image{
-		ID:      docker.GenerateID(),
+	image := &image.Image{
+		ID:      utils.GenerateRandomID(),
 		Comment: "testing",
 		Created: time.Now(),
 	}
@@ -96,18 +97,18 @@ func TestGraphCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image, err := graph.Create(archive, nil, "Testing", "", nil)
+	img, err := graph.Create(archive, "", "", "Testing", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := docker.ValidateID(image.ID); err != nil {
+	if err := utils.ValidateID(img.ID); err != nil {
 		t.Fatal(err)
 	}
-	if image.Comment != "Testing" {
-		t.Fatalf("Wrong comment: should be '%s', not '%s'", "Testing", image.Comment)
+	if img.Comment != "Testing" {
+		t.Fatalf("Wrong comment: should be '%s', not '%s'", "Testing", img.Comment)
 	}
-	if image.DockerVersion != dockerversion.VERSION {
-		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", dockerversion.VERSION, image.DockerVersion)
+	if img.DockerVersion != dockerversion.VERSION {
+		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", dockerversion.VERSION, img.DockerVersion)
 	}
 	images, err := graph.Map()
 	if err != nil {
@@ -115,8 +116,8 @@ func TestGraphCreate(t *testing.T) {
 	} else if l := len(images); l != 1 {
 		t.Fatalf("Wrong number of images. Should be %d, not %d", 1, l)
 	}
-	if images[image.ID] == nil {
-		t.Fatalf("Could not find image with id %s", image.ID)
+	if images[img.ID] == nil {
+		t.Fatalf("Could not find image with id %s", img.ID)
 	}
 }
 
@@ -127,8 +128,8 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image := &docker.Image{
-		ID:      docker.GenerateID(),
+	image := &image.Image{
+		ID:      utils.GenerateRandomID(),
 		Comment: "testing",
 		Created: time.Now(),
 	}
@@ -164,12 +165,12 @@ func TestDeletePrefix(t *testing.T) {
 	assertNImages(graph, t, 0)
 }
 
-func createTestImage(graph *docker.Graph, t *testing.T) *docker.Image {
+func createTestImage(graph *graph.Graph, t *testing.T) *image.Image {
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
 	}
-	img, err := graph.Create(archive, nil, "Test image", "", nil)
+	img, err := graph.Create(archive, "", "", "Test image", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +185,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 0)
-	img, err := graph.Create(archive, nil, "Bla bla", "", nil)
+	img, err := graph.Create(archive, "", "", "Bla bla", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +200,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Test 2 create (same name) / 1 delete
-	img1, err := graph.Create(archive, nil, "Testing", "", nil)
+	img1, err := graph.Create(archive, "", "", "Testing", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +208,7 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = graph.Create(archive, nil, "Testing", "", nil); err != nil {
+	if _, err = graph.Create(archive, "", "", "Testing", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	assertNImages(graph, t, 2)
@@ -243,20 +244,20 @@ func TestByParent(t *testing.T) {
 
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
-	parentImage := &docker.Image{
-		ID:      docker.GenerateID(),
+	parentImage := &image.Image{
+		ID:      utils.GenerateRandomID(),
 		Comment: "parent",
 		Created: time.Now(),
 		Parent:  "",
 	}
-	childImage1 := &docker.Image{
-		ID:      docker.GenerateID(),
+	childImage1 := &image.Image{
+		ID:      utils.GenerateRandomID(),
 		Comment: "child1",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}
-	childImage2 := &docker.Image{
-		ID:      docker.GenerateID(),
+	childImage2 := &image.Image{
+		ID:      utils.GenerateRandomID(),
 		Comment: "child2",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
@@ -279,7 +280,7 @@ func TestByParent(t *testing.T) {
  * HELPER FUNCTIONS
  */
 
-func assertNImages(graph *docker.Graph, t *testing.T, n int) {
+func assertNImages(graph *graph.Graph, t *testing.T, n int) {
 	if images, err := graph.Map(); err != nil {
 		t.Fatal(err)
 	} else if actualN := len(images); actualN != n {
@@ -287,7 +288,7 @@ func assertNImages(graph *docker.Graph, t *testing.T, n int) {
 	}
 }
 
-func tempGraph(t *testing.T) (*docker.Graph, graphdriver.Driver) {
+func tempGraph(t *testing.T) (*graph.Graph, graphdriver.Driver) {
 	tmp, err := ioutil.TempDir("", "docker-graph-")
 	if err != nil {
 		t.Fatal(err)
@@ -296,14 +297,14 @@ func tempGraph(t *testing.T) (*docker.Graph, graphdriver.Driver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := docker.NewGraph(tmp, driver)
+	graph, err := graph.NewGraph(tmp, driver)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return graph, driver
 }
 
-func nukeGraph(graph *docker.Graph) {
+func nukeGraph(graph *graph.Graph) {
 	graph.Driver().Cleanup()
 	os.RemoveAll(graph.Root)
 }

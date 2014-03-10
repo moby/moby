@@ -1,19 +1,22 @@
-package docker
+package runtime
 
 import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/execdriver/native"
+	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/image"
 	_ "github.com/dotcloud/docker/networkdriver/lxc"
 	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
@@ -37,7 +40,7 @@ import (
 const MaxImageDepth = 127
 
 var (
-	defaultDns                = []string{"8.8.8.8", "8.8.4.4"}
+	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
 	validContainerNameChars   = `[a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
@@ -46,14 +49,14 @@ type Runtime struct {
 	repository     string
 	sysInitPath    string
 	containers     *list.List
-	graph          *Graph
-	repositories   *TagStore
+	graph          *graph.Graph
+	repositories   *graph.TagStore
 	idIndex        *utils.TruncIndex
 	sysInfo        *sysinfo.SysInfo
-	volumes        *Graph
-	srv            *Server
+	volumes        *graph.Graph
+	srv            Server
 	eng            *engine.Engine
-	config         *DaemonConfig
+	config         *daemonconfig.Config
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
@@ -395,7 +398,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 
 	// Generate id
-	id := GenerateID()
+	id := utils.GenerateRandomID()
 
 	if name == "" {
 		name, err = generateRandomName(runtime)
@@ -484,7 +487,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 	defer runtime.driver.Put(initID)
 
-	if err := setupInitLayer(initPath); err != nil {
+	if err := graph.SetupInitLayer(initPath); err != nil {
 		return nil, nil, err
 	}
 
@@ -497,8 +500,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 
 	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		//"WARNING: Docker detected local DNS server on resolv.conf. Using default external servers: %v", defaultDns
-		runtime.config.Dns = defaultDns
+		runtime.config.Dns = DefaultDns
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
@@ -538,7 +540,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*Image, error) {
+func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
 	if err := container.Mount(); err != nil {
@@ -553,7 +555,16 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	defer rwTar.Close()
 
 	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
+	var (
+		containerID, containerImage string
+		containerConfig             *runconfig.Config
+	)
+	if container != nil {
+		containerID = container.ID
+		containerImage = container.Image
+		containerConfig = container.Config
+	}
+	img, err := runtime.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}
@@ -566,7 +577,7 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 	return img, nil
 }
 
-func getFullName(name string) (string, error) {
+func GetFullContainerName(name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("Container name cannot be empty")
 	}
@@ -577,7 +588,7 @@ func getFullName(name string) (string, error) {
 }
 
 func (runtime *Runtime) GetByName(name string) (*Container, error) {
-	fullName, err := getFullName(name)
+	fullName, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +604,7 @@ func (runtime *Runtime) GetByName(name string) (*Container, error) {
 }
 
 func (runtime *Runtime) Children(name string) (map[string]*Container, error) {
-	name, err := getFullName(name)
+	name, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +635,7 @@ func (runtime *Runtime) RegisterLink(parent, child *Container, alias string) err
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
+func NewRuntime(config *daemonconfig.Config, eng *engine.Engine) (*Runtime, error) {
 	runtime, err := NewRuntimeFromDirectory(config, eng)
 	if err != nil {
 		return nil, err
@@ -632,7 +643,7 @@ func NewRuntime(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
+func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Runtime, error) {
 
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
@@ -652,13 +663,13 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 
 	if ad, ok := driver.(*aufs.Driver); ok {
 		utils.Debugf("Migrating existing containers")
-		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
+		if err := ad.Migrate(config.Root, graph.SetupInitLayer); err != nil {
 			return nil, err
 		}
 	}
 
 	utils.Debugf("Creating images graph")
-	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
+	g, err := graph.NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
 	}
@@ -670,12 +681,12 @@ func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime
 		return nil, err
 	}
 	utils.Debugf("Creating volumes graph")
-	volumes, err := NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
+	volumes, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
 	utils.Debugf("Creating repository list")
-	repositories, err := NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -876,8 +887,44 @@ func (runtime *Runtime) Nuke() error {
 // which need direct access to runtime.graph.
 // Once the tests switch to using engine and jobs, this method
 // can go away.
-func (runtime *Runtime) Graph() *Graph {
+func (runtime *Runtime) Graph() *graph.Graph {
 	return runtime.graph
+}
+
+func (runtime *Runtime) Repositories() *graph.TagStore {
+	return runtime.repositories
+}
+
+func (runtime *Runtime) Config() *daemonconfig.Config {
+	return runtime.config
+}
+
+func (runtime *Runtime) SystemConfig() *sysinfo.SysInfo {
+	return runtime.sysInfo
+}
+
+func (runtime *Runtime) SystemInitPath() string {
+	return runtime.sysInitPath
+}
+
+func (runtime *Runtime) GraphDriver() graphdriver.Driver {
+	return runtime.driver
+}
+
+func (runtime *Runtime) ExecutionDriver() execdriver.Driver {
+	return runtime.execDriver
+}
+
+func (runtime *Runtime) Volumes() *graph.Graph {
+	return runtime.volumes
+}
+
+func (runtime *Runtime) ContainerGraph() *graphdb.Database {
+	return runtime.containerGraph
+}
+
+func (runtime *Runtime) SetServer(server Server) {
+	runtime.srv = server
 }
 
 // History is a convenience type for storing a list of containers,

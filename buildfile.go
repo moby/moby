@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -34,7 +35,7 @@ type BuildFile interface {
 }
 
 type buildFile struct {
-	runtime *Runtime
+	runtime *runtime.Runtime
 	srv     *Server
 
 	image      string
@@ -74,9 +75,9 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 }
 
 func (b *buildFile) CmdFrom(name string) error {
-	image, err := b.runtime.repositories.LookupImage(name)
+	image, err := b.runtime.Repositories().LookupImage(name)
 	if err != nil {
-		if b.runtime.graph.IsNotExist(err) {
+		if b.runtime.Graph().IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
 			pullRegistryAuth := b.authConfig
 			if len(b.configFile.Configs) > 0 {
@@ -96,7 +97,7 @@ func (b *buildFile) CmdFrom(name string) error {
 			if err := job.Run(); err != nil {
 				return err
 			}
-			image, err = b.runtime.repositories.LookupImage(name)
+			image, err = b.runtime.Repositories().LookupImage(name)
 			if err != nil {
 				return err
 			}
@@ -110,7 +111,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		b.config = image.Config
 	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+defaultPathEnv)
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+runtime.DefaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
@@ -371,7 +372,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *Container, orig, dest string, remote bool) error {
+func (b *buildFile) addContext(container *runtime.Container, orig, dest string, remote bool) error {
 	var (
 		origPath = path.Join(b.contextPath, orig)
 		destPath = path.Join(container.BasefsPath(), dest)
@@ -604,7 +605,7 @@ func (sf *StderrFormater) Write(buf []byte) (int, error) {
 	return len(buf), err
 }
 
-func (b *buildFile) create() (*Container, error) {
+func (b *buildFile) create() (*runtime.Container, error) {
 	if b.image == "" {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -625,7 +626,7 @@ func (b *buildFile) create() (*Container, error) {
 	return c, nil
 }
 
-func (b *buildFile) run(c *Container) error {
+func (b *buildFile) run(c *runtime.Container) error {
 	var errCh chan error
 
 	if b.verbose {

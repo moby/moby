@@ -3,10 +3,11 @@ package docker
 import (
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -15,7 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -35,14 +36,14 @@ const (
 
 var (
 	// FIXME: globalRuntime is deprecated by globalEngine. All tests should be converted.
-	globalRuntime   *docker.Runtime
+	globalRuntime   *runtime.Runtime
 	globalEngine    *engine.Engine
 	startFds        int
 	startGoroutines int
 )
 
 // FIXME: nuke() is deprecated by Runtime.Nuke()
-func nuke(runtime *docker.Runtime) error {
+func nuke(runtime *runtime.Runtime) error {
 	return runtime.Nuke()
 }
 
@@ -119,7 +120,7 @@ func init() {
 
 	// Create the "global runtime" with a long-running daemon for integration tests
 	spawnGlobalDaemon()
-	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
+	startFds, startGoroutines = utils.GetTotalUsedFds(), goruntime.NumGoroutine()
 }
 
 func setupBaseImage() {
@@ -172,7 +173,7 @@ func spawnGlobalDaemon() {
 
 // FIXME: test that ImagePull(json=true) send correct json output
 
-func GetTestImage(runtime *docker.Runtime) *docker.Image {
+func GetTestImage(runtime *runtime.Runtime) *image.Image {
 	imgs, err := runtime.Graph().Map()
 	if err != nil {
 		log.Fatalf("Unable to get the test image: %s", err)
@@ -356,7 +357,7 @@ func TestGet(t *testing.T) {
 
 }
 
-func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *docker.Container, string) {
+func startEchoServerContainer(t *testing.T, proto string) (*runtime.Runtime, *runtime.Container, string) {
 	var (
 		err     error
 		id      string

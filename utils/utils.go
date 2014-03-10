@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -491,6 +492,34 @@ func TruncateID(id string) string {
 		shortLen = len(id)
 	}
 	return id[:shortLen]
+}
+
+// GenerateRandomID returns an unique id
+func GenerateRandomID() string {
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.Atoi(TruncateID(value)); err == nil {
+			continue
+		}
+		return value
+	}
+}
+
+func ValidateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("Id can't be empty")
+	}
+	if strings.Contains(id, ":") {
+		return fmt.Errorf("Invalid character in id: ':'")
+	}
+	return nil
 }
 
 // Code c/c from io.Copy() modified to handle escape sequence
