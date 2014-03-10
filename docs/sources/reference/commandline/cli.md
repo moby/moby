@@ -370,6 +370,63 @@ path.  Paths are relative to the root of the filesystem.
 
     Copy files/folders from the PATH to the HOSTPATH
 
+
+## create
+
+Creates a new container.
+
+    Usage: docker create [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+
+
+    -a, --attach=[]            Attach to stdin, stdout or stderr.
+    -c, --cpu-shares=0         CPU shares (relative weight)
+    --cidfile=""               Write the container ID to the file
+    --dns=[]                   Set custom dns servers
+    --dns-search=[]            Set custom dns search domains
+    -e, --env=[]               Set environment variables
+    --entrypoint=""            Overwrite the default entrypoint of the image
+    --env-file=[]              Read in a line delimited file of ENV variables
+    --expose=[]                Expose a port from the container without publishing it to your host
+    -h, --hostname=""          Container host name
+    -i, --interactive=false    Keep stdin open even if not attached
+    --link=[]                  Add link to another container (name:alias)
+    --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+    -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+    --name=""                  Assign a name to the container
+    --net="bridge"             Set the Network mode for the container
+                                 'bridge': creates a new network stack for the container on the docker bridge
+                                 'none': no networking for this container
+                                 'container:<name|id>': reuses another container network stack
+                                 'host': use the host network stack inside the contaner
+    -p, --publish=[]           Publish a container's port to the host
+                                 format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
+                                 (use 'docker port' to see the actual mapping)
+    -P, --publish-all=false    Publish all exposed ports to the host interfaces
+    --privileged=false         Give extended privileges to this container
+    -t, --tty=false            Allocate a pseudo-tty
+    -u, --user=""              Username or UID
+    -v, --volume=[]            Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
+    --volumes-from=[]          Mount volumes from the specified container(s)
+    -w, --workdir=""           Working directory inside the container
+
+
+The `docker create` command `creates` a writeable container layer over
+the specified image, and prepares it for running the specified
+command. The container id is then printed to stdout. This is similar
+to what `docker run -d <cli_run>`, does except the container is never
+started. You can then use the `docker start <cli_start>` command to
+start the container at any point.
+
+This is useful when you want to set up a container configuration ahead
+of time, so that it is ready to start when you need it.
+
+### Example:
+
+    $ sudo docker create -t -i fedora bash
+    6d8af538ec541dd581ebc2a24153a28329acb5268abe5ef868c1f1a261221752
+    $ sudo docker start -a -i 6d8af538ec5
+    bash-4.2#
+
 ## diff
 
 List the changed files and directories in a container᾿s filesystem
