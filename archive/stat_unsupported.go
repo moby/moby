@@ -5,11 +5,11 @@ package archive
 import "syscall"
 
 func getLastAccess(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Atimespec
+	return syscall.Timespec{}
 }
 
 func getLastModification(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Mtimespec
+	return syscall.Timespec{}
 }
 
 func LUtimesNano(path string, ts []syscall.Timespec) error {
