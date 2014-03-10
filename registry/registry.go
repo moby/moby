@@ -25,12 +25,8 @@ var (
 	errLoginRequired         = errors.New("Authentication is required.")
 )
 
-func pingRegistryEndpoint(endpoint string) (bool, error) {
-	if endpoint == IndexServerAddress() {
-		// Skip the check, we now this one is valid
-		// (and we never want to fallback to http in case of error)
-		return false, nil
-	}
+// reuse this chunk of code
+func newClient() *http.Client {
 	httpDial := func(proto string, addr string) (net.Conn, error) {
 		// Set the connect timeout to 5 seconds
 		conn, err := net.DialTimeout(proto, addr, time.Duration(5)*time.Second)
@@ -42,16 +38,38 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 		return conn, nil
 	}
 	httpTransport := &http.Transport{Dial: httpDial}
-	client := &http.Client{Transport: httpTransport}
+	return &http.Client{Transport: httpTransport}
+}
+
+// Have an API to access the version of the registry
+func getRegistryVersion(endpoint string) (string, error) {
+
+	client := newClient()
+	resp, err := client.Get(endpoint + "_version")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
+		return hdr, nil
+	}
+	versionBody, err := ioutil.ReadAll(resp.Body)
+	return string(versionBody), err
+}
+
+func pingRegistryEndpoint(endpoint string) (bool, error) {
+	if endpoint == IndexServerAddress() {
+		// Skip the check, we now this one is valid
+		// (and we never want to fallback to http in case of error)
+		return false, nil
+	}
+	client := newClient()
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
 		return false, err
 	}
 	defer resp.Body.Close()
-
-	if resp.Header.Get("X-Docker-Registry-Version") == "" {
-		return false, errors.New("This does not look like a Registry server (\"X-Docker-Registry-Version\" header not found in the response)")
-	}
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
 	utils.Debugf("Registry standalone header: '%s'", standalone)
@@ -223,9 +241,13 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 
-	imageSize, err := strconv.Atoi(res.Header.Get("X-Docker-Size"))
-	if err != nil {
-		return nil, -1, err
+	// if the size header is not present, then set it to '-1'
+	imageSize := -1
+	if hdr := res.Header.Get("X-Docker-Size"); hdr != "" {
+		imageSize, err = strconv.Atoi(hdr)
+		if err != nil {
+			return nil, -1, err
+		}
 	}
 
 	jsonString, err := ioutil.ReadAll(res.Body)
@@ -336,7 +358,8 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 			endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, ep))
 		}
 	} else {
-		return nil, fmt.Errorf("Index response didn't contain any endpoints")
+		// Assume the endpoint is on the same host
+		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, req.URL.Host))
 	}
 
 	checksumsJSON, err := ioutil.ReadAll(res.Body)
