@@ -173,7 +173,21 @@ func (ts *TarSum) Sum(extra []byte) string {
 	}
 	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
 	Debugf("checksum processed: %s", checksum)
+
+	ts.Reset()
 	return checksum
+}
+
+func (ts *TarSum) Reset() {
+	ts.gz.Close()
+	ts.gz = nil
+	ts.bufGz = nil
+	ts.bufTar = nil
+	ts.h = nil
+	ts.tarR = nil
+	ts.tarW = nil
+	ts.sums = nil
+	ts.first = true
 }
 
 func (ts *TarSum) GetSums() map[string]string {
