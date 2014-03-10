@@ -4,7 +4,7 @@ import (
 	"syscall"
 )
 
-var signalMap = map[string]syscall.Signal{
+var SignalMap = map[string]syscall.Signal{
 	"ABRT":   syscall.SIGABRT,
 	"ALRM":   syscall.SIGALRM,
 	"BUS":    syscall.SIGBUS,

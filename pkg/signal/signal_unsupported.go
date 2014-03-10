@@ -6,4 +6,4 @@ import (
 	"syscall"
 )
 
-var signalMap = map[string]syscall.Signal{}
+var SignalMap = map[string]syscall.Signal{}
