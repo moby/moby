@@ -36,5 +36,4 @@ func remote(eng *engine.Engine) {
 func daemon(eng *engine.Engine) {
 	eng.Register("initserver", docker.InitServer)
 	eng.Register("init_networkdriver", lxc.InitDriver)
-	eng.Register("version", docker.GetVersion)
 }
