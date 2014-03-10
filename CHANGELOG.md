@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.9.0 (2014-03-10)
+
+#### Builder
+- Avoid extra mount/unmount during build. This fixes mount/unmount related errors during build.
+- Add error to docker build --rm. This adds missing error handling.
+- Forbid chained onbuild, `onbuild from` and  `onbuild maintainer` triggers.
+- Make `--rm` the default for `docker build`.
+
+#### Documentation
+- Download the docker client binary for Mac over https.
+- Update the titles of the install instructions & descriptions.
+* Add instructions for upgrading boot2docker.
+* Add port forwarding example in OS X install docs.
+- Attempt to disentangle repository and registry.
+- Update docs to explain more about `docker ps`.
+- Update sshd example to use a Dockerfile.
+- Rework some examples, including the Python examples.
+- Update docs to include instructions for a container's lifecycle.
+- Update docs documentation to discuss the docs branch.
+- Don't skip cert check for an example & use HTTPS.
+- Bring back the memory and swap accounting section which was lost when the kernel page was removed.
+- Explain DNS warnings and how to fix them on systems running and using a local nameserver.
+
+#### Contrib
+- Add Tanglu support for mkimage-debootstrap.
+- Add SteamOS support for mkimage-debootstrap.
+
+#### Hack
+- Get package coverage when running integration tests.
+- Remove the Vagrantfile. This is being replaced with boot2docker.
+- Fix tests on systems where aufs isn't available.
+- Update packaging instructions and remove the dependency on lxc.
+
+#### Remote API
+* Move code specific to the API to the api package.
+- Fix header content type for the API. Makes all endpoints use proper content type.
+- Fix registry auth & remove ping calls from CmdPush and CmdPull.
+- Add newlines to the JSON stream functions.
+
+#### Runtime
+* Do not ping the registry from the CLI. All requests to registres flow through the daemon.
+- Check for nil information return in the lxc driver. This fixes panics with older lxc versions.
+- Devicemapper: cleanups and fix for unmount. Fixes two problems which were causing unmount to fail intermittently.
+- Devicemapper: remove directory when removing device. Directories don't get left behind when removing the device.
+* Devicemapper: enable skip_block_zeroing. Improves performance by not zeroing blocks.
+- Devicemapper: fix shutdown warnings. Fixes shutdown warnings concerning pool device removal.
+- Ensure docker cp stream is closed properly. Fixes problems with files not being copied by `docker cp`.
+- Stop making `tcp://` default to `127.0.0.1:4243` and remove the default port for tcp.
+- Fix `--run` in `docker commit`. This makes `docker commit --run` work again.
+- Fix custom bridge related options. This makes custom bridges work again.
++ Mount-bind the PTY as container console. This allows tmux/screen to run.
++ Add the pure Go libcontainer library to make it possible to run containers using only features of the Linux kernel.
++ Add native exec driver which uses libcontainer and make it the default exec driver.
+- Add support for handling extended attributes in archives.
+* Set the container MTU to be the same as the host MTU.
++ Add simple sha256 checksums for layers to speed up `docker push`.
+* Improve kernel version parsing.
+* Allow flag grouping (`docker run -it`).
+- Remove chroot exec driver.
+- Fix divide by zero to fix panic.
+- Rewrite `docker rmi`.
+- Fix docker info with lxc 1.0.0.
+- Fix fedora tty with apparmor.
+* Don't always append env vars, replace defaults with vars from config.
+* Fix a goroutine leak.
+* Switch to Go 1.2.1.
+- Fix unique constraint error checks.
+* Handle symlinks for Docker's data directory and for TMPDIR.
+- Add deprecation warnings for flags (-flag is deprecated in favor of --flag)
+- Add apparmor profile for the native execution driver.
+* Move system specific code from archive to pkg/system.
+- Fix duplicate signal for `docker run -i -t` (issue #3336).
+- Return correct process pid for lxc.
+- Add a -G option to specify the group which unix sockets belong to.
++ Add `-f` flag to `docker rm` to force removal of running containers.
++ Kill ghost containers and restart all ghost containers when the docker daemon restarts.
++ Add `DOCKER_RAMDISK` environment variable to make Docker work when the root is on a ramdisk.
+
 ## 0.8.1 (2014-02-18)
 
 #### Builder
