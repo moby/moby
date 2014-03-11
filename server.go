@@ -138,7 +138,7 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 
 	// If we have a signal, look at it. Otherwise, do nothing
 	if len(job.Args) == 2 && job.Args[1] != "" {
-		// Check if we passed the singal as a number:
+		// Check if we passed the signal as a number:
 		// The largest legal signal is 31, so let's parse on 5 bits
 		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
 		if err != nil {
