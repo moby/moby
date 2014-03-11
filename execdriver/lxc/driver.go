@@ -168,6 +168,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// Poll lxc for RUNNING status
 	pid, err := d.waitForStart(c, waitLock)
 	if err != nil {
+		if c.Process != nil {
+			c.Process.Kill()
+		}
 		return -1, err
 	}
 	c.ContainerPid = pid
