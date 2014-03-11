@@ -112,7 +112,7 @@ as well as persistent standard input (``stdin``), so you'll use ``-i
 Container Identification
 ------------------------
 
-Name (-name)
+Name (--name)
 ............
 
 The operator can identify a container in three ways:
@@ -122,7 +122,7 @@ The operator can identify a container in three ways:
 * Name ("evil_ptolemy")
 
 The UUID identifiers come from the Docker daemon, and if you do not
-assign a name to the container with ``-name`` then the daemon will
+assign a name to the container with ``--name`` then the daemon will
 also generate a random string name too. The name can become a handy
 way to add meaning to a container since you can use this name when
 defining :ref:`links <working_with_links_names>` (or any other place
@@ -347,7 +347,7 @@ that give the IP and PORT information for connecting to the service
 container. Let's imagine we have a container running Redis::
 
    # Start the service container, named redis-name
-   $ docker run -d -name redis-name dockerfiles/redis
+   $ docker run -d --name redis-name dockerfiles/redis
    4241164edf6f5aca5b0e9e4c9eccd899b0b8080c64c0cd26efe02166c73208f3
 
    # The redis-name container exposed port 6379
