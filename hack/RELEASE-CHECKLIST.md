@@ -6,6 +6,21 @@ So you're in charge of a Docker release? Cool. Here's what to do.
 If your experience deviates from this document, please document the changes
 to keep it up-to-date.
 
+It is important to note that this document assumes that the git remote in your
+repository that corresponds to "https://github.com/dotcloud/docker" is named
+"origin".  If yours is not (for example, if you've chosen to name it "upstream"
+or something similar instead), be sure to adjust the listed snippets for your
+local environment accordingly.  If you are not sure what your upstream remote is
+named, use a command like `git remote -v` to find out.
+
+If you don't have an upstream remote, you can add one easily using something
+like:
+
+```bash
+git remote add origin https://github.com/dotcloud/docker.git
+git remote add YOURUSER git@github.com:YOURUSER/docker.git
+```
+
 ### 1. Pull from master and create a release branch
 
 ```bash
