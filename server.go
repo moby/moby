@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
@@ -199,19 +198,19 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 func (srv *Server) Auth(job *engine.Job) engine.Status {
 	var (
 		err        error
-		authConfig = &auth.AuthConfig{}
+		authConfig = &registry.AuthConfig{}
 	)
 
 	job.GetenvJson("authConfig", authConfig)
 	// TODO: this is only done here because auth and registry need to be merged into one pkg
-	if addr := authConfig.ServerAddress; addr != "" && addr != auth.IndexServerAddress() {
+	if addr := authConfig.ServerAddress; addr != "" && addr != registry.IndexServerAddress() {
 		addr, err = registry.ExpandAndVerifyRegistryUrl(addr)
 		if err != nil {
 			return job.Error(err)
 		}
 		authConfig.ServerAddress = addr
 	}
-	status, err := auth.Login(authConfig, srv.HTTPRequestFactory(nil))
+	status, err := registry.Login(authConfig, srv.HTTPRequestFactory(nil))
 	if err != nil {
 		return job.Error(err)
 	}
@@ -431,8 +430,8 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		suppressOutput = job.GetenvBool("q")
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
-		authConfig     = &auth.AuthConfig{}
-		configFile     = &auth.ConfigFile{}
+		authConfig     = &registry.AuthConfig{}
+		configFile     = &registry.ConfigFile{}
 		tag            string
 		context        io.ReadCloser
 	)
@@ -611,12 +610,12 @@ func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 	var (
 		term        = job.Args[0]
 		metaHeaders = map[string][]string{}
-		authConfig  = &auth.AuthConfig{}
+		authConfig  = &registry.AuthConfig{}
 	)
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 
-	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), auth.IndexServerAddress())
+	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), registry.IndexServerAddress())
 	if err != nil {
 		return job.Error(err)
 	}
@@ -827,7 +826,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("ExecutionDriver", srv.runtime.ExecutionDriver().Name())
 	v.SetInt("NEventsListener", len(srv.listeners))
 	v.Set("KernelVersion", kernelVersion)
-	v.Set("IndexServerAddress", auth.IndexServerAddress())
+	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
@@ -1312,7 +1311,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName   = job.Args[0]
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &auth.AuthConfig{}
+		authConfig  = &registry.AuthConfig{}
 		metaHeaders map[string][]string
 	)
 	if len(job.Args) > 1 {
@@ -1350,7 +1349,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	if endpoint == auth.IndexServerAddress() {
+	if endpoint == registry.IndexServerAddress() {
 		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
 		localName = remoteName
 	}
@@ -1531,7 +1530,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	var (
 		localName   = job.Args[0]
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &auth.AuthConfig{}
+		authConfig  = &registry.AuthConfig{}
 		metaHeaders map[string][]string
 	)
 

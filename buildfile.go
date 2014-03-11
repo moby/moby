@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
@@ -49,8 +48,8 @@ type buildFile struct {
 	utilizeCache bool
 	rm           bool
 
-	authConfig *auth.AuthConfig
-	configFile *auth.ConfigFile
+	authConfig *registry.AuthConfig
+	configFile *registry.ConfigFile
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -793,7 +792,7 @@ func (b *buildFile) BuildStep(name, expression string) error {
 	return nil
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *auth.AuthConfig, authConfigFile *auth.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,

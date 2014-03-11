@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
@@ -14,7 +13,7 @@ var (
 )
 
 func spawnTestRegistry(t *testing.T) *Registry {
-	authConfig := &auth.AuthConfig{}
+	authConfig := &AuthConfig{}
 	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +136,7 @@ func TestResolveRepositoryName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, ep, auth.IndexServerAddress(), "Expected endpoint to be index server address")
+	assertEqual(t, ep, IndexServerAddress(), "Expected endpoint to be index server address")
 	assertEqual(t, repo, "fooo/bar", "Expected resolved repo to be foo/bar")
 
 	u := makeURL("")[7:]

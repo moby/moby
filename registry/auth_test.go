@@ -1,4 +1,4 @@
-package auth
+package registry
 
 import (
 	"io/ioutil"
