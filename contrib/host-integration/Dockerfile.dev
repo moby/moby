@@ -6,7 +6,7 @@
 #
 
 FROM		ubuntu:12.10
-MAINTAINER	Guillaume J. Charmes <guillaume@dotcloud.com>
+MAINTAINER	Guillaume J. Charmes <guillaume@docker.com>
 
 RUN		apt-get update && apt-get install -y wget git mercurial
 
