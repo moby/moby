@@ -459,6 +459,11 @@ Kill the container `id`
 
         HTTP/1.1 204 OK
 
+    Query Parameters
+
+    -   **signal** - Signal to send to the container: integer or string like "SIGINT".
+        When not set, SIGKILL is assumed and the call will waits for the container to exit.
+
     Status Codes:
 
     -   **204** – no error

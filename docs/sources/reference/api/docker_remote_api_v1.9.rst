@@ -480,6 +480,7 @@ Kill a container
 
            HTTP/1.1 204 OK
 
+        :query signal: Signal to send to the container, must be integer or string (i.e. SIGINT). When not set, SIGKILL is assumed and the call will waits for the container to exit.
         :statuscode 204: no error
         :statuscode 404: no such container
         :statuscode 500: server error
