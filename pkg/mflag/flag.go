@@ -286,9 +286,24 @@ type Flag struct {
 	DefValue string   // default value (as text); for usage message
 }
 
+type flagSlice []string
+
+func (p flagSlice) Len() int { return len(p) }
+func (p flagSlice) Less(i, j int) bool {
+	pi, pj := strings.ToLower(p[i]), strings.ToLower(p[j])
+	if pi[0] == '-' {
+		pi = pi[1:]
+	}
+	if pj[0] == '-' {
+		pj = pj[1:]
+	}
+	return pi < pj
+}
+func (p flagSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+
 // sortFlags returns the flags as a slice in lexicographical sorted order.
 func sortFlags(flags map[string]*Flag) []*Flag {
-	var list sort.StringSlice
+	var list flagSlice
 	for _, f := range flags {
 		fName := strings.TrimPrefix(f.Names[0], "#")
 		if len(f.Names) == 1 {
@@ -307,7 +322,7 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 			list = append(list, fName)
 		}
 	}
-	list.Sort()
+	sort.Sort(list)
 	result := make([]*Flag, len(list))
 	for i, name := range list {
 		result[i] = flags[name]
