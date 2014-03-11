@@ -36,7 +36,7 @@ func parseLxcInfo(raw string) (*lxcInfo, error) {
 		if len(parts) < 2 {
 			continue
 		}
-		switch strings.TrimSpace(parts[0]) {
+		switch strings.ToLower(strings.TrimSpace(parts[0])) {
 		case "state":
 			info.Running = strings.TrimSpace(parts[1]) == "RUNNING"
 		case "pid":
