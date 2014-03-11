@@ -85,6 +85,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"search":           srv.ImagesSearch,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
+		"version":          srv.DockerVersion,
 		"load":             srv.ImageLoad,
 		"build":            srv.Build,
 		"pull":             srv.ImagePull,
@@ -830,6 +831,22 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("IndexServerAddress", auth.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
+	if _, err := v.WriteTo(job.Stdout); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
+}
+
+func (srv *Server) DockerVersion(job *engine.Job) engine.Status {
+	v := &engine.Env{}
+	v.Set("Version", dockerversion.VERSION)
+	v.Set("GitCommit", dockerversion.GITCOMMIT)
+	v.Set("GoVersion", goruntime.Version())
+	v.Set("Os", goruntime.GOOS)
+	v.Set("Arch", goruntime.GOARCH)
+	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
+		v.Set("KernelVersion", kernelVersion.String())
+	}
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
@@ -2337,16 +2354,15 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 }
 
 func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
-	srv.Lock()
-	defer srv.Unlock()
-	v := dockerVersion()
 	httpVersion := make([]utils.VersionInfo, 0, 4)
-	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", v.Get("Version")})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"go", v.Get("GoVersion")})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", v.Get("GitCommit")})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", v.Get("KernelVersion")})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"os", v.Get("Os")})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", v.Get("Arch")})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", dockerversion.VERSION})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"go", goruntime.Version()})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", dockerversion.GITCOMMIT})
+	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
+		httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", kernelVersion.String()})
+	}
+	httpVersion = append(httpVersion, &simpleVersionInfo{"os", goruntime.GOOS})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", goruntime.GOARCH})
 	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
 	md := &utils.HTTPMetaHeadersDecorator{
 		Headers: metaHeaders,
