@@ -1296,7 +1296,8 @@ through (i.e. $MYVAR1 from the host is set to $MYVAR1 in the container). All
 three flags, ``-e``, ``--env``  and ``--env-file`` can be repeated.
 
 Regardless of the order of these three flags, the ``--env-file`` are processed
-first, and then ``-e``/``--env`` flags. So that they can override VAR as needed.
+first, and then ``-e``/``--env`` flags. This way, the ``-e`` or ``--env`` will
+override variables as needed.
 
 .. code-block:: bash
 
@@ -1306,29 +1307,30 @@ first, and then ``-e``/``--env`` flags. So that they can override VAR as needed.
     TEST_FOO=This is a test
 
 The ``--env-file`` flag takes a filename as an argument and expects each line
-to be in the VAR=VAL format.  The VAL is Unquoted, so if you need a multi-line
-value, then use `\n` escape characters inside of a double quoted VAL. Single
-quotes are literal. An example of a file passed with ``--env-file``
+to be in the VAR=VAL format, mimicking the argument passed to ``--env``.
+Comment lines need only be prefixed with ``#``
+
+An example of a file passed with ``--env-file``
 
 .. code-block:: bash
 
     $ cat ./env.list
     TEST_FOO=BAR
+
+    # this is a comment
     TEST_APP_DEST_HOST=10.10.0.127
     TEST_APP_DEST_PORT=8888
-    TEST_SOME_MULTILINE_VAR="this is first line\nthis is second line"
-    TEST_SOME_LITERAL_VAR='this\nwill\nall\nbe\none\nline'
-    $ sudo docker run --env-file ./env.list busybox env
+
+    # pass through this variable from the caller
+    TEST_PASSTHROUGH
+    $ sudo TEST_PASSTHROUGH=howdy docker run --env-file ./env.list busybox env
     HOME=/
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    HOSTNAME=215d54a814bc
+    HOSTNAME=5198e0745561
     TEST_FOO=BAR
     TEST_APP_DEST_HOST=10.10.0.127
     TEST_APP_DEST_PORT=8888
-    TEST_SOME_MULTILINE_VAR=this is first line
-    this is second line
-    TEST_SOME_LITERAL_VAR='this\nwill\nall\nbe\none\nline'
-    container=lxc
+    TEST_PASSTHROUGH=howdy
 
 
 .. code-block:: bash
