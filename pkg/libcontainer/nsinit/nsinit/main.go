@@ -33,11 +33,11 @@ func main() {
 	}
 	container, err := loadContainer()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to load container: %s", err)
 	}
 	ns, err := newNsInit()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to initialize nsinit: %s", err)
 	}
 
 	switch flag.Arg(0) {
@@ -46,7 +46,7 @@ func main() {
 		nspid, err := readPid()
 		if err != nil {
 			if !os.IsNotExist(err) {
-				log.Fatal(err)
+				log.Fatalf("Unable to read pid: %s", err)
 			}
 		}
 		if nspid > 0 {
@@ -56,7 +56,7 @@ func main() {
 			exitCode, err = ns.Exec(container, term, flag.Args()[1:])
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to exec: %s", err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
@@ -69,10 +69,10 @@ func main() {
 		}
 		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Unable to create sync pipe: %s", err)
 		}
 		if err := ns.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
-			log.Fatal(err)
+			log.Fatalf("Unable to initialize for container: %s", err)
 		}
 	default:
 		log.Fatalf("command not supported for nsinit %s", flag.Arg(0))
