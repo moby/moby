@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/dotcloud/docker/api"
@@ -11,7 +12,9 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/opts"
+	"github.com/dotcloud/docker/pkg/libcontainer"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 )
@@ -74,6 +77,9 @@ func main() {
 		os.Setenv("DEBUG", "1")
 	}
 	if *flDaemon {
+		// Ensure that we are PID 1 being in our own pid and mount namespace
+		ensurePid1()
+
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
@@ -162,4 +168,30 @@ func main() {
 
 func showVersion() {
 	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
+}
+
+func ensurePid1() {
+	if pid := os.Getpid(); pid != 1 {
+		var (
+			nspid   = libcontainer.GetNamespace("NEWPID")
+			nsmount = libcontainer.GetNamespace("NEWNS")
+		)
+
+		cmd := exec.Command(os.Args[0], os.Args[1:]...)
+		system.SetCloneFlags(cmd, uintptr(nspid.Value|nsmount.Value))
+
+		cmd.Stdout = os.Stdout
+		cmd.Stdin = os.Stdin
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			panic(err)
+		}
+		os.Exit(0)
+	}
+
+	// because we are reexecing ourself make sure that we die with our parent
+	if err := system.ParentDeathSignal(); err != nil {
+		panic(err)
+	}
 }
