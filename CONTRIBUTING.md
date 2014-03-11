@@ -170,13 +170,6 @@ curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/mas
 
 * Note: the above script expects to find your GitHub user name in ``git config --get github.user``
 
-#### Small patch exception
-
-There are several exceptions to the signing requirement. Currently these are:
-
-* Your patch fixes spelling or grammar errors.
-* Your patch is a single line change to documentation.
-
 If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.io)
 
 ### How can I become a maintainer?
