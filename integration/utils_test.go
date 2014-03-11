@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
+	"github.com/dotcloud/docker/server"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -149,14 +149,14 @@ func getContainer(eng *engine.Engine, id string, t utils.Fataler) *runtime.Conta
 	return c
 }
 
-func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *docker.Server {
+func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *server.Server {
 	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
 	if iSrv == nil {
 		panic("Legacy server field not set in engine")
 	}
-	srv, ok := iSrv.(*docker.Server)
+	srv, ok := iSrv.(*server.Server)
 	if !ok {
-		panic("Legacy server field in engine does not cast to *docker.Server")
+		panic("Legacy server field in engine does not cast to *server.Server")
 	}
 	return srv
 }

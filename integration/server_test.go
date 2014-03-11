@@ -1,9 +1,9 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/server"
 	"strings"
 	"testing"
 	"time"
@@ -739,7 +739,7 @@ func TestListContainers(t *testing.T) {
 	}
 }
 
-func assertContainerList(srv *docker.Server, all bool, limit int, since, before string, expected []string) bool {
+func assertContainerList(srv *server.Server, all bool, limit int, since, before string, expected []string) bool {
 	job := srv.Eng.Job("containers")
 	job.SetenvBool("all", all)
 	job.SetenvInt("limit", limit)
