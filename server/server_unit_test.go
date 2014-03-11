@@ -1,4 +1,4 @@
-package docker
+package server
 
 import (
 	"github.com/dotcloud/docker/utils"

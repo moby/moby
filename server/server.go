@@ -1,4 +1,4 @@
-package docker
+package server
 
 import (
 	"encoding/json"
@@ -456,11 +456,11 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 
 	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
 	b := NewBuildFile(srv,
-		&StdoutFormater{
+		&utils.StdoutFormater{
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		&StderrFormater{
+		&utils.StderrFormater{
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},

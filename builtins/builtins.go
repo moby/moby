@@ -3,9 +3,9 @@ package builtins
 import (
 	"github.com/dotcloud/docker/engine"
 
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/networkdriver/lxc"
+	"github.com/dotcloud/docker/server"
 )
 
 func Register(eng *engine.Engine) {
@@ -34,6 +34,6 @@ func remote(eng *engine.Engine) {
 // These components should be broken off into plugins of their own.
 //
 func daemon(eng *engine.Engine) {
-	eng.Register("initserver", docker.InitServer)
+	eng.Register("initserver", server.InitServer)
 	eng.Register("init_networkdriver", lxc.InitDriver)
 }
