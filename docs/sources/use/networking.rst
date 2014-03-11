@@ -114,6 +114,22 @@ In this scenario:
     bridge 	name	bridge id		STP enabled	interfaces
     bridge0		8000.fe7c2e0faebd	no		vethAQI2QT
     
+To make the bridge permenent, and use the default bridge name ``docker0``, edit 
+``/etc/default/docker``, make sure it does **not** contain ``-b=`` parameter,
+then add the following lines:
+
+.. code-block:: bash
+    
+    # Get the docker bridge info.
+    DOCKER_BRIDGE=`brctl show|grep docker0`
+    # Test if docker0 exists.
+    if [-z $DOCKER_BRIDGE]; then
+        #Add bridge docker0
+        brctl addbr docker0
+        #Set docker0 with ip address and netmask
+        ifconfig docker0 192.168.227.1 netmask 255.255.255.0
+    fi
+    
     
 Container intercommunication
 -------------------------------
