@@ -120,10 +120,8 @@ then add the following lines:
 
 .. code-block:: bash
     
-    # Get the docker bridge info.
-    DOCKER_BRIDGE=`brctl show|grep docker0`
     # Test if docker0 exists.
-    if [-z $DOCKER_BRIDGE]; then
+    if [ `brctl show|grep docker0|wc -l` == 0 ]; then
         #Add bridge docker0
         brctl addbr docker0
         #Set docker0 with ip address and netmask
