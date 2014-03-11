@@ -21,6 +21,7 @@ BASE=$(basename $0)
 # modify these in /etc/default/$BASE (/etc/default/docker)
 DOCKER=/usr/bin/$BASE
 DOCKER_PIDFILE=/var/run/$BASE.pid
+DOCKER_LOGFILE=/var/log/$BASE.log
 DOCKER_OPTS=
 DOCKER_DESC="Docker"
 
@@ -79,8 +80,8 @@ case "$1" in
 
 		cgroupfs_mount
 
-		touch /var/log/docker.log
-		chgrp docker /var/log/docker.log
+		touch "$DOCKER_LOGFILE"
+		chgrp docker "$DOCKER_LOGFILE"
 
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
@@ -90,7 +91,7 @@ case "$1" in
 			-- \
 				-d -p "$DOCKER_PIDFILE" \
 				$DOCKER_OPTS \
-					> /var/log/docker.log 2>&1
+					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
 		;;
 
