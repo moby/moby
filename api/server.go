@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"expvar"
 	"fmt"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/listenbuffer"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/pkg/version"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -381,13 +381,13 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job   *engine.Job
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
-	authConfig := &auth.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 	if authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 	if image != "" { //pull
@@ -429,7 +429,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 	}
 	var (
 		authEncoded = r.Header.Get("X-Registry-Auth")
-		authConfig  = &auth.AuthConfig{}
+		authConfig  = &registry.AuthConfig{}
 		metaHeaders = map[string][]string{}
 	)
 
@@ -438,7 +438,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 	for k, v := range r.Header {
@@ -494,7 +494,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	authConfig := &auth.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	if authEncoded != "" {
@@ -502,7 +502,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// to increase compatibility to existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
@@ -823,9 +823,9 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	}
 	var (
 		authEncoded       = r.Header.Get("X-Registry-Auth")
-		authConfig        = &auth.AuthConfig{}
+		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
-		configFile        = &auth.ConfigFile{}
+		configFile        = &registry.ConfigFile{}
 		job               = eng.Job("build")
 	)
 
@@ -838,7 +838,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 
@@ -847,7 +847,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			configFile = &auth.ConfigFile{}
+			configFile = &registry.ConfigFile{}
 		}
 	}
 

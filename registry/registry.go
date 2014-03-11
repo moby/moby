@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -27,7 +26,7 @@ var (
 )
 
 func pingRegistryEndpoint(endpoint string) (bool, error) {
-	if endpoint == auth.IndexServerAddress() {
+	if endpoint == IndexServerAddress() {
 		// Skip the check, we now this one is valid
 		// (and we never want to fallback to http in case of error)
 		return false, nil
@@ -103,7 +102,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		nameParts[0] != "localhost" {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
-		return auth.IndexServerAddress(), reposName, err
+		return IndexServerAddress(), reposName, err
 	}
 	if len(nameParts) < 2 {
 		// There is a dot in repos name (and no registry address)
@@ -601,7 +600,7 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	utils.Debugf("Index server: %s", r.indexEndpoint)
-	u := auth.IndexServerAddress() + "search?q=" + url.QueryEscape(term)
+	u := IndexServerAddress() + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
@@ -627,12 +626,12 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	return result, err
 }
 
-func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
+func (r *Registry) GetAuthConfig(withPasswd bool) *AuthConfig {
 	password := ""
 	if withPasswd {
 		password = r.authConfig.Password
 	}
-	return &auth.AuthConfig{
+	return &AuthConfig{
 		Username: r.authConfig.Username,
 		Password: password,
 		Email:    r.authConfig.Email,
@@ -668,12 +667,12 @@ type ImgData struct {
 
 type Registry struct {
 	client        *http.Client
-	authConfig    *auth.AuthConfig
+	authConfig    *AuthConfig
 	reqFactory    *utils.HTTPRequestFactory
 	indexEndpoint string
 }
 
-func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
+func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
@@ -693,13 +692,13 @@ func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory,
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
-	if indexEndpoint != auth.IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
+	if indexEndpoint != IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
 		standalone, err := pingRegistryEndpoint(indexEndpoint)
 		if err != nil {
 			return nil, err
 		}
 		if standalone {
-			utils.Debugf("Endpoint %s is eligible for private registry auth. Enabling decorator.", indexEndpoint)
+			utils.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}

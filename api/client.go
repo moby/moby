@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
@@ -229,7 +228,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 // 'docker login': login / register a user to registry service.
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := cli.Subcmd("login", "[OPTIONS] [SERVER]", "Register or Login to a docker registry server, if no server is specified \""+auth.IndexServerAddress()+"\" is the default.")
+	cmd := cli.Subcmd("login", "[OPTIONS] [SERVER]", "Register or Login to a docker registry server, if no server is specified \""+registry.IndexServerAddress()+"\" is the default.")
 
 	var username, password, email string
 
@@ -240,7 +239,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if err != nil {
 		return nil
 	}
-	serverAddress := auth.IndexServerAddress()
+	serverAddress := registry.IndexServerAddress()
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
 	}
@@ -266,7 +265,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cli.LoadConfigFile()
 	authconfig, ok := cli.configFile.Configs[serverAddress]
 	if !ok {
-		authconfig = auth.AuthConfig{}
+		authconfig = registry.AuthConfig{}
 	}
 
 	if username == "" {
@@ -311,7 +310,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false)
 	if statusCode == 401 {
 		delete(cli.configFile.Configs, serverAddress)
-		auth.SaveConfig(cli.configFile)
+		registry.SaveConfig(cli.configFile)
 		return err
 	}
 	if err != nil {
@@ -320,10 +319,10 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	var out2 engine.Env
 	err = out2.Decode(stream)
 	if err != nil {
-		cli.configFile, _ = auth.LoadConfig(os.Getenv("HOME"))
+		cli.configFile, _ = registry.LoadConfig(os.Getenv("HOME"))
 		return err
 	}
-	auth.SaveConfig(cli.configFile)
+	registry.SaveConfig(cli.configFile)
 	if out2.Get("Status") != "" {
 		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
 	}
@@ -1008,7 +1007,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	// Custom repositories can have different rules, and we must also
 	// allow pushing by image ID.
 	if len(strings.SplitN(name, "/", 2)) == 1 {
-		username := cli.configFile.Configs[auth.IndexServerAddress()].Username
+		username := cli.configFile.Configs[registry.IndexServerAddress()].Username
 		if username == "" {
 			username = "<user>"
 		}
@@ -1016,7 +1015,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	v := url.Values{}
-	push := func(authConfig auth.AuthConfig) error {
+	push := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
 			return err
@@ -1075,7 +1074,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	v.Set("fromImage", remote)
 	v.Set("tag", *tag)
 
-	pull := func(authConfig auth.AuthConfig) error {
+	pull := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
 			return err
@@ -2058,8 +2057,8 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	if passAuthInfo {
 		cli.LoadConfigFile()
 		// Resolve the Auth config relevant for this server
-		authConfig := cli.configFile.ResolveAuthConfig(auth.IndexServerAddress())
-		getHeaders := func(authConfig auth.AuthConfig) (map[string][]string, error) {
+		authConfig := cli.configFile.ResolveAuthConfig(registry.IndexServerAddress())
+		getHeaders := func(authConfig registry.AuthConfig) (map[string][]string, error) {
 			buf, err := json.Marshal(authConfig)
 			if err != nil {
 				return nil, err
@@ -2340,7 +2339,7 @@ func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet 
 }
 
 func (cli *DockerCli) LoadConfigFile() (err error) {
-	cli.configFile, err = auth.LoadConfig(os.Getenv("HOME"))
+	cli.configFile, err = registry.LoadConfig(os.Getenv("HOME"))
 	if err != nil {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
@@ -2422,7 +2421,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string) *Doc
 type DockerCli struct {
 	proto      string
 	addr       string
-	configFile *auth.ConfigFile
+	configFile *registry.ConfigFile
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
