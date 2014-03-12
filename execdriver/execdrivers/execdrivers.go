@@ -9,15 +9,15 @@ import (
 	"path"
 )
 
-func NewDriver(name, root string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
+func NewDriver(name, root, options string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
 	switch name {
 	case "lxc":
 		// we want to five the lxc driver the full docker root because it needs
 		// to access and write config and template files in /var/lib/docker/containers/*
 		// to be backwards compatible
-		return lxc.NewDriver(root, sysInfo.AppArmor)
+		return lxc.NewDriver(root, options, sysInfo.AppArmor)
 	case "native":
-		return native.NewDriver(path.Join(root, "execdriver", "native"))
+		return native.NewDriver(path.Join(root, "execdriver", "native"), options)
 	}
 	return nil, fmt.Errorf("unknown exec driver %s", name)
 }

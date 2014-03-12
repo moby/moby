@@ -26,6 +26,7 @@ type Config struct {
 	InterContainerCommunication bool
 	GraphDriver                 string
 	ExecDriver                  string
+	ExecOptions                 string
 	Mtu                         int
 	DisableNetwork              bool
 }
@@ -45,6 +46,7 @@ func ConfigFromJob(job *engine.Job) *Config {
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
 		ExecDriver:                  job.Getenv("ExecDriver"),
+		ExecOptions:                 job.Getenv("ExecOptions"),
 	}
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns

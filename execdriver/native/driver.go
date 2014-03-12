@@ -55,10 +55,11 @@ func init() {
 }
 
 type driver struct {
-	root string
+	root    string
+	options string
 }
 
-func NewDriver(root string) (*driver, error) {
+func NewDriver(root, options string) (*driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
@@ -66,7 +67,8 @@ func NewDriver(root string) (*driver, error) {
 		return nil, err
 	}
 	return &driver{
-		root: root,
+		root:    root,
+		options: options,
 	}, nil
 }
 
@@ -214,6 +216,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 	d.c.Args = append([]string{
 		initPath,
 		"-driver", DriverName,
+		"-options", d.driver.options,
 		"-console", console,
 		"-pipe", "3",
 		"-root", filepath.Join(d.driver.root, d.c.ID),

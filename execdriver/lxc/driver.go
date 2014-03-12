@@ -55,11 +55,12 @@ func init() {
 
 type driver struct {
 	root       string // root path for the driver to use
+	options    string
 	apparmor   bool
 	sharedRoot bool
 }
 
-func NewDriver(root string, apparmor bool) (*driver, error) {
+func NewDriver(root, options string, apparmor bool) (*driver, error) {
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
@@ -67,6 +68,7 @@ func NewDriver(root string, apparmor bool) (*driver, error) {
 	return &driver{
 		apparmor:   apparmor,
 		root:       root,
+		options:    options,
 		sharedRoot: rootIsShared(),
 	}, nil
 }
@@ -92,6 +94,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		c.InitPath,
 		"-driver",
 		DriverName,
+		"-options",
+		d.options,
 	}
 
 	if c.Network != nil {
