@@ -128,7 +128,7 @@ The ``client`` then links to the ``server``:
 .. code-block:: bash
 
     # Link
-    docker run -name client -link server:linked-server <image> <cmd>
+    docker run --name client --link server:linked-server <image> <cmd>
 
 ``client`` locally refers to ``server`` as ``linked-server``. The
 following environment variables, among others, are available on
