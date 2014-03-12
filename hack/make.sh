@@ -125,7 +125,7 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		set -x
+		echo '+ go test' $TESTFLAGS "github.com/dotcloud/docker${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
