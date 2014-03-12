@@ -55,6 +55,7 @@ func SysInit() {
 		driver     = flag.String("driver", "", "exec driver")
 		pipe       = flag.Int("pipe", 0, "sync pipe fd")
 		console    = flag.String("console", "", "console (pty slave) path")
+		tty        = flag.Bool("tty", false, "Use Tty")
 		root       = flag.String("root", ".", "root path for configuration files")
 	)
 	flag.Parse()
@@ -82,6 +83,7 @@ func SysInit() {
 		Mtu:        *mtu,
 		Driver:     *driver,
 		Console:    *console,
+		Tty:        *tty,
 		Pipe:       *pipe,
 		Root:       *root,
 	}

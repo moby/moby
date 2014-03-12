@@ -11,7 +11,7 @@ import (
 // parent processes and creates an *exec.Cmd that will be used to fork/exec the
 // namespaced init process
 type CommandFactory interface {
-	Create(container *libcontainer.Container, console string, syncFd *os.File, args []string) *exec.Cmd
+	Create(container *libcontainer.Container, console string, tty bool, syncFd *os.File, args []string) *exec.Cmd
 }
 
 type DefaultCommandFactory struct {
@@ -21,10 +21,15 @@ type DefaultCommandFactory struct {
 // Create will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func (c *DefaultCommandFactory) Create(container *libcontainer.Container, console string, pipe *os.File, args []string) *exec.Cmd {
+func (c *DefaultCommandFactory) Create(container *libcontainer.Container, console string, tty bool, pipe *os.File, args []string) *exec.Cmd {
+	var ttyStr = "-tty=false"
+	if tty {
+		ttyStr = "-tty=true"
+	}
 	// get our binary name from arg0 so we can always reexec ourself
 	command := exec.Command(os.Args[0], append([]string{
 		"-console", console,
+		ttyStr,
 		"-pipe", "3",
 		"-root", c.Root,
 		"init"}, args...)...)

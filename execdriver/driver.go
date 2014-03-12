@@ -52,6 +52,7 @@ type InitArgs struct {
 	Mtu        int
 	Driver     string
 	Console    string
+	Tty        bool
 	Pipe       int
 	Root       string
 }

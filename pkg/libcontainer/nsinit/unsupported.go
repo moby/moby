@@ -14,6 +14,6 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 	return -1, libcontainer.ErrUnsupported
 }
 
-func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
+func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, tty bool, syncPipe *SyncPipe, args []string) error {
 	return libcontainer.ErrUnsupported
 }

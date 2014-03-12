@@ -14,11 +14,13 @@ import (
 
 var (
 	root, console string
+	tty           bool
 	pipeFd        int
 )
 
 func registerFlags() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
+	flag.BoolVar(&tty, "tty", false, "Use a Tty")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
 	flag.StringVar(&root, "root", ".", "root for storing configuration data")
 
@@ -71,7 +73,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unable to create sync pipe: %s", err)
 		}
-		if err := ns.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
+		if err := ns.Init(container, cwd, console, tty, syncPipe, flag.Args()[1:]); err != nil {
 			log.Fatalf("Unable to initialize for container: %s", err)
 		}
 	default:
