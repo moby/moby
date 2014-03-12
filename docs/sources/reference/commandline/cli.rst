@@ -969,9 +969,7 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
     Pull an image or a repository from the registry
 
-<<<<<<< HEAD
       -t, --tag="": Download tagged image in repository
->>>>>>> b47d9c5... Adding CLI options to the commandline reference documentation.
 
 
 .. _cli_push:
