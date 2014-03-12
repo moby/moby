@@ -51,6 +51,8 @@ clone hg code.google.com/p/go.net 84a4013f96e0
 
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
+clone git github.com/howeyc/fsnotify 441bbc86b1 
+
 # get Go tip's archive/tar, for xattr support
 # TODO after Go 1.3 drops, bump our minimum supported version and drop this vendored dep
 clone hg code.google.com/p/go a15f344a9efa
