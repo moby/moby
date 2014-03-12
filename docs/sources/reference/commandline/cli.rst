@@ -80,8 +80,8 @@ Commands
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
-      --ip-forward=true: Disable enabling of net.ipv4.ip_forward
-      --iptables=true: Disable docker's addition of iptables rules
+      --ip-forward=true: Enable net.ipv4.ip_forward
+      --iptables=true: Enable Docker's addition of iptables rules
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
