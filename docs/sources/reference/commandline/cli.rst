@@ -82,7 +82,6 @@ Commands
       --ip="0.0.0.0": Default IP address to use when binding container ports
       --ip-forward=true: Enable net.ipv4.ip_forward
       --iptables=true: Enable Docker's addition of iptables rules
-      --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
