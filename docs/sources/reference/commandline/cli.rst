@@ -80,7 +80,9 @@ Commands
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
+      --ip-forward=true: Disable enabling of net.ipv4.ip_forward
       --iptables=true: Disable docker's addition of iptables rules
+      --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
@@ -933,8 +935,14 @@ new output from the container's stdout and stderr.
     List containers
 
       -a, --all=false: Show all containers. Only running containers are shown by default.
+      --before-id="": Show only container created before Id, include non-running ones.
+      -l, --latest=false: Show only the latest created container, include non-running ones.
+      -n=-1: Show n last created containers, include non-running ones.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
+      -s, --size=false: Display sizes, not to be used with -q
+      --since-id="": Show only containers created since Id, include non-running ones.
+
 
 Running ``docker ps`` showing 2 linked containers.
 
@@ -961,6 +969,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
     Pull an image or a repository from the registry
 
+      -t, --tag="": Download tagged image in repository
+
 
 .. _cli_push:
 
@@ -985,6 +995,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
     Restart a running container
 
+       -t, --time=10: Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10
+
 .. _cli_rm:
 
 ``rm``
@@ -997,6 +1009,7 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
     Remove one or more containers
         -l, --link="": Remove the link instead of the actual container
         -f, --force=false: Force removal of running container
+        -v, --volumes=false: Remove the volumes associated to the container
 
 Known Issues (rm)
 ~~~~~~~~~~~~~~~~~
