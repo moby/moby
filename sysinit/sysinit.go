@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
 	_ "github.com/dotcloud/docker/execdriver/native"
+	_ "github.com/dotcloud/docker/execdriver/shell"
 	"io/ioutil"
 	"log"
 	"os"
