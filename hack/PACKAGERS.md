@@ -266,6 +266,12 @@ installed and available at runtime:
 
 * iptables version 1.4 or later
 * XZ Utils version 4.9 or later
+* a [properly
+  mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
+  cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount point
+  [is](https://github.com/dotcloud/docker/issues/2683)
+  [not](https://github.com/dotcloud/docker/issues/3485)
+  [sufficient](https://github.com/dotcloud/docker/issues/4568))
 
 Additionally, the Docker client needs the following software to be installed and
 available at runtime:
