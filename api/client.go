@@ -1763,7 +1763,21 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if containerIDFile, err = os.Create(hostConfig.ContainerIDFile); err != nil {
 			return fmt.Errorf("Failed to create the container ID file: %s", err)
 		}
-		defer containerIDFile.Close()
+		defer func() {
+			containerIDFile.Close()
+			var (
+				cidFileInfo os.FileInfo
+				err         error
+			)
+			if cidFileInfo, err = os.Stat(hostConfig.ContainerIDFile); err != nil {
+				return
+			}
+			if cidFileInfo.Size() == 0 {
+				if err := os.Remove(hostConfig.ContainerIDFile); err != nil {
+					fmt.Printf("failed to remove CID file '%s': %s \n", hostConfig.ContainerIDFile, err)
+				}
+			}
+		}()
 	}
 
 	containerValues := url.Values{}
