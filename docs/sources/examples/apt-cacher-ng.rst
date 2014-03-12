@@ -37,11 +37,11 @@ To see the logfiles that are 'tailed' in the default command, you can use:
 
     $ sudo docker logs -f test_apt_cacher_ng
 
-To get your Debian based containers to use the proxy, you can do one of three things
+To get your Debian-based containers to use the proxy, you can do one of three things
 
 1. Add an apt Proxy setting ``echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy``
-2. Set and environment variable: ``http_proxy=http://dockerhost:3142/``
-3. Change your sources.list entries to start with ``http://dockerhost:3142/``
+2. Set an environment variable: ``http_proxy=http://dockerhost:3142/``
+3. Change your ``sources.list`` entries to start with ``http://dockerhost:3142/``
 
 **Option 1** injects the settings safely into your apt configuration in a local
 version of a common base:
@@ -49,9 +49,7 @@ version of a common base:
 .. code-block:: bash
 
     FROM ubuntu
-
     RUN  echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/apt.conf.d/01proxy
-
     RUN apt-get update ; apt-get install vim git
 
     # docker build -t my_ubuntu .
@@ -64,10 +62,10 @@ break other HTTP clients which obey ``http_proxy``, such as ``curl``, ``wget`` a
     $ sudo docker run -rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
 
 **Option 3** is the least portable, but there will be times when you might need to
-do it - and you can do it from your Dockerfile too.
+do it and you can do it from your ``Dockerfile`` too.
 
 Apt-cacher-ng has some tools that allow you to manage the repository, and they 
-can be used by leveraging the ``VOLUME``, and the image we built to run the 
+can be used by leveraging the ``VOLUME`` instruction, and the image we built to run the 
 service:
 
 .. code-block:: bash
