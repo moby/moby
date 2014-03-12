@@ -820,9 +820,20 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		f.actual = make(map[string]*Flag)
 	}
 	f.actual[name] = flag
-	for _, n := range flag.Names {
+	for i, n := range flag.Names {
 		if n == fmt.Sprintf("#%s", name) {
-			fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+			replacement := ""
+			for j := i; j < len(flag.Names); j++ {
+				if flag.Names[j][0] != '#' {
+					replacement = flag.Names[j]
+					break
+				}
+			}
+			if replacement != "" {
+				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
+			} else {
+				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+			}
 		}
 	}
 	return true, "", nil
