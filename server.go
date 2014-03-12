@@ -2384,7 +2384,13 @@ func (srv *Server) IsRunning() bool {
 }
 
 func (srv *Server) Close() error {
+	if srv == nil {
+		return nil
+	}
 	srv.SetRunning(false)
+	if srv.runtime == nil {
+		return nil
+	}
 	return srv.runtime.Close()
 }
 
