@@ -186,6 +186,6 @@ func TestPortAllocation(t *testing.T) {
 	port2, err := RequestPort(ip, "tcp", port+1)
 	port3, err := RequestPort(ip, "tcp", 0)
 	if port3 == port2 {
-		t.Fatal("A dynamic port should never allocate a used port")
+		t.Fatal("Requesting a dynamic port should never allocate a used port")
 	}
 }
