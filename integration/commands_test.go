@@ -931,7 +931,7 @@ run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
 // #2098 - Docker cidFiles only contain short version of the containerId
 //sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 // TestRunCidFile tests that run --cidfile returns the longid
-func TestRunCidFile(t *testing.T) {
+func TestRunCidFileCheckIDLength(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
 
 	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
@@ -978,6 +978,35 @@ func TestRunCidFile(t *testing.T) {
 		<-c
 	})
 
+}
+
+// Ensure that CIDFile gets deleted if it's empty
+// Perform this test by making `docker run` fail
+func TestRunCidFileCleanupIfEmpty(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpCidFile := path.Join(tmpDir, "cid")
+
+	cli := api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr)
+	defer cleanup(globalEngine, t)
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		if err := cli.CmdRun("--cidfile", tmpCidFile, unitTestImageID); err == nil {
+			t.Fatal("running without a command should haveve failed")
+		}
+		if _, err := os.Stat(tmpCidFile); err == nil {
+			t.Fatalf("empty CIDFile '%s' should've been deleted", tmpCidFile)
+		}
+	}()
+	defer os.RemoveAll(tmpDir)
+
+	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+		<-c
+	})
 }
 
 func TestContainerOrphaning(t *testing.T) {
