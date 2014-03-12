@@ -13,8 +13,14 @@ func SetTerminal(command *Command, pipes *Pipes) error {
 		term Terminal
 		err  error
 	)
+
+	ptyMaster, ptySlave, err := pty.Open()
+	if err != nil {
+		return err
+	}
+
 	if command.Tty {
-		term, err = NewTtyConsole(command, pipes)
+		term, err = NewTtyConsole(command, pipes, ptyMaster, ptySlave)
 	} else {
 		term, err = NewStdConsole(command, pipes)
 	}
@@ -22,6 +28,7 @@ func SetTerminal(command *Command, pipes *Pipes) error {
 		return err
 	}
 	command.Terminal = term
+	command.Console = ptySlave.Name()
 	return nil
 }
 
@@ -30,11 +37,7 @@ type TtyConsole struct {
 	SlavePty  *os.File
 }
 
-func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
-	ptyMaster, ptySlave, err := pty.Open()
-	if err != nil {
-		return nil, err
-	}
+func NewTtyConsole(command *Command, pipes *Pipes, ptyMaster, ptySlave *os.File) (*TtyConsole, error) {
 	tty := &TtyConsole{
 		MasterPty: ptyMaster,
 		SlavePty:  ptySlave,
@@ -43,7 +46,6 @@ func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
 		tty.Close()
 		return nil, err
 	}
-	command.Console = tty.SlavePty.Name()
 	return tty, nil
 }
 
