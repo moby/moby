@@ -194,6 +194,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		}
 	}
 
+	/* Inform processes that you are running as a docker container */
+	flEnv.Set("container=docker")
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
