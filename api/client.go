@@ -28,7 +28,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
-	"runtime"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -367,7 +367,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
 	}
-	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+	fmt.Fprintf(cli.out, "Go version (client): %s\n", goruntime.Version())
 	if dockerversion.GITCOMMIT != "" {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
 	}
@@ -2249,7 +2249,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 					if setRawTerminal && cli.isTerminal {
 						term.RestoreTerminal(cli.terminalFd, oldState)
 					}
-					in.Close()
+					// For some reason this Close call blocks on darwin..
+					// As the client exists right after, simply discard the close
+					// until we find a better solution.
+					if goruntime.GOOS != "darwin" {
+						in.Close()
+					}
 				}
 			}()
 
