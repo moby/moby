@@ -1,10 +1,10 @@
 package beam
 
 import (
-	"syscall"
 	"fmt"
 	"net"
 	"os"
+	"syscall"
 )
 
 // Send sends a new message on conn with data and f as payload and
@@ -99,7 +99,6 @@ func sendUnix(conn *net.UnixConn, data []byte, fds ...int) error {
 	_, _, err := conn.WriteMsgUnix(data, syscall.UnixRights(fds...), nil)
 	return err
 }
-
 
 func extractFds(oob []byte) (fds []int) {
 	scms, err := syscall.ParseSocketControlMessage(oob)
