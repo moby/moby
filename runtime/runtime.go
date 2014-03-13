@@ -9,7 +9,6 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/execdriver/execdrivers"
-	"github.com/dotcloud/docker/execdriver/lxc"
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
@@ -157,39 +156,11 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		if container.State.IsGhost() {
-			utils.Debugf("killing ghost %s", container.ID)
-
-			existingPid := container.State.Pid
-			container.State.SetGhost(false)
-			container.State.SetStopped(0)
-
-			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
-				lxc.KillLxc(container.ID, 9)
-			} else {
-				command := &execdriver.Command{
-					ID: container.ID,
-				}
-				command.Process = &os.Process{Pid: existingPid}
-				runtime.execDriver.Kill(command, 9)
-			}
-			// ensure that the filesystem is also unmounted
-			unmountVolumesForContainer(container)
-			if err := container.Unmount(); err != nil {
-				utils.Debugf("ghost unmount error %s", err)
-			}
-		}
-
 		info := runtime.execDriver.Info(container.ID)
 		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
-				unmountVolumesForContainer(container)
-				if err := container.Unmount(); err != nil {
-					utils.Debugf("restart unmount error %s", err)
-				}
-
 				container.State.SetGhost(false)
 				container.State.SetStopped(0)
 				if err := container.Start(); err != nil {
