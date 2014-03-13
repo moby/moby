@@ -79,7 +79,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from build' -s t -l tag -d '
 complete -c docker -f -n '__fish_docker_no_subcommand' -a commit -d "Create a new image from a container's changes"
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s a -l author -d 'Author (eg. "John Hannibal Smith <hannibal@a-team.com>"'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s m -l message -d 'Commit message'
-complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -l run -d 'Config automatically applied when the image is run. (ex: -run=\'{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}\')'
+complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -l run -d 'Config automatically applied when the image is run. (ex: --run=\'{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}\')'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -a '(__fish_print_docker_containers all)' -d "Container"
 
 # cp
@@ -202,7 +202,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l expose -d 'Expo
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s h -l hostname -d 'Container host name'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactive -d 'Keep stdin open even if not attached'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container (name:alias)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d 'Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d 'Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number><optional unit>, where unit = b, k, m or g)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s n -l networking -d 'Enable networking for this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'

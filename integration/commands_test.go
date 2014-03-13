@@ -739,7 +739,7 @@ func TestRunAutoRemove(t *testing.T) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		if err := cli.CmdRun("-rm", unitTestImageID, "hostname"); err != nil {
+		if err := cli.CmdRun("--rm", unitTestImageID, "hostname"); err != nil {
 			t.Fatal(err)
 		}
 	}()

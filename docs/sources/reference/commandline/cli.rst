@@ -52,7 +52,7 @@ Sometimes this can use a more complex value string, as for ``-v``::
 Strings and Integers
 ~~~~~~~~~~~~~~~~~~~~
 
-Options like ``-name=""`` expect a string, and they can only be
+Options like ``--name=""`` expect a string, and they can only be
 specified once. Options like ``-c=0`` expect an integer, and they can
 only be specified once.
 
@@ -94,7 +94,7 @@ daemon and client.  To run the daemon you provide the ``-d`` flag.
 
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
 
-To set the DNS server for all Docker containers, use ``docker -d -dns 8.8.8.8``.
+To set the DNS server for all Docker containers, use ``docker -d --dns 8.8.8.8``.
 
 To run the daemon with debug output, use ``docker -d -D``.
 
@@ -305,7 +305,7 @@ by using the ``git://`` schema.
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
       --run="": Configuration changes to be applied when the image is launched with `docker run`.
-               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+               (ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 .. _cli_commit_examples:
 
@@ -335,9 +335,9 @@ run ``ls /etc``.
 
 .. code-block:: bash
 
-        $ docker run -t -name test ubuntu ls
+        $ docker run -t --name test ubuntu ls
         bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
-        $ docker commit -run='{"Cmd": ["ls","/etc"]}' test test2
+        $ docker commit --run='{"Cmd": ["ls","/etc"]}' test test2
         933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
         $ docker run -t test2
         adduser.conf            gshadow          login.defs           rc0.d
@@ -358,7 +358,7 @@ Say you have a Dockerfile like so:
         CMD ["/usr/sbin/sshd -D"]
         ...
 
-If you run that, make some changes, and then commit, Docker will merge the environment variable and exposed port configuration settings with any that you specify in the -run= option. This is a change from Docker 0.8.0 and prior where no attempt was made to preserve any existing configuration on commit.
+If you run that, make some changes, and then commit, Docker will merge the environment variable and exposed port configuration settings with any that you specify in the --run= option. This is a change from Docker 0.8.0 and prior where no attempt was made to preserve any existing configuration on commit.
 
 .. code-block:: bash
 
@@ -366,14 +366,14 @@ If you run that, make some changes, and then commit, Docker will merge the envir
         $ docker run -t -i me/foo /bin/bash
         foo-container$ [make changes in the container]
         foo-container$ exit
-        $ docker commit -run='{"Cmd": ["ls"]}' [container-id] me/bar
+        $ docker commit --run='{"Cmd": ["ls"]}' [container-id] me/bar
         ...
 
 The me/bar image will now have port 22 exposed, MYVAR env var set to 'foobar', and its default command will be ["ls"].
 
-Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the -run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
+Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the --run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
 
-Full -run example
+Full --run example
 .................
 
 The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
@@ -384,7 +384,7 @@ not overridden in the JSON hash will be merged in.
 
 .. code-block:: bash
 
-  $ sudo docker commit -run='
+  $ sudo docker commit --run='
   {
       "Entrypoint" : null,
       "Privileged" : false,
@@ -516,16 +516,16 @@ Show events in the past from a specified time
 
 .. code-block:: bash
 
-    $ sudo docker events -since 1378216169
+    $ sudo docker events --since 1378216169
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03'
+    $ sudo docker events --since '2013-09-03'
     [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
@@ -829,7 +829,7 @@ text output:
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
 Find a Specific Port Mapping
 ............................
@@ -844,7 +844,7 @@ we ask for the ``HostPort`` field to get the public address.
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
 Get config
 ..........
@@ -856,7 +856,7 @@ to convert config object into JSON
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{json .config}}' $INSTANCE_ID
 
 
 .. _cli_kill:
@@ -1151,7 +1151,7 @@ image is removed.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
-      --lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      --lxc-conf=[]: Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       --expose=[]: Expose a port from the container without publishing it to your host
       --link="": Add link to another container (name:alias)
@@ -1171,7 +1171,7 @@ See :ref:`port_redirection` for more detailed information about the ``--expose``
 ``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for
 specific examples using ``--link``.
 
-Known Issues (run -volumes-from)
+Known Issues (run --volumes-from)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * :issue:`2702`: "lxc-start: Permission denied - failed to mount"
@@ -1199,7 +1199,7 @@ error. Docker will close this file when ``docker run`` exits.
 
 This will *not* work, because by default, most potentially dangerous
 kernel capabilities are dropped; including ``cap_sys_admin`` (which is
-required to mount filesystems). However, the ``-privileged`` flag will
+required to mount filesystems). However, the ``--privileged`` flag will
 allow it to run:
 
 .. code-block:: bash
@@ -1211,7 +1211,7 @@ allow it to run:
    none            1.9G     0  1.9G   0% /mnt
 
 
-The ``-privileged`` flag gives *all* capabilities to the container,
+The ``--privileged`` flag gives *all* capabilities to the container,
 and it also lifts all the limitations enforced by the ``device``
 cgroup controller. In other words, the container can then do almost
 everything that the host can do. This flag exists to allow special
@@ -1313,7 +1313,7 @@ This example shows 5 containers that might be set up to test a web application c
 2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose port ``8098`` to any containers that link to it;
 3. Start the ``appserver`` image, restricting its memory usage to 100MB, setting two environment variables ``DEVELOPMENT`` and ``BRANCH`` and bind-mounting the current directory (``$(pwd)``) in the container in read-only mode as ``/app/bin``;
 4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
-5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``-rm`` option means that when the container exits, the container's layer is removed.
+5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``--rm`` option means that when the container exits, the container's layer is removed.
 
 
 .. _cli_save:

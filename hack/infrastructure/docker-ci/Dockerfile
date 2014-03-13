@@ -1,8 +1,8 @@
 # DOCKER-VERSION: 0.7.6
 # AUTHOR:         Daniel Mizyrycki <daniel@dotcloud.com>
 # DESCRIPTION:    docker-ci continuous integration service
-# TO_BUILD:       docker build -rm -t docker-ci/docker-ci .
-# TO_RUN:         docker run -rm -i -t -p 8000:80 -p 2222:22 -v /run:/var/socket \
+# TO_BUILD:       docker build -t docker-ci/docker-ci .
+# TO_RUN:         docker run --rm -i -t -p 8000:80 -p 2222:22 -v /run:/var/socket \
 #                     -v /data/docker-ci:/data/docker-ci docker-ci/docker-ci
 
 from ubuntu:12.04

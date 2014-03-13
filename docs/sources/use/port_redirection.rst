@@ -114,14 +114,14 @@ exposure, is possible because ``client`` is started after ``server``
 has been started.
 
 Here is a full example. On ``server``, the port of interest is
-exposed. The exposure is done either through the ``-expose`` parameter
+exposed. The exposure is done either through the ``--expose`` parameter
 to the ``docker run`` command, or the ``EXPOSE`` build command in a
 Dockerfile:
 
 .. code-block:: bash
 
     # Expose port 80
-    docker run -expose 80 --name server <image> <cmd>
+    docker run --expose 80 --name server <image> <cmd>
 
 The ``client`` then links to the ``server``:
 

@@ -15,7 +15,7 @@ import (
 var (
 	ErrInvalidWorikingDirectory = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: -rm and -d")
+	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
 )
 
 //FIXME Only used in tests
@@ -74,7 +74,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err

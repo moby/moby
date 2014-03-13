@@ -10,16 +10,16 @@
 #   wget http://raw.github.com/dotcloud/docker/master/contrib/desktop-integration/iceweasel/Dockerfile
 #
 #   # Build iceweasel image
-#   docker build -t iceweasel -rm .
+#   docker build -t iceweasel .
 #
 #   # Run stateful data-on-host iceweasel. For ephemeral, remove -v /data/iceweasel:/data
 #   docker run -v /data/iceweasel:/data -v /tmp/.X11-unix:/tmp/.X11-unix \
-#     -v /dev/snd:/dev/snd -lxc-conf='lxc.cgroup.devices.allow = c 116:* rwm' \
+#     -v /dev/snd:/dev/snd --lxc-conf='lxc.cgroup.devices.allow = c 116:* rwm' \
 #     -e DISPLAY=unix$DISPLAY iceweasel
 #
 #   # To run stateful dockerized data containers
-#   docker run -volumes-from iceweasel-data -v /tmp/.X11-unix:/tmp/.X11-unix \
-#     -v /dev/snd:/dev/snd -lxc-conf='lxc.cgroup.devices.allow = c 116:* rwm' \
+#   docker run --volumes-from iceweasel-data -v /tmp/.X11-unix:/tmp/.X11-unix \
+#     -v /dev/snd:/dev/snd --lxc-conf='lxc.cgroup.devices.allow = c 116:* rwm' \
 #     -e DISPLAY=unix$DISPLAY iceweasel
 
 docker-version 0.6.5

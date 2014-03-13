@@ -1409,7 +1409,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := cli.Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
-	flConfig := cmd.String([]string{"#run", "-run"}, "", "Config automatically applied when the image is run. "+`(ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
+	flConfig := cmd.String([]string{"#run", "-run"}, "", "Config automatically applied when the image is run. "+`(ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
