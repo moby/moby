@@ -151,8 +151,9 @@ func equalsDefault(ip net.IP) bool {
 }
 
 func findNextPort(proto string, allocated *collections.OrderedIntSet) (int, error) {
-	port := 0
-	for port = nextPort(proto); allocated.Exists(port); port = nextPort(proto) {
+	port := nextPort(proto)
+	for allocated.Exists(port) {
+		port = nextPort(proto)
 	}
 	if port > EndPortRange {
 		return 0, ErrPortExceedsRange
