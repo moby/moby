@@ -600,7 +600,7 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	utils.Debugf("Index server: %s", r.indexEndpoint)
-	u := IndexServerAddress() + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err

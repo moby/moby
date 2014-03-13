@@ -186,14 +186,16 @@ func TestPushImageJSONIndex(t *testing.T) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistry(t)
-	results, err := r.SearchRepositories("supercalifragilisticepsialidocious")
+	results, err := r.SearchRepositories("fakequery")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if results == nil {
 		t.Fatal("Expected non-nil SearchResults object")
 	}
-	assertEqual(t, results.NumResults, 0, "Expected 0 search results")
+	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
+	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
+	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' a ot hae 42 stars")
 }
 
 func TestValidRepositoryName(t *testing.T) {
