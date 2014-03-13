@@ -432,7 +432,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", remoteInfo.GetInt("Containers"))
 	fmt.Fprintf(cli.out, "Images: %d\n", remoteInfo.GetInt("Images"))
-	fmt.Fprintf(cli.out, "Driver: %s\n", remoteInfo.Get("Driver"))
+	fmt.Fprintf(cli.out, "Storage Driver: %s\n", remoteInfo.Get("Driver"))
 	var driverStatus [][2]string
 	if err := remoteInfo.GetJson("DriverStatus", &driverStatus); err != nil {
 		return err
@@ -440,14 +440,15 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	for _, pair := range driverStatus {
 		fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
 	}
+	fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
+	fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
+
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", remoteInfo.GetBool("Debug"))
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "Fds: %d\n", remoteInfo.GetInt("NFd"))
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
-		fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
-		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
 
 		if initSha1 := remoteInfo.Get("InitSha1"); initSha1 != "" {
 			fmt.Fprintf(cli.out, "Init SHA1: %s\n", initSha1)
