@@ -160,22 +160,16 @@ func (runtime *Runtime) Register(container *Container) error {
 		if container.State.IsGhost() {
 			utils.Debugf("killing ghost %s", container.ID)
 
-			existingPid := container.State.Pid
 			container.State.SetGhost(false)
 			container.State.SetStopped(0)
 
+			// We only have to handle this for lxc because the other drivers will ensure that
+			// no ghost processes are left when docker dies
 			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
 				lxc.KillLxc(container.ID, 9)
-			} else {
-				command := &execdriver.Command{
-					ID: container.ID,
+				if err := container.Unmount(); err != nil {
+					utils.Debugf("ghost unmount error %s", err)
 				}
-				command.Process = &os.Process{Pid: existingPid}
-				runtime.execDriver.Kill(command, 9)
-			}
-			// ensure that the filesystem is also unmounted
-			if err := container.Unmount(); err != nil {
-				utils.Debugf("ghost unmount error %s", err)
 			}
 		}
 
