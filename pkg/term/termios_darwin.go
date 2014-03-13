@@ -9,16 +9,24 @@ const (
 	getTermios = syscall.TIOCGETA
 	setTermios = syscall.TIOCSETA
 
-	ECHO   = 0x00000008
-	ONLCR  = 0x2
-	ISTRIP = 0x20
-	INLCR  = 0x40
-	ISIG   = 0x80
-	IGNCR  = 0x80
-	ICANON = 0x100
-	ICRNL  = 0x100
-	IXOFF  = 0x400
-	IXON   = 0x200
+	IGNBRK = syscall.IGNBRK
+	PARMRK = syscall.PARMRK
+	INLCR  = syscall.INLCR
+	IGNCR  = syscall.IGNCR
+	ECHONL = syscall.ECHONL
+	CSIZE  = syscall.CSIZE
+	ICRNL  = syscall.ICRNL
+	ISTRIP = syscall.ISTRIP
+	PARENB = syscall.PARENB
+	ECHO   = syscall.ECHO
+	ICANON = syscall.ICANON
+	ISIG   = syscall.ISIG
+	IXON   = syscall.IXON
+	BRKINT = syscall.BRKINT
+	INPCK  = syscall.INPCK
+	OPOST  = syscall.OPOST
+	CS8    = syscall.CS8
+	IEXTEN = syscall.IEXTEN
 )
 
 type Termios struct {
@@ -41,10 +49,13 @@ func MakeRaw(fd uintptr) (*State, error) {
 	}
 
 	newState := oldState.termios
-	newState.Iflag &^= (ISTRIP | INLCR | IGNCR | IXON | IXOFF)
-	newState.Iflag |= ICRNL
-	newState.Oflag |= ONLCR
-	newState.Lflag &^= (ECHO | ICANON | ISIG)
+	newState.Iflag &^= (IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON)
+	newState.Oflag &^= OPOST
+	newState.Lflag &^= (ECHO | ECHONL | ICANON | ISIG | IEXTEN)
+	newState.Cflag &^= (CSIZE | PARENB)
+	newState.Cflag |= CS8
+	newState.Cc[syscall.VMIN] = 1
+	newState.Cc[syscall.VTIME] = 0
 
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return nil, err

@@ -47,8 +47,6 @@ func MakeRaw(fd uintptr) (*State, error) {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
 		return nil, err
 	}
-	//	C.makeraw()
-	//	return &oldState, nil
 
 	newState := oldState.termios
 	newState.Iflag &^= (IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON)
