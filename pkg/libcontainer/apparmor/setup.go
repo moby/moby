@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 )
 
 const DefaultProfilePath = "/etc/apparmor.d/docker"
@@ -83,6 +84,11 @@ func InstallDefaultProfile() error {
 	// If the profile already exists, let it be.
 	if _, err := os.Stat(DefaultProfilePath); err == nil {
 		return nil
+	}
+
+	// Make sure /etc/apparmor.d exists
+	if err := os.MkdirAll(path.Dir(DefaultProfilePath), 0755); err != nil {
+		return err
 	}
 
 	if err := ioutil.WriteFile(DefaultProfilePath, []byte(DefaultProfile), 0644); err != nil {
