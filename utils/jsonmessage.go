@@ -85,7 +85,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return jm.Error
 	}
 	var endl string
-	if isTerminal {
+	if isTerminal && jm.Stream == "" {
 		// <ESC>[2K = erase entire current line
 		fmt.Fprintf(out, "%c[2K\r", 27)
 		endl = "\r"
