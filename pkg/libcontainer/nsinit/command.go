@@ -1,7 +1,6 @@
 package nsinit
 
 import (
-	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/system"
 	"os"
@@ -26,7 +25,7 @@ func (c *DefaultCommandFactory) Create(container *libcontainer.Container, consol
 	// get our binary name from arg0 so we can always reexec ourself
 	command := exec.Command(os.Args[0], append([]string{
 		"-console", console,
-		"-pipe", fmt.Sprint(pipe.Fd()),
+		"-pipe", "3",
 		"-root", c.Root,
 		"init"}, args...)...)
 

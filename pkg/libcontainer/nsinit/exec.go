@@ -26,6 +26,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
+	ns.logger.Printf("created sync pipe parent fd %d child fd %d\n", syncPipe.parent.Fd(), syncPipe.child.Fd())
 
 	if container.Tty {
 		ns.logger.Println("creating master and console")
