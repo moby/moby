@@ -361,8 +361,12 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func populateCommand(c *Container) {
 	var (
 		en           *execdriver.Network
-		driverConfig []string
+		driverConfig = c.hostConfig.DriverOptions
 	)
+
+	if driverConfig == nil {
+		driverConfig = make(map[string][]string)
+	}
 
 	en = &execdriver.Network{
 		Mtu:       c.runtime.config.Mtu,
@@ -379,11 +383,9 @@ func populateCommand(c *Container) {
 		}
 	}
 
-	if lxcConf := c.hostConfig.LxcConf; lxcConf != nil {
-		for _, pair := range lxcConf {
-			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
-		}
-	}
+	// TODO: this can be removed after lxc-conf is fully deprecated
+	mergeLxcConfIntoOptions(c.hostConfig, driverConfig)
+
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,

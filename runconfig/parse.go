@@ -51,6 +51,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
+		flDriverOpts  opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -83,7 +84,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom dns search domains")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "#-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flDriverOpts, []string{"o", "-opt"}, "Add custom driver options")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -166,7 +168,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		mountLabel = mLabel
 	}
 
-	lxcConf, err := parseLxcConfOpts(flLxcOpts)
+	lxcConf, err := parseKeyValueOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -226,6 +228,11 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		},
 	}
 
+	driverOptions, err := parseDriverOpts(flDriverOpts)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
 	hostConfig := &HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
@@ -234,6 +241,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
+		DriverOptions:   driverOptions,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -248,22 +256,31 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	return config, hostConfig, cmd, nil
 }
 
-func parseLxcConfOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
-	out := make([]KeyValuePair, opts.Len())
-	for i, o := range opts.GetAll() {
-		k, v, err := parseLxcOpt(o)
-		if err != nil {
-			return nil, err
+// options will come in the format of name.key=value or name.option
+func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
+	out := make(map[string][]string, len(opts.GetAll()))
+	for _, o := range opts.GetAll() {
+		parts := strings.SplitN(o, ".", 2)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid opt format %s", o)
 		}
-		out[i] = KeyValuePair{Key: k, Value: v}
+		values, exists := out[parts[0]]
+		if !exists {
+			values = []string{}
+		}
+		out[parts[0]] = append(values, parts[1])
 	}
 	return out, nil
 }
 
-func parseLxcOpt(opt string) (string, string, error) {
-	parts := strings.SplitN(opt, "=", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Unable to parse lxc conf option: %s", opt)
+func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
+	out := make([]utils.KeyValuePair, opts.Len())
+	for i, o := range opts.GetAll() {
+		k, v, err := utils.ParseKeyValueOpt(o)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = utils.KeyValuePair{Key: k, Value: v}
 	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
+	return out, nil
 }

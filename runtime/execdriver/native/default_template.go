@@ -58,6 +58,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
 	}
+
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 

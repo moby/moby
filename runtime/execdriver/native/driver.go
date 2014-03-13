@@ -184,10 +184,9 @@ func (d *driver) removeContainerRoot(id string) error {
 func (d *driver) validateCommand(c *execdriver.Command) error {
 	// we need to check the Config of the command to make sure that we
 	// do not have any of the lxc-conf variables
-	for _, conf := range c.Config {
-		if strings.Contains(conf, "lxc") {
-			return fmt.Errorf("%s is not supported by the native driver", conf)
-		}
+	lxc := c.Config["lxc"]
+	if lxc != nil && len(lxc) > 0 {
+		return fmt.Errorf("lxc config options are not supported by the native driver")
 	}
 	return nil
 }
