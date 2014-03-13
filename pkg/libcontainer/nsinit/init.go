@@ -17,7 +17,7 @@ import (
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
+func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, tty bool, syncPipe *SyncPipe, args []string) error {
 	rootfs, err := utils.ResolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
@@ -31,10 +31,17 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 	syncPipe.Close()
 
+	var slave *os.File
 	if console != "" {
-		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
+		slave, err = system.OpenTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
+		}
+	}
+	if tty {
+		if slave == nil {
+			// This can't happend, but let's be sure.
+			return fmt.Errorf("Unexpected error: PTY slave is not initialized")
 		}
 		if err := dupSlave(slave); err != nil {
 			return fmt.Errorf("dup2 slave %s", err)
@@ -43,7 +50,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if _, err := system.Setsid(); err != nil {
 		return fmt.Errorf("setsid %s", err)
 	}
-	if console != "" {
+	if tty {
 		if err := system.Setctty(); err != nil {
 			return fmt.Errorf("setctty %s", err)
 		}

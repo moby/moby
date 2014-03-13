@@ -27,15 +27,13 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		return -1, err
 	}
 
-	if container.Tty {
-		master, console, err = system.CreateMasterAndConsole()
-		if err != nil {
-			return -1, err
-		}
-		term.SetMaster(master)
+	master, console, err = system.CreateMasterAndConsole()
+	if err != nil {
+		return -1, err
 	}
+	term.SetMaster(master)
 
-	command := ns.commandFactory.Create(container, console, syncPipe.child, args)
+	command := ns.commandFactory.Create(container, console, container.Tty, syncPipe.child, args)
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}

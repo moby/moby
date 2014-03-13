@@ -47,7 +47,7 @@ func init() {
 		if err != nil {
 			return err
 		}
-		if err := ns.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
+		if err := ns.Init(container, cwd, args.Console, args.Tty, syncPipe, args.Args); err != nil {
 			return err
 		}
 		return nil
@@ -206,7 +206,11 @@ type dockerCommandFactory struct {
 // createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
-func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFile *os.File, args []string) *exec.Cmd {
+func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, tty bool, syncFile *os.File, args []string) *exec.Cmd {
+	var ttyStr = "-tty=false"
+	if tty {
+		ttyStr = "-tty=true"
+	}
 	// we need to join the rootfs because nsinit will setup the rootfs and chroot
 	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
 
@@ -215,6 +219,7 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 		initPath,
 		"-driver", DriverName,
 		"-console", console,
+		ttyStr,
 		"-pipe", "3",
 		"-root", filepath.Join(d.driver.root, d.c.ID),
 		"--",
