@@ -178,7 +178,23 @@ docker run \
        hack/release.sh
 ```
 
-### 9. Apply tag
+### 9. Breakathon
+
+Spend several days along with the community explicitly investing time and
+resources to try and break Docker in every possible way, documenting any
+findings pertinent to the release.  This time should be spent testing and
+finding ways in which the release might have caused various features or upgrade
+environments to have issues, not coding.  During this time, the release is in
+code freeze, and any additional code changes will be pushed out to the next
+release.
+
+It should include various levels of breaking Docker, beyond just using Docker
+by the book.
+
+Any issues found may still remain issues for this release, but they should be
+documented and give appropriate warnings.
+
+### 10. Apply tag
 
 ```bash
 git tag -a $VERSION -m $VERSION bump_$VERSION
@@ -188,12 +204,12 @@ git push origin $VERSION
 It's very important that we don't make the tag until after the official
 release is uploaded to get.docker.io!
 
-### 10. Go to github to merge the `bump_$VERSION` branch into release
+### 11. Go to github to merge the `bump_$VERSION` branch into release
 
 Don't forget to push that pretty blue button to delete the leftover
 branch afterwards!
 
-### 11. Update the docs branch
+### 12. Update the docs branch
 
 ```bash
 git checkout docs
@@ -207,7 +223,7 @@ Updating the docs branch will automatically update the documentation on the
 after the merge. The docs will appear on http://docs.docker.io/. For more
 information about documentation releases, see `docs/README.md`.
 
-### 12. Create a new pull request to merge release back into master
+### 13. Create a new pull request to merge release back into master
 
 ```bash
 git checkout master
@@ -225,7 +241,7 @@ echo "https://github.com/dotcloud/docker/compare/master...merge_release_$VERSION
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 13. Rejoice and Evangelize!
+### 14. Rejoice and Evangelize!
 
 Congratulations! You're done.
 
