@@ -16,54 +16,77 @@ process are specified in this file.  The configuration is used for each process 
 Sample `container.json` file:
 ```json
 {
-    "hostname": "koye",
-    "tty": true,
-    "environment": [
-        "HOME=/",
-        "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
-        "container=docker",
-        "TERM=xterm-256color"
-    ],
-    "namespaces": [
-        "NEWIPC",
-        "NEWNS",
-        "NEWPID",
-        "NEWUTS",
-        "NEWNET"
-    ],
-    "capabilities": [
-        "SETPCAP",
-        "SYS_MODULE",
-        "SYS_RAWIO",
-        "SYS_PACCT",
-        "SYS_ADMIN",
-        "SYS_NICE",
-        "SYS_RESOURCE",
-        "SYS_TIME",
-        "SYS_TTY_CONFIG",
-        "MKNOD",
-        "AUDIT_WRITE",
-        "AUDIT_CONTROL",
-        "MAC_OVERRIDE",
-        "MAC_ADMIN",
-        "NET_ADMIN"
-    ],
-    "networks": [{
-            "type": "veth",
-            "context": {
-                "bridge": "docker0",
-                "prefix": "dock"
-            },
-            "address": "172.17.0.100/16",
-            "gateway": "172.17.42.1",
-            "mtu": 1500
-        }
-    ],
-    "cgroups": {
-        "name": "docker-koye",
-        "parent": "docker",
-        "memory": 5248000
-    }
+   "hostname" : "koye",
+   "networks" : [
+      {
+         "gateway" : "172.17.42.1",
+         "context" : {
+            "bridge" : "docker0",
+            "prefix" : "veth"
+         },
+         "address" : "172.17.0.2/16",
+         "type" : "veth",
+         "mtu" : 1500
+      }
+   ],
+   "cgroups" : {
+      "parent" : "docker",
+      "name" : "11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620"
+   },
+   "tty" : true,
+   "environment" : [
+      "HOME=/",
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "HOSTNAME=11bb30683fb0",
+      "TERM=xterm"
+   ],
+   "capabilities" : [
+      "SETPCAP",
+      "SYS_MODULE",
+      "SYS_RAWIO",
+      "SYS_PACCT",
+      "SYS_ADMIN",
+      "SYS_NICE",
+      "SYS_RESOURCE",
+      "SYS_TIME",
+      "SYS_TTY_CONFIG",
+      "MKNOD",
+      "AUDIT_WRITE",
+      "AUDIT_CONTROL",
+      "MAC_OVERRIDE",
+      "MAC_ADMIN",
+      "NET_ADMIN"
+   ],
+   "context" : {
+      "apparmor_profile" : "docker-default"
+   },
+   "mounts" : [
+      {
+         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/resolv.conf",
+         "writable" : false,
+         "destination" : "/etc/resolv.conf",
+         "private" : true
+      },
+      {
+         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/hostname",
+         "writable" : false,
+         "destination" : "/etc/hostname",
+         "private" : true
+      },
+      {
+         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/hosts",
+         "writable" : false,
+         "destination" : "/etc/hosts",
+         "private" : true
+      }
+   ],
+   "namespaces" : [
+      "NEWNS",
+      "NEWUTS",
+      "NEWIPC",
+      "NEWPID",
+      "NEWNET"
+   ]
 }
 ```
 
