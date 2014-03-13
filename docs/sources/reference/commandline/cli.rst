@@ -608,8 +608,8 @@ To see how the ``docker:latest`` image was built:
       -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only show numeric IDs
-      --tree=false: Output graph in tree format
-      --viz=false: Output graph in graphviz format
+      -t, --tree=false: Output graph in tree format
+      -v, --viz=false: Output graph in graphviz format
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
