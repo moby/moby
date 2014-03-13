@@ -1,4 +1,4 @@
-// +build !no_btrfs
+// +build !exclude_graphdriver_btrfs
 
 package runtime
 
