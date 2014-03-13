@@ -90,7 +90,7 @@ Commands
       -v, --version=false: Print version information and quit
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
-The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
 daemon and client.  To run the daemon you provide the ``-d`` flag.
 
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
@@ -102,10 +102,10 @@ To run the daemon with debug output, use ``docker -d -D``.
 To use lxc as the execution driver, use ``docker -d -e lxc``.
 
 The docker client will also honor the ``DOCKER_HOST`` environment variable to set
-the ``-H`` flag for the client.  
+the ``-H`` flag for the client.
 
 ::
- 
+
         docker -H tcp://0.0.0.0:4243 ps
         # or
         export DOCKER_HOST="tcp://0.0.0.0:4243"
@@ -143,7 +143,7 @@ TMPDIR and the data directory can be set like this:
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
-the Docker client when it quits.  When you detach from the container's 
+the Docker client when it quits.  When you detach from the container's
 process the exit code will be returned to the client.
 
 To stop a container, use ``docker stop``.
@@ -305,7 +305,7 @@ by using the ``git://`` schema.
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      --run="": Configuration to be applied when the image is launched with `docker run`.
+      --run="": Configuration changes to be applied when the image is launched with `docker run`.
                (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 .. _cli_commit_examples:
@@ -317,14 +317,14 @@ Commit an existing container
 
 	$ sudo docker ps
 	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
-	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
 	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
 	f5283438590d
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
-	
+
 Change the command that a container runs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -346,11 +346,40 @@ run ``ls /etc``.
         apt                     host.conf        lsb-base             rc2.d
         ...
 
+Merged configs example
+......................
+
+Say you have a Dockerfile like so:
+
+.. code-block:: bash
+
+        ENV MYVAR foobar
+        RUN apt-get install openssh
+        EXPOSE 22
+        CMD ["/usr/sbin/sshd -D"]
+        ...
+
+If you run that, make some changes, and then commit, Docker will merge the environment variable and exposed port configuration settings with any that you specify in the -run= option. This is a change from Docker 0.8.0 and prior where no attempt was made to preserve any existing configuration on commit.
+
+.. code-block:: bash
+
+        $ docker build -t me/foo .
+        $ docker run -t -i me/foo /bin/bash
+        foo-container$ [make changes in the container]
+        foo-container$ exit
+        $ docker commit -run='{"Cmd": ["ls"]}' [container-id] me/bar
+        ...
+
+The me/bar image will now have port 22 exposed, MYVAR env var set to 'foobar', and its default command will be ["ls"].
+
+Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the -run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
+
 Full -run example
 .................
 
 The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
-or ``config`` when running ``docker inspect IMAGEID``.
+or ``config`` when running ``docker inspect IMAGEID``. Existing configuration key-values that are
+not overridden in the JSON hash will be merged in.
 
 (Multiline is okay within a single quote ``'``)
 
@@ -666,7 +695,7 @@ Displaying image hierarchy
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create an empty filesystem image and import the contents of the tarball 
+    Create an empty filesystem image and import the contents of the tarball
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 At this time, the URL must start with ``http`` and point to a single
@@ -950,7 +979,7 @@ Running ``docker ps`` showing 2 linked containers.
 
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
-    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
+    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
     fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
 
@@ -1060,7 +1089,7 @@ containers will not be deleted.
     Remove one or more images
 
       -f, --force=false: Force
-    
+
 Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1139,8 +1168,8 @@ Once the container is stopped it still exists and can be started back up.  See `
 The ``docker run`` command can be used in combination with ``docker commit`` to
 :ref:`change the command that a container runs <cli_commit_examples>`.
 
-See :ref:`port_redirection` for more detailed information about the ``--expose``, 
-``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for 
+See :ref:`port_redirection` for more detailed information about the ``--expose``,
+``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for
 specific examples using ``--link``.
 
 Known Issues (run -volumes-from)
@@ -1220,8 +1249,8 @@ starting your container.
 
    $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
-By bind-mounting the docker unix socket and statically linked docker binary 
-(such as that provided by https://get.docker.io), you give the container 
+By bind-mounting the docker unix socket and statically linked docker binary
+(such as that provided by https://get.docker.io), you give the container
 the full access to create and manipulate the host's docker daemon.
 
 .. code-block:: bash
