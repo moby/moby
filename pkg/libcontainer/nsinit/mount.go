@@ -4,6 +4,7 @@ package nsinit
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
@@ -19,7 +20,7 @@ const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NOD
 //
 // There is no need to unmount the new mounts because as soon as the mount namespace
 // is no longer in use, the mounts will be removed automatically
-func setupNewMountNamespace(rootfs, console string, readonly, noPivotRoot bool) error {
+func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, console string, readonly, noPivotRoot bool) error {
 	flag := syscall.MS_PRIVATE
 	if noPivotRoot {
 		flag = syscall.MS_SLAVE
@@ -38,6 +39,23 @@ func setupNewMountNamespace(rootfs, console string, readonly, noPivotRoot bool) 
 	if err := mountSystem(rootfs); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
+
+	for _, m := range bindMounts {
+		flags := syscall.MS_BIND | syscall.MS_REC
+		if !m.Writable {
+			flags = flags | syscall.MS_RDONLY
+		}
+		dest := filepath.Join(rootfs, m.Destination)
+		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
+			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
+		}
+		if m.Private {
+			if err := system.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
+				return fmt.Errorf("mounting %s private %s", dest, err)
+			}
+		}
+	}
+
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}

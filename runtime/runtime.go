@@ -174,7 +174,6 @@ func (runtime *Runtime) Register(container *Container) error {
 				runtime.execDriver.Kill(command, 9)
 			}
 			// ensure that the filesystem is also unmounted
-			unmountVolumesForContainer(container)
 			if err := container.Unmount(); err != nil {
 				utils.Debugf("ghost unmount error %s", err)
 			}
@@ -185,7 +184,6 @@ func (runtime *Runtime) Register(container *Container) error {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
-				unmountVolumesForContainer(container)
 				if err := container.Unmount(); err != nil {
 					utils.Debugf("restart unmount error %s", err)
 				}
@@ -733,7 +731,7 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 	}
 
 	sysInfo := sysinfo.New(false)
-	ed, err := execdrivers.NewDriver(config.ExecDriver, config.Root, sysInfo)
+	ed, err := execdrivers.NewDriver(config.ExecDriver, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
 	}

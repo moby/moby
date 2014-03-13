@@ -88,6 +88,14 @@ lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bi
 lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts newinstance,ptmxmode=0666,nosuid,noexec 0 0
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs size=65536k,nosuid,nodev,noexec 0 0
 
+{{range $value := .Mounts}}
+{{if $value.Writable}}
+lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none bind,rw 0 0
+{{else}}
+lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none bind,ro 0 0
+{{end}}
+{{end}}
+
 {{if .Privileged}}
 {{if .AppArmor}}
 lxc.aa_profile = unconfined

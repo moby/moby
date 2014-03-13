@@ -48,6 +48,10 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
+	for _, m := range c.Mounts {
+		container.Mounts = append(container.Mounts, libcontainer.Mount{m.Source, m.Destination, m.Writable, m.Private})
+	}
+
 	return container
 }
 
