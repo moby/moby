@@ -203,7 +203,7 @@ What's new
 
 .. http:get:: /images/viz
 
-   This URI no longer exists.  The ``images -viz`` output is now generated in
+   This URI no longer exists.  The ``images --viz`` output is now generated in
    the client, using the ``/images/json`` data.
 
 v1.6

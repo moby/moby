@@ -1274,9 +1274,9 @@ In this version of the API, /attach, uses hijacking to transport stdin, stdout a
 3.3 CORS Requests
 -----------------
 
-To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
+To enable cross origin requests to the remote api add the flag "--api-enable-cors" when running docker in daemon mode.
 
 .. code-block:: bash
 
-   docker -d -H="192.168.1.9:4243" -api-enable-cors
+   docker -d -H="192.168.1.9:4243" --api-enable-cors
 

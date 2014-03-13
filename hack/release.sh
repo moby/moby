@@ -31,7 +31,7 @@ docker run -e AWS_S3_BUCKET=get-staging.docker.io \
            -e AWS_ACCESS_KEY=AKI1234... \
            -e AWS_SECRET_KEY=sEs4mE... \
            -e GPG_PASSPHRASE=m0resEs4mE... \
-           -i -t -privileged \
+           -i -t --privileged \
            docker ./hack/release.sh
 EOF
 	exit 1

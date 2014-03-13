@@ -80,7 +80,7 @@ through network connections or shared volumes because the container is
 no longer listening to the commandline where you executed ``docker
 run``. You can reattach to a detached container with ``docker``
 :ref:`cli_attach`. If you choose to run a container in the detached
-mode, then you cannot use the ``-rm`` option.
+mode, then you cannot use the ``--rm`` option.
 
 Foreground
 ..........
@@ -92,10 +92,10 @@ error. It can even pretend to be a TTY (this is what most commandline
 executables expect) and pass along signals. All of that is
 configurable::
 
-   -a=[]          : Attach to ``stdin``, ``stdout`` and/or ``stderr``
-   -t=false       : Allocate a pseudo-tty
-   -sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
-   -i=false       : Keep STDIN open even if not attached
+   -a=[]           : Attach to ``stdin``, ``stdout`` and/or ``stderr``
+   -t=false        : Allocate a pseudo-tty
+   --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
+   -i=false        : Keep STDIN open even if not attached
 
 If you do not specify ``-a`` then Docker will `attach everything
 (stdin,stdout,stderr)
@@ -112,7 +112,7 @@ as well as persistent standard input (``stdin``), so you'll use ``-i
 Container Identification
 ------------------------
 
-Name (-name)
+Name (--name)
 ............
 
 The operator can identify a container in three ways:
@@ -122,7 +122,7 @@ The operator can identify a container in three ways:
 * Name ("evil_ptolemy")
 
 The UUID identifiers come from the Docker daemon, and if you do not
-assign a name to the container with ``-name`` then the daemon will
+assign a name to the container with ``--name`` then the daemon will
 also generate a random string name too. The name can become a handy
 way to add meaning to a container since you can use this name when
 defining :ref:`links <working_with_links_names>` (or any other place
@@ -137,7 +137,7 @@ container ID out to a file of your choosing. This is similar to how
 some programs might write out their process ID to a file (you've seen
 them as PID files)::
 
-      -cidfile="": Write the container ID to the file
+      --cidfile="": Write the container ID to the file
 
 Network Settings
 ----------------
@@ -145,7 +145,7 @@ Network Settings
 ::
 
    -n=true   : Enable networking for this container
-   -dns=[]   : Set custom dns servers for the container
+   --dns=[]  : Set custom dns servers for the container
 
 By default, all containers have networking enabled and they can make
 any outgoing connections. The operator can completely disable
@@ -154,9 +154,9 @@ networking. In cases like this, you would perform I/O through files or
 STDIN/STDOUT only.
 
 Your container will use the same DNS servers as the host by default,
-but you can override this with ``-dns``.
+but you can override this with ``--dns``.
 
-Clean Up (-rm)
+Clean Up (--rm)
 --------------
 
 By default a container's file system persists even after the container
@@ -165,9 +165,9 @@ final state) and you retain all your data by default. But if you are
 running short-term **foreground** processes, these container file
 systems can really pile up. If instead you'd like Docker to
 **automatically clean up the container and remove the file system when
-the container exits**, you can add the ``-rm`` flag::
+the container exits**, you can add the ``--rm`` flag::
 
-   -rm=false: Automatically remove the container when it exits (incompatible with -d)
+   --rm=false: Automatically remove the container when it exits (incompatible with -d)
 
 
 Runtime Constraints on CPU and Memory
@@ -193,8 +193,8 @@ Runtime Privilege and LXC Configuration
 
 ::
 
-   -privileged=false: Give extended privileges to this container
-   -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+   --privileged=false: Give extended privileges to this container
+   --lxc-conf=[]: Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is
@@ -203,16 +203,16 @@ but a "privileged" container is given access to all devices (see
 lxc-template.go_ and documentation on `cgroups devices
 <https://www.kernel.org/doc/Documentation/cgroups/devices.txt>`_).
 
-When the operator executes ``docker run -privileged``, Docker will
+When the operator executes ``docker run --privileged``, Docker will
 enable to access to all devices on the host as well as set some
 configuration in AppArmor to allow the container nearly all the same
 access to the host as processes running outside containers on the
-host. Additional information about running with ``-privileged`` is
+host. Additional information about running with ``--privileged`` is
 available on the `Docker Blog
 <http://blog.docker.io/2013/09/docker-can-now-run-within-docker/>`_.
 
 An operator can also specify LXC options using one or more
-``-lxc-conf`` parameters. These can be new parameters or override
+``--lxc-conf`` parameters. These can be new parameters or override
 existing parameters from the lxc-template.go_. Note that in the
 future, a given host's Docker daemon may not use LXC, so this is an
 implementation-specific configuration meant for operators already
@@ -260,7 +260,7 @@ ENTRYPOINT (Default Command to Execute at Runtime
 
 ::
 
-   -entrypoint="": Overwrite the default entrypoint set by the image
+   --entrypoint="": Overwrite the default entrypoint set by the image
 
 The ENTRYPOINT of an image is similar to a ``COMMAND`` because it
 specifies what executable to run when the container starts, but it is
@@ -274,12 +274,12 @@ runtime by using a string to specify the new ``ENTRYPOINT``. Here is an
 example of how to run a shell in a container that has been set up to
 automatically run something else (like ``/usr/bin/redis-server``)::
 
-  docker run -i -t -entrypoint /bin/bash example/redis
+  docker run -i -t --entrypoint /bin/bash example/redis
 
 or two examples of how to pass more parameters to that ENTRYPOINT::
 
-  docker run -i -t -entrypoint /bin/bash example/redis -c ls -l
-  docker run -i -t -entrypoint /usr/bin/redis-cli example/redis --help
+  docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
+  docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
 
 EXPOSE (Incoming Ports)
@@ -290,16 +290,16 @@ providing the ``EXPOSE`` instruction to give a hint to the operator
 about what incoming ports might provide services. The following
 options work with or override the ``Dockerfile``'s exposed defaults::
 
-   -expose=[]: Expose a port from the container 
+   --expose=[]: Expose a port from the container 
                without publishing it to your host
-   -P=false  : Publish all exposed ports to the host interfaces
-   -p=[]     : Publish a container's port to the host (format: 
-               ip:hostPort:containerPort | ip::containerPort | 
-               hostPort:containerPort) 
-               (use 'docker port' to see the actual mapping)
-   -link=""  : Add link to another container (name:alias)
+   -P=false   : Publish all exposed ports to the host interfaces
+   -p=[]      : Publish a container's port to the host (format: 
+                ip:hostPort:containerPort | ip::containerPort | 
+                hostPort:containerPort) 
+                (use 'docker port' to see the actual mapping)
+   --link=""  : Add link to another container (name:alias)
 
-As mentioned previously, ``EXPOSE`` (and ``-expose``) make a port
+As mentioned previously, ``EXPOSE`` (and ``--expose``) make a port
 available **in** a container for incoming connections. The port number
 on the inside of the container (where the service listens) does not
 need to be the same number as the port exposed on the outside of the
@@ -308,16 +308,16 @@ have an HTTP service listening on port 80 (and so you ``EXPOSE 80`` in
 the ``Dockerfile``), but outside the container the port might be 42800.
 
 To help a new client container reach the server container's internal
-port operator ``-expose``'d by the operator or ``EXPOSE``'d by the
+port operator ``--expose``'d by the operator or ``EXPOSE``'d by the
 developer, the operator has three choices: start the server container
-with ``-P`` or ``-p,`` or start the client container with ``-link``.
+with ``-P`` or ``-p,`` or start the client container with ``--link``.
 
 If the operator uses ``-P`` or ``-p`` then Docker will make the
 exposed port accessible on the host and the ports will be available to
 any client that can reach the host. To find the map between the host
 ports and the exposed ports, use ``docker port``)
 
-If the operator uses ``-link`` when starting the new client container,
+If the operator uses ``--link`` when starting the new client container,
 then the client container can access the exposed port via a private
 networking interface. Docker will set some environment variables in
 the client container to help indicate which interface and port to use.
@@ -329,7 +329,7 @@ The operator can **set any environment variable** in the container by
 using one or more ``-e`` flags, even overriding those already defined by the
 developer with a Dockefile ``ENV``::
 
-   $ docker run -e "deep=purple" -rm ubuntu /bin/bash -c export
+   $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
    declare -x HOME="/"
    declare -x HOSTNAME="85bc26a0e200"
    declare -x OLDPWD
@@ -341,13 +341,13 @@ developer with a Dockefile ``ENV``::
 
 Similarly the operator can set the **hostname** with ``-h``.
 
-``-link name:alias`` also sets environment variables, using the
+``--link name:alias`` also sets environment variables, using the
 *alias* string to define environment variables within the container
 that give the IP and PORT information for connecting to the service
 container. Let's imagine we have a container running Redis::
 
    # Start the service container, named redis-name
-   $ docker run -d -name redis-name dockerfiles/redis
+   $ docker run -d --name redis-name dockerfiles/redis
    4241164edf6f5aca5b0e9e4c9eccd899b0b8080c64c0cd26efe02166c73208f3
 
    # The redis-name container exposed port 6379
@@ -361,12 +361,12 @@ container. Let's imagine we have a container running Redis::
 
 
 Yet we can get information about the Redis container's exposed ports
-with ``-link``. Choose an alias that will form a valid environment
+with ``--link``. Choose an alias that will form a valid environment
 variable!
 
 ::
 
-   $ docker run -rm -link redis-name:redis_alias -entrypoint /bin/bash dockerfiles/redis -c export
+   $ docker run --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c export
    declare -x HOME="/"
    declare -x HOSTNAME="acda7f7b1cdc"
    declare -x OLDPWD
@@ -383,7 +383,7 @@ variable!
 
 And we can use that information to connect from another container as a client::
 
-   $ docker run -i -t -rm -link redis-name:redis_alias -entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
+   $ docker run -i -t --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
    172.17.0.32:6379>
 
 VOLUME (Shared Filesystems)
@@ -393,7 +393,7 @@ VOLUME (Shared Filesystems)
 
    -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro]. 
           If "container-dir" is missing, then docker creates a new volume.
-   -volumes-from="": Mount all volumes from the given container(s)
+   --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own
 documentation in section :ref:`volume_def`. A developer can define one

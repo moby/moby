@@ -5,7 +5,7 @@
 # See the blog post: http://blog.docker.io/2013/09/docker-can-now-run-within-docker/
 #
 # This script should be executed inside a docker container in privilieged mode
-# ('docker run -privileged', introduced in docker 0.6).
+# ('docker run --privileged', introduced in docker 0.6).
 
 # Usage: dind CMD [ARG...]
 
@@ -17,7 +17,7 @@ CGROUP=/sys/fs/cgroup
 
 mountpoint -q $CGROUP || 
 	mount -n -t tmpfs -o uid=0,gid=0,mode=0755 cgroup $CGROUP || {
-		echo "Could not make a tmpfs mount. Did you use -privileged?"
+		echo "Could not make a tmpfs mount. Did you use --privileged?"
 		exit 1
 	}
 

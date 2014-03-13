@@ -139,7 +139,7 @@ docker run \
        -e AWS_ACCESS_KEY \
        -e AWS_SECRET_KEY \
        -e GPG_PASSPHRASE \
-       -i -t -privileged \
+       -i -t --privileged \
        docker \
        hack/release.sh
 ```
@@ -173,7 +173,7 @@ docker run \
        -e AWS_ACCESS_KEY \
        -e AWS_SECRET_KEY \
        -e GPG_PASSPHRASE \
-       -i -t -privileged \
+       -i -t --privileged \
        docker \
        hack/release.sh
 ```

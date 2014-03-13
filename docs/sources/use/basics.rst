@@ -39,7 +39,7 @@ Repository to a local image cache.
    12 character hash ``539c0211cd76: Download complete`` which is the
    short form of the image ID. These short image IDs are the first 12
    characters of the full image ID - which can be found using ``docker
-   inspect`` or ``docker images -notrunc=true``
+   inspect`` or ``docker images --no-trunc=true``
 
 Running an interactive shell
 ----------------------------

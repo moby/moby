@@ -203,7 +203,7 @@ func TestCreateRmRunning(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := runconfig.Parse([]string{"-name", "foo", unitTestImageID, "sleep 300"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"--name", "foo", unitTestImageID, "sleep 300"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

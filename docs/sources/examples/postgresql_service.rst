@@ -37,24 +37,24 @@ And run the PostgreSQL server container (in the foreground):
 
 .. code-block:: bash
 
-    $ sudo docker run -rm -P -name pg_test eg_postgresql
+    $ sudo docker run --rm -P -name pg_test eg_postgresql
 
 There are  2 ways to connect to the PostgreSQL server. We can use 
 :ref:`working_with_links_names`, or we can access it from our host (or the network).
 
-.. note:: The ``-rm`` removes the container and its image when the container 
+.. note:: The ``--rm`` removes the container and its image when the container 
           exists successfully.
 
 Using container linking
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Containers can be linked to another container's ports directly using 
-``-link remote_name:local_alias`` in the client's ``docker run``. This will
+``--link remote_name:local_alias`` in the client's ``docker run``. This will
 set a number of environment variables that can then be used to connect:
 
 .. code-block:: bash
 
-    $ sudo docker run -rm -t -i -link pg_test:pg eg_postgresql bash
+    $ sudo docker run --rm -t -i --link pg_test:pg eg_postgresql bash
 
     postgres@7ef98b1b7243:/$ psql -h $PG_PORT_5432_TCP_ADDR -p $PG_PORT_5432_TCP_PORT -d docker -U docker --password
 
@@ -104,7 +104,7 @@ configuration and data:
 
 .. code-block:: bash
 
-    docker run -rm --volumes-from pg_test -t -i busybox sh
+    docker run --rm --volumes-from pg_test -t -i busybox sh
 
     / # ls
     bin      etc      lib      linuxrc  mnt      proc     run      sys      usr

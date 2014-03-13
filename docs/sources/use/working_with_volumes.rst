@@ -42,14 +42,14 @@ two new volumes::
 This command will create the new container with two new volumes that 
 exits instantly (``true`` is pretty much the smallest, simplest program 
 that you can run). Once created you can mount its volumes in any other 
-container using the ``-volumes-from`` option; irrespective of whether the
+container using the ``--volumes-from`` option; irrespective of whether the
 container is running or not. 
 
 Or, you can use the VOLUME instruction in a Dockerfile to add one or more new
 volumes to any container created from that image::
 
   # BUILD-USING:        docker build -t data .
-  # RUN-USING:          docker run -name DATA data 
+  # RUN-USING:          docker run --name DATA data 
   FROM          busybox
   VOLUME        ["/var/volume1", "/var/volume2"]
   CMD           ["/bin/true"]
@@ -63,19 +63,19 @@ Data Volume Container, and then to mount the data from it.
 
 Create a named container with volumes to share (``/var/volume1`` and ``/var/volume2``)::
 
-  $ docker run -v /var/volume1 -v /var/volume2 -name DATA busybox true
+  $ docker run -v /var/volume1 -v /var/volume2 --name DATA busybox true
 
 Then mount those data volumes into your application containers::
 
-  $ docker run -t -i -rm -volumes-from DATA -name client1 ubuntu bash
+  $ docker run -t -i --rm --volumes-from DATA --name client1 ubuntu bash
 
-You can use multiple ``-volumes-from`` parameters to bring together multiple 
+You can use multiple ``--volumes-from`` parameters to bring together multiple 
 data volumes from multiple containers. 
 
 Interestingly, you can mount the volumes that came from the ``DATA`` container in 
 yet another container via the ``client1`` middleman container::
 
-  $ docker run -t -i -rm -volumes-from client1 -name client2 ubuntu bash
+  $ docker run -t -i --rm --volumes-from client1 --name client2 ubuntu bash
 
 This allows you to abstract the actual data source from users of that data, 
 similar to :ref:`ambassador_pattern_linking <ambassador_pattern_linking>`.
@@ -131,7 +131,7 @@ data-container's volume. For example::
 
     $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
 
-* ``-rm`` - remove the container when it exits
+* ``--rm`` - remove the container when it exits
 * ``--volumes-from DATA`` - attach to the volumes shared by the ``DATA`` container
 * ``-v $(pwd):/backup`` - bind mount the current directory into the container; to write the tar file to
 * ``busybox`` - a small simpler image - good for quick maintenance
@@ -142,11 +142,11 @@ Then to restore to the same container, or another that you've made elsewhere::
     # create a new data container
     $ sudo docker run -v /data -name DATA2 busybox true
     # untar the backup files into the new container's data volume
-    $ sudo docker run -rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
+    $ sudo docker run --rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
     data/
     data/sven.txt
     # compare to the original container
-    $ sudo docker run -rm --volumes-from DATA -v `pwd`:/backup busybox ls /data
+    $ sudo docker run --rm --volumes-from DATA -v `pwd`:/backup busybox ls /data
     sven.txt
 
 

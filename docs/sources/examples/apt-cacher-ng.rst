@@ -23,13 +23,13 @@ To build the image using:
 
 .. code-block:: bash
 
-    $ sudo docker build -rm -t eg_apt_cacher_ng .
+    $ sudo docker build -t eg_apt_cacher_ng .
 
 Then run it, mapping the exposed port to one on the host
 
 .. code-block:: bash
 
-    $ sudo docker run -d -p 3142:3142 -name test_apt_cacher_ng eg_apt_cacher_ng
+    $ sudo docker run -d -p 3142:3142 --name test_apt_cacher_ng eg_apt_cacher_ng
 
 To see the logfiles that are 'tailed' in the default command, you can use: 
 
@@ -59,7 +59,7 @@ break other HTTP clients which obey ``http_proxy``, such as ``curl``, ``wget`` a
 
 .. code-block:: bash
 
-    $ sudo docker run -rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
+    $ sudo docker run --rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
 
 **Option 3** is the least portable, but there will be times when you might need to
 do it and you can do it from your ``Dockerfile`` too.
@@ -70,7 +70,7 @@ service:
 
 .. code-block:: bash
 
-    $ sudo docker run -rm -t -i --volumes-from test_apt_cacher_ng eg_apt_cacher_ng bash
+    $ sudo docker run --rm -t -i --volumes-from test_apt_cacher_ng eg_apt_cacher_ng bash
 
     $$ /usr/lib/apt-cacher-ng/distkill.pl
     Scanning /var/cache/apt-cacher-ng, please wait...

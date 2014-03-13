@@ -57,8 +57,8 @@ Production deployment
   export EMAIL_RCP=[EMAIL_FOR_BUILD_ERRORS]
 
   # Build docker-ci and testbuilder docker images
-  docker -H $DOCKER_PROD build -rm -t docker-ci/docker-ci .
-  (cd testbuilder; docker -H $DOCKER_PROD build -rm -t docker-ci/testbuilder .)
+  docker -H $DOCKER_PROD build -t docker-ci/docker-ci .
+  (cd testbuilder; docker -H $DOCKER_PROD build --rm -t docker-ci/testbuilder .)
 
   # Run docker-ci container ( assuming no previous container running )
   (cd dcr/prod; dcr docker-ci.yml start)
