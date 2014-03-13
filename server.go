@@ -1970,7 +1970,6 @@ func (srv *Server) canDeleteImage(imgID string) error {
 }
 
 func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
-
 	// Retrieve all images
 	images, err := srv.runtime.Graph().Map()
 	if err != nil {

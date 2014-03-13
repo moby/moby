@@ -64,6 +64,7 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
+
 	if !userConf.Tty {
 		userConf.Tty = imageConf.Tty
 	}

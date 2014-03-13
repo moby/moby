@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
@@ -304,8 +305,22 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 }
 
 func (b *buildFile) CmdExpose(args string) error {
-	ports := strings.Split(args, " ")
-	b.config.PortSpecs = append(ports, b.config.PortSpecs...)
+	portsTab := strings.Split(args, " ")
+
+	if b.config.ExposedPorts == nil {
+		b.config.ExposedPorts = make(nat.PortSet)
+	}
+	ports, _, err := nat.ParsePortSpecs(append(portsTab, b.config.PortSpecs...))
+	if err != nil {
+		return err
+	}
+	for port := range ports {
+		if _, exists := b.config.ExposedPorts[port]; !exists {
+			b.config.ExposedPorts[port] = struct{}{}
+		}
+	}
+	b.config.PortSpecs = nil
+
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
@@ -686,12 +701,12 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		b.tmpContainers[container.ID] = struct{}{}
 		fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
+
 		if err := container.Mount(); err != nil {
 			return err
 		}
 		defer container.Unmount()
 	}
-
 	container := b.runtime.Get(id)
 	if container == nil {
 		return fmt.Errorf("An error occured while creating the container")
