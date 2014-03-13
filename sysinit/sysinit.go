@@ -7,6 +7,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	_ "github.com/dotcloud/docker/execdriver/lxc"
 	_ "github.com/dotcloud/docker/execdriver/native"
+	_ "github.com/dotcloud/docker/execdriver/shell"
 	"io/ioutil"
 	"log"
 	"os"
@@ -53,6 +54,7 @@ func SysInit() {
 		privileged = flag.Bool("privileged", false, "privileged mode")
 		mtu        = flag.Int("mtu", 1500, "interface mtu")
 		driver     = flag.String("driver", "", "exec driver")
+		options    = flag.String("options", "", "exec driver options")
 		pipe       = flag.Int("pipe", 0, "sync pipe fd")
 		console    = flag.String("console", "", "console (pty slave) path")
 		root       = flag.String("root", ".", "root path for configuration files")
@@ -81,6 +83,7 @@ func SysInit() {
 		Args:       flag.Args(),
 		Mtu:        *mtu,
 		Driver:     *driver,
+		Options:    *options,
 		Console:    *console,
 		Pipe:       *pipe,
 		Root:       *root,

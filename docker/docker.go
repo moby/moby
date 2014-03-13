@@ -41,6 +41,7 @@ func main() {
 		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
 		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
 		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "native", "Force the docker runtime to use a specific exec driver")
+		flExecOptions        = flag.String([]string{"o", "-exec-options"}, "", "Provide options to the given exec driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
 	)
@@ -123,6 +124,7 @@ func main() {
 			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 			job.Setenv("GraphDriver", *flGraphDriver)
 			job.Setenv("ExecDriver", *flExecDriver)
+			job.Setenv("ExecOptions", *flExecOptions)
 			job.SetenvInt("Mtu", *flMtu)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
