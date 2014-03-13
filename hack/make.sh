@@ -125,7 +125,7 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		set -x
+		echo '+ go test' $TESTFLAGS "github.com/dotcloud/docker${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
@@ -136,7 +136,15 @@ go_test_dir() {
 # output, one per line.
 find_dirs() {
 	find -not \( \
-		\( -wholename './vendor' -o -wholename './integration' -o -wholename './contrib' -o -wholename './pkg/mflag/example' \) \
+		\( \
+			-wholename './vendor' \
+			-o -wholename './integration' \
+			-o -wholename './contrib' \
+			-o -wholename './pkg/mflag/example' \
+			-o -wholename './.git' \
+			-o -wholename './bundles' \
+			-o -wholename './docs' \
+		\) \
 		-prune \
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
 }
