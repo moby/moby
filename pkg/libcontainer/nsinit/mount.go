@@ -46,10 +46,8 @@ func setupNewMountNamespace(rootfs, console string, readonly, noPivotRoot bool) 
 	if err := setupDev(rootfs); err != nil {
 		return err
 	}
-	if console != "" {
-		if err := setupPtmx(rootfs, console); err != nil {
-			return err
-		}
+	if err := setupPtmx(rootfs, console); err != nil {
+		return err
 	}
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
@@ -245,8 +243,10 @@ func setupPtmx(rootfs, console string) error {
 	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
 		return fmt.Errorf("symlink dev ptmx %s", err)
 	}
-	if err := setupConsole(rootfs, console); err != nil {
-		return err
+	if console != "" {
+		if err := setupConsole(rootfs, console); err != nil {
+			return err
+		}
 	}
 	return nil
 }
