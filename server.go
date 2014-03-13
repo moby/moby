@@ -1091,16 +1091,32 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 
 		if !srv.runtime.Graph().Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
-			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
-			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-				// FIXME: Keep going in case of error?
-				return err
-			}
-			img, err := image.NewImgJSON(imgJSON)
-			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-				return fmt.Errorf("Failed to parse json: %s", err)
+			var (
+				imgJSON []byte
+				imgSize int
+				err     error
+				img     *image.Image
+			)
+			retries := 5
+			for j := 1; j <= retries; j++ {
+				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
+				if err != nil && j == retries {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+					return err
+				} else if err != nil {
+					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+					continue
+				}
+				img, err = image.NewImgJSON(imgJSON)
+				if err != nil && j == retries {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+					return fmt.Errorf("Failed to parse json: %s", err)
+				} else if err != nil {
+					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+					continue
+				} else {
+					break
+				}
 			}
 
 			// Get the layer
