@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
@@ -492,7 +493,7 @@ func TestBuildExpose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if img.Config.PortSpecs[0] != "4243" {
+	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "4243")]; !exists {
 		t.Fail()
 	}
 }
@@ -589,6 +590,17 @@ func TestBuildImageWithCache(t *testing.T) {
 	template := testContextTemplate{`
         from {IMAGE}
         maintainer dockerio
+        `,
+		nil, nil}
+	checkCacheBehavior(t, template, true)
+}
+
+func TestBuildExposeWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+	expose 80
+	run echo hello
         `,
 		nil, nil}
 	checkCacheBehavior(t, template, true)
@@ -877,7 +889,7 @@ func TestBuildInheritance(t *testing.T) {
 	}
 
 	// from parent
-	if img.Config.PortSpecs[0] != "4243" {
+	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "4243")]; !exists {
 		t.Fail()
 	}
 }
