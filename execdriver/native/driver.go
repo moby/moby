@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +28,8 @@ func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		var (
 			container *libcontainer.Container
-			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{args.Root})
+			logger    = log.New(ioutil.Discard, "[nsinit] ", log.LstdFlags)
+			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{args.Root}, logger)
 		)
 		f, err := os.Open(filepath.Join(args.Root, "container.json"))
 		if err != nil {
@@ -85,8 +87,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			c:        c,
 			dsw:      &nsinit.DefaultStateWriter{filepath.Join(d.root, c.ID)},
 		}
-		ns   = nsinit.NewNsInit(factory, stateWriter)
-		args = append([]string{c.Entrypoint}, c.Arguments...)
+		logger = log.New(ioutil.Discard, "[nsinit] ", log.LstdFlags)
+		ns     = nsinit.NewNsInit(factory, stateWriter, logger)
+		args   = append([]string{c.Entrypoint}, c.Arguments...)
 	)
 	if err := d.createContainerRoot(c.ID); err != nil {
 		return -1, err
