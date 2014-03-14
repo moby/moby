@@ -148,7 +148,8 @@ func main() {
 			log.Fatal("Please specify only one -H")
 		}
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
-		if err := api.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
+		cli := api.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1])
+		if err := cli.ParseCommands(flag.Args()...); err != nil {
 			if sterr, ok := err.(*utils.StatusError); ok {
 				if sterr.Status != "" {
 					log.Println(sterr.Status)
