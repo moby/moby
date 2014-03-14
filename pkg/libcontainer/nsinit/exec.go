@@ -3,6 +3,7 @@
 package nsinit
 
 import (
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
@@ -61,10 +62,15 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
 	ns.logger.Println("setting cgroups")
-	if err := ns.SetupCgroups(container, command.Process.Pid); err != nil {
+	activeCgroup, err := ns.SetupCgroups(container, command.Process.Pid)
+	if err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
+	if activeCgroup != nil {
+		defer activeCgroup.Cleanup()
+	}
+
 	ns.logger.Println("setting up network")
 	if err := ns.InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
 		command.Process.Kill()
@@ -85,13 +91,11 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	return status, err
 }
 
-func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) error {
+func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
-		if err := container.Cgroups.Apply(nspid); err != nil {
-			return err
-		}
+		return container.Cgroups.Apply(nspid)
 	}
-	return nil
+	return nil, nil
 }
 
 func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
