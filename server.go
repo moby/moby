@@ -631,11 +631,33 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	file, err := utils.Download(url)
-	if err != nil {
-		return job.Error(err)
+	var body io.ReadCloser
+	var size int64
+
+	if strings.HasPrefix(url, "file:///") {
+		file, err := os.Open(url[7:])
+		if err != nil {
+			return job.Error(err)
+		}
+		defer file.Close()
+
+		fstat, err := file.Stat()
+		if err != nil {
+			return job.Error(err)
+		}
+		size = fstat.Size()
+		body = file
+
+	} else {
+		file, err := utils.Download(url)
+		if err != nil {
+			return job.Error(err)
+		}
+		body = file.Body
+		size = file.ContentLength
+		defer body.Close()
+
 	}
-	defer file.Body.Close()
 
 	config, _, _, err := runconfig.Parse([]string{img.ID, "echo", "insert", url, path}, srv.runtime.SystemConfig())
 	if err != nil {
@@ -647,7 +669,7 @@ func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, utils.TruncateID(img.ID), "Downloading"), path); err != nil {
+	if err := c.Inject(utils.ProgressReader(body, int(size), out, sf, false, utils.TruncateID(img.ID), "Downloading"), path); err != nil {
 		return job.Error(err)
 	}
 	// FIXME: Handle custom repo, tag comment, author

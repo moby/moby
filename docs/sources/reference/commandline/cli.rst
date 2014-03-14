@@ -776,7 +776,7 @@ Use the specified ``IMAGE`` as the parent for a new image which adds a
 :ref:`layer <layer_def>` containing the new file. The ``insert`` command does
 not modify the original image, and the new image has the contents of the parent
 image, plus the new file.
-
+The URL can be of the form: http://xxx.xx/xxx,  or file:///path/to/my/file
 
 Examples
 ~~~~~~~~
