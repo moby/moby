@@ -1,4 +1,4 @@
-package docker
+package server
 
 import (
 	"crypto/sha256"
@@ -589,34 +589,6 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	b.config.Cmd = cmd
 	return nil
-}
-
-type StdoutFormater struct {
-	io.Writer
-	*utils.StreamFormatter
-}
-
-func (sf *StdoutFormater) Write(buf []byte) (int, error) {
-	formattedBuf := sf.StreamFormatter.FormatStream(string(buf))
-	n, err := sf.Writer.Write(formattedBuf)
-	if n != len(formattedBuf) {
-		return n, io.ErrShortWrite
-	}
-	return len(buf), err
-}
-
-type StderrFormater struct {
-	io.Writer
-	*utils.StreamFormatter
-}
-
-func (sf *StderrFormater) Write(buf []byte) (int, error) {
-	formattedBuf := sf.StreamFormatter.FormatStream("\033[91m" + string(buf) + "\033[0m")
-	n, err := sf.Writer.Write(formattedBuf)
-	if n != len(formattedBuf) {
-		return n, io.ErrShortWrite
-	}
-	return len(buf), err
 }
 
 func (b *buildFile) create() (*runtime.Container, error) {
