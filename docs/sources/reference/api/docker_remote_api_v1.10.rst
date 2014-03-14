@@ -931,6 +931,7 @@ Remove an image
            ]
 
         :query force: 1/True/true or 0/False/false, default false
+        :query noprune: 1/True/true or 0/False/false, default false
         :statuscode 200: no error
         :statuscode 404: no such image
         :statuscode 409: conflict
