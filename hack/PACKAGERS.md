@@ -175,7 +175,7 @@ To disable aufs:
 export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
 ```
 
-NOTE: if you need to set more than one build tag, space seperate them.
+NOTE: if you need to set more than one build tag, space separate them.
 
 ### Static Daemon
 
