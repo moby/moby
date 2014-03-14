@@ -374,7 +374,7 @@ The me/bar image will now have port 22 exposed, MYVAR env var set to 'foobar', a
 Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the --run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
 
 Full --run example
-.................
+..................
 
 The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
 or ``config`` when running ``docker inspect IMAGEID``. Existing configuration key-values that are
@@ -1172,7 +1172,7 @@ See :ref:`port_redirection` for more detailed information about the ``--expose``
 specific examples using ``--link``.
 
 Known Issues (run --volumes-from)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * :issue:`2702`: "lxc-start: Permission denied - failed to mount"
   could indicate a permissions problem with AppArmor. Please see the

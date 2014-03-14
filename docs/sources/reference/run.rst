@@ -113,7 +113,7 @@ Container Identification
 ------------------------
 
 Name (--name)
-............
+.............
 
 The operator can identify a container in three ways:
 
@@ -157,7 +157,7 @@ Your container will use the same DNS servers as the host by default,
 but you can override this with ``--dns``.
 
 Clean Up (--rm)
---------------
+---------------
 
 By default a container's file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
