@@ -57,9 +57,7 @@ func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
 	return method.Interface().(func(...string) error), true
 }
 
-func ParseCommands(proto, addr string, args ...string) error {
-	cli := NewDockerCli(os.Stdin, os.Stdout, os.Stderr, proto, addr)
-
+func (cli *DockerCli) ParseCommands(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
