@@ -157,6 +157,23 @@ AppArmor, you will need to set `DOCKER_BUILDTAGS` as follows:
 export DOCKER_BUILDTAGS='apparmor'
 ```
 
+There are build tags for disabling graphdrivers as well. By default, support
+for all graphdrivers are built in.
+
+To disable vfs
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_vfs'
+```
+
+To disable devicemapper
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
+```
+To disable aufs
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
+```
+
 ### Static Daemon
 
 If it is feasible within the constraints of your distribution, you should
