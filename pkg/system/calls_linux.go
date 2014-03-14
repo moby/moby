@@ -115,8 +115,8 @@ func Mknod(path string, mode uint32, dev int) error {
 	return syscall.Mknod(path, mode, dev)
 }
 
-func ParentDeathSignal() error {
-	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, uintptr(syscall.SIGKILL), 0); err != 0 {
+func ParentDeathSignal(sig uintptr) error {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, sig, 0); err != 0 {
 		return err
 	}
 	return nil
