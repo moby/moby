@@ -389,7 +389,7 @@ func TestRestartKillWait(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eng = newTestEngine(t, false, eng.Root())
+	eng = newTestEngine(t, false, runtime.Config().Root)
 	srv = mkServerFromEngine(eng, t)
 
 	job = srv.Eng.Job("containers")

@@ -566,7 +566,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	eng = newTestEngine(t, false, eng.Root())
+	eng = newTestEngine(t, false, runtime1.Config().Root)
 	runtime2 := mkRuntimeFromEngine(eng, t)
 	if len(runtime2.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))

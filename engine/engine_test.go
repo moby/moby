@@ -2,10 +2,6 @@ package engine
 
 import (
 	"bytes"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -67,7 +63,6 @@ func TestJob(t *testing.T) {
 
 func TestEngineCommands(t *testing.T) {
 	eng := newTestEngine(t)
-	defer os.RemoveAll(eng.Root())
 	handler := func(job *Job) Status { return StatusOK }
 	eng.Register("foo", handler)
 	eng.Register("bar", handler)
@@ -83,44 +78,9 @@ func TestEngineCommands(t *testing.T) {
 	}
 }
 
-func TestEngineRoot(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "docker-test-TestEngineCreateDir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	// We expect Root to resolve to an absolute path.
-	// FIXME: this should not be necessary.
-	// Until the above FIXME is implemented, let's check for the
-	// current behavior.
-	tmp, err = filepath.EvalSymlinks(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmp, err = filepath.Abs(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := path.Join(tmp, "dir")
-	eng, err := New(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if st, err := os.Stat(dir); err != nil {
-		t.Fatal(err)
-	} else if !st.IsDir() {
-		t.Fatalf("engine.New() created something other than a directory at %s", dir)
-	}
-	if r := eng.Root(); r != dir {
-		t.Fatalf("Expected: %v\nReceived: %v", dir, r)
-	}
-}
-
 func TestEngineString(t *testing.T) {
 	eng1 := newTestEngine(t)
-	defer os.RemoveAll(eng1.Root())
 	eng2 := newTestEngine(t)
-	defer os.RemoveAll(eng2.Root())
 	s1 := eng1.String()
 	s2 := eng2.String()
 	if eng1 == eng2 {
@@ -130,7 +90,6 @@ func TestEngineString(t *testing.T) {
 
 func TestEngineLogf(t *testing.T) {
 	eng := newTestEngine(t)
-	defer os.RemoveAll(eng.Root())
 	input := "Test log line"
 	if n, err := eng.Logf("%s\n", input); err != nil {
 		t.Fatal(err)
@@ -141,7 +100,6 @@ func TestEngineLogf(t *testing.T) {
 
 func TestParseJob(t *testing.T) {
 	eng := newTestEngine(t)
-	defer os.RemoveAll(eng.Root())
 	// Verify that the resulting job calls to the right place
 	var called bool
 	eng.Register("echo", func(job *Job) Status {

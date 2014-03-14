@@ -1,18 +1,13 @@
 package engine
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"testing"
 )
 
 var globalTestID string
 
 func newTestEngine(t *testing.T) *Engine {
-	tmp, err := utils.TestDirectory("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	eng, err := New(tmp)
+	eng, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
