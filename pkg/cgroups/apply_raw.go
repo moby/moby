@@ -68,7 +68,7 @@ func (raw *rawCgroup) join(subsystem string, pid int) (string, error) {
 	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
 		return "", err
 	}
-	if err := writeFile(path, "tasks", strconv.Itoa(pid)); err != nil {
+	if err := writeFile(path, "cgroup.procs", strconv.Itoa(pid)); err != nil {
 		return "", err
 	}
 	return path, nil
