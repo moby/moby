@@ -11,7 +11,7 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:export-ydpi="90"
    inkscape:export-xdpi="90"
-   inkscape:export-filename="/Users/arothfusz/src/metalivedev/dockerclone/docs/sources/terms/images/docker-filesystems-busyboxrw.png"
+   inkscape:export-filename="/Users/arothfusz/src/metalivedev/dockerclone/docs/sources/terms/images/docker-filesystems-multilayer.png"
    sodipodi:docname="docker-filesystems.svg"
    width="800"
    height="600"
@@ -26,10 +26,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.82666667"
-     inkscape:cx="346.87978"
+     inkscape:cx="495.95588"
      inkscape:cy="300"
      inkscape:document-units="px"
-     inkscape:current-layer="layer2"
+     inkscape:current-layer="layer13"
      showgrid="false"
      width="800px"
      inkscape:window-width="1327"
@@ -98,6 +98,32 @@
   </sodipodi:namedview>
   <defs
      id="defs4">
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mend"
+       style="overflow:visible;">
+      <path
+         id="path4054"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;">
+      <path
+         id="path4048"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
     <inkscape:perspective
        sodipodi:type="inkscape:persp3d"
        inkscape:vp_x="-406.34117 : 522.93291 : 1"
@@ -296,7 +322,7 @@
     </g>
   </g>
   <g
-     style="display:inline"
+     style="display:none"
      inkscape:groupmode="layer"
      id="layer9"
      inkscape:label="GenericRootfs">
@@ -1190,9 +1216,39 @@
            inkscape:connector-curvature="0" />
       </g>
     </g>
+    <g
+       inkscape:groupmode="layer"
+       id="layer13"
+       inkscape:label="Parent Pointer">
+      <path
+         style="fill:none;stroke:#000000;stroke-width:4.80000019;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+         d="m 546.77419,134.2742 c 110.08065,13.30645 1.20968,53.2258 1.20968,53.2258"
+         id="path3272"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc" />
+      <text
+         xml:space="preserve"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:103.99999619%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Helvetica"
+         x="601.20972"
+         y="125.80645"
+         id="text4672"
+         sodipodi:linespacing="104%"><tspan
+           sodipodi:role="line"
+           id="tspan4674"
+           x="601.20972"
+           y="125.80645">references</tspan><tspan
+           sodipodi:role="line"
+           x="601.20972"
+           y="159.08644"
+           id="tspan4676">parent</tspan><tspan
+           sodipodi:role="line"
+           x="601.20972"
+           y="192.36644"
+           id="tspan4678">image</tspan></text>
+    </g>
   </g>
   <g
-     style="display:inline"
+     style="display:none"
      inkscape:label="busybox"
      id="layer4"
      inkscape:groupmode="layer">
