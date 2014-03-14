@@ -98,6 +98,8 @@ run [ "$(cat /usr/lib/baz/quux)" = 'world!' ]
 from {IMAGE}
 add f /
 run [ "$(cat /f)" = "hello" ]
+add f .
+run [ "$(cat /f)" = "hello" ]
 add f /abc
 run [ "$(cat /abc)" = "hello" ]
 add f /x/y/z
