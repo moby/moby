@@ -110,6 +110,10 @@ func (runtime *Runtime) containerRoot(id string) string {
 	return path.Join(runtime.repository, id)
 }
 
+func (runtime *Runtime) LocksPath() string {
+	return path.Join(runtime.config.Root, "locks")
+}
+
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (runtime *Runtime) load(id string) (*Container, error) {
@@ -743,6 +747,14 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+	}
+
+	utils.Debugf("Creating locks directory")
+	if err = os.RemoveAll(runtime.LocksPath()); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	if err := os.Mkdir(runtime.LocksPath(), 0755); err != nil {
+		return nil, err
 	}
 
 	if err := runtime.restore(); err != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/lock"
 	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -1083,11 +1084,12 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 		id := history[i]
 
 		// ensure no two downloads of the same layer happen at the same time
-		if c, err := srv.poolAdd("pull", "layer:"+id); err != nil {
+		l, c, err := lock.Lock(fmt.Sprintf("%s/pull-layer-%s.lock", srv.runtime.LocksPath(), id))
+		defer l.Close()
+		if err != nil {
 			utils.Errorf("Image (id: %s) pull is already running, skipping: %v", id, err)
 			<-c
 		}
-		defer srv.poolRemove("pull", "layer:"+id)
 
 		if !srv.runtime.Graph().Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
@@ -1196,7 +1198,9 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			if c, err := srv.poolAdd("pull", "img:"+img.ID); err != nil {
+			l, c, err := lock.Lock(fmt.Sprintf("%s/pull-img-%s.lock", srv.runtime.LocksPath(), img.ID))
+			defer l.Close()
+			if err != nil {
 				if c != nil {
 					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil))
 					<-c
@@ -1209,7 +1213,6 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 				}
 				return
 			}
-			defer srv.poolRemove("pull", "img:"+img.ID)
 
 			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, localName), nil))
 			success := false
@@ -1273,49 +1276,6 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (srv *Server) poolAdd(kind, key string) (chan struct{}, error) {
-	srv.Lock()
-	defer srv.Unlock()
-
-	if c, exists := srv.pullingPool[key]; exists {
-		return c, fmt.Errorf("pull %s is already in progress", key)
-	}
-	if c, exists := srv.pushingPool[key]; exists {
-		return c, fmt.Errorf("push %s is already in progress", key)
-	}
-
-	c := make(chan struct{})
-	switch kind {
-	case "pull":
-		srv.pullingPool[key] = c
-	case "push":
-		srv.pushingPool[key] = c
-	default:
-		return nil, fmt.Errorf("Unknown pool type")
-	}
-	return c, nil
-}
-
-func (srv *Server) poolRemove(kind, key string) error {
-	srv.Lock()
-	defer srv.Unlock()
-	switch kind {
-	case "pull":
-		if c, exists := srv.pullingPool[key]; exists {
-			close(c)
-			delete(srv.pullingPool, key)
-		}
-	case "push":
-		if c, exists := srv.pushingPool[key]; exists {
-			close(c)
-			delete(srv.pushingPool, key)
-		}
-	default:
-		return fmt.Errorf("Unknown pool type")
-	}
-	return nil
-}
-
 func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
 		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
@@ -1334,8 +1294,9 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 
-	c, err := srv.poolAdd("pull", localName+":"+tag)
+	l, c, err := lock.Lock(fmt.Sprintf("%s/pull-%s-%s.lock", srv.runtime.LocksPath(), localName, tag))
 	if err != nil {
+		defer l.Close()
 		if c != nil {
 			// Another pull of the same repository is already taking place; just wait for it to finish
 			job.Stdout.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", localName))
@@ -1344,7 +1305,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		}
 		return job.Error(err)
 	}
-	defer srv.poolRemove("pull", localName+":"+tag)
+	defer l.Close()
 
 	// Resolve the Repository name from fqn to endpoint + name
 	hostname, remoteName, err := registry.ResolveRepositoryName(localName)
@@ -1549,10 +1510,11 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
-	if _, err := srv.poolAdd("push", localName); err != nil {
+	l, _, err := lock.Lock(fmt.Sprintf("%s/push-%s.lock", srv.runtime.LocksPath(), localName))
+	defer l.Close()
+	if err != nil {
 		return job.Error(err)
 	}
-	defer srv.poolRemove("push", localName)
 
 	// Resolve the Repository name from fqn to endpoint + name
 	hostname, remoteName, err := registry.ResolveRepositoryName(localName)
@@ -2335,13 +2297,11 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		return nil, err
 	}
 	srv := &Server{
-		Eng:         eng,
-		runtime:     runtime,
-		pullingPool: make(map[string]chan struct{}),
-		pushingPool: make(map[string]chan struct{}),
-		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		listeners:   make(map[string]chan utils.JSONMessage),
-		running:     true,
+		Eng:       eng,
+		runtime:   runtime,
+		events:    make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
+		listeners: make(map[string]chan utils.JSONMessage),
+		running:   true,
 	}
 	runtime.SetServer(srv)
 	return srv, nil
@@ -2416,11 +2376,9 @@ func (srv *Server) Close() error {
 
 type Server struct {
 	sync.RWMutex
-	runtime     *runtime.Runtime
-	pullingPool map[string]chan struct{}
-	pushingPool map[string]chan struct{}
-	events      []utils.JSONMessage
-	listeners   map[string]chan utils.JSONMessage
-	Eng         *engine.Engine
-	running     bool
+	runtime   *runtime.Runtime
+	events    []utils.JSONMessage
+	listeners map[string]chan utils.JSONMessage
+	Eng       *engine.Engine
+	running   bool
 }
