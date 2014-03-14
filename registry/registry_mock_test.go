@@ -321,7 +321,12 @@ func handlerAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
-	writeResponse(w, "{}", 200)
+	result := &SearchResults{
+		Query:      "fakequery",
+		NumResults: 1,
+		Results:    []SearchResult{{Name: "fakeimage", StarCount: 42}},
+	}
+	writeResponse(w, result, 200)
 }
 
 func TestPing(t *testing.T) {
