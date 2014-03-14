@@ -817,8 +817,9 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
 	var (
-		cmd   = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
-		force = cmd.Bool([]string{"f", "-force"}, false, "Force")
+		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
+		force   = cmd.Bool([]string{"f", "-force"}, false, "Force")
+		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	)
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -831,6 +832,9 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 	v := url.Values{}
 	if *force {
 		v.Set("force", "1")
+	}
+	if *noprune {
+		v.Set("noprune", "1")
 	}
 
 	var encounteredError error

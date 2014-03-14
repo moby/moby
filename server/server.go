@@ -1839,7 +1839,7 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force bool) error {
+func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, noprune bool) error {
 	var (
 		repoName, tag string
 		tags          = []string{}
@@ -1920,8 +1920,8 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force boo
 			out.Set("Deleted", img.ID)
 			imgs.Add(out)
 			srv.LogEvent("delete", img.ID, "")
-			if img.Parent != "" {
-				err := srv.DeleteImage(img.Parent, imgs, false, force)
+			if img.Parent != "" && !noprune {
+				err := srv.DeleteImage(img.Parent, imgs, false, force, noprune)
 				if first {
 					return err
 				}
@@ -1938,7 +1938,7 @@ func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	imgs := engine.NewTable("", 0)
-	if err := srv.DeleteImage(job.Args[0], imgs, true, job.GetenvBool("force")); err != nil {
+	if err := srv.DeleteImage(job.Args[0], imgs, true, job.GetenvBool("force"), job.GetenvBool("noprune")); err != nil {
 		return job.Error(err)
 	}
 	if len(imgs.Data) == 0 {
