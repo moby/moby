@@ -3,7 +3,7 @@ package native
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"

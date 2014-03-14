@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"

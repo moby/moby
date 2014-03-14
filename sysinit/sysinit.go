@@ -3,9 +3,9 @@ package sysinit
 import (
 	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/execdriver"
-	_ "github.com/dotcloud/docker/execdriver/lxc"
-	_ "github.com/dotcloud/docker/execdriver/native"
+	"github.com/dotcloud/docker/runtime/execdriver"
+	_ "github.com/dotcloud/docker/runtime/execdriver/lxc"
+	_ "github.com/dotcloud/docker/runtime/execdriver/native"
 	"log"
 	"os"
 )

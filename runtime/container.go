@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/links"
