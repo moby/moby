@@ -41,6 +41,8 @@ and we will add the libraries here.
 +----------------------+----------------+--------------------------------------------+----------+
 | Go                   | go-dockerclient| https://github.com/fsouza/go-dockerclient  | Active   |
 +----------------------+----------------+--------------------------------------------+----------+
+| Go                   | dockerclient   | https://github.com/samalba/dockerclient    | Active   |
++----------------------+----------------+--------------------------------------------+----------+
 | PHP                  | Alvine         | http://pear.alvine.io/ (alpha)             | Active   |
 +----------------------+----------------+--------------------------------------------+----------+
 | PHP                  | Docker-PHP     | http://stage1.github.io/docker-php/        | Active   |
