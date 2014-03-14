@@ -534,7 +534,6 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 // The image can optionally be tagged into a repository
 func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
-	// FIXME: this shouldn't be in commands.
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
