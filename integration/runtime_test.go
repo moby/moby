@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/reexec"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/sysinit"
@@ -86,7 +87,7 @@ func init() {
 	os.Setenv("TEST", "1")
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
+	if selfPath := reexec.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		sysinit.SysInit()
 		return
 	}
@@ -102,7 +103,7 @@ func init() {
 			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s\n", err)
 		}
 		defer src.Close()
-		dst, err := os.OpenFile(filepath.Join(filepath.Dir(utils.SelfPath()), "dockerinit"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0555)
+		dst, err := os.OpenFile(filepath.Join(filepath.Dir(reexec.SelfPath()), "dockerinit"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0555)
 		if err != nil {
 			log.Fatalf("Unable to create dockerinit in test directory: %s\n", err)
 		}

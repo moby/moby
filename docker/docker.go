@@ -12,12 +12,13 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/reexec"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 )
 
 func main() {
-	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
+	if selfPath := reexec.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		// Running in init mode
 		sysinit.SysInit()
 		return
