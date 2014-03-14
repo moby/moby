@@ -5,7 +5,7 @@ import yaml
 
 from env import commit_range
 
-commit_format = '-%n hash: "%h"%n author: %aN <%aE>%n message: |%n%w(0,2,2)%B'
+commit_format = '-%n hash: "%h"%n author: %aN <%aE>%n message: |%n%w(0,2,2).%B'
 
 gitlog = subprocess.check_output([
 	'git', 'log', '--reverse',
@@ -24,6 +24,11 @@ p = re.compile(r'^{0} ([^<]+) <([^<>@]+@[^<>]+)> \(github: (\S+)\)$'.format(re.e
 failed_commits = 0
 
 for commit in commits:
+	commit['message'] = commit['message'][1:]
+	# trim off our '.' that exists just to prevent fun YAML parsing issues
+	# see https://github.com/dotcloud/docker/pull/3836#issuecomment-33723094
+	# and https://travis-ci.org/dotcloud/docker/builds/17926783
+	
 	commit['stat'] = subprocess.check_output([
 		'git', 'log', '--format=format:', '--max-count=1',
 		'--name-status', commit['hash'], '--',

@@ -1,5 +1,164 @@
 # Changelog
 
+## 0.9.0 (2014-03-10)
+
+#### Builder
+- Avoid extra mount/unmount during build. This fixes mount/unmount related errors during build.
+- Add error to docker build --rm. This adds missing error handling.
+- Forbid chained onbuild, `onbuild from` and  `onbuild maintainer` triggers.
+- Make `--rm` the default for `docker build`.
+
+#### Documentation
+- Download the docker client binary for Mac over https.
+- Update the titles of the install instructions & descriptions.
+* Add instructions for upgrading boot2docker.
+* Add port forwarding example in OS X install docs.
+- Attempt to disentangle repository and registry.
+- Update docs to explain more about `docker ps`.
+- Update sshd example to use a Dockerfile.
+- Rework some examples, including the Python examples.
+- Update docs to include instructions for a container's lifecycle.
+- Update docs documentation to discuss the docs branch.
+- Don't skip cert check for an example & use HTTPS.
+- Bring back the memory and swap accounting section which was lost when the kernel page was removed.
+- Explain DNS warnings and how to fix them on systems running and using a local nameserver.
+
+#### Contrib
+- Add Tanglu support for mkimage-debootstrap.
+- Add SteamOS support for mkimage-debootstrap.
+
+#### Hack
+- Get package coverage when running integration tests.
+- Remove the Vagrantfile. This is being replaced with boot2docker.
+- Fix tests on systems where aufs isn't available.
+- Update packaging instructions and remove the dependency on lxc.
+
+#### Remote API
+* Move code specific to the API to the api package.
+- Fix header content type for the API. Makes all endpoints use proper content type.
+- Fix registry auth & remove ping calls from CmdPush and CmdPull.
+- Add newlines to the JSON stream functions.
+
+#### Runtime
+* Do not ping the registry from the CLI. All requests to registres flow through the daemon.
+- Check for nil information return in the lxc driver. This fixes panics with older lxc versions.
+- Devicemapper: cleanups and fix for unmount. Fixes two problems which were causing unmount to fail intermittently.
+- Devicemapper: remove directory when removing device. Directories don't get left behind when removing the device.
+* Devicemapper: enable skip_block_zeroing. Improves performance by not zeroing blocks.
+- Devicemapper: fix shutdown warnings. Fixes shutdown warnings concerning pool device removal.
+- Ensure docker cp stream is closed properly. Fixes problems with files not being copied by `docker cp`.
+- Stop making `tcp://` default to `127.0.0.1:4243` and remove the default port for tcp.
+- Fix `--run` in `docker commit`. This makes `docker commit --run` work again.
+- Fix custom bridge related options. This makes custom bridges work again.
++ Mount-bind the PTY as container console. This allows tmux/screen to run.
++ Add the pure Go libcontainer library to make it possible to run containers using only features of the Linux kernel.
++ Add native exec driver which uses libcontainer and make it the default exec driver.
+- Add support for handling extended attributes in archives.
+* Set the container MTU to be the same as the host MTU.
++ Add simple sha256 checksums for layers to speed up `docker push`.
+* Improve kernel version parsing.
+* Allow flag grouping (`docker run -it`).
+- Remove chroot exec driver.
+- Fix divide by zero to fix panic.
+- Rewrite `docker rmi`.
+- Fix docker info with lxc 1.0.0.
+- Fix fedora tty with apparmor.
+* Don't always append env vars, replace defaults with vars from config.
+* Fix a goroutine leak.
+* Switch to Go 1.2.1.
+- Fix unique constraint error checks.
+* Handle symlinks for Docker's data directory and for TMPDIR.
+- Add deprecation warnings for flags (-flag is deprecated in favor of --flag)
+- Add apparmor profile for the native execution driver.
+* Move system specific code from archive to pkg/system.
+- Fix duplicate signal for `docker run -i -t` (issue #3336).
+- Return correct process pid for lxc.
+- Add a -G option to specify the group which unix sockets belong to.
++ Add `-f` flag to `docker rm` to force removal of running containers.
++ Kill ghost containers and restart all ghost containers when the docker daemon restarts.
++ Add `DOCKER_RAMDISK` environment variable to make Docker work when the root is on a ramdisk.
+
+## 0.8.1 (2014-02-18)
+
+#### Builder
+
+- Avoid extra mount/unmount during build. This removes an unneeded mount/unmount operation which was causing problems with devicemapper
+- Fix regression with ADD of tar files. This stops Docker from decompressing tarballs added via ADD from the local file system
+- Add error to `docker build --rm`. This adds a missing error check to ensure failures to remove containers are detected and reported
+
+#### Documentation
+
+* Update issue filing instructions
+* Warn against the use of symlinks for Docker's storage folder
+* Replace the Firefox example with an IceWeasel example
+* Rewrite the PostgresSQL example using a Dockerfile and add more details to it
+* Improve the OS X documentation
+
+#### Remote API
+
+- Fix broken images API for version less than 1.7
+- Use the right encoding for all API endpoints which return JSON
+- Move remote api client to api/
+- Queue calls to the API using generic socket wait 
+
+#### Runtime
+
+- Fix the use of custom settings for bridges and custom bridges
+- Refactor the devicemapper code to avoid many mount/unmount race conditions and failures
+- Remove two panics which could make Docker crash in some situations
+- Don't ping registry from the CLI client
+- Enable skip_block_zeroing for devicemapper. This stops devicemapper from always zeroing entire blocks
+- Fix --run in `docker commit`. This makes docker commit store `--run` in the image configuration
+- Remove directory when removing devicemapper device. This cleans up leftover mount directories
+- Drop NET_ADMIN capability for non-privileged containers. Unprivileged containers can't change their network configuration
+- Ensure `docker cp` stream is closed properly
+- Avoid extra mount/unmount during container registration. This removes an unneeded mount/unmount operation which was causing problems with devicemapper
+- Stop allowing tcp:// as a default tcp bin address which binds to 127.0.0.1:4243 and remove the default port
++ Mount-bind the PTY as container console. This allows tmux and screen to run in a container
+- Clean up archive closing. This fixes and improves archive handling
+- Fix engine tests on systems where temp directories are symlinked
+- Add test methods for save and load
+- Avoid temporarily unmounting the container when restarting it. This fixes a race for devicemapper during restart
+- Support submodules when building from a GitHub repository
+- Quote volume path to allow spaces
+- Fix remote tar ADD behavior. This fixes a regression which was causing Docker to extract tarballs
+
+## 0.8.0 (2014-02-04)
+
+#### Notable features since 0.7.0
+
+* Images and containers can be removed much faster
+* Building an image from source with docker build is now much faster
+* The Docker daemon starts and stops much faster
+* The memory footprint of many common operations has been reduced, by streaming files instead of buffering them in memory, fixing memory leaks, and fixing various suboptimal memory allocations
+* Several race conditions were fixed, making Docker more stable under very high concurrency load. This makes Docker more stable and less likely to crash and reduces the memory footprint of many common operations
+* All packaging operations are now built on the Go language’s standard tar implementation, which is bundled with Docker itself. This makes packaging more portable across host distributions, and solves several issues caused by quirks and incompatibilities between different distributions of tar
+* Docker can now create, remove and modify larger numbers of containers and images graciously thanks to more aggressive releasing of system resources. For example the storage driver API now allows Docker to do reference counting on mounts created by the drivers
+With the ongoing changes to the networking and execution subsystems of docker testing these areas have been a focus of the refactoring.  By moving these subsystems into separate packages we can test, analyze, and monitor coverage and quality of these packages
+* Many components have been separated into smaller sub-packages, each with a dedicated test suite. As a result the code is better-tested, more readable and easier to change
+
+* The ADD instruction now supports caching, which avoids unnecessarily re-uploading the same source content again and again when it hasn’t changed
+* The new ONBUILD instruction adds to your image a “trigger” instruction to be executed at a later time, when the image is used as the base for another build
+* Docker now ships with an experimental storage driver which uses the BTRFS filesystem for copy-on-write
+* Docker is officially supported on Mac OSX
+* The Docker daemon supports systemd socket activation
+
+## 0.7.6 (2014-01-14)
+
+#### Builder
+
+* Do not follow symlink outside of build context
+
+#### Runtime
+
+- Remount bind mounts when ro is specified
+* Use https for fetching docker version
+
+#### Other
+
+* Inline the test.docker.io fingerprint
+* Add ca-certificates to packaging documentation
+
 ## 0.7.5 (2014-01-09)
 
 #### Builder

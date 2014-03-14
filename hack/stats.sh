@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ## Run this script from the root of the docker repository
 ## to query project stats useful to the maintainers.

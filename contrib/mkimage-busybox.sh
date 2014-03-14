@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Generate a very minimal filesystem based on busybox-static,
 # and load it into the local docker under the name "busybox".
 

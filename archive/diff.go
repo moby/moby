@@ -1,9 +1,10 @@
 package archive
 
 import (
-	"archive/tar"
-	"github.com/dotcloud/docker/utils"
+	"fmt"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,7 @@ func timeToTimespec(time time.Time) (ts syscall.Timespec) {
 
 // ApplyLayer parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`.
-func ApplyLayer(dest string, layer Archive) error {
+func ApplyLayer(dest string, layer ArchiveReader) error {
 	// We need to be able to set any perms
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
@@ -42,6 +43,9 @@ func ApplyLayer(dest string, layer Archive) error {
 	tr := tar.NewReader(layer)
 
 	var dirs []*tar.Header
+
+	aufsTempdir := ""
+	aufsHardlinks := make(map[string]*tar.Header)
 
 	// Iterate through the files in the archive.
 	for {
@@ -73,6 +77,22 @@ func ApplyLayer(dest string, layer Archive) error {
 
 		// Skip AUFS metadata dirs
 		if strings.HasPrefix(hdr.Name, ".wh..wh.") {
+			// Regular files inside /.wh..wh.plnk can be used as hardlink targets
+			// We don't want this directory, but we need the files in them so that
+			// such hardlinks can be resolved.
+			if strings.HasPrefix(hdr.Name, ".wh..wh.plnk") && hdr.Typeflag == tar.TypeReg {
+				basename := filepath.Base(hdr.Name)
+				aufsHardlinks[basename] = hdr
+				if aufsTempdir == "" {
+					if aufsTempdir, err = ioutil.TempDir("", "dockerplnk"); err != nil {
+						return err
+					}
+					defer os.RemoveAll(aufsTempdir)
+				}
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 
@@ -89,95 +109,41 @@ func ApplyLayer(dest string, layer Archive) error {
 			// The only exception is when it is a directory *and* the file from
 			// the layer is also a directory. Then we want to merge them (i.e.
 			// just apply the metadata from the layer).
-			hasDir := false
 			if fi, err := os.Lstat(path); err == nil {
-				if fi.IsDir() && hdr.Typeflag == tar.TypeDir {
-					hasDir = true
-				} else {
+				if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
 					if err := os.RemoveAll(path); err != nil {
 						return err
 					}
 				}
 			}
 
-			switch hdr.Typeflag {
-			case tar.TypeDir:
-				if !hasDir {
-					err = os.Mkdir(path, os.FileMode(hdr.Mode))
-					if err != nil {
-						return err
-					}
-				}
-				dirs = append(dirs, hdr)
+			srcData := io.Reader(tr)
+			srcHdr := hdr
 
-			case tar.TypeReg, tar.TypeRegA:
-				// Source is regular file
-				file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, os.FileMode(hdr.Mode))
+			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so
+			// we manually retarget these into the temporary files we extracted them into
+			if hdr.Typeflag == tar.TypeLink && strings.HasPrefix(filepath.Clean(hdr.Linkname), ".wh..wh.plnk") {
+				linkBasename := filepath.Base(hdr.Linkname)
+				srcHdr = aufsHardlinks[linkBasename]
+				if srcHdr == nil {
+					return fmt.Errorf("Invalid aufs hardlink")
+				}
+				tmpFile, err := os.Open(filepath.Join(aufsTempdir, linkBasename))
 				if err != nil {
 					return err
 				}
-				if _, err := io.Copy(file, tr); err != nil {
-					file.Close()
-					return err
-				}
-				file.Close()
-
-			case tar.TypeBlock, tar.TypeChar, tar.TypeFifo:
-				mode := uint32(hdr.Mode & 07777)
-				switch hdr.Typeflag {
-				case tar.TypeBlock:
-					mode |= syscall.S_IFBLK
-				case tar.TypeChar:
-					mode |= syscall.S_IFCHR
-				case tar.TypeFifo:
-					mode |= syscall.S_IFIFO
-				}
-
-				if err := syscall.Mknod(path, mode, int(mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
-					return err
-				}
-
-			case tar.TypeLink:
-				if err := os.Link(filepath.Join(dest, hdr.Linkname), path); err != nil {
-					return err
-				}
-
-			case tar.TypeSymlink:
-				if err := os.Symlink(hdr.Linkname, path); err != nil {
-					return err
-				}
-
-			default:
-				utils.Debugf("unhandled type %d\n", hdr.Typeflag)
+				defer tmpFile.Close()
+				srcData = tmpFile
 			}
 
-			if err = syscall.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData); err != nil {
 				return err
 			}
 
-			// There is no LChmod, so ignore mode for symlink. Also, this
-			// must happen after chown, as that can modify the file mode
-			if hdr.Typeflag != tar.TypeSymlink {
-				err = syscall.Chmod(path, uint32(hdr.Mode&07777))
-				if err != nil {
-					return err
-				}
-			}
-
-			// Directories must be handled at the end to avoid further
-			// file creation in them to modify the mtime
-			if hdr.Typeflag != tar.TypeDir {
-				ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
-				// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
-				if hdr.Typeflag != tar.TypeSymlink {
-					if err := syscall.UtimesNano(path, ts); err != nil {
-						return err
-					}
-				} else {
-					if err := LUtimesNano(path, ts); err != nil {
-						return err
-					}
-				}
+			// Directory mtimes must be handled at the end to avoid further
+			// file creation in them to modify the directory mtime
+			if hdr.Typeflag == tar.TypeDir {
+				dirs = append(dirs, hdr)
 			}
 		}
 	}

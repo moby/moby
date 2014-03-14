@@ -174,7 +174,7 @@ __docker_subcommand () {
         (ps)
             _arguments '-a[Show all containers. Only running containers are shown by default]' \
                 '-h[Show help]' \
-                '-beforeId=-[Show only container created before Id, include non-running one]:containers:__docker_containers' \
+                '-before-id=-[Show only container created before Id, include non-running one]:containers:__docker_containers' \
             '-n=-[Show n last created containers, include non-running one]:n:(1 5 10 25 50)'
             ;;
         (tag)
@@ -189,9 +189,9 @@ __docker_subcommand () {
                 '-a=-[Attach to stdin, stdout or stderr]:toggle:(true false)' \
                 '-c=-[CPU shares (relative weight)]:CPU shares: ' \
                 '-d[Detached mode: leave the container running in the background]' \
-                '*-dns=[Set custom dns servers]:dns server: ' \
+                '*--dns=[Set custom dns servers]:dns server: ' \
                 '*-e=[Set environment variables]:environment variable: ' \
-                '-entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
+                '--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
                 '-h=-[Container host name]:hostname:_hosts' \
                 '-i[Keep stdin open even if not attached]' \
                 '-m=-[Memory limit (in bytes)]:limit: ' \
@@ -199,7 +199,7 @@ __docker_subcommand () {
                 '-t=-[Allocate a pseudo-tty]:toggle:(true false)' \
                 '-u=-[Username or UID]:user:_users' \
                 '*-v=-[Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)]:volume: '\
-                '-volumes-from=-[Mount volumes from the specified container]:volume: ' \
+                '--volumes-from=-[Mount volumes from the specified container]:volume: ' \
                 '(-):images:__docker_images' \
                 '(-):command: _command_names -e' \
                 '*::arguments: _normal'

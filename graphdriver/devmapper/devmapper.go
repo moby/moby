@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"runtime"
+	"syscall"
 )
 
 type DevmapperLogger interface {
@@ -288,6 +289,29 @@ func GetBlockDeviceSize(file *osFile) (uint64, error) {
 	return uint64(size), nil
 }
 
+func BlockDeviceDiscard(path string) error {
+	file, err := osOpenFile(path, osORdWr, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	size, err := GetBlockDeviceSize(file)
+	if err != nil {
+		return err
+	}
+
+	if err := ioctlBlkDiscard(file.Fd(), 0, size); err != nil {
+		return err
+	}
+
+	// Without this sometimes the remove of the device that happens after
+	// discard fails with EBUSY.
+	syscall.Sync()
+
+	return nil
+}
+
 // This is the programmatic example of "dmsetup create"
 func createPool(poolName string, dataFile, metadataFile *osFile) error {
 	task, err := createTask(DeviceCreate, poolName)
@@ -300,7 +324,7 @@ func createPool(poolName string, dataFile, metadataFile *osFile) error {
 		return fmt.Errorf("Can't get data size")
 	}
 
-	params := metadataFile.Name() + " " + dataFile.Name() + " 128 32768"
+	params := metadataFile.Name() + " " + dataFile.Name() + " 128 32768 1 skip_block_zeroing"
 	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
 		return fmt.Errorf("Can't add target")
 	}

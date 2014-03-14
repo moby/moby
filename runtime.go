@@ -4,19 +4,26 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/cgroups"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/execdriver/lxc"
+	"github.com/dotcloud/docker/execdriver/native"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/aufslimit"
+	_ "github.com/dotcloud/docker/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	_ "github.com/dotcloud/docker/networkdriver/lxc"
+	"github.com/dotcloud/docker/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -36,27 +43,21 @@ var (
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
-type Capabilities struct {
-	MemoryLimit            bool
-	SwapLimit              bool
-	IPv4ForwardingDisabled bool
-	AppArmor               bool
-}
-
 type Runtime struct {
 	repository     string
 	sysInitPath    string
 	containers     *list.List
-	networkManager *NetworkManager
 	graph          *Graph
 	repositories   *TagStore
 	idIndex        *utils.TruncIndex
-	capabilities   *Capabilities
+	sysInfo        *sysinfo.SysInfo
 	volumes        *Graph
 	srv            *Server
+	eng            *engine.Engine
 	config         *DaemonConfig
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
+	execDriver     execdriver.Driver
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -135,13 +136,6 @@ func (runtime *Runtime) Register(container *Container) error {
 		return err
 	}
 
-	// Get the root filesystem from the driver
-	rootfs, err := runtime.driver.Get(container.ID)
-	if err != nil {
-		return fmt.Errorf("Error getting container filesystem %s from driver %s: %s", container.ID, runtime.driver, err)
-	}
-	container.rootfs = rootfs
-
 	container.runtime = runtime
 
 	// Attach to stdout and stderr
@@ -161,14 +155,39 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		output, err := exec.Command("lxc-info", "-n", container.ID).CombinedOutput()
-		if err != nil {
-			return err
+		if container.State.IsGhost() {
+			utils.Debugf("killing ghost %s", container.ID)
+
+			existingPid := container.State.Pid
+			container.State.SetGhost(false)
+			container.State.SetStopped(0)
+
+			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
+				lxc.KillLxc(container.ID, 9)
+			} else {
+				command := &execdriver.Command{
+					ID: container.ID,
+				}
+				command.Process = &os.Process{Pid: existingPid}
+				runtime.execDriver.Kill(command, 9)
+			}
+			// ensure that the filesystem is also unmounted
+			unmountVolumesForContainer(container)
+			if err := container.Unmount(); err != nil {
+				utils.Debugf("ghost unmount error %s", err)
+			}
 		}
-		if !strings.Contains(string(output), "RUNNING") {
+
+		info := runtime.execDriver.Info(container.ID)
+		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if runtime.config.AutoRestart {
 				utils.Debugf("Restarting")
+				unmountVolumesForContainer(container)
+				if err := container.Unmount(); err != nil {
+					utils.Debugf("restart unmount error %s", err)
+				}
+
 				container.State.SetGhost(false)
 				container.State.SetStopped(0)
 				if err := container.Start(); err != nil {
@@ -181,16 +200,13 @@ func (runtime *Runtime) Register(container *Container) error {
 					return err
 				}
 			}
-		} else {
-			utils.Debugf("Reconnecting to container %v", container.ID)
-
-			if err := container.allocateNetwork(); err != nil {
-				return err
-			}
-
-			container.waitLock = make(chan struct{})
-			go container.monitor()
 		}
+	} else {
+		// When the container is not running, we still initialize the waitLock
+		// chan and close it. Receiving on nil chan blocks whereas receiving on a
+		// closed chan does not. In this case we do not want to block.
+		container.waitLock = make(chan struct{})
+		close(container.waitLock)
 	}
 	return nil
 }
@@ -332,45 +348,8 @@ func (runtime *Runtime) restore() error {
 	return nil
 }
 
-// FIXME: comment please!
-func (runtime *Runtime) UpdateCapabilities(quiet bool) {
-	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
-		if !quiet {
-			log.Printf("WARNING: %s\n", err)
-		}
-	} else {
-		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
-		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
-		runtime.capabilities.MemoryLimit = err1 == nil && err2 == nil
-		if !runtime.capabilities.MemoryLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
-		}
-
-		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
-		runtime.capabilities.SwapLimit = err == nil
-		if !runtime.capabilities.SwapLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
-		}
-	}
-
-	content, err3 := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
-	runtime.capabilities.IPv4ForwardingDisabled = err3 != nil || len(content) == 0 || content[0] != '1'
-	if runtime.capabilities.IPv4ForwardingDisabled && !quiet {
-		log.Printf("WARNING: IPv4 forwarding is disabled.")
-	}
-
-	// Check if AppArmor seems to be enabled on this system.
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
-		utils.Debugf("/sys/kernel/security/apparmor not found; assuming AppArmor is not enabled.")
-		runtime.capabilities.AppArmor = false
-	} else {
-		utils.Debugf("/sys/kernel/security/apparmor found; assuming AppArmor is enabled.")
-		runtime.capabilities.AppArmor = true
-	}
-}
-
 // Create creates a new container from the given configuration with a given name.
-func (runtime *Runtime) Create(config *Config, name string) (*Container, []string, error) {
+func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Container, []string, error) {
 	// Lookup image
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
@@ -388,7 +367,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
 	}
 
-	checkDeprecatedExpose := func(config *Config) bool {
+	checkDeprecatedExpose := func(config *runconfig.Config) bool {
 		if config != nil {
 			if config.PortSpecs != nil {
 				for _, p := range config.PortSpecs {
@@ -403,18 +382,16 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 	warnings := []string{}
 	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
-		warnings = append(warnings, "The mapping to public ports on your host has been deprecated. Use -p to publish the ports.")
+		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
 	}
 
 	if img.Config != nil {
-		if err := MergeConfig(config, img.Config); err != nil {
+		if err := runconfig.Merge(config, img.Config); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	if len(config.Entrypoint) != 0 && config.Cmd == nil {
-		config.Cmd = []string{}
-	} else if config.Cmd == nil || len(config.Cmd) == 0 {
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return nil, nil, fmt.Errorf("No command specified")
 	}
 
@@ -438,7 +415,7 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
-		if !strings.HasSuffix(err.Error(), "name are not unique") {
+		if !graphdb.IsNonUniqueNameError(err) {
 			return nil, nil, err
 		}
 
@@ -484,11 +461,12 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
-		hostConfig:      &HostConfig{},
+		hostConfig:      &runconfig.HostConfig{},
 		Image:           img.ID, // Always use the resolved image id
 		NetworkSettings: &NetworkSettings{},
 		Name:            name,
 		Driver:          runtime.driver.String(),
+		ExecDriver:      runtime.execDriver.Name(),
 	}
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
@@ -508,6 +486,8 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 	if err != nil {
 		return nil, nil, err
 	}
+	defer runtime.driver.Put(initID)
+
 	if err := setupInitLayer(initPath); err != nil {
 		return nil, nil, err
 	}
@@ -562,17 +542,20 @@ func (runtime *Runtime) Create(config *Config, name string) (*Container, []strin
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *Config) (*Image, error) {
+func (runtime *Runtime) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*Image, error) {
 	// FIXME: freeze the container before copying it to avoid data corruption?
 	// FIXME: this shouldn't be in commands.
-	if err := container.EnsureMounted(); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+	defer container.Unmount()
 
 	rwTar, err := container.ExportRw()
 	if err != nil {
 		return nil, err
 	}
+	defer rwTar.Close()
+
 	// Create a new image from the container's base layers + a new layer from container changes
 	img, err := runtime.graph.Create(rwTar, container, comment, author, config)
 	if err != nil {
@@ -645,16 +628,15 @@ func (runtime *Runtime) RegisterLink(parent, child *Container, alias string) err
 }
 
 // FIXME: harmonize with NewGraph()
-func NewRuntime(config *DaemonConfig) (*Runtime, error) {
-	runtime, err := NewRuntimeFromDirectory(config)
+func NewRuntime(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
+	runtime, err := NewRuntimeFromDirectory(config, eng)
 	if err != nil {
 		return nil, err
 	}
-	runtime.UpdateCapabilities(false)
 	return runtime, nil
 }
 
-func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
+func NewRuntimeFromDirectory(config *DaemonConfig, eng *engine.Engine) (*Runtime, error) {
 
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
@@ -682,10 +664,6 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		}
 	}
 
-	utils.Debugf("Escaping AppArmor confinement")
-	if err := linkLxcStart(config.Root); err != nil {
-		return nil, err
-	}
 	utils.Debugf("Creating images graph")
 	g, err := NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
@@ -708,12 +686,20 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
-	if config.BridgeIface == "" {
-		config.BridgeIface = DefaultNetworkBridge
-	}
-	netManager, err := newNetworkManager(config)
-	if err != nil {
-		return nil, err
+
+	if !config.DisableNetwork {
+		job := eng.Job("init_networkdriver")
+
+		job.SetenvBool("EnableIptables", config.EnableIptables)
+		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
+		job.SetenvBool("EnableIpForward", config.EnableIpForward)
+		job.Setenv("BridgeIface", config.BridgeIface)
+		job.Setenv("BridgeIP", config.BridgeIP)
+		job.Setenv("DefaultBindingIP", config.DefaultIp.String())
+
+		if err := job.Run(); err != nil {
+			return nil, err
+		}
 	}
 
 	graphdbPath := path.Join(config.Root, "linkgraph.db")
@@ -722,7 +708,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		return nil, err
 	}
 
-	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", VERSION))
+	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
 		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
@@ -745,19 +731,40 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		sysInitPath = localCopy
 	}
 
+	var (
+		ed      execdriver.Driver
+		sysInfo = sysinfo.New(false)
+	)
+
+	switch config.ExecDriver {
+	case "lxc":
+		// we want to five the lxc driver the full docker root because it needs
+		// to access and write config and template files in /var/lib/docker/containers/*
+		// to be backwards compatible
+		ed, err = lxc.NewDriver(config.Root, sysInfo.AppArmor)
+	case "native":
+		ed, err = native.NewDriver(path.Join(config.Root, "execdriver", "native"))
+	default:
+		return nil, fmt.Errorf("unknown exec driver %s", config.ExecDriver)
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	runtime := &Runtime{
 		repository:     runtimeRepo,
 		containers:     list.New(),
-		networkManager: netManager,
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex(),
-		capabilities:   &Capabilities{},
+		sysInfo:        sysInfo,
 		volumes:        volumes,
 		config:         config,
 		containerGraph: graph,
 		driver:         driver,
 		sysInitPath:    sysInitPath,
+		execDriver:     ed,
+		eng:            eng,
 	}
 
 	if err := runtime.restore(); err != nil {
@@ -768,8 +775,8 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 
 func (runtime *Runtime) Close() error {
 	errorsStrings := []string{}
-	if err := runtime.networkManager.Close(); err != nil {
-		utils.Errorf("runtime.networkManager.Close(): %s", err.Error())
+	if err := portallocator.ReleaseAll(); err != nil {
+		utils.Errorf("portallocator.ReleaseAll(): %s", err)
 		errorsStrings = append(errorsStrings, err.Error())
 	}
 	if err := runtime.driver.Cleanup(); err != nil {
@@ -791,18 +798,17 @@ func (runtime *Runtime) Mount(container *Container) error {
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, runtime.driver, err)
 	}
-	if container.rootfs == "" {
-		container.rootfs = dir
-	} else if container.rootfs != dir {
+	if container.basefs == "" {
+		container.basefs = dir
+	} else if container.basefs != dir {
 		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-			runtime.driver, container.ID, container.rootfs, dir)
+			runtime.driver, container.ID, container.basefs, dir)
 	}
 	return nil
 }
 
 func (runtime *Runtime) Unmount(container *Container) error {
-	// FIXME: Unmount is deprecated because drivers are responsible for mounting
-	// and unmounting when necessary. Use driver.Remove() instead.
+	runtime.driver.Put(container.ID)
 	return nil
 }
 
@@ -814,10 +820,12 @@ func (runtime *Runtime) Changes(container *Container) ([]archive.Change, error) 
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
+	defer runtime.driver.Put(container.ID)
 	initDir, err := runtime.driver.Get(container.ID + "-init")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
+	defer runtime.driver.Put(container.ID + "-init")
 	return archive.ChangesDirs(cDir, initDir)
 }
 
@@ -836,7 +844,23 @@ func (runtime *Runtime) Diff(container *Container) (archive.Archive, error) {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.runtime.driver, err)
 	}
 
-	return archive.ExportChanges(cDir, changes)
+	archive, err := archive.ExportChanges(cDir, changes)
+	if err != nil {
+		return nil, err
+	}
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		runtime.driver.Put(container.ID)
+		return err
+	}), nil
+}
+
+func (runtime *Runtime) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return runtime.execDriver.Run(c.command, pipes, startCallback)
+}
+
+func (runtime *Runtime) Kill(c *Container, sig int) error {
+	return runtime.execDriver.Kill(c.command, sig)
 }
 
 // Nuke kills all containers then removes all content
@@ -856,23 +880,6 @@ func (runtime *Runtime) Nuke() error {
 	runtime.Close()
 
 	return os.RemoveAll(runtime.config.Root)
-}
-
-func linkLxcStart(root string) error {
-	sourcePath, err := exec.LookPath("lxc-start")
-	if err != nil {
-		return err
-	}
-	targetPath := path.Join(root, "lxc-start-unconfined")
-
-	if _, err := os.Lstat(targetPath); err != nil && !os.IsNotExist(err) {
-		return err
-	} else if err == nil {
-		if err := os.Remove(targetPath); err != nil {
-			return err
-		}
-	}
-	return os.Symlink(sourcePath, targetPath)
 }
 
 // FIXME: this is a convenience function for integration tests

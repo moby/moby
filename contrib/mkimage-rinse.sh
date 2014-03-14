@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# Create a base CentOS Docker image.
+
+# This script is useful on systems with rinse available (e.g.,
+# building a CentOS image on Debian).  See contrib/mkimage-yum.sh for
+# a way to build CentOS images on systems with yum installed.
+
 set -e
 
 repo="$1"

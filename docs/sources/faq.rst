@@ -25,9 +25,9 @@ Does Docker run on Mac OS X or Windows?
 
    Not at this time, Docker currently only runs on Linux, but you can
    use VirtualBox to run Docker in a virtual machine on your box, and
-   get the best of both worlds. Check out the
-   :ref:`install_using_vagrant` and :ref:`windows` installation
-   guides.
+   get the best of both worlds. Check out the :ref:`macosx` and
+   :ref:`windows` installation guides. The small Linux distribution boot2docker
+   can be run inside virtual machines on these two operating systems.
 
 How do containers compare to virtual machines?
 ..............................................
@@ -172,8 +172,10 @@ Linux:
 - Fedora 19/20+
 - RHEL 6.5+
 - Centos 6+
-- Gento
+- Gentoo
 - ArchLinux
+- openSUSE 12.3+
+- CRUX 3.0+
 
 Cloud:
 
@@ -181,10 +183,21 @@ Cloud:
 - Google Compute Engine
 - Rackspace
 
+How do I report a security issue with Docker?
+.............................................
+
+You can learn about the project's security policy `here <http://www.docker.io/security/>`_
+and report security issues to this `mailbox <mailto:security@docker.com>`_.
+
+Why do I need to sign my commits to Docker with the DCO?
+........................................................
+
+Please read `our blog post <http://blog.docker.io/2014/01/docker-code-contributions-require-developer-certificate-of-origin/>`_ on the introduction of the DCO.
+
 Can I help by adding some questions and answers?
 ................................................
 
-   Definitely! You can fork `the repo`_ and edit the documentation sources.
+Definitely! You can fork `the repo`_ and edit the documentation sources.
 
 
 Where can I find more answers?
@@ -195,7 +208,7 @@ Where can I find more answers?
     * `Docker user mailinglist`_
     * `Docker developer mailinglist`_
     * `IRC, docker on freenode`_
-    * `Github`_
+    * `GitHub`_
     * `Ask questions on Stackoverflow`_
     * `Join the conversation on Twitter`_
 
@@ -207,6 +220,5 @@ Where can I find more answers?
     .. _Github: http://www.github.com/dotcloud/docker
     .. _Ask questions on Stackoverflow: http://stackoverflow.com/search?q=docker
     .. _Join the conversation on Twitter: http://twitter.com/docker
-
 
 Looking for something else to read? Checkout the :ref:`hello_world` example.

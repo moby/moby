@@ -70,7 +70,7 @@ Let's see what is inside our ``supervisord.conf`` file.
     command=/usr/sbin/sshd -D
 
     [program:apache2]
-    command=/bin/bash -c "source /etc/apache2/envvars && /usr/sbin/apache2 -DFOREGROUND"
+    command=/bin/bash -c "source /etc/apache2/envvars && exec /usr/sbin/apache2 -DFOREGROUND"
 
 The ``supervisord.conf`` configuration file contains directives that configure
 Supervisor and the processes it manages. The first block ``[supervisord]``
@@ -112,7 +112,7 @@ Once we've got a built image we can launch a container from it.
 
 .. code-block:: bash
 
-    sudo docker run -p 22 -p 80 -t -i <yourname>/supervisor
+    sudo docker run -p 22 -p 80 -t -i <yourname>/supervisord
     2013-11-25 18:53:22,312 CRIT Supervisor running as root (no user in config file)
     2013-11-25 18:53:22,312 WARN Included extra file "/etc/supervisor/conf.d/supervisord.conf" during parsing
     2013-11-25 18:53:22,342 INFO supervisord started with pid 1

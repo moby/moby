@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -237,16 +238,16 @@ func TestCompareKernelVersion(t *testing.T) {
 		&KernelVersionInfo{Kernel: 2, Major: 6, Minor: 0},
 		1)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "0"},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "16"},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		0)
 	assertKernelVersion(t,
 		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 5},
 		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		1)
 	assertKernelVersion(t,
-		&KernelVersionInfo{Kernel: 3, Major: 0, Minor: 20, Flavor: "25"},
-		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "0"},
+		&KernelVersionInfo{Kernel: 3, Major: 0, Minor: 20},
+		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		-1)
 }
 
@@ -301,34 +302,36 @@ func assertRAMInBytes(t *testing.T, size string, expectError bool, expectedBytes
 func TestParseHost(t *testing.T) {
 	var (
 		defaultHttpHost = "127.0.0.1"
-		defaultHttpPort = 4243
 		defaultUnix     = "/var/run/docker.sock"
 	)
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "0.0.0.0"); err != nil || addr != "tcp://0.0.0.0:4243" {
-		t.Errorf("0.0.0.0 -> expected tcp://0.0.0.0:4243, got %s", addr)
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "0.0.0.0"); err == nil {
+		t.Errorf("tcp 0.0.0.0 address expected error return, but err == nil, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "0.0.0.1:5555"); err != nil || addr != "tcp://0.0.0.1:5555" {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "tcp://"); err == nil {
+		t.Errorf("default tcp:// address expected error return, but err == nil, got %s", addr)
+	}
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "0.0.0.1:5555"); err != nil || addr != "tcp://0.0.0.1:5555" {
 		t.Errorf("0.0.0.1:5555 -> expected tcp://0.0.0.1:5555, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, ":6666"); err != nil || addr != "tcp://127.0.0.1:6666" {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, ":6666"); err != nil || addr != "tcp://127.0.0.1:6666" {
 		t.Errorf(":6666 -> expected tcp://127.0.0.1:6666, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "tcp://:7777"); err != nil || addr != "tcp://127.0.0.1:7777" {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "tcp://:7777"); err != nil || addr != "tcp://127.0.0.1:7777" {
 		t.Errorf("tcp://:7777 -> expected tcp://127.0.0.1:7777, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, ""); err != nil || addr != "unix:///var/run/docker.sock" {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, ""); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("empty argument -> expected unix:///var/run/docker.sock, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "unix:///var/run/docker.sock"); err != nil || addr != "unix:///var/run/docker.sock" {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "unix:///var/run/docker.sock"); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "unix://"); err != nil || addr != "unix:///var/run/docker.sock" {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "unix://"); err != nil || addr != "unix:///var/run/docker.sock" {
 		t.Errorf("unix:///var/run/docker.sock -> expected unix:///var/run/docker.sock, got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "udp://127.0.0.1"); err == nil {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultHttpPort, defaultUnix, "udp://127.0.0.1:4243"); err == nil {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1:4243"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
 }
@@ -407,69 +410,18 @@ func assertParseRelease(t *testing.T, release string, b *KernelVersionInfo, resu
 	if r := CompareKernelVersion(a, b); r != result {
 		t.Fatalf("Unexpected kernel version comparison result. Found %d, expected %d", r, result)
 	}
+	if a.Flavor != b.Flavor {
+		t.Fatalf("Unexpected parsed kernel flavor.  Found %s, expected %s", a.Flavor, b.Flavor)
+	}
 }
 
 func TestParseRelease(t *testing.T) {
 	assertParseRelease(t, "3.8.0", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}, 0)
-	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54}, 0)
-	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: "1"}, 0)
-	assertParseRelease(t, "3.8.0-19-generic", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "19-generic"}, 0)
-}
-
-func TestDependencyGraphCircular(t *testing.T) {
-	g1 := NewDependencyGraph()
-	a := g1.NewNode("a")
-	b := g1.NewNode("b")
-	g1.AddDependency(a, b)
-	g1.AddDependency(b, a)
-	res, err := g1.GenerateTraversalMap()
-	if res != nil {
-		t.Fatalf("Expected nil result")
-	}
-	if err == nil {
-		t.Fatalf("Expected error (circular graph can not be resolved)")
-	}
-}
-
-func TestDependencyGraph(t *testing.T) {
-	g1 := NewDependencyGraph()
-	a := g1.NewNode("a")
-	b := g1.NewNode("b")
-	c := g1.NewNode("c")
-	d := g1.NewNode("d")
-	g1.AddDependency(b, a)
-	g1.AddDependency(c, a)
-	g1.AddDependency(d, c)
-	g1.AddDependency(d, b)
-	res, err := g1.GenerateTraversalMap()
-
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
-
-	if res == nil {
-		t.Fatalf("Unexpected nil result")
-	}
-
-	if len(res) != 3 {
-		t.Fatalf("Expected map of length 3, found %d instead", len(res))
-	}
-
-	if len(res[0]) != 1 || res[0][0] != "a" {
-		t.Fatalf("Expected [a], found %v instead", res[0])
-	}
-
-	if len(res[1]) != 2 {
-		t.Fatalf("Expected 2 nodes for step 2, found %d", len(res[1]))
-	}
-
-	if (res[1][0] != "b" && res[1][1] != "b") || (res[1][0] != "c" && res[1][1] != "c") {
-		t.Fatalf("Expected [b, c], found %v instead", res[1])
-	}
-
-	if len(res[2]) != 1 || res[2][0] != "d" {
-		t.Fatalf("Expected [d], found %v instead", res[2])
-	}
+	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: ".longterm-1"}, 0)
+	assertParseRelease(t, "3.4.54.longterm-1", &KernelVersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: ".longterm-1"}, 0)
+	assertParseRelease(t, "3.8.0-19-generic", &KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "-19-generic"}, 0)
+	assertParseRelease(t, "3.12.8tag", &KernelVersionInfo{Kernel: 3, Major: 12, Minor: 8, Flavor: "tag"}, 0)
+	assertParseRelease(t, "3.12-1-amd64", &KernelVersionInfo{Kernel: 3, Major: 12, Minor: 0, Flavor: "-1-amd64"}, 0)
 }
 
 func TestParsePortMapping(t *testing.T) {
@@ -528,4 +480,97 @@ func StrSlicesEqual(a, b []string) bool {
 	}
 
 	return true
+}
+
+func TestReplaceAndAppendEnvVars(t *testing.T) {
+	var (
+		d = []string{"HOME=/"}
+		o = []string{"HOME=/root", "TERM=xterm"}
+	)
+
+	env := ReplaceOrAppendEnvValues(d, o)
+	if len(env) != 2 {
+		t.Fatalf("expected len of 2 got %d", len(env))
+	}
+	if env[0] != "HOME=/root" {
+		t.Fatalf("expected HOME=/root got '%s'", env[0])
+	}
+	if env[1] != "TERM=xterm" {
+		t.Fatalf("expected TERM=xterm got '%s'", env[1])
+	}
+}
+
+// Reading a symlink to a directory must return the directory
+func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
+	var err error
+	if err = os.Mkdir("/tmp/testReadSymlinkToExistingDirectory", 0777); err != nil {
+		t.Errorf("failed to create directory: %s", err)
+	}
+
+	if err = os.Symlink("/tmp/testReadSymlinkToExistingDirectory", "/tmp/dirLinkTest"); err != nil {
+		t.Errorf("failed to create symlink: %s", err)
+	}
+
+	var path string
+	if path, err = ReadSymlinkedDirectory("/tmp/dirLinkTest"); err != nil {
+		t.Fatalf("failed to read symlink to directory: %s", err)
+	}
+
+	if path != "/tmp/testReadSymlinkToExistingDirectory" {
+		t.Fatalf("symlink returned unexpected directory: %s", path)
+	}
+
+	if err = os.Remove("/tmp/testReadSymlinkToExistingDirectory"); err != nil {
+		t.Errorf("failed to remove temporary directory: %s", err)
+	}
+
+	if err = os.Remove("/tmp/dirLinkTest"); err != nil {
+		t.Errorf("failed to remove symlink: %s", err)
+	}
+}
+
+// Reading a non-existing symlink must fail
+func TestReadSymlinkedDirectoryNonExistingSymlink(t *testing.T) {
+	var path string
+	var err error
+	if path, err = ReadSymlinkedDirectory("/tmp/test/foo/Non/ExistingPath"); err == nil {
+		t.Fatalf("error expected for non-existing symlink")
+	}
+
+	if path != "" {
+		t.Fatalf("expected empty path, but '%s' was returned", path)
+	}
+}
+
+// Reading a symlink to a file must fail
+func TestReadSymlinkedDirectoryToFile(t *testing.T) {
+	var err error
+	var file *os.File
+
+	if file, err = os.Create("/tmp/testReadSymlinkToFile"); err != nil {
+		t.Fatalf("failed to create file: %s", err)
+	}
+
+	file.Close()
+
+	if err = os.Symlink("/tmp/testReadSymlinkToFile", "/tmp/fileLinkTest"); err != nil {
+		t.Errorf("failed to create symlink: %s", err)
+	}
+
+	var path string
+	if path, err = ReadSymlinkedDirectory("/tmp/fileLinkTest"); err == nil {
+		t.Fatalf("ReadSymlinkedDirectory on a symlink to a file should've failed")
+	}
+
+	if path != "" {
+		t.Fatalf("path should've been empty: %s", path)
+	}
+
+	if err = os.Remove("/tmp/testReadSymlinkToFile"); err != nil {
+		t.Errorf("failed to remove file: %s", err)
+	}
+
+	if err = os.Remove("/tmp/fileLinkTest"); err != nil {
+		t.Errorf("failed to remove symlink: %s", err)
+	}
 }

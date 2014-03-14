@@ -22,3 +22,4 @@ bundles/
 .git/
 vendor/pkg/
 pyenv
+Vagrantfile

@@ -18,6 +18,7 @@ type Driver interface {
 	Remove(id string) error
 
 	Get(id string) (dir string, err error)
+	Put(id string)
 	Exists(id string) bool
 
 	Status() [][2]string
@@ -28,7 +29,7 @@ type Driver interface {
 type Differ interface {
 	Diff(id string) (archive.Archive, error)
 	Changes(id string) ([]archive.Change, error)
-	ApplyDiff(id string, diff archive.Archive) error
+	ApplyDiff(id string, diff archive.ArchiveReader) error
 	DiffSize(id string) (bytes int64, err error)
 }
 
@@ -42,6 +43,8 @@ var (
 		"aufs",
 		"devicemapper",
 		"vfs",
+		// experimental, has to be enabled manually for now
+		"btrfs",
 	}
 )
 

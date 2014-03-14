@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -18,17 +19,17 @@ import (
 )
 
 type Image struct {
-	ID              string    `json:"id"`
-	Parent          string    `json:"parent,omitempty"`
-	Comment         string    `json:"comment,omitempty"`
-	Created         time.Time `json:"created"`
-	Container       string    `json:"container,omitempty"`
-	ContainerConfig Config    `json:"container_config,omitempty"`
-	DockerVersion   string    `json:"docker_version,omitempty"`
-	Author          string    `json:"author,omitempty"`
-	Config          *Config   `json:"config,omitempty"`
-	Architecture    string    `json:"architecture,omitempty"`
-	OS              string    `json:"os,omitempty"`
+	ID              string            `json:"id"`
+	Parent          string            `json:"parent,omitempty"`
+	Comment         string            `json:"comment,omitempty"`
+	Created         time.Time         `json:"created"`
+	Container       string            `json:"container,omitempty"`
+	ContainerConfig runconfig.Config  `json:"container_config,omitempty"`
+	DockerVersion   string            `json:"docker_version,omitempty"`
+	Author          string            `json:"author,omitempty"`
+	Config          *runconfig.Config `json:"config,omitempty"`
+	Architecture    string            `json:"architecture,omitempty"`
+	OS              string            `json:"os,omitempty"`
 	graph           *Graph
 	Size            int64
 }
@@ -66,7 +67,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, layer string) error {
+func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, root, layer string) error {
 	// Store the layer
 	var (
 		size   int64
@@ -104,6 +105,7 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.Archive, root, la
 				if err != nil {
 					return err
 				}
+				defer driver.Put(img.Parent)
 				changes, err := archive.ChangesDirs(layer, parent)
 				if err != nil {
 					return err
@@ -147,7 +149,7 @@ func jsonPath(root string) string {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (img *Image) TarLayer() (archive.Archive, error) {
+func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if img.graph == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered image %s", img.ID)
 	}
@@ -160,19 +162,43 @@ func (img *Image) TarLayer() (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if err != nil {
+			driver.Put(img.ID)
+		}
+	}()
+
 	if img.Parent == "" {
-		return archive.Tar(imgFs, archive.Uncompressed)
-	} else {
-		parentFs, err := driver.Get(img.Parent)
+		archive, err := archive.Tar(imgFs, archive.Uncompressed)
 		if err != nil {
 			return nil, err
 		}
-		changes, err := archive.ChangesDirs(imgFs, parentFs)
-		if err != nil {
-			return nil, err
-		}
-		return archive.ExportChanges(imgFs, changes)
+		return utils.NewReadCloserWrapper(archive, func() error {
+			err := archive.Close()
+			driver.Put(img.ID)
+			return err
+		}), nil
 	}
+
+	parentFs, err := driver.Get(img.Parent)
+	if err != nil {
+		return nil, err
+	}
+	defer driver.Put(img.Parent)
+	changes, err := archive.ChangesDirs(imgFs, parentFs)
+	if err != nil {
+		return nil, err
+	}
+	archive, err := archive.ExportChanges(imgFs, changes)
+	if err != nil {
+		return nil, err
+	}
+	return utils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		driver.Put(img.ID)
+		return err
+	}), nil
 }
 
 func ValidateID(id string) error {
@@ -186,12 +212,20 @@ func ValidateID(id string) error {
 }
 
 func GenerateID() string {
-	id := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, id)
-	if err != nil {
-		panic(err) // This shouldn't happen
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.Atoi(utils.TruncateID(value)); err == nil {
+			continue
+		}
+		return value
 	}
-	return hex.EncodeToString(id)
 }
 
 // Image includes convenience proxy functions to its graph

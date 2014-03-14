@@ -16,7 +16,6 @@ to more substantial services like those which you might find in production.
    :maxdepth: 1
 
    hello_world
-   python_web_app
    nodejs_web_app
    running_redis_service
    running_ssh_service
@@ -26,3 +25,4 @@ to more substantial services like those which you might find in production.
    running_riak_service
    using_supervisord
    cfengine_process_management
+   python_web_app

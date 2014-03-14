@@ -55,7 +55,7 @@ The first two steps can be done as part of a Dockerfile, as follows.
     FROM ubuntu
     MAINTAINER Eystein Måløy Stenberg <eytein.stenberg@gmail.com>
 
-    RUN apt-get -y install wget lsb-release unzip
+    RUN apt-get -y install wget lsb-release unzip ca-certificates
 
     # install latest CFEngine
     RUN wget -qO- http://cfengine.com/pub/gpg.key | apt-key add -
@@ -64,7 +64,7 @@ The first two steps can be done as part of a Dockerfile, as follows.
     RUN apt-get install cfengine-community
 
     # install cfe-docker process management policy
-    RUN wget --no-check-certificate https://github.com/estenberg/cfe-docker/archive/master.zip -P /tmp/ && unzip /tmp/master.zip -d /tmp/
+    RUN wget https://github.com/estenberg/cfe-docker/archive/master.zip -P /tmp/ && unzip /tmp/master.zip -d /tmp/
     RUN cp /tmp/cfe-docker-master/cfengine/bin/* /var/cfengine/bin/
     RUN cp /tmp/cfe-docker-master/cfengine/inputs/* /var/cfengine/inputs/
     RUN rm -rf /tmp/cfe-docker-master /tmp/master.zip

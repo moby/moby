@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"hash"
 	"io"
 	"sort"

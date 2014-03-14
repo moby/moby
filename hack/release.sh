@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # This script looks for bundles built by make.sh, and releases them on a
@@ -151,7 +151,8 @@ release_build() {
 			S3ARCH=i386
 			;;
 		arm)
-			# GOARCH is fine
+			S3ARCH=armel
+			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
 			;;
 		*)
 			echo >&2 "error: can't convert $S3ARCH to an appropriate value for 'uname -m'"
@@ -295,7 +296,7 @@ EOF
 
 # Upload the index script
 release_index() {
-	sed "s,https://get.docker.io/,$(s3_url)/," hack/install.sh | write_to_s3 s3://$BUCKET/index
+	sed "s,url='https://get.docker.io/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
 }
 
 release_test() {

@@ -1,11 +1,13 @@
-// +build linux
+// +build linux,amd64
 
 package devmapper
 
 import (
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
+	"os"
 	"path"
 )
 
@@ -78,6 +80,12 @@ func (d *Driver) Create(id, parent string) error {
 		return err
 	}
 
+	// We float this reference so that the next Get call can
+	// steal it, so we don't have to unmount
+	if err := d.DeviceSet.UnmountDevice(id, UnmountFloat); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -86,11 +94,21 @@ func (d *Driver) CreateWithQuota(id, parent string, quota int64) error {
 }
 
 func (d *Driver) Remove(id string) error {
-	mp := path.Join(d.home, "mnt", id)
-	if err := d.unmount(id, mp); err != nil {
+	// Sink the float from create in case no Get() call was made
+	if err := d.DeviceSet.UnmountDevice(id, UnmountSink); err != nil {
 		return err
 	}
-	return d.DeviceSet.RemoveDevice(id)
+	// This assumes the device has been properly Get/Put:ed and thus is unmounted
+	if err := d.DeviceSet.DeleteDevice(id); err != nil {
+		return err
+	}
+
+	mp := path.Join(d.home, "mnt", id)
+	if err := os.RemoveAll(mp); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }
 
 func (d *Driver) Get(id string) (string, error) {
@@ -98,7 +116,14 @@ func (d *Driver) Get(id string) (string, error) {
 	if err := d.mount(id, mp); err != nil {
 		return "", err
 	}
+
 	return path.Join(mp, "rootfs"), nil
+}
+
+func (d *Driver) Put(id string) {
+	if err := d.DeviceSet.UnmountDevice(id, UnmountRegular); err != nil {
+		utils.Errorf("Warning: error unmounting device %s: %s\n", id, err)
+	}
 }
 
 func (d *Driver) mount(id, mountPoint string) error {
@@ -106,25 +131,8 @@ func (d *Driver) mount(id, mountPoint string) error {
 	if err := osMkdirAll(mountPoint, 0755); err != nil && !osIsExist(err) {
 		return err
 	}
-	// If mountpoint is already mounted, do nothing
-	if mounted, err := Mounted(mountPoint); err != nil {
-		return fmt.Errorf("Error checking mountpoint: %s", err)
-	} else if mounted {
-		return nil
-	}
 	// Mount the device
-	return d.DeviceSet.MountDevice(id, mountPoint, false)
-}
-
-func (d *Driver) unmount(id, mountPoint string) error {
-	// If mountpoint is not mounted, do nothing
-	if mounted, err := Mounted(mountPoint); err != nil {
-		return fmt.Errorf("Error checking mountpoint: %s", err)
-	} else if !mounted {
-		return nil
-	}
-	// Unmount the device
-	return d.DeviceSet.UnmountDevice(id, mountPoint, true)
+	return d.DeviceSet.MountDevice(id, mountPoint)
 }
 
 func (d *Driver) Exists(id string) bool {

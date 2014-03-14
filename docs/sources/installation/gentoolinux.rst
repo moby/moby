@@ -1,5 +1,5 @@
-:title: Installation on Gentoo Linux
-:description: Docker installation instructions and nuances for Gentoo Linux.
+:title: Installation on Gentoo
+:description: Please note this project is currently under heavy development. It should not be used in production.
 :keywords: gentoo linux, virtualization, docker, documentation, installation
 
 .. _gentoo_linux:
@@ -82,19 +82,3 @@ To start on system boot:
 .. code-block:: bash
 
    sudo systemctl enable docker.service
-
-Network Configuration
-^^^^^^^^^^^^^^^^^^^^^
-
-IPv4 packet forwarding is disabled by default, so internet access from inside
-the container will not work unless ``net.ipv4.ip_forward`` is enabled:
-
-.. code-block:: bash
-
-   sudo sysctl -w net.ipv4.ip_forward=1
-
-Or, to enable it more permanently:
-
-.. code-block:: bash
-
-   echo net.ipv4.ip_forward = 1 | sudo tee /etc/sysctl.d/docker.conf

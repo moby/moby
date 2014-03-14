@@ -3,7 +3,9 @@ package docker
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -98,6 +100,7 @@ func (graph *Graph) Get(name string) (*Image, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 		}
+		defer graph.driver.Put(img.ID)
 
 		var size int64
 		if img.Parent == "" {
@@ -125,12 +128,12 @@ func (graph *Graph) Get(name string) (*Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.Archive, container *Container, comment, author string, config *Config) (*Image, error) {
+func (graph *Graph) Create(layerData archive.ArchiveReader, container *Container, comment, author string, config *runconfig.Config) (*Image, error) {
 	img := &Image{
 		ID:            GenerateID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
-		DockerVersion: VERSION,
+		DockerVersion: dockerversion.VERSION,
 		Author:        author,
 		Config:        config,
 		Architecture:  runtime.GOARCH,
@@ -149,7 +152,7 @@ func (graph *Graph) Create(layerData archive.Archive, container *Container, comm
 
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
-func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Image) (err error) {
+func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, img *Image) (err error) {
 	defer func() {
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.
@@ -194,6 +197,7 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.Archive, img *Im
 	if err != nil {
 		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 	}
+	defer graph.driver.Put(img.ID)
 	img.graph = graph
 	if err := StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
 		return err
@@ -227,7 +231,9 @@ func (graph *Graph) TempLayerArchive(id string, compression archive.Compression,
 	if err != nil {
 		return nil, err
 	}
-	return archive.NewTempArchive(utils.ProgressReader(ioutil.NopCloser(a), 0, output, sf, false, utils.TruncateID(id), "Buffering to disk"), tmp)
+	progress := utils.ProgressReader(a, 0, output, sf, false, utils.TruncateID(id), "Buffering to disk")
+	defer progress.Close()
+	return archive.NewTempArchive(progress, tmp)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
@@ -256,6 +262,7 @@ func setupInitLayer(initLayer string) error {
 		"/etc/resolv.conf": "file",
 		"/etc/hosts":       "file",
 		"/etc/hostname":    "file",
+		"/dev/console":     "file",
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {

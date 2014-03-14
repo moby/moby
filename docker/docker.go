@@ -1,49 +1,51 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/sysinit"
-	"github.com/dotcloud/docker/utils"
 	"log"
 	"os"
 	"strings"
-)
 
-var (
-	GITCOMMIT string
-	VERSION   string
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/builtins"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/engine"
+	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/opts"
+	"github.com/dotcloud/docker/sysinit"
+	"github.com/dotcloud/docker/utils"
 )
 
 func main() {
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		// Running in init mode
 		sysinit.SysInit()
 		return
 	}
 
 	var (
-		flVersion            = flag.Bool("v", false, "Print version information and quit")
-		flDaemon             = flag.Bool("d", false, "Enable daemon mode")
-		flDebug              = flag.Bool("D", false, "Enable debug mode")
-		flAutoRestart        = flag.Bool("r", true, "Restart previously running containers")
-		bridgeName           = flag.String("b", "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
-		bridgeIp             = flag.String("bip", "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
-		pidfile              = flag.String("p", "/var/run/docker.pid", "Path to use for daemon PID file")
-		flRoot               = flag.String("g", "/var/lib/docker", "Path to use as the root of the docker runtime")
-		flEnableCors         = flag.Bool("api-enable-cors", false, "Enable CORS headers in the remote API")
-		flDns                = docker.NewListOpts(docker.ValidateIp4Address)
-		flEnableIptables     = flag.Bool("iptables", true, "Disable docker's addition of iptables rules")
-		flDefaultIp          = flag.String("ip", "0.0.0.0", "Default IP address to use when binding container ports")
-		flInterContainerComm = flag.Bool("icc", true, "Enable inter-container communication")
-		flGraphDriver        = flag.String("s", "", "Force the docker runtime to use a specific storage driver")
-		flHosts              = docker.NewListOpts(docker.ValidateHost)
-		flMtu                = flag.Int("mtu", docker.DefaultNetworkMtu, "Set the containers network mtu")
+		flVersion            = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
+		flDaemon             = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+		flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
+		flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
+		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
+		bridgeIp             = flag.String([]string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
+		pidfile              = flag.String([]string{"p", "-pidfile"}, "/var/run/docker.pid", "Path to use for daemon PID file")
+		flRoot               = flag.String([]string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the docker runtime")
+		flSocketGroup        = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group")
+		flEnableCors         = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
+		flDns                = opts.NewListOpts(opts.ValidateIp4Address)
+		flEnableIptables     = flag.Bool([]string{"#iptables", "-iptables"}, true, "Disable docker's addition of iptables rules")
+		flEnableIpForward    = flag.Bool([]string{"#ip-forward", "-ip-forward"}, true, "Disable enabling of net.ipv4.ip_forward")
+		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
+		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
+		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
+		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "native", "Force the docker runtime to use a specific exec driver")
+		flHosts              = opts.NewListOpts(api.ValidateHost)
+		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
 	)
-	flag.Var(&flDns, "dns", "Force docker to use specific DNS servers")
-	flag.Var(&flHosts, "H", "Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise")
+	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
+	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
 
 	flag.Parse()
 
@@ -56,50 +58,88 @@ func main() {
 
 		if defaultHost == "" || *flDaemon {
 			// If we do not have a host, default to unix socket
-			defaultHost = fmt.Sprintf("unix://%s", docker.DEFAULTUNIXSOCKET)
+			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
+		}
+		if _, err := api.ValidateHost(defaultHost); err != nil {
+			log.Fatal(err)
 		}
 		flHosts.Set(defaultHost)
 	}
 
 	if *bridgeName != "" && *bridgeIp != "" {
-		log.Fatal("You specified -b & -bip, mutually exclusive options. Please specify only one.")
+		log.Fatal("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
-	docker.GITCOMMIT = GITCOMMIT
-	docker.VERSION = VERSION
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
 		}
 
-		eng, err := engine.New(*flRoot)
+		// set up the TempDir to use a canonical path
+		tmp := os.TempDir()
+		realTmp, err := utils.ReadSymlinkedDirectory(tmp)
+		if err != nil {
+			log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+		}
+		os.Setenv("TMPDIR", realTmp)
+
+		// get the canonical path to the Docker root directory
+		root := *flRoot
+		var realRoot string
+		if _, err := os.Stat(root); err != nil && os.IsNotExist(err) {
+			realRoot = root
+		} else {
+			realRoot, err = utils.ReadSymlinkedDirectory(root)
+			if err != nil {
+				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
+			}
+		}
+
+		eng, err := engine.New(realRoot)
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Load plugin: httpapi
-		job := eng.Job("initapi")
-		job.Setenv("Pidfile", *pidfile)
-		job.Setenv("Root", *flRoot)
-		job.SetenvBool("AutoRestart", *flAutoRestart)
-		job.SetenvBool("EnableCors", *flEnableCors)
-		job.SetenvList("Dns", flDns.GetAll())
-		job.SetenvBool("EnableIptables", *flEnableIptables)
-		job.Setenv("BridgeIface", *bridgeName)
-		job.Setenv("BridgeIp", *bridgeIp)
-		job.Setenv("DefaultIp", *flDefaultIp)
-		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
-		job.Setenv("GraphDriver", *flGraphDriver)
-		job.SetenvInt("Mtu", *flMtu)
-		if err := job.Run(); err != nil {
-			log.Fatal(err)
-		}
+		// Load builtins
+		builtins.Register(eng)
+		// load the daemon in the background so we can immediately start
+		// the http api so that connections don't fail while the daemon
+		// is booting
+		go func() {
+			// Load plugin: httpapi
+			job := eng.Job("initserver")
+			job.Setenv("Pidfile", *pidfile)
+			job.Setenv("Root", realRoot)
+			job.SetenvBool("AutoRestart", *flAutoRestart)
+			job.SetenvList("Dns", flDns.GetAll())
+			job.SetenvBool("EnableIptables", *flEnableIptables)
+			job.SetenvBool("EnableIpForward", *flEnableIpForward)
+			job.Setenv("BridgeIface", *bridgeName)
+			job.Setenv("BridgeIP", *bridgeIp)
+			job.Setenv("DefaultIp", *flDefaultIp)
+			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+			job.Setenv("GraphDriver", *flGraphDriver)
+			job.Setenv("ExecDriver", *flExecDriver)
+			job.SetenvInt("Mtu", *flMtu)
+			if err := job.Run(); err != nil {
+				log.Fatal(err)
+			}
+			// after the daemon is done setting up we can tell the api to start
+			// accepting connections
+			if err := eng.Job("acceptconnections").Run(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
 		// Serve api
-		job = eng.Job("serveapi", flHosts.GetAll()...)
+		job := eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
+		job.SetenvBool("EnableCors", *flEnableCors)
+		job.Setenv("Version", dockerversion.VERSION)
+		job.Setenv("SocketGroup", *flSocketGroup)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
@@ -108,7 +148,7 @@ func main() {
 			log.Fatal("Please specify only one -H")
 		}
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
-		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
+		if err := api.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
 			if sterr, ok := err.(*utils.StatusError); ok {
 				if sterr.Status != "" {
 					log.Println(sterr.Status)
@@ -121,5 +161,5 @@ func main() {
 }
 
 func showVersion() {
-	fmt.Printf("Docker version %s, build %s\n", VERSION, GITCOMMIT)
+	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
 }

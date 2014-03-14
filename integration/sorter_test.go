@@ -1,9 +1,7 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
+	"github.com/dotcloud/docker/engine"
 	"testing"
 	"time"
 )
@@ -11,53 +9,48 @@ import (
 func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	if err := generateImage("", srv); err != nil {
+	if err := generateImage("", eng); err != nil {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(true, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images := getImages(eng, t, true, "")
 
-	if images[0].Created < images[1].Created {
-		t.Error("Expected []APIImges to be ordered by most recent creation date.")
+	if images.Data[0].GetInt("Created") < images.Data[1].GetInt("Created") {
+		t.Error("Expected images to be ordered by most recent creation date.")
 	}
 }
 
 func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
-	err := generateImage("bar", srv)
+	err := generateImage("bar", eng)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(time.Second)
 
-	err = generateImage("zed", srv)
+	err = generateImage("zed", eng)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	images, err := srv.Images(true, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	images := getImages(eng, t, true, "")
 
-	if images[0].RepoTags[0] != "repo:zed" && images[0].RepoTags[0] != "repo:bar" {
-		t.Errorf("Expected []APIImges to be ordered by most recent creation date. %s", images)
+	if repoTags := images.Data[0].GetList("RepoTags"); repoTags[0] != "repo:zed" && repoTags[0] != "repo:bar" {
+		t.Errorf("Expected Images to be ordered by most recent creation date.")
 	}
 }
 
-func generateImage(name string, srv *docker.Server) error {
+func generateImage(name string, eng *engine.Engine) error {
 	archive, err := fakeTar()
 	if err != nil {
 		return err
 	}
-	return srv.ImageImport("-", "repo", name, archive, ioutil.Discard, utils.NewStreamFormatter(true))
+	job := eng.Job("import", "-", "repo", name)
+	job.Stdin.Add(archive)
+	job.SetenvBool("json", true)
+	return job.Run()
 }
