@@ -26,6 +26,7 @@ type TarSum struct {
 	finished           bool
 	first              bool
 	DisableCompression bool
+	IgnoreHeaders      bool
 }
 
 type writeCloseFlusher interface {
@@ -46,6 +47,9 @@ func (n *nopCloseFlusher) Flush() error {
 }
 
 func (ts *TarSum) encodeHeader(h *tar.Header) error {
+	if ts.IgnoreHeaders {
+		return nil
+	}
 	for _, elem := range [][2]string{
 		{"name", h.Name},
 		{"mode", strconv.Itoa(int(h.Mode))},

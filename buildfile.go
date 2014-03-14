@@ -739,7 +739,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return "", err
 	}
 
-	b.context = &utils.TarSum{Reader: decompressedStream, DisableCompression: true}
+	b.context = &utils.TarSum{Reader: decompressedStream, DisableCompression: true, IgnoreHeaders: true}
 	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return "", err
 	}

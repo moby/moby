@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io/ioutil"
+	"time"
 )
 
 // Generate generates a new archive from the content provided
@@ -29,8 +30,9 @@ func Generate(input ...string) (Archive, error) {
 	for _, file := range files {
 		name, content := file[0], file[1]
 		hdr := &tar.Header{
-			Name: name,
-			Size: int64(len(content)),
+			Name:    name,
+			Size:    int64(len(content)),
+			ModTime: time.Now(),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
 			return nil, err
