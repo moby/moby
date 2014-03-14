@@ -143,6 +143,24 @@ func getVersion(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	return nil
 }
 
+func postJobsKill(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if sig := r.Form.Get("signal"); sig == "2" || sig == "3" {
+		if job := eng.GetJob(vars["name"]); job != nil {
+			if err := job.Kill(); err != nil {
+				return err
+			}
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postContainersKill(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -401,6 +419,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job.SetenvBool("parallel", version.GreaterThan("1.3"))
 		job.SetenvJson("metaHeaders", metaHeaders)
 		job.SetenvJson("authConfig", authConfig)
+		w.Header().Set("Job-ID", fmt.Sprintf("%d", job.ID))
 	} else { //import
 		job = eng.Job("import", r.Form.Get("fromSrc"), r.Form.Get("repo"), tag)
 		job.Stdin.Add(r.Body)
@@ -514,6 +533,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	job := eng.Job("push", vars["name"])
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
+	w.Header().Set("Job-ID", fmt.Sprintf("%d", job.ID))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
 		streamJSON(job, w, true)
@@ -1022,6 +1042,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/jobs/{name:.*}/kill":          postJobsKill,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

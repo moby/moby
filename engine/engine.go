@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"runtime"
 	"sort"
@@ -39,6 +40,7 @@ func unregister(name string) {
 type Engine struct {
 	root     string
 	handlers map[string]Handler
+	jobs     map[string]*Job
 	hack     Hack // data for temporary hackery (see hack.go)
 	id       string
 	Stdout   io.Writer
@@ -92,6 +94,7 @@ func New(root string) (*Engine, error) {
 	eng := &Engine{
 		root:     root,
 		handlers: make(map[string]Handler),
+		jobs:     make(map[string]*Job),
 		id:       utils.RandomString(),
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,
@@ -129,6 +132,7 @@ func (eng *Engine) commands() []string {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
+		ID:     rand.Int63(),
 		Eng:    eng,
 		Name:   name,
 		Args:   args,
@@ -140,9 +144,14 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
 	handler, exists := eng.handlers[name]
 	if exists {
+		eng.jobs[fmt.Sprintf("%d", job.ID)] = job
 		job.handler = handler
 	}
 	return job
+}
+
+func (eng *Engine) GetJob(name string) *Job {
+	return eng.jobs[name]
 }
 
 // ParseJob creates a new job from a text description using a shell-like syntax.

@@ -135,7 +135,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 	v.Set("url", cmd.Arg(1))
 	v.Set("path", cmd.Arg(2))
 
-	return cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, cli.out, nil)
+	return cli.stream("POST", "/images/"+cmd.Arg(0)+"/insert?"+v.Encode(), nil, cli.out, nil, false)
 }
 
 func (cli *DockerCli) CmdBuild(args ...string) error {
@@ -214,7 +214,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")
 	}
-	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
+	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers, false)
 	if jerr, ok := err.(*utils.JSONError); ok {
 		// If no error code is set, default to 1
 		if jerr.Code == 0 {
@@ -530,7 +530,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	return encounteredError
 }
 
-func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
+func (cli *DockerCli) forwardAllSignals(kind, id string) chan os.Signal {
 	sigc := make(chan os.Signal, 1)
 	signal.CatchAll(sigc)
 	go func() {
@@ -548,7 +548,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			if sig == "" {
 				utils.Errorf("Unsupported signal: %d. Discarding.", s)
 			}
-			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
+			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/%s/%s/kill?signal=%s", kind, id, sig), nil, false)); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
 		}
@@ -589,7 +589,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		tty = container.Config.Tty
 
 		if !container.Config.Tty {
-			sigc := cli.forwardAllSignals(cmd.Arg(0))
+			sigc := cli.forwardAllSignals("containers", cmd.Arg(0))
 			defer signal.StopCatch(sigc)
 		}
 
@@ -988,7 +988,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		in = cli.in
 	}
 
-	return cli.stream("POST", "/images/create?"+v.Encode(), in, cli.out, nil)
+	return cli.stream("POST", "/images/create?"+v.Encode(), in, cli.out, nil, false)
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
@@ -1036,7 +1036,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 		return cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), nil, cli.out, map[string][]string{
 			"X-Registry-Auth": registryAuthHeader,
-		})
+		}, true)
 	}
 
 	if err := push(authConfig); err != nil {
@@ -1095,7 +1095,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 		return cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{
 			"X-Registry-Auth": registryAuthHeader,
-		})
+		}, true)
 	}
 
 	if err := pull(authConfig); err != nil {
@@ -1483,7 +1483,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		}
 	}
 
-	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
+	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil, false); err != nil {
 		return err
 	}
 	return nil
@@ -1500,7 +1500,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("GET", "/containers/"+cmd.Arg(0)+"/export", nil, cli.out, nil); err != nil {
+	if err := cli.stream("GET", "/containers/"+cmd.Arg(0)+"/export", nil, cli.out, nil, false); err != nil {
 		return err
 	}
 	return nil
@@ -1622,7 +1622,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *proxy && !container.Config.Tty {
-		sigc := cli.forwardAllSignals(cmd.Arg(0))
+		sigc := cli.forwardAllSignals("containers", cmd.Arg(0))
 		defer signal.StopCatch(sigc)
 	}
 
@@ -1814,7 +1814,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		registryAuthHeader := []string{
 			base64.URLEncoding.EncodeToString(buf),
 		}
-		if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
+		if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}, false); err != nil {
 			return err
 		}
 		if stream, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config, false); err != nil {
@@ -1840,7 +1840,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if sigProxy {
-		sigc := cli.forwardAllSignals(runResult.Get("Id"))
+		sigc := cli.forwardAllSignals("containers", runResult.Get("Id"))
 		defer signal.StopCatch(sigc)
 	}
 
@@ -2030,7 +2030,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 	}
 
 	image := cmd.Arg(0)
-	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil); err != nil {
+	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil, false); err != nil {
 		return err
 	}
 	return nil
@@ -2047,7 +2047,7 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil, false); err != nil {
 		return err
 	}
 	return nil
@@ -2142,7 +2142,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	return wrapper, resp.StatusCode, nil
 }
 
-func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, headers map[string][]string) error {
+func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, headers map[string][]string, canKill bool) error {
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
@@ -2195,7 +2195,10 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 		}
 		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
-
+	if canKill {
+		sigc := cli.forwardAllSignals("jobs", resp.Header.Get("Job-ID"))
+		defer signal.StopCatch(sigc)
+	}
 	if MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
 		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.terminalFd, cli.isTerminal)
 	}

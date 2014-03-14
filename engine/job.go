@@ -22,6 +22,7 @@ import (
 // This allows for richer error reporting.
 //
 type Job struct {
+	ID      int64
 	Eng     *Engine
 	Name    string
 	Args    []string
@@ -40,8 +41,18 @@ type Status int
 const (
 	StatusOK       Status = 0
 	StatusErr      Status = 1
+	StatusKilled   Status = 2
 	StatusNotFound Status = 127
 )
+
+func (job *Job) Kill() error {
+	job.status = StatusKilled
+	return nil
+}
+
+func (job *Job) Status() Status {
+	return job.status
+}
 
 // Run executes the job and blocks until the job completes.
 // If the job returns a failure status, an error is returned
@@ -61,7 +72,7 @@ func (job *Job) Run() error {
 	job.Stderr.AddString(&errorMessage)
 	if job.handler == nil {
 		job.Errorf("%s: command not found", job.Name)
-		job.status = 127
+		job.status = StatusNotFound
 	} else {
 		job.status = job.handler(job)
 		job.end = time.Now()
