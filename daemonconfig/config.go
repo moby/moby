@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/networkdriver"
+	"github.com/dotcloud/docker/runtime/networkdriver"
 )
 
 const (
