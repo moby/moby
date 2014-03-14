@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
 	"github.com/dotcloud/docker/pkg/iptables"
+	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/runconfig"
@@ -539,26 +540,26 @@ func (container *Container) Start() (err error) {
     root := container.RootfsPath()
 
 	// Make sure the root fs is private so the mounts here don't propagate to basefs
-	if err := container.runtime.ForceMount(root, root, "none", "private"); err != nil {
+	if err := mount.ForceMount(root, root, "none", "private"); err != nil {
 		return err
 	}
 
 	// Mount docker specific files into the containers root fs
-	if err := container.runtime.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+	if err := mount.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 		return err
 	}
-	if err := container.runtime.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+	if err := mount.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 		return err
 	}
-	if err := container.runtime.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+	if err := mount.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 		return err
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {
-		if err := container.runtime.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+		if err := mount.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 			return err
 		}
-		if err := container.runtime.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+		if err := mount.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 			return err
 		}
 	}
@@ -577,7 +578,7 @@ func (container *Container) Start() (err error) {
 			r = p
 		}
 
-		if err := container.runtime.Mount(v, r, "none", fmt.Sprintf("bind,%s,uid=100000,gid=100000", mountAs)); err != nil {
+		if err := mount.Mount(v, r, "none", fmt.Sprintf("bind,%s,uid=100000,gid=100000", mountAs)); err != nil {
 			return err
 		}
 	}
