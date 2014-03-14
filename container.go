@@ -533,9 +533,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	//if err := mountVolumesForContainer(container, envPath); err != nil {
-	//	return err
-	//}
+	if err := mountVolumesForContainer(container, envPath); err != nil {
+		return err
+	}
 
     root := container.RootfsPath()
 
