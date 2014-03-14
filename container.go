@@ -531,31 +531,33 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	if err := mountVolumesForContainer(container, envPath); err != nil {
-		return err
-	}
+	//if err := mountVolumesForContainer(container, envPath); err != nil {
+	//	return err
+	//}
+
+    root := container.RootfsPath()
 
 	// Make sure the root fs is private so the mounts here don't propagate to basefs
-	if err := mount.ForceMount(root, root, "none", "private"); err != nil {
+	if err := graphdriver.ForceMount(root, root, "none", "private"); err != nil {
 		return err
 	}
 
 	// Mount docker specific files into the containers root fs
-	if err := mount.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+	if err := graphdriver.Mount(runtime.sysInitPath, path.Join(root, "/.dockerinit"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 		return err
 	}
-	if err := mount.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+	if err := graphdriver.Mount(envPath, path.Join(root, "/.dockerenv"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 		return err
 	}
-	if err := mount.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+	if err := graphdriver.Mount(container.ResolvConfPath, path.Join(root, "/etc/resolv.conf"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 		return err
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {
-		if err := mount.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+		if err := graphdriver.Mount(container.HostnamePath, path.Join(root, "/etc/hostname"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 			return err
 		}
-		if err := mount.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
+		if err := graphdriver.Mount(container.HostsPath, path.Join(root, "/etc/hosts"), "none", "bind,ro,uid=100000,gid=100000"); err != nil {
 			return err
 		}
 	}
@@ -574,7 +576,7 @@ func (container *Container) Start() (err error) {
 			r = p
 		}
 
-		if err := mount.Mount(v, r, "none", fmt.Sprintf("bind,%s,uid=100000,gid=100000", mountAs)); err != nil {
+		if err := graphdriver.Mount(v, r, "none", fmt.Sprintf("bind,%s,uid=100000,gid=100000", mountAs)); err != nil {
 			return err
 		}
 	}
