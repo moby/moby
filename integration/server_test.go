@@ -210,8 +210,15 @@ func TestCreateRmRunning(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("containers")
 	outs, err := job.Stdout.AddListTable()
 	if err != nil {
 		t.Fatal(err)
@@ -224,19 +231,24 @@ func TestCreateRmRunning(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(outs.Data))
 	}
 
-	job = eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
+	// Test cannot remove running container
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("forceRemove", false)
+	if err := job.Run(); err == nil {
+		t.Fatal("Expected container delete to fail")
+	}
+
+	job = eng.Job("containers")
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	// Test cannot remove running container
-	job = eng.Job("container_delete", id)
-	job.SetenvBool("forceRemove", false)
-	if err := job.Run(); err == nil {
-		t.Fatal("Expected container delete to fail")
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
 	}
 
 	// Test can force removal of running container
