@@ -5,7 +5,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/graph"
-	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runtime/graphdriver"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
 	"io"

@@ -2,7 +2,7 @@ package vfs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runtime/graphdriver"
 	"os"
 	"os/exec"
 	"path"

@@ -2,8 +2,8 @@ package graph
 
 import (
 	"bytes"
-	"github.com/dotcloud/docker/graphdriver"
-	_ "github.com/dotcloud/docker/graphdriver/vfs" // import the vfs driver so it is used in the tests
+	"github.com/dotcloud/docker/runtime/graphdriver"
+	_ "github.com/dotcloud/docker/runtime/graphdriver/vfs" // import the vfs driver so it is used in the tests
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
