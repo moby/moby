@@ -160,11 +160,6 @@ export DOCKER_BUILDTAGS='apparmor'
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
-To disable vfs
-```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_vfs'
-```
-
 To disable devicemapper
 ```bash
 export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
