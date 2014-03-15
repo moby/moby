@@ -2090,7 +2090,7 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 	}
 	var (
 		name = job.Args[0]
-		t    = 10
+		t    = 0
 	)
 	if job.EnvExists("t") {
 		t = job.GetenvInt("t")
