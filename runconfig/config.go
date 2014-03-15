@@ -33,6 +33,7 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	OnBuild         []string
+	DeployEnv       string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {

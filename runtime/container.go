@@ -891,19 +891,14 @@ func (container *Container) Stop(seconds int) error {
 	// 1. Send a SIGTERM
 	if err := container.KillSig(15); err != nil {
 		utils.Debugf("Error sending kill SIGTERM: %s", err)
-		log.Print("Failed to send SIGTERM to the process, force killing")
-		if err := container.KillSig(9); err != nil {
-			return err
-		}
+		log.Print("Failed to send SIGTERM to the process")
+		return err
 	}
 
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
-		// 3. If it doesn't, then send SIGKILL
-		if err := container.Kill(); err != nil {
-			return err
-		}
+		log.Printf("Container %v failed to exit within %d seconds of SIGTERM", container.ID, seconds)
+		return err
 	}
 	return nil
 }
