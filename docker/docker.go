@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -13,16 +14,33 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/reexec"
-	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 )
 
 func main() {
-	if selfPath := reexec.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
-		// Running in init mode
-		sysinit.SysInit()
-		return
+	eng, err := engine.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Load builtins
+	builtins.Register(eng)
+
+	if eng.Exists(os.Args[0]) {
+		// We need to disable all engine output when we are connected to the real stdio
+		eng.Stderr = ioutil.Discard
+
+		job := eng.Job(os.Args[0], os.Args[1:]...)
+
+		job.ReplaceEnv(os.Environ())
+		job.Stderr.Add(os.Stderr)
+		job.Stdout.Add(os.Stdout)
+		job.Stdin.Add(os.Stdin)
+
+		// we can ignore this error here because we will always exit with the job's
+		// status code and any error messages will already be written to stderr
+		job.Run()
+
+		os.Exit(int(job.Status()))
 	}
 
 	var (
@@ -104,12 +122,6 @@ func main() {
 		if err := checkKernelAndArch(); err != nil {
 			log.Fatal(err)
 		}
-		eng, err := engine.New()
-		if err != nil {
-			log.Fatal(err)
-		}
-		// Load builtins
-		builtins.Register(eng)
 		// load the daemon in the background so we can immediately start
 		// the http api so that connections don't fail while the daemon
 		// is booting

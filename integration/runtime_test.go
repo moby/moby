@@ -86,10 +86,21 @@ func init() {
 	os.Setenv("DOCKER_DRIVER", "vfs")
 	os.Setenv("TEST", "1")
 
-	// Hack to run sys init during unit testing
-	if selfPath := reexec.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
-		sysinit.SysInit()
-		return
+	// HACK: this is to make the init jobs work in the test and for lxc
+	if os.Args[0] == "sysinit" || os.Args[0] == "/.dockerinit" {
+		eng, err := engine.New()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		job := eng.Job(os.Args[0], os.Args[1:]...)
+
+		job.ReplaceEnv(os.Environ())
+		job.Stderr.Add(os.Stderr)
+		job.Stdout.Add(os.Stdout)
+		job.Stdin.Add(os.Stdin)
+
+		os.Exit(int(sysinit.SysInit(job)))
 	}
 
 	if uid := syscall.Geteuid(); uid != 0 {

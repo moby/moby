@@ -61,7 +61,7 @@ func (job *Job) Run() error {
 	job.Stderr.AddString(&errorMessage)
 	if job.handler == nil {
 		job.Errorf("%s: command not found", job.Name)
-		job.status = 127
+		job.status = StatusNotFound
 	} else {
 		job.status = job.handler(job)
 		job.end = time.Now()
@@ -188,6 +188,10 @@ func (job *Job) Environ() map[string]string {
 	return job.env.Map()
 }
 
+func (job *Job) ReplaceEnv(env []string) {
+	job.env = (*Env)(&env)
+}
+
 func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {
 	if os.Getenv("TEST") == "" {
 		prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
@@ -211,4 +215,8 @@ func (job *Job) Errorf(format string, args ...interface{}) Status {
 func (job *Job) Error(err error) Status {
 	fmt.Fprintf(job.Stderr, "%s\n", err)
 	return StatusErr
+}
+
+func (job *Job) Status() Status {
+	return job.status
 }

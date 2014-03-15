@@ -133,3 +133,18 @@ func TestParseJob(t *testing.T) {
 		t.Fatalf("Job was not called")
 	}
 }
+
+func TestHandlerExists(t *testing.T) {
+	eng := newTestEngine(t)
+	if eng.Exists("test") {
+		t.Fatal("Handler 'test' should not exist in engine")
+	}
+	if err := eng.Register("test", func(job *Job) Status {
+		return StatusOK
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !eng.Exists("test") {
+		t.Fatal("Handler for 'test' should exist in engine after it is registered")
+	}
+}

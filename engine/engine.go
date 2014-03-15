@@ -44,12 +44,16 @@ type Engine struct {
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
-	_, exists := eng.handlers[name]
-	if exists {
+	if eng.Exists(name) {
 		return fmt.Errorf("Can't overwrite handler for command %s", name)
 	}
 	eng.handlers[name] = handler
 	return nil
+}
+
+func (eng *Engine) Exists(name string) bool {
+	_, exists := eng.handlers[name]
+	return exists
 }
 
 // New initializes a new engine.

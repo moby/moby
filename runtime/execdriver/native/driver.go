@@ -212,11 +212,11 @@ type dockerCommandFactory struct {
 // args provided
 func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFile *os.File, args []string) *exec.Cmd {
 	// we need to join the rootfs because nsinit will setup the rootfs and chroot
-	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
+	//	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
 
 	d.c.Path = d.driver.initPath
 	d.c.Args = append([]string{
-		initPath,
+		"sysinit",
 		"-driver", DriverName,
 		"-console", console,
 		"-pipe", "3",
