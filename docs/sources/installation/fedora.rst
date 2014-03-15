@@ -23,15 +23,15 @@ The ``docker-io`` package provides Docker on Fedora.
 
 If you have the (unrelated) ``docker`` package installed already, it will
 conflict with ``docker-io``. There's a `bug report`_ filed for it.
-To proceed with ``docker-io`` installation on Fedora 19, please remove
-``docker`` first.
+To proceed with ``docker-io`` installation on Fedora 19 or Fedora 20, please
+remove ``docker`` first.
 
 .. code-block:: bash
 
    sudo yum -y remove docker
 
-For Fedora 20 and later, the ``wmdocker`` package will provide the same
-functionality as ``docker`` and will also not conflict with ``docker-io``.
+For Fedora 21 and later, the ``wmdocker`` package will provide the same
+functionality as the old ``docker`` and will also not conflict with ``docker-io``.
 
 .. code-block:: bash
 
