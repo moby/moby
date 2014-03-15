@@ -91,7 +91,7 @@ To install the right package for CentOS, we’ll use the instructions from the
 .. code-block:: bash
 
     # Enable EPEL for Node.js
-    RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
+    RUN     rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
     # Install Node.js and npm
     RUN     yum install -y npm
 
