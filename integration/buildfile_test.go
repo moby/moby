@@ -441,6 +441,23 @@ func TestBuildUser(t *testing.T) {
 	}
 }
 
+func TestBuildRelativeWorkdir(t *testing.T) {
+	img, err := buildImage(testContextTemplate{`
+		FROM {IMAGE}
+		RUN [ "$PWD" = '/' ]
+		WORKDIR /test1
+		RUN [ "$PWD" = '/test1' ]
+		WORKDIR test2
+		RUN [ "$PWD" = '/test1/test2' ]
+	`, nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.Config.WorkingDir != "/test1/test2" {
+		t.Fail()
+	}
+}
+
 func TestBuildEnv(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
