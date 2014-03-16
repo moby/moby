@@ -68,12 +68,6 @@ func (v *Veth) Initialize(config *libcontainer.Network, context libcontainer.Con
 	if err := InterfaceUp("eth0"); err != nil {
 		return fmt.Errorf("eth0 up %s", err)
 	}
-	if err := SetMtu("lo", config.Mtu); err != nil {
-		return fmt.Errorf("set lo mtu to %d %s", config.Mtu, err)
-	}
-	if err := InterfaceUp("lo"); err != nil {
-		return fmt.Errorf("lo up %s", err)
-	}
 	if config.Gateway != "" {
 		if err := SetDefaultGateway(config.Gateway); err != nil {
 			return fmt.Errorf("set gateway to %s %s", config.Gateway, err)

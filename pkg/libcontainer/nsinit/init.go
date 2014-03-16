@@ -134,7 +134,11 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 		if err != nil {
 			return err
 		}
-		return strategy.Initialize(config, context)
+
+		err1 := strategy.Initialize(config, context)
+		if err1 != nil {
+			return err1
+		}
 	}
 	return nil
 }
