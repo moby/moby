@@ -11,3 +11,11 @@ go build \
 	" \
 	./docker
 echo "Created binary: $DEST/docker-$VERSION"
+
+if command -v md5sum &> /dev/null; then
+	md5sum "$DEST/docker-$VERSION" > "$DEST/docker-$VERSION.md5"
+fi
+if command -v sha256sum &> /dev/null; then
+	sha256sum "$DEST/docker-$VERSION" > "$DEST/docker-$VERSION.sha256"
+fi
+
