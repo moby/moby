@@ -55,32 +55,15 @@ RELEASE_BUNDLES=(
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
 	RELEASE_BUNDLES=( test "${RELEASE_BUNDLES[@]}" )
 fi
-
-if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
-	echo >&2
-	echo >&2 'The build or tests appear to have failed.'
-	echo >&2
-	echo >&2 'You, as the release  maintainer, now have a couple options:'
-	echo >&2 '- delay release and fix issues'
-	echo >&2 '- delay release and fix issues'
-	echo >&2 '- did we mention how important this is?  issues need fixing :)'
-	echo >&2
-	echo >&2 'As a final LAST RESORT, you (because only you, the release maintainer,'
-	echo >&2 ' really knows all the hairy problems at hand with the current release'
-	echo >&2 ' issues) may bypass this checking by running this script again with the'
-	echo >&2 ' single argument of "--release-regardless-of-test-failure", which will skip'
-	echo >&2 ' running the test suite, and will only build the binaries and packages.  Please'
-	echo >&2 ' avoid using this if at all possible.'
-	echo >&2
-	echo >&2 'Regardless, we cannot stress enough the scarcity with which this bypass'
-	echo >&2 ' should be used.  If there are release issues, we should always err on the'
-	echo >&2 ' side of caution.'
-	echo >&2
-	exit 1
-fi
-
+	
 VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
+
+# These are the 2 keys we've used to sign the deb's
+#   release (get.docker.io
+#	GPG_KEY="36A1D7869245C8950F966E92D8576A8BA88D21E9"
+#   test    (test.docker.io)
+#	GPG_KEY="740B314AE3941731B942C66ADF4FD13717AAD7D6"
 
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
@@ -114,12 +97,40 @@ s3_url() {
 	esac
 }
 
+build_all() {
+	if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
+		echo >&2
+		echo >&2 'The build or tests appear to have failed.'
+		echo >&2
+		echo >&2 'You, as the release  maintainer, now have a couple options:'
+		echo >&2 '- delay release and fix issues'
+		echo >&2 '- delay release and fix issues'
+		echo >&2 '- did we mention how important this is?  issues need fixing :)'
+		echo >&2
+		echo >&2 'As a final LAST RESORT, you (because only you, the release maintainer,'
+		echo >&2 ' really knows all the hairy problems at hand with the current release'
+		echo >&2 ' issues) may bypass this checking by running this script again with the'
+		echo >&2 ' single argument of "--release-regardless-of-test-failure", which will skip'
+		echo >&2 ' running the test suite, and will only build the binaries and packages.  Please'
+		echo >&2 ' avoid using this if at all possible.'
+		echo >&2
+		echo >&2 'Regardless, we cannot stress enough the scarcity with which this bypass'
+		echo >&2 ' should be used.  If there are release issues, we should always err on the'
+		echo >&2 ' side of caution.'
+		echo >&2
+		exit 1
+	fi
+}
+
 release_build() {
 	GOOS=$1
 	GOARCH=$2
 
-	BINARY=bundles/$VERSION/cross/$GOOS/$GOARCH/docker-$VERSION
-	TGZ=bundles/$VERSION/tgz/$GOOS/$GOARCH/docker-$VERSION.tgz
+	SOURCE_DIR=bundles/$VERSION/cross/$GOOS/$GOARCH
+	BINARY=docker-$VERSION
+	BINARY_MD5=docker-$VERSION.md5
+	BINARY_SHA256=docker-$VERSION.sha256
+	TGZ=docker-$VERSION.tgz
 
 	# we need to map our GOOS and GOARCH to uname values
 	# see https://en.wikipedia.org/wiki/Uname
@@ -172,17 +183,29 @@ release_build() {
 	fi
 
 	echo "Uploading $BINARY to $S3OS/$S3ARCH/docker-$VERSION"
-	s3cmd --follow-symlinks --preserve --acl-public put $BINARY $S3DIR/docker-$VERSION
+	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY $S3DIR/$BINARY
+
+	echo "Uploading $BINARY_MD5 to $S3OS/$S3ARCH/docker-$VERSION.md5"
+	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY_MD5 $S3DIR/$BINARY_MD5
+
+	echo "Uploading $BINARY_BINARY_SHA256 to $S3OS/$S3ARCH/docker-$VERSION.sha256"
+	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY_SHA256 $S3DIR/$BINARY_SHA256
 
 	echo "Uploading $TGZ to $S3OS/$S3ARCH/docker-$VERSION.tgz"
-	s3cmd --follow-symlinks --preserve --acl-public put $TGZ $S3DIR/docker-$VERSION.tgz
+	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$TGZ $S3DIR/$TGZ
 
 	if [ -z "$NOLATEST" ]; then
-		echo "Copying $S3OS/$S3ARCH/docker-$VERSION to $S3OS/$S3ARCH/docker-latest"
-		s3cmd --acl-public cp $S3DIR/docker-$VERSION $S3DIR/docker-latest
+		echo "Copying $S3DIR/$BINARY to $S3DIR/docker-latest"
+		s3cmd --acl-public cp $S3DIR/$BINARY $S3DIR/docker-latest
 
-		echo "Copying $S3OS/$S3ARCH/docker-$VERSION.tgz to $S3OS/$S3ARCH/docker-latest.tgz"
-		s3cmd --acl-public cp $S3DIR/docker-$VERSION.tgz $S3DIR/docker-latest.tgz
+		echo "Copying $S3DIR/$BINARY_MD5 to $S3DIR/docker-latest.md5"
+		s3cmd --acl-public cp $S3DIR/$BINARY_MD5 $S3DIR/docker-latest.md5
+
+		echo "Copying $S3DIR/$BINARY_SHA256 to $S3DIR/docker-latest.sha256"
+		s3cmd --acl-public cp $S3DIR/$BINARY_SHA256 $S3DIR/docker-latest.sha256
+
+		echo "Copying $S3DIR/$TGZ $S3DIR/docker-latest.tgz"
+		s3cmd --acl-public cp $S3DIR/$TGZ $S3DIR/docker-latest.tgz
 	fi
 }
 
@@ -194,21 +217,8 @@ release_ubuntu() {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
 		exit 1
 	}
-	# Make sure that we have our keys
-	mkdir -p /.gnupg/
+	
 	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
-	gpg --list-keys releasedocker >/dev/null || {
-		gpg --gen-key --batch <<EOF
-Key-Type: RSA
-Key-Length: 2048
-Passphrase: $GPG_PASSPHRASE
-Name-Real: Docker Release Tool
-Name-Email: docker@dotcloud.com
-Name-Comment: releasedocker
-Expire-Date: 0
-%commit
-EOF
-	}
 
 	# Sign our packages
 	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker \
@@ -305,13 +315,33 @@ release_test() {
 	fi
 }
 
+setup_gpg() {
+	# Make sure that we have our keys
+	mkdir -p /.gnupg/
+	gpg --list-keys releasedocker >/dev/null || {
+		gpg --gen-key --batch <<EOF
+Key-Type: RSA
+Key-Length: 2048
+Passphrase: $GPG_PASSPHRASE
+Name-Real: Docker Release Tool
+Name-Email: docker@dotcloud.com
+Name-Comment: releasedocker
+Expire-Date: 0
+%commit
+EOF
+	}
+}
+
 main() {
+	build_all
 	setup_s3
+	setup_gpg
 	release_binaries
 	release_ubuntu
 	release_index
 	release_test
 }
+
 
 main
 
