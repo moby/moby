@@ -364,14 +364,18 @@ func populateCommand(c *Container) {
 		driverConfig []string
 	)
 
+	en = &execdriver.Network{
+		Mtu:       c.runtime.config.Mtu,
+		Interface: nil,
+	}
+
 	if !c.Config.NetworkDisabled {
 		network := c.NetworkSettings
-		en = &execdriver.Network{
+		en.Interface = &execdriver.NetworkInterface{
 			Gateway:     network.Gateway,
 			Bridge:      network.Bridge,
 			IPAddress:   network.IPAddress,
 			IPPrefixLen: network.IPPrefixLen,
-			Mtu:         c.runtime.config.Mtu,
 		}
 	}
 
