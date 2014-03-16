@@ -7,7 +7,7 @@
 Docker Security
 ===============
 
-  *Adapted from* `Containers & Docker: How Secure are They? <blogsecurity>`_
+  *Adapted from* `Containers & Docker: How Secure are They? <blogsecurity_>`_
 
 There are three major areas to consider when reviewing Docker security:
 
@@ -261,7 +261,7 @@ with Docker, since everything is provided by the kernel anyway.
 
 For more context and especially for comparisons with VMs and other
 container systems, please also see the `original blog post
-<blogsecurity>`_.
+<blogsecurity_>`_.
 
 .. _blogsecurity: http://blog.docker.io/2013/08/containers-docker-how-secure-are-they/
 
