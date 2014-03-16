@@ -67,6 +67,9 @@ Run the following commands to get it downloaded and set up:
 
     # Get the file
     curl -o docker https://get.docker.io/builds/Darwin/x86_64/docker-latest
+    
+    # Get the file without https protocol if you get SSH error
+    curl -o docker http://get.docker.io/builds/Darwin/x86_64/docker-latest
 
     # Mark it executable
     chmod +x docker
