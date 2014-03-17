@@ -1109,7 +1109,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 	}
 }
 
-func BenchmarkRunSequencial(b *testing.B) {
+func BenchmarkRunSequential(b *testing.B) {
 	runtime := mkRuntime(b)
 	defer nuke(runtime)
 	for i := 0; i < b.N; i++ {
