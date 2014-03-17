@@ -902,7 +902,7 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := container.KillSig(15); err != nil {
+	if err := container.KillSig(15); err != nil && !strings.Contains(err.Error(), "is not running") {
 		return err
 	}
 
