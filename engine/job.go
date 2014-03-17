@@ -188,10 +188,6 @@ func (job *Job) Environ() map[string]string {
 	return job.env.Map()
 }
 
-func (job *Job) ReplaceEnv(env []string) {
-	job.env = (*Env)(&env)
-}
-
 func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {
 	if os.Getenv("TEST") == "" {
 		prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))

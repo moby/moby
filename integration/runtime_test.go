@@ -95,7 +95,8 @@ func init() {
 
 		job := eng.Job(os.Args[0], os.Args[1:]...)
 
-		job.ReplaceEnv(os.Environ())
+		env := os.Environ()
+		job.Env().Init((*engine.Env)(&env))
 		job.Stderr.Add(os.Stderr)
 		job.Stdout.Add(os.Stdout)
 		job.Stdin.Add(os.Stdin)
