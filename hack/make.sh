@@ -46,7 +46,7 @@ DEFAULT_BUNDLES=(
 	ubuntu
 )
 
-VERSION=$(cat ./VERSION)
+VERSION=$(cat ../VERSION)
 if [ -d .git ] && command -v git &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain)" ]; then
