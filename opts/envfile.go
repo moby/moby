@@ -25,11 +25,30 @@ func ParseEnvFile(filename string) ([]string, error) {
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
 			if strings.Contains(line, "=") {
 				data := strings.SplitN(line, "=", 2)
-				lines = append(lines, fmt.Sprintf("%s=%s", data[0], data[1]))
+
+				// trim the front of a variable, but nothing else
+				variable := strings.TrimLeft(data[0], whiteSpaces)
+				if strings.ContainsAny(variable, whiteSpaces) {
+					return []string{}, ErrBadEnvVariable{fmt.Sprintf("variable '%s' has white spaces", variable)}
+				}
+
+				// pass the value through, no trimming
+				lines = append(lines, fmt.Sprintf("%s=%s", variable, data[1]))
 			} else {
-				lines = append(lines, fmt.Sprintf("%s=%s", line, os.Getenv(line)))
+				// if only a pass-through variable is given, clean it up.
+				lines = append(lines, fmt.Sprintf("%s=%s", strings.TrimSpace(line), os.Getenv(line)))
 			}
 		}
 	}
 	return lines, nil
+}
+
+var whiteSpaces = " \t"
+
+type ErrBadEnvVariable struct {
+	msg string
+}
+
+func (e ErrBadEnvVariable) Error() string {
+	return fmt.Sprintf("poorly formatted environment: %s", e.msg)
 }
