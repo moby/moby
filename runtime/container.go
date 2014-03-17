@@ -795,6 +795,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	exitCode, err = container.runtime.Run(container, pipes, callback)
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
+		return err
 	}
 
 	if container.runtime != nil && container.runtime.srv != nil && container.runtime.srv.IsRunning() {
