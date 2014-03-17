@@ -2,13 +2,10 @@ package sysinit
 
 import (
 	"flag"
-	"fmt"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	_ "github.com/dotcloud/docker/runtime/execdriver/lxc"
 	_ "github.com/dotcloud/docker/runtime/execdriver/native"
-	"log"
-	"os"
 )
 
 // Sys Init code

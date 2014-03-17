@@ -72,14 +72,3 @@ func TestJobStderrString(t *testing.T) {
 		t.Fatalf("Stderr last line:\nExpected: %v\nReceived: %v", expectedOutput, output)
 	}
 }
-
-func TestReplaceEnv(t *testing.T) {
-	eng := newTestEngine(t)
-	job := eng.Job("no_panic_plz")
-	env := []string{"SOME=thing"}
-
-	job.ReplaceEnv(env)
-	if value := job.Getenv("SOME"); value != "thing" {
-		t.Fatalf("Expected job env key SOME to return 'thing' but got %s", value)
-	}
-}

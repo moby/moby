@@ -211,9 +211,6 @@ type dockerCommandFactory struct {
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
 func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFile *os.File, args []string) *exec.Cmd {
-	// we need to join the rootfs because nsinit will setup the rootfs and chroot
-	//	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
-
 	d.c.Path = d.driver.initPath
 	d.c.Args = append([]string{
 		"sysinit",
