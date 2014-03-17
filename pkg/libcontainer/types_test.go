@@ -30,6 +30,6 @@ func TestCapabilitiesContains(t *testing.T) {
 		t.Fatal("capabilities should not contain SYS_ADMIN")
 	}
 	if !caps.Contains("MKNOD") {
-		t.Fatal("capabilities should container MKNOD but does not")
+		t.Fatal("capabilities should contain MKNOD but does not")
 	}
 }
