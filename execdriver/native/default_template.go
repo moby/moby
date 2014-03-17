@@ -36,7 +36,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 
 	container.Cgroups.Name = c.ID
 	if c.Privileged {
-		container.Capabilities = nil
+		container.CapabilitiesMask = nil
 		container.Cgroups.DeviceAccess = true
 		container.Context["apparmor_profile"] = "unconfined"
 	}
@@ -59,7 +59,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 // the libcontainer configuration file
 func getDefaultTemplate() *libcontainer.Container {
 	return &libcontainer.Container{
-		Capabilities: libcontainer.Capabilities{
+		CapabilitiesMask: libcontainer.Capabilities{
 			libcontainer.GetCapability("SETPCAP"),
 			libcontainer.GetCapability("SYS_MODULE"),
 			libcontainer.GetCapability("SYS_RAWIO"),

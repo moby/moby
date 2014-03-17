@@ -40,7 +40,7 @@ Sample `container.json` file:
       "HOSTNAME=11bb30683fb0",
       "TERM=xterm"
    ],
-   "capabilities" : [
+   "capabilities_mask" : [
       "SETPCAP",
       "SYS_MODULE",
       "SYS_RAWIO",
