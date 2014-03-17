@@ -10,7 +10,8 @@ Amazon EC2
 There are several ways to install Docker on AWS EC2:
 
 * :ref:`amazonquickstart` or
-* :ref:`amazonstandard`
+* :ref:`amazonstandard` or
+* :ref:`amazonbuiltin` 
 
 **You'll need an** `AWS account <http://aws.amazon.com/>`_ **first, of course.**
 
@@ -60,6 +61,15 @@ for every Docker command.
 
 Once you've got Docker installed, you're ready to try it out -- head
 on over to the :doc:`../use/basics` or :doc:`../examples/index` section.
+
+.. _amazonbuiltin:
+
+Amazon Builtin Images
+---------------------
+
+Latest Amazon Linux AMI (2014.03) do include docker in their default software repository.
+
+After Instance is launched, connect to your instance and type ``sudo yum install -y docker ; /etc/init.d/docker start``
 
 .. _amazonstandard:
 
