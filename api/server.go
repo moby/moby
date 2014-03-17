@@ -894,6 +894,9 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	if copyData.Get("Resource") == "" {
 		return fmt.Errorf("Path cannot be empty")
 	}
+
+	origResource := copyData.Get("Resource")
+
 	if copyData.Get("Resource")[0] == '/' {
 		copyData.Set("Resource", copyData.Get("Resource")[1:])
 	}
@@ -904,6 +907,8 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		utils.Errorf("%s", err.Error())
 		if strings.Contains(err.Error(), "No such container") {
 			w.WriteHeader(http.StatusNotFound)
+		} else if strings.Contains(err.Error(), "no such file or directory") {
+			return fmt.Errorf("Could not find the file %s in container %s", origResource, vars["name"])
 		}
 	}
 	return nil
