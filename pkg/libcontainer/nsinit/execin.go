@@ -14,6 +14,7 @@ import (
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
 func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
+	ns.logger.Println("unshare namespaces")
 	for _, ns := range container.Namespaces {
 		if err := system.Unshare(ns.Value); err != nil {
 			return -1, err
@@ -33,6 +34,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 	// foreach namespace fd, use setns to join an existing container's namespaces
 	for _, fd := range fds {
 		if fd > 0 {
+			ns.logger.Printf("setns on %d\n", fd)
 			if err := system.Setns(fd, 0); err != nil {
 				closeFds()
 				return -1, fmt.Errorf("setns %s", err)
@@ -44,6 +46,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 	// if the container has a new pid and mount namespace we need to
 	// remount proc and sys to pick up the changes
 	if container.Namespaces.Contains("NEWNS") && container.Namespaces.Contains("NEWPID") {
+		ns.logger.Println("forking to remount /proc and /sys")
 		pid, err := system.Fork()
 		if err != nil {
 			return -1, err

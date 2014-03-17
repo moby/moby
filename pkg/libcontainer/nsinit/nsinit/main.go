@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,14 +14,15 @@ import (
 )
 
 var (
-	root, console string
-	pipeFd        int
+	root, console, logs string
+	pipeFd              int
 )
 
 func registerFlags() {
 	flag.StringVar(&console, "console", "", "console (pty slave) path")
 	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
 	flag.StringVar(&root, "root", ".", "root for storing configuration data")
+	flag.StringVar(&logs, "log", "none", "set stderr or a filepath to enable logging")
 
 	flag.Parse()
 }
@@ -35,7 +37,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to load container: %s", err)
 	}
-	ns, err := newNsInit()
+	l, err := getLogger("[exec] ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ns, err := newNsInit(l)
 	if err != nil {
 		log.Fatalf("Unable to initialize nsinit: %s", err)
 	}
@@ -46,7 +53,7 @@ func main() {
 		nspid, err := readPid()
 		if err != nil {
 			if !os.IsNotExist(err) {
-				log.Fatalf("Unable to read pid: %s", err)
+				l.Fatalf("Unable to read pid: %s", err)
 			}
 		}
 		if nspid > 0 {
@@ -56,26 +63,26 @@ func main() {
 			exitCode, err = ns.Exec(container, term, flag.Args()[1:])
 		}
 		if err != nil {
-			log.Fatalf("Failed to exec: %s", err)
+			l.Fatalf("Failed to exec: %s", err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
 		cwd, err := os.Getwd()
 		if err != nil {
-			log.Fatal(err)
+			l.Fatal(err)
 		}
 		if flag.NArg() < 2 {
-			log.Fatalf("wrong number of argments %d", flag.NArg())
+			l.Fatalf("wrong number of argments %d", flag.NArg())
 		}
 		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {
-			log.Fatalf("Unable to create sync pipe: %s", err)
+			l.Fatalf("Unable to create sync pipe: %s", err)
 		}
 		if err := ns.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
-			log.Fatalf("Unable to initialize for container: %s", err)
+			l.Fatalf("Unable to initialize for container: %s", err)
 		}
 	default:
-		log.Fatalf("command not supported for nsinit %s", flag.Arg(0))
+		l.Fatalf("command not supported for nsinit %s", flag.Arg(0))
 	}
 }
 
@@ -105,6 +112,23 @@ func readPid() (int, error) {
 	return pid, nil
 }
 
-func newNsInit() (nsinit.NsInit, error) {
-	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}, &nsinit.DefaultStateWriter{root}), nil
+func newNsInit(l *log.Logger) (nsinit.NsInit, error) {
+	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}, &nsinit.DefaultStateWriter{root}, l), nil
+}
+
+func getLogger(prefix string) (*log.Logger, error) {
+	var w io.Writer
+	switch logs {
+	case "", "none":
+		w = ioutil.Discard
+	case "stderr":
+		w = os.Stderr
+	default: // we have a filepath
+		f, err := os.OpenFile(logs, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
+		if err != nil {
+			return nil, err
+		}
+		w = f
+	}
+	return log.New(w, prefix, log.LstdFlags), nil
 }
