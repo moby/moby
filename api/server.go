@@ -883,7 +883,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	var copyData engine.Env
 
-	if contentType := r.Header.Get("Content-Type"); contentType == "application/json" {
+	if contentType := r.Header.Get("Content-Type"); MatchesContentType(contentType, "application/json") {
 		if err := copyData.Decode(r.Body); err != nil {
 			return err
 		}
