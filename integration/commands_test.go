@@ -1062,7 +1062,7 @@ func TestContainerOrphaning(t *testing.T) {
 
 	// remove the second image by name
 	resp := engine.NewTable("", 0)
-	if err := srv.DeleteImage(imageName, resp, true, false); err == nil {
+	if err := srv.DeleteImage(imageName, resp, true, false, false); err == nil {
 		t.Fatal("Expected error, got none")
 	}
 
