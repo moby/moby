@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 var (
@@ -1135,7 +1134,7 @@ func changeGroup(addr string, nameOrGid string) error {
 
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion string, socketGroup string) error {
+func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion, socketGroup string) error {
 	r, err := createRouter(eng, logging, enableCors, dockerVersion)
 
 	if err != nil {
@@ -1152,7 +1151,7 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		}
 	}
 
-	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock, 15*time.Minute)
+	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock)
 	if err != nil {
 		return err
 	}
