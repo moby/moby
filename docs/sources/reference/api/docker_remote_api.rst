@@ -50,6 +50,7 @@ What's new
 
    **New!** You can now use the force parameter to force delete of an image, even if it's
    tagged in multiple repositories.
+   **New!** You can now use the noprune parameter to prevent the deletion of parent images
 
 .. http:delete:: /containers/(id)
 

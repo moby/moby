@@ -623,6 +623,7 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 	var job = eng.Job("image_delete", vars["name"])
 	streamJSON(job, w, false)
 	job.Setenv("force", r.Form.Get("force"))
+	job.Setenv("noprune", r.Form.Get("noprune"))
 
 	return job.Run()
 }

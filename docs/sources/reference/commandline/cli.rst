@@ -1092,6 +1092,7 @@ containers will not be deleted.
     Remove one or more images
 
       -f, --force=false: Force
+      --no-prune=false: Do not delete untagged parents
 
 Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~
