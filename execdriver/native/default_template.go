@@ -69,7 +69,6 @@ func getDefaultTemplate() *libcontainer.Container {
 			libcontainer.GetCapability("SYS_RESOURCE"),
 			libcontainer.GetCapability("SYS_TIME"),
 			libcontainer.GetCapability("SYS_TTY_CONFIG"),
-			libcontainer.GetCapability("MKNOD"),
 			libcontainer.GetCapability("AUDIT_WRITE"),
 			libcontainer.GetCapability("AUDIT_CONTROL"),
 			libcontainer.GetCapability("MAC_OVERRIDE"),
