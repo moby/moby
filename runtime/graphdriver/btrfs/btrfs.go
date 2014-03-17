@@ -11,7 +11,7 @@ import "C"
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/graphdriver"
+	"github.com/dotcloud/docker/runtime/graphdriver"
 	"os"
 	"path"
 	"syscall"

@@ -3,8 +3,8 @@ package ipallocator
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/dotcloud/docker/networkdriver"
 	"github.com/dotcloud/docker/pkg/collections"
+	"github.com/dotcloud/docker/runtime/networkdriver"
 	"net"
 	"sync"
 )

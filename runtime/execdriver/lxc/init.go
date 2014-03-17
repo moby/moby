@@ -3,9 +3,9 @@ package lxc
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/pkg/user"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"net"

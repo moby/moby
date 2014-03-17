@@ -3,7 +3,7 @@ package lxc
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"io/ioutil"
 	"math/rand"
 	"os"

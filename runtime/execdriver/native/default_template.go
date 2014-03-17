@@ -2,9 +2,9 @@ package native
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"os"
 )
 

@@ -1,7 +1,7 @@
 package lxc
 
 import (
-	"github.com/dotcloud/docker/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver"
 	"strings"
 	"text/template"
 )
