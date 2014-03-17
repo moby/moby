@@ -203,12 +203,16 @@ Examples:
       --no-cache: Do not use the cache when building the image.
       --rm=true: Remove intermediate containers after a successful build
 
-The files at ``PATH`` or ``URL`` are called the "context" of the build. The
-build process may refer to any of the files in the context, for example when
-using an :ref:`ADD <dockerfile_add>` instruction.  When a single ``Dockerfile``
-is given as ``URL``, then no context is set.  When a Git repository is set as
-``URL``, then the repository is used as the context. Git repositories are
-cloned with their submodules (`git clone --recursive`).
+The files at ``PATH`` or ``URL`` are called the "context" of the build.
+The build process may refer to any of the files in the context, for example when
+using an :ref:`ADD <dockerfile_add>` instruction.
+When a single ``Dockerfile`` is given as ``URL``, then no context is set.
+
+When a Git repository is set as ``URL``, then the repository is used as the context. 
+The Git repository is cloned with its submodules (`git clone --recursive`).
+A fresh git clone occurs in a temporary directory on your local host, and then this 
+is sent to the Docker daemon as the context. 
+This way, your local user credentials and vpn's etc can be used to access private repositories
 
 .. _cli_build_examples:
 

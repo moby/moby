@@ -24,6 +24,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	gosignal "os/signal"
 	"path"
 	"reflect"
@@ -158,6 +159,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		err      error
 	)
 
+	_, err = exec.LookPath("git")
+	hasGit := err == nil
 	if cmd.Arg(0) == "-" {
 		// As a special case, 'docker build -' will build from an empty context with the
 		// contents of stdin as a Dockerfile
@@ -166,17 +169,34 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 		context, err = archive.Generate("Dockerfile", string(dockerfile))
-	} else if utils.IsURL(cmd.Arg(0)) || utils.IsGIT(cmd.Arg(0)) {
+	} else if utils.IsURL(cmd.Arg(0)) && (!utils.IsGIT(cmd.Arg(0)) || !hasGit) {
 		isRemote = true
 	} else {
-		if _, err := os.Stat(cmd.Arg(0)); err != nil {
+		root := cmd.Arg(0)
+		if utils.IsGIT(root) {
+			remoteURL := cmd.Arg(0)
+			if !strings.HasPrefix(remoteURL, "git://") && !strings.HasPrefix(remoteURL, "git@") && !utils.IsURL(remoteURL) {
+				remoteURL = "https://" + remoteURL
+			}
+
+			root, err = ioutil.TempDir("", "docker-build-git")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(root)
+
+			if output, err := exec.Command("git", "clone", "--recursive", remoteURL, root).CombinedOutput(); err != nil {
+				return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+			}
+		}
+		if _, err := os.Stat(root); err != nil {
 			return err
 		}
-		filename := path.Join(cmd.Arg(0), "Dockerfile")
+		filename := path.Join(root, "Dockerfile")
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
-		context, err = archive.Tar(cmd.Arg(0), archive.Uncompressed)
+		context, err = archive.Tar(root, archive.Uncompressed)
 	}
 	var body io.Reader
 	// Setup an upload progress bar
