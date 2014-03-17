@@ -797,7 +797,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		utils.Errorf("Error running container: %s", err)
 	}
 
-	if container.runtime.srv.IsRunning() {
+	if container.runtime != nil && container.runtime.srv != nil && container.runtime.srv.IsRunning() {
 		container.State.SetStopped(exitCode)
 
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
