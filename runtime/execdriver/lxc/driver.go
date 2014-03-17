@@ -98,13 +98,15 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		DriverName,
 	}
 
-	if c.Network != nil {
+	if c.Network.Interface != nil {
 		params = append(params,
-			"-g", c.Network.Gateway,
-			"-i", fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
-			"-mtu", strconv.Itoa(c.Network.Mtu),
+			"-g", c.Network.Interface.Gateway,
+			"-i", fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
 		)
 	}
+	params = append(params,
+		"-mtu", strconv.Itoa(c.Network.Mtu),
+	)
 
 	if c.User != "" {
 		params = append(params, "-u", c.User)

@@ -84,11 +84,15 @@ type Driver interface {
 
 // Network settings of the container
 type Network struct {
+	Interface *NetworkInterface `json:"interface"` // if interface is nil then networking is disabled
+	Mtu       int               `json:"mtu"`
+}
+
+type NetworkInterface struct {
 	Gateway     string `json:"gateway"`
 	IPAddress   string `json:"ip"`
 	Bridge      string `json:"bridge"`
 	IPPrefixLen int    `json:"ip_prefix_len"`
-	Mtu         int    `json:"mtu"`
 }
 
 type Resources struct {
@@ -118,8 +122,8 @@ type Command struct {
 	WorkingDir string     `json:"working_dir"`
 	ConfigPath string     `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
 	Tty        bool       `json:"tty"`
-	Network    *Network   `json:"network"` // if network is nil then networking is disabled
-	Config     []string   `json:"config"`  //  generic values that specific drivers can consume
+	Network    *Network   `json:"network"`
+	Config     []string   `json:"config"` //  generic values that specific drivers can consume
 	Resources  *Resources `json:"resources"`
 	Mounts     []Mount    `json:"mounts"`
 

@@ -7,17 +7,17 @@ import (
 )
 
 const LxcTemplate = `
-{{if .Network}}
+{{if .Network.Interface}}
 # network configuration
 lxc.network.type = veth
-lxc.network.link = {{.Network.Bridge}}
+lxc.network.link = {{.Network.Interface.Bridge}}
 lxc.network.name = eth0
-lxc.network.mtu = {{.Network.Mtu}}
 {{else}}
 # network is disabled (-n=false)
 lxc.network.type = empty
 lxc.network.flags = up
 {{end}}
+lxc.network.mtu = {{.Network.Mtu}}
 
 # root filesystem
 {{$ROOTFS := .Rootfs}}

@@ -43,6 +43,10 @@ func TestLXCConfig(t *testing.T) {
 			Memory:    int64(mem),
 			CpuShares: int64(cpu),
 		},
+		Network: &execdriver.Network{
+			Mtu:       1500,
+			Interface: nil,
+		},
 	}
 	p, err := driver.generateLXCConfig(command)
 	if err != nil {
@@ -74,6 +78,10 @@ func TestCustomLxcConfig(t *testing.T) {
 		Config: []string{
 			"lxc.utsname = docker",
 			"lxc.cgroup.cpuset.cpus = 0,1",
+		},
+		Network: &execdriver.Network{
+			Mtu:       1500,
+			Interface: nil,
 		},
 	}
 
