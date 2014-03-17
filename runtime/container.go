@@ -578,6 +578,18 @@ func (container *Container) Start() (err error) {
 
 	if container.hostConfig.CliAddress != "" {
 		container.execDriver = foreground.NewDriver(container.hostConfig.CliAddress, runtime.config.Root, runtime.sysInitPath, runtime.execDriver)
+	} else {
+		// For non-foreground launches the ReuseCurrent option is dangerous, so we skip it
+		if unitConf, ok := container.command.Config["unit"]; ok {
+			var newUnitConf []string
+			for _, opt := range unitConf {
+				if strings.HasPrefix(strings.ToLower(opt), "reusecurrent") {
+					continue
+				}
+				newUnitConf = append(newUnitConf, opt)
+			}
+			container.command.Config["unit"] = newUnitConf
+		}
 	}
 
 	callbackLock := make(chan struct{})

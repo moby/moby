@@ -9,6 +9,7 @@ import (
 	"github.com/godbus/dbus"
 	"path/filepath"
 	"strings"
+	"strconv"
 	"sync"
 )
 
@@ -70,6 +71,7 @@ func getIfaceForUnit(unitName string) string {
 func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	unitName := c.Parent + "-" + c.Name + ".scope"
 	slice := "system.slice"
+	reuseUnit := false
 
 	var properties []systemd1.Property
 
@@ -77,15 +79,32 @@ func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 		switch v[0] {
 		case "Slice":
 			slice = v[1]
+		case "ReuseCurrent":
+			reuseCurrent, err := strconv.ParseBool(v[1])
+			if err != nil {
+				return nil, err
+			}
+
+			if reuseCurrent {
+				cgroup, err := GetThisCgroupDir("name=systemd")
+				if err != nil {
+					return nil, err
+				}
+
+				reuseUnit = true
+				unitName = filepath.Base(cgroup)
+			}
 		default:
 			return nil, fmt.Errorf("Unknown unit propery %s", v[0])
 		}
 	}
 
-	properties = append(properties,
-		systemd1.Property{"Slice", dbus.MakeVariant(slice)},
-		systemd1.Property{"Description", dbus.MakeVariant("docker container " + c.Name)},
-		systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})})
+	if !reuseUnit {
+		properties = append(properties,
+			systemd1.Property{"Slice", dbus.MakeVariant(slice)},
+			systemd1.Property{"Description", dbus.MakeVariant("docker container " + c.Name)},
+			systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})})
+	}
 
 	if !c.DeviceAccess {
 		properties = append(properties,
@@ -118,8 +137,14 @@ func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 			systemd1.Property{"CPUShares", dbus.MakeVariant(uint64(c.CpuShares))})
 	}
 
-	if _, err := theConn.StartTransientUnit(unitName, "replace", properties...); err != nil {
-		return nil, err
+	if reuseUnit {
+		if err := theConn.SetUnitProperties(unitName, true, properties...); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := theConn.StartTransientUnit(unitName, "replace", properties...); err != nil {
+			return nil, err
+		}
 	}
 
 	// To work around the lack of /dev/pts/* support above we need to manually add these
