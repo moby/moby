@@ -1,0 +1,2 @@
+[{"args":["sh"], "attach_std":true},
+{"args":["ps", "aux"], "attach_std":true}]

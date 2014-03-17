@@ -69,7 +69,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 			return -1, err
 		}
 	}
-	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+	return system.GetExitCode(command), nil
 }
 
 func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) error {
