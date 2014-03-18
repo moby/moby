@@ -2085,6 +2085,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 		name      = job.Args[0]
 		runtime   = srv.runtime
 		container = runtime.Get(name)
+		cascade   = job.GetenvBool("cascade")
 	)
 
 	if container == nil {
@@ -2123,6 +2124,25 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 		container.SetHostConfig(hostConfig)
 		container.ToDisk()
 	}
+
+	if cascade {
+		// Start linked containers
+		eng := job.Eng
+		children, err := runtime.Children(container.Name)
+		if err != nil {
+			return job.Error(err)
+		}
+		for linkAlias, child := range children {
+			if !child.State.IsRunning() {
+				job := eng.Job("start", linkAlias)
+				job.Setenv("cascade", "1")
+				if err := job.Run(); err != nil {
+					return job.Error(err)
+				}
+			}
+		}
+	}
+
 	if err := container.Start(); err != nil {
 		return job.Errorf("Cannot start container %s: %s", name, err)
 	}

@@ -637,8 +637,12 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	name := vars["name"]
 	job := eng.Job("start", name)
+	job.Setenv("cascade", r.Form.Get("cascade"))
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
 		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
