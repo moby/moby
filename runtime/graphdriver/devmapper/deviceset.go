@@ -729,7 +729,7 @@ func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 
 // waitRemove blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is removed,
-// or b) the 1 second timeout expires.
+// or b) the 10 second timeout expires.
 func (devices *DeviceSet) waitRemove(devname string) error {
 	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, devname)
 	defer utils.Debugf("[deviceset %s] waitRemove(%s) END", devices.devicePrefix, devname)
@@ -760,7 +760,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 
 // waitClose blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is closed,
-// or b) the 1 second timeout expires.
+// or b) the 10 second timeout expires.
 func (devices *DeviceSet) waitClose(hash string) error {
 	info := devices.Devices[hash]
 	if info == nil {
@@ -778,7 +778,9 @@ func (devices *DeviceSet) waitClose(hash string) error {
 		if devinfo.OpenCount == 0 {
 			break
 		}
-		time.Sleep(1 * time.Millisecond)
+		devices.Unlock()
+		time.Sleep(10 * time.Millisecond)
+		devices.Lock()
 	}
 	if i == 1000 {
 		return fmt.Errorf("Timeout while waiting for device %s to close", hash)
