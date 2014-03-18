@@ -981,12 +981,27 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		return nil
 	}, -1)
 
+	var beforeCont, sinceCont *runtime.Container
+	if before != "" {
+		beforeCont = srv.runtime.Get(before)
+		if beforeCont == nil {
+			return job.Error(fmt.Errorf("Could not find container with name or id %s", before))
+		}
+	}
+
+	if since != "" {
+		sinceCont = srv.runtime.Get(since)
+		if sinceCont == nil {
+			return job.Error(fmt.Errorf("Could not find container with name or id %s", since))
+		}
+	}
+
 	for _, container := range srv.runtime.List() {
 		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
 			continue
 		}
 		if before != "" && !foundBefore {
-			if container.ID == before || utils.TruncateID(container.ID) == before {
+			if container.ID == beforeCont.ID {
 				foundBefore = true
 			}
 			continue
@@ -994,8 +1009,10 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		if n > 0 && displayed == n {
 			break
 		}
-		if container.ID == since || utils.TruncateID(container.ID) == since {
-			break
+		if since != "" {
+			if container.ID == sinceCont.ID {
+				break
+			}
 		}
 		displayed++
 		out := &engine.Env{}

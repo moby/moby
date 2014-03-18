@@ -154,13 +154,13 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from port' -a '(__fish_print
 # ps
 complete -c docker -f -n '__fish_docker_no_subcommand' -a ps -d 'List containers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s a -l all -d 'Show all containers. Only running containers are shown by default.'
-complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l before-id -d 'Show only container created before Id, include non-running ones.'
+complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l before -d 'Show only container created before Id or Name, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s l -l latest -d 'Show only the latest created container, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s n -d 'Show n last created containers, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l no-trunc -d "Don't truncate output"
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s q -l quiet -d 'Only display numeric IDs'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s s -l size -d 'Display sizes'
-complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l since-id -d 'Show only containers created since Id, include non-running ones.'
+complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l since -d 'Show only containers created since Id or Name, include non-running ones.'
 
 # pull
 complete -c docker -f -n '__fish_docker_no_subcommand' -a pull -d 'Pull an image or a repository from the docker registry server'
