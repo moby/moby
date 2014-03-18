@@ -112,8 +112,16 @@ Accessing the network information along with the environment of the
 child container allows us to easily connect to the Redis service on
 the specific IP and port in the environment.
 
+.. note:: 
+    These Environment variables are only set for the first process in 
+    the container. Similarly, some daemons (such as ``sshd``) will 
+    scrub them when spawning shells for connection.
+
+    You can work around this by storing the initial ``env`` in a file, 
+    or looking at ``/proc/1/environ``.
+
 Running ``docker ps`` shows the 2 containers, and the ``webapp/db``
-alias name for the redis container.
+alias name for the Redis container.
 
 .. code-block:: bash
 
