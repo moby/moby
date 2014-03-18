@@ -160,14 +160,22 @@ export DOCKER_BUILDTAGS='apparmor'
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
-To disable devicemapper
+To disable btrfs:
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
+```
+
+To disable devicemapper:
 ```bash
 export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
 ```
-To disable aufs
+
+To disable aufs:
 ```bash
 export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
 ```
+
+NOTE: if you need to set more than one build tag, space separate them.
 
 ### Static Daemon
 

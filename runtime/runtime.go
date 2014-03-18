@@ -16,7 +16,6 @@ import (
 	"github.com/dotcloud/docker/runtime/execdriver/execdrivers"
 	"github.com/dotcloud/docker/runtime/execdriver/lxc"
 	"github.com/dotcloud/docker/runtime/graphdriver"
-	_ "github.com/dotcloud/docker/runtime/graphdriver/btrfs"
 	_ "github.com/dotcloud/docker/runtime/graphdriver/vfs"
 	_ "github.com/dotcloud/docker/runtime/networkdriver/lxc"
 	"github.com/dotcloud/docker/runtime/networkdriver/portallocator"
