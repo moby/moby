@@ -72,6 +72,9 @@ type DeviceSet struct {
 	dataLoopbackSize     int64
 	metaDataLoopbackSize int64
 	baseFsSize           uint64
+	filesystem           string
+	mountOptions         string
+	mkfsArgs             []string
 }
 
 type DiskUsage struct {
@@ -281,14 +284,30 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
-	if err != nil {
-		err = exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0", devname).Run()
+	args := []string{}
+	for _, arg := range devices.mkfsArgs {
+		args = append(args, arg)
+	}
+
+	args = append(args, devname)
+
+	var err error
+	switch devices.filesystem {
+	case "xfs":
+		err = exec.Command("mkfs.xfs", args...).Run()
+	case "ext4":
+		err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0"}, args...)...).Run()
+		if err != nil {
+			err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
+		}
+	default:
+		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -926,11 +945,19 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 		return err
 	}
 
-	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	err = syscall.Mount(info.DevName(), path, fstype, flags, mountOptions)
+	options := ""
+
+	if fstype == "xfs" {
+		// XFS needs nouuid or it can't mount filesystems with the same fs
+		options = joinMountOptions(options, "nouuid")
+	}
+
+	options = joinMountOptions(options, devices.mountOptions)
+	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
+
+	err = syscall.Mount(info.DevName(), path, fstype, flags, joinMountOptions("discard", options))
 	if err != nil && err == syscall.EINVAL {
-		mountOptions = label.FormatMountLabel("", mountLabel)
-		err = syscall.Mount(info.DevName(), path, fstype, flags, mountOptions)
+		err = syscall.Mount(info.DevName(), path, fstype, flags, options)
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -1112,6 +1139,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		dataLoopbackSize:     DefaultDataLoopbackSize,
 		metaDataLoopbackSize: DefaultMetaDataLoopbackSize,
 		baseFsSize:           DefaultBaseFsSize,
+		filesystem:           "ext4",
 	}
 
 	for _, option := range options {
@@ -1139,6 +1167,15 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 				return nil, err
 			}
 			devices.metaDataLoopbackSize = size
+		case "dm.fs":
+			if val != "ext4" && val != "xfs" {
+				return nil, fmt.Errorf("Unsupported filesystem %s\n", val)
+			}
+			devices.filesystem = val
+		case "dm.mkfsarg":
+			devices.mkfsArgs = append(devices.mkfsArgs, val)
+		case "dm.mountopt":
+			devices.mountOptions = joinMountOptions(devices.mountOptions, val)
 		default:
 			return nil, fmt.Errorf("Unknown option %s\n", key)
 		}

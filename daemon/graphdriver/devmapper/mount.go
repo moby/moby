@@ -74,3 +74,13 @@ func ProbeFsType(device string) (string, error) {
 
 	return "", fmt.Errorf("Unknown filesystem type on %s", device)
 }
+
+func joinMountOptions(a, b string) string {
+	if a == "" {
+		return b
+	}
+	if b == "" {
+		return a
+	}
+	return a + "," + b
+}

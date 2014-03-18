@@ -71,3 +71,27 @@ Here is the list of supported options:
 
     ``docker -d --storage-opt dm.loopmetadatasize=4G``
 
+ *  `dm.fs`
+
+    Specifies the filesystem type to use for the base device. The supported
+    options are "ext4" and "xfs". The default is "ext4"
+
+    Example use:
+
+    ``docker -d --storage-opt dm.fs=xfs``
+
+ *  `dm.mkfsarg`
+
+    Specifies extra mkfs arguments to be used when creating the base device.
+
+    Example use:
+
+    ``docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"``
+
+ *  `dm.mountopt`
+
+    Specifies extra mount options used when mounting the thin devices.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.mountopt=nodiscard``
