@@ -1371,11 +1371,11 @@ This example shows 5 containers that might be set up to test a web application c
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
-    Stop a running container (Send SIGTERM, and then SIGKILL after grace period)
+    Stop a running container (Send SIGTERM)
 
-      -t, --time=10: Number of seconds to wait for the container to stop before killing it.
+      -t, --time=10: Number of seconds to wait for the container to stop.
 
-The main process inside the container will receive SIGTERM, and after a grace period, SIGKILL
+The main process inside the container will receive SIGTERM.
 
 .. _cli_tag:
 
