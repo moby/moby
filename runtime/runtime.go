@@ -16,9 +16,7 @@ import (
 	"github.com/dotcloud/docker/runtime/execdriver/execdrivers"
 	"github.com/dotcloud/docker/runtime/execdriver/lxc"
 	"github.com/dotcloud/docker/runtime/graphdriver"
-	"github.com/dotcloud/docker/runtime/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/runtime/graphdriver/btrfs"
-	_ "github.com/dotcloud/docker/runtime/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/runtime/graphdriver/vfs"
 	_ "github.com/dotcloud/docker/runtime/networkdriver/lxc"
 	"github.com/dotcloud/docker/runtime/networkdriver/portallocator"
@@ -652,11 +650,9 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		return nil, err
 	}
 
-	if ad, ok := driver.(*aufs.Driver); ok {
-		utils.Debugf("Migrating existing containers")
-		if err := ad.Migrate(config.Root, graph.SetupInitLayer); err != nil {
-			return nil, err
-		}
+	// Migrate the container if it is aufs and aufs is enabled
+	if err = migrateIfAufs(driver, config.Root); err != nil {
+		return nil, err
 	}
 
 	utils.Debugf("Creating images graph")
