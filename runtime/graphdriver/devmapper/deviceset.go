@@ -858,9 +858,14 @@ func (devices *DeviceSet) MountDevice(hash, path string) error {
 
 	var flags uintptr = sysMsMgcVal
 
-	err := sysMount(info.DevName(), path, "ext4", flags, "discard")
+	fstype, err := ProbeFsType(info.DevName())
+	if err != nil {
+		return err
+	}
+
+	err = sysMount(info.DevName(), path, fstype, flags, "discard")
 	if err != nil && err == sysEInval {
-		err = sysMount(info.DevName(), path, "ext4", flags, "")
+		err = sysMount(info.DevName(), path, fstype, flags, "")
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
