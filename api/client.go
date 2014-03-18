@@ -1452,6 +1452,11 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return nil
 	}
 
+	re := regexp.MustCompile("/{2}")
+	if re.MatchString(repository) {
+		return fmt.Errorf("Error: Bad image name. Please rename your image in the format <user>/<repo>")
+	}
+
 	v := url.Values{}
 	v.Set("container", name)
 	v.Set("repo", repository)
