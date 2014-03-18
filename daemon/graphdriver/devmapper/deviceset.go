@@ -921,11 +921,16 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	var flags uintptr = syscall.MS_MGC_VAL
 
+	fstype, err := ProbeFsType(info.DevName())
+	if err != nil {
+		return err
+	}
+
 	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	err = syscall.Mount(info.DevName(), path, "ext4", flags, mountOptions)
+	err = syscall.Mount(info.DevName(), path, fstype, flags, mountOptions)
 	if err != nil && err == syscall.EINVAL {
 		mountOptions = label.FormatMountLabel("", mountLabel)
-		err = syscall.Mount(info.DevName(), path, "ext4", flags, mountOptions)
+		err = syscall.Mount(info.DevName(), path, fstype, flags, mountOptions)
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
