@@ -26,7 +26,7 @@ port 22 is mapped to:
 
 .. code-block:: bash
 
-    $ sudo docker run -d -P --name test_sshd eg_sshd
+    $ sudo docker run -d -P -t --name test_sshd eg_sshd
     $ sudo docker port test_sshd 22
     0.0.0.0:49154
 
