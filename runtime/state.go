@@ -28,7 +28,7 @@ func (s *State) String() string {
 		}
 		return fmt.Sprintf("Up %s", utils.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
-	return fmt.Sprintf("Exit %d", s.ExitCode)
+	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, utils.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
 func (s *State) IsRunning() bool {
