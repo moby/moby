@@ -14,10 +14,12 @@ import (
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
 func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
-	ns.logger.Println("unshare namespaces")
-	for _, ns := range container.Namespaces {
-		if err := system.Unshare(ns.Value); err != nil {
-			return -1, err
+	for _, nsv := range container.Namespaces {
+		// skip the PID namespace on unshare because it it not supported
+		if nsv.Key != "NEWPID" {
+			if err := system.Unshare(nsv.Value); err != nil {
+				return -1, err
+			}
 		}
 	}
 	fds, err := ns.getNsFds(nspid, container)
