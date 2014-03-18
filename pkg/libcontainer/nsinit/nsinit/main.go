@@ -12,9 +12,6 @@ import (
 
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
-
-	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 )
 
 var (
