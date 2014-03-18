@@ -445,16 +445,18 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
 		FROM {IMAGE}
 		RUN [ "$PWD" = '/' ]
-		WORKDIR /test1
+		WORKDIR test1
 		RUN [ "$PWD" = '/test1' ]
-		WORKDIR test2
-		RUN [ "$PWD" = '/test1/test2' ]
+		WORKDIR /test2
+		RUN [ "$PWD" = '/test2' ]
+		WORKDIR test3
+		RUN [ "$PWD" = '/test2/test3' ]
 	`, nil, nil}, t, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if img.Config.WorkingDir != "/test1/test2" {
-		t.Fail()
+	if img.Config.WorkingDir != "/test2/test3" {
+		t.Fatalf("Expected workdir to be '/test2/test3', received '%s'", img.Config.WorkingDir)
 	}
 }
 
