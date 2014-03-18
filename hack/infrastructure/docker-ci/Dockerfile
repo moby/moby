@@ -16,7 +16,7 @@ RUN apt-get install -y --no-install-recommends  python2.7 python-dev \
 RUN cd /tmp; wget http://python-distribute.org/distribute_setup.py
 RUN cd /tmp; python distribute_setup.py; easy_install pip; rm distribute_setup.py
 
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 RUN echo 'deb http://get.docker.io/ubuntu docker main' > \
       /etc/apt/sources.list.d/docker.list; apt-get update
 RUN apt-get install -y lxc-docker-0.8.0
