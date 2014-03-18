@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -250,14 +251,36 @@ func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname)
-	if err != nil {
-		err = execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname)
+	fsType := os.Getenv("DOCKER_FILESYSTEM")
+	if fsType == "" {
+		fsType = "ext4"
+	}
+
+	args := []string{}
+	mkfsArgs := os.Getenv("DOCKER_MKFS_ARGS")
+	if mkfsArgs != "" {
+		args = strings.Split(mkfsArgs, " ")
+	}
+
+	args = append(args, devname)
+
+	var err error
+	switch fsType {
+	case "xfs":
+		err = execRun("mkfs.xfs", args...)
+	case "ext4":
+		err = execRun("mkfs.ext4", append([]string{"-E", "discard,lazy_itable_init=0,lazy_journal_init=0"}, args...)...)
+		if err != nil {
+			err = execRun("mkfs.ext4", append([]string{"-E", "discard,lazy_itable_init=0"}, args...)...)
+		}
+	default:
+		err = fmt.Errorf("Unsupported filesystem type %s", fsType)
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -863,9 +886,21 @@ func (devices *DeviceSet) MountDevice(hash, path string) error {
 		return err
 	}
 
-	err = sysMount(info.DevName(), path, fstype, flags, "discard")
+	options := []string{}
+
+	if fstype == "xfs" {
+		// XFS needs nouuid or it can't mount filesystems with the same fs
+		options = append(options, "nouuid")
+	}
+
+	extraOptions := os.Getenv("DOCKER_FS_OPTIONS")
+	if extraOptions != "" {
+		options = append(options, strings.Split(extraOptions, ",")...)
+	}
+
+	err = sysMount(info.DevName(), path, fstype, flags, strings.Join(append([]string{"discard"}, options...), ","))
 	if err != nil && err == sysEInval {
-		err = sysMount(info.DevName(), path, fstype, flags, "")
+		err = sysMount(info.DevName(), path, fstype, flags, strings.Join(options, ","))
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
