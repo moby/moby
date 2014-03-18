@@ -569,35 +569,14 @@ To see how the ``docker:latest`` image was built:
 .. code-block:: bash
 
 	$ docker history docker
-	ID                  CREATED             CREATED BY
-	docker:latest       19 hours ago        /bin/sh -c #(nop) ADD . in /go/src/github.com/dotcloud/docker
-	cf5f2467662d        2 weeks ago         /bin/sh -c #(nop) ENTRYPOINT ["hack/dind"]
-	3538fbe372bf        2 weeks ago         /bin/sh -c #(nop) WORKDIR /go/src/github.com/dotcloud/docker
-	7450f65072e5        2 weeks ago         /bin/sh -c #(nop) VOLUME /var/lib/docker
-	b79d62b97328        2 weeks ago         /bin/sh -c apt-get install -y -q lxc
-	36714852a550        2 weeks ago         /bin/sh -c apt-get install -y -q iptables
-	8c4c706df1d6        2 weeks ago         /bin/sh -c /bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEYn' > /.s3cfg
-	b89989433c48        2 weeks ago         /bin/sh -c pip install python-magic
-	a23e640d85b5        2 weeks ago         /bin/sh -c pip install s3cmd
-	41f54fec7e79        2 weeks ago         /bin/sh -c apt-get install -y -q python-pip
-	d9bc04add907        2 weeks ago         /bin/sh -c apt-get install -y -q reprepro dpkg-sig
-	e74f4760fa70        2 weeks ago         /bin/sh -c gem install --no-rdoc --no-ri fpm
-	1e43224726eb        2 weeks ago         /bin/sh -c apt-get install -y -q ruby1.9.3 rubygems libffi-dev
-	460953ae9d7f        2 weeks ago         /bin/sh -c #(nop) ENV GOPATH=/go:/go/src/github.com/dotcloud/docker/vendor
-	8b63eb1d666b        2 weeks ago         /bin/sh -c #(nop) ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/goroot/bin
-	3087f3bcedf2        2 weeks ago         /bin/sh -c #(nop) ENV GOROOT=/goroot
-	635840d198e5        2 weeks ago         /bin/sh -c cd /goroot/src && ./make.bash
-	439f4a0592ba        2 weeks ago         /bin/sh -c curl -s https://go.googlecode.com/files/go1.1.2.src.tar.gz | tar -v -C / -xz && mv /go /goroot
-	13967ed36e93        2 weeks ago         /bin/sh -c #(nop) ENV CGO_ENABLED=0
-	bf7424458437        2 weeks ago         /bin/sh -c apt-get install -y -q build-essential
-	a89ec997c3bf        2 weeks ago         /bin/sh -c apt-get install -y -q mercurial
-	b9f165c6e749        2 weeks ago         /bin/sh -c apt-get install -y -q git
-	17a64374afa7        2 weeks ago         /bin/sh -c apt-get install -y -q curl
-	d5e85dc5b1d8        2 weeks ago         /bin/sh -c apt-get update
-	13e642467c11        2 weeks ago         /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
-	ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
-	ubuntu:12.04        6 months ago
-
+        IMAGE                                                              CREATED             CREATED BY                                                                                                                                                 SIZE
+        3e23a5875458790b7a806f95f7ec0d0b2a5c1659bfc899c89f939f6d5b8f7094   8 days ago          /bin/sh -c #(nop) ENV LC_ALL=C.UTF-8                                                                                                                       0 B
+        8578938dd17054dce7993d21de79e96a037400e8d28e15e7290fea4f65128a36   8 days ago          /bin/sh -c dpkg-reconfigure locales &&    locale-gen C.UTF-8 &&    /usr/sbin/update-locale LANG=C.UTF-8                                                    1.245 MB
+        be51b77efb42f67a5e96437b3e102f81e0a1399038f77bf28cea0ed23a65cf60   8 days ago          /bin/sh -c apt-get update && apt-get install -y    git    libxml2-dev    python    build-essential    make    gcc    python-dev    locales    python-pip   338.3 MB
+        4b137612be55ca69776c7f30c2d2dd0aa2e7d72059820abf3e25b629f887a084   6 weeks ago         /bin/sh -c #(nop) ADD jessie.tar.xz in /                                                                                                                   121 MB
+        750d58736b4b6cc0f9a9abe8f258cef269e3e9dceced1146503522be9f985ada   6 weeks ago         /bin/sh -c #(nop) MAINTAINER Tianon Gravi <admwiggin@gmail.com> - mkimage-debootstrap.sh -t jessie.tar.xz jessie http://http.debian.net/debian             0 B
+        511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158   9 months ago                                                                                                                                                                   0 B
+	
 .. _cli_images:
 
 ``images``
