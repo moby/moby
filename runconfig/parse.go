@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -44,6 +45,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flDns         opts.ListOpts
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
+		flUidMaps     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -59,6 +61,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flXlateUids       = cmd.Bool([]string{"x", "-xlate-uids"}, false, "Translate the UIDs of the container image and volumes before running the container")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -75,6 +78,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flUidMaps, []string{"#uidmap", "-uidmap"}, "Map host UID range into the container: <container UID>:<host UID>:<range> (e.g.  --uidmap=\"0:100000:10000\")")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -148,6 +152,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint = []string{*flEntrypoint}
 	}
 
+	uidMaps, containerRoot, err := parseUidMapOpts(flUidMaps, *flUser)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+	if len(uidMaps) == 0 && *flXlateUids {
+		return nil, nil, cmd, fmt.Errorf("Asking to translate UIDs but no mappings specified")
+	}
+
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
@@ -211,6 +223,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
+		UidMaps:         uidMaps,
+		ContainerRoot:   containerRoot,
+		XlateUids:       *flXlateUids,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -223,6 +238,52 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
+}
+
+func parseUidMapOpts(opts opts.ListOpts, userid string) ([]string, int64, error) {
+	uMaps := opts.GetAll()
+
+	// No UID mappings specified, no checks to enforce
+	if len(uMaps) == 0 {
+		return uMaps, -1, nil
+	}
+
+	containerRoot := int64(-1)
+	containerUser := int64(-1)
+	if userid != "" {
+		cUser, err := strconv.ParseInt(userid, 10, 64)
+		if err != nil {
+			return nil, -1, fmt.Errorf("Invalid user: %s (-u has to be specified as a valid container UID rather than username when --uidmap is used)", userid)
+		}
+		containerUser = cUser
+	}
+
+	cRootFound := false
+	cUserFound := false
+	if containerUser == -1 {
+		cUserFound = true
+	}
+	for _, uMap := range uMaps {
+		cUid, hUid, size, err := utils.ParseUidMap(uMap)
+		if err != nil {
+			return nil, -1, err
+		}
+		if cRootFound == false && cUid <= 0 && 0 < cUid+size {
+			cRootFound = true
+			containerRoot = 0 - cUid + hUid
+		}
+		if cUserFound == false && cUid <= containerUser && containerUser < cUid+size {
+			cUserFound = true
+		}
+	}
+	if !cRootFound {
+		return nil, -1, fmt.Errorf("Container UID 0 must be a part of the UID map")
+	}
+	if !cUserFound {
+		return nil, -1, fmt.Errorf("User '%s' must be a part of the UID map",
+			userid)
+	}
+	return uMaps, containerRoot, nil
 }
 
 func parseLxcConfOpts(opts opts.ListOpts) ([]KeyValuePair, error) {

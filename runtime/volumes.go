@@ -33,11 +33,97 @@ func prepareVolumesForContainer(container *Container) error {
 	return nil
 }
 
+func xlateOneFile(path string, finfo os.FileInfo, cUid, hUid, size int64) error {
+	uid := int64(finfo.Sys().(*syscall.Stat_t).Uid)
+	gid := int64(finfo.Sys().(*syscall.Stat_t).Gid)
+	mode := finfo.Mode()
+
+	if uid >= cUid && uid < cUid+size {
+		newUid := (uid - cUid) + hUid
+		newGid := (gid - cUid) + hUid
+		if err := os.Lchown(path, int(newUid), int(newGid)); err != nil {
+			fmt.Errorf("Cannot chown %s: %s", path, err)
+			// Let's keep going
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			fmt.Errorf("Cannot chmod %s: %s", path, err)
+			// Let's keep going
+		}
+	}
+
+	return nil
+}
+
+func xlateUidsRecursive(base string, cUid, hUid, size int64) error {
+	f, err := os.Open(base)
+	if err != nil {
+		return err
+	}
+
+	list, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	for _, finfo := range list {
+		path := filepath.Join(base, finfo.Name())
+		if finfo.IsDir() {
+			xlateUidsRecursive(path, cUid, hUid, size)
+		}
+		if err := xlateOneFile(path, finfo, cUid, hUid, size); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Translate UIDs and GIDs of the files under root to what should
+// be their 'real' values on the host
+func xlateUids(container *Container, root string) error {
+	if uidMaps := container.hostConfig.UidMaps; uidMaps != nil {
+		for _, uidMap := range uidMaps {
+			cUid, hUid, size, _ := utils.ParseUidMap(uidMap)
+			if err := xlateUidsRecursive(root, cUid, hUid, size); err != nil {
+				return err
+			}
+			finfo, err := os.Stat(root)
+			if (err != nil) {
+				return err
+			}
+			if err := xlateOneFile(root, finfo, cUid, hUid, size); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func setupMountsForContainer(container *Container, envPath string) error {
 	mounts := []execdriver.Mount{
 		{container.runtime.sysInitPath, "/.dockerinit", false, true},
 		{envPath, "/.dockerenv", false, true},
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
+	}
+
+	// Let root in the container own container.root and container.basefs
+	cRootUid := container.hostConfig.ContainerRoot
+	if cRootUid != -1 {
+		if err := os.Chown(container.root, int(cRootUid), int(cRootUid)); err != nil {
+			return err
+		}
+		// Even if -x flag is not set, container rootfs directory needs to be chowned to container root to be able to setup pivot root
+		if !container.hostConfig.XlateUids {
+			if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
+				return err
+			}
+		}
+	}
+	if container.hostConfig.XlateUids {
+		if err := xlateUids(container, container.RootfsPath()); err != nil {
+			return err
+		}
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {
@@ -261,6 +347,12 @@ func createVolumes(container *Container) error {
 						}
 					}
 				}
+			}
+
+			// Translate UIDs/GIDs of the empty new volumes and volumes copied from the image but not
+			// volumes imported from other containers or the host.
+			if err := xlateUids(container, srcPath); err != nil {
+				return err
 			}
 		}
 	}
