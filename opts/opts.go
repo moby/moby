@@ -143,7 +143,7 @@ func ValidateDomain(val string) (string, error) {
 		return "", fmt.Errorf("%s is not a valid domain", val)
 	}
 	re := regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
-	var ns = re.FindSubmatch([]byte(val))
+	ns := re.FindSubmatch([]byte(val))
 	if len(ns) > 0 {
 		return string(ns[1]), nil
 	}
