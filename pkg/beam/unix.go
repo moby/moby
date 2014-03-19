@@ -152,6 +152,27 @@ func SocketPair() (*os.File, *os.File, error) {
 	return os.NewFile(uintptr(pair[0]), ""), os.NewFile(uintptr(pair[1]), ""), nil
 }
 
+func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
+	a, b, err := SocketPair()
+	if err != nil {
+		return nil, nil, err
+	}
+	fmt.Printf("SocketPair() = %v, %v\n", a.Fd(), b.Fd())
+	uA, err := FdConn(int(a.Fd()))
+	if err != nil {
+		a.Close()
+		b.Close()
+		return nil, nil, err
+	}
+	uB, err := FdConn(int(b.Fd()))
+	if err != nil {
+		a.Close()
+		b.Close()
+		return nil, nil, err
+	}
+	return uA, uB, nil
+}
+
 // FdConn wraps a file descriptor in a standard *net.UnixConn object, or
 // returns an error if the file descriptor does not point to a unix socket.
 func FdConn(fd int) (*net.UnixConn, error) {
