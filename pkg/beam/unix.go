@@ -78,16 +78,25 @@ func Receive(conn *net.UnixConn) ([]byte, *os.File, error) {
 // allows for arbitrarily complex service discovery and retry logic to take place,
 // without complicating application code.
 //
-func SendPipe(conn *net.UnixConn, data []byte) (*os.File, error) {
+func SendPipe(conn *net.UnixConn, data []byte) (endpoint *net.UnixConn, err error) {
 	local, remote, err := SocketPair()
 	if err != nil {
 		return nil, err
 	}
-	if err := Send(conn, data, remote); err != nil {
-		remote.Close()
+	defer func() {
+		if err != nil {
+			local.Close()
+			remote.Close()
+		}
+	}()
+	endpoint, err = FdConn(int(local.Fd()))
+	if err != nil {
 		return nil, err
 	}
-	return local, nil
+	if err := Send(conn, data, remote); err != nil {
+		return nil, err
+	}
+	return endpoint, nil
 }
 
 func receiveUnix(conn *net.UnixConn) ([]byte, []int, error) {
