@@ -2055,8 +2055,10 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		return nil
 	}
 
-	var output io.Writer = cli.out
-	var err error
+	var (
+		output io.Writer = cli.out
+		err    error
+	)
 	if *outfile != "" {
 		output, err = os.Create(*outfile)
 		if err != nil {
