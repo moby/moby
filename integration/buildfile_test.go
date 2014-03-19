@@ -311,6 +311,16 @@ RUN [ "$(cat /testfile)" = 'test!' ]
 		},
 		nil,
 	},
+	{
+		`
+FROM {IMAGE}
+# what \
+RUN mkdir /testing
+RUN touch /testing/other
+`,
+		nil,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
