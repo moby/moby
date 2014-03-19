@@ -100,6 +100,7 @@ func rootPivot(rootfs string) error {
 	}
 	// path to pivot dir now changed, update
 	pivotDir = filepath.Join("/", filepath.Base(pivotDir))
+	syscall.Sync()
 	if err := system.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
 		return fmt.Errorf("unmount pivot_root dir %s", err)
 	}

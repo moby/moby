@@ -19,5 +19,6 @@ func mount(device, target, mType string, flag uintptr, data string) error {
 }
 
 func unmount(target string, flag int) error {
+	syscall.Sync()
 	return syscall.Unmount(target, flag)
 }
