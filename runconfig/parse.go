@@ -61,6 +61,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flXlateUids       = cmd.Bool([]string{"x", "-xlate-uids"}, false, "Translate the UIDs of the container image and volumes before running the container")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -155,6 +156,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	if err != nil {
 		return nil, nil, cmd, err
 	}
+	if len(uidMaps) == 0 && *flXlateUids {
+		return nil, nil, cmd, fmt.Errorf("Asking to translate UIDs but no mappings specified")
+	}
 
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
@@ -221,6 +225,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PublishAllPorts: *flPublishAll,
 		UidMaps:         uidMaps,
 		ContainerRoot:   containerRoot,
+		XlateUids:       *flXlateUids,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
