@@ -164,6 +164,7 @@ func TestCompare(t *testing.T) {
 	volumes1["/test1"] = struct{}{}
 	config1 := Config{
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		DnsSearch:   []string{"foo", "bar"},
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
 		VolumesFrom: "11111111",
@@ -171,6 +172,7 @@ func TestCompare(t *testing.T) {
 	}
 	config2 := Config{
 		Dns:         []string{"0.0.0.0", "2.2.2.2"},
+		DnsSearch:   []string{"foo", "bar"},
 		PortSpecs:   []string{"1111:1111", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
 		VolumesFrom: "11111111",
@@ -178,6 +180,7 @@ func TestCompare(t *testing.T) {
 	}
 	config3 := Config{
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		DnsSearch:   []string{"foo", "bar"},
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
 		VolumesFrom: "11111111",
@@ -185,6 +188,7 @@ func TestCompare(t *testing.T) {
 	}
 	config4 := Config{
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		DnsSearch:   []string{"foo", "bar"},
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
 		VolumesFrom: "22222222",
@@ -194,10 +198,19 @@ func TestCompare(t *testing.T) {
 	volumes2["/test2"] = struct{}{}
 	config5 := Config{
 		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		DnsSearch:   []string{"foo", "bar"},
 		PortSpecs:   []string{"0000:0000", "2222:2222"},
 		Env:         []string{"VAR1=1", "VAR2=2"},
 		VolumesFrom: "11111111",
 		Volumes:     volumes2,
+	}
+	config6 := Config{
+		Dns:         []string{"1.1.1.1", "2.2.2.2"},
+		DnsSearch:   []string{"foos", "bars"},
+		PortSpecs:   []string{"1111:1111", "2222:2222"},
+		Env:         []string{"VAR1=1", "VAR2=2"},
+		VolumesFrom: "11111111",
+		Volumes:     volumes1,
 	}
 	if Compare(&config1, &config2) {
 		t.Fatalf("Compare should return false, Dns are different")
@@ -210,6 +223,9 @@ func TestCompare(t *testing.T) {
 	}
 	if Compare(&config1, &config5) {
 		t.Fatalf("Compare should return false, Volumes are different")
+	}
+	if Compare(&config1, &config6) {
+		t.Fatalf("Compare should return false, DnsSearch are different")
 	}
 	if !Compare(&config1, &config1) {
 		t.Fatalf("Compare should return true")

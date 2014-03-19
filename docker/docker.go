@@ -48,6 +48,7 @@ func main() {
 		flSocketGroup        = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group")
 		flEnableCors         = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 		flDns                = opts.NewListOpts(opts.ValidateIp4Address)
+		flDnsSearch          = opts.NewListOpts(opts.ValidateDomain)
 		flEnableIptables     = flag.Bool([]string{"#iptables", "-iptables"}, true, "Enable Docker's addition of iptables rules")
 		flEnableIpForward    = flag.Bool([]string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward")
 		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
@@ -63,6 +64,7 @@ func main() {
 		flKey                = flag.String([]string{"-tlskey"}, dockerConfDir+defaultKeyFile, "Path to TLS key file")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
+	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
 	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
 
 	flag.Parse()
@@ -134,6 +136,7 @@ func main() {
 			job.Setenv("Root", realRoot)
 			job.SetenvBool("AutoRestart", *flAutoRestart)
 			job.SetenvList("Dns", flDns.GetAll())
+			job.SetenvList("DnsSearch", flDnsSearch.GetAll())
 			job.SetenvBool("EnableIptables", *flEnableIptables)
 			job.SetenvBool("EnableIpForward", *flEnableIpForward)
 			job.Setenv("BridgeIface", *bridgeName)

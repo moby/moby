@@ -100,6 +100,12 @@ func Merge(userConf, imageConf *Config) error {
 		//duplicates aren't an issue here
 		userConf.Dns = append(userConf.Dns, imageConf.Dns...)
 	}
+	if userConf.DnsSearch == nil || len(userConf.DnsSearch) == 0 {
+		userConf.DnsSearch = imageConf.DnsSearch
+	} else {
+		//duplicates aren't an issue here
+		userConf.DnsSearch = append(userConf.DnsSearch, imageConf.DnsSearch...)
+	}
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint
 	}

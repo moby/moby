@@ -136,6 +136,7 @@ Create a container
                 },
                 "VolumesFrom":"",
                 "WorkingDir":"",
+                "DisableNetwork": false,
                 "ExposedPorts":{
                         "22/tcp": {}
                 }
