@@ -111,6 +111,12 @@ func receiveUnix(conn *net.UnixConn) ([]byte, []int, error) {
 
 func sendUnix(conn *net.UnixConn, data []byte, fds ...int) error {
 	_, _, err := conn.WriteMsgUnix(data, syscall.UnixRights(fds...), nil)
+	if err == nil {
+		for _, fd := range fds {
+			fmt.Printf("Closing sent fd %v\n", fd)
+			syscall.Close(fd)
+		}
+	}
 	return err
 }
 
@@ -154,8 +160,10 @@ func FdConn(fd int) (*net.UnixConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	f.Close()
 	uconn, ok := conn.(*net.UnixConn)
 	if !ok {
+		conn.Close()
 		return nil, fmt.Errorf("%d: not a unix connection", fd)
 	}
 	return uconn, nil
