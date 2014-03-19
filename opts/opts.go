@@ -136,3 +136,16 @@ func ValidateIp4Address(val string) (string, error) {
 	}
 	return "", fmt.Errorf("%s is not an ip4 address", val)
 }
+
+func ValidateDomain(val string) (string, error) {
+	alpha := regexp.MustCompile(`[a-zA-Z]`)
+	if alpha.FindString(val) == "" {
+		return "", fmt.Errorf("%s is not a valid domain", val)
+	}
+	re := regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	ns := re.FindSubmatch([]byte(val))
+	if len(ns) > 0 {
+		return string(ns[1]), nil
+	}
+	return "", fmt.Errorf("%s is not a valid domain", val)
+}

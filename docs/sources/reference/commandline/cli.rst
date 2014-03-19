@@ -77,6 +77,7 @@ Commands
       --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
+      --dns-search=[]: Force Docker to use specific DNS search domains
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
@@ -95,6 +96,8 @@ daemon and client.  To run the daemon you provide the ``-d`` flag.
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
 
 To set the DNS server for all Docker containers, use ``docker -d --dns 8.8.8.8``.
+
+To set the DNS search domain for all Docker containers, use ``docker -d --dns-search example.com``.
 
 To run the daemon with debug output, use ``docker -d -D``.
 
@@ -396,6 +399,7 @@ not overridden in the JSON hash will be merged in.
       "VolumesFrom" : "",
       "Cmd" : ["cat", "-e", "/etc/resolv.conf"],
       "Dns" : ["8.8.8.8", "8.8.4.4"],
+      "DnsSearch" : ["example.com"],
       "MemorySwap" : 0,
       "AttachStdin" : false,
       "AttachStderr" : false,
@@ -1131,6 +1135,7 @@ image is removed.
       -t, --tty=false: Allocate a pseudo-tty
       -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
+      --dns-search=[]: Set custom DNS search domains for the container
       -v, --volume=[]: Create a bind mount to a directory or file with: [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
@@ -1288,7 +1293,7 @@ A complete example
    $ sudo docker run -d --name static static-web-files sh
    $ sudo docker run -d --expose=8098 --name riak riakserver
    $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-   $ sudo docker run -d -p 1443:443 --dns=dns.dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+   $ sudo docker run -d -p 1443:443 --dns=dns.dev.org --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
    $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows 5 containers that might be set up to test a web application change:
@@ -1296,7 +1301,7 @@ This example shows 5 containers that might be set up to test a web application c
 1. Start a pre-prepared volume image ``static-web-files`` (in the background) that has CSS, image and static HTML in it, (with a ``VOLUME`` instruction in the ``Dockerfile`` to allow the web server to use those files);
 2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose port ``8098`` to any containers that link to it;
 3. Start the ``appserver`` image, restricting its memory usage to 100MB, setting two environment variables ``DEVELOPMENT`` and ``BRANCH`` and bind-mounting the current directory (``$(pwd)``) in the container in read-only mode as ``/app/bin``;
-4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
+4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org`` and DNS search domain to ``dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
 5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``--rm`` option means that when the container exits, the container's layer is removed.
 
 
