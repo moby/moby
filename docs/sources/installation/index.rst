@@ -30,4 +30,5 @@ Contents:
    amazon
    rackspace
    google
+   softlayer
    binaries
