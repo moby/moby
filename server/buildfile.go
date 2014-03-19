@@ -338,7 +338,14 @@ func (b *buildFile) CmdCopy(args string) error {
 }
 
 func (b *buildFile) CmdWorkdir(workdir string) error {
-	b.config.WorkingDir = workdir
+	if workdir[0] == '/' {
+		b.config.WorkingDir = workdir
+	} else {
+		if b.config.WorkingDir == "" {
+			b.config.WorkingDir = "/"
+		}
+		b.config.WorkingDir = filepath.Join(b.config.WorkingDir, workdir)
+	}
 	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
