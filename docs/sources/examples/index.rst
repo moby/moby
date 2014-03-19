@@ -27,3 +27,4 @@ to more substantial services like those which you might find in production.
    cfengine_process_management
    python_web_app
    apt-cacher-ng
+   https

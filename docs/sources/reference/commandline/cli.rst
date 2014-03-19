@@ -87,6 +87,11 @@ Commands
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
       -e, --exec-driver="native": Force the docker runtime to use a specific exec driver
       -v, --version=false: Print version information and quit
+      --tls=false: Use TLS; implied by tls-verify flags
+      --tlscacert="~/.docker/ca.pem": Trust only remotes providing a certificate signed by the CA given here
+      --tlscert="~/.docker/cert.pem": Path to TLS certificate file
+      --tlskey="~/.docker/key.pem": Path to TLS key file
+      --tlsverify=false: Use TLS and verify the remote (daemon: verify client, client: verify daemon)
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
 The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
