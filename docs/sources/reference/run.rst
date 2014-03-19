@@ -194,7 +194,7 @@ Runtime Privilege and LXC Configuration
 ::
 
    --privileged=false: Give extended privileges to this container
-   --lxc-conf=[]: Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+   --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is
@@ -211,12 +211,13 @@ host. Additional information about running with ``--privileged`` is
 available on the `Docker Blog
 <http://blog.docker.io/2013/09/docker-can-now-run-within-docker/>`_.
 
-An operator can also specify LXC options using one or more
-``--lxc-conf`` parameters. These can be new parameters or override
-existing parameters from the lxc-template.go_. Note that in the
-future, a given host's Docker daemon may not use LXC, so this is an
-implementation-specific configuration meant for operators already
-familiar with using LXC directly.
+If the Docker daemon was started using the ``lxc`` exec-driver
+(``docker -d --exec-driver=lxc``) then the operator can also specify
+LXC options using one or more ``--lxc-conf`` parameters. These can be
+new parameters or override existing parameters from the lxc-template.go_.
+Note that in the future, a given host's Docker daemon may not use LXC,
+so this is an implementation-specific configuration meant for operators
+already familiar with using LXC directly.
 
 .. _lxc-template.go: https://github.com/dotcloud/docker/blob/master/execdriver/lxc/lxc_template.go
 
