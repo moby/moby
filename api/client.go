@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
 	flag "github.com/dotcloud/docker/pkg/mflag"
+	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -24,11 +25,11 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"os/signal"
+	gosignal "os/signal"
 	"path"
 	"reflect"
 	"regexp"
-	"runtime"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -367,7 +368,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
 	}
-	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+	fmt.Fprintf(cli.out, "Go version (client): %s\n", goruntime.Version())
 	if dockerversion.GITCOMMIT != "" {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
 	}
@@ -432,7 +433,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", remoteInfo.GetInt("Containers"))
 	fmt.Fprintf(cli.out, "Images: %d\n", remoteInfo.GetInt("Images"))
-	fmt.Fprintf(cli.out, "Driver: %s\n", remoteInfo.Get("Driver"))
+	fmt.Fprintf(cli.out, "Storage Driver: %s\n", remoteInfo.Get("Driver"))
 	var driverStatus [][2]string
 	if err := remoteInfo.GetJson("DriverStatus", &driverStatus); err != nil {
 		return err
@@ -440,14 +441,15 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	for _, pair := range driverStatus {
 		fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
 	}
+	fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
+	fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
+
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", remoteInfo.GetBool("Debug"))
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "Fds: %d\n", remoteInfo.GetInt("NFd"))
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
-		fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 		fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
-		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
 
 		if initSha1 := remoteInfo.Get("InitSha1"); initSha1 != "" {
 			fmt.Fprintf(cli.out, "Init SHA1: %s\n", initSha1)
@@ -533,13 +535,23 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	sigc := make(chan os.Signal, 1)
-	utils.CatchAll(sigc)
+	signal.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
 			if s == syscall.SIGCHLD {
 				continue
 			}
-			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%d", cid, s), nil, false)); err != nil {
+			var sig string
+			for sigStr, sigN := range signal.SignalMap {
+				if sigN == s {
+					sig = sigStr
+					break
+				}
+			}
+			if sig == "" {
+				utils.Errorf("Unsupported signal: %d. Discarding.", s)
+			}
+			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
 				utils.Debugf("Error sending signal: %s", err)
 			}
 		}
@@ -581,7 +593,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 		if !container.Config.Tty {
 			sigc := cli.forwardAllSignals(cmd.Arg(0))
-			defer utils.StopCatch(sigc)
+			defer signal.StopCatch(sigc)
 		}
 
 		var in io.ReadCloser
@@ -1614,7 +1626,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	if *proxy && !container.Config.Tty {
 		sigc := cli.forwardAllSignals(cmd.Arg(0))
-		defer utils.StopCatch(sigc)
+		defer signal.StopCatch(sigc)
 	}
 
 	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
@@ -1753,7 +1765,21 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if containerIDFile, err = os.Create(hostConfig.ContainerIDFile); err != nil {
 			return fmt.Errorf("Failed to create the container ID file: %s", err)
 		}
-		defer containerIDFile.Close()
+		defer func() {
+			containerIDFile.Close()
+			var (
+				cidFileInfo os.FileInfo
+				err         error
+			)
+			if cidFileInfo, err = os.Stat(hostConfig.ContainerIDFile); err != nil {
+				return
+			}
+			if cidFileInfo.Size() == 0 {
+				if err := os.Remove(hostConfig.ContainerIDFile); err != nil {
+					fmt.Printf("failed to remove CID file '%s': %s \n", hostConfig.ContainerIDFile, err)
+				}
+			}
+		}()
 	}
 
 	containerValues := url.Values{}
@@ -1818,7 +1844,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if sigProxy {
 		sigc := cli.forwardAllSignals(runResult.Get("Id"))
-		defer utils.StopCatch(sigc)
+		defer signal.StopCatch(sigc)
 	}
 
 	var (
@@ -2239,7 +2265,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 					if setRawTerminal && cli.isTerminal {
 						term.RestoreTerminal(cli.terminalFd, oldState)
 					}
-					in.Close()
+					// For some reason this Close call blocks on darwin..
+					// As the client exists right after, simply discard the close
+					// until we find a better solution.
+					if goruntime.GOOS != "darwin" {
+						in.Close()
+					}
 				}
 			}()
 
@@ -2320,7 +2351,7 @@ func (cli *DockerCli) monitorTtySize(id string) error {
 	cli.resizeTty(id)
 
 	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGWINCH)
+	gosignal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
 		for _ = range sigchan {
 			cli.resizeTty(id)

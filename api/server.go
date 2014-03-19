@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 var (
@@ -883,7 +882,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	var copyData engine.Env
 
-	if contentType := r.Header.Get("Content-Type"); contentType == "application/json" {
+	if contentType := r.Header.Get("Content-Type"); MatchesContentType(contentType, "application/json") {
 		if err := copyData.Decode(r.Body); err != nil {
 			return err
 		}
@@ -1130,7 +1129,7 @@ func changeGroup(addr string, nameOrGid string) error {
 
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion string, socketGroup string) error {
+func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion, socketGroup string) error {
 	r, err := createRouter(eng, logging, enableCors, dockerVersion)
 
 	if err != nil {
@@ -1147,7 +1146,7 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		}
 	}
 
-	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock, 15*time.Minute)
+	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock)
 	if err != nil {
 		return err
 	}

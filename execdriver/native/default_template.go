@@ -19,19 +19,30 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 	container.WorkingDir = c.WorkingDir
 	container.Env = c.Env
 
-	if c.Network != nil {
-		container.Networks = []*libcontainer.Network{
-			{
-				Mtu:     c.Network.Mtu,
-				Address: fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
-				Gateway: c.Network.Gateway,
-				Type:    "veth",
-				Context: libcontainer.Context{
-					"prefix": "veth",
-					"bridge": c.Network.Bridge,
-				},
+	loopbackNetwork := libcontainer.Network{
+		Mtu:     c.Network.Mtu,
+		Address: fmt.Sprintf("%s/%d", "127.0.0.1", 0),
+		Gateway: "localhost",
+		Type:    "loopback",
+		Context: libcontainer.Context{},
+	}
+
+	container.Networks = []*libcontainer.Network{
+		&loopbackNetwork,
+	}
+
+	if c.Network.Interface != nil {
+		vethNetwork := libcontainer.Network{
+			Mtu:     c.Network.Mtu,
+			Address: fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
+			Gateway: c.Network.Interface.Gateway,
+			Type:    "veth",
+			Context: libcontainer.Context{
+				"prefix": "veth",
+				"bridge": c.Network.Interface.Bridge,
 			},
 		}
+		container.Networks = append(container.Networks, &vethNetwork)
 	}
 
 	container.Cgroups.Name = c.ID
