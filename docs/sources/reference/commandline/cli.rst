@@ -97,7 +97,7 @@ To force Docker to use devicemapper as the storage driver, use ``docker -d -s de
 
 To set the DNS server for all Docker containers, use ``docker -d --dns 8.8.8.8``.
 
-To set the a DNS search domain for all Docker containers, use ``docker -d --dns-search example.com``.
+To set the DNS search domain for all Docker containers, use ``docker -d --dns-search example.com``.
 
 To run the daemon with debug output, use ``docker -d -D``.
 
