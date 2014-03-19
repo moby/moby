@@ -2043,7 +2043,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout)")
+	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout by default)")
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
 
 	if err := cmd.Parse(args); err != nil {
