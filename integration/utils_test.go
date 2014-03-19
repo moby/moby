@@ -181,7 +181,7 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 			root = dir
 		}
 	}
-	eng, err := engine.New(root)
+	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
 	}

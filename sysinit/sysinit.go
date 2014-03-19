@@ -2,45 +2,33 @@ package sysinit
 
 import (
 	"flag"
-	"fmt"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	_ "github.com/dotcloud/docker/runtime/execdriver/lxc"
 	_ "github.com/dotcloud/docker/runtime/execdriver/native"
-	"log"
-	"os"
 )
-
-func executeProgram(args *execdriver.InitArgs) error {
-	dockerInitFct, err := execdriver.GetInitFunc(args.Driver)
-	if err != nil {
-		panic(err)
-	}
-	return dockerInitFct(args)
-}
 
 // Sys Init code
 // This code is run INSIDE the container and is responsible for setting
 // up the environment before running the actual process
-func SysInit() {
-	if len(os.Args) <= 1 {
-		fmt.Println("You should not invoke dockerinit manually")
-		os.Exit(1)
-	}
-
+func SysInit(job *engine.Job) engine.Status {
+	cli := flag.NewFlagSet(job.Args[0], flag.ExitOnError)
 	var (
 		// Get cmdline arguments
-		user       = flag.String("u", "", "username or uid")
-		gateway    = flag.String("g", "", "gateway address")
-		ip         = flag.String("i", "", "ip address")
-		workDir    = flag.String("w", "", "workdir")
-		privileged = flag.Bool("privileged", false, "privileged mode")
-		mtu        = flag.Int("mtu", 1500, "interface mtu")
-		driver     = flag.String("driver", "", "exec driver")
-		pipe       = flag.Int("pipe", 0, "sync pipe fd")
-		console    = flag.String("console", "", "console (pty slave) path")
-		root       = flag.String("root", ".", "root path for configuration files")
+		user       = cli.String("u", "", "username or uid")
+		gateway    = cli.String("g", "", "gateway address")
+		ip         = cli.String("i", "", "ip address")
+		workDir    = cli.String("w", "", "workdir")
+		privileged = cli.Bool("privileged", false, "privileged mode")
+		mtu        = cli.Int("mtu", 1500, "interface mtu")
+		driver     = cli.String("driver", "", "exec driver")
+		pipe       = cli.Int("pipe", 0, "sync pipe fd")
+		console    = cli.String("console", "", "console (pty slave) path")
+		root       = cli.String("root", ".", "root path for configuration files")
 	)
-	flag.Parse()
+	if err := cli.Parse(job.Args); err != nil {
+		return job.Error(err)
+	}
 
 	args := &execdriver.InitArgs{
 		User:       *user,
@@ -48,15 +36,19 @@ func SysInit() {
 		Ip:         *ip,
 		WorkDir:    *workDir,
 		Privileged: *privileged,
-		Args:       flag.Args(),
+		Args:       cli.Args(),
 		Mtu:        *mtu,
 		Driver:     *driver,
 		Console:    *console,
 		Pipe:       *pipe,
 		Root:       *root,
 	}
-
-	if err := executeProgram(args); err != nil {
-		log.Fatal(err)
+	dockerInitFct, err := execdriver.GetInitFunc(args.Driver)
+	if err != nil {
+		return job.Error(err)
 	}
+	if err := dockerInitFct(args); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
 }

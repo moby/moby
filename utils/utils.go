@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/pkg/reexec"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
@@ -158,27 +159,6 @@ func Trunc(s string, maxlen int) string {
 }
 
 // Figure out the absolute path of our own binary (if it's still around).
-func SelfPath() string {
-	path, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		if os.IsNotExist(err) {
-			return ""
-		}
-		if execErr, ok := err.(*exec.Error); ok && os.IsNotExist(execErr.Err) {
-			return ""
-		}
-		panic(err)
-	}
-	path, err = filepath.Abs(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return ""
-		}
-		panic(err)
-	}
-	return path
-}
-
 func dockerInitSha1(target string) string {
 	f, err := os.Open(target)
 	if err != nil {
@@ -219,7 +199,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 
 // Figure out the path of our dockerinit (which may be SelfPath())
 func DockerInitPath(localCopy string) string {
-	selfPath := SelfPath()
+	selfPath := reexec.SelfPath()
 	if isValidDockerInitPath(selfPath, selfPath) {
 		// if we're valid, don't bother checking anything else
 		return selfPath

@@ -61,7 +61,7 @@ func (job *Job) Run() error {
 	job.Stderr.AddString(&errorMessage)
 	if job.handler == nil {
 		job.Errorf("%s: command not found", job.Name)
-		job.status = 127
+		job.status = StatusNotFound
 	} else {
 		job.status = job.handler(job)
 		job.end = time.Now()
@@ -211,4 +211,8 @@ func (job *Job) Errorf(format string, args ...interface{}) Status {
 func (job *Job) Error(err error) Status {
 	fmt.Fprintf(job.Stderr, "%s\n", err)
 	return StatusErr
+}
+
+func (job *Job) Status() Status {
+	return job.status
 }
