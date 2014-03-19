@@ -10,7 +10,11 @@ import (
 // Send sends a new message on conn with data and f as payload and
 // attachment, respectively.
 func Send(conn *net.UnixConn, data []byte, f *os.File) error {
-	return sendUnix(conn, data, int(f.Fd()))
+	var fds []int
+	if f != nil {
+		fds = append(fds, int(f.Fd()))
+	}
+	return sendUnix(conn, data, fds...)
 }
 
 // Receive waits for a new message on conn, and receives its payload
@@ -25,15 +29,16 @@ func Receive(conn *net.UnixConn) ([]byte, *os.File, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("receive: %v", err)
 		}
-		if len(fds) == 0 {
-			continue
-		}
+		var f *os.File
 		if len(fds) > 1 {
 			for _, fd := range fds {
 				syscall.Close(fd)
 			}
 		}
-		return data, os.NewFile(uintptr(fds[0]), ""), nil
+		if len(fds) >= 1 {
+			f = os.NewFile(uintptr(fds[0]), "")
+		}
+		return data, f, nil
 	}
 	panic("impossibru")
 	return nil, nil, nil
