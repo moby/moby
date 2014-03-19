@@ -82,6 +82,8 @@ when some applications start to misbehave.
 Control Groups have been around for a while as well: the code was
 started in 2006, and initially merged in kernel 2.6.24.
 
+.. _dockersecurity_daemon:
+
 Docker Daemon Attack Surface
 ----------------------------
 
