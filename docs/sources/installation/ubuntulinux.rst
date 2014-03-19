@@ -186,7 +186,7 @@ client commands. As of 0.9.0, you can specify that a group other than ``docker``
 should own the Unix socket with the ``-G`` option.
 
 .. warning:: The *docker* group (or the group specified with ``-G``) is
-   root-equivalent.
+   root-equivalent; see :ref:`dockersecurity_daemon` details.
 
 
 **Example:**
