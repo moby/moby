@@ -17,6 +17,7 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
+   binaries
    ubuntulinux
    rhel
    fedora
@@ -27,7 +28,3 @@ Contents:
    frugalware
    mac
    windows
-   amazon
-   rackspace
-   google
-   binaries
