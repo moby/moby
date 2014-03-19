@@ -378,10 +378,15 @@ func (srv *Server) exportImage(img *image.Image, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		if _, err = io.Copy(fsTar, fs); err != nil {
+		if written, err := io.Copy(fsTar, fs); err != nil {
+			return err
+		} else {
+			utils.Debugf("rendered layer for %s of [%d] size", i.ID, written)
+		}
+
+		if err = fsTar.Close(); err != nil {
 			return err
 		}
-		fsTar.Close()
 
 		// find parent
 		if i.Parent != "" {
@@ -1537,6 +1542,8 @@ func (srv *Server) pushImage(r *registry.Registry, out io.Writer, remote, imgID,
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
+	utils.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
+
 	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
 	if err != nil {
 		return "", err
