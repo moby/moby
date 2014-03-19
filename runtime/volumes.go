@@ -114,13 +114,16 @@ func setupMountsForContainer(container *Container, envPath string) error {
 			return err
 		}
 		// Even if -x flag is not set, container rootfs directory needs to be chowned to container root to be able to setup pivot root
-		// TODO: Warn if the UIDs in the image don't match the mappings
-		if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
-			return err
+		if !container.hostConfig.XlateUids {
+			if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
+				return err
+			}
 		}
 	}
-	if err := xlateUids(container, container.RootfsPath()); err != nil {
-		return err
+	if container.hostConfig.XlateUids {
+		if err := xlateUids(container, container.RootfsPath()); err != nil {
+			return err
+		}
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {
@@ -345,9 +348,9 @@ func createVolumes(container *Container) error {
 					}
 				}
 			}
+
 			// Translate UIDs/GIDs of the empty new volumes and volumes copied from the image but not
 			// volumes imported from other containers or the host.
-
 			if err := xlateUids(container, srcPath); err != nil {
 				return err
 			}
