@@ -60,7 +60,7 @@ VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
 
 # These are the 2 keys we've used to sign the deb's
-#   release (get.docker.io
+#   release (get.docker.io)
 #	GPG_KEY="36A1D7869245C8950F966E92D8576A8BA88D21E9"
 #   test    (test.docker.io)
 #	GPG_KEY="740B314AE3941731B942C66ADF4FD13717AAD7D6"
@@ -341,7 +341,6 @@ main() {
 	release_index
 	release_test
 }
-
 
 main
 
