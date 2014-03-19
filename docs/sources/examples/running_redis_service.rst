@@ -18,11 +18,11 @@ Firstly, we create a ``Dockerfile`` for our new Redis image.
 
 .. code-block:: bash
 
-    FROM        ubuntu:12.10
-    RUN         apt-get update
-    RUN         apt-get -y install redis-server
+    FROM        debian:jessie
+    RUN         apt-get update && apt-get install -y redis-server
     EXPOSE      6379
     ENTRYPOINT  ["/usr/bin/redis-server"]
+    CMD ["--bind", "0.0.0.0"]
 
 Next we build an image from our ``Dockerfile``. Replace ``<your username>`` 
 with your own user name.
