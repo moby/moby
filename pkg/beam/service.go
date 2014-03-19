@@ -17,11 +17,7 @@ import (
 // not point to a connection, that message will be skipped.
 //
 func Listen(conn *net.UnixConn, name string) (net.Listener, error) {
-	fEndpoint, err := SendPipe(conn, []byte(name))
-	if err != nil {
-		return nil, err
-	}
-	endpoint, err := FdConn(int(fEndpoint.Fd()))
+	endpoint, err := SendPipe(conn, []byte(name))
 	if err != nil {
 		return nil, err
 	}
