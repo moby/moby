@@ -49,6 +49,9 @@ Get the docker binary:
     wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
     chmod +x docker
 
+.. note::
+    If you have trouble downloading the binary, you can also get the smaller
+    compressed release file: https://get.docker.io/builds/Linux/x86_64/docker-latest.tgz
 
 Run the docker daemon
 ---------------------
