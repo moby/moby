@@ -62,6 +62,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flXlateUids       = cmd.Bool([]string{"x", "-xlate-uids"}, false, "Translate the UIDs of the container image and new volumes before running the container")
+		flPrivateUids     = cmd.Bool([]string{"#private-uids", "-private-uids"}, false, "Use a private UID space for the container")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -152,7 +153,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint = []string{*flEntrypoint}
 	}
 
-	uidMaps, containerRoot, err := parseUidMapOpts(flUidMaps, *flUser)
+	uidMaps, containerRoot, err := parseUidMapOpts(flUidMaps, *flUser, *flPrivateUids)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -240,12 +241,16 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	return config, hostConfig, cmd, nil
 }
 
-func parseUidMapOpts(opts opts.ListOpts, userid string) ([]string, int64, error) {
+func parseUidMapOpts(opts opts.ListOpts, userid string, flPrivateUids bool) ([]string, int64, error) {
 	uMaps := opts.GetAll()
 
-	// No UID mappings specified, no checks to enforce
 	if len(uMaps) == 0 {
-		return uMaps, -1, nil
+		if !flPrivateUids {
+			return uMaps, -1, nil
+		}
+
+		// Use 100000 as default host UID range
+		uMaps = append(uMaps, "100000:0:10000")
 	}
 
 	containerRoot := int64(-1)
@@ -253,7 +258,7 @@ func parseUidMapOpts(opts opts.ListOpts, userid string) ([]string, int64, error)
 	if userid != "" {
 		cUser, err := strconv.ParseInt(userid, 10, 64)
 		if err != nil {
-			return nil, -1, fmt.Errorf("Invalid user: %s (-u has to be specified as a valid container UID rather than username when --uidmap is used)", userid)
+			return nil, -1, fmt.Errorf("Invalid user: %s (-u has to be specified as a valid container UID rather than username when private UID space is used)", userid)
 		}
 		containerUser = cUser
 	}
