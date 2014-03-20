@@ -75,26 +75,27 @@ func (l *Link) ToEnv() []string {
 		return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
 	})
 
-	for i := 0; i < len(l.Ports); i++ {
+	for i := 0; i < len(l.Ports); {
 		p := l.Ports[i]
-		j := nextContiguous(l.Ports, i, p.Int())
+		j := nextContiguous(l.Ports, p.Int(), i)
 		if j > i + 1 {
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_START=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_START=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
 
-			p = l.Ports[j]
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_END=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_END=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
+			q := l.Ports[j]
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_END=%s://%s:%s", alias, p.Port(), strings.ToUpper(q.Proto()), q.Proto(), l.ChildIP, q.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_END=%s", alias, p.Port(), strings.ToUpper(q.Proto()), q.Port()))
 
 			i = j + 1
-			continue
 		} else {
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+
+			i++
 		}		
 	}
 
@@ -160,7 +161,7 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 
 	out := make([]string, len(l.Ports))
 	for i, p := range l.Ports {
-		out[i] = fmt.Sprintf("%s/%s", p.Port(), p.Proto())
+		out[i] = string(p)
 	}
 	job.SetenvList("Ports", out)
 
