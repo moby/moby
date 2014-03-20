@@ -159,8 +159,8 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 	job.SetenvBool("IgnoreErrors", ignoreErrors)
 
 	out := make([]string, len(l.Ports))
-	for i, prange := range l.Ports {
-		out[i] = string(prange)
+	for i, p := range l.Ports {
+		out[i] = fmt.Sprintf("%s/%s", p.Port(), p.Proto())
 	}
 	job.SetenvList("Ports", out)
 
