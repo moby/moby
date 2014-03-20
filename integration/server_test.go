@@ -416,7 +416,7 @@ func TestRestartKillWait(t *testing.T) {
 	})
 }
 
-func TestCreateStartRestartStopStartKillRm(t *testing.T) {
+func TestCreateStartRestartKillStartKillRm(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
@@ -456,8 +456,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job = eng.Job("stop", id)
-	job.SetenvInt("t", 15)
+	job = eng.Job("kill", id)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
