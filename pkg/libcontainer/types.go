@@ -1,7 +1,6 @@
 package libcontainer
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -19,52 +18,36 @@ var (
 	namespaceList = Namespaces{}
 
 	capabilityList = Capabilities{
-		{Key: "SETPCAP", Value: capability.CAP_SETPCAP},
-		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE},
-		{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO},
-		{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT},
-		{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN},
-		{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE},
-		{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE},
-		{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME},
-		{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG},
-		{Key: "MKNOD", Value: capability.CAP_MKNOD},
-		{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE},
-		{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL},
-		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE},
-		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN},
-		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN},
+		{Key: "SETPCAP", Value: capability.CAP_SETPCAP, Enabled: true},
+		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE, Enabled: true},
+		{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO, Enabled: true},
+		{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT, Enabled: true},
+		{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN, Enabled: true},
+		{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE, Enabled: true},
+		{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE, Enabled: true},
+		{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME, Enabled: true},
+		{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG, Enabled: true},
+		{Key: "MKNOD", Value: capability.CAP_MKNOD, Enabled: true},
+		{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE, Enabled: true},
+		{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL, Enabled: true},
+		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE, Enabled: true},
+		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN, Enabled: true},
+		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN, Enabled: true},
 	}
 )
 
 type (
 	Namespace struct {
-		Key   string
-		Value int
-		File  string
+		Key     string `json:"key,omitempty"`
+		Enabled bool   `json:"enabled,omitempty"`
+		Value   int    `json:"value,omitempty"`
+		File    string `json:"file,omitempty"`
 	}
 	Namespaces []*Namespace
 )
 
 func (ns *Namespace) String() string {
 	return ns.Key
-}
-
-func (ns *Namespace) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ns.Key)
-}
-
-func (ns *Namespace) UnmarshalJSON(src []byte) error {
-	var nsName string
-	if err := json.Unmarshal(src, &nsName); err != nil {
-		return err
-	}
-	ret := GetNamespace(nsName)
-	if ret == nil {
-		return ErrUnkownNamespace
-	}
-	*ns = *ret
-	return nil
 }
 
 func GetNamespace(key string) *Namespace {
@@ -89,31 +72,15 @@ func (n Namespaces) Contains(ns string) bool {
 
 type (
 	Capability struct {
-		Key   string
-		Value capability.Cap
+		Key     string         `json:"key,omitempty"`
+		Enabled bool           `json:"enabled"`
+		Value   capability.Cap `json:"value,omitempty"`
 	}
 	Capabilities []*Capability
 )
 
 func (c *Capability) String() string {
 	return c.Key
-}
-
-func (c *Capability) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.Key)
-}
-
-func (c *Capability) UnmarshalJSON(src []byte) error {
-	var capName string
-	if err := json.Unmarshal(src, &capName); err != nil {
-		return err
-	}
-	ret := GetCapability(capName)
-	if ret == nil {
-		return ErrUnkownCapability
-	}
-	*c = *ret
-	return nil
 }
 
 func GetCapability(key string) *Capability {
