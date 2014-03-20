@@ -173,8 +173,8 @@ release_build() {
 
 	S3DIR=s3://$BUCKET/builds/$S3OS/$S3ARCH
 
-	if [ ! -x "$BINARY" ]; then
-		echo >&2 "error: can't find $BINARY - was it compiled properly?"
+	if [ ! -x "$SOURCE_DIR/$BINARY" ]; then
+		echo >&2 "error: can't find $SOURCE_DIR/$BINARY - was it compiled properly?"
 		exit 1
 	fi
 	if [ ! -f "$TGZ" ]; then
@@ -188,7 +188,7 @@ release_build() {
 	echo "Uploading $BINARY_MD5 to $S3OS/$S3ARCH/docker-$VERSION.md5"
 	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY_MD5 $S3DIR/$BINARY_MD5
 
-	echo "Uploading $BINARY_BINARY_SHA256 to $S3OS/$S3ARCH/docker-$VERSION.sha256"
+	echo "Uploading $BINARY_SHA256 to $S3OS/$S3ARCH/docker-$VERSION.sha256"
 	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY_SHA256 $S3DIR/$BINARY_SHA256
 
 	echo "Uploading $TGZ to $S3OS/$S3ARCH/docker-$VERSION.tgz"
