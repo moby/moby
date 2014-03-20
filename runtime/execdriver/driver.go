@@ -112,20 +112,20 @@ type Mount struct {
 type Command struct {
 	exec.Cmd `json:"-"`
 
-	ID         string     `json:"id"`
-	Privileged bool       `json:"privileged"`
-	User       string     `json:"user"`
-	Rootfs     string     `json:"rootfs"`   // root fs of the container
-	InitPath   string     `json:"initpath"` // dockerinit
-	Entrypoint string     `json:"entrypoint"`
-	Arguments  []string   `json:"arguments"`
-	WorkingDir string     `json:"working_dir"`
-	ConfigPath string     `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Tty        bool       `json:"tty"`
-	Network    *Network   `json:"network"`
-	Config     []string   `json:"config"` //  generic values that specific drivers can consume
-	Resources  *Resources `json:"resources"`
-	Mounts     []Mount    `json:"mounts"`
+	ID         string              `json:"id"`
+	Privileged bool                `json:"privileged"`
+	User       string              `json:"user"`
+	Rootfs     string              `json:"rootfs"`   // root fs of the container
+	InitPath   string              `json:"initpath"` // dockerinit
+	Entrypoint string              `json:"entrypoint"`
+	Arguments  []string            `json:"arguments"`
+	WorkingDir string              `json:"working_dir"`
+	ConfigPath string              `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
+	Tty        bool                `json:"tty"`
+	Network    *Network            `json:"network"`
+	Config     map[string][]string `json:"config"` //  generic values that specific drivers can consume
+	Resources  *Resources          `json:"resources"`
+	Mounts     []Mount             `json:"mounts"`
 
 	Terminal     Terminal `json:"-"`             // standard or tty terminal
 	Console      string   `json:"-"`             // dev/console path

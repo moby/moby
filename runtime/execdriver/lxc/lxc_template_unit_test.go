@@ -75,9 +75,10 @@ func TestCustomLxcConfig(t *testing.T) {
 	command := &execdriver.Command{
 		ID:         "1",
 		Privileged: false,
-		Config: []string{
+		Config: map[string][]string{"lxc": {
 			"lxc.utsname = docker",
 			"lxc.cgroup.cpuset.cpus = 0,1",
+		},
 		},
 		Network: &execdriver.Network{
 			Mtu:       1500,

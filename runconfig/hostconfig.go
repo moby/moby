@@ -13,6 +13,7 @@ type HostConfig struct {
 	PortBindings    nat.PortMap
 	Links           []string
 	PublishAllPorts bool
+	PluginOptions   map[string][]string
 }
 
 type KeyValuePair struct {
@@ -28,6 +29,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
+	job.GetenvJson("PluginOptions", &hostConfig.PluginOptions)
 	if Binds := job.GetenvList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds
 	}

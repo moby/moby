@@ -361,7 +361,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func populateCommand(c *Container) {
 	var (
 		en           *execdriver.Network
-		driverConfig []string
+		driverConfig = c.hostConfig.PluginOptions
 	)
 
 	en = &execdriver.Network{
@@ -379,11 +379,15 @@ func populateCommand(c *Container) {
 		}
 	}
 
+	// merge in the lxc conf options into the generic config map
 	if lxcConf := c.hostConfig.LxcConf; lxcConf != nil {
+		lxc := driverConfig["lxc"]
 		for _, pair := range lxcConf {
-			driverConfig = append(driverConfig, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
+			lxc = append(lxc, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
 		}
+		driverConfig["lxc"] = lxc
 	}
+
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
