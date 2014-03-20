@@ -149,6 +149,27 @@ find_dirs() {
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
 }
 
+hash_files() {
+	while [ $# -gt 0 ]; do
+		f="$1"
+		shift
+		dir="$(dirname "$f")"
+		base="$(basename "$f")"
+		for hashAlgo in md5 sha256; do
+			if command -v "${hashAlgo}sum" &> /dev/null; then
+				(
+					# subshell and cd so that we get output files like:
+					#   $HASH docker-$VERSION
+					# instead of:
+					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
+					cd "$dir"
+					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
+				)
+			fi
+		done
+	done
+}
+
 bundle() {
 	bundlescript=$1
 	bundle=$(basename $bundlescript)

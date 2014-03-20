@@ -122,91 +122,113 @@ build_all() {
 	fi
 }
 
+upload_release_build() {
+	src="$1"
+	dst="$2"
+	latest="$3"
+
+	echo
+	echo "Uploading $src"
+	echo "  to $dst"
+	echo
+	s3cmd --follow-symlinks --preserve --acl-public put "$src" "$dst"
+	if [ "$latest" ]; then
+		echo
+		echo "Copying to $latest"
+		echo
+		s3cmd --acl-public cp "$dst" "$latest"
+	fi
+
+	# get hash files too (see hash_files() in hack/make.sh)
+	for hashAlgo in md5 sha256; do
+		if [ -e "$src.$hashAlgo" ]; then
+			echo
+			echo "Uploading $src.$hashAlgo"
+			echo "  to $dst.$hashAlgo"
+			echo
+			s3cmd --follow-symlinks --preserve --acl-public --mime-type='text/plain' put "$src.$hashAlgo" "$dst.$hashAlgo"
+			if [ "$latest" ]; then
+				echo
+				echo "Copying to $latest.$hashAlgo"
+				echo
+				s3cmd --acl-public cp "$dst.$hashAlgo" "$latest.$hashAlgo"
+			fi
+		fi
+	done
+}
+
 release_build() {
 	GOOS=$1
 	GOARCH=$2
 
-	SOURCE_DIR=bundles/$VERSION/cross/$GOOS/$GOARCH
-	BINARY=docker-$VERSION
-	BINARY_MD5=docker-$VERSION.md5
-	BINARY_SHA256=docker-$VERSION.sha256
-	TGZ=docker-$VERSION.tgz
+	binDir=bundles/$VERSION/cross/$GOOS/$GOARCH
+	tgzDir=bundles/$VERSION/tgz/$GOOS/$GOARCH
+	binary=docker-$VERSION
+	tgz=docker-$VERSION.tgz
+
+	latestBase=
+	if [ -z "$NOLATEST" ]; then
+		latestBase=docker-latest
+	fi
 
 	# we need to map our GOOS and GOARCH to uname values
 	# see https://en.wikipedia.org/wiki/Uname
 	# ie, GOOS=linux -> "uname -s"=Linux
 
-	S3OS=$GOOS
-	case "$S3OS" in
+	s3Os=$GOOS
+	case "$s3Os" in
 		darwin)
-			S3OS=Darwin
+			s3Os=Darwin
 			;;
 		freebsd)
-			S3OS=FreeBSD
+			s3Os=FreeBSD
 			;;
 		linux)
-			S3OS=Linux
+			s3Os=Linux
 			;;
 		*)
-			echo >&2 "error: can't convert $S3OS to an appropriate value for 'uname -s'"
+			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
 			exit 1
 			;;
 	esac
 
-	S3ARCH=$GOARCH
-	case "$S3ARCH" in
+	s3Arch=$GOARCH
+	case "$s3Arch" in
 		amd64)
-			S3ARCH=x86_64
+			s3Arch=x86_64
 			;;
 		386)
-			S3ARCH=i386
+			s3Arch=i386
 			;;
 		arm)
-			S3ARCH=armel
+			s3Arch=armel
 			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
 			;;
 		*)
-			echo >&2 "error: can't convert $S3ARCH to an appropriate value for 'uname -m'"
+			echo >&2 "error: can't convert $s3Arch to an appropriate value for 'uname -m'"
 			exit 1
 			;;
 	esac
 
-	S3DIR=s3://$BUCKET/builds/$S3OS/$S3ARCH
+	s3Dir=s3://$BUCKET/builds/$s3Os/$s3Arch
+	latest=
+	latestTgz=
+	if [ "$latestBase" ]; then
+		latest="$s3Dir/$latestBase"
+		latestTgz="$s3Dir/$latestBase.tgz"
+	fi
 
-	if [ ! -x "$SOURCE_DIR/$BINARY" ]; then
-		echo >&2 "error: can't find $SOURCE_DIR/$BINARY - was it compiled properly?"
+	if [ ! -x "$binDir/$binary" ]; then
+		echo >&2 "error: can't find $binDir/$binary - was it compiled properly?"
 		exit 1
 	fi
-	if [ ! -f "$TGZ" ]; then
-		echo >&2 "error: can't find $TGZ - was it packaged properly?"
+	if [ ! -f "$tgzDir/$tgz" ]; then
+		echo >&2 "error: can't find $tgzDir/$tgz - was it packaged properly?"
 		exit 1
 	fi
 
-	echo "Uploading $BINARY to $S3OS/$S3ARCH/docker-$VERSION"
-	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY $S3DIR/$BINARY
-
-	echo "Uploading $BINARY_MD5 to $S3OS/$S3ARCH/docker-$VERSION.md5"
-	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY_MD5 $S3DIR/$BINARY_MD5
-
-	echo "Uploading $BINARY_SHA256 to $S3OS/$S3ARCH/docker-$VERSION.sha256"
-	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$BINARY_SHA256 $S3DIR/$BINARY_SHA256
-
-	echo "Uploading $TGZ to $S3OS/$S3ARCH/docker-$VERSION.tgz"
-	s3cmd --follow-symlinks --preserve --acl-public put $SOURCE_DIR/$TGZ $S3DIR/$TGZ
-
-	if [ -z "$NOLATEST" ]; then
-		echo "Copying $S3DIR/$BINARY to $S3DIR/docker-latest"
-		s3cmd --acl-public cp $S3DIR/$BINARY $S3DIR/docker-latest
-
-		echo "Copying $S3DIR/$BINARY_MD5 to $S3DIR/docker-latest.md5"
-		s3cmd --acl-public cp $S3DIR/$BINARY_MD5 $S3DIR/docker-latest.md5
-
-		echo "Copying $S3DIR/$BINARY_SHA256 to $S3DIR/docker-latest.sha256"
-		s3cmd --acl-public cp $S3DIR/$BINARY_SHA256 $S3DIR/docker-latest.sha256
-
-		echo "Copying $S3DIR/$TGZ $S3DIR/docker-latest.tgz"
-		s3cmd --acl-public cp $S3DIR/$TGZ $S3DIR/docker-latest.tgz
-	fi
+	upload_release_build "$binDir/$binary" "$s3Dir/$binary" "$latest"
+	upload_release_build "$tgzDir/$tgz" "$s3Dir/$tgz" "$latestTgz"
 }
 
 # Upload the 'ubuntu' bundle to S3:
@@ -217,8 +239,6 @@ release_ubuntu() {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
 		exit 1
 	}
-	
-	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
 
 	# Sign our packages
 	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker \
@@ -318,10 +338,11 @@ release_test() {
 setup_gpg() {
 	# Make sure that we have our keys
 	mkdir -p /.gnupg/
+	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
 	gpg --list-keys releasedocker >/dev/null || {
 		gpg --gen-key --batch <<EOF
 Key-Type: RSA
-Key-Length: 2048
+Key-Length: 4096
 Passphrase: $GPG_PASSPHRASE
 Name-Real: Docker Release Tool
 Name-Email: docker@dotcloud.com
