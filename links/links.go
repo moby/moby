@@ -47,6 +47,20 @@ func (l *Link) Alias() string {
 	return alias
 }
 
+func nextContiguous(ports []nat.Port, value int, index int) int {
+	if index + 1 == len(ports) {
+		return index
+	}
+	for i := index + 1; i < len(ports); i++ {
+		if ports[i].Int() > value + 1 {
+			return i - 1
+		}
+
+		value++
+	}
+	return len(ports) - 1
+}
+
 func (l *Link) ToEnv() []string {
 	env := []string{}
 	alias := strings.ToUpper(l.Alias())
@@ -55,12 +69,33 @@ func (l *Link) ToEnv() []string {
 		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
 	}
 
-	// Load exposed ports into the environment
-	for _, p := range l.Ports {
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+	nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
+		// If the two ports have the same number, tcp takes priority
+		// Sort in desc order
+		return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
+	})
+
+	for i := 0; i < len(l.Ports); i++ {
+		p := l.Ports[i]
+		j := nextContiguous(l.Ports, i, p.Int())
+		if j > i + 1 {
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_START=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_START=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
+
+			p = l.Ports[j]
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_END=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_END=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
+
+			i = j + 1
+			continue
+		} else {
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+		}		
 	}
 
 	// Load the linked container's name into the environment
@@ -124,8 +159,8 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 	job.SetenvBool("IgnoreErrors", ignoreErrors)
 
 	out := make([]string, len(l.Ports))
-	for i, p := range l.Ports {
-		out[i] = fmt.Sprintf("%s/%s", p.Port(), p.Proto())
+	for i, prange := range l.Ports {
+		out[i] = string(prange)
 	}
 	job.SetenvList("Ports", out)
 

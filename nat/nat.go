@@ -40,23 +40,19 @@ func ParsePort(rawPort string) (int, error) {
 }
 
 func (p Port) Proto() string {
-	parts := strings.Split(string(p), "/")
-	if len(parts) == 1 {
-		return "tcp"
-	}
-	return parts[1]
+	proto, _ := SplitProtoPort(string(p))
+	return proto
 }
 
 func (p Port) Port() string {
-	return strings.Split(string(p), "/")[0]
+	_, port := SplitProtoPort(string(p))
+	return port
 }
 
 func (p Port) Int() int {
-	i, err := ParsePort(p.Port())
-	if err != nil {
-		panic(err)
-	}
-	return i
+	_, rawPort := SplitProtoPort(string(p))
+	port, _ := ParsePort(rawPort)
+	return port
 }
 
 // Splits a port in the format of port/proto

@@ -9,13 +9,14 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 )
 
 var (
 	ErrInvalidWorikingDirectory = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
+	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: -rm and -d")
 )
 
 //FIXME Only used in tests
@@ -74,7 +75,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -173,9 +174,22 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		if strings.Contains(e, ":") {
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
-		p := nat.NewPort(nat.SplitProtoPort(e))
-		if _, exists := ports[p]; !exists {
-			ports[p] = struct{}{}
+
+		if strings.Contains(e, "-") {
+			parts := strings.Split(e, "-")
+			start,_ := strconv.Atoi(parts[0])
+			end,_ := strconv.Atoi(parts[1])
+			for i := start; i <= end; i++ {
+				p := nat.NewPort("tcp",strconv.Itoa(i))
+				if _, exists := ports[p]; !exists {
+					ports[p] = struct{}{}
+				}
+			}
+		} else {
+			p := nat.NewPort(nat.SplitProtoPort(e))
+			if _, exists := ports[p]; !exists {
+				ports[p] = struct{}{}
+			}
 		}
 	}
 
