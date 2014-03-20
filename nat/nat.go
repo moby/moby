@@ -50,9 +50,7 @@ func (p Port) Port() string {
 }
 
 func (p Port) Int() int {
-	_, rawPort := SplitProtoPort(string(p))
-	port, _ := ParsePort(rawPort)
-	return port
+	return ParsePort(p.Port())
 }
 
 // Splits a port in the format of port/proto
