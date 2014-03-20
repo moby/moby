@@ -50,7 +50,11 @@ func (p Port) Port() string {
 }
 
 func (p Port) Int() int {
-	return ParsePort(p.Port())
+	port, err := ParsePort(p.Port())
+	if err != nil {
+		panic(err)
+	}
+	return port
 }
 
 // Splits a port in the format of port/proto
