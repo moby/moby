@@ -117,11 +117,18 @@ func InitServer(job *engine.Job) engine.Status {
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
 		"auth":             srv.Auth,
+
+		"nuke": srv.Nuke,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			return job.Error(err)
 		}
 	}
+	return engine.StatusOK
+}
+
+func (srv *Server) Nuke(job *engine.Job) engine.Status {
+	srv.runtime.Nuke()
 	return engine.StatusOK
 }
 
