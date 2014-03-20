@@ -746,6 +746,14 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			continue
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
+			if b.image != "" {
+				fmt.Fprintf(b.outStream, "Stopped at %s\n", utils.TruncateID(b.image))
+				if b.rm {
+					for c := range b.tmpContainers {
+						fmt.Fprintf(b.outStream, "Left behind intermediate container %s\n", utils.TruncateID(c))
+					}
+				}
+			}
 			return "", err
 		}
 		stepN += 1
