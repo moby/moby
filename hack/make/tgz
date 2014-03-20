@@ -23,6 +23,8 @@ for d in "$CROSS/"*/*; do
 	
 	tar --numeric-owner --owner 0 -C "$DEST/build" -czf "$TGZ" usr
 	
+	hash_files "$TGZ"
+	
 	rm -rf "$DEST/build"
 	
 	echo "Created tgz: $TGZ"
