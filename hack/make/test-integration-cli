@@ -1,37 +1,28 @@
 #!/bin/bash
 
 DEST=$1
-DOCKERBIN=$DEST/../binary/docker-$VERSION
-DYNDOCKERBIN=$DEST/../dynbinary/docker-$VERSION
-DOCKERINITBIN=$DEST/../dynbinary/dockerinit-$VERSION
 
 set -e
+
+# subshell so that we can export PATH without breaking other things
+(
+export PATH="$DEST/../binary:$DEST/../dynbinary:$PATH"
 
 bundle_test_integration_cli() {
 	go_test_dir ./integration-cli
 }
 
-if [ -x "/usr/bin/docker" ]; then
-	echo "docker found at /usr/bin/docker"
-elif [ -x "$DOCKERBIN" ]; then
-	ln -s $DOCKERBIN /usr/bin/docker
-elif [ -x "$DYNDOCKERBIN" ]; then
-	ln -s $DYNDOCKERBIN /usr/bin/docker
-	ln -s $DOCKERINITBIN /usr/bin/dockerinit
-else
+if ! command -v docker &> /dev/null; then
 	echo >&2 'error: binary or dynbinary must be run before test-integration-cli'
 	false
 fi
 
-
 docker -d -D -p $DEST/docker.pid &> $DEST/docker.log &
-sleep 2
-docker info
-DOCKERD_PID=`cat $DEST/docker.pid`
 
 bundle_test_integration_cli 2>&1 \
 	| tee $DEST/test.log
 
+DOCKERD_PID=$(cat $DEST/docker.pid)
 kill $DOCKERD_PID
 wait $DOCKERD_PID
-
+)
