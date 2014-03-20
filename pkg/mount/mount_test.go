@@ -3,12 +3,11 @@ package mount
 import (
 	"os"
 	"path"
-	"syscall"
 	"testing"
 )
 
 func TestMountOptionsParsing(t *testing.T) {
-	options := "bind,ro,size=10k"
+	options := "noatime,ro,size=10k"
 
 	flag, data := parseOptions(options)
 
@@ -16,7 +15,7 @@ func TestMountOptionsParsing(t *testing.T) {
 		t.Fatalf("Expected size=10 got %s", data)
 	}
 
-	expectedFlag := syscall.MS_BIND | syscall.MS_RDONLY
+	expectedFlag := NOATIME | RDONLY
 
 	if flag != expectedFlag {
 		t.Fatalf("Expected %d got %d", expectedFlag, flag)
@@ -108,7 +107,7 @@ func TestMountReadonly(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := Unmount(targetPath); err != nil {
+		if err := Unmount(targetDir); err != nil {
 			t.Fatal(err)
 		}
 	}()
