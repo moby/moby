@@ -256,10 +256,11 @@ func parseLxcOpt(opt string) (string, string, error) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
+// options will come in the format of name.type=value
 func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
 	out := make(map[string][]string, len(opts.GetAll()))
 	for _, o := range opts.GetAll() {
-		parts := strings.SplitN(o, " ", 2)
+		parts := strings.SplitN(o, ".", 2)
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("invalid opt format %s", o)
 		}

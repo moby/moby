@@ -4,8 +4,85 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
+
+type Action func(*libcontainer.Container, interface{}, string) error
+
+var actions = map[string]Action{
+	"cap.add":     addCap,
+	"cap.drop":    dropCap,
+	"fs.readonly": readonlyFs,
+	"ns.add":      addNamespace,
+	"ns.drop":     dropNamespace,
+	"net.join":    joinNetNamespace,
+}
+
+func addCap(container *libcontainer.Container, context interface{}, value string) error {
+	c := container.CapabilitiesMask.Get(value)
+	if c == nil {
+		return fmt.Errorf("%s is not a valid capability", value)
+	}
+	c.Enabled = true
+	return nil
+}
+
+func dropCap(container *libcontainer.Container, context interface{}, value string) error {
+	c := container.CapabilitiesMask.Get(value)
+	if c == nil {
+		return fmt.Errorf("%s is not a valid capability", value)
+	}
+	c.Enabled = false
+	return nil
+}
+
+func addNamespace(container *libcontainer.Container, context interface{}, value string) error {
+	ns := container.Namespaces.Get(value)
+	if ns == nil {
+		return fmt.Errorf("%s is not a valid namespace", value[1:])
+	}
+	ns.Enabled = true
+	return nil
+}
+
+func dropNamespace(container *libcontainer.Container, context interface{}, value string) error {
+	ns := container.Namespaces.Get(value)
+	if ns == nil {
+		return fmt.Errorf("%s is not a valid namespace", value[1:])
+	}
+	ns.Enabled = false
+	return nil
+}
+
+func readonlyFs(container *libcontainer.Container, context interface{}, value string) error {
+	switch value {
+	case "1", "true":
+		container.ReadonlyFs = true
+	default:
+		container.ReadonlyFs = false
+	}
+	return nil
+}
+
+func joinNetNamespace(container *libcontainer.Container, context interface{}, value string) error {
+	var (
+		running = context.(map[string]*exec.Cmd)
+		cmd     = running[value]
+	)
+
+	if cmd == nil || cmd.Process == nil {
+		return fmt.Errorf("%s is not a valid running container to join", value)
+	}
+	nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
+	container.Networks = append(container.Networks, &libcontainer.Network{
+		Type: "netns",
+		Context: libcontainer.Context{
+			"nspath": nspath,
+		},
+	})
+	return nil
+}
 
 // configureCustomOptions takes string commands from the user and allows modification of the
 // container's default configuration.
@@ -14,25 +91,17 @@ import (
 // i.e: cgroup devices.allow *:*
 func ParseConfiguration(container *libcontainer.Container, running map[string]*exec.Cmd, opts []string) error {
 	for _, opt := range opts {
-		var (
-			err   error
-			parts = strings.Split(strings.TrimSpace(opt), " ")
-		)
-		if len(parts) < 2 {
-			return fmt.Errorf("invalid native driver opt %s", opt)
+		kv := strings.SplitN(opt, "=", 2)
+		if len(kv) < 2 {
+			return fmt.Errorf("invalid format for %s", opt)
 		}
 
-		switch parts[0] {
-		case "cap":
-			err = parseCapOpt(container, parts[1:])
-		case "ns":
-			err = parseNsOpt(container, parts[1:])
-		case "net":
-			err = parseNetOpt(container, running, parts[1:])
-		default:
-			return fmt.Errorf("%s is not a valid configuration option for the native driver", parts[0])
+		action, exists := actions[kv[0]]
+		if !exists {
+			return fmt.Errorf("%s is not a valid option for the native driver", kv[0])
 		}
-		if err != nil {
+
+		if err := action(container, running, kv[1]); err != nil {
 			return err
 		}
 	}
