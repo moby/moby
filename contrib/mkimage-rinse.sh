@@ -8,31 +8,94 @@
 
 set -e
 
-repo="$1"
-distro="$2"
-mirror="$3"
+function usage() {
+    self="$(basename $0)"
+    cat << EOF
+usage: $self --repo repo --distro distro [--mirror mirror]
+   [--arch (amd64|i386)] [--add-pkg-list <file>]
+   [--before-post-install <script>]
+   [--after-post-install <script>]
+   [--post-install <script>]
 
-if [ ! "$repo" ] || [ ! "$distro" ]; then
-	self="$(basename $0)"
-	echo >&2 "usage: $self repo distro [mirror]"
-	echo >&2
-	echo >&2 "   ie: $self username/centos centos-5"
-	echo >&2 "       $self username/centos centos-6"
-	echo >&2
-	echo >&2 "   ie: $self username/slc slc-5"
-	echo >&2 "       $self username/slc slc-6"
-	echo >&2
-	echo >&2 "   ie: $self username/centos centos-5 http://vault.centos.org/5.8/os/x86_64/CentOS/"
-	echo >&2 "       $self username/centos centos-6 http://vault.centos.org/6.3/os/x86_64/Packages/"
-	echo >&2
-	echo >&2 'See /etc/rinse for supported values of "distro" and for examples of'
-	echo >&2 '  expected values of "mirror".'
-	echo >&2
-	echo >&2 'This script is tested to work with the original upstream version of rinse,'
-	echo >&2 '  found at http://www.steve.org.uk/Software/rinse/ and also in Debian at'
-	echo >&2 '  http://packages.debian.org/wheezy/rinse -- as always, YMMV.'
-	echo >&2
-	exit 1
+   ie: $self --repo username/centos --distro centos-5
+       $self --repo username/centos --distro centos-6
+
+   ie: $self --repo username/slc --distro slc-5
+       $self --repo username/slc --distro slc-6
+
+   ie: $self --repo username/centos --distro centos-5 --mirror  http://vault.centos.org/5.8/os/x86_64/CentOS/
+       $self --repo username/centos --distro centos-6 --mirror  http://vault.centos.org/6.3/os/x86_64/Packages/
+
+See /etc/rinse for supported values of "distro" and for examples of
+  expected values of "mirror".
+
+This script was tested with rinse 2.0.1. You can find it
+at http://www.steve.org.uk/Software/rinse/ and also in Debian at
+http://packages.debian.org/wheezy/rinse -- as always, YMMV.
+
+EOF
+exit 1
+}
+
+repo=
+distro=
+mirror=
+arch=amd64
+add_pkg_list=
+after_post_install=
+before_post_install=
+post_install=
+
+while test $# -gt 0; do
+    case "$1" in
+        -h|--help)
+            usage
+            ;;
+        -r|--repo)
+            repo=$2
+            shift 2
+            ;;
+        -d|--distro)
+            distro=$2
+            shift 2
+            ;;
+        -m|--mirror)
+            mirror=$2
+            shift 2
+            ;;
+        -a|--arch)
+            arch=$2
+            shift 2
+            ;;
+        --add-pkg-list)
+            add_pkg_list=$2
+            shift 2
+            ;;
+        --after-post-install)
+            after_post_install=$2
+            shift 2
+            ;;
+        --before-post-install)
+            before_post_install=$2
+            shift 2
+            ;;
+        --post-install)
+            post_install=$2
+            shift 2
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+if [ -z "$repo" ] || [ -z "$distro" ]; then
+    usage
+fi
+
+if [ "$arch" != "amd64" ] && [ "$arch" != "i386" ]; then
+    echo "Arch must be either amd64 or i386"
+    usage
 fi
 
 target="/tmp/docker-rootfs-rinse-$distro-$$-$RANDOM"
@@ -40,9 +103,25 @@ target="/tmp/docker-rootfs-rinse-$distro-$$-$RANDOM"
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"
 
-rinseArgs=( --arch amd64 --distribution "$distro" --directory "$target" )
+rinseArgs=( --arch "$arch" --distribution "$distro" --directory "$target" )
 if [ "$mirror" ]; then
 	rinseArgs+=( --mirror "$mirror" )
+fi
+
+if [ "$add_pkg_list" ]; then
+	rinseArgs+=( --add-pkg-list "$add_pkg_list" )
+fi
+
+if [ "$after_post_install" ]; then
+	rinseArgs+=( --after-post-install "$after_post_install" )
+fi
+
+if [ "$before_post_install" ]; then
+	rinseArgs+=( --before-post-install "$before_post_install" )
+fi
+
+if [ "$post_install" ]; then
+	rinseArgs+=( --post-install "$post_install" )
 fi
 
 set -x
@@ -113,7 +192,7 @@ fi
 
 sudo tar --numeric-owner -c . | docker import - $repo:$version
 
-docker run -i -t $repo:$version echo success
+docker run -i -t --rm=true $repo:$version echo success
 
 cd "$returnTo"
 sudo rm -rf "$target"
