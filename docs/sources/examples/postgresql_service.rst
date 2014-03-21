@@ -37,7 +37,7 @@ And run the PostgreSQL server container (in the foreground):
 
 .. code-block:: bash
 
-    $ sudo docker run --rm -P -name pg_test eg_postgresql
+    $ sudo docker run --rm -P --name pg_test eg_postgresql
 
 There are  2 ways to connect to the PostgreSQL server. We can use 
 :ref:`working_with_links_names`, or we can access it from our host (or the network).

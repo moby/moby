@@ -129,7 +129,7 @@ because they are external to images.
 Instead you can use ``--volumes-from`` to start a new container that can access the
 data-container's volume. For example::
 
-    $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
+    $ sudo docker run --rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
 
 * ``--rm`` - remove the container when it exits
 * ``--volumes-from DATA`` - attach to the volumes shared by the ``DATA`` container
@@ -140,7 +140,7 @@ data-container's volume. For example::
 Then to restore to the same container, or another that you've made elsewhere::
 
     # create a new data container
-    $ sudo docker run -v /data -name DATA2 busybox true
+    $ sudo docker run -v /data --name DATA2 busybox true
     # untar the backup files into the new container's data volume
     $ sudo docker run --rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
     data/
