@@ -15,6 +15,7 @@ import (
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/runtime/execdriver/execdrivers"
+	"github.com/dotcloud/docker/runtime/execdriver/foreground"
 	"github.com/dotcloud/docker/runtime/execdriver/lxc"
 	"github.com/dotcloud/docker/runtime/graphdriver"
 	_ "github.com/dotcloud/docker/runtime/graphdriver/vfs"
@@ -154,6 +155,10 @@ func (runtime *Runtime) Register(container *Container) error {
 
 	container.execDriver = runtime.execDriver
 	container.runtime = runtime
+
+	if container.hostConfig.CliAddress != "" {
+		container.execDriver = foreground.NewDriver(container.hostConfig.CliAddress, runtime.config.Root, runtime.sysInitPath, runtime.execDriver)
+	}
 
 	// Attach to stdout and stderr
 	container.stderr = utils.NewWriteBroadcaster()
