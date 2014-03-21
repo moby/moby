@@ -364,6 +364,10 @@ func populateCommand(c *Container) {
 		driverConfig = c.hostConfig.PluginOptions
 	)
 
+	if driverConfig == nil {
+		driverConfig = make(map[string][]string)
+	}
+
 	en = &execdriver.Network{
 		Mtu:       c.runtime.config.Mtu,
 		Interface: nil,

@@ -59,7 +59,7 @@ func init() {
 type driver struct {
 	root             string
 	initPath         string
-	activeContainers map[string]*execdriver.Command
+	activeContainers map[string]*exec.Cmd
 }
 
 func NewDriver(root, initPath string) (*driver, error) {
@@ -72,16 +72,20 @@ func NewDriver(root, initPath string) (*driver, error) {
 	return &driver{
 		root:             root,
 		initPath:         initPath,
-		activeContainers: make(map[string]*execdriver.Command),
+		activeContainers: make(map[string]*exec.Cmd),
 	}, nil
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	d.activeContainers[c.ID] = c
+	// take the Command and populate the libcontainer.Container from it
+	container, err := d.createContainer(c)
+	if err != nil {
+		return -1, err
+	}
+	d.activeContainers[c.ID] = &c.Cmd
 
 	var (
 		term        nsinit.Terminal
-		container   = d.createContainer(c)
 		factory     = &dockerCommandFactory{c: c, driver: d}
 		stateWriter = &dockerStateWriter{
 			callback: startCallback,
