@@ -5,18 +5,70 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 type Action func(*libcontainer.Container, interface{}, string) error
 
 var actions = map[string]Action{
-	"cap.add":     addCap,
-	"cap.drop":    dropCap,
-	"fs.readonly": readonlyFs,
-	"ns.add":      addNamespace,
-	"ns.drop":     dropNamespace,
-	"net.join":    joinNetNamespace,
+	"cap.add":  addCap,  // add a cap
+	"cap.drop": dropCap, // drop a cap
+
+	"ns.add":  addNamespace,  // add a namespace
+	"ns.drop": dropNamespace, // drop a namespace when cloning
+
+	"net.join": joinNetNamespace, // join another containers net namespace
+	//	"net.veth.mac": vethMacAddress,   // set the mac address for the veth
+
+	"cgroups.cpu_shares":  cpuShares,  // set the cpu shares
+	"cgroups.memory":      memory,     // set the memory limit
+	"cgroups.memory_swap": memorySwap, // set the memory swap limit
+
+	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
+
+	"fs.readonly": readonlyFs, // make the rootfs of the container read only
+}
+
+func apparmorProfile(container *libcontainer.Container, context interface{}, value string) error {
+	container.Context["apparmor_profile"] = value
+	return nil
+}
+
+func cpuShares(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	v, err := strconv.ParseInt(value, 0, 64)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.CpuShares = v
+	return nil
+}
+
+func memory(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	v, err := strconv.ParseInt(value, 0, 64)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.Memory = v
+	return nil
+}
+
+func memorySwap(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	v, err := strconv.ParseInt(value, 0, 64)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.MemorySwap = v
+	return nil
 }
 
 func addCap(container *libcontainer.Container, context interface{}, value string) error {
@@ -81,6 +133,22 @@ func joinNetNamespace(container *libcontainer.Container, context interface{}, va
 			"nspath": nspath,
 		},
 	})
+	return nil
+}
+
+func vethMacAddress(container *libcontainer.Container, context interface{}, value string) error {
+	var veth *libcontainer.Network
+
+	for _, network := range container.Networks {
+		if network.Type == "veth" {
+			veth = network
+			break
+		}
+	}
+	if veth == nil {
+		return fmt.Errorf("not veth configured for container")
+	}
+	veth.Context["mac"] = value
 	return nil
 }
 
