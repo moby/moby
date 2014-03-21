@@ -18,21 +18,21 @@ var (
 	namespaceList = Namespaces{}
 
 	capabilityList = Capabilities{
-		{Key: "SETPCAP", Value: capability.CAP_SETPCAP, Enabled: true},
-		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE, Enabled: true},
-		{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO, Enabled: true},
-		{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT, Enabled: true},
-		{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN, Enabled: true},
-		{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE, Enabled: true},
-		{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE, Enabled: true},
-		{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME, Enabled: true},
-		{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG, Enabled: true},
-		{Key: "MKNOD", Value: capability.CAP_MKNOD, Enabled: true},
-		{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE, Enabled: true},
-		{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL, Enabled: true},
-		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE, Enabled: true},
-		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN, Enabled: true},
-		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN, Enabled: true},
+		{Key: "SETPCAP", Value: capability.CAP_SETPCAP, Enabled: false},
+		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE, Enabled: false},
+		{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO, Enabled: false},
+		{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT, Enabled: false},
+		{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN, Enabled: false},
+		{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE, Enabled: false},
+		{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE, Enabled: false},
+		{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME, Enabled: false},
+		{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG, Enabled: false},
+		{Key: "MKNOD", Value: capability.CAP_MKNOD, Enabled: false},
+		{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE, Enabled: false},
+		{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL, Enabled: false},
+		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE, Enabled: false},
+		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN, Enabled: false},
+		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN, Enabled: false},
 	}
 )
 
@@ -86,7 +86,8 @@ func (c *Capability) String() string {
 func GetCapability(key string) *Capability {
 	for _, capp := range capabilityList {
 		if capp.Key == key {
-			return capp
+			cpy := *capp
+			return &cpy
 		}
 	}
 	return nil
@@ -95,10 +96,14 @@ func GetCapability(key string) *Capability {
 // Contains returns true if the specified Capability is
 // in the slice
 func (c Capabilities) Contains(capp string) bool {
+	return c.Get(capp) != nil
+}
+
+func (c Capabilities) Get(capp string) *Capability {
 	for _, cap := range c {
 		if cap.Key == capp {
-			return true
+			return cap
 		}
 	}
-	return false
+	return nil
 }

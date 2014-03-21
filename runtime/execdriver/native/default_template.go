@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"os"
+	"strings"
 )
 
 // createContainer populates and configures the container type with the
@@ -63,7 +64,37 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Mounts = append(container.Mounts, libcontainer.Mount{m.Source, m.Destination, m.Writable, m.Private})
 	}
 
+	configureCustomOptions(container, c.Config["native"])
+
 	return container
+}
+
+// configureCustomOptions takes string commands from the user and allows modification of the
+// container's default configuration.
+//
+// format: <key> <value>
+// i.e: cap +MKNOD cap -NET_ADMIN
+// i.e: cgroup devices.allow *:*
+func configureCustomOptions(container *libcontainer.Container, opts []string) {
+	for _, opt := range opts {
+		parts := strings.Split(strings.TrimSpace(opt), " ")
+		switch parts[0] {
+		case "cap":
+			value := strings.TrimSpace(parts[1])
+			c := container.CapabilitiesMask.Get(value[1:])
+			if c == nil {
+				continue
+			}
+			switch value[0] {
+			case '-':
+				c.Enabled = false
+			case '+':
+				c.Enabled = true
+			default:
+				// do error here
+			}
+		}
+	}
 }
 
 // getDefaultTemplate returns the docker default for
