@@ -18,6 +18,9 @@ func ParseConfiguration(container *libcontainer.Container, running map[string]*e
 			err   error
 			parts = strings.Split(strings.TrimSpace(opt), " ")
 		)
+		if len(parts) < 2 {
+			return fmt.Errorf("invalid native driver opt %s", opt)
+		}
 
 		switch parts[0] {
 		case "cap":
