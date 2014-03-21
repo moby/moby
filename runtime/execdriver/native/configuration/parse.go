@@ -3,6 +3,7 @@ package configuration
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/utils"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -19,15 +20,38 @@ var actions = map[string]Action{
 	"ns.drop": dropNamespace, // drop a namespace when cloning
 
 	"net.join": joinNetNamespace, // join another containers net namespace
-	//	"net.veth.mac": vethMacAddress,   // set the mac address for the veth
 
 	"cgroups.cpu_shares":  cpuShares,  // set the cpu shares
 	"cgroups.memory":      memory,     // set the memory limit
 	"cgroups.memory_swap": memorySwap, // set the memory swap limit
+	"cgroups.cpuset.cpus": cpusetCpus, // set the cpus used
 
 	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
 
 	"fs.readonly": readonlyFs, // make the rootfs of the container read only
+}
+
+// GetSupportedActions returns a list of all the avaliable actions supported by the driver
+// TODO: this should return a description also
+func GetSupportedActions() []string {
+	var (
+		i   int
+		out = make([]string, len(actions))
+	)
+	for k := range actions {
+		out[i] = k
+		i++
+	}
+	return out
+}
+
+func cpusetCpus(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	container.Cgroups.CpusetCpus = value
+
+	return nil
 }
 
 func apparmorProfile(container *libcontainer.Container, context interface{}, value string) error {
@@ -39,7 +63,7 @@ func cpuShares(container *libcontainer.Container, context interface{}, value str
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
-	v, err := strconv.ParseInt(value, 0, 64)
+	v, err := strconv.ParseInt(value, 10, 0)
 	if err != nil {
 		return err
 	}
@@ -51,7 +75,8 @@ func memory(container *libcontainer.Container, context interface{}, value string
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
-	v, err := strconv.ParseInt(value, 0, 64)
+
+	v, err := utils.RAMInBytes(value)
 	if err != nil {
 		return err
 	}
@@ -138,7 +163,6 @@ func joinNetNamespace(container *libcontainer.Container, context interface{}, va
 
 func vethMacAddress(container *libcontainer.Container, context interface{}, value string) error {
 	var veth *libcontainer.Network
-
 	for _, network := range container.Networks {
 		if network.Type == "veth" {
 			veth = network
@@ -155,8 +179,7 @@ func vethMacAddress(container *libcontainer.Container, context interface{}, valu
 // configureCustomOptions takes string commands from the user and allows modification of the
 // container's default configuration.
 //
-// format: <key> <...value>
-// i.e: cgroup devices.allow *:*
+// TODO: this can be moved to a general utils or parser in pkg
 func ParseConfiguration(container *libcontainer.Container, running map[string]*exec.Cmd, opts []string) error {
 	for _, opt := range opts {
 		kv := strings.SplitN(opt, "=", 2)
