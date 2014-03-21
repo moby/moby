@@ -57,8 +57,9 @@ func init() {
 }
 
 type driver struct {
-	root     string
-	initPath string
+	root             string
+	initPath         string
+	activeContainers map[string]*execdriver.Command
 }
 
 func NewDriver(root, initPath string) (*driver, error) {
@@ -69,15 +70,18 @@ func NewDriver(root, initPath string) (*driver, error) {
 		return nil, err
 	}
 	return &driver{
-		root:     root,
-		initPath: initPath,
+		root:             root,
+		initPath:         initPath,
+		activeContainers: make(map[string]*execdriver.Command),
 	}, nil
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	d.activeContainers[c.ID] = c
+
 	var (
 		term        nsinit.Terminal
-		container   = createContainer(c)
+		container   = d.createContainer(c)
 		factory     = &dockerCommandFactory{c: c, driver: d}
 		stateWriter = &dockerStateWriter{
 			callback: startCallback,

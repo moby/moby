@@ -6,12 +6,13 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func createContainer(c *execdriver.Command) *libcontainer.Container {
+func (d *driver) createContainer(c *execdriver.Command) *libcontainer.Container {
 	container := getDefaultTemplate()
 
 	container.Hostname = getEnv("HOSTNAME", c.Env)
@@ -64,7 +65,7 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 		container.Mounts = append(container.Mounts, libcontainer.Mount{m.Source, m.Destination, m.Writable, m.Private})
 	}
 
-	configureCustomOptions(container, c.Config["native"])
+	d.configureCustomOptions(container, c.Config["native"])
 
 	return container
 }
@@ -75,7 +76,8 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 // format: <key> <value>
 // i.e: cap +MKNOD cap -NET_ADMIN
 // i.e: cgroup devices.allow *:*
-func configureCustomOptions(container *libcontainer.Container, opts []string) {
+// i.e: net join <name>
+func (d *driver) configureCustomOptions(container *libcontainer.Container, opts []string) {
 	for _, opt := range opts {
 		var (
 			parts = strings.Split(strings.TrimSpace(opt), " ")
@@ -105,6 +107,26 @@ func configureCustomOptions(container *libcontainer.Container, opts []string) {
 			default:
 				// error
 			}
+		case "net":
+			switch strings.TrimSpace(parts[1]) {
+			case "join":
+				var (
+					id     = strings.TrimSpace(parts[2])
+					cmd    = d.activeContainers[id]
+					nspath = filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
+				)
+
+				container.Networks = append(container.Networks, &libcontainer.Network{
+					Type: "netns",
+					Context: libcontainer.Context{
+						"nspath": nspath,
+					},
+				})
+			default:
+				// error
+			}
+		default:
+			// error not defined
 		}
 	}
 }
