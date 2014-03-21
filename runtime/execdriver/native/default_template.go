@@ -77,10 +77,12 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 // i.e: cgroup devices.allow *:*
 func configureCustomOptions(container *libcontainer.Container, opts []string) {
 	for _, opt := range opts {
-		parts := strings.Split(strings.TrimSpace(opt), " ")
+		var (
+			parts = strings.Split(strings.TrimSpace(opt), " ")
+			value = strings.TrimSpace(parts[1])
+		)
 		switch parts[0] {
 		case "cap":
-			value := strings.TrimSpace(parts[1])
 			c := container.CapabilitiesMask.Get(value[1:])
 			if c == nil {
 				continue
@@ -92,6 +94,16 @@ func configureCustomOptions(container *libcontainer.Container, opts []string) {
 				c.Enabled = true
 			default:
 				// do error here
+			}
+		case "ns":
+			ns := container.Namespaces.Get(value[1:])
+			switch value[0] {
+			case '-':
+				ns.Enabled = false
+			case '+':
+				ns.Enabled = true
+			default:
+				// error
 			}
 		}
 	}

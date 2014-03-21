@@ -53,7 +53,8 @@ func (ns *Namespace) String() string {
 func GetNamespace(key string) *Namespace {
 	for _, ns := range namespaceList {
 		if ns.Key == key {
-			return ns
+			cpy := *ns
+			return &cpy
 		}
 	}
 	return nil
@@ -62,12 +63,16 @@ func GetNamespace(key string) *Namespace {
 // Contains returns true if the specified Namespace is
 // in the slice
 func (n Namespaces) Contains(ns string) bool {
+	return n.Get(ns) != nil
+}
+
+func (n Namespaces) Get(ns string) *Namespace {
 	for _, nsp := range n {
 		if nsp.Key == ns {
-			return true
+			return nsp
 		}
 	}
-	return false
+	return nil
 }
 
 type (
