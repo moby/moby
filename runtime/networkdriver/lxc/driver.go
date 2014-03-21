@@ -2,6 +2,7 @@ package lxc
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
@@ -13,7 +14,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"strings"
+	"strconv"
 	"syscall"
 	"unsafe"
 )
@@ -443,40 +444,38 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
-	split := func(p string) (string, string) {
-		parts := strings.Split(p, "/")
-		return parts[0], parts[1]
-	}
 
-	for _, p := range ports {
-		port, proto := split(p)
+	for _, value := range ports {
+		port := nat.Port(value)
+
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
+			"-p", port.Proto(),
 			"-s", parentIP,
-			"--dport", port,
+			"--dport", strconv.Itoa(port.Int()),
 			"-d", childIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			job.Error(err)
-			return engine.StatusErr
-		} else if len(output) != 0 {
-			job.Errorf("Error toggle iptables forward: %s", output)
-			return engine.StatusErr
-		}
+				job.Error(err)
+				return engine.StatusErr
+			} else if len(output) != 0 {
+				job.Errorf("Error toggle iptables forward: %s", output)
+				return engine.StatusErr
+			}
 
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
+			"-p", port.Proto(),
 			"-s", childIP,
-			"--sport", port,
+			"--sport", strconv.Itoa(port.Int()),
 			"-d", parentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			job.Error(err)
-			return engine.StatusErr
-		} else if len(output) != 0 {
-			job.Errorf("Error toggle iptables forward: %s", output)
-			return engine.StatusErr
-		}
+				job.Error(err)
+				return engine.StatusErr
+			} else if len(output) != 0 {
+				job.Errorf("Error toggle iptables forward: %s", output)
+				return engine.StatusErr
+			}
+
 	}
 	return engine.StatusOK
 }

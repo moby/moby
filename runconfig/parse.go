@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -175,9 +176,22 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		if strings.Contains(e, ":") {
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
-		p := nat.NewPort(nat.SplitProtoPort(e))
-		if _, exists := ports[p]; !exists {
-			ports[p] = struct{}{}
+
+		if strings.Contains(e, "-") {
+			parts := strings.Split(e, "-")
+			start,_ := strconv.Atoi(parts[0])
+			end,_ := strconv.Atoi(parts[1])
+			for i := start; i <= end; i++ {
+				p := nat.NewPort("tcp",strconv.Itoa(i))
+				if _, exists := ports[p]; !exists {
+					ports[p] = struct{}{}
+				}
+			}
+		} else {
+			p := nat.NewPort(nat.SplitProtoPort(e))
+			if _, exists := ports[p]; !exists {
+				ports[p] = struct{}{}
+			}
 		}
 	}
 
