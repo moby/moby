@@ -152,7 +152,7 @@ go_test_dir() {
 # holding certain files ($1 parameter), and prints their paths on standard
 # output, one per line.
 find_dirs() {
-	find -not \( \
+	find . -not \( \
 		\( \
 			-wholename './vendor' \
 			-o -wholename './integration' \
