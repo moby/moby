@@ -1,4 +1,4 @@
-package lxc
+package bridge
 
 import (
 	"fmt"
