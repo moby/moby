@@ -4,6 +4,9 @@ package nsinit
 
 import (
 	"fmt"
+	"os"
+	"syscall"
+
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
@@ -11,8 +14,6 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
-	"os"
-	"syscall"
 )
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
@@ -56,12 +57,12 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := system.ParentDeathSignal(uintptr(syscall.SIGTERM)); err != nil {
 		return fmt.Errorf("parent death signal %s", err)
 	}
+	if err := setupNetwork(container, context); err != nil {
+		return fmt.Errorf("setup networking %s", err)
+	}
 	ns.logger.Println("setup mount namespace")
 	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
-	}
-	if err := setupNetwork(container, context); err != nil {
-		return fmt.Errorf("setup networking %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
