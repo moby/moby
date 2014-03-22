@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"text/scanner"
+	scanner "github.com/dotcloud/docker/pkg/dockerscript"
 	"strings"
 )
 
