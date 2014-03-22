@@ -31,9 +31,14 @@ func TestMounted(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	var (
-		sourcePath = path.Join(tmp, "sourcefile.txt")
-		targetPath = path.Join(tmp, "targetfile.txt")
+		sourceDir  = path.Join(tmp, "source")
+		targetDir  = path.Join(tmp, "target")
+		sourcePath = path.Join(sourceDir, "file.txt")
+		targetPath = path.Join(targetDir, "file.txt")
 	)
+
+	os.Mkdir(sourceDir, 0777)
+	os.Mkdir(targetDir, 0777)
 
 	f, err := os.Create(sourcePath)
 	if err != nil {
@@ -48,23 +53,23 @@ func TestMounted(t *testing.T) {
 	}
 	f.Close()
 
-	if err := Mount(sourcePath, targetPath, "none", "bind,rw"); err != nil {
+	if err := Mount(sourceDir, targetDir, "none", "bind,rw"); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := Unmount(targetPath); err != nil {
+		if err := Unmount(targetDir); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	mounted, err := Mounted(targetPath)
+	mounted, err := Mounted(targetDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !mounted {
-		t.Fatalf("Expected %s to be mounted", targetPath)
+		t.Fatalf("Expected %s to be mounted", targetDir)
 	}
-	if _, err := os.Stat(targetPath); err != nil {
+	if _, err := os.Stat(targetDir); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -77,9 +82,14 @@ func TestMountReadonly(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	var (
-		sourcePath = path.Join(tmp, "sourcefile.txt")
-		targetPath = path.Join(tmp, "targetfile.txt")
+		sourceDir  = path.Join(tmp, "source")
+		targetDir  = path.Join(tmp, "target")
+		sourcePath = path.Join(sourceDir, "file.txt")
+		targetPath = path.Join(targetDir, "file.txt")
 	)
+
+	os.Mkdir(sourceDir, 0777)
+	os.Mkdir(targetDir, 0777)
 
 	f, err := os.Create(sourcePath)
 	if err != nil {
@@ -94,7 +104,7 @@ func TestMountReadonly(t *testing.T) {
 	}
 	f.Close()
 
-	if err := Mount(sourcePath, targetPath, "none", "bind,ro"); err != nil {
+	if err := Mount(sourceDir, targetDir, "none", "bind,ro"); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
