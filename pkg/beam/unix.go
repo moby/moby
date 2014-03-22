@@ -27,7 +27,7 @@ func Receive(conn *net.UnixConn) ([]byte, *os.File, error) {
 	for {
 		data, fds, err := receiveUnix(conn)
 		if err != nil {
-			return nil, nil, fmt.Errorf("receive: %v", err)
+			return nil, nil, err
 		}
 		var f *os.File
 		if len(fds) > 1 {
