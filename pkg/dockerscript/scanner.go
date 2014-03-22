@@ -30,7 +30,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -336,7 +335,7 @@ func (s *Scanner) error(msg string) {
 
 func (s *Scanner) scanIdentifier() rune {
 	ch := s.next() // read character after first '_' or letter
-	for ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) {
+	for detectIdent(ch) {
 		ch = s.next()
 	}
 	return ch
@@ -563,7 +562,7 @@ redo:
 	// determine token value
 	tok := ch
 	switch {
-	case unicode.IsLetter(ch) || ch == '_':
+	case detectIdent(ch):
 		if s.Mode&ScanIdents != 0 {
 			tok = Ident
 			ch = s.scanIdentifier()
