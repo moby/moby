@@ -16,7 +16,6 @@ func Parse(src io.Reader) ([]*Command, error) {
 	s := &scanner.Scanner{}
 	s.Init(src)
 	s.Whitespace = 1<<'\t' | 1<<' '
-	//s.Mode = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
 	s.Mode = scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanIdents
 	expr, err := parse(s, "")
 	if err != nil {
@@ -60,7 +59,6 @@ func parseArgs(s *scanner.Scanner) ([]string, rune, error) {
 			return args, tok, parseError
 		}
 		text := s.TokenText()
-		//fmt.Printf("--> [%s]\n", text)
 		if text == "{" || text == "}" || text == "\n" || text == "\r" || text == ";" {
 			return args, tok, nil
 		}
@@ -71,24 +69,23 @@ func parseArgs(s *scanner.Scanner) ([]string, rune, error) {
 }
 
 func parse(s *scanner.Scanner, opener string) (expr []*Command, err error) {
+	/*
 	defer func() {
 		fmt.Printf("parse() returned %d commands:\n", len(expr))
 		for _, c := range expr {
 			fmt.Printf("\t----> %s\n", c)
 		}
 	}()
+	*/
 	for {
 		args, tok, err := parseArgs(s)
 		if err != nil {
 			return nil, err
 		}
 		cmd := &Command{Args: args}
-		fmt.Printf("---> args=%v finished by %s\n", args, s.TokenText())
 		afterArgs := s.TokenText()
 		if afterArgs == "{" {
-			fmt.Printf("---> therefore calling parse() of sub-expression\n")
 			children, err := parse(s, "{")
-			fmt.Printf("---> parse() of sub-epxression returned %d commands (ended by %s) and error=%v\n", children, s.TokenText(), err)
 			if err != nil {
 				return nil, err
 			}
