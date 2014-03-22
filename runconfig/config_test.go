@@ -247,7 +247,7 @@ func TestMerge(t *testing.T) {
 	volumesUser := make(map[string]struct{})
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
-		Dns:       []string{"3.3.3.3"},
+		Dns:       []string{"2.2.2.2", "3.3.3.3"},
 		PortSpecs: []string{"3333:2222", "3333:3333"},
 		Env:       []string{"VAR2=3", "VAR3=3"},
 		Volumes:   volumesUser,
