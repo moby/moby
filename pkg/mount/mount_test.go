@@ -108,3 +108,21 @@ func TestMountReadonly(t *testing.T) {
 		t.Fatal("Should not be able to open a ro file as rw")
 	}
 }
+
+func TestGetMounts(t *testing.T) {
+	mounts, err := GetMounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root := false
+	for _, entry := range mounts {
+		if entry.Mountpoint == "/" {
+			root = true
+		}
+	}
+
+	if !root {
+		t.Fatal("/ should be mounted at least")
+	}
+}
