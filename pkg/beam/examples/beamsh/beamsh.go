@@ -15,7 +15,7 @@ func main() {
 	s.Mode = scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanIdents
 	expr, err := parse(s, "")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "line %d:%d: %v\n", s.Pos().Line, s.Pos().Column, err)
 		os.Exit(1)
 	}
 	fmt.Printf("%d commands:\n", len(expr))
@@ -51,9 +51,18 @@ func (cmd *Command) String() string {
 }
 
 func parseArgs(s *scanner.Scanner) ([]string, rune, error) {
+	var parseError error
+	// FIXME: we overwrite previously set error
+	s.Error = func(s *scanner.Scanner, msg string) {
+		parseError = fmt.Errorf(msg)
+		// parseError = fmt.Errorf("line %d:%d: %s\n", s.Pos().Line, s.Pos().Column, msg)
+	}
 	var args []string
 	tok := s.Scan()
 	for tok != scanner.EOF {
+		if parseError != nil {
+			return args, tok, parseError
+		}
 		text := s.TokenText()
 		//fmt.Printf("--> [%s]\n", text)
 		if text == "{" || text == "}" || text == "\n" || text == "\r" || text == ";" {
@@ -65,25 +74,36 @@ func parseArgs(s *scanner.Scanner) ([]string, rune, error) {
 	return args, tok, nil
 }
 
-func parse(s *scanner.Scanner, opener string) ([]*Command, error) {
-	var expr []*Command
+func parse(s *scanner.Scanner, opener string) (expr []*Command, err error) {
+	defer func() {
+		fmt.Printf("parse() returned %d commands:\n", len(expr))
+		for _, c := range expr {
+			fmt.Printf("\t----> %s\n", c)
+		}
+	}()
 	for {
 		args, tok, err := parseArgs(s)
 		if err != nil {
 			return nil, err
 		}
 		cmd := &Command{Args: args}
-		if s.TokenText() == "{" {
+		fmt.Printf("---> args=%v finished by %s\n", args, s.TokenText())
+		afterArgs := s.TokenText()
+		if afterArgs == "{" {
+			fmt.Printf("---> therefore calling parse() of sub-expression\n")
 			children, err := parse(s, "{")
+			fmt.Printf("---> parse() of sub-epxression returned %d commands (ended by %s) and error=%v\n", children, s.TokenText(), err)
 			if err != nil {
 				return nil, err
 			}
 			cmd.Children = children
+		} else if afterArgs == "}" && opener != "{" {
+			return nil, fmt.Errorf("unexpected end of block '}'")
 		}
 		if len(cmd.Args) > 0 || len(cmd.Children) > 0 {
 			expr = append(expr, cmd)
 		}
-		if tok == scanner.EOF {
+		if tok == scanner.EOF || afterArgs == "}" {
 			break
 		}
 	}
