@@ -535,8 +535,18 @@ func (container *Container) Start() (err error) {
 
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
-		if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
-			return nil
+
+		pthInfo, err := os.Stat(path.Join(container.basefs, container.Config.WorkingDir))
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
+				return err
+			}
+		}
+		if pthInfo != nil && !pthInfo.IsDir() {
+			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 	}
 
@@ -950,10 +960,11 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	}), nil
+			err := archive.Close()
+			container.Unmount()
+			return err
+		}),
+		nil
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -967,10 +978,11 @@ func (container *Container) Export() (archive.Archive, error) {
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	}), nil
+			err := archive.Close()
+			container.Unmount()
+			return err
+		}),
+		nil
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -1119,10 +1131,11 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	}), nil
+			err := archive.Close()
+			container.Unmount()
+			return err
+		}),
+		nil
 }
 
 // Returns true if the container exposes a certain port
