@@ -636,6 +636,32 @@ Copy files or folders from a container
         :statuscode 500: server error
 
 
+Resize the pseudo-TTY of a container
+************************************
+
+.. http:post:: /containers/(id)/resize?w=130&h=48
+
+        Resize the pseudo-TTY of container ``id``
+
+        **Example request**:
+
+        .. sourcecode:: http
+
+           POST /containers/4fa6e0f0c678/copy HTTP/1.1
+           Content-Type: application/json
+
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+           Content-Type: text/plain
+
+        :statuscode 200: no error
+        :statuscode 404: no such container
+        :statuscode 500: server error
+
+
 2.2 Images
 ----------
 
