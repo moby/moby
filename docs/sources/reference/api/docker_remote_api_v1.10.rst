@@ -639,7 +639,7 @@ Copy files or folders from a container
 Resize the pseudo-TTY of a container
 ************************************
 
-.. http:post:: /containers/(id)/resize?w=130&h=48
+.. http:post:: /containers/(id)/resize
 
         Resize the pseudo-TTY of container ``id``
 
@@ -647,8 +647,7 @@ Resize the pseudo-TTY of a container
 
         .. sourcecode:: http
 
-           POST /containers/4fa6e0f0c678/copy HTTP/1.1
-           Content-Type: application/json
+           POST /containers/4fa6e0f0c678/resize?w=130&h=48 HTTP/1.1
 
         **Example response**:
 
@@ -657,6 +656,8 @@ Resize the pseudo-TTY of a container
            HTTP/1.1 200 OK
            Content-Type: text/plain
 
+        :query w: number of columns for the TTY of the container
+        :query h: number of rows for the TTY of the container
         :statuscode 200: no error
         :statuscode 404: no such container
         :statuscode 500: server error
