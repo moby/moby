@@ -246,6 +246,7 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	var job = eng.Job("events", r.RemoteAddr)
 	streamJSON(job, w, true)
 	job.Setenv("since", r.Form.Get("since"))
+	job.Setenv("until", r.Form.Get("until"))
 	return job.Run()
 }
 
