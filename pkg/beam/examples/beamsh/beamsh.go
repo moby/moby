@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	Logf("Initializing engine\n")
+	Debugf("Initializing engine\n")
 	client, engine, err := beam.USocketPair()
 	if err != nil {
 		Fatal(err)
@@ -25,7 +25,7 @@ func main() {
 	defer client.Close()
 	go func() {
 		Serve(engine, builtinsHandler)
-		Logf("Shutting down engine\n")
+		Debugf("Shutting down engine\n")
 		engine.Close()
 	}()
 	if term.IsTerminal(0) {
@@ -39,7 +39,7 @@ func main() {
 			if len(line) != 0 {
 				cmd, err := dockerscript.Parse(strings.NewReader(line))
 				if err != nil {
-					Logf("error: %v\n", err)
+					fmt.Fprintf(os.Stderr, "error: %v\n", err)
 					continue
 				}
 				executeScript(client, cmd)
@@ -60,7 +60,7 @@ func main() {
 }
 
 func executeScript(client *net.UnixConn, script []*dockerscript.Command) {
-	Logf("%d commands:\n", len(script))
+	Debugf("%d commands:\n", len(script))
 	for _, cmd := range script {
 		job, err := beam.SendPipe(client, []byte(strings.Join(cmd.Args, " ")))
 		if err != nil {
@@ -68,9 +68,9 @@ func executeScript(client *net.UnixConn, script []*dockerscript.Command) {
 		}
 		// TODO: pass a default handler to deal with 'status'
 		// --> use beam chaining?
-		Logf("Listening for reply messages\n")
+		Debugf("Listening for reply messages\n")
 		Serve(job, builtinsHandler)
-		Logf("[%s] done\n", strings.Join(cmd.Args, " "))
+		Debugf("[%s] done\n", strings.Join(cmd.Args, " "))
 	}
 }
 
@@ -109,7 +109,7 @@ func CmdEcho(args []string, f *os.File) {
 	if err != nil {
 		return
 	}
-	Logf("[CmdEcho] stdout pipe() r=%d w=%d\n", r.Fd(), w.Fd())
+	Debugf("[CmdEcho] stdout pipe() r=%d w=%d\n", r.Fd(), w.Fd())
 	if err := beam.Send(resp, []byte("log stdout"), r); err != nil {
 		return
 	}
@@ -150,7 +150,7 @@ func parseEnv(args []string) ([]string, map[string]string) {
 }
 
 func CmdLog(args []string, f *os.File) {
-	defer Logf("CmdLog done\n")
+	defer Debugf("CmdLog done\n")
 	name := args[1]
 	input := bufio.NewScanner(f)
 	for input.Scan() {
@@ -166,8 +166,8 @@ func CmdLog(args []string, f *os.File) {
 }
 
 func Serve(endpoint *net.UnixConn, handler func([]string, *os.File)) error {
-	Logf("[Serve %#v]\n", handler)
-	defer Logf("[Serve %#v] done\n", handler)
+	Debugf("[Serve %#v]\n", handler)
+	defer Debugf("[Serve %#v] done\n", handler)
 	var tasks sync.WaitGroup
 	defer tasks.Wait()
 	for {
@@ -178,15 +178,15 @@ func Serve(endpoint *net.UnixConn, handler func([]string, *os.File)) error {
 		tasks.Add(1)
 		// Handle new message
 		go func(payload []byte, attachment *os.File) {
-			Logf("---> Handling '%s' [fd=%d]\n", payload, attachment.Fd())
+			Debugf("---> Handling '%s' [fd=%d]\n", payload, attachment.Fd())
 			defer tasks.Done()
 			if attachment != nil {
 				defer func() {
-					Logf("---> Closing attachment [fd=%d] for msg '%s'\n", attachment.Fd(), payload)
+					Debugf("---> Closing attachment [fd=%d] for msg '%s'\n", attachment.Fd(), payload)
 					attachment.Close()
 				}()
 			} else {
-				defer Logf("---> No attachment to close for msg '%s'\n", payload)
+				defer Debugf("---> No attachment to close for msg '%s'\n", payload)
 			}
 			args, err := parseMsgPayload(payload)
 			if err != nil {
@@ -196,9 +196,9 @@ func Serve(endpoint *net.UnixConn, handler func([]string, *os.File)) error {
 				}
 				return
 			}
-			Logf("---> calling handler for '%s'\n", args[0])
+			Debugf("---> calling handler for '%s'\n", args[0])
 			handler(args, attachment)
-			Logf("---> handler returned for '%s'\n", args[0])
+			Debugf("---> handler returned for '%s'\n", args[0])
 		}(payload, attachment)
 	}
 	return nil
@@ -223,6 +223,12 @@ func Logf(msg string, args ...interface{}) (int, error) {
 	}
 	msg = fmt.Sprintf("[%v] [%v] %s", os.Getpid(), path.Base(os.Args[0]), msg)
 	return fmt.Printf(msg, args...)
+}
+
+func Debugf(msg string, args ...interface{}) {
+	if os.Getenv("DEBUG") != "" {
+		Logf(msg, args...)
+	}
 }
 
 func Fatalf(msg string, args ...interface{})  {
