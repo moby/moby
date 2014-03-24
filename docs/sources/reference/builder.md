@@ -124,6 +124,18 @@ Or
 
     FROM <image>:<tag>
 
+Or
+
+    FROM ./<path>
+
+Or
+
+    FROM <url>
+
+Or
+
+    FROM <git>
+
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
@@ -131,6 +143,16 @@ to start by **pulling an image** from the [*Public Repositories*](
 /userguide/dockerrepos/#using-public-repositories).
 
 `FROM` must be the first non-comment instruction in the `Dockerfile`.
+
+`<path>` must be the directory within current build's context which contains
+Dockerfile. Note that `./` is necessary if you want to specify `<path>`.
+
+`<url>` must be URL pointing to Dockerfile.
+
+`<git>` must be URL pointing to git-repository(for example
+`git@github.com:dotcloud/docker.git` or
+`https://github.com/dotcloud/docker.git`),
+that contains Dockerfile.
 
 `FROM` can appear multiple times within a single `Dockerfile` in order to create
 multiple images. Simply make a note of the last image ID output by the commit
