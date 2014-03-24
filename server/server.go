@@ -222,6 +222,10 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 
 	listener := make(chan utils.JSONMessage)
 	srv.Lock()
+	if old, ok := srv.listeners[from]; ok {
+		delete(srv.listeners, from)
+		close(old)
+	}
 	srv.listeners[from] = listener
 	srv.Unlock()
 	job.Stdout.Write(nil) // flush
