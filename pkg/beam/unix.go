@@ -5,11 +5,28 @@ import (
 	"net"
 	"os"
 	"syscall"
+	"bufio"
 )
+
+func debugCheckpoint(msg string, args ...interface{}) {
+	return
+	os.Stdout.Sync()
+	tty,_ := os.OpenFile("/dev/tty", os.O_RDWR, 0700)
+	fmt.Fprintf(tty, msg, args...)
+	bufio.NewScanner(tty).Scan()
+	tty.Close()
+}
 
 // Send sends a new message on conn with data and f as payload and
 // attachment, respectively.
 func Send(conn *net.UnixConn, data []byte, f *os.File) error {
+	{
+		var fd int = -1
+		if f != nil {
+			fd = int(f.Fd())
+		}
+		debugCheckpoint("===DEBUG=== about to send '%s'[%d]. Hit enter to confirm: ", data, fd)
+	}
 	var fds []int
 	if f != nil {
 		fds = append(fds, int(f.Fd()))
@@ -23,7 +40,14 @@ func Send(conn *net.UnixConn, data []byte, f *os.File) error {
 // If more than 1 file descriptor is sent in the message, they are all
 // closed except for the first, which is the attachment.
 // It is legal for a message to have no attachment or an empty payload.
-func Receive(conn *net.UnixConn) ([]byte, *os.File, error) {
+func Receive(conn *net.UnixConn) (rdata []byte, rf *os.File, rerr error) {
+	defer func() {
+		var fd int = -1
+		if rf != nil {
+			fd = int(rf.Fd())
+		}
+		debugCheckpoint("===DEBUG=== Receive() -> '%s'[%d]. Hit enter to continue.\n", rdata, fd)
+	}()
 	for {
 		data, fds, err := receiveUnix(conn)
 		if err != nil {
