@@ -148,6 +148,14 @@ func sendUnix(conn *net.UnixConn, data []byte, fds ...int) error {
 }
 
 func extractFds(oob []byte) (fds []int) {
+	// Grab forklock to make sure no forks accidentally inherit the new
+	// fds before they are made CLOEXEC
+	// There is a slight race condition between ReadMsgUnix returns and
+	// when we grap the lock, so this is not perfect. Unfortunately
+	// There is no way to pass MSG_CMSG_CLOEXEC to recvmsg() nor any
+	// way to implement non-blocking i/o in go, so this is hard to fix.
+	syscall.ForkLock.Lock()
+	defer syscall.ForkLock.Unlock()
 	scms, err := syscall.ParseSocketControlMessage(oob)
 	if err != nil {
 		return
@@ -158,6 +166,10 @@ func extractFds(oob []byte) (fds []int) {
 			continue
 		}
 		fds = append(fds, gotFds...)
+
+		for _, fd := range fds {
+			syscall.CloseOnExec(fd)
+		}
 	}
 	return
 }
