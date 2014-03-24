@@ -2044,7 +2044,9 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout)")
+	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout by default)")
+	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -2054,8 +2056,18 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		return nil
 	}
 
+	var (
+		output io.Writer = cli.out
+		err    error
+	)
+	if *outfile != "" {
+		output, err = os.Create(*outfile)
+		if err != nil {
+			return err
+		}
+	}
 	image := cmd.Arg(0)
-	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil); err != nil {
+	if err := cli.stream("GET", "/images/"+image+"/get", nil, output, nil); err != nil {
 		return err
 	}
 	return nil

@@ -1317,10 +1317,27 @@ This example shows 5 containers that might be set up to test a web application c
 
 ::
 
-    Usage: docker save image > repository.tar
+    Usage: docker save IMAGE
 
-    Streams a tarred repository to the standard output stream.
-    Contains all parent layers, and all tags + versions.
+    Save an image to a tar archive (streamed to stdout by default)
+
+      -o, --output="": Write to an file, instead of STDOUT
+
+
+Produces a tarred repository to the standard output stream.
+Contains all parent layers, and all tags + versions, or specified repo:tag.
+
+.. code-block:: bash
+
+   $ sudo docker save busybox > busybox.tar
+   $ ls -sh b.tar
+   2.7M b.tar
+   $ sudo docker save --output busybox.tar busybox
+   $ ls -sh b.tar
+   2.7M b.tar
+   $ sudo docker save -o fedora-all.tar fedora
+   $ sudo docker save -o fedora-latest.tar fedora:latest
+
 
 .. _cli_search:
 
