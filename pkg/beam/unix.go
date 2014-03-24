@@ -199,13 +199,14 @@ func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
 
 // FdConn wraps a file descriptor in a standard *net.UnixConn object, or
 // returns an error if the file descriptor does not point to a unix socket.
+// This creates a duplicate file descriptor. It's the caller's responsibility
+// to close both.
 func FdConn(fd int) (*net.UnixConn, error) {
 	f := os.NewFile(uintptr(fd), fmt.Sprintf("%d", fd))
 	conn, err := net.FileConn(f)
 	if err != nil {
 		return nil, err
 	}
-	f.Close()
 	uconn, ok := conn.(*net.UnixConn)
 	if !ok {
 		conn.Close()

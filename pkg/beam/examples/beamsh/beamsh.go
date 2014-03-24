@@ -67,8 +67,10 @@ func CmdCat(args []string, f *os.File) {
 func CmdEcho(args []string, f *os.File) {
 	resp, err := beam.FdConn(int(f.Fd()))
 	if err != nil {
+		Fatal(err)
 		return
 	}
+	defer resp.Close()
 	r, w, err := os.Pipe()
 	if err != nil {
 		return
