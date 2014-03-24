@@ -137,7 +137,6 @@ func sendUnix(conn *net.UnixConn, data []byte, fds ...int) error {
 	_, _, err := conn.WriteMsgUnix(data, syscall.UnixRights(fds...), nil)
 	if err == nil {
 		for _, fd := range fds {
-			fmt.Printf("Closing sent fd %v\n", fd)
 			syscall.Close(fd)
 		}
 	}
@@ -181,7 +180,6 @@ func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Printf("SocketPair() = %v, %v\n", a.Fd(), b.Fd())
 	uA, err := FdConn(int(a.Fd()))
 	if err != nil {
 		a.Close()
