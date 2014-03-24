@@ -1,13 +1,12 @@
-package native
+package template
 
 import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
-// getDefaultTemplate returns the docker default for
-// the libcontainer configuration file
-func getDefaultTemplate() *libcontainer.Container {
+// New returns the docker default configuration for libcontainer
+func New() *libcontainer.Container {
 	return &libcontainer.Container{
 		CapabilitiesMask: libcontainer.Capabilities{
 			libcontainer.GetCapability("SETPCAP"),

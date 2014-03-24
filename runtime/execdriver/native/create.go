@@ -5,30 +5,53 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/runtime/execdriver/native/configuration"
+	"github.com/dotcloud/docker/runtime/execdriver/native/template"
 	"os"
 )
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
 func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container, error) {
-	container := getDefaultTemplate()
+	container := template.New()
 
 	container.Hostname = getEnv("HOSTNAME", c.Env)
 	container.Tty = c.Tty
 	container.User = c.User
 	container.WorkingDir = c.WorkingDir
 	container.Env = c.Env
+	container.Cgroups.Name = c.ID
+	// check to see if we are running in ramdisk to disable pivot root
+	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
-	loopbackNetwork := libcontainer.Network{
-		Mtu:     c.Network.Mtu,
-		Address: fmt.Sprintf("%s/%d", "127.0.0.1", 0),
-		Gateway: "localhost",
-		Type:    "loopback",
-		Context: libcontainer.Context{},
+	if err := d.createNetwork(container, c); err != nil {
+		return nil, err
 	}
+	if c.Privileged {
+		if err := d.setPrivileged(container); err != nil {
+			return nil, err
+		}
+	}
+	if err := d.setupCgroups(container, c); err != nil {
+		return nil, err
+	}
+	if err := d.setupMounts(container, c); err != nil {
+		return nil, err
+	}
+	if err := configuration.ParseConfiguration(container, d.activeContainers, c.Config["native"]); err != nil {
+		return nil, err
+	}
+	return container, nil
+}
 
+func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.Command) error {
 	container.Networks = []*libcontainer.Network{
-		&loopbackNetwork,
+		{
+			Mtu:     c.Network.Mtu,
+			Address: fmt.Sprintf("%s/%d", "127.0.0.1", 0),
+			Gateway: "localhost",
+			Type:    "loopback",
+			Context: libcontainer.Context{},
+		},
 	}
 
 	if c.Network.Interface != nil {
@@ -44,27 +67,30 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		}
 		container.Networks = append(container.Networks, &vethNetwork)
 	}
+	return nil
+}
 
-	container.Cgroups.Name = c.ID
-	if c.Privileged {
-		container.CapabilitiesMask = nil
-		container.Cgroups.DeviceAccess = true
-		container.Context["apparmor_profile"] = "unconfined"
+func (d *driver) setPrivileged(container *libcontainer.Container) error {
+	for _, c := range container.CapabilitiesMask {
+		c.Enabled = true
 	}
+	container.Cgroups.DeviceAccess = true
+	container.Context["apparmor_profile"] = "unconfined"
+	return nil
+}
+
+func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.Command) error {
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CpuShares
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
 	}
-	// check to see if we are running in ramdisk to disable pivot root
-	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
+	return nil
+}
 
+func (d *driver) setupMounts(container *libcontainer.Container, c *execdriver.Command) error {
 	for _, m := range c.Mounts {
 		container.Mounts = append(container.Mounts, libcontainer.Mount{m.Source, m.Destination, m.Writable, m.Private})
 	}
-
-	if err := configuration.ParseConfiguration(container, d.activeContainers, c.Config["native"]); err != nil {
-		return nil, err
-	}
-	return container, nil
+	return nil
 }

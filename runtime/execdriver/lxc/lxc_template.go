@@ -120,7 +120,7 @@ lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 
 {{if .Config.lxc}}
 {{range $value := .Config.lxc}}
-{{$value}}
+lxc.{{$value}}
 {{end}}
 {{end}}
 `

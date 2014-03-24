@@ -383,14 +383,8 @@ func populateCommand(c *Container) {
 		}
 	}
 
-	// merge in the lxc conf options into the generic config map
-	if lxcConf := c.hostConfig.LxcConf; lxcConf != nil {
-		lxc := driverConfig["lxc"]
-		for _, pair := range lxcConf {
-			lxc = append(lxc, fmt.Sprintf("%s = %s", pair.Key, pair.Value))
-		}
-		driverConfig["lxc"] = lxc
-	}
+	// TODO: this can be removed after lxc-conf is fully deprecated
+	mergeLxcConfIntoOptions(c.hostConfig, driverConfig)
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,

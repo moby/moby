@@ -31,20 +31,6 @@ var actions = map[string]Action{
 	"fs.readonly": readonlyFs, // make the rootfs of the container read only
 }
 
-// GetSupportedActions returns a list of all the avaliable actions supported by the driver
-// TODO: this should return a description also
-func GetSupportedActions() []string {
-	var (
-		i   int
-		out = make([]string, len(actions))
-	)
-	for k := range actions {
-		out[i] = k
-		i++
-	}
-	return out
-}
-
 func cpusetCpus(container *libcontainer.Container, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
