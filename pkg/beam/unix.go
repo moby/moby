@@ -55,7 +55,7 @@ func Receive(conn *net.UnixConn) (rdata []byte, rf *os.File, rerr error) {
 		}
 		var f *os.File
 		if len(fds) > 1 {
-			for _, fd := range fds {
+			for _, fd := range fds[1:] {
 				syscall.Close(fd)
 			}
 		}
