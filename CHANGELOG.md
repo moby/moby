@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.9.1 (2014-03-24)
+
+#### Builder
+- Fix printing multiple messages on a single line. Fixes broken output during builds.
+
+#### Documentation
+- Fix external link on security of containers.
+
+#### Contrib
+- Fix init script cgroup mounting workarounds to be more similar to cgroupfs-mount and thus work properly.
+- Add variable for DOCKER_LOGFILE to sysvinit and use append instead of overwrite in opening the logfile.
+
+#### Hack
+- Generate md5 and sha256 hashes when building, and upload them via hack/release.sh.
+
+#### Remote API
+- Fix content-type detection in `docker cp`.
+
+#### Runtime
+- Use BSD raw mode on Darwin. Fixes nano, tmux and others.
+- Only unshare the mount namespace for execin.
+- Retry to retrieve the layer metadata up to 5 times for `docker pull`.
+- Merge existing config when committing.
+- Fix panic in monitor.
+- Disable daemon startup timeout.
+- Fix issue #4681: add loopback interface when networking is disabled.
+- Add failing test case for issue #4681.
+- Send SIGTERM to child, instead of SIGKILL.
+- Show the driver and the kernel version in `docker info` even when not in debug mode.
+- Always symlink /dev/ptmx for libcontainer. This fixes console related problems.
+- Fix issue caused by the absence of /etc/apparmor.d.
+- Don't leave empty cidFile behind when failing to create the container.
+- Improve deprecation message.
+- Fix attach exit on darwin.
+- devicemapper: improve handling of devicemapper devices (add per device lock, increase sleep time, unlock while sleeping).
+- devicemapper: succeed immediately when removing non-existing devices.
+- devicemapper: increase timeout in waitClose to 10 seconds.
+- Remove goroutine leak on error.
+- Update parseLxcInfo to comply with new lxc1.0 format.
+
 ## 0.9.0 (2014-03-10)
 
 #### Builder
