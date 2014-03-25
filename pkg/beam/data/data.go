@@ -91,13 +91,13 @@ func decodeString(msg string) (string, int, error) {
 		length = int(l)
 	}
 	if len(parts[1]) < length + 1 {
-		return "", 0, fmt.Errorf("message is less than %d bytes", length)
+		return "", 0, fmt.Errorf("message '%s' is %d bytes, expected at least %d", parts[1], len(parts[1]), length + 1)
 	}
 	payload := parts[1][:length + 1]
 	if payload[length] != ',' {
 		return "", 0, fmt.Errorf("message is not comma-terminated")
 	}
-	return payload[:length], len(parts[0]) + length + 1, nil
+	return payload[:length], len(parts[0]) + 1 + length + 1, nil
 }
 
 func decodeHeader(msg string) (int, int, error) {
