@@ -18,7 +18,6 @@ import (
 )
 
 func main() {
-	Debugf("Initializing engine\n")
 	client, engine, err := beam.USocketPair()
 	if err != nil {
 		Fatal(err)
@@ -72,9 +71,9 @@ func executeScript(client *net.UnixConn, script []*dockerscript.Command) {
 		executeScript(job, cmd.Children)
 		// TODO: pass a default handler to deal with 'status'
 		// --> use beam chaining?
-		Debugf("Listening for reply messages\n")
+		Debugf("[%s] Listening for reply messages\n", strings.Join(cmd.Args, " "))
 		Serve(job, builtinsHandler)
-		Debugf("[%s] done\n", strings.Join(cmd.Args, " "))
+		Debugf("[%s] done listening for reply messages\n", strings.Join(cmd.Args, " "))
 	}
 }
 
@@ -163,13 +162,11 @@ func CmdTrace(args []string, f *os.File) {
 	}
 	defer resp.Close()
 	for {
-		Logf("[trace] waiting for a message\n")
 		payload, attachment, err := beam.Receive(resp)
 		if err != nil {
 			Logf("[trace] error waiting for message\n")
 			return
 		}
-		Logf("[trace] received message!\n")
 		msg, err := data.Decode(string(payload))
 		if err != nil {
 			fmt.Printf("===> %s\n", payload)
