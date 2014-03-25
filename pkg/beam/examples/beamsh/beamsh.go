@@ -66,6 +66,9 @@ func executeScript(client *net.UnixConn, script []*dockerscript.Command) {
 		if err != nil {
 			Fatal(err)
 		}
+		// Recursively execute child-commands as commands to the new job
+		// executeScript blocks until commands are done, so this is depth-first recursion.
+		executeScript(job, cmd.Children)
 		// TODO: pass a default handler to deal with 'status'
 		// --> use beam chaining?
 		Debugf("Listening for reply messages\n")
@@ -151,6 +154,34 @@ func parseEnv(args []string) ([]string, map[string]string) {
 	return argsOut, env
 }
 
+func CmdTrace(args []string, f *os.File) {
+	resp, err := beam.FdConn(int(f.Fd()))
+	if err != nil {
+		Fatal(err)
+		return
+	}
+	defer resp.Close()
+	for {
+		Logf("[trace] waiting for a message\n")
+		payload, attachment, err := beam.Receive(resp)
+		if err != nil {
+			Logf("[trace] error waiting for message\n")
+			return
+		}
+		Logf("[trace] received message!\n")
+		msg, err := data.Decode(string(payload))
+		if err != nil {
+			fmt.Printf("===> %s\n", payload)
+		} else {
+			fmt.Printf("===> %v\n", msg)
+		}
+		if err := beam.Send(resp, payload, attachment); err != nil {
+			return
+		}
+	}
+}
+
+
 func CmdLog(args []string, f *os.File) {
 	defer Debugf("CmdLog done\n")
 	var name string
@@ -218,6 +249,8 @@ func builtinsHandler(args []string, attachment *os.File) {
 		CmdEcho(args, attachment)
 	} else if args[0] == "log" {
 		CmdLog(args, attachment)
+	} else if args[0] == "trace" {
+		CmdTrace(args, attachment)
 	}
 }
 
