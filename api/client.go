@@ -2075,6 +2075,8 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN")
+	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -2084,7 +2086,17 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+	var (
+		input io.Reader = cli.in
+		err   error
+	)
+	if *infile != "" {
+		input, err = os.Open(*infile)
+		if err != nil {
+			return err
+		}
+	}
+	if err := cli.stream("POST", "/images/load", input, cli.out, nil); err != nil {
 		return err
 	}
 	return nil

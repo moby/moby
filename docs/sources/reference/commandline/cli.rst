@@ -881,10 +881,19 @@ Known Issues (kill)
 
 ::
 
-    Usage: docker load < repository.tar
+    Usage: docker load 
 
-    Loads a tarred repository from the standard input stream.
-    Restores both images and tags.
+    Load an image from a tar archive on STDIN
+
+      -i, --input"": Read from a tar archive file, instead of STDIN
+
+Loads a tarred repository from the standard input stream.
+Restores both images and tags.
+
+.. code-block:: bash
+
+   $ sudo docker load < busybox.tar
+   $ sudo docker load --input busybox.tar
 
 .. _cli_login:
 
