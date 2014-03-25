@@ -9,7 +9,9 @@ import (
 )
 
 func debugCheckpoint(msg string, args ...interface{}) {
-	return
+	if os.Getenv("DEBUG") == "" {
+		return
+	}
 	os.Stdout.Sync()
 	tty,_ := os.OpenFile("/dev/tty", os.O_RDWR, 0700)
 	fmt.Fprintf(tty, msg, args...)
@@ -103,6 +105,7 @@ func Receive(conn *net.UnixConn) (rdata []byte, rf *os.File, rerr error) {
 // without complicating application code.
 //
 func SendPipe(conn *net.UnixConn, data []byte) (endpoint *net.UnixConn, err error) {
+	debugCheckpoint("===DEBUG=== SendPipe('%s'). Hit enter to confirm: ", data)
 	local, remote, err := SocketPair()
 	if err != nil {
 		return nil, err
@@ -167,7 +170,20 @@ func socketpair() ([2]int, error) {
 // not bound to the underlying filesystem.
 // Messages sent on one end are received on the other, and vice-versa.
 // It is the caller's responsibility to close both ends.
-func SocketPair() (*os.File, *os.File, error) {
+func SocketPair() (a *os.File, b *os.File, err error) {
+	defer func() {
+		var (
+			fdA int = -1
+			fdB int = -1
+		)
+		if a != nil {
+			fdA = int(a.Fd())
+		}
+		if b != nil {
+			fdB = int(b.Fd())
+		}
+		debugCheckpoint("===DEBUG=== SocketPair() = [%d-%d]. Hit enter to confirm: ", fdA, fdB)
+	}()
 	pair, err := socketpair()
 	if err != nil {
 		return nil, nil, err
@@ -176,6 +192,8 @@ func SocketPair() (*os.File, *os.File, error) {
 }
 
 func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
+	debugCheckpoint("===DEBUG=== USocketPair(). Hit enter to confirm: ")
+	defer debugCheckpoint ("===DEBUG=== USocketPair() returned. Hit enter to confirm ")
 	a, b, err := SocketPair()
 	if err != nil {
 		return nil, nil, err
@@ -199,7 +217,10 @@ func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
 // returns an error if the file descriptor does not point to a unix socket.
 // This creates a duplicate file descriptor. It's the caller's responsibility
 // to close both.
-func FdConn(fd int) (*net.UnixConn, error) {
+func FdConn(fd int) (n*net.UnixConn, err error) {
+	{
+		debugCheckpoint("===DEBUG=== FdConn([%d]) = (unknown fd). Hit enter to confirm: ", fd)
+	}
 	f := os.NewFile(uintptr(fd), fmt.Sprintf("%d", fd))
 	conn, err := net.FileConn(f)
 	if err != nil {
