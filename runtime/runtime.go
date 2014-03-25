@@ -778,8 +778,31 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 	return runtime, nil
 }
 
+func (runtime *Runtime) shutdown() error {
+	group := sync.WaitGroup{}
+	utils.Debugf("starting clean shutdown of all containers...")
+	for _, container := range runtime.List() {
+		if container.State.IsRunning() {
+			utils.Debugf("stopping %s", container.ID)
+			group.Add(1)
+
+			go func() {
+				defer group.Done()
+				container.Stop(10)
+			}()
+		}
+	}
+	group.Wait()
+
+	return nil
+}
+
 func (runtime *Runtime) Close() error {
 	errorsStrings := []string{}
+	if err := runtime.shutdown(); err != nil {
+		utils.Errorf("runtime.shutdown(): %s", err)
+		errorsStrings = append(errorsStrings, err.Error())
+	}
 	if err := portallocator.ReleaseAll(); err != nil {
 		utils.Errorf("portallocator.ReleaseAll(): %s", err)
 		errorsStrings = append(errorsStrings, err.Error())
