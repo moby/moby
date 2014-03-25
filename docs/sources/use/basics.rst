@@ -40,6 +40,8 @@ Repository to a local image cache.
    short form of the image ID. These short image IDs are the first 12
    characters of the full image ID - which can be found using ``docker
    inspect`` or ``docker images --no-trunc=true``
+   
+   **If you're using OS X** then you shouldn't use ``sudo``
 
 Running an interactive shell
 ----------------------------
