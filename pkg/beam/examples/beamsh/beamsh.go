@@ -6,11 +6,11 @@ import (
 	"os"
 	"github.com/dotcloud/docker/pkg/dockerscript"
 	"github.com/dotcloud/docker/pkg/beam"
+	"github.com/dotcloud/docker/pkg/beam/data"
 	"github.com/dotcloud/docker/pkg/term"
 	"strings"
 	"sync"
 	"net"
-	"bytes"
 	"path"
 	"bufio"
 	"strconv"
@@ -62,7 +62,7 @@ func main() {
 func executeScript(client *net.UnixConn, script []*dockerscript.Command) {
 	Debugf("%d commands:\n", len(script))
 	for _, cmd := range script {
-		job, err := beam.SendPipe(client, []byte(strings.Join(cmd.Args, " ")))
+		job, err := beam.SendPipe(client, data.Empty().Set("cmd", cmd.Args...).Bytes())
 		if err != nil {
 			Fatal(err)
 		}
@@ -75,16 +75,18 @@ func executeScript(client *net.UnixConn, script []*dockerscript.Command) {
 }
 
 func parseMsgPayload(payload []byte) ([]string, error) {
-	// FIXME: send structured message instead of a text script
-	cmds, err := dockerscript.Parse(bytes.NewReader(payload))
+	msg, err := data.Decode(string(payload))
 	if err != nil {
 		return nil, err
 	}
-	if len(cmds) == 0 {
+	var cmd []string
+	if c, exists := msg["cmd"]; exists {
+		cmd = c
+	}
+	if len(cmd) == 0 {
 		return nil, fmt.Errorf("empty command")
 	}
-	// We don't care about multiple commands or children
-	return cmds[0].Args, nil
+	return cmd, nil
 }
 
 func CmdCat(args []string, f *os.File) {
@@ -110,7 +112,7 @@ func CmdEcho(args []string, f *os.File) {
 		return
 	}
 	Debugf("[CmdEcho] stdout pipe() r=%d w=%d\n", r.Fd(), w.Fd())
-	if err := beam.Send(resp, []byte("log stdout"), r); err != nil {
+	if err := beam.Send(resp, data.Empty().Set("cmd", "log", "stdout").Bytes(), r); err != nil {
 		return
 	}
 	fmt.Fprintln(w, strings.Join(args[1:], " "))
