@@ -885,9 +885,9 @@ Known Issues (kill)
 
     Load an image from a tar archive on STDIN
 
-      -i, --input"": Read from a tar archive file, instead of STDIN
+      -i, --input="": Read from a tar archive file, instead of STDIN
 
-Loads a tarred repository from the standard input stream.
+Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.
 
 .. code-block:: bash
