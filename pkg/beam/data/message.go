@@ -45,3 +45,7 @@ func (m Message) Del(k string) Message {
 func (m Message) String() string {
 	return string(m)
 }
+
+func (m Message) Bytes() []byte {
+	return []byte(m)
+}
