@@ -120,6 +120,7 @@ func SendPipe(conn *net.UnixConn, data []byte) (endpoint *net.UnixConn, err erro
 	if err != nil {
 		return nil, err
 	}
+	local.Close()
 	if err := Send(conn, data, remote); err != nil {
 		return nil, err
 	}
@@ -198,16 +199,15 @@ func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	defer a.Close()
+	defer b.Close()
 	uA, err := FdConn(int(a.Fd()))
 	if err != nil {
-		a.Close()
-		b.Close()
 		return nil, nil, err
 	}
 	uB, err := FdConn(int(b.Fd()))
 	if err != nil {
-		a.Close()
-		b.Close()
+		uA.Close()
 		return nil, nil, err
 	}
 	return uA, uB, nil
