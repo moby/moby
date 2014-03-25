@@ -1251,6 +1251,31 @@ Load a tarball with a set of images and tags into docker
    :statuscode 200: no error
    :statuscode 500: server error
 
+Get a tarball containing a single layer
+***************************************
+
+.. http:get:: /layers/(name)/get
+
+        Get a tarball containing a single layer specified by ``name``.
+
+        **Example request (returns top layer only)**
+
+        .. sourcecode:: http
+
+           GET /layers/ubuntu/get
+
+        **Example response**:
+
+        .. sourcecode:: http
+
+           HTTP/1.1 200 OK
+           Content-Type: application/x-tar
+
+           Binary data stream
+
+        :statuscode 200: no error
+        :statuscode 500: server error
+
 3. Going further
 ================
 

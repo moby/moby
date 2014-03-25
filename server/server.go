@@ -98,6 +98,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"container_delete": srv.ContainerDestroy,
 		"image_export":     srv.ImageExport,
 		"images":           srv.Images,
+		"layer_export":     srv.LayerExport,
 		"history":          srv.ImageHistory,
 		"viz":              srv.ImagesViz,
 		"container_copy":   srv.ContainerCopy,
@@ -366,6 +367,10 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 }
 
 func (srv *Server) exportImage(img *image.Image, tempdir string) error {
+	return srv.recursiveExportImage(img, tempdir, true)
+}
+
+func (srv *Server) recursiveExportImage(img *image.Image, tempdir string, recurse bool) error {
 	for i := img; i != nil; {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, i.ID)
@@ -414,7 +419,7 @@ func (srv *Server) exportImage(img *image.Image, tempdir string) error {
 		}
 
 		// find parent
-		if i.Parent != "" {
+		if recurse && i.Parent != "" {
 			i, err = srv.ImageInspect(i.Parent)
 			if err != nil {
 				return err
@@ -795,6 +800,41 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
+}
+
+func (srv *Server) LayerExport(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s LAYER\n", job.Name)
+	}
+	name := job.Args[0]
+
+	tempdir, err := ioutil.TempDir("", "docker-export-")
+	if err != nil {
+		return job.Error(err)
+	}
+	defer os.RemoveAll(tempdir)
+
+	utils.Debugf("Serializing %s", name)
+
+	image, err := srv.ImageInspect(name)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	if err := srv.recursiveExportImage(image, tempdir, false); err != nil {
+		return job.Error(err)
+	}
+
+	fs, err := archive.Tar(tempdir, archive.Uncompressed)
+	if err != nil {
+		return job.Error(err)
+	}
+	defer fs.Close()
+
+	if _, err := io.Copy(job.Stdout, fs); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
