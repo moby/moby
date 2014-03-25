@@ -1,5 +1,5 @@
 :title: Chef Usage
-:description: Installating and using Docker via Chef
+:description: Installation and using Docker via Chef
 :keywords: chef, installation, usage, docker, documentation
 
 .. _install_using_chef:
