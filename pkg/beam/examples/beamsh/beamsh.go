@@ -153,7 +153,10 @@ func parseEnv(args []string) ([]string, map[string]string) {
 
 func CmdLog(args []string, f *os.File) {
 	defer Debugf("CmdLog done\n")
-	name := args[1]
+	var name string
+	if len(args) > 0 {
+		name = args[1]
+	}
 	input := bufio.NewScanner(f)
 	for input.Scan() {
 		line := input.Text()
