@@ -4,6 +4,7 @@ import (
 	"io"
 	"fmt"
 	"os"
+	"os/exec"
 	"github.com/dotcloud/docker/pkg/dockerscript"
 	"github.com/dotcloud/docker/pkg/beam"
 	"github.com/dotcloud/docker/pkg/beam/data"
@@ -182,6 +183,36 @@ func CmdTrace(args []string, f *os.File) {
 }
 
 
+func CmdExec(args []string, f *os.File) {
+	resp, err := beam.FdConn(int(f.Fd()))
+	if err != nil {
+		Fatal(err)
+		return
+	}
+	defer resp.Close()
+	cmd := exec.Command(args[1], args[2:]...)
+	Logf("EXEC %s %s\n", cmd.Path, cmd.Args)
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		Fatal(err)
+		return
+	}
+	cmd.Stdout = stdoutW
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		Fatal(err)
+		return
+	}
+	cmd.Stderr = stderrW
+	if err := beam.Send(resp, data.Empty().Set("cmd", "log", "stdout").Bytes(), stdoutR); err != nil {
+		Fatal(err)
+	}
+	if err := beam.Send(resp, data.Empty().Set("cmd", "log", "stderr").Bytes(), stderrR); err != nil {
+		Fatal(err)
+	}
+	cmd.Run()
+}
+
 func CmdLog(args []string, f *os.File) {
 	defer Debugf("CmdLog done\n")
 	var name string
@@ -319,6 +350,8 @@ func builtinsHandler(args []string, attachment *os.File) {
 		CmdLog(args, attachment)
 	} else if args[0] == "trace" {
 		CmdTrace(args, attachment)
+	} else if args[0] == "exec" {
+		CmdExec(args, attachment)
 	}
 }
 
