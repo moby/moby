@@ -41,7 +41,10 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 		conn.SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
 		return conn, nil
 	}
-	httpTransport := &http.Transport{Dial: httpDial}
+	httpTransport := &http.Transport{
+                Dial:    httpDial,
+                Proxy:   http.ProxyFromEnvironment,
+        }
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
