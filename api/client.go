@@ -208,6 +208,15 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	// Upload the build context
 	v := &url.Values{}
+
+	//Check if the given image name can be resolved
+	if *tag != "" {
+		repository, _ := utils.ParseRepositoryTag(*tag)
+		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+			return err
+		}
+	}
+
 	v.Set("t", *tag)
 
 	if *suppressOutput {
@@ -1003,6 +1012,12 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
 	}
 	v := url.Values{}
+
+	//Check if the given image name can be resolved
+	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		return err
+	}
+
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
@@ -1453,6 +1468,11 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return nil
 	}
 
+	//Check if the given image name can be resolved
+	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		return err
+	}
+
 	v := url.Values{}
 	v.Set("container", name)
 	v.Set("repo", repository)
@@ -1741,6 +1761,11 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	v := url.Values{}
+
+	//Check if the given image name can be resolved
+	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		return err
+	}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 
