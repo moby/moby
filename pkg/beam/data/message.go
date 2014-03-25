@@ -42,6 +42,18 @@ func (m Message) Del(k string) Message {
 	return Message(Encode(data))
 }
 
+func (m Message) Get(k string) []string {
+	data, err := Decode(string(m))
+	if err != nil {
+		return nil
+	}
+	v, exists := data[k]
+	if !exists {
+		return nil
+	}
+	return v
+}
+
 func (m Message) String() string {
 	return string(m)
 }
