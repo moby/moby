@@ -998,3 +998,21 @@ func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
 		t.Fatal("Error should not be nil")
 	}
 }
+
+// gh #2446
+func TestBuildAddToSymlinkDest(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
+
+	_, err := buildImage(testContextTemplate{`
+        from {IMAGE}
+        run mkdir /foo
+        run ln -s /foo /bar
+        add foo /bar/
+        run stat /bar/foo
+        `,
+		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
