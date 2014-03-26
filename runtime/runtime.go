@@ -197,6 +197,9 @@ func (runtime *Runtime) Register(container *Container) error {
 			if err := container.Unmount(); err != nil {
 				utils.Debugf("ghost unmount error %s", err)
 			}
+			if err := container.ToDisk(); err != nil {
+				utils.Debugf("saving ghost state to disk %s", err)
+			}
 		}
 
 		info := runtime.execDriver.Info(container.ID)
