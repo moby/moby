@@ -65,7 +65,7 @@ func (m Message) Pretty() string {
 	for k, values := range data {
 		entries = append(entries, fmt.Sprintf("%s=%s", k, strings.Join(values, ",")))
 	}
-	return strings.Join(entries, "\n")
+	return strings.Join(entries, " ")
 }
 
 func (m Message) String() string {
