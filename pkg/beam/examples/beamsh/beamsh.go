@@ -1,20 +1,22 @@
 package main
 
 import (
-	"io"
-	"fmt"
-	"os"
-	"github.com/dotcloud/docker/pkg/dockerscript"
-	"github.com/dotcloud/docker/pkg/beam"
-	"github.com/dotcloud/docker/pkg/beam/data"
-	"github.com/dotcloud/docker/pkg/term"
-	"strings"
-	"sync"
-	"net"
-	"path"
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"github.com/dotcloud/docker/pkg/beam"
+	"github.com/dotcloud/docker/pkg/beam/data"
+	"github.com/dotcloud/docker/pkg/dockerscript"
+	"github.com/dotcloud/docker/pkg/term"
+	"io"
+	"net"
+	"net/url"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"sync"
 )
 
 func main() {
@@ -184,7 +186,31 @@ func randomId() string {
 }
 
 func GetHandler(name string) Handler {
-	if name == "trace" {
+	if name == "exec" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			cmd := exec.Command(args[1], args[2:]...)
+			outR, outW, err := os.Pipe()
+			if err != nil {
+				return
+			}
+			cmd.Stdout = outW
+			errR, errW, err := os.Pipe()
+			if err != nil {
+				return
+			}
+			cmd.Stderr = errW
+			beam.Send(out, data.Empty().Set("cmd", "log", "stdout").Bytes(), outR)
+			beam.Send(out, data.Empty().Set("cmd", "log", "stderr").Bytes(), errR)
+			execErr := cmd.Run()
+			var status string
+			if execErr != nil {
+				status = execErr.Error()
+			} else {
+				status = "ok"
+			}
+			beam.Send(out, data.Empty().Set("status", status).Set("cmd", args...).Bytes(), nil)
+		}
+	} else if name == "trace" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
 			for {
 				p, a, err := beam.Receive(in)
@@ -218,6 +244,64 @@ func GetHandler(name string) Handler {
 				if a != nil {
 					io.Copy(os.Stdout, a)
 				}
+			}
+		}
+	} else if name == "multiprint" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			var tasks sync.WaitGroup
+			for {
+				payload, a, err := beam.Receive(in)
+				if err != nil {
+					return
+				}
+				if a != nil {
+					tasks.Add(1)
+					go func(payload []byte, attachment *os.File) {
+						defer tasks.Done()
+						msg := data.Message(string(payload))
+						input := bufio.NewScanner(attachment)
+						for input.Scan() {
+							fmt.Printf("[%s] %s\n", msg.Pretty(), input.Text())
+						}
+					}(payload, a)
+				}
+			}
+			tasks.Wait()
+		}
+	} else if name == "listen" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			if len(args) != 2 {
+				beam.Send(out, data.Empty().Set("status", "1").Set("message", "wrong number of arguments").Bytes(), nil)
+				return
+			}
+			u, err := url.Parse(args[1])
+			if err != nil {
+				beam.Send(out, data.Empty().Set("status", "1").Set("message", err.Error()).Bytes(), nil)
+				return
+			}
+			l, err := net.Listen(u.Scheme, u.Host)
+			if err != nil {
+				beam.Send(out, data.Empty().Set("status", "1").Set("message", err.Error()).Bytes(), nil)
+				return
+			}
+			for {
+				conn, err := l.Accept()
+				if err != nil {
+					beam.Send(out, data.Empty().Set("status", "1").Set("message", err.Error()).Bytes(), nil)
+					return
+				}
+				var f *os.File
+				if connWithFile, ok := conn.(interface { File() (*os.File, error) }); !ok {
+					conn.Close()
+					continue
+				} else {
+					f, err = connWithFile.File()
+					if err != nil {
+						conn.Close()
+						continue
+					}
+				}
+				beam.Send(out, data.Empty().Set("type", "socket").Set("remoteaddr", conn.RemoteAddr().String()).Bytes(), f)
 			}
 		}
 	} else if name == "openfile" {
