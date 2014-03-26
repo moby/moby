@@ -1,6 +1,8 @@
 package data
 
 import (
+	"fmt"
+	"strings"
 )
 
 type Message string
@@ -52,6 +54,18 @@ func (m Message) Get(k string) []string {
 		return nil
 	}
 	return v
+}
+
+func (m Message) Pretty() string {
+	data, err := Decode(string(m))
+	if err != nil {
+		return ""
+	}
+	entries := make([]string, 0, len(data))
+	for k, values := range data {
+		entries = append(entries, fmt.Sprintf("%s=%s", k, strings.Join(values, ",")))
+	}
+	return strings.Join(entries, "\n")
 }
 
 func (m Message) String() string {
