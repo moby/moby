@@ -290,16 +290,10 @@ func GetHandler(name string) Handler {
 					beam.Send(out, data.Empty().Set("status", "1").Set("message", err.Error()).Bytes(), nil)
 					return
 				}
-				var f *os.File
-				if connWithFile, ok := conn.(interface { File() (*os.File, error) }); !ok {
+				f, err := connToFile(conn)
+				if err != nil {
 					conn.Close()
 					continue
-				} else {
-					f, err = connWithFile.File()
-					if err != nil {
-						conn.Close()
-						continue
-					}
 				}
 				beam.Send(out, data.Empty().Set("type", "socket").Set("remoteaddr", conn.RemoteAddr().String()).Bytes(), f)
 			}
@@ -369,6 +363,17 @@ func GetHandler(name string) Handler {
 	return nil
 }
 
+func connToFile(conn net.Conn) (f *os.File, err error) {
+	if connWithFile, ok := conn.(interface { File() (*os.File, error) }); !ok {
+		return nil, fmt.Errorf("no file descriptor available")
+	} else {
+		f, err = connWithFile.File()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return f, err
+}
 
 // 'status' is a notification of a job's status.
 // 
