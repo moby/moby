@@ -87,11 +87,10 @@ func Devnull() (*net.UnixConn, error) {
 	go func() {
 		defer priv.Close()
 		for {
-			payload, attachment, err := beam.Receive(priv)
+			_, attachment, err := beam.Receive(priv)
 			if err != nil {
 				return
 			}
-			fmt.Fprintf(os.Stderr, "[devnull] discarding '%s'\n", data.Message(string(payload)).Pretty())
 			if attachment != nil {
 				attachment.Close()
 			}
