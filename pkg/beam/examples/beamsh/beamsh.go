@@ -214,6 +214,8 @@ func GetHandler(name string) Handler {
 				status = "ok"
 			}
 			beam.Send(out, data.Empty().Set("status", status).Set("cmd", args...).Bytes(), nil)
+			outW.Close()
+			errW.Close()
 		}
 	} else if name == "trace" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
