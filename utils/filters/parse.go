@@ -22,9 +22,9 @@ func ParseFlag(arg string, prev map[string]string) (map[string]string, error) {
 	} else {
 		filters = map[string]string{}
 	}
-  if len(arg) == 0 {
-    return filters, nil
-  }
+	if len(arg) == 0 {
+		return filters, nil
+	}
 
 	for _, chunk := range strings.Split(arg, ";") {
 		if !strings.Contains(chunk, "=") {

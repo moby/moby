@@ -1168,24 +1168,8 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			return err
 		}
 	}
-	/*
-	  var (
-	    untagged bool
-	  )
-	  for k,v := range imageFilters {
-	  }
-	*/
-
-	// seeing -all untagged images is redundant, and no point in seeing a visualization of that
-	/*
-		if *flUntagged && (*all || *flViz || *flTree) {
-			fmt.Fprintln(cli.err, "Notice: --untagged is not to be used with --all, --tree or --viz")
-			*flUntagged = false
-		}
-	*/
 
 	matchName := cmd.Arg(0)
-
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	if *flViz || *flTree {
 		v := url.Values{
