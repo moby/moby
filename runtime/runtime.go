@@ -192,7 +192,7 @@ func (runtime *Runtime) Register(container *Container) error {
 				if err != nil {
 					utils.Debugf("cannot find existing process for %d", existingPid)
 				}
-				runtime.execDriver.Kill(cmd, 9)
+				runtime.execDriver.Terminate(cmd)
 			}
 			if err := container.Unmount(); err != nil {
 				utils.Debugf("ghost unmount error %s", err)

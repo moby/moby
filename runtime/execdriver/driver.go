@@ -84,6 +84,7 @@ type Driver interface {
 	Name() string                                 // Driver name
 	Info(id string) Info                          // "temporary" hack (until we move state from core to plugins)
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
+	Terminate(c *Command) error                   // kill it with fire
 }
 
 // Network settings of the container
