@@ -191,11 +191,16 @@ func GetHandler(name string) Handler {
 				if err != nil {
 					return
 				}
-				fd := -1
-				if a != nil {
-					fd = int(a.Fd())
+				var msg string
+				if pretty := data.Message(string(p)).Pretty(); pretty != "" {
+					msg = pretty
+				} else {
+					msg = string(p)
 				}
-				fmt.Printf("===> [TRACE] %s [%d]\n", p, fd)
+				if a != nil {
+					msg = fmt.Sprintf("%s [%d]", msg, a.Fd())
+				}
+				fmt.Printf("===> %s\n", msg)
 				beam.Send(out, p, a)
 			}
 		}
