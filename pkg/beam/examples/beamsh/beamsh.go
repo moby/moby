@@ -56,23 +56,25 @@ func main() {
 	}
 }
 
-func beamCopy(dst *net.UnixConn, src *net.UnixConn) error {
+func beamCopy(dst *net.UnixConn, src *net.UnixConn) (int, error) {
+	var n int
 	for {
 		payload, attachment, err := beam.Receive(src)
 		if err == io.EOF {
-			return nil
+			return n, nil
 		} else if err != nil {
-			return err
+			return n, err
 		}
 		if err := beam.Send(dst, payload, attachment); err != nil {
 			if attachment != nil {
 				attachment.Close()
 			}
-			return err
+			return n, err
 		}
+		n++
 	}
 	panic("impossibru!")
-	return nil
+	return n, nil
 }
 
 type Handler func([]string, *net.UnixConn, *net.UnixConn)
@@ -165,7 +167,11 @@ func executeCommand(client *net.UnixConn, cmd *dockerscript.Command) error {
 	}()
 	go func() {
 		Debugf("[%s] copy start...\n", strings.Join(cmd.Args, " "))
-		beamCopy(client, outPub)
+		n, err := beamCopy(client, outPub)
+		if err != nil {
+			Fatal(err)
+		}
+		Debugf("[%s] copied %d messages\n", strings.Join(cmd.Args, " "), n)
 		Debugf("[%s] copy done\n", strings.Join(cmd.Args, " "))
 		tasks.Done()
 	}()
