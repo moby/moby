@@ -87,7 +87,7 @@ func Devnull() (*net.UnixConn, error) {
 			if err != nil {
 				return
 			}
-			fmt.Fprintf(os.Stderr, "[devnull] discarding '%s'\n", payload)
+			fmt.Fprintf(os.Stderr, "[devnull] discarding '%s'\n", data.Message(string(payload)).Pretty())
 			if attachment != nil {
 				attachment.Close()
 			}
