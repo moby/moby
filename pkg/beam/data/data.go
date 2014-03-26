@@ -23,6 +23,8 @@ func encodeString(s string) string {
 	return fmt.Sprintf("%d:%s,", len(s), s)
 }
 
+var EncodeString = encodeString
+
 func encodeList(l []string) string {
 	values := make([]string, 0, len(l))
 	for _, s := range l {
