@@ -2,6 +2,7 @@ package native
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/runtime/execdriver/native/configuration"
@@ -35,6 +36,9 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		return nil, err
 	}
 	if err := d.setupMounts(container, c); err != nil {
+		return nil, err
+	}
+	if err := d.setupLabels(container, c); err != nil {
 		return nil, err
 	}
 	if err := configuration.ParseConfiguration(container, d.activeContainers, c.Config["native"]); err != nil {
@@ -91,6 +95,19 @@ func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.C
 func (d *driver) setupMounts(container *libcontainer.Container, c *execdriver.Command) error {
 	for _, m := range c.Mounts {
 		container.Mounts = append(container.Mounts, libcontainer.Mount{m.Source, m.Destination, m.Writable, m.Private})
+	}
+	return nil
+}
+
+func (d *driver) setupLabels(container *libcontainer.Container, c *execdriver.Command) error {
+	labels := c.Config["label"]
+	if len(labels) > 0 {
+		process, mount, err := label.GenLabels(labels[0])
+		if err != nil {
+			return err
+		}
+		container.Context["mount_label"] = mount
+		container.Context["process_label"] = process
 	}
 	return nil
 }
