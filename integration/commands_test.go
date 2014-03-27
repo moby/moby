@@ -1163,3 +1163,27 @@ func TestCmdKill(t *testing.T) {
 
 	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
 }
+
+func TestRunTTYCommitRun(t *testing.T) {
+	cli := api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+
+	defer cleanup(globalEngine, t)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		cli.CmdRun("-t", unitTestImageID, "/bin/ls")
+	}()
+
+	container := waitContainerStart(t, 10*time.Second)
+	time.Sleep(500 * time.Millisecond)
+	setTimeout(t, "Waiting for container timedout", 5*time.Second, func() {
+		<-ch
+	})
+
+	cli.CmdCommit(container.ID, "ttytest")
+
+	if err := cli.CmdRun("ttytest", "/bin/ls"); err != nil {
+		t.Fatal(err)
+	}
+}
