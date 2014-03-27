@@ -3,6 +3,7 @@ package lxc
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
@@ -378,19 +379,34 @@ func rootIsShared() bool {
 }
 
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	root := path.Join(d.root, "containers", c.ID, "config.lxc")
+	var (
+		process, mount string
+		root           = path.Join(d.root, "containers", c.ID, "config.lxc")
+		labels         = c.Config["label"]
+	)
 	fo, err := os.Create(root)
 	if err != nil {
 		return "", err
 	}
 	defer fo.Close()
 
+	if len(labels) > 0 {
+		process, mount, err = label.GenLabels(labels[0])
+		if err != nil {
+			return "", err
+		}
+	}
+
 	if err := LxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
-		AppArmor bool
+		AppArmor     bool
+		ProcessLabel string
+		MountLabel   string
 	}{
-		Command:  c,
-		AppArmor: d.apparmor,
+		Command:      c,
+		AppArmor:     d.apparmor,
+		ProcessLabel: process,
+		MountLabel:   mount,
 	}); err != nil {
 		return "", err
 	}

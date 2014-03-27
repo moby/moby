@@ -30,9 +30,9 @@ lxc.pts = 1024
 
 # disable the main console
 lxc.console = none
-{{if getProcessLabel .Config}}
-lxc.se_context = {{ getProcessLabel .Config}}
-{{$MOUNTLABEL := getMountLabel .Config}}
+{{if .ProcessLabel}}
+lxc.se_context = {{ .ProcessLabel}}
+{{$MOUNTLABEL := .MountLabel}}
 {{end}}
 
 # no controlling tty at all
@@ -159,8 +159,8 @@ func getLabel(c map[string][]string, name string) string {
 	label := c["label"]
 	for _, l := range label {
 		parts := strings.SplitN(l, "=", 2)
-		if parts[0] == name {
-			return parts[1]
+		if strings.TrimSpace(parts[0]) == name {
+			return strings.TrimSpace(parts[1])
 		}
 	}
 	return ""
