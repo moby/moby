@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/opts"
-	"github.com/dotcloud/docker/pkg/label"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/sysinfo"
-	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
@@ -34,10 +32,6 @@ func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo)
 }
 
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
-	var (
-		processLabel string
-		mountLabel   string
-	)
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
@@ -67,7 +61,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flLabelOptions    = cmd.String([]string{"Z", "-label"}, "", "Options to pass to underlying labeling system")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -159,15 +152,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint = []string{*flEntrypoint}
 	}
 
-	if !*flPrivileged {
-		pLabel, mLabel, e := label.GenLabels(*flLabelOptions)
-		if e != nil {
-			return nil, nil, cmd, fmt.Errorf("Invalid security labels : %s", e)
-		}
-		processLabel = pLabel
-		mountLabel = mLabel
-	}
-
 	lxcConf, err := parseKeyValueOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
@@ -222,18 +206,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		Context: execdriver.Context{
-			"mount_label":   mountLabel,
-			"process_label": processLabel,
-		},
 	}
 
 	driverOptions, err := parseDriverOpts(flDriverOpts)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-
-	pluginOptions, err := parseDriverOpts(flDriverOpts)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -286,23 +261,6 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
 			return nil, err
 		}
 		out[i] = utils.KeyValuePair{Key: k, Value: v}
-	}
-	return out, nil
-}
-
-// options will come in the format of name.type=value
-func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
-	out := make(map[string][]string, len(opts.GetAll()))
-	for _, o := range opts.GetAll() {
-		parts := strings.SplitN(o, ".", 2)
-		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid opt format %s", o)
-		}
-		values, exists := out[parts[0]]
-		if !exists {
-			values = []string{}
-		}
-		out[parts[0]] = append(values, parts[1])
 	}
 	return out, nil
 }

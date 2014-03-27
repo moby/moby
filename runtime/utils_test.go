@@ -2,13 +2,14 @@ package runtime
 
 import (
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 	"testing"
 )
 
 func TestMergeLxcConfig(t *testing.T) {
 	var (
 		hostConfig = &runconfig.HostConfig{
-			LxcConf: []runconfig.KeyValuePair{
+			LxcConf: []utils.KeyValuePair{
 				{Key: "lxc.cgroups.cpuset", Value: "1,2"},
 			},
 		}

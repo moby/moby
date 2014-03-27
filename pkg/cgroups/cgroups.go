@@ -101,22 +101,3 @@ func (c *Cgroup) Apply(pid int) (ActiveCgroup, error) {
 		return rawApply(c, pid)
 	}
 }
-
-func (c *Cgroup) setupCpuset(cgroupRoot string, pid int) (err error) {
-	if c.CpusetCpus != "" {
-		dir, err := c.Join(cgroupRoot, "cpuset", pid)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err != nil {
-				os.RemoveAll(dir)
-			}
-		}()
-
-		if err := writeFile(dir, "cpuset.cpus", c.CpusetCpus); err != nil {
-			return err
-		}
-	}
-	return nil
-}

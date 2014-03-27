@@ -17,11 +17,6 @@ type HostConfig struct {
 	DriverOptions   map[string][]string
 }
 
-type KeyValuePair struct {
-	Key   string
-	Value string
-}
-
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
