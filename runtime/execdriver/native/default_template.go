@@ -18,6 +18,8 @@ func createContainer(c *execdriver.Command) *libcontainer.Container {
 	container.User = c.User
 	container.WorkingDir = c.WorkingDir
 	container.Env = c.Env
+	container.Context["mount_label"] = c.Context["mount_label"]
+	container.Context["process_label"] = c.Context["process_label"]
 
 	loopbackNetwork := libcontainer.Network{
 		Mtu:     c.Network.Mtu,

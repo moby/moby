@@ -7,6 +7,10 @@ import (
 	"os/exec"
 )
 
+// Context is a generic key value pair that allows
+// arbatrary data to be sent
+type Context map[string]string
+
 var (
 	ErrNotRunning              = errors.New("Process could not be started")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
@@ -121,6 +125,7 @@ type Command struct {
 	Arguments  []string   `json:"arguments"`
 	WorkingDir string     `json:"working_dir"`
 	ConfigPath string     `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
+	Context    Context    `json:"context"`     // generic context for specific options (apparmor, selinux)
 	Tty        bool       `json:"tty"`
 	Network    *Network   `json:"network"`
 	Config     []string   `json:"config"` //  generic values that specific drivers can consume
