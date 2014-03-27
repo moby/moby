@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dotcloud/docker/daemon/graphdriver"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/utils"
 )
@@ -505,6 +506,12 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logInit(devices)
+
+	_, err := getDriverVersion()
+	if err != nil {
+		// Can't even get driver version, assume not supported
+		return graphdriver.ErrNotSupported
+	}
 
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
 		return err
