@@ -25,34 +25,54 @@ func main() {
 		Fatal(err)
 	}
 	defer devnull.Close()
-	if term.IsTerminal(0) {
-		input := bufio.NewScanner(os.Stdin)
-		for {
-			os.Stdout.Write([]byte("beamsh> "))
-			if !input.Scan() {
-				break
-			}
-			line := input.Text()
-			if len(line) != 0 {
-				cmd, err := dockerscript.Parse(strings.NewReader(line))
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "error: %v\n", err)
-					continue
+	if len(os.Args) == 1 {
+		if term.IsTerminal(0) {
+			input := bufio.NewScanner(os.Stdin)
+			for {
+				os.Stdout.Write([]byte("beamsh> "))
+				if !input.Scan() {
+					break
 				}
-				executeScript(devnull, cmd)
+				line := input.Text()
+				if len(line) != 0 {
+					cmd, err := dockerscript.Parse(strings.NewReader(line))
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "error: %v\n", err)
+						continue
+					}
+					if err := executeScript(devnull, cmd); err != nil {
+						Fatal(err)
+					}
+				}
+				if err := input.Err(); err == io.EOF {
+					break
+				} else if err != nil {
+					Fatal(err)
+				}
 			}
-			if err := input.Err(); err == io.EOF {
-				break
-			} else if err != nil {
+		} else {
+			script, err := dockerscript.Parse(os.Stdin)
+			if err != nil {
+				Fatal("parse error: %v\n", err)
+			}
+			if err := executeScript(devnull, script); err != nil {
 				Fatal(err)
 			}
 		}
 	} else {
-		script, err := dockerscript.Parse(os.Stdin)
-		if err != nil {
-			Fatal("parse error: %v\n", err)
+		for _, scriptpath := range os.Args[1:] {
+			f, err := os.Open(scriptpath)
+			if err != nil {
+				Fatal(err)
+			}
+			script, err := dockerscript.Parse(f)
+			if err != nil {
+				Fatal("parse error: %v\n", err)
+			}
+			if err := executeScript(devnull, script); err != nil {
+				Fatal(err)
+			}
 		}
-		executeScript(devnull, script)
 	}
 }
 

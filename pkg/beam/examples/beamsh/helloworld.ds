@@ -1,0 +1,8 @@
+#!/usr/bin/env beamsh
+
+print {
+	trace {
+		emit hello
+		emit world
+	}
+}
