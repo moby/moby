@@ -54,6 +54,9 @@ func denyAllDevmapper() {
 	DmTaskGetInfo = func(task *CDmTask, info *Info) int {
 		panic("DmTaskGetInfo: this method should not be called here")
 	}
+	DmTaskGetDriverVersion = func(task *CDmTask) string {
+		panic("DmTaskGetDriverVersion: this method should not be called here")
+	}
 	DmGetNextTarget = func(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {
 		panic("DmGetNextTarget: this method should not be called here")
 	}
@@ -210,6 +213,14 @@ func TestInit(t *testing.T) {
 			info.Exists = 0
 			return 1
 		}
+		DmTaskGetDriverVersion = func(task *CDmTask) string {
+			calls["DmTaskGetDriverVersion"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskGetDriverVersion(%v)\nReceived: DmTaskGetDriverVersion(%v)\n", expectedTask, task)
+			}
+			return "1.1.1"
+		}
 		DmTaskSetSector = func(task *CDmTask, sector uint64) int {
 			calls["DmTaskSetSector"] = true
 			expectedTask := &task1
@@ -311,6 +322,7 @@ func TestInit(t *testing.T) {
 		"DmTaskSetName",
 		"DmTaskRun",
 		"DmTaskGetInfo",
+		"DmTaskGetDriverVersion",
 		"DmTaskDestroy",
 		"execRun",
 		"DmTaskCreate",
@@ -321,7 +333,7 @@ func TestInit(t *testing.T) {
 		"DmTaskSetMessage",
 		"DmTaskSetAddNode",
 	)
-	taskTypes.Assert(t, "0", "6", "17")
+	taskTypes.Assert(t, "0", "6", "9", "17")
 	taskMessages.Assert(t, "create_thin 0", "set_transaction_id 0 1")
 }
 
@@ -362,6 +374,10 @@ func mockAllDevmapper(calls Set) {
 	DmTaskGetInfo = func(task *CDmTask, info *Info) int {
 		calls["DmTaskGetInfo"] = true
 		return 1
+	}
+	DmTaskGetDriverVersion = func(task *CDmTask) string {
+		calls["DmTaskGetDriverVersion"] = true
+		return "1.1.1"
 	}
 	DmTaskSetSector = func(task *CDmTask, sector uint64) int {
 		calls["DmTaskSetSector"] = true
@@ -479,6 +495,7 @@ func TestDriverCreate(t *testing.T) {
 			"DmTaskSetName",
 			"DmTaskRun",
 			"DmTaskGetInfo",
+			"DmTaskGetDriverVersion",
 			"execRun",
 			"DmTaskCreate",
 			"DmTaskSetTarget",
@@ -597,6 +614,7 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetName",
 			"DmTaskRun",
 			"DmTaskGetInfo",
+			"DmTaskGetDriverVersion",
 			"execRun",
 			"DmTaskCreate",
 			"DmTaskSetTarget",

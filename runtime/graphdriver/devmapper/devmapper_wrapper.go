@@ -85,23 +85,24 @@ const (
 )
 
 var (
-	DmGetLibraryVersion = dmGetLibraryVersionFct
-	DmGetNextTarget     = dmGetNextTargetFct
-	DmLogInitVerbose    = dmLogInitVerboseFct
-	DmSetDevDir         = dmSetDevDirFct
-	DmTaskAddTarget     = dmTaskAddTargetFct
-	DmTaskCreate        = dmTaskCreateFct
-	DmTaskDestroy       = dmTaskDestroyFct
-	DmTaskGetInfo       = dmTaskGetInfoFct
-	DmTaskRun           = dmTaskRunFct
-	DmTaskSetAddNode    = dmTaskSetAddNodeFct
-	DmTaskSetCookie     = dmTaskSetCookieFct
-	DmTaskSetMessage    = dmTaskSetMessageFct
-	DmTaskSetName       = dmTaskSetNameFct
-	DmTaskSetRo         = dmTaskSetRoFct
-	DmTaskSetSector     = dmTaskSetSectorFct
-	DmUdevWait          = dmUdevWaitFct
-	LogWithErrnoInit    = logWithErrnoInitFct
+	DmGetLibraryVersion    = dmGetLibraryVersionFct
+	DmGetNextTarget        = dmGetNextTargetFct
+	DmLogInitVerbose       = dmLogInitVerboseFct
+	DmSetDevDir            = dmSetDevDirFct
+	DmTaskAddTarget        = dmTaskAddTargetFct
+	DmTaskCreate           = dmTaskCreateFct
+	DmTaskDestroy          = dmTaskDestroyFct
+	DmTaskGetInfo          = dmTaskGetInfoFct
+	DmTaskGetDriverVersion = dmTaskGetDriverVersionFct
+	DmTaskRun              = dmTaskRunFct
+	DmTaskSetAddNode       = dmTaskSetAddNodeFct
+	DmTaskSetCookie        = dmTaskSetCookieFct
+	DmTaskSetMessage       = dmTaskSetMessageFct
+	DmTaskSetName          = dmTaskSetNameFct
+	DmTaskSetRo            = dmTaskSetRoFct
+	DmTaskSetSector        = dmTaskSetSectorFct
+	DmUdevWait             = dmUdevWaitFct
+	LogWithErrnoInit       = logWithErrnoInitFct
 )
 
 func free(p *C.char) {
@@ -182,6 +183,16 @@ func dmTaskGetInfoFct(task *CDmTask, info *Info) int {
 		info.TargetCount = int32(Cinfo.target_count)
 	}()
 	return int(C.dm_task_get_info((*C.struct_dm_task)(task), &Cinfo))
+}
+
+func dmTaskGetDriverVersionFct(task *CDmTask) string {
+	buffer := C.malloc(128)
+	defer C.free(buffer)
+	res := C.dm_task_get_driver_version((*C.struct_dm_task)(task), (*C.char)(buffer), 128)
+	if res == 0 {
+		return ""
+	}
+	return C.GoString((*C.char)(buffer))
 }
 
 func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {

@@ -486,6 +486,12 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logInit(devices)
 
+	_, err := getDriverVersion()
+	if err != nil {
+		// Can't even get driver version, assume not supported
+		return graphdriver.ErrNotSupported
+	}
+
 	// Make sure the sparse images exist in <root>/devicemapper/data and
 	// <root>/devicemapper/metadata
 
