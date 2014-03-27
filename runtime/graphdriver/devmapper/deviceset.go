@@ -70,6 +70,11 @@ type DeviceSet struct {
 	NewTransactionId uint64
 	nextFreeDevice   int
 	sawBusy          bool
+
+	// Options
+	dataLoopbackSize     int64
+	metaDataLoopbackSize int64
+	baseFsSize           uint64
 }
 
 type DiskUsage struct {
@@ -353,8 +358,8 @@ func (devices *DeviceSet) setupBaseImage() error {
 		return err
 	}
 
-	utils.Debugf("Registering base device (id %v) with FS size %v", id, DefaultBaseFsSize)
-	info, err := devices.registerDevice(id, "", DefaultBaseFsSize)
+	utils.Debugf("Registering base device (id %v) with FS size %v", id, devices.baseFsSize)
+	info, err := devices.registerDevice(id, "", devices.baseFsSize)
 	if err != nil {
 		_ = deleteDevice(devices.getPoolDevName(), id)
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -507,12 +512,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	}
 
 	createdLoopback := !hasData || !hasMetadata
-	data, err := devices.ensureImage("data", DefaultDataLoopbackSize)
+	data, err := devices.ensureImage("data", devices.dataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (data): %s\n", err)
 		return err
 	}
-	metadata, err := devices.ensureImage("metadata", DefaultMetaDataLoopbackSize)
+	metadata, err := devices.ensureImage("metadata", devices.metaDataLoopbackSize)
 	if err != nil {
 		utils.Debugf("Error device ensureImage (metadata): %s\n", err)
 		return err
@@ -1113,12 +1118,45 @@ func (devices *DeviceSet) Status() *Status {
 	return status
 }
 
-func NewDeviceSet(root string, doInit bool) (*DeviceSet, error) {
+func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {
 	SetDevDir("/dev")
 
 	devices := &DeviceSet{
-		root:     root,
-		MetaData: MetaData{Devices: make(map[string]*DevInfo)},
+		root:                 root,
+		MetaData:             MetaData{Devices: make(map[string]*DevInfo)},
+		dataLoopbackSize:     DefaultDataLoopbackSize,
+		metaDataLoopbackSize: DefaultMetaDataLoopbackSize,
+		baseFsSize:           DefaultBaseFsSize,
+	}
+
+	for _, option := range options {
+		key, val, err := utils.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "basesize":
+			size, err := utils.FromHumanSize(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.baseFsSize = uint64(size)
+		case "loopdatasize":
+			size, err := utils.FromHumanSize(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.dataLoopbackSize = size
+		case "loopmetadatasize":
+			size, err := utils.FromHumanSize(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.metaDataLoopbackSize = size
+		default:
+			return nil, fmt.Errorf("Unknown option %s\n", key)
+		}
 	}
 
 	if err := devices.initDevmapper(doInit); err != nil {
