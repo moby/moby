@@ -191,7 +191,27 @@ func randomId() string {
 }
 
 func GetHandler(name string) Handler {
-	if name == "exec" {
+	if name == "pass" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			for {
+				payload, attachment, err := beam.Receive(in)
+				if err != nil {
+					return
+				}
+				if err := beam.Send(out, payload, attachment); err != nil {
+					if attachment != nil {
+						attachment.Close()
+					}
+					return
+				}
+			}
+		}
+	} else if name == "in" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			os.Chdir(args[1])
+			GetHandler("pass")([]string{"pass"}, in, out)
+		}
+	} else if name == "exec" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
 			cmd := exec.Command(args[1], args[2:]...)
 			outR, outW, err := os.Pipe()
