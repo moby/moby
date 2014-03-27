@@ -36,7 +36,7 @@ func fakeTar() (io.Reader, error) {
 }
 
 func mkTestTagStore(root string, t *testing.T) *TagStore {
-	driver, err := graphdriver.New(root)
+	driver, err := graphdriver.New(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

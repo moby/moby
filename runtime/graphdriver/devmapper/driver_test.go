@@ -120,7 +120,7 @@ func mkTestDirectory(t *testing.T) string {
 
 func newDriver(t *testing.T) *Driver {
 	home := mkTestDirectory(t)
-	d, err := Init(home)
+	d, err := Init(home, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestInit(t *testing.T) {
 			}
 			return nil
 		}
-		driver, err := Init(home)
+		driver, err := Init(home, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -325,9 +325,9 @@ func TestInit(t *testing.T) {
 	taskMessages.Assert(t, "create_thin 0", "set_transaction_id 0 1")
 }
 
-func fakeInit() func(home string) (graphdriver.Driver, error) {
+func fakeInit() func(home string, options map[string][]string) (graphdriver.Driver, error) {
 	oldInit := Init
-	Init = func(home string) (graphdriver.Driver, error) {
+	Init = func(home string, options map[string][]string) (graphdriver.Driver, error) {
 		return &Driver{
 			home: home,
 		}, nil
@@ -335,7 +335,7 @@ func fakeInit() func(home string) (graphdriver.Driver, error) {
 	return oldInit
 }
 
-func restoreInit(init func(home string) (graphdriver.Driver, error)) {
+func restoreInit(init func(home string, options map[string][]string) (graphdriver.Driver, error)) {
 	Init = init
 }
 
@@ -780,7 +780,7 @@ func TestInitCleanedDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver, err := Init(d.home)
+	driver, err := Init(d.home, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

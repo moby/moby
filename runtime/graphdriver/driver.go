@@ -8,7 +8,7 @@ import (
 	"path"
 )
 
-type InitFunc func(root string) (Driver, error)
+type InitFunc func(root string, options map[string][]string) (Driver, error)
 
 type Driver interface {
 	String() string
@@ -58,23 +58,23 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetDriver(name, home string) (Driver, error) {
+func GetDriver(name, home string, options map[string][]string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(path.Join(home, name))
+		return initFunc(path.Join(home, name), options)
 	}
 	return nil, fmt.Errorf("No such driver: %s", name)
 }
 
-func New(root string) (driver Driver, err error) {
+func New(root string, options map[string][]string) (driver Driver, err error) {
 	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
 		if name != "" {
-			return GetDriver(name, root)
+			return GetDriver(name, root, options)
 		}
 	}
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		if driver, err = GetDriver(name, root); err != nil {
+		if driver, err = GetDriver(name, root, options); err != nil {
 			utils.Debugf("Error loading driver %s: %s", name, err)
 			continue
 		}
@@ -83,7 +83,7 @@ func New(root string) (driver Driver, err error) {
 
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
-		if driver, err = initFunc(root); err != nil {
+		if driver, err = initFunc(root, options); err != nil {
 			continue
 		}
 		return driver, nil

@@ -26,7 +26,7 @@ type Driver struct {
 	MountLabel string
 }
 
-var Init = func(home string) (graphdriver.Driver, error) {
+var Init = func(home string, options map[string][]string) (graphdriver.Driver, error) {
 	deviceSet, err := NewDeviceSet(home, true)
 	if err != nil {
 		return nil, err

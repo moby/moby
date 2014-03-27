@@ -83,6 +83,7 @@ Commands
       --ip="0.0.0.0": Default IP address to use when binding container ports
       --ip-forward=true: Enable net.ipv4.ip_forward
       --iptables=true: Enable Docker's addition of iptables rules
+      -o, --opt=[]: Set custom daemon options
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
