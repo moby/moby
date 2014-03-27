@@ -53,7 +53,7 @@ type Driver struct {
 func Init(root string, options map[string][]string) (graphdriver.Driver, error) {
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
-		return nil, err
+		return nil, graphdriver.ErrNotSupported
 	}
 	paths := []string{
 		"mnt",

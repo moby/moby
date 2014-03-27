@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/runtime/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
