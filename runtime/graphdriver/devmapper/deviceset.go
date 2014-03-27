@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -677,6 +679,12 @@ func (devices *DeviceSet) deactivateDevice(hash string) error {
 	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
 
+	// Wait for the unmount to be effective,
+	// by watching the value of Info.OpenCount for the device
+	if err := devices.waitClose(hash); err != nil {
+		utils.Errorf("Warning: error waiting for device %s to close: %s\n", hash, err)
+	}
+
 	info := devices.Devices[hash]
 	if info == nil {
 		return fmt.Errorf("Unknown device %s", hash)
@@ -799,24 +807,18 @@ func (devices *DeviceSet) Shutdown() error {
 	for _, info := range devices.Devices {
 		info.lock.Lock()
 		if info.mountCount > 0 {
-			if err := sysUnmount(info.mountPath, 0); err != nil {
+			// We use MNT_DETACH here in case it is still busy in some running
+			// container. This means it'll go away from the global scope directly,
+			// and the device will be released when that container dies.
+			if err := sysUnmount(info.mountPath, syscall.MNT_DETACH); err != nil {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
+			}
+
+			if err := devices.deactivateDevice(info.Hash); err != nil {
+				utils.Debugf("Shutdown deactivate %s , error: %s\n", info.Hash, err)
 			}
 		}
 		info.lock.Unlock()
-	}
-
-	for _, d := range devices.Devices {
-		d.lock.Lock()
-
-		if err := devices.waitClose(d.Hash); err != nil {
-			utils.Errorf("Warning: error waiting for device %s to unmount: %s\n", d.Hash, err)
-		}
-		if err := devices.deactivateDevice(d.Hash); err != nil {
-			utils.Debugf("Shutdown deactivate %s , error: %s\n", d.Hash, err)
-		}
-
-		d.lock.Unlock()
 	}
 
 	if err := devices.deactivatePool(); err != nil {
@@ -826,7 +828,7 @@ func (devices *DeviceSet) Shutdown() error {
 	return nil
 }
 
-func (devices *DeviceSet) MountDevice(hash, path string) error {
+func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -858,9 +860,11 @@ func (devices *DeviceSet) MountDevice(hash, path string) error {
 
 	var flags uintptr = sysMsMgcVal
 
-	err := sysMount(info.DevName(), path, "ext4", flags, "discard")
+	mountOptions := label.FormatMountLabel("discard", mountLabel)
+	err := sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	if err != nil && err == sysEInval {
-		err = sysMount(info.DevName(), path, "ext4", flags, "")
+		mountOptions = label.FormatMountLabel(mountLabel, "")
+		err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -920,13 +924,10 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 		return err
 	}
 	utils.Debugf("[devmapper] Unmount done")
-	// Wait for the unmount to be effective,
-	// by watching the value of Info.OpenCount for the device
-	if err := devices.waitClose(hash); err != nil {
+
+	if err := devices.deactivateDevice(hash); err != nil {
 		return err
 	}
-
-	devices.deactivateDevice(hash)
 
 	info.mountPath = ""
 

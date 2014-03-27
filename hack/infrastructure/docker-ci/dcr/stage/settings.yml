@@ -1,5 +1,0 @@
-default:
-  hipaches: ['192.168.100.65:6379']
-  daemons: ['192.168.100.65:4243']
-  use_ssh: False
-

@@ -177,6 +177,13 @@ export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
 
 NOTE: if you need to set more than one build tag, space separate them.
 
+If you're building a binary that may need to be used on platforms that include
+SELinux, you will need to set `DOCKER_BUILDTAGS` as follows:
+
+```bash
+export DOCKER_BUILDTAGS='selinux'
+```
+
 ### Static Daemon
 
 If it is feasible within the constraints of your distribution, you should
@@ -259,6 +266,12 @@ installed and available at runtime:
 
 * iptables version 1.4 or later
 * XZ Utils version 4.9 or later
+* a [properly
+  mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
+  cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount point
+  [is](https://github.com/dotcloud/docker/issues/2683)
+  [not](https://github.com/dotcloud/docker/issues/3485)
+  [sufficient](https://github.com/dotcloud/docker/issues/4568))
 
 Additionally, the Docker client needs the following software to be installed and
 available at runtime:

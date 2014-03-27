@@ -28,6 +28,9 @@ func (s *State) String() string {
 		}
 		return fmt.Sprintf("Up %s", utils.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
+	if s.FinishedAt.IsZero() {
+		return ""
+	}
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, utils.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 

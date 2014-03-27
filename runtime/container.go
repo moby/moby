@@ -404,6 +404,7 @@ func populateCommand(c *Container) {
 		User:       c.Config.User,
 		Config:     driverConfig,
 		Resources:  resources,
+		Context:    c.Config.Context,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
@@ -537,8 +538,18 @@ func (container *Container) Start() (err error) {
 
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
-		if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
-			return nil
+
+		pthInfo, err := os.Stat(path.Join(container.basefs, container.Config.WorkingDir))
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
+				return err
+			}
+		}
+		if pthInfo != nil && !pthInfo.IsDir() {
+			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 	}
 
@@ -905,12 +916,20 @@ func (container *Container) Stop(seconds int) error {
 
 	// 1. Send a SIGTERM
 	if err := container.KillSig(15); err != nil {
-		return err
+		utils.Debugf("Error sending kill SIGTERM: %s", err)
+		log.Print("Failed to send SIGTERM to the process, force killing")
+		if err := container.KillSig(9); err != nil {
+			return err
+		}
 	}
 
 	// 2. Wait for the process to exit on its own
 	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
-		return err
+		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
+		// 3. If it doesn't, then send SIGKILL
+		if err := container.Kill(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -952,10 +971,11 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	}), nil
+			err := archive.Close()
+			container.Unmount()
+			return err
+		}),
+		nil
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -969,10 +989,11 @@ func (container *Container) Export() (archive.Archive, error) {
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	}), nil
+			err := archive.Close()
+			container.Unmount()
+			return err
+		}),
+		nil
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
@@ -1121,10 +1142,11 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	}), nil
+			err := archive.Close()
+			container.Unmount()
+			return err
+		}),
+		nil
 }
 
 // Returns true if the container exposes a certain port

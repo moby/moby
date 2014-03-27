@@ -208,6 +208,15 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	// Upload the build context
 	v := &url.Values{}
+
+	//Check if the given image name can be resolved
+	if *tag != "" {
+		repository, _ := utils.ParseRepositoryTag(*tag)
+		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+			return err
+		}
+	}
+
 	v.Set("t", *tag)
 
 	if *suppressOutput {
@@ -498,8 +507,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 }
 
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := cli.Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container (Send SIGTERM)")
-	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to wait for the container to stop.")
+	cmd := cli.Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container (Send SIGTERM, and then SIGKILL after grace period)")
+	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to wait for the container to stop before killing it.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -526,7 +535,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := cli.Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
-	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to wait for the container to stop. Default=10")
+	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1003,6 +1012,14 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
 	}
 	v := url.Values{}
+
+	if repository != "" {
+		//Check if the given image name can be resolved
+		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+			return err
+		}
+	}
+
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 	v.Set("fromSrc", src)
@@ -1453,6 +1470,13 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return nil
 	}
 
+	//Check if the given image name can be resolved
+	if repository != "" {
+		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+			return err
+		}
+	}
+
 	v := url.Values{}
 	v.Set("container", name)
 	v.Set("repo", repository)
@@ -1741,6 +1765,11 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	v := url.Values{}
+
+	//Check if the given image name can be resolved
+	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		return err
+	}
 	v.Set("repo", repository)
 	v.Set("tag", tag)
 
@@ -2044,7 +2073,9 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout)")
+	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to stdout by default)")
+	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -2054,8 +2085,18 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		return nil
 	}
 
+	var (
+		output io.Writer = cli.out
+		err    error
+	)
+	if *outfile != "" {
+		output, err = os.Create(*outfile)
+		if err != nil {
+			return err
+		}
+	}
 	image := cmd.Arg(0)
-	if err := cli.stream("GET", "/images/"+image+"/get", nil, cli.out, nil); err != nil {
+	if err := cli.stream("GET", "/images/"+image+"/get", nil, output, nil); err != nil {
 		return err
 	}
 	return nil
@@ -2063,6 +2104,8 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN")
+	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -2072,7 +2115,17 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		return nil
 	}
 
-	if err := cli.stream("POST", "/images/load", cli.in, cli.out, nil); err != nil {
+	var (
+		input io.Reader = cli.in
+		err   error
+	)
+	if *infile != "" {
+		input, err = os.Open(*infile)
+		if err != nil {
+			return err
+		}
+	}
+	if err := cli.stream("POST", "/images/load", input, cli.out, nil); err != nil {
 		return err
 	}
 	return nil

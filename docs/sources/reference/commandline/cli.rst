@@ -881,10 +881,32 @@ Known Issues (kill)
 
 ::
 
-    Usage: docker load < repository.tar
+    Usage: docker load 
 
-    Loads a tarred repository from the standard input stream.
-    Restores both images and tags.
+    Load an image from a tar archive on STDIN
+
+      -i, --input="": Read from a tar archive file, instead of STDIN
+
+Loads a tarred repository from a file or the standard input stream.
+Restores both images and tags.
+
+.. code-block:: bash
+
+   $ sudo docker images
+   REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+   $ sudo docker load < busybox.tar
+   $ sudo docker images
+   REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+   busybox             latest              769b9341d937        7 weeks ago         2.489 MB
+   $ sudo docker load --input fedora.tar
+   $ sudo docker images
+   REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+   busybox             latest              769b9341d937        7 weeks ago         2.489 MB
+   fedora              rawhide             0d20aec6529d        7 weeks ago         387 MB
+   fedora              20                  58394af37342        7 weeks ago         385.5 MB
+   fedora              heisenbug           58394af37342        7 weeks ago         385.5 MB
+   fedora              latest              58394af37342        7 weeks ago         385.5 MB
+
 
 .. _cli_login:
 
@@ -1145,7 +1167,7 @@ image is removed.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
-      --lxc-conf=[]: Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       --expose=[]: Expose a port from the container without publishing it to your host
       --link="": Add link to another container (name:alias)
@@ -1317,10 +1339,27 @@ This example shows 5 containers that might be set up to test a web application c
 
 ::
 
-    Usage: docker save image > repository.tar
+    Usage: docker save IMAGE
 
-    Streams a tarred repository to the standard output stream.
-    Contains all parent layers, and all tags + versions.
+    Save an image to a tar archive (streamed to stdout by default)
+
+      -o, --output="": Write to an file, instead of STDOUT
+
+
+Produces a tarred repository to the standard output stream.
+Contains all parent layers, and all tags + versions, or specified repo:tag.
+
+.. code-block:: bash
+
+   $ sudo docker save busybox > busybox.tar
+   $ ls -sh b.tar
+   2.7M b.tar
+   $ sudo docker save --output busybox.tar busybox
+   $ ls -sh b.tar
+   2.7M b.tar
+   $ sudo docker save -o fedora-all.tar fedora
+   $ sudo docker save -o fedora-latest.tar fedora:latest
+
 
 .. _cli_search:
 
@@ -1360,11 +1399,11 @@ This example shows 5 containers that might be set up to test a web application c
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
-    Stop a running container (Send SIGTERM)
+    Stop a running container (Send SIGTERM, and then SIGKILL after grace period)
 
-      -t, --time=10: Number of seconds to wait for the container to stop.
+      -t, --time=10: Number of seconds to wait for the container to stop before killing it.
 
-The main process inside the container will receive SIGTERM.
+The main process inside the container will receive SIGTERM, and after a grace period, SIGKILL
 
 .. _cli_tag:
 

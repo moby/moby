@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -x
-
-PROJECT_NAME=$(basename $0)
-
-docker run --rm -u sysadmin -e DEPLOYMENT=$DEPLOYMENT -v /run:/var/socket \
-    -v /home/docker-ci/coverage/$PROJECT_NAME:/data docker-ci/testbuilder $PROJECT_NAME $1 $2 $3
-

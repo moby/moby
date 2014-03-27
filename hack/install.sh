@@ -85,7 +85,7 @@ case "$lsb_dist" in
 			fi
 		}
 		
-		# TODO remove this section once device-mapper lands
+		# aufs is preferred over devicemapper; try to ensure the driver is available.
 		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 			kern_extras="linux-image-extra-$(uname -r)"
 			

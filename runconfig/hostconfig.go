@@ -3,12 +3,13 @@ package runconfig
 import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/utils"
 )
 
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
-	LxcConf         []KeyValuePair
+	LxcConf         []utils.KeyValuePair
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string

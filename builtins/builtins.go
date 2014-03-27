@@ -1,10 +1,9 @@
 package builtins
 
 import (
-	"github.com/dotcloud/docker/engine"
-
 	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/runtime/networkdriver/lxc"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runtime/networkdriver/bridge"
 	"github.com/dotcloud/docker/server"
 )
 
@@ -35,5 +34,5 @@ func remote(eng *engine.Engine) {
 //
 func daemon(eng *engine.Engine) {
 	eng.Register("initserver", server.InitServer)
-	eng.Register("init_networkdriver", lxc.InitDriver)
+	eng.Register("init_networkdriver", bridge.InitDriver)
 }

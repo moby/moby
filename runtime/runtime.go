@@ -17,7 +17,7 @@ import (
 	"github.com/dotcloud/docker/runtime/execdriver/lxc"
 	"github.com/dotcloud/docker/runtime/graphdriver"
 	_ "github.com/dotcloud/docker/runtime/graphdriver/vfs"
-	_ "github.com/dotcloud/docker/runtime/networkdriver/lxc"
+	_ "github.com/dotcloud/docker/runtime/networkdriver/bridge"
 	"github.com/dotcloud/docker/runtime/networkdriver/portallocator"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -467,7 +467,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 
 	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := runtime.driver.Create(initID, img.ID); err != nil {
+	if err := runtime.driver.Create(initID, img.ID, config.Context["mount_label"]); err != nil {
 		return nil, nil, err
 	}
 	initPath, err := runtime.driver.Get(initID)
@@ -480,7 +480,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 		return nil, nil, err
 	}
 
-	if err := runtime.driver.Create(container.ID, initID); err != nil {
+	if err := runtime.driver.Create(container.ID, initID, config.Context["mount_label"]); err != nil {
 		return nil, nil, err
 	}
 	resolvConf, err := utils.GetResolvConf()

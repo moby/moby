@@ -7,6 +7,10 @@ import (
 	"os/exec"
 )
 
+// Context is a generic key value pair that allows
+// arbatrary data to be sent
+type Context map[string]string
+
 var (
 	ErrNotRunning              = errors.New("Process could not be started")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
