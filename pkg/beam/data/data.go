@@ -24,6 +24,7 @@ func encodeString(s string) string {
 }
 
 var EncodeString = encodeString
+var DecodeString = decodeString
 
 func encodeList(l []string) string {
 	values := make([]string, 0, len(l))
