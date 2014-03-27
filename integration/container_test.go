@@ -1553,7 +1553,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show", "up"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
