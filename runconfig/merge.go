@@ -65,15 +65,6 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if !userConf.Tty {
-		userConf.Tty = imageConf.Tty
-	}
-	if !userConf.OpenStdin {
-		userConf.OpenStdin = imageConf.OpenStdin
-	}
-	if !userConf.StdinOnce {
-		userConf.StdinOnce = imageConf.StdinOnce
-	}
 	if userConf.Env == nil || len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
