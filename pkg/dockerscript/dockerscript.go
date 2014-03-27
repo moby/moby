@@ -12,8 +12,13 @@ type Command struct {
 	Children []*Command
 }
 
+type Scanner struct {
+	scanner.Scanner
+	commentLine bool
+}
+
 func Parse(src io.Reader) ([]*Command, error) {
-	s := &scanner.Scanner{}
+	s := &Scanner{}
 	s.Init(src)
 	s.Whitespace = 1<<'\t' | 1<<' '
 	s.Mode = scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanIdents
@@ -45,7 +50,7 @@ func (cmd *Command) String() string {
 	return cmd.subString(0)
 }
 
-func parseArgs(s *scanner.Scanner) ([]string, rune, error) {
+func parseArgs(s *Scanner) ([]string, rune, error) {
 	var parseError error
 	// FIXME: we overwrite previously set error
 	s.Error = func(s *scanner.Scanner, msg string) {
@@ -59,16 +64,25 @@ func parseArgs(s *scanner.Scanner) ([]string, rune, error) {
 			return args, tok, parseError
 		}
 		text := s.TokenText()
-		if text == "{" || text == "}" || text == "\n" || text == "\r" || text == ";" {
+		// Toggle line comment
+		if strings.HasPrefix(text, "#") {
+			s.commentLine = true
+		} else if text == "\n" || text == "\r" {
+			s.commentLine = false
 			return args, tok, nil
 		}
-		args = append(args, text)
+		if !s.commentLine {
+			if text == "{" || text == "}" || text == "\n" || text == "\r" || text == ";" {
+				return args, tok, nil
+			}
+			args = append(args, text)
+		}
 		tok = s.Scan()
 	}
 	return args, tok, nil
 }
 
-func parse(s *scanner.Scanner, opener string) (expr []*Command, err error) {
+func parse(s *Scanner, opener string) (expr []*Command, err error) {
 	/*
 	defer func() {
 		fmt.Printf("parse() returned %d commands:\n", len(expr))
