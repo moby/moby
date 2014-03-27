@@ -39,10 +39,9 @@ var (
 	// Slice of drivers that should be used in an order
 	priority = []string{
 		"aufs",
+		"btrfs",
 		"devicemapper",
 		"vfs",
-		// experimental, has to be enabled manually for now
-		"btrfs",
 	}
 )
 
