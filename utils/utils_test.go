@@ -625,3 +625,36 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Errorf("failed to remove symlink: %s", err)
 	}
 }
+
+func TestValidTag(t *testing.T) {
+
+	passing_strings := []string{
+		"alpha",
+		"012345678",
+		"0.123456",
+		"_-.-09az",
+	}
+
+	failing_strings := []string{
+		"FAIL",
+		"fAIL",
+		"0-9FAIL",
+		"fAil",
+		"F.R.E.A.M",
+		"fail!!!",
+		"fail:fail",
+		"fail/fail",
+	}
+
+	for _, str := range passing_strings {
+		if err := ValidTag(str); err != nil {
+			t.Error(err)
+		}
+	}
+
+	for _, str := range failing_strings {
+		if err := ValidTag(str); err == nil {
+			t.Errorf("%s was considered a valid tag/repository name", str)
+		}
+	}
+}
