@@ -1013,9 +1013,11 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	}
 	v := url.Values{}
 
-	//Check if the given image name can be resolved
-	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
-		return err
+	if repository != "" {
+		//Check if the given image name can be resolved
+		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+			return err
+		}
 	}
 
 	v.Set("repo", repository)
@@ -1469,8 +1471,10 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	}
 
 	//Check if the given image name can be resolved
-	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
-		return err
+	if repository != "" {
+		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+			return err
+		}
 	}
 
 	v := url.Values{}
