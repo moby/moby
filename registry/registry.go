@@ -42,9 +42,9 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 		return conn, nil
 	}
 	httpTransport := &http.Transport{
-                Dial:    httpDial,
-                Proxy:   http.ProxyFromEnvironment,
-        }
+		Dial:  httpDial,
+		Proxy: http.ProxyFromEnvironment,
+	}
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
