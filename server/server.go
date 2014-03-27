@@ -1064,7 +1064,13 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config = container.Config
+
+	image, err := container.GetImage()
+	if err != nil {
+		return job.Error(err)
+	}
+
+	var config = image.Config
 	var newConfig runconfig.Config
 	if err := job.GetenvJson("config", &newConfig); err != nil {
 		return job.Error(err)
