@@ -45,25 +45,25 @@ func TestSendUnixSocket(t *testing.T) {
 	// defer glueA.Close()
 	// defer glueB.Close()
 	go func() {
-		err := Send(b2, []byte("a"), glueB)
+		err := b2.Send([]byte("a"), glueB)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 	go func() {
-		err := Send(a2, []byte("b"), glueA)
+		err := a2.Send([]byte("b"), glueA)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
-	connAhdr, connA, err := Receive(a1)
+	connAhdr, connA, err := a1.Receive()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(connAhdr) != "b" {
 		t.Fatalf("unexpected: %s", connAhdr)
 	}
-	connBhdr, connB, err := Receive(b1)
+	connBhdr, connB, err := b1.Receive()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,18 +16,18 @@ import (
 // Note that if the underlying file descriptor received in attachment is nil or does
 // not point to a connection, that message will be skipped.
 //
-func Listen(conn *net.UnixConn, name string) (net.Listener, error) {
-	endpoint, err := SendPipe(conn, []byte(name))
+func Listen(conn Sender, name string) (net.Listener, error) {
+	in, _, err := SendPair(conn, []byte(name))
 	if err != nil {
 		return nil, err
 	}
 	return &listener{
 		name:     name,
-		endpoint: endpoint,
+		endpoint: in,
 	}, nil
 }
 
-func Connect(ctx *net.UnixConn, name string) (net.Conn, error) {
+func Connect(ctx *UnixConn, name string) (net.Conn, error) {
 	l, err := Listen(ctx, name)
 	if err != nil {
 		return nil, err
@@ -41,12 +41,12 @@ func Connect(ctx *net.UnixConn, name string) (net.Conn, error) {
 
 type listener struct {
 	name     string
-	endpoint *net.UnixConn
+	endpoint ReceiveCloser
 }
 
 func (l *listener) Accept() (net.Conn, error) {
 	for {
-		_, f, err := Receive(l.endpoint)
+		_, f, err := l.endpoint.Receive()
 		if err != nil {
 			return nil, err
 		}

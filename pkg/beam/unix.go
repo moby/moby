@@ -19,9 +19,27 @@ func debugCheckpoint(msg string, args ...interface{}) {
 	tty.Close()
 }
 
+type UnixConn struct {
+	*net.UnixConn
+}
+
+func FileConn(f *os.File) (*UnixConn, error) {
+	conn, err := net.FileConn(f)
+	if err != nil {
+		return nil, err
+	}
+	uconn, ok := conn.(*net.UnixConn)
+	if !ok {
+		conn.Close()
+		return nil, fmt.Errorf("%d: not a unix connection", f.Fd())
+	}
+	return &UnixConn{uconn}, nil
+
+}
+
 // Send sends a new message on conn with data and f as payload and
 // attachment, respectively.
-func Send(conn *net.UnixConn, data []byte, f *os.File) error {
+func (conn *UnixConn) Send(data []byte, f *os.File) error {
 	{
 		var fd int = -1
 		if f != nil {
@@ -33,7 +51,7 @@ func Send(conn *net.UnixConn, data []byte, f *os.File) error {
 	if f != nil {
 		fds = append(fds, int(f.Fd()))
 	}
-	return sendUnix(conn, data, fds...)
+	return sendUnix(conn.UnixConn, data, fds...)
 }
 
 // Receive waits for a new message on conn, and receives its payload
@@ -42,7 +60,7 @@ func Send(conn *net.UnixConn, data []byte, f *os.File) error {
 // If more than 1 file descriptor is sent in the message, they are all
 // closed except for the first, which is the attachment.
 // It is legal for a message to have no attachment or an empty payload.
-func Receive(conn *net.UnixConn) (rdata []byte, rf *os.File, rerr error) {
+func (conn *UnixConn) Receive() (rdata []byte, rf *os.File, rerr error) {
 	defer func() {
 		var fd int = -1
 		if rf != nil {
@@ -51,7 +69,7 @@ func Receive(conn *net.UnixConn) (rdata []byte, rf *os.File, rerr error) {
 		debugCheckpoint("===DEBUG=== Receive() -> '%s'[%d]. Hit enter to continue.\n", rdata, fd)
 	}()
 	for {
-		data, fds, err := receiveUnix(conn)
+		data, fds, err := receiveUnix(conn.UnixConn)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -68,63 +86,6 @@ func Receive(conn *net.UnixConn) (rdata []byte, rf *os.File, rerr error) {
 	}
 	panic("impossibru")
 	return nil, nil, nil
-}
-
-// SendPipe creates a new unix socket pair, sends one end as the attachment
-// to a beam message with the payload `data`, and returns the other end.
-//
-// This is a common pattern to open a new service endpoint.
-// For example, a service wishing to advertise its presence to clients might
-// open an endpoint with:
-//
-//  endpoint, _ := SendPipe(conn, []byte("sql"))
-//  defer endpoint.Close()
-//  for {
-//  	conn, _ := endpoint.Receive()
-//	go func() {
-//		Handle(conn)
-//		conn.Close()
-//	}()
-//  }
-//
-// Note that beam does not distinguish between clients and servers in the logical
-// sense: any program wishing to establishing a communication with another program
-// may use SendPipe() to create an endpoint.
-// For example, here is how an application might use it to connect to a database client.
-//
-//  endpoint, _ := SendPipe(conn, []byte("userdb"))
-//  defer endpoint.Close()
-//  conn, _ := endpoint.Receive()
-//  defer conn.Close()
-//  db := NewDBClient(conn)
-//
-// In this example note that we only need the first connection out of the endpoint,
-// but we could open new ones to retry after a broken connection.
-// Note that, because the underlying service transport is abstracted away, this
-// allows for arbitrarily complex service discovery and retry logic to take place,
-// without complicating application code.
-//
-func SendPipe(conn *net.UnixConn, data []byte) (endpoint *net.UnixConn, err error) {
-	debugCheckpoint("===DEBUG=== SendPipe('%s'). Hit enter to confirm: ", data)
-	local, remote, err := SocketPair()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			local.Close()
-			remote.Close()
-		}
-	}()
-	endpoint, err = FdConn(int(local.Fd()))
-	if err != nil {
-		return nil, err
-	}
-	local.Close()
-	if err := Send(conn, data, remote); err != nil {
-		return nil, err
-	}
-	return endpoint, nil
 }
 
 func receiveUnix(conn *net.UnixConn) ([]byte, []int, error) {
@@ -204,7 +165,7 @@ func SocketPair() (a *os.File, b *os.File, err error) {
 	return os.NewFile(uintptr(pair[0]), ""), os.NewFile(uintptr(pair[1]), ""), nil
 }
 
-func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
+func USocketPair() (*UnixConn, *UnixConn, error) {
 	debugCheckpoint("===DEBUG=== USocketPair(). Hit enter to confirm: ")
 	defer debugCheckpoint ("===DEBUG=== USocketPair() returned. Hit enter to confirm ")
 	a, b, err := SocketPair()
@@ -213,11 +174,11 @@ func USocketPair() (*net.UnixConn, *net.UnixConn, error) {
 	}
 	defer a.Close()
 	defer b.Close()
-	uA, err := FdConn(int(a.Fd()))
+	uA, err := FileConn(a)
 	if err != nil {
 		return nil, nil, err
 	}
-	uB, err := FdConn(int(b.Fd()))
+	uB, err := FileConn(b)
 	if err != nil {
 		uA.Close()
 		return nil, nil, err
