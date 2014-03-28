@@ -5,14 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/runtime"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"net"
@@ -21,6 +13,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/api/server"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
+	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestGetVersion(t *testing.T) {
@@ -35,7 +37,7 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	// FIXME getting the version should require an actual running Server
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -77,7 +79,7 @@ func TestGetInfo(t *testing.T) {
 	}
 	r := httptest.NewRecorder()
 
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -125,7 +127,7 @@ func TestGetEvents(t *testing.T) {
 
 	r := httptest.NewRecorder()
 	setTimeout(t, "", 500*time.Millisecond, func() {
-		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r, t)
@@ -166,7 +168,7 @@ func TestGetImagesJSON(t *testing.T) {
 
 	r := httptest.NewRecorder()
 
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -201,7 +203,7 @@ func TestGetImagesJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r2, t)
@@ -234,7 +236,7 @@ func TestGetImagesJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := api.ServeRequest(eng, api.APIVERSION, r3, req3); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r3, req3); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r3, t)
@@ -259,7 +261,7 @@ func TestGetImagesHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -283,7 +285,7 @@ func TestGetImagesByName(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -327,7 +329,7 @@ func TestGetContainersJSON(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -363,7 +365,7 @@ func TestGetContainersExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -401,7 +403,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusOK {
@@ -415,7 +417,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusOK {
@@ -428,7 +430,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusNotFound {
@@ -441,7 +443,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusOK {
@@ -454,7 +456,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusOK {
@@ -481,7 +483,7 @@ func TestGetContainersChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -548,7 +550,7 @@ func TestGetContainersTop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -596,7 +598,7 @@ func TestGetContainersByName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -631,7 +633,7 @@ func TestPostCommit(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -667,7 +669,7 @@ func TestPostContainersCreate(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -716,7 +718,7 @@ func TestPostContainersKill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -755,7 +757,7 @@ func TestPostContainersRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -797,7 +799,7 @@ func TestPostContainersStart(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -814,7 +816,7 @@ func TestPostContainersStart(t *testing.T) {
 	}
 
 	r = httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	// Starting an already started container should return an error
@@ -852,7 +854,7 @@ func TestRunErrorBindMountRootSource(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusInternalServerError {
@@ -889,7 +891,7 @@ func TestPostContainersStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -921,7 +923,7 @@ func TestPostContainersWait(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r, t)
@@ -979,7 +981,7 @@ func TestPostContainersAttach(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r.ResponseRecorder, t)
@@ -1057,7 +1059,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 			t.Fatal(err)
 		}
 		assertHttpNotError(r.ResponseRecorder, t)
@@ -1114,7 +1116,7 @@ func TestDeleteContainers(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1133,7 +1135,7 @@ func TestOptionsRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1152,7 +1154,7 @@ func TestGetEnabledCors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1199,7 +1201,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusConflict {
@@ -1212,7 +1214,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r2 := httptest.NewRecorder()
-	if err := api.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r2, t)
@@ -1264,7 +1266,7 @@ func TestPostContainersCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
@@ -1312,7 +1314,7 @@ func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	if r.Code != http.StatusNotFound {
