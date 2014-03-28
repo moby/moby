@@ -95,3 +95,33 @@ Here is the list of supported options:
     Example use:
 
     ``docker -d --storage-opt dm.mountopt=nodiscard``
+
+ *  `dm.datadev`
+
+    Specifies a custom blockdevice to use for data for the thin pool.
+
+    If using a block device for device mapper storage, ideally both
+    datadev and metadatadev should be specified to completely avoid
+    using the loopback device.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
+
+ *  `dm.metadatadev`
+
+    Specifies a custom blockdevice to use for metadata for the thin
+    pool.
+
+    For best performance the metadata should be on a different spindle
+    than the data, or even better on an SSD.
+
+    If setting up a new metadata pool it is required to be valid. This
+    can be achieved by zeroing the first 4k to indicate empty
+    metadata, like this:
+
+    ``dd if=/dev/zero of=$metadata_dev bs=4096 count=1```
+
+    Example use:
+
+    ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``

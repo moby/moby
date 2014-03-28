@@ -75,6 +75,8 @@ type DeviceSet struct {
 	filesystem           string
 	mountOptions         string
 	mkfsArgs             []string
+	dataDevice           string
+	metadataDevice       string
 }
 
 type DiskUsage struct {
@@ -581,42 +583,74 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	if info.Exists == 0 {
 		utils.Debugf("Pool doesn't exist. Creating it.")
 
-		hasData := devices.hasImage("data")
-		hasMetadata := devices.hasImage("metadata")
+		var (
+			dataFile     *os.File
+			metadataFile *os.File
+		)
 
-		if !doInit && !hasData {
-			return errors.New("Loopback data file not found")
+		if devices.dataDevice == "" {
+			// Make sure the sparse images exist in <root>/devicemapper/data
+
+			hasData := devices.hasImage("data")
+
+			if !doInit && !hasData {
+				return errors.New("Loopback data file not found")
+			}
+
+			if !hasData {
+				createdLoopback = true
+			}
+
+			data, err := devices.ensureImage("data", devices.dataLoopbackSize)
+			if err != nil {
+				utils.Debugf("Error device ensureImage (data): %s\n", err)
+				return err
+			}
+
+			dataFile, err = attachLoopDevice(data)
+			if err != nil {
+				utils.Debugf("\n--->Err: %s\n", err)
+				return err
+			}
+			defer dataFile.Close()
+		} else {
+			dataFile, err = os.OpenFile(devices.dataDevice, os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
 		}
 
-		if !doInit && !hasMetadata {
-			return errors.New("Loopback metadata file not found")
-		}
+		if devices.metadataDevice == "" {
+			// Make sure the sparse images exist in <root>/devicemapper/metadata
 
-		createdLoopback = !hasData || !hasMetadata
-		data, err := devices.ensureImage("data", devices.dataLoopbackSize)
-		if err != nil {
-			utils.Debugf("Error device ensureImage (data): %s\n", err)
-			return err
-		}
-		metadata, err := devices.ensureImage("metadata", devices.metaDataLoopbackSize)
-		if err != nil {
-			utils.Debugf("Error device ensureImage (metadata): %s\n", err)
-			return err
-		}
+			hasMetadata := devices.hasImage("metadata")
 
-		dataFile, err := attachLoopDevice(data)
-		if err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
-		}
-		defer dataFile.Close()
+			if !doInit && !hasMetadata {
+				return errors.New("Loopback metadata file not found")
+			}
 
-		metadataFile, err := attachLoopDevice(metadata)
-		if err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
+			if !hasMetadata {
+				createdLoopback = true
+			}
+
+			metadata, err := devices.ensureImage("metadata", devices.metaDataLoopbackSize)
+			if err != nil {
+				utils.Debugf("Error device ensureImage (metadata): %s\n", err)
+				return err
+			}
+
+			metadataFile, err = attachLoopDevice(metadata)
+			if err != nil {
+				utils.Debugf("\n--->Err: %s\n", err)
+				return err
+			}
+			defer metadataFile.Close()
+		} else {
+			metadataFile, err = os.OpenFile(devices.metadataDevice, os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
 		}
-		defer metadataFile.Close()
 
 		if err := createPool(devices.getPoolName(), dataFile, metadataFile); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
@@ -1176,6 +1210,10 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			devices.mkfsArgs = append(devices.mkfsArgs, val)
 		case "dm.mountopt":
 			devices.mountOptions = joinMountOptions(devices.mountOptions, val)
+		case "dm.metadatadev":
+			devices.metadataDevice = val
+		case "dm.datadev":
+			devices.dataDevice = val
 		default:
 			return nil, fmt.Errorf("Unknown option %s\n", key)
 		}
