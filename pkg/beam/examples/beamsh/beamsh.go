@@ -17,6 +17,8 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"text/template"
+	"flag"
 )
 
 var rootPlugins = []string{
@@ -24,8 +26,14 @@ var rootPlugins = []string{
 	"stdio",
 }
 
+var (
+	flX bool
+)
+
 func main() {
-	if len(os.Args) == 1 {
+	flag.BoolVar(&flX, "x", false, "print commands as they are being executed")
+	flag.Parse()
+	if flag.NArg() == 0{
 		if term.IsTerminal(0) {
 			input := bufio.NewScanner(os.Stdin)
 			for {
@@ -60,7 +68,7 @@ func main() {
 			}
 		}
 	} else {
-		for _, scriptpath := range os.Args[1:] {
+		for _, scriptpath := range flag.Args() {
 			f, err := os.Open(scriptpath)
 			if err != nil {
 				Fatal(err)
@@ -347,8 +355,14 @@ func ReceiveFromConn(connections chan net.Conn, dst *net.UnixConn) error {
 //	6) Wait for handler to return and (shortly afterwards) output copy to complete
 //	7) 
 func executeCommand(client *net.UnixConn, cmd *dockerscript.Command) error {
+	if flX {
+		fmt.Printf("+ %v\n", strings.Replace(strings.TrimRight(cmd.String(), "\n"), "\n", "\n+ ", -1))
+	}
 	Debugf("executeCommand(%s)\n", strings.Join(cmd.Args, " "))
 	defer Debugf("executeCommand(%s) DONE\n", strings.Join(cmd.Args, " "))
+	if len(cmd.Args) == 0 {
+		return fmt.Errorf("empty command")
+	}
 	handler := GetHandler(cmd.Args[0])
 	if handler == nil {
 		return fmt.Errorf("no such command: %s", cmd.Args[0])
@@ -421,7 +435,48 @@ func sendWPipe(conn *net.UnixConn, payload []byte) (*os.File, error) {
 }
 
 func GetHandler(name string) Handler {
-	if name == "devnull" {
+	if name == "render" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			stdout, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
+			if err != nil {
+				return
+			}
+			defer stdout.Close()
+			stderr, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
+			if err != nil {
+				return
+			}
+			defer stderr.Close()
+			if len(args) != 2 {
+				fmt.Fprintf(stderr, "Usage: %s FORMAT\n", args[0])
+				beam.Send(out, data.Empty().Set("status", "1").Bytes(), nil)
+				return
+			}
+			txt := args[1]
+			if !strings.HasSuffix(txt, "\n") {
+				txt += "\n"
+			}
+			t := template.Must(template.New("render").Parse(txt))
+			for {
+				payload, attachment, err := beam.Receive(in)
+				if err != nil {
+					return
+				}
+				msg, err := data.Decode(string(payload))
+				if err != nil {
+					fmt.Fprintf(stderr, "decode error: %v\n")
+				}
+				if err := t.Execute(stdout, msg); err != nil {
+					fmt.Fprintf(stderr, "rendering error: %v\n", err)
+					beam.Send(out, data.Empty().Set("status", "1").Bytes(), nil)
+					return
+				}
+				if err := beam.Send(out, payload, attachment); err != nil {
+					return
+				}
+			}
+		}
+	} else if name == "devnull" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
 			for {
 				_, attachment, err := beam.Receive(in)
