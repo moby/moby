@@ -19,12 +19,12 @@ import (
 	"sync"
 )
 
+var rootPlugins = []string{
+	"devnull",
+	"stdio",
+}
+
 func main() {
-	devnull, err := Devnull()
-	if err != nil {
-		Fatal(err)
-	}
-	defer devnull.Close()
 	if len(os.Args) == 1 {
 		if term.IsTerminal(0) {
 			input := bufio.NewScanner(os.Stdin)
@@ -40,7 +40,7 @@ func main() {
 						fmt.Fprintf(os.Stderr, "error: %v\n", err)
 						continue
 					}
-					if err := executeScript(devnull, cmd); err != nil {
+					if err := executeRootScript(cmd); err != nil {
 						Fatal(err)
 					}
 				}
@@ -55,7 +55,7 @@ func main() {
 			if err != nil {
 				Fatal("parse error: %v\n", err)
 			}
-			if err := executeScript(devnull, script); err != nil {
+			if err := executeRootScript(script); err != nil {
 				Fatal(err)
 			}
 		}
@@ -69,7 +69,7 @@ func main() {
 			if err != nil {
 				Fatal("parse error: %v\n", err)
 			}
-			if err := executeScript(devnull, script); err != nil {
+			if err := executeRootScript(script); err != nil {
 				Fatal(err)
 			}
 		}
@@ -131,6 +131,29 @@ func scriptString(script []*dockerscript.Command) string {
 		lines = append(lines, line)
 	}
 	return fmt.Sprintf("'%s'", strings.Join(lines, "; "))
+}
+
+func executeRootScript(script []*dockerscript.Command) error {
+	if len(rootPlugins) > 0 {
+		var (
+			rootCmd *dockerscript.Command
+			lastCmd *dockerscript.Command
+		)
+		for _, plugin := range rootPlugins {
+			pluginCmd := &dockerscript.Command{
+				Args: []string{plugin},
+			}
+			if rootCmd == nil {
+				rootCmd = pluginCmd
+			} else {
+				lastCmd.Children = []*dockerscript.Command{pluginCmd}
+			}
+			lastCmd = pluginCmd
+		}
+		lastCmd.Children = script
+		script = []*dockerscript.Command{rootCmd}
+	}
+	return executeScript(nil, script)
 }
 
 func executeScript(client *net.UnixConn, script []*dockerscript.Command) error {
@@ -357,13 +380,15 @@ func executeCommand(client *net.UnixConn, cmd *dockerscript.Command) error {
 		tasks.Done()
 	}()
 	go func() {
-		Debugf("[%s] copy start...\n", strings.Join(cmd.Args, " "))
-		n, err := beamCopy(client, outPub)
-		if err != nil {
-			Fatal(err)
+		if client != nil {
+			Debugf("[%s] copy start...\n", strings.Join(cmd.Args, " "))
+			n, err := beamCopy(client, outPub)
+			if err != nil {
+				Fatal(err)
+			}
+			Debugf("[%s] copied %d messages\n", strings.Join(cmd.Args, " "), n)
+			Debugf("[%s] copy done\n", strings.Join(cmd.Args, " "))
 		}
-		Debugf("[%s] copied %d messages\n", strings.Join(cmd.Args, " "), n)
-		Debugf("[%s] copy done\n", strings.Join(cmd.Args, " "))
 		tasks.Done()
 	}()
 	// depth-first execution of children commands
