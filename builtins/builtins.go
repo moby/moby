@@ -1,7 +1,7 @@
 package builtins
 
 import (
-	"github.com/dotcloud/docker/api"
+	api "github.com/dotcloud/docker/api/server"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runtime/networkdriver/bridge"
 	"github.com/dotcloud/docker/server"

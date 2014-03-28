@@ -1,4 +1,4 @@
-package api
+package client
 
 import (
 	"bufio"
@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
@@ -81,7 +82,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 			return nil
 		}
 	}
-	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", DEFAULTUNIXSOCKET)
+	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", api.DEFAULTUNIXSOCKET)
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
@@ -610,7 +611,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 
-		container := &Container{}
+		container := &api.Container{}
 		err = json.Unmarshal(body, container)
 		if err != nil {
 			return err
@@ -797,9 +798,13 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return nil
 	}
 
-	port := cmd.Arg(1)
-	proto := "tcp"
-	parts := strings.SplitN(port, "/", 2)
+	var (
+		port      = cmd.Arg(1)
+		proto     = "tcp"
+		parts     = strings.SplitN(port, "/", 2)
+		container api.Container
+	)
+
 	if len(parts) == 2 && len(parts[1]) != 0 {
 		port = parts[0]
 		proto = parts[1]
@@ -808,13 +813,13 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	if err != nil {
 		return err
 	}
-	var out Container
-	err = json.Unmarshal(body, &out)
+
+	err = json.Unmarshal(body, &container)
 	if err != nil {
 		return err
 	}
 
-	if frontends, exists := out.NetworkSettings.Ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
+	if frontends, exists := container.NetworkSettings.Ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
 		for _, frontend := range frontends {
 			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
 		}
@@ -1425,7 +1430,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 				outCommand = utils.Trunc(outCommand, 20)
 			}
 			ports.ReadListFrom([]byte(out.Get("Ports")))
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), displayablePorts(ports), strings.Join(outNames, ","))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
 			if *size {
 				if out.GetInt("SizeRootFs") > 0 {
 					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.GetInt64("SizeRw")), utils.HumanSize(out.GetInt64("SizeRootFs")))
@@ -1606,7 +1611,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return err
 	}
 
-	container := &Container{}
+	container := &api.Container{}
 	err = json.Unmarshal(body, container)
 	if err != nil {
 		return err
@@ -1643,7 +1648,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	container := &Container{}
+	container := &api.Container{}
 	err = json.Unmarshal(body, container)
 	if err != nil {
 		return err
@@ -2159,7 +2164,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -2236,7 +2241,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -2281,7 +2286,7 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 
-	if MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
+	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
 		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.terminalFd, cli.isTerminal)
 	}
 	if _, err := io.Copy(out, resp.Body); err != nil {
@@ -2300,7 +2305,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", APIVERSION, path), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), nil)
 	if err != nil {
 		return err
 	}
@@ -2484,7 +2489,7 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 		}
 		return false, -1, nil
 	}
-	c := &Container{}
+	c := &api.Container{}
 	if err := json.Unmarshal(body, c); err != nil {
 		return false, -1, err
 	}
