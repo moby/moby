@@ -136,9 +136,19 @@ func scriptString(script []*dockerscript.Command) string {
 func executeScript(client *net.UnixConn, script []*dockerscript.Command) error {
 	Debugf("executeScript(%s)\n", scriptString(script))
 	defer Debugf("executeScript(%s) DONE\n", scriptString(script))
+	var background sync.WaitGroup
+	defer background.Wait()
 	for _, cmd := range script {
-		if err := executeCommand(client, cmd); err != nil {
-			return err
+		if cmd.Background {
+			background.Add(1)
+			go func(client *net.UnixConn, cmd *dockerscript.Command) {
+				executeCommand(client, cmd)
+				background.Done()
+			}(client, cmd)
+		} else {
+			if err := executeCommand(client, cmd); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

@@ -10,6 +10,7 @@ import (
 type Command struct {
 	Args []string
 	Children []*Command
+	Background bool
 }
 
 type Scanner struct {
@@ -72,7 +73,7 @@ func parseArgs(s *Scanner) ([]string, rune, error) {
 			return args, tok, nil
 		}
 		if !s.commentLine {
-			if text == "{" || text == "}" || text == "\n" || text == "\r" || text == ";" {
+			if text == "{" || text == "}" || text == "\n" || text == "\r" || text == ";" || text == "&" {
 				return args, tok, nil
 			}
 			args = append(args, text)
@@ -106,6 +107,8 @@ func parse(s *Scanner, opener string) (expr []*Command, err error) {
 			cmd.Children = children
 		} else if afterArgs == "}" && opener != "{" {
 			return nil, fmt.Errorf("unexpected end of block '}'")
+		} else if afterArgs == "&" {
+			cmd.Background = true
 		}
 		if len(cmd.Args) > 0 || len(cmd.Children) > 0 {
 			expr = append(expr, cmd)
