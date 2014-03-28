@@ -634,8 +634,8 @@ func GetHandler(name string) Handler {
 			}
 			cmd.Stderr = errW
 			cmd.Stdin = os.Stdin
-			beam.Send(out, data.Empty().Set("cmd", "log", "stdout").Bytes(), outR)
-			beam.Send(out, data.Empty().Set("cmd", "log", "stderr").Bytes(), errR)
+			beam.Send(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes(), outR)
+			beam.Send(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes(), errR)
 			execErr := cmd.Run()
 			var status string
 			if execErr != nil {
