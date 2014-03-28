@@ -745,20 +745,19 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if len(fileBytes) == 0 {
 		return "", ErrDockerfileEmpty
 	}
-	dockerfile := string(fileBytes)
-	dockerfile = lineContinuation.ReplaceAllString(dockerfile, "")
-	stepN := 0
+	var (
+		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
+		stepN      = 0
+	)
 	for _, line := range strings.Split(dockerfile, "\n") {
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
-		// Skip comments and empty line
-		if len(line) == 0 || line[0] == '#' {
+		if len(line) == 0 {
 			continue
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
 			return "", err
 		}
 		stepN += 1
-
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -793,6 +792,20 @@ func (b *buildFile) BuildStep(name, expression string) error {
 
 	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
 	return nil
+}
+
+func stripComments(raw []byte) string {
+	var (
+		out   []string
+		lines = strings.Split(string(raw), "\n")
+	)
+	for _, l := range lines {
+		if len(l) == 0 || l[0] == '#' {
+			continue
+		}
+		out = append(out, l)
+	}
+	return strings.Join(out, "\n")
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
