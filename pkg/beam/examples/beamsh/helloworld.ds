@@ -2,7 +2,7 @@
 
 print {
 	trace {
-		emit hello
-		emit world
+		emit msg=hello
+		emit msg=world
 	}
 }
