@@ -821,6 +821,10 @@ func (devices *DeviceSet) Shutdown() error {
 		info.lock.Unlock()
 	}
 
+	if err := devices.deactivateDevice(""); err != nil {
+		utils.Debugf("Shutdown deactivate base , error: %s\n", err)
+	}
+
 	if err := devices.deactivatePool(); err != nil {
 		utils.Debugf("Shutdown deactivate pool , error: %s\n", err)
 	}
