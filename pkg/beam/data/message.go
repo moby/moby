@@ -11,6 +11,22 @@ func Empty() Message {
 	return Message(Encode(nil))
 }
 
+func Parse(args []string) Message {
+	data := make(map[string][]string)
+	for _, word := range args {
+		if strings.Contains(word, "=") {
+			kv := strings.SplitN(word, "=", 2)
+			key := kv[0]
+			var val string
+			if len(kv) == 2 {
+				val = kv[1]
+			}
+			data[key] = []string{val}
+		}
+	}
+	return Message(Encode(data))
+}
+
 func (m Message) Add(k, v string) Message {
 	data, err := Decode(string(m))
 	if err != nil {
