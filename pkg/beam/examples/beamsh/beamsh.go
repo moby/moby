@@ -435,7 +435,79 @@ func sendWPipe(conn *net.UnixConn, payload []byte) (*os.File, error) {
 }
 
 func GetHandler(name string) Handler {
-	if name == "render" {
+	if name == "log" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			var tasks sync.WaitGroup
+			stdout, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
+			if err != nil {
+				return
+			}
+			defer stdout.Close()
+			stderr, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
+			if err != nil {
+				return
+			}
+			defer stderr.Close()
+			if err := os.MkdirAll("logs", 0700); err != nil {
+				fmt.Fprintf(stderr, "%v\n", err)
+				return
+			}
+			var n int = 1
+			for {
+				payload, attachment, err := beam.Receive(in)
+				if err != nil {
+					return
+				}
+				if attachment == nil {
+					continue
+				}
+				r, w, err := os.Pipe()
+				if err != nil {
+					attachment.Close()
+					return
+				}
+				if err := beam.Send(out, payload, r); err != nil {
+					attachment.Close()
+					r.Close()
+					w.Close()
+					fmt.Fprintf(stderr, "%v\n", err)
+					return
+				}
+				tasks.Add(1)
+				go func(payload []byte, attachment *os.File, n int, sink *os.File) {
+					defer tasks.Done()
+					defer attachment.Close()
+					defer sink.Close()
+					cmd := data.Message(payload).Get("cmd")
+					if cmd == nil || len(cmd) == 0 {
+						return
+					}
+					if cmd[0] != "log" {
+						return
+					}
+					var streamname string
+					if len(cmd) == 1 || cmd[1] == "stdout" {
+						streamname = "stdout"
+					} else {
+						streamname = cmd[1]
+					}
+					if fromcmd := data.Message(payload).Get("fromcmd"); len(fromcmd) != 0 {
+						streamname = fmt.Sprintf("%s-%s", strings.Replace(strings.Join(fromcmd, "_"), "/", "_", -1), streamname)
+					}
+					logfile, err := os.OpenFile(path.Join("logs", fmt.Sprintf("%d-%s", n, streamname)), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+					if err != nil {
+						fmt.Fprintf(stderr, "%v\n", err)
+						return
+					}
+					io.Copy(io.MultiWriter(logfile, sink), attachment)
+					logfile.Sync()
+					logfile.Close()
+				}(payload, attachment, n, w)
+				n++
+			}
+			tasks.Wait()
+		}
+	} else if name == "render" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
 			stdout, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
 			if err != nil {
