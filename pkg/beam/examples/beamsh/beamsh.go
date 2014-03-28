@@ -228,16 +228,10 @@ func GetHandler(name string) Handler {
 				if attachment == nil {
 					continue
 				}
-				r, w, err := os.Pipe()
+				w, err := sendWPipe(out, payload)
 				if err != nil {
-					attachment.Close()
-					return
-				}
-				if err := beam.Send(out, payload, r); err != nil {
-					attachment.Close()
-					r.Close()
-					w.Close()
 					fmt.Fprintf(stderr, "%v\n", err)
+					attachment.Close()
 					return
 				}
 				tasks.Add(1)
@@ -390,19 +384,19 @@ func GetHandler(name string) Handler {
 	} else if name == "exec" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
 			cmd := exec.Command(args[1], args[2:]...)
-			outR, outW, err := os.Pipe()
+			stdout, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
 			if err != nil {
 				return
 			}
-			cmd.Stdout = outW
-			errR, errW, err := os.Pipe()
+			defer stdout.Close()
+			cmd.Stdout = stdout
+			stderr, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
 			if err != nil {
 				return
 			}
-			cmd.Stderr = errW
+			defer stderr.Close()
+			cmd.Stderr = stderr
 			cmd.Stdin = os.Stdin
-			beam.Send(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes(), outR)
-			beam.Send(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes(), errR)
 			execErr := cmd.Run()
 			var status string
 			if execErr != nil {
@@ -411,8 +405,6 @@ func GetHandler(name string) Handler {
 				status = "ok"
 			}
 			beam.Send(out, data.Empty().Set("status", status).Set("cmd", args...).Bytes(), nil)
-			outW.Close()
-			errW.Close()
 		}
 	} else if name == "trace" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
