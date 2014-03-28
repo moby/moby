@@ -382,8 +382,73 @@ func randomId() string {
 	return hex.EncodeToString(id)
 }
 
+func sendWPipe(conn *net.UnixConn, payload []byte) (*os.File, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := beam.Send(conn, payload, r); err != nil {
+		r.Close()
+		w.Close()
+		return nil, err
+	}
+	return w, nil
+}
+
 func GetHandler(name string) Handler {
-	if name == "pass" {
+	if name == "devnull" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			for {
+				_, attachment, err := beam.Receive(in)
+				if err != nil {
+					return
+				}
+				if attachment != nil {
+					attachment.Close()
+				}
+			}
+		}
+	} else if name == "stdio" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			var tasks sync.WaitGroup
+			defer tasks.Wait()
+			for {
+				payload, attachment, err := beam.Receive(in)
+				if err != nil {
+					return
+				}
+				tasks.Add(1)
+				go func(payload []byte, attachment *os.File) {
+					defer tasks.Done()
+					if attachment == nil {
+						return
+					}
+					defer attachment.Close()
+					cmd := data.Message(payload).Get("cmd")
+					if cmd == nil || len(cmd) == 0 {
+						return
+					}
+					if cmd[0] != "log" {
+						return
+					}
+					if len(cmd) == 1 || cmd[1] == "stdout" {
+						io.Copy(os.Stdout, attachment)
+					} else if cmd[1] == "stderr" {
+						io.Copy(os.Stderr, attachment)
+					}
+				}(payload, attachment)
+			}
+		}
+	} else if name == "echo" {
+		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
+			stdout, err := sendWPipe(out, data.Empty().Set("cmd", "log", "stdout").Bytes())
+			if err != nil {
+				return
+			}
+			fmt.Fprintln(stdout, strings.Join(args[1:], " "))
+			stdout.Close()
+		}
+	} else if name == "pass" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
 			for {
 				payload, attachment, err := beam.Receive(in)
