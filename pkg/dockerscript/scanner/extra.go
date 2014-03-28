@@ -14,7 +14,7 @@ func detectIdent(ch rune) bool {
 	if unicode.IsDigit(ch) {
 		return true
 	}
-	if strings.ContainsRune("_:/+-@%^.!", ch) {
+	if strings.ContainsRune("_:/+-@%^.!=", ch) {
 		return true
 	}
 	return false
