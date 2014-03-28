@@ -452,7 +452,7 @@ func GetHandler(name string) Handler {
 		}
 	} else if name == "emit" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
-			beam.Send(out, data.Empty().Set("foo", args[1:]...).Bytes(), nil)
+			beam.Send(out, data.Parse(args[1:]).Bytes(), nil)
 		}
 	} else if name == "print" {
 		return func(args []string, in *net.UnixConn, out *net.UnixConn) {
@@ -629,27 +629,6 @@ func connToFile(conn net.Conn) (f *os.File, err error) {
 		}
 	}
 	return f, err
-}
-
-// 'status' is a notification of a job's status.
-// 
-func parseEnv(args []string) ([]string, map[string]string) {
-	var argsOut []string
-	env := make(map[string]string)
-	for _, word := range args[1:] {
-		if strings.Contains(word, "=") {
-			kv := strings.SplitN(word, "=", 2)
-			key := kv[0]
-			var val string
-			if len(kv) == 2 {
-				val = kv[1]
-			}
-			env[key] = val
-		} else {
-			argsOut = append(argsOut, word)
-		}
-	}
-	return argsOut, env
 }
 
 type Msg struct {
