@@ -15,7 +15,6 @@ type HostConfig struct {
 	PublishAllPorts bool
 	UidMaps         []string
 	ContainerRoot   int64
-	XlateUids       bool
 }
 
 type KeyValuePair struct {
@@ -29,7 +28,6 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		ContainerRoot:   job.GetenvInt64("ContainerRoot"),
-		XlateUids:       job.GetenvBool("XlateUids"),
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)

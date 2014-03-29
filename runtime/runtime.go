@@ -649,7 +649,7 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		return nil, err
 	}
 
-	// Change to 0755 in case it was already created 0700 by an earlier
+	// Change to 0711 in case it was already created 0700 by an earlier
 	// Docker version.  MkdirAll doesn't fail if the dir already exists.
 	if err := os.Chmod(runtimeRepo, 0711); err != nil {
 		return nil, err

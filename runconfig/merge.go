@@ -116,5 +116,8 @@ func Merge(userConf, imageConf *Config) error {
 			userConf.Volumes[k] = v
 		}
 	}
+	if userConf.PrivateUids == nil || len(userConf.PrivateUids) == 0 {
+		userConf.PrivateUids = imageConf.PrivateUids
+	}
 	return nil
 }

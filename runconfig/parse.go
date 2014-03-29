@@ -9,7 +9,6 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"path"
-	"strconv"
 	"strings"
 )
 
@@ -35,17 +34,18 @@ func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo)
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(opts.ValidatePath)
-		flLinks   = opts.NewListOpts(opts.ValidateLink)
-		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flAttach      = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes     = opts.NewListOpts(opts.ValidatePath)
+		flLinks       = opts.NewListOpts(opts.ValidateLink)
+		flEnv         = opts.NewListOpts(opts.ValidateEnv)
+		flUidMaps     = opts.NewListOpts(opts.ValidateUidMap)
+		flPrivateUids = opts.NewListOpts(opts.ValidateUidBank)
 
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
 		flDns         opts.ListOpts
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
-		flUidMaps     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -62,7 +62,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flXlateUids       = cmd.Bool([]string{"x", "-xlate-uids"}, false, "Translate the UIDs of the container image and new volumes before running the container")
-		flPrivateUids     = cmd.Bool([]string{"#private-uids", "-private-uids"}, false, "Use a private UID space for the container")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -80,6 +79,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 	cmd.Var(&flUidMaps, []string{"#uidmap", "-uidmap"}, "Map host UID range into the container: <host UID>:<container UID>:<size> (e.g.  --uidmap=\"100000:0:10000\")")
+	cmd.Var(&flPrivateUids, []string{"#private-uids", "-private-uids"}, "Create a private UID space for the container using UIDs from the specified bank")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -153,13 +153,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint = []string{*flEntrypoint}
 	}
 
-	uidMaps, containerRoot, err := parseUidMapOpts(flUidMaps, *flUser, *flPrivateUids)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-	if len(uidMaps) == 0 && *flXlateUids {
-		return nil, nil, cmd, fmt.Errorf("Asking to translate UIDs but no mappings specified")
-	}
+	uidMaps  := flUidMaps.GetAll()
 
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
@@ -214,6 +208,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
+		PrivateUids:     flPrivateUids.GetAll(),
+		XlateUids:       *flXlateUids,
 	}
 
 	hostConfig := &HostConfig{
@@ -225,8 +221,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
 		UidMaps:         uidMaps,
-		ContainerRoot:   containerRoot,
-		XlateUids:       *flXlateUids,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -239,56 +233,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
-}
-
-func parseUidMapOpts(opts opts.ListOpts, userid string, flPrivateUids bool) ([]string, int64, error) {
-	uMaps := opts.GetAll()
-
-	if len(uMaps) == 0 {
-		if !flPrivateUids {
-			return uMaps, -1, nil
-		}
-
-		// Use 100000 as default host UID range
-		uMaps = append(uMaps, "100000:0:10000")
-	}
-
-	containerRoot := int64(-1)
-	containerUser := int64(-1)
-	if userid != "" {
-		cUser, err := strconv.ParseInt(userid, 10, 64)
-		if err != nil {
-			return nil, -1, fmt.Errorf("Invalid user: %s (-u has to be specified as a valid container UID rather than username when private UID space is used)", userid)
-		}
-		containerUser = cUser
-	}
-
-	cRootFound := false
-	cUserFound := false
-	if containerUser == -1 {
-		cUserFound = true
-	}
-	for _, uMap := range uMaps {
-		cUid, hUid, size, err := utils.ParseUidMap(uMap)
-		if err != nil {
-			return nil, -1, err
-		}
-		if cRootFound == false && cUid <= 0 && 0 < cUid+size {
-			cRootFound = true
-			containerRoot = 0 - cUid + hUid
-		}
-		if cUserFound == false && cUid <= containerUser && containerUser < cUid+size {
-			cUserFound = true
-		}
-	}
-	if !cRootFound {
-		return nil, -1, fmt.Errorf("Container UID 0 must be a part of the UID map")
-	}
-	if !cUserFound {
-		return nil, -1, fmt.Errorf("User '%s' must be a part of the UID map",
-			userid)
-	}
-	return uMaps, containerRoot, nil
 }
 
 func parseLxcConfOpts(opts opts.ListOpts) ([]KeyValuePair, error) {

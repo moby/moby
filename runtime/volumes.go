@@ -33,7 +33,7 @@ func prepareVolumesForContainer(container *Container) error {
 	return nil
 }
 
-func xlateOneFile(path string, finfo os.FileInfo, cUid, hUid, size int64) error {
+func xlateOneFile(path string, finfo os.FileInfo, hUid, cUid, size int64) error {
 	uid := int64(finfo.Sys().(*syscall.Stat_t).Uid)
 	gid := int64(finfo.Sys().(*syscall.Stat_t).Gid)
 	mode := finfo.Mode()
@@ -54,7 +54,7 @@ func xlateOneFile(path string, finfo os.FileInfo, cUid, hUid, size int64) error 
 	return nil
 }
 
-func xlateUidsRecursive(base string, cUid, hUid, size int64) error {
+func xlateUidsRecursive(base string, hUid, cUid, size int64) error {
 	f, err := os.Open(base)
 	if err != nil {
 		return err
@@ -69,9 +69,9 @@ func xlateUidsRecursive(base string, cUid, hUid, size int64) error {
 	for _, finfo := range list {
 		path := filepath.Join(base, finfo.Name())
 		if finfo.IsDir() {
-			xlateUidsRecursive(path, cUid, hUid, size)
+			xlateUidsRecursive(path, hUid, cUid, size)
 		}
-		if err := xlateOneFile(path, finfo, cUid, hUid, size); err != nil {
+		if err := xlateOneFile(path, finfo, hUid, cUid, size); err != nil {
 			return err
 		}
 	}
@@ -84,15 +84,15 @@ func xlateUidsRecursive(base string, cUid, hUid, size int64) error {
 func xlateUids(container *Container, root string) error {
 	if uidMaps := container.hostConfig.UidMaps; uidMaps != nil {
 		for _, uidMap := range uidMaps {
-			cUid, hUid, size, _ := utils.ParseUidMap(uidMap)
-			if err := xlateUidsRecursive(root, cUid, hUid, size); err != nil {
+			hUid, cUid, size, _ := utils.ParseUidMap(uidMap)
+			if err := xlateUidsRecursive(root, hUid, cUid, size); err != nil {
 				return err
 			}
 			finfo, err := os.Stat(root)
 			if (err != nil) {
 				return err
 			}
-			if err := xlateOneFile(root, finfo, cUid, hUid, size); err != nil {
+			if err := xlateOneFile(root, finfo, hUid, cUid, size); err != nil {
 				return err
 			}
 		}
@@ -114,13 +114,13 @@ func setupMountsForContainer(container *Container, envPath string) error {
 			return err
 		}
 		// Even if -x flag is not set, container rootfs directory needs to be chowned to container root to be able to setup pivot root
-		if !container.hostConfig.XlateUids {
+		if !container.Config.XlateUids {
 			if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
 				return err
 			}
 		}
 	}
-	if container.hostConfig.XlateUids {
+	if container.Config.XlateUids {
 		if err := xlateUids(container, container.RootfsPath()); err != nil {
 			return err
 		}

@@ -387,7 +387,7 @@ func populateCommand(c *Container) {
 
 	if uidMaps := c.hostConfig.UidMaps; uidMaps != nil {
 		for _, uidMap := range uidMaps {
-			cUid, hUid, size, _ := utils.ParseUidMap(uidMap)
+			hUid, cUid, size, _ := utils.ParseUidMap(uidMap)
 			driverConfig = append(driverConfig, fmt.Sprintf("lxc.id_map = u %d %d %d", cUid, hUid, size))
 			driverConfig = append(driverConfig, fmt.Sprintf("lxc.id_map = g %d %d %d", cUid, hUid, size))
 		}

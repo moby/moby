@@ -254,6 +254,18 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 	return value, nil
 }
 
+func (b *buildFile) CmdPrivateuids(args string) error {
+	uidBanks := strings.Split(args, ",")
+	for _, uBank := range uidBanks {
+		if _, _, err := utils.ParseUidBank(uBank); err != nil {
+			return fmt.Errorf("Invalid PRIVATEUIDS format")
+		}
+	}
+
+	b.config.PrivateUids = uidBanks
+	return b.commit("", b.config.Cmd, fmt.Sprintf("PRIVATEUIDS %v", args))
+}
+
 func (b *buildFile) CmdEnv(args string) error {
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {

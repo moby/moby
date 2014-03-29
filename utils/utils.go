@@ -1048,15 +1048,64 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 	return realPath, nil
 }
 
-func ParseUidMap(opt string) (int64, int64, int64, error) {
-	// Some simplifying defaults
+func ParseUidBank(uBank string) (int64, int64, error) {
+	var e1, e2 error
+	firstBank := int64(-1)
+	lastBank := int64(-1)
+
+	parts := strings.SplitN(uBank, "-", 2)
+	switch len(parts) {
+	case 2:
+		lastBank, e2 = strconv.ParseInt(parts[1], 10, 64)
+		fallthrough
+	case 1:
+		firstBank, e1 = strconv.ParseInt(parts[0], 10, 64)
+	default:
+		return firstBank, lastBank, fmt.Errorf("Bad format: %s", uBank)
+	}
+
+	if e1 != nil || e2 != nil {
+		return firstBank, lastBank, fmt.Errorf("Bad format: %s", uBank)
+	}
+	if (lastBank == -1) {
+		lastBank = firstBank
+	}
+
+	return firstBank, lastBank, nil
+}
+
+const UidBase = int64(100000)
+const UidsPerBank = int64(10000)
+
+func ConvertBanksToMaps(uidBanks []string) ([]string, error) {
+	var uidMaps []string
+
 	cUid := int64(0)
-	size := int64(10000)
-	hUid := int64(100000)
+	for _, uBank := range uidBanks {
+		firstBank, lastBank, err := ParseUidBank(uBank)
+		if err != nil {
+			return uidMaps, err
+		}
+		hUid := UidBase + firstBank*UidsPerBank
+		size := (lastBank - firstBank + 1) * UidsPerBank
 
+		uMap := fmt.Sprintf("%d:%d:%d", hUid, cUid, size)
+		uidMaps = append(uidMaps, uMap)
+
+		cUid += (lastBank - firstBank + 1) * UidsPerBank
+	}
+
+	return uidMaps, nil
+}
+
+// Take defaults and return fields from UidMap
+func ParseUidMap(UidMap string) (int64, int64, int64, error) {
 	var e1, e2, e3 error
+	hUid := int64(UidBase)
+	cUid := int64(0)
+	size := int64(UidsPerBank)
 
-	parts := strings.SplitN(opt, ":", 3)
+	parts := strings.SplitN(UidMap, ":", 3)
 	switch len(parts) {
 	case 3:
 		if parts[2] != "" {
@@ -1073,12 +1122,12 @@ func ParseUidMap(opt string) (int64, int64, int64, error) {
 			hUid, e3 = strconv.ParseInt(parts[0], 10, 64)
 		}
 	default:
-		return -1, -1, -1, fmt.Errorf("Bad format: %s", opt)
+		return -1, -1, -1, fmt.Errorf("Bad format: %s", UidMap)
 	}
 
 	if e1 != nil || e2 != nil || e3 != nil {
-		return -1, -1, -1, fmt.Errorf("Bad format: %s", opt)
+		return -1, -1, -1, fmt.Errorf("Bad format: %s", UidMap)
 	}
 
-	return cUid, hUid, size, nil
+	return hUid, cUid, size, nil
 }
