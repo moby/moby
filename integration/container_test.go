@@ -350,7 +350,7 @@ func TestStart(t *testing.T) {
 	if !container.State.IsRunning() {
 		t.Errorf("Container should be running")
 	}
-	if err := container.Start(); err == nil {
+	if err := container.Start(); err != nil {
 		t.Fatalf("A running container should be able to be started")
 	}
 
@@ -385,7 +385,7 @@ func TestCpuShares(t *testing.T) {
 	if !container.State.IsRunning() {
 		t.Errorf("Container should be running")
 	}
-	if err := container.Start(); err == nil {
+	if err := container.Start(); err != nil {
 		t.Fatalf("A running container should be able to be started")
 	}
 
