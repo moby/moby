@@ -549,9 +549,11 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 }
 
 func (cli *DockerCli) CmdStart(args ...string) error {
-	cmd := cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
-	attach := cmd.Bool([]string{"a", "-attach"}, false, "Attach container's stdout/stderr and forward all signals to the process")
-	openStdin := cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's stdin")
+	var (
+		cmd       = cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
+		attach    = cmd.Bool([]string{"a", "-attach"}, false, "Attach container's stdout/stderr and forward all signals to the process")
+		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's stdin")
+	)
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -560,8 +562,10 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		return nil
 	}
 
-	var cErr chan error
-	var tty bool
+	var (
+		cErr chan error
+		tty  bool
+	)
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
