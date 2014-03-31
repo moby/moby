@@ -19,6 +19,10 @@ fi
 
 docker -d -D -p $DEST/docker.pid &> $DEST/docker.log &
 
+# pull the busybox image before running the tests
+sleep 2
+docker pull busybox
+
 bundle_test_integration_cli 2>&1 \
 	| tee $DEST/test.log
 
