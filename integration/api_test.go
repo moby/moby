@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -184,7 +183,7 @@ func TestGetImagesJSON(t *testing.T) {
 
 	found := false
 	for _, img := range images.Data {
-		if strings.Contains(img.GetList("RepoTags")[0], unitTestImageName) {
+		if img.Get("Name") == unitTestImageName {
 			found = true
 			break
 		}
@@ -1191,8 +1190,8 @@ func TestDeleteImages(t *testing.T) {
 
 	images := getImages(eng, t, true, "")
 
-	if len(images.Data[0].GetList("RepoTags")) != len(initialImages.Data[0].GetList("RepoTags"))+1 {
-		t.Errorf("Expected %d images, %d found", len(initialImages.Data[0].GetList("RepoTags"))+1, len(images.Data[0].GetList("RepoTags")))
+	if len(images.Data) != len(initialImages.Data) + 1 {
+		t.Errorf("Expected %d images, %d found", len(initialImages.Data) + 1, len(images.Data))
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)

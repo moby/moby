@@ -1229,29 +1229,38 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			fmt.Fprintln(w, "NAME\tTAG\tCREATED\tVIRTUAL SIZE\tLAYER ID")
 		}
-
-		for _, out := range outs.Data {
-			for _, repotag := range out.GetList("RepoTags") {
-
-				repo, tag := utils.ParseRepositoryTag(repotag)
-				outID := out.Get("Id")
-				if !*noTrunc {
-					outID = utils.TruncateID(outID)
+		for _, e := range outs.Data {
+			id := e.Get("Id")
+			if !*noTrunc {
+				id = utils.TruncateID(id)
+			}
+			if !*quiet {
+				name := e.Get("Name")
+				if name == "" {
+					name = "<none>"
 				}
-
-				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), utils.HumanSize(out.GetInt64("VirtualSize")))
+				tag := e.Get("Tag")
+				if tag == "" {
+					tag = "<none>"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s ago\t%s\t%s\n",
+					name,
+					tag,
+					utils.HumanDuration(time.Now().UTC().Sub(time.Unix(e.GetInt64("Created"), 0))),
+					utils.HumanSize(e.GetInt64("VirtualSize")),
+					id,
+				)
+			} else {
+				if name := e.Get("Name"); name != "" {
+					fmt.Fprintf(w, "%s:%s\n", name, e.Get("Tag"))
 				} else {
-					fmt.Fprintln(w, outID)
+					fmt.Fprintf(w, "%s\n", id)
 				}
 			}
 		}
-
-		if !*quiet {
-			w.Flush()
-		}
+		w.Flush()
 	}
 	return nil
 }
@@ -1299,9 +1308,9 @@ func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix strin
 	} else {
 		fmt.Fprintf(cli.out, " \"%s\" -> \"%s\"\n", parentID, imageID)
 	}
-	if image.GetList("RepoTags")[0] != "<none>:<none>" {
-		fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n",
-			imageID, imageID, strings.Join(image.GetList("RepoTags"), "\\n"))
+	if name := image.Get("Name"); name != "" {
+		entryName := fmt.Sprintf("%s:%s", image.Get("Name"), image.Get("Tag"))
+		fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", imageID, entryName)
 	}
 }
 
@@ -1313,12 +1322,13 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 		imageID = utils.TruncateID(image.Get("Id"))
 	}
 
-	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, utils.HumanSize(image.GetInt64("VirtualSize")))
-	if image.GetList("RepoTags")[0] != "<none>:<none>" {
-		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.GetList("RepoTags"), ", "))
+	var entryName string
+	if name := image.Get("Name"); name != "" {
+		entryName = fmt.Sprintf("%s:%s", image.Get("Name"), image.Get("Tag"))
 	} else {
-		fmt.Fprint(cli.out, "\n")
+		entryName = imageID
 	}
+	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s\n", prefix, entryName, utils.HumanSize(image.GetInt64("VirtualSize")))
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
