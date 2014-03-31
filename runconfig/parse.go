@@ -243,6 +243,8 @@ func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
 		parts := strings.SplitN(o, ".", 2)
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("invalid opt format %s", o)
+		} else if strings.TrimSpace(parts[0]) == "" {
+			return nil, fmt.Errorf("key cannot be empty %s", o)
 		}
 		values, exists := out[parts[0]]
 		if !exists {
