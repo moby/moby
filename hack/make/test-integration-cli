@@ -1,0 +1,28 @@
+#!/bin/bash
+
+DEST=$1
+
+set -e
+
+# subshell so that we can export PATH without breaking other things
+(
+export PATH="$DEST/../binary:$DEST/../dynbinary:$PATH"
+
+bundle_test_integration_cli() {
+	go_test_dir ./integration-cli
+}
+
+if ! command -v docker &> /dev/null; then
+	echo >&2 'error: binary or dynbinary must be run before test-integration-cli'
+	false
+fi
+
+docker -d -D -p $DEST/docker.pid &> $DEST/docker.log &
+
+bundle_test_integration_cli 2>&1 \
+	| tee $DEST/test.log
+
+DOCKERD_PID=$(cat $DEST/docker.pid)
+kill $DOCKERD_PID
+wait $DOCKERD_PID
+)
