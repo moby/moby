@@ -625,3 +625,71 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Errorf("failed to remove symlink: %s", err)
 	}
 }
+
+func TestADDpaths(t *testing.T) {
+	var set = []pathCheck{
+		{"http://foo.com/image", true, IsURL},
+		{"https://foo.com/image.tar", true, IsURL},
+		{"foo.com/image.tar", false, IsURL},
+
+		{"git://github.com/dotcloud/docker", true, IsGIT},
+		{"github.com/dotcloud/docker", true, IsGIT},
+		{"https://foo.com/foo.git", true, IsGIT},
+		{"foo.com/repo.git", false, IsGIT},
+		{"git@github.com:user/repo", true, IsGIT},
+		{"git@github.com:user/repo.git", true, IsGIT},
+		{"git@github.com/user/repo", false, IsGIT},
+		{"git@github.com/user/repo.git", false, IsGIT},
+		{"git@foo.com/repo", false, IsGIT},
+
+		{"image://namespace/name:/build/file", true, IsIMAGE},
+		{"image://name:/build/file", true, IsIMAGE},
+		{"image://registry.com/namespace/name:/build/file", true, IsIMAGE},
+		{"image://registry.com:5000/namespace/name:/build/file", true, IsIMAGE},
+		{"image://registry.com:5000/namespace/name:/build/dir/", true, IsIMAGE},
+		{"namespace/name:/build/file", false, IsIMAGE},
+	}
+
+	for _, item := range set {
+		if item.meth(item.value) != item.result {
+			t.Errorf("%s was supposed to return %q, but did not", item.value, item.result)
+		}
+	}
+}
+
+type pathCheck struct {
+	value  string
+	result bool
+	meth   func(str string) bool
+}
+
+func TestImageURI(t *testing.T) {
+	var set = []struct {
+		value    string
+		result   map[string]string
+		hasError bool
+	}{
+		{"image://namespace/name:/build/file", map[string]string{"name": "namespace/name", "path": "/build/file"}, false},
+		{"image://name:/build/file", map[string]string{"name": "name", "path": "/build/file"}, false},
+		{"image://registry.com/namespace/name:/build/file", map[string]string{"name": "registry.com/namespace/name", "path": "/build/file"}, false},
+		{"image://registry.com:5000/namespace/name:/build/file", map[string]string{"name": "registry.com:5000/namespace/name", "path": "/build/file"}, false},
+		{"image://registry.com:5000/namespace/name:/build/dir/", map[string]string{"name": "registry.com:5000/namespace/name", "path": "/build/dir/"}, false},
+		{"namespace/name:/build/file", map[string]string{}, true},
+	}
+
+	for _, item := range set {
+		r, err := ParseImageURI(item.value)
+		if err == nil && item.hasError {
+			t.Errorf("%s should have errored", item.value)
+			continue
+		} else if err != nil && !item.hasError {
+			t.Errorf("%s should _not_ have errored: %s", item.value, err)
+			continue
+		} else if err != nil && item.hasError {
+			continue
+		}
+		if r["name"] != item.result["name"] || r["path"] != item.result["path"] {
+			t.Errorf("%q should match %q", r, item.result)
+		}
+	}
+}
