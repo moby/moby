@@ -4,16 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"code.google.com/p/go.net/websocket"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"expvar"
 	"fmt"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/listenbuffer"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/pkg/version"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 	"io"
@@ -26,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 var (
@@ -381,13 +382,13 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job   *engine.Job
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
-	authConfig := &auth.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 	if authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 	if image != "" { //pull
@@ -429,7 +430,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 	}
 	var (
 		authEncoded = r.Header.Get("X-Registry-Auth")
-		authConfig  = &auth.AuthConfig{}
+		authConfig  = &registry.AuthConfig{}
 		metaHeaders = map[string][]string{}
 	)
 
@@ -438,7 +439,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 	for k, v := range r.Header {
@@ -494,7 +495,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	authConfig := &auth.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	if authEncoded != "" {
@@ -502,7 +503,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// to increase compatibility to existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
@@ -624,6 +625,7 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 	var job = eng.Job("image_delete", vars["name"])
 	streamJSON(job, w, false)
 	job.Setenv("force", r.Form.Get("force"))
+	job.Setenv("noprune", r.Form.Get("noprune"))
 
 	return job.Run()
 }
@@ -823,9 +825,9 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	}
 	var (
 		authEncoded       = r.Header.Get("X-Registry-Auth")
-		authConfig        = &auth.AuthConfig{}
+		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
-		configFile        = &auth.ConfigFile{}
+		configFile        = &registry.ConfigFile{}
 		job               = eng.Job("build")
 	)
 
@@ -838,7 +840,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &auth.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 
@@ -847,7 +849,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			configFile = &auth.ConfigFile{}
+			configFile = &registry.ConfigFile{}
 		}
 	}
 
@@ -883,7 +885,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	var copyData engine.Env
 
-	if contentType := r.Header.Get("Content-Type"); contentType == "application/json" {
+	if contentType := r.Header.Get("Content-Type"); MatchesContentType(contentType, "application/json") {
 		if err := copyData.Decode(r.Body); err != nil {
 			return err
 		}
@@ -894,6 +896,9 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	if copyData.Get("Resource") == "" {
 		return fmt.Errorf("Path cannot be empty")
 	}
+
+	origResource := copyData.Get("Resource")
+
 	if copyData.Get("Resource")[0] == '/' {
 		copyData.Set("Resource", copyData.Get("Resource")[1:])
 	}
@@ -904,6 +909,8 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		utils.Errorf("%s", err.Error())
 		if strings.Contains(err.Error(), "No such container") {
 			w.WriteHeader(http.StatusNotFound)
+		} else if strings.Contains(err.Error(), "no such file or directory") {
+			return fmt.Errorf("Could not find the file %s in container %s", origResource, vars["name"])
 		}
 	}
 	return nil
@@ -1130,9 +1137,8 @@ func changeGroup(addr string, nameOrGid string) error {
 
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
-func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors bool, dockerVersion string, socketGroup string) error {
-	r, err := createRouter(eng, logging, enableCors, dockerVersion)
-
+func ListenAndServe(proto, addr string, job *engine.Job) error {
+	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 	if err != nil {
 		return err
 	}
@@ -1147,22 +1153,48 @@ func ListenAndServe(proto, addr string, eng *engine.Engine, logging, enableCors 
 		}
 	}
 
-	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock, 15*time.Minute)
+	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock)
 	if err != nil {
 		return err
+	}
+
+	if proto != "unix" && (job.GetenvBool("Tls") || job.GetenvBool("TlsVerify")) {
+		tlsCert := job.Getenv("TlsCert")
+		tlsKey := job.Getenv("TlsKey")
+		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
+		if err != nil {
+			return fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?",
+				tlsCert, tlsKey, err)
+		}
+		tlsConfig := &tls.Config{
+			NextProtos:   []string{"http/1.1"},
+			Certificates: []tls.Certificate{cert},
+		}
+		if job.GetenvBool("TlsVerify") {
+			certPool := x509.NewCertPool()
+			file, err := ioutil.ReadFile(job.Getenv("TlsCa"))
+			if err != nil {
+				return fmt.Errorf("Couldn't read CA certificate: %s", err)
+			}
+			certPool.AppendCertsFromPEM(file)
+
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientCAs = certPool
+		}
+		l = tls.NewListener(l, tlsConfig)
 	}
 
 	// Basic error and sanity checking
 	switch proto {
 	case "tcp":
-		if !strings.HasPrefix(addr, "127.0.0.1") {
+		if !strings.HasPrefix(addr, "127.0.0.1") && !job.GetenvBool("TlsVerify") {
 			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 	case "unix":
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err
 		}
-
+		socketGroup := job.Getenv("SocketGroup")
 		if socketGroup != "" {
 			if err := changeGroup(addr, socketGroup); err != nil {
 				if socketGroup == "docker" {
@@ -1198,7 +1230,7 @@ func ServeApi(job *engine.Job) engine.Status {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
-			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"), job.Getenv("SocketGroup"))
+			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
 		}()
 	}
 

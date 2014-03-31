@@ -404,7 +404,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(parentPath, 600)
+				err = os.MkdirAll(parentPath, 0777)
 				if err != nil {
 					return err
 				}
@@ -615,6 +615,9 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	if _, err := io.Copy(f, src); err != nil {
+		return nil, err
+	}
+	if err = f.Sync(); err != nil {
 		return nil, err
 	}
 	if _, err := f.Seek(0, 0); err != nil {

@@ -49,7 +49,7 @@ to be created - so ``RUN cd /tmp`` will not have any effect on the next
 instructions.
 
 Whenever possible, Docker will re-use the intermediate images, 
-accelerating ``docker build`` significantly (indicated by ``Using cache``:
+accelerating ``docker build`` significantly (indicated by ``Using cache``):
 
 .. code-block:: bash
 
@@ -193,7 +193,7 @@ well.
 
 When used in the shell or exec formats, the ``CMD`` instruction sets
 the command to be executed when running the image.  This is
-functionally equivalent to running ``docker commit -run '{"Cmd":
+functionally equivalent to running ``docker commit --run '{"Cmd":
 <command>}'`` outside the builder.
 
 If you use the *shell* form of the CMD, then the ``<command>`` will
@@ -235,7 +235,7 @@ override the default specified in CMD.
     ``EXPOSE <port> [<port>...]``
 
 The ``EXPOSE`` instruction exposes ports for use within links. This is
-functionally equivalent to running ``docker commit -run '{"PortSpecs":
+functionally equivalent to running ``docker commit --run '{"PortSpecs":
 ["<port>", "<port2>"]}'`` outside the builder. Refer to
 :ref:`port_redirection` for detailed information.
 
@@ -407,7 +407,16 @@ the image.
 The ``WORKDIR`` instruction sets the working directory for the ``RUN``, ``CMD`` and
 ``ENTRYPOINT``  Dockerfile commands that follow it.
 
-It can be used multiple times in the one Dockerfile.
+It can be used multiple times in the one Dockerfile.  If a relative path is
+provided, it will be relative to the path of the previous ``WORKDIR``
+instruction.  For example:
+
+    WORKDIR /a
+    WORKDIR b
+    WORKDIR c
+    RUN pwd
+
+The output of the final ``pwd`` command in this Dockerfile would be ``/a/b/c``.
 
 3.11 ONBUILD
 ------------
@@ -481,7 +490,7 @@ For example you might add something like this:
     # VERSION               0.0.1
 
     FROM      ubuntu
-    MAINTAINER Guillaume J. Charmes <guillaume@dotcloud.com>
+    MAINTAINER Guillaume J. Charmes <guillaume@docker.com>
 
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list

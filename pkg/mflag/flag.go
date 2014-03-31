@@ -10,7 +10,7 @@
 	Define flags using flag.String(), Bool(), Int(), etc.
 
 	This declares an integer flag, -f or --flagname, stored in the pointer ip, with type *int.
-		import "flag"
+		import "flag /github.com/dotcloud/docker/pkg/mflag"
 		var ip = flag.Int([]string{"f", "-flagname"}, 1234, "help message for flagname")
 	If you like, you can bind the flag to a variable using the Var() functions.
 		var flagvar int
@@ -22,6 +22,18 @@
 	pointer receivers) and couple them to flag parsing by
 		flag.Var(&flagVal, []string{"name"}, "help message for flagname")
 	For such flags, the default value is just the initial value of the variable.
+
+	You can also add "deprecated" flags, they are still usable, bur are not shown
+	in the usage and will display a warning when you try to use them:
+		var ip = flag.Int([]string{"f", "#flagname", "-flagname"}, 1234, "help message for flagname")
+	this will display: `Warning: '-flagname' is deprecated, it will be replaced by '--flagname' soon. See usage.` and
+		var ip = flag.Int([]string{"f", "#flagname"}, 1234, "help message for flagname")
+	will display: `Warning: '-t' is deprecated, it will be removed soon. See usage.`
+
+	You can also group one letter flags, bif you declare
+		var v = flag.Bool([]string{"v", "-verbose"}, false, "help message for verbose")
+		var s = flag.Bool([]string{"s", "-slow"}, false, "help message for slow")
+	you will be able to use the -vs or -sv
 
 	After all flags are defined, call
 		flag.Parse()
@@ -286,9 +298,24 @@ type Flag struct {
 	DefValue string   // default value (as text); for usage message
 }
 
+type flagSlice []string
+
+func (p flagSlice) Len() int { return len(p) }
+func (p flagSlice) Less(i, j int) bool {
+	pi, pj := strings.ToLower(p[i]), strings.ToLower(p[j])
+	if pi[0] == '-' {
+		pi = pi[1:]
+	}
+	if pj[0] == '-' {
+		pj = pj[1:]
+	}
+	return pi < pj
+}
+func (p flagSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+
 // sortFlags returns the flags as a slice in lexicographical sorted order.
 func sortFlags(flags map[string]*Flag) []*Flag {
-	var list sort.StringSlice
+	var list flagSlice
 	for _, f := range flags {
 		fName := strings.TrimPrefix(f.Names[0], "#")
 		if len(f.Names) == 1 {
@@ -307,7 +334,7 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 			list = append(list, fName)
 		}
 	}
-	list.Sort()
+	sort.Sort(list)
 	result := make([]*Flag, len(list))
 	for i, name := range list {
 		result[i] = flags[name]
@@ -805,9 +832,20 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		f.actual = make(map[string]*Flag)
 	}
 	f.actual[name] = flag
-	for _, n := range flag.Names {
+	for i, n := range flag.Names {
 		if n == fmt.Sprintf("#%s", name) {
-			fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+			replacement := ""
+			for j := i; j < len(flag.Names); j++ {
+				if flag.Names[j][0] != '#' {
+					replacement = flag.Names[j]
+					break
+				}
+			}
+			if replacement != "" {
+				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
+			} else {
+				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+			}
 		}
 	}
 	return true, "", nil

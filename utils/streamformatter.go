@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 type StreamFormatter struct {
@@ -89,4 +90,32 @@ func (sf *StreamFormatter) Used() bool {
 
 func (sf *StreamFormatter) Json() bool {
 	return sf.json
+}
+
+type StdoutFormater struct {
+	io.Writer
+	*StreamFormatter
+}
+
+func (sf *StdoutFormater) Write(buf []byte) (int, error) {
+	formattedBuf := sf.StreamFormatter.FormatStream(string(buf))
+	n, err := sf.Writer.Write(formattedBuf)
+	if n != len(formattedBuf) {
+		return n, io.ErrShortWrite
+	}
+	return len(buf), err
+}
+
+type StderrFormater struct {
+	io.Writer
+	*StreamFormatter
+}
+
+func (sf *StderrFormater) Write(buf []byte) (int, error) {
+	formattedBuf := sf.StreamFormatter.FormatStream("\033[91m" + string(buf) + "\033[0m")
+	n, err := sf.Writer.Write(formattedBuf)
+	if n != len(formattedBuf) {
+		return n, io.ErrShortWrite
+	}
+	return len(buf), err
 }

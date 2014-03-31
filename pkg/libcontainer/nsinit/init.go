@@ -4,6 +4,7 @@ package nsinit
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
@@ -12,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 	"os"
+	"runtime"
 	"syscall"
 )
 
@@ -24,14 +26,17 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	// We always read this as it is a way to sync with the parent as well
+	ns.logger.Printf("reading from sync pipe fd %d\n", syncPipe.child.Fd())
 	context, err := syncPipe.ReadFromParent()
 	if err != nil {
 		syncPipe.Close()
 		return err
 	}
+	ns.logger.Println("received context from parent")
 	syncPipe.Close()
 
 	if console != "" {
+		ns.logger.Printf("setting up %s as console\n", console)
 		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
@@ -48,10 +53,13 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-	if err := system.ParentDeathSignal(); err != nil {
+	// this is our best effort to let the process know that the parent has died and that it
+	// should it should act on it how it sees fit
+	if err := system.ParentDeathSignal(uintptr(syscall.SIGTERM)); err != nil {
 		return fmt.Errorf("parent death signal %s", err)
 	}
-	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs, container.NoPivotRoot); err != nil {
+	ns.logger.Println("setup mount namespace")
+	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot, container.Context["mount_label"]); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if err := setupNetwork(container, context); err != nil {
@@ -64,9 +72,17 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 		return fmt.Errorf("finalize namespace %s", err)
 	}
 
-	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
-		return err
+	if profile := container.Context["apparmor_profile"]; profile != "" {
+		ns.logger.Printf("setting apparmor profile %s\n", profile)
+		if err := apparmor.ApplyProfile(os.Getpid(), profile); err != nil {
+			return err
+		}
 	}
+	runtime.LockOSThread()
+	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
+		return fmt.Errorf("SetProcessLabel label %s", err)
+	}
+	ns.logger.Printf("execing %s\n", args[0])
 	return system.Execv(args[0], args[0:], container.Env)
 }
 
@@ -124,7 +140,11 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 		if err != nil {
 			return err
 		}
-		return strategy.Initialize(config, context)
+
+		err1 := strategy.Initialize(config, context)
+		if err1 != nil {
+			return err1
+		}
 	}
 	return nil
 }

@@ -85,7 +85,7 @@ case "$lsb_dist" in
 			fi
 		}
 		
-		# TODO remove this section once device-mapper lands
+		# aufs is preferred over devicemapper; try to ensure the driver is available.
 		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 			kern_extras="linux-image-extra-$(uname -r)"
 			
@@ -111,9 +111,9 @@ case "$lsb_dist" in
 		(
 			set -x
 			if [ "https://get.docker.io/" = "$url" ]; then
-				$sh_c "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
+				$sh_c "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
 			elif [ "https://test.docker.io/" = "$url" ]; then
-				$sh_c "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
+				$sh_c "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
 			else
 				$sh_c "$curl ${url}gpg | apt-key add -"
 			fi

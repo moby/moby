@@ -72,7 +72,7 @@ First add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
-   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
@@ -144,7 +144,7 @@ First add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
-   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
@@ -186,7 +186,7 @@ client commands. As of 0.9.0, you can specify that a group other than ``docker``
 should own the Unix socket with the ``-G`` option.
 
 .. warning:: The *docker* group (or the group specified with ``-G``) is
-   root-equivalent.
+   root-equivalent; see :ref:`dockersecurity_daemon` details.
 
 
 **Example:**
@@ -309,9 +309,9 @@ daemon for the containers:
    sudo nano /etc/default/docker
    ---
    # Add:
-   DOCKER_OPTS="-dns 8.8.8.8"
+   DOCKER_OPTS="--dns 8.8.8.8"
    # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
-   # multiple DNS servers can be specified: -dns 8.8.8.8 -dns 192.168.1.1
+   # multiple DNS servers can be specified: --dns 8.8.8.8 --dns 192.168.1.1
 
 The Docker daemon has to be restarted:
 

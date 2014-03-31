@@ -121,8 +121,8 @@ Container intercommunication
 The value of the Docker daemon's ``icc`` parameter determines whether
 containers can communicate with each other over the bridge network.
 
-- The default, ``-icc=true`` allows containers to communicate with each other.
-- ``-icc=false`` means containers are isolated from each other.
+- The default, ``--icc=true`` allows containers to communicate with each other.
+- ``--icc=false`` means containers are isolated from each other.
 
 Docker uses ``iptables`` under the hood to either accept or
 drop communication between containers.

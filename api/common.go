@@ -25,6 +25,8 @@ func ValidateHost(val string) (string, error) {
 //TODO remove, used on < 1.5 in getContainersJSON
 func displayablePorts(ports *engine.Table) string {
 	result := []string{}
+	ports.SetKey("PublicPort")
+	ports.Sort()
 	for _, port := range ports.Data {
 		if port.Get("IP") == "" {
 			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))

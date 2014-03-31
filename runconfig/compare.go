@@ -20,6 +20,7 @@ func Compare(a, b *Config) bool {
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Dns) != len(b.Dns) ||
+		len(a.DnsSearch) != len(b.DnsSearch) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
@@ -35,6 +36,11 @@ func Compare(a, b *Config) bool {
 	}
 	for i := 0; i < len(a.Dns); i++ {
 		if a.Dns[i] != b.Dns[i] {
+			return false
+		}
+	}
+	for i := 0; i < len(a.DnsSearch); i++ {
+		if a.DnsSearch[i] != b.DnsSearch[i] {
 			return false
 		}
 	}

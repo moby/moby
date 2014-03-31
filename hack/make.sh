@@ -89,7 +89,7 @@ LDFLAGS='
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
-BUILDFLAGS=( -a -tags "netgo $DOCKER_BUILDTAGS" )
+BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
 # PLEASE do not use these anywhere else.
@@ -125,7 +125,7 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		set -x
+		echo '+ go test' $TESTFLAGS "github.com/dotcloud/docker${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
@@ -136,9 +136,38 @@ go_test_dir() {
 # output, one per line.
 find_dirs() {
 	find -not \( \
-		\( -wholename './vendor' -o -wholename './integration' -o -wholename './contrib' -o -wholename './pkg/mflag/example' \) \
+		\( \
+			-wholename './vendor' \
+			-o -wholename './integration' \
+			-o -wholename './contrib' \
+			-o -wholename './pkg/mflag/example' \
+			-o -wholename './.git' \
+			-o -wholename './bundles' \
+			-o -wholename './docs' \
+		\) \
 		-prune \
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
+}
+
+hash_files() {
+	while [ $# -gt 0 ]; do
+		f="$1"
+		shift
+		dir="$(dirname "$f")"
+		base="$(basename "$f")"
+		for hashAlgo in md5 sha256; do
+			if command -v "${hashAlgo}sum" &> /dev/null; then
+				(
+					# subshell and cd so that we get output files like:
+					#   $HASH docker-$VERSION
+					# instead of:
+					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
+					cd "$dir"
+					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
+				)
+			fi
+		done
+	done
 }
 
 bundle() {

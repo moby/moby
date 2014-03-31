@@ -52,7 +52,7 @@ Sometimes this can use a more complex value string, as for ``-v``::
 Strings and Integers
 ~~~~~~~~~~~~~~~~~~~~
 
-Options like ``-name=""`` expect a string, and they can only be
+Options like ``--name=""`` expect a string, and they can only be
 specified once. Options like ``-c=0`` expect an integer, and they can
 only be specified once.
 
@@ -74,36 +74,45 @@ Commands
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
-      --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
+      -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
+      --dns-search=[]: Force Docker to use specific DNS search domains
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
-      --iptables=true: Disable docker's addition of iptables rules
+      --ip-forward=true: Enable net.ipv4.ip_forward
+      --iptables=true: Enable Docker's addition of iptables rules
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
       -e, --exec-driver="native": Force the docker runtime to use a specific exec driver
       -v, --version=false: Print version information and quit
+      --tls=false: Use TLS; implied by tls-verify flags
+      --tlscacert="~/.docker/ca.pem": Trust only remotes providing a certificate signed by the CA given here
+      --tlscert="~/.docker/cert.pem": Path to TLS certificate file
+      --tlskey="~/.docker/key.pem": Path to TLS key file
+      --tlsverify=false: Use TLS and verify the remote (daemon: verify client, client: verify daemon)
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
-The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
 daemon and client.  To run the daemon you provide the ``-d`` flag.
 
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
 
-To set the DNS server for all Docker containers, use ``docker -d -dns 8.8.8.8``.
+To set the DNS server for all Docker containers, use ``docker -d --dns 8.8.8.8``.
+
+To set the DNS search domain for all Docker containers, use ``docker -d --dns-search example.com``.
 
 To run the daemon with debug output, use ``docker -d -D``.
 
 To use lxc as the execution driver, use ``docker -d -e lxc``.
 
 The docker client will also honor the ``DOCKER_HOST`` environment variable to set
-the ``-H`` flag for the client.  
+the ``-H`` flag for the client.
 
 ::
- 
+
         docker -H tcp://0.0.0.0:4243 ps
         # or
         export DOCKER_HOST="tcp://0.0.0.0:4243"
@@ -141,7 +150,7 @@ TMPDIR and the data directory can be set like this:
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
-the Docker client when it quits.  When you detach from the container's 
+the Docker client when it quits.  When you detach from the container's
 process the exit code will be returned to the client.
 
 To stop a container, use ``docker stop``.
@@ -202,12 +211,16 @@ Examples:
       --no-cache: Do not use the cache when building the image.
       --rm=true: Remove intermediate containers after a successful build
 
-The files at ``PATH`` or ``URL`` are called the "context" of the build. The
-build process may refer to any of the files in the context, for example when
-using an :ref:`ADD <dockerfile_add>` instruction.  When a single ``Dockerfile``
-is given as ``URL``, then no context is set.  When a Git repository is set as
-``URL``, then the repository is used as the context. Git repositories are
-cloned with their submodules (`git clone --recursive`).
+The files at ``PATH`` or ``URL`` are called the "context" of the build.
+The build process may refer to any of the files in the context, for example when
+using an :ref:`ADD <dockerfile_add>` instruction.
+When a single ``Dockerfile`` is given as ``URL``, then no context is set.
+
+When a Git repository is set as ``URL``, then the repository is used as the context. 
+The Git repository is cloned with its submodules (`git clone --recursive`).
+A fresh git clone occurs in a temporary directory on your local host, and then this 
+is sent to the Docker daemon as the context. 
+This way, your local user credentials and vpn's etc can be used to access private repositories
 
 .. _cli_build_examples:
 
@@ -303,8 +316,8 @@ by using the ``git://`` schema.
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      --run="": Configuration to be applied when the image is launched with `docker run`.
-               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+      --run="": Configuration changes to be applied when the image is launched with `docker run`.
+               (ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 .. _cli_commit_examples:
 
@@ -315,14 +328,14 @@ Commit an existing container
 
 	$ sudo docker ps
 	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
-	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
 	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
 	f5283438590d
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
-	
+
 Change the command that a container runs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -334,9 +347,9 @@ run ``ls /etc``.
 
 .. code-block:: bash
 
-        $ docker run -t -name test ubuntu ls
+        $ docker run -t --name test ubuntu ls
         bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
-        $ docker commit -run='{"Cmd": ["ls","/etc"]}' test test2
+        $ docker commit --run='{"Cmd": ["ls","/etc"]}' test test2
         933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
         $ docker run -t test2
         adduser.conf            gshadow          login.defs           rc0.d
@@ -344,17 +357,46 @@ run ``ls /etc``.
         apt                     host.conf        lsb-base             rc2.d
         ...
 
-Full -run example
-.................
+Merged configs example
+......................
+
+Say you have a Dockerfile like so:
+
+.. code-block:: bash
+
+        ENV MYVAR foobar
+        RUN apt-get install openssh
+        EXPOSE 22
+        CMD ["/usr/sbin/sshd -D"]
+        ...
+
+If you run that, make some changes, and then commit, Docker will merge the environment variable and exposed port configuration settings with any that you specify in the --run= option. This is a change from Docker 0.8.0 and prior where no attempt was made to preserve any existing configuration on commit.
+
+.. code-block:: bash
+
+        $ docker build -t me/foo .
+        $ docker run -t -i me/foo /bin/bash
+        foo-container$ [make changes in the container]
+        foo-container$ exit
+        $ docker commit --run='{"Cmd": ["ls"]}' [container-id] me/bar
+        ...
+
+The me/bar image will now have port 22 exposed, MYVAR env var set to 'foobar', and its default command will be ["ls"].
+
+Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the --run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
+
+Full --run example
+..................
 
 The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
-or ``config`` when running ``docker inspect IMAGEID``.
+or ``config`` when running ``docker inspect IMAGEID``. Existing configuration key-values that are
+not overridden in the JSON hash will be merged in.
 
 (Multiline is okay within a single quote ``'``)
 
 .. code-block:: bash
 
-  $ sudo docker commit -run='
+  $ sudo docker commit --run='
   {
       "Entrypoint" : null,
       "Privileged" : false,
@@ -362,6 +404,7 @@ or ``config`` when running ``docker inspect IMAGEID``.
       "VolumesFrom" : "",
       "Cmd" : ["cat", "-e", "/etc/resolv.conf"],
       "Dns" : ["8.8.8.8", "8.8.4.4"],
+      "DnsSearch" : ["example.com"],
       "MemorySwap" : 0,
       "AttachStdin" : false,
       "AttachStderr" : false,
@@ -486,16 +529,16 @@ Show events in the past from a specified time
 
 .. code-block:: bash
 
-    $ sudo docker events -since 1378216169
+    $ sudo docker events --since 1378216169
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03'
+    $ sudo docker events --since '2013-09-03'
     [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
@@ -535,35 +578,14 @@ To see how the ``docker:latest`` image was built:
 .. code-block:: bash
 
 	$ docker history docker
-	ID                  CREATED             CREATED BY
-	docker:latest       19 hours ago        /bin/sh -c #(nop) ADD . in /go/src/github.com/dotcloud/docker
-	cf5f2467662d        2 weeks ago         /bin/sh -c #(nop) ENTRYPOINT ["hack/dind"]
-	3538fbe372bf        2 weeks ago         /bin/sh -c #(nop) WORKDIR /go/src/github.com/dotcloud/docker
-	7450f65072e5        2 weeks ago         /bin/sh -c #(nop) VOLUME /var/lib/docker
-	b79d62b97328        2 weeks ago         /bin/sh -c apt-get install -y -q lxc
-	36714852a550        2 weeks ago         /bin/sh -c apt-get install -y -q iptables
-	8c4c706df1d6        2 weeks ago         /bin/sh -c /bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEYn' > /.s3cfg
-	b89989433c48        2 weeks ago         /bin/sh -c pip install python-magic
-	a23e640d85b5        2 weeks ago         /bin/sh -c pip install s3cmd
-	41f54fec7e79        2 weeks ago         /bin/sh -c apt-get install -y -q python-pip
-	d9bc04add907        2 weeks ago         /bin/sh -c apt-get install -y -q reprepro dpkg-sig
-	e74f4760fa70        2 weeks ago         /bin/sh -c gem install --no-rdoc --no-ri fpm
-	1e43224726eb        2 weeks ago         /bin/sh -c apt-get install -y -q ruby1.9.3 rubygems libffi-dev
-	460953ae9d7f        2 weeks ago         /bin/sh -c #(nop) ENV GOPATH=/go:/go/src/github.com/dotcloud/docker/vendor
-	8b63eb1d666b        2 weeks ago         /bin/sh -c #(nop) ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/goroot/bin
-	3087f3bcedf2        2 weeks ago         /bin/sh -c #(nop) ENV GOROOT=/goroot
-	635840d198e5        2 weeks ago         /bin/sh -c cd /goroot/src && ./make.bash
-	439f4a0592ba        2 weeks ago         /bin/sh -c curl -s https://go.googlecode.com/files/go1.1.2.src.tar.gz | tar -v -C / -xz && mv /go /goroot
-	13967ed36e93        2 weeks ago         /bin/sh -c #(nop) ENV CGO_ENABLED=0
-	bf7424458437        2 weeks ago         /bin/sh -c apt-get install -y -q build-essential
-	a89ec997c3bf        2 weeks ago         /bin/sh -c apt-get install -y -q mercurial
-	b9f165c6e749        2 weeks ago         /bin/sh -c apt-get install -y -q git
-	17a64374afa7        2 weeks ago         /bin/sh -c apt-get install -y -q curl
-	d5e85dc5b1d8        2 weeks ago         /bin/sh -c apt-get update
-	13e642467c11        2 weeks ago         /bin/sh -c echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
-	ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
-	ubuntu:12.04        6 months ago
-
+        IMAGE                                                              CREATED             CREATED BY                                                                                                                                                 SIZE
+        3e23a5875458790b7a806f95f7ec0d0b2a5c1659bfc899c89f939f6d5b8f7094   8 days ago          /bin/sh -c #(nop) ENV LC_ALL=C.UTF-8                                                                                                                       0 B
+        8578938dd17054dce7993d21de79e96a037400e8d28e15e7290fea4f65128a36   8 days ago          /bin/sh -c dpkg-reconfigure locales &&    locale-gen C.UTF-8 &&    /usr/sbin/update-locale LANG=C.UTF-8                                                    1.245 MB
+        be51b77efb42f67a5e96437b3e102f81e0a1399038f77bf28cea0ed23a65cf60   8 days ago          /bin/sh -c apt-get update && apt-get install -y    git    libxml2-dev    python    build-essential    make    gcc    python-dev    locales    python-pip   338.3 MB
+        4b137612be55ca69776c7f30c2d2dd0aa2e7d72059820abf3e25b629f887a084   6 weeks ago         /bin/sh -c #(nop) ADD jessie.tar.xz in /                                                                                                                   121 MB
+        750d58736b4b6cc0f9a9abe8f258cef269e3e9dceced1146503522be9f985ada   6 weeks ago         /bin/sh -c #(nop) MAINTAINER Tianon Gravi <admwiggin@gmail.com> - mkimage-debootstrap.sh -t jessie.tar.xz jessie http://http.debian.net/debian             0 B
+        511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158   9 months ago                                                                                                                                                                   0 B
+	
 .. _cli_images:
 
 ``images``
@@ -578,8 +600,8 @@ To see how the ``docker:latest`` image was built:
       -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only show numeric IDs
-      --tree=false: Output graph in tree format
-      --viz=false: Output graph in graphviz format
+      -t, --tree=false: Output graph in tree format
+      -v, --viz=false: Output graph in graphviz format
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -664,7 +686,7 @@ Displaying image hierarchy
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create an empty filesystem image and import the contents of the tarball 
+    Create an empty filesystem image and import the contents of the tarball
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 At this time, the URL must start with ``http`` and point to a single
@@ -799,7 +821,7 @@ text output:
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
 Find a Specific Port Mapping
 ............................
@@ -814,7 +836,7 @@ we ask for the ``HostPort`` field to get the public address.
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
 Get config
 ..........
@@ -826,7 +848,7 @@ to convert config object into JSON
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{json .config}}' $INSTANCE_ID
 
 
 .. _cli_kill:
@@ -859,10 +881,32 @@ Known Issues (kill)
 
 ::
 
-    Usage: docker load < repository.tar
+    Usage: docker load 
 
-    Loads a tarred repository from the standard input stream.
-    Restores both images and tags.
+    Load an image from a tar archive on STDIN
+
+      -i, --input="": Read from a tar archive file, instead of STDIN
+
+Loads a tarred repository from a file or the standard input stream.
+Restores both images and tags.
+
+.. code-block:: bash
+
+   $ sudo docker images
+   REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+   $ sudo docker load < busybox.tar
+   $ sudo docker images
+   REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+   busybox             latest              769b9341d937        7 weeks ago         2.489 MB
+   $ sudo docker load --input fedora.tar
+   $ sudo docker images
+   REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+   busybox             latest              769b9341d937        7 weeks ago         2.489 MB
+   fedora              rawhide             0d20aec6529d        7 weeks ago         387 MB
+   fedora              20                  58394af37342        7 weeks ago         385.5 MB
+   fedora              heisenbug           58394af37342        7 weeks ago         385.5 MB
+   fedora              latest              58394af37342        7 weeks ago         385.5 MB
+
 
 .. _cli_login:
 
@@ -933,8 +977,14 @@ new output from the container's stdout and stderr.
     List containers
 
       -a, --all=false: Show all containers. Only running containers are shown by default.
+      --before="": Show only container created before Id or Name, include non-running ones.
+      -l, --latest=false: Show only the latest created container, include non-running ones.
+      -n=-1: Show n last created containers, include non-running ones.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
+      -s, --size=false: Display sizes, not to be used with -q
+      --since="": Show only containers created since Id or Name, include non-running ones.
+
 
 Running ``docker ps`` showing 2 linked containers.
 
@@ -942,7 +992,7 @@ Running ``docker ps`` showing 2 linked containers.
 
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
-    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
+    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
     fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
 
@@ -960,6 +1010,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
     Usage: docker pull NAME
 
     Pull an image or a repository from the registry
+
+      -t, --tag="": Download tagged image in repository
 
 
 .. _cli_push:
@@ -985,6 +1037,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
     Restart a running container
 
+       -t, --time=10: Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10
+
 .. _cli_rm:
 
 ``rm``
@@ -997,6 +1051,7 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
     Remove one or more containers
         -l, --link="": Remove the link instead of the actual container
         -f, --force=false: Force removal of running container
+        -v, --volumes=false: Remove the volumes associated to the container
 
 Known Issues (rm)
 ~~~~~~~~~~~~~~~~~
@@ -1047,7 +1102,8 @@ containers will not be deleted.
     Remove one or more images
 
       -f, --force=false: Force
-    
+      --no-prune=false: Do not delete untagged parents
+
 Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1106,11 +1162,12 @@ image is removed.
       -t, --tty=false: Allocate a pseudo-tty
       -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
+      --dns-search=[]: Set custom DNS search domains for the container
       -v, --volume=[]: Create a bind mount to a directory or file with: [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
-      --lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       --expose=[]: Expose a port from the container without publishing it to your host
       --link="": Add link to another container (name:alias)
@@ -1126,12 +1183,12 @@ Once the container is stopped it still exists and can be started back up.  See `
 The ``docker run`` command can be used in combination with ``docker commit`` to
 :ref:`change the command that a container runs <cli_commit_examples>`.
 
-See :ref:`port_redirection` for more detailed information about the ``--expose``, 
-``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for 
+See :ref:`port_redirection` for more detailed information about the ``--expose``,
+``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for
 specific examples using ``--link``.
 
-Known Issues (run -volumes-from)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Known Issues (run --volumes-from)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * :issue:`2702`: "lxc-start: Permission denied - failed to mount"
   could indicate a permissions problem with AppArmor. Please see the
@@ -1158,7 +1215,7 @@ error. Docker will close this file when ``docker run`` exits.
 
 This will *not* work, because by default, most potentially dangerous
 kernel capabilities are dropped; including ``cap_sys_admin`` (which is
-required to mount filesystems). However, the ``-privileged`` flag will
+required to mount filesystems). However, the ``--privileged`` flag will
 allow it to run:
 
 .. code-block:: bash
@@ -1170,7 +1227,7 @@ allow it to run:
    none            1.9G     0  1.9G   0% /mnt
 
 
-The ``-privileged`` flag gives *all* capabilities to the container,
+The ``--privileged`` flag gives *all* capabilities to the container,
 and it also lifts all the limitations enforced by the ``device``
 cgroup controller. In other words, the container can then do almost
 everything that the host can do. This flag exists to allow special
@@ -1207,8 +1264,8 @@ starting your container.
 
    $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
-By bind-mounting the docker unix socket and statically linked docker binary 
-(such as that provided by https://get.docker.io), you give the container 
+By bind-mounting the docker unix socket and statically linked docker binary
+(such as that provided by https://get.docker.io), you give the container
 the full access to create and manipulate the host's docker daemon.
 
 .. code-block:: bash
@@ -1263,7 +1320,7 @@ A complete example
    $ sudo docker run -d --name static static-web-files sh
    $ sudo docker run -d --expose=8098 --name riak riakserver
    $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-   $ sudo docker run -d -p 1443:443 --dns=dns.dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+   $ sudo docker run -d -p 1443:443 --dns=dns.dev.org --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
    $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows 5 containers that might be set up to test a web application change:
@@ -1271,8 +1328,8 @@ This example shows 5 containers that might be set up to test a web application c
 1. Start a pre-prepared volume image ``static-web-files`` (in the background) that has CSS, image and static HTML in it, (with a ``VOLUME`` instruction in the ``Dockerfile`` to allow the web server to use those files);
 2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose port ``8098`` to any containers that link to it;
 3. Start the ``appserver`` image, restricting its memory usage to 100MB, setting two environment variables ``DEVELOPMENT`` and ``BRANCH`` and bind-mounting the current directory (``$(pwd)``) in the container in read-only mode as ``/app/bin``;
-4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
-5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``-rm`` option means that when the container exits, the container's layer is removed.
+4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org`` and DNS search domain to ``dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
+5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``--rm`` option means that when the container exits, the container's layer is removed.
 
 
 .. _cli_save:
@@ -1282,10 +1339,27 @@ This example shows 5 containers that might be set up to test a web application c
 
 ::
 
-    Usage: docker save image > repository.tar
+    Usage: docker save IMAGE
 
-    Streams a tarred repository to the standard output stream.
-    Contains all parent layers, and all tags + versions.
+    Save an image to a tar archive (streamed to stdout by default)
+
+      -o, --output="": Write to an file, instead of STDOUT
+
+
+Produces a tarred repository to the standard output stream.
+Contains all parent layers, and all tags + versions, or specified repo:tag.
+
+.. code-block:: bash
+
+   $ sudo docker save busybox > busybox.tar
+   $ ls -sh b.tar
+   2.7M b.tar
+   $ sudo docker save --output busybox.tar busybox
+   $ ls -sh b.tar
+   2.7M b.tar
+   $ sudo docker save -o fedora-all.tar fedora
+   $ sudo docker save -o fedora-latest.tar fedora:latest
+
 
 .. _cli_search:
 

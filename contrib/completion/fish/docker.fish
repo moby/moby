@@ -26,20 +26,20 @@ end
 function __fish_print_docker_containers --description 'Print a list of docker containers' -a select
     switch $select
         case running
-            docker ps -a --no-trunc | awk 'NR>1' | awk 'BEGIN {FS="  +"}; $5 ~ "^Up" {print $1 "\n" $(NF-1)}' | tr ',' '\n'
+            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Up" {print $1 "\n" $(NF-1)}' | tr ',' '\n'
         case stopped
-            docker ps -a --no-trunc | awk 'NR>1' | awk 'BEGIN {FS="  +"}; $5 ~ "^Exit" {print $1 "\n" $(NF-1)}' | tr ',' '\n'
+            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Exit" {print $1 "\n" $(NF-1)}' | tr ',' '\n'
         case all
-            docker ps -a --no-trunc | awk 'NR>1' | awk 'BEGIN {FS="  +"}; {print $1 "\n" $(NF-1)}' | tr ',' '\n'
+            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; {print $1 "\n" $(NF-1)}' | tr ',' '\n'
     end
 end
 
 function __fish_print_docker_images --description 'Print a list of docker images'
-    docker images | awk 'NR>1' | grep -v '<none>' | awk '{print $1":"$2}'
+    docker images | command awk 'NR>1' | command grep -v '<none>' | command awk '{print $1":"$2}'
 end
 
 function __fish_print_docker_repositories --description 'Print a list of docker repositories'
-    docker images | awk 'NR>1' | grep -v '<none>' | awk '{print $1}' | sort | uniq
+    docker images | command awk 'NR>1' | command grep -v '<none>' | command awk '{print $1}' | sort | uniq
 end
 
 # common options
@@ -79,7 +79,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from build' -s t -l tag -d '
 complete -c docker -f -n '__fish_docker_no_subcommand' -a commit -d "Create a new image from a container's changes"
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s a -l author -d 'Author (eg. "John Hannibal Smith <hannibal@a-team.com>"'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s m -l message -d 'Commit message'
-complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -l run -d 'Config automatically applied when the image is run. (ex: -run=\'{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}\')'
+complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -l run -d 'Config automatically applied when the image is run. (ex: --run=\'{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}\')'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -a '(__fish_print_docker_containers all)' -d "Container"
 
 # cp
@@ -154,13 +154,13 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from port' -a '(__fish_print
 # ps
 complete -c docker -f -n '__fish_docker_no_subcommand' -a ps -d 'List containers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s a -l all -d 'Show all containers. Only running containers are shown by default.'
-complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l before-id -d 'Show only container created before Id, include non-running ones.'
+complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l before -d 'Show only container created before Id or Name, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s l -l latest -d 'Show only the latest created container, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s n -d 'Show n last created containers, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l no-trunc -d "Don't truncate output"
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s q -l quiet -d 'Only display numeric IDs'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s s -l size -d 'Display sizes'
-complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l since-id -d 'Show only containers created since Id, include non-running ones.'
+complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l since -d 'Show only containers created since Id or Name, include non-running ones.'
 
 # pull
 complete -c docker -f -n '__fish_docker_no_subcommand' -a pull -d 'Pull an image or a repository from the docker registry server'
@@ -202,7 +202,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l expose -d 'Expo
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s h -l hostname -d 'Container host name'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactive -d 'Keep stdin open even if not attached'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container (name:alias)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d 'Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d 'Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number><optional unit>, where unit = b, k, m or g)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s n -l networking -d 'Enable networking for this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'

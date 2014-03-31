@@ -434,28 +434,6 @@ func TestOutput(t *testing.T) {
 	}
 }
 
-func TestContainerNetwork(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
-		&runconfig.Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"ping", "-c", "1", "127.0.0.1"},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
-	if err := container.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if code := container.State.GetExitCode(); code != 0 {
-		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
-	}
-}
-
 func TestKillDifferentUser(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
@@ -1109,7 +1087,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 	}
 }
 
-func BenchmarkRunSequencial(b *testing.B) {
+func BenchmarkRunSequential(b *testing.B) {
 	runtime := mkRuntime(b)
 	defer nuke(runtime)
 	for i := 0; i < b.N; i++ {
@@ -1523,12 +1501,59 @@ func TestVolumesFromWithVolumes(t *testing.T) {
 	}
 }
 
+func TestContainerNetwork(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, err := runtime.Create(
+		&runconfig.Config{
+			Image: GetTestImage(runtime).ID,
+			// If I change this to ping 8.8.8.8 it fails.  Any idea why? - timthelion
+			Cmd: []string{"ping", "-c", "1", "127.0.0.1"},
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
+	}
+}
+
+// Issue #4681
+func TestLoopbackFunctionsWhenNetworkingIsDissabled(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, err := runtime.Create(
+		&runconfig.Config{
+			Image:           GetTestImage(runtime).ID,
+			Cmd:             []string{"ping", "-c", "1", "127.0.0.1"},
+			NetworkDisabled: true,
+		},
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
+	}
+}
+
 func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show", "up"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1580,7 +1605,7 @@ func TestPrivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, err := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+	if output, err := runContainer(eng, runtime, []string{"--privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
 		t.Fatalf("Could not mknod into privileged container %s %v", output, err)
 	}
 }
@@ -1589,7 +1614,7 @@ func TestPrivilegedCanMount(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+	if output, _ := runContainer(eng, runtime, []string{"--privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mount into privileged container")
 	}
 }
