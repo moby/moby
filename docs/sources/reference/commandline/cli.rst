@@ -74,7 +74,7 @@ Commands
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
-      --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
+      -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
       --dns-search=[]: Force Docker to use specific DNS search domains

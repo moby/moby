@@ -311,6 +311,16 @@ RUN [ "$(cat /testfile)" = 'test!' ]
 		},
 		nil,
 	},
+	{
+		`
+FROM {IMAGE}
+# what \
+RUN mkdir /testing
+RUN touch /testing/other
+`,
+		nil,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -996,5 +1006,23 @@ func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("Error should not be nil")
+	}
+}
+
+// gh #2446
+func TestBuildAddToSymlinkDest(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
+
+	_, err := buildImage(testContextTemplate{`
+        from {IMAGE}
+        run mkdir /foo
+        run ln -s /foo /bar
+        add foo /bar/
+        run stat /bar/foo
+        `,
+		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

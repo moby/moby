@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime/execdriver"
@@ -57,6 +58,22 @@ type Runtime struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+}
+
+// Mountpoints should be private to the container
+func remountPrivate(mountPoint string) error {
+
+	mounted, err := mount.Mounted(mountPoint)
+	if err != nil {
+		return err
+	}
+
+	if !mounted {
+		if err := mount.Mount(mountPoint, mountPoint, "none", "bind,rw"); err != nil {
+			return err
+		}
+	}
+	return mount.ForceMount("", mountPoint, "none", "private")
 }
 
 // List returns an array of all containers registered in the runtime.
@@ -653,6 +670,10 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		return nil, err
 	}
 	utils.Debugf("Using graph driver %s", driver)
+
+	if err := remountPrivate(config.Root); err != nil {
+		return nil, err
+	}
 
 	runtimeRepo := path.Join(config.Root, "containers")
 

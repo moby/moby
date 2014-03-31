@@ -49,7 +49,7 @@ to be created - so ``RUN cd /tmp`` will not have any effect on the next
 instructions.
 
 Whenever possible, Docker will re-use the intermediate images, 
-accelerating ``docker build`` significantly (indicated by ``Using cache``:
+accelerating ``docker build`` significantly (indicated by ``Using cache``):
 
 .. code-block:: bash
 

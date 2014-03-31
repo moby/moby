@@ -25,6 +25,11 @@ import (
 	"time"
 )
 
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
+
 // A common interface to access the Fatal method of
 // both testing.B and testing.T.
 type Fataler interface {
@@ -1070,4 +1075,12 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
 	}
 	return realPath, nil
+}
+
+func ParseKeyValueOpt(opt string) (string, string, error) {
+	parts := strings.SplitN(opt, "=", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }

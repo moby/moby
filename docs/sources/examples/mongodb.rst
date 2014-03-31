@@ -86,10 +86,10 @@ the local port!
 .. code-block:: bash
 
     # Regular style
-    MONGO_ID=$(sudo docker run -d <yourname>/mongodb)
+    MONGO_ID=$(sudo docker run -P -d <yourname>/mongodb)
 
     # Lean and mean
-    MONGO_ID=$(sudo docker run -d <yourname>/mongodb --noprealloc --smallfiles)
+    MONGO_ID=$(sudo docker run -P -d <yourname>/mongodb --noprealloc --smallfiles)
 
     # Check the logs out
     sudo docker logs $MONGO_ID
