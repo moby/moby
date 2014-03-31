@@ -14,13 +14,10 @@ import (
 	"log"
 	"net"
 	"strings"
-	"syscall"
-	"unsafe"
 )
 
 const (
 	DefaultNetworkBridge = "docker0"
-	siocBRADDBR          = 0x89a0
 )
 
 // Network interface represents the networking stack of a container
@@ -281,28 +278,13 @@ func createBridge(bridgeIP string) error {
 	return nil
 }
 
-// Create the actual bridge device.  This is more backward-compatible than
-// netlink.NetworkLinkAdd and works on RHEL 6.
 func createBridgeIface(name string) error {
-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
-	if err != nil {
-		utils.Debugf("Bridge socket creation failed IPv6 probably not enabled: %v", err)
-		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
-		if err != nil {
-			return fmt.Errorf("Error creating bridge creation socket: %s", err)
-		}
-	}
-	defer syscall.Close(s)
-
-	nameBytePtr, err := syscall.BytePtrFromString(name)
-	if err != nil {
-		return fmt.Errorf("Error converting bridge name %s to byte array: %s", name, err)
-	}
-
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), siocBRADDBR, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
-		return fmt.Errorf("Error creating bridge: %s", err)
-	}
-	return nil
+	kv, err := utils.GetKernelVersion()
+	// only set the bridge's mac address if the kernel version is > 3.3
+	// before that it was not supported
+	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
+	utils.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
+	return netlink.CreateBridge(name, setBridgeMacAddr)
 }
 
 // Allocate a network interface
