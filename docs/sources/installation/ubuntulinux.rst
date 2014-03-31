@@ -282,8 +282,6 @@ incoming connections on the Docker port (default 4243):
 
    sudo ufw allow 4243/tcp
 
-.. _installmirrors:
-
 Docker and local DNS server warnings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -341,6 +339,8 @@ NetworkManager and Docker need to be restarted afterwards:
     sudo restart docker
 
 .. warning:: This might make DNS resolution slower on some networks.
+
+.. _installmirrors:
 
 Mirrors
 ^^^^^^^
