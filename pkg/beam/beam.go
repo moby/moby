@@ -36,10 +36,10 @@ func SendPipe(dst Sender, data []byte) (*os.File, error) {
 	return w, nil
 }
 
-func SendPair(dst Sender, data []byte) (in ReceiveCloser, out SendCloser, err error) {
+func SendConn(dst Sender, data []byte) (conn *UnixConn, err error) {
 	local, remote, err := SocketPair()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer func() {
 		if err != nil {
@@ -47,22 +47,22 @@ func SendPair(dst Sender, data []byte) (in ReceiveCloser, out SendCloser, err er
 			remote.Close()
 		}
 	}()
-	endpoint, err := FileConn(local)
+	conn, err = FileConn(local)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	local.Close()
 	if err := dst.Send(data, remote); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return ReceiveCloser(endpoint), SendCloser(endpoint), nil
+	return conn, nil
 }
 
-func ReceivePair(src Receiver) ([]byte, Receiver, Sender, error) {
+func ReceiveConn(src Receiver) ([]byte, *UnixConn, error) {
 	for {
 		data, f, err := src.Receive()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		if f == nil {
 			// Skip empty attachments
@@ -74,10 +74,10 @@ func ReceivePair(src Receiver) ([]byte, Receiver, Sender, error) {
 			// (for example might be a regular file, directory etc)
 			continue
 		}
-		return data, Receiver(conn), Sender(conn), nil
+		return data, conn, nil
 	}
 	panic("impossibru!")
-	return nil, nil, nil, nil
+	return nil, nil, nil
 }
 
 func Copy(dst Sender, src Receiver) (int, error) {

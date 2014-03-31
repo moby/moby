@@ -17,13 +17,13 @@ import (
 // not point to a connection, that message will be skipped.
 //
 func Listen(conn Sender, name string) (net.Listener, error) {
-	in, _, err := SendPair(conn, []byte(name))
+	endpoint, err := SendConn(conn, []byte(name))
 	if err != nil {
 		return nil, err
 	}
 	return &listener{
 		name:     name,
-		endpoint: in,
+		endpoint: endpoint,
 	}, nil
 }
 
