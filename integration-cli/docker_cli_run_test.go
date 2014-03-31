@@ -271,3 +271,15 @@ func TestDockerRunWithVolumesAsFiles(t *testing.T) {
 
 	logDone("run - regression test for #4741 - volumes from as files")
 }
+
+// Regression test for #4830
+func TestDockerRunWithRelativePath(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-v", "tmp:/other-tmp", "busybox", "true")
+	if _, _, _, err := runCommandWithStdoutStderr(runCmd); err == nil {
+		t.Fatalf("relative path should result in an error")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volume with relative path")
+}

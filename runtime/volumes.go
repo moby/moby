@@ -172,6 +172,13 @@ func createVolumes(container *Container) error {
 		if bindMap, exists := binds[volPath]; exists {
 			isBindMount = true
 			srcPath = bindMap.SrcPath
+			srcAbs, err := filepath.Abs(srcPath)
+			if err != nil {
+				return err
+			}
+			if srcPath != srcAbs {
+				return fmt.Errorf("%s should be an absolute path", srcPath)
+			}
 			if strings.ToLower(bindMap.Mode) == "rw" {
 				srcRW = true
 			}
