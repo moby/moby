@@ -1007,12 +1007,12 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
 ::
 
-    Usage: docker pull NAME
+    Usage: docker pull [OPTIONS] NAME
 
     Pull an image or a repository from the registry
 
+      -q, --quiet=false: Suppress verbose pull output
       -t, --tag="": Download tagged image in repository
-
 
 .. _cli_push:
 
@@ -1021,10 +1021,11 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
 ::
 
-    Usage: docker push NAME
+    Usage: docker push [OPTIONS] NAME
 
     Push an image or a repository to the registry
 
+      -q, --quiet=false: Suppress verbose push output
 
 .. _cli_restart:
 

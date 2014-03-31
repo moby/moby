@@ -1034,7 +1034,8 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := cli.Subcmd("push", "NAME", "Push an image or a repository to the registry")
+	cmd := cli.Subcmd("push", "[OPTIONS] NAME", "Push an image or a repository to the registry")
+	suppressOutput := cmd.Bool([]string{"q", "-quiet"}, false, "Suppress verbose push output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1067,6 +1068,11 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	v := url.Values{}
+
+	if *suppressOutput {
+		v.Set("q", "1")
+	}
+
 	push := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
@@ -1096,8 +1102,9 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPull(args ...string) error {
-	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry")
+	cmd := cli.Subcmd("pull", "[OPTIONS] NAME[:TAG]", "Pull an image or a repository from the registry")
 	tag := cmd.String([]string{"#t", "#-tag"}, "", "Download tagged image in repository")
+	suppressOutput := cmd.Bool([]string{"q", "-quiet"}, false, "Suppress verbose pull output")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1125,6 +1132,10 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	v := url.Values{}
 	v.Set("fromImage", remote)
 	v.Set("tag", *tag)
+
+	if *suppressOutput {
+		v.Set("q", "1")
+	}
 
 	pull := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)

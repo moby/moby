@@ -1347,11 +1347,12 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
 	}
 	var (
-		localName   = job.Args[0]
-		tag         string
-		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders map[string][]string
+		localName      = job.Args[0]
+		suppressOutput = job.GetenvBool("q")
+		tag            string
+		sf             = utils.NewStreamFormatter(job.GetenvBool("json"))
+		authConfig     = &registry.AuthConfig{}
+		metaHeaders    map[string][]string
 	)
 	if len(job.Args) > 1 {
 		tag = job.Args[1]
@@ -1359,6 +1360,10 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
+
+	if suppressOutput {
+		job.Stdout.Set(&utils.NopWriter{})
+	}
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
 	if err != nil {
@@ -1569,10 +1574,11 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	var (
-		localName   = job.Args[0]
-		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders map[string][]string
+		localName      = job.Args[0]
+		suppressOutput = job.GetenvBool("q")
+		sf             = utils.NewStreamFormatter(job.GetenvBool("json"))
+		authConfig     = &registry.AuthConfig{}
+		metaHeaders    map[string][]string
 	)
 
 	job.GetenvJson("authConfig", authConfig)
@@ -1597,6 +1603,10 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
 		return job.Error(err2)
+	}
+
+	if suppressOutput {
+		job.Stdout.Set(&utils.NopWriter{})
 	}
 
 	if err != nil {
