@@ -23,7 +23,7 @@ func ValidateHost(val string) (string, error) {
 }
 
 //TODO remove, used on < 1.5 in getContainersJSON
-func displayablePorts(ports *engine.Table) string {
+func DisplayablePorts(ports *engine.Table) string {
 	result := []string{}
 	ports.SetKey("PublicPort")
 	ports.Sort()

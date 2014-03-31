@@ -3,7 +3,7 @@ package docker
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/api/client"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -35,7 +35,7 @@ func getTlsConfig(certFile, keyFile string, t *testing.T) *tls.Config {
 
 // TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
 func TestHttpsInfo(t *testing.T) {
-	cli := api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
+	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
 		testDaemonHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t))
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
@@ -48,7 +48,7 @@ func TestHttpsInfo(t *testing.T) {
 // TestHttpsInfoRogueCert connects via two-way authenticated HTTPS to the info endpoint
 // by using a rogue client certificate and checks that it fails with the expected error.
 func TestHttpsInfoRogueCert(t *testing.T) {
-	cli := api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
+	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
 		testDaemonHttpsAddr, getTlsConfig("client-rogue-cert.pem", "client-rogue-key.pem", t))
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
@@ -65,7 +65,7 @@ func TestHttpsInfoRogueCert(t *testing.T) {
 // TestHttpsInfoRogueServerCert connects via two-way authenticated HTTPS to the info endpoint
 // which provides a rogue server certificate and checks that it fails with the expected error
 func TestHttpsInfoRogueServerCert(t *testing.T) {
-	cli := api.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
+	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
 		testDaemonRogueHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t))
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {

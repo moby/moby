@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"bufio"
@@ -10,14 +10,6 @@ import (
 	"encoding/json"
 	"expvar"
 	"fmt"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/listenbuffer"
-	"github.com/dotcloud/docker/pkg/systemd"
-	"github.com/dotcloud/docker/pkg/user"
-	"github.com/dotcloud/docker/pkg/version"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/utils"
-	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
 	"log"
@@ -28,6 +20,16 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/listenbuffer"
+	"github.com/dotcloud/docker/pkg/systemd"
+	"github.com/dotcloud/docker/pkg/user"
+	"github.com/dotcloud/docker/pkg/version"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
+	"github.com/gorilla/mux"
 )
 
 var (
@@ -315,7 +317,7 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 		for _, out := range outs.Data {
 			ports := engine.NewTable("", 0)
 			ports.ReadListFrom([]byte(out.Get("Ports")))
-			out.Set("Ports", displayablePorts(ports))
+			out.Set("Ports", api.DisplayablePorts(ports))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if _, err = outs.WriteListTo(w); err != nil {
@@ -638,7 +640,7 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	job := eng.Job("start", name)
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
-		if MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
+		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
 			if err := job.DecodeEnv(r.Body); err != nil {
 				return err
 			}
@@ -885,7 +887,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	var copyData engine.Env
 
-	if contentType := r.Header.Get("Content-Type"); MatchesContentType(contentType, "application/json") {
+	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
 		if err := copyData.Decode(r.Body); err != nil {
 			return err
 		}
@@ -943,14 +945,14 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 		version := version.Version(mux.Vars(r)["version"])
 		if version == "" {
-			version = APIVERSION
+			version = api.APIVERSION
 		}
 		if enableCors {
 			writeCorsHeaders(w, r)
 		}
 
-		if version.GreaterThan(APIVERSION) {
-			http.Error(w, fmt.Errorf("client and server don't have same version (client : %s, server: %s)", version, APIVERSION).Error(), http.StatusNotFound)
+		if version.GreaterThan(api.APIVERSION) {
+			http.Error(w, fmt.Errorf("client and server don't have same version (client : %s, server: %s)", version, api.APIVERSION).Error(), http.StatusNotFound)
 			return
 		}
 

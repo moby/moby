@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/api/client"
 	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
@@ -178,7 +179,7 @@ func main() {
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
 
 		var (
-			cli       *api.DockerCli
+			cli       *client.DockerCli
 			tlsConfig tls.Config
 		)
 		tlsConfig.InsecureSkipVerify = true
@@ -211,9 +212,9 @@ func main() {
 		}
 
 		if *flTls || *flTlsVerify {
-			cli = api.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+			cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 		} else {
-			cli = api.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], nil)
+			cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], nil)
 		}
 
 		if err := cli.ParseCommands(flag.Args()...); err != nil {
