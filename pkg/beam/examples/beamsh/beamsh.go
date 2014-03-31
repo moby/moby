@@ -242,7 +242,7 @@ func Handlers() (*beam.UnixConn, error) {
 }
 
 func GetHandler(name string) Handler {
-	if name == "log" {
+	if name == "logger" {
 		return func(args []string, in beam.Receiver, out beam.Sender) {
 			var tasks sync.WaitGroup
 			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
