@@ -631,7 +631,7 @@ func Debugf(msg string, args ...interface{}) {
 }
 
 func Fatalf(msg string, args ...interface{})  {
-	Logf(msg, args)
+	Logf(msg, args...)
 	os.Exit(1)
 }
 
