@@ -2,15 +2,14 @@
 :description: Common usage and commands
 :keywords: Examples, Usage, basic commands, docker, documentation, examples
 
-
 First steps with Docker
 =======================
 
-Check your Docker install
--------------------------
+Check Your Docker Installation
+------------------------------
 
-This guide assumes you have a working installation of Docker. To check
-your Docker install, run the following command:
+This guide assumes you have a working installation of Docker.
+To verify, run the following command:
 
 .. code-block:: bash
 
@@ -19,12 +18,16 @@ your Docker install, run the following command:
 
 If you get ``docker: command not found`` or something like
 ``/var/lib/docker/repositories: permission denied`` you may have an incomplete
-docker installation or insufficient privileges to access Docker on your machine.
+Docker installation or insufficient privileges to access Docker on your machine.
 
 Please refer to :ref:`installation_list` for installation instructions.
 
-Download a pre-built image
---------------------------
+Download A Pre-Built Docker Image
+---------------------------------
+
+Docker images form the base that Docker containers use to run.
+
+Downloading an image is as simple as running the ``pull`` command, e.g.:
 
 .. code-block:: bash
 
@@ -43,7 +46,17 @@ Repository to a local image cache.
    
    **If you're using OS X** then you shouldn't use ``sudo``
 
-Running an interactive shell
+Create A Docker IO Account
+--------------------------
+
+Docker images are stored on the `Docker Index <https://index.docker.io>`_.
+In order to upload and share your images and benefit from other all-free Docker 
+services, check out `Docker.IO <https://www.docker.io/>`_ and `create a Docker
+IO account <https://www.docker.io/account/signup/>`_.  
+
+.. NOTE:: Remember: You can just use your existing GitHub account to join!
+
+Running An Interactive Shell
 ----------------------------
 
 .. code-block:: bash
@@ -51,13 +64,13 @@ Running an interactive shell
   # Run an interactive shell in the ubuntu image,
   # allocate a tty, attach stdin and stdout
   # To detach the tty without exiting the shell,
-  # use the escape sequence Ctrl-p + Ctrl-q
+  # use the escape sequence Ctrl-P + Ctrl-Q
   # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
   sudo docker run -i -t ubuntu /bin/bash
 
 .. _bind_docker:
 
-Bind Docker to another host/port or a Unix socket
+Bind Docker to Another Host/Port Or a Unix Socket
 -------------------------------------------------
 
 .. warning:: Changing the default ``docker`` daemon binding to a TCP
@@ -70,7 +83,7 @@ Bind Docker to another host/port or a Unix socket
 With ``-H`` it is possible to make the Docker daemon to listen on a
 specific IP and port. By default, it will listen on
 ``unix:///var/run/docker.sock`` to allow only local connections by the
-*root* user.  You *could* set it to ``0.0.0.0:4243`` or a specific host IP to
+*root* user. You *could* set it to ``0.0.0.0:4243`` or a specific host IP to
 give access to everybody, but that is **not recommended** because then
 it is trivial for someone to gain root access to the host where the
 daemon is running.
@@ -109,7 +122,7 @@ both TCP and a Unix socket
    # OR use the TCP port
    sudo docker -H tcp://127.0.0.1:4243 pull ubuntu
 
-Starting a long-running worker process
+Starting A Long-Running Worker Process
 --------------------------------------
 
 .. code-block:: bash
@@ -124,7 +137,7 @@ Starting a long-running worker process
   sudo docker kill $JOB
 
 
-Listing containers
+Listing Containers
 ------------------
 
 .. code-block:: bash
@@ -133,7 +146,7 @@ Listing containers
   sudo docker ps -a # Lists all containers
 
 
-Controlling containers
+Controlling Containers
 ----------------------
 .. code-block:: bash
 
@@ -157,8 +170,8 @@ Controlling containers
   docker rm $JOB
 
 
-Bind a service on a TCP port
-------------------------------
+Bind A Service On A TCP Port
+----------------------------
 
 .. code-block:: bash
 
@@ -175,15 +188,16 @@ Bind a service on a TCP port
   echo "Daemon received: $(sudo docker logs $JOB)"
 
 
-Committing (saving) a container state
--------------------------------------
+Committing (or Saving) A Container's State
+------------------------------------------
 
-Save your containers state to a container image, so the state can be re-used.
+Save your containers' state to a Docker image, so the it can be accessed
+and re-used.
 
 When you commit your container only the differences between the image the
-container was created from and the current state of the container will be
-stored (as a diff). See which images you already have using the ``docker
-images`` command.
+container was created from, and the current state of the container will be
+stored (as a diff). To see which images you already have, try using the
+``docker images`` command.
 
 .. code-block:: bash
 
