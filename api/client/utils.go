@@ -276,11 +276,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
 			if err := tcpc.CloseWrite(); err != nil {
-				utils.Errorf("Couldn't send EOF: %s\n", err)
+				utils.Debugf("Couldn't send EOF: %s\n", err)
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
-				utils.Errorf("Couldn't send EOF: %s\n", err)
+				utils.Debugf("Couldn't send EOF: %s\n", err)
 			}
 		}
 		// Discard errors due to pipe interruption
@@ -289,14 +289,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	if stdout != nil || stderr != nil {
 		if err := <-receiveStdout; err != nil {
-			utils.Errorf("Error receiveStdout: %s", err)
+			utils.Debugf("Error receiveStdout: %s", err)
 			return err
 		}
 	}
 
 	if !cli.isTerminal {
 		if err := <-sendStdin; err != nil {
-			utils.Errorf("Error sendStdin: %s", err)
+			utils.Debugf("Error sendStdin: %s", err)
 			return err
 		}
 	}
@@ -313,7 +313,7 @@ func (cli *DockerCli) resizeTty(id string) {
 	v.Set("h", strconv.Itoa(height))
 	v.Set("w", strconv.Itoa(width))
 	if _, _, err := readBody(cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil, false)); err != nil {
-		utils.Errorf("Error resize: %s", err)
+		utils.Debugf("Error resize: %s", err)
 	}
 }
 
@@ -367,7 +367,7 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	}
 	ws, err := term.GetWinsize(cli.terminalFd)
 	if err != nil {
-		utils.Errorf("Error getting size: %s", err)
+		utils.Debugf("Error getting size: %s", err)
 		if ws == nil {
 			return 0, 0
 		}
