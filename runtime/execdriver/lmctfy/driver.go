@@ -2,6 +2,7 @@ package lmctfy
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"log"
 	"os"
@@ -14,12 +15,28 @@ import (
 )
 
 const (
-	DriverName    = "lmctfy"
-	LmctfyBinary  = "lmctfy"
-	CreaperBinary = "lmctfy-creaper"
+	DriverName      = "lmctfy"
+	LmctfyBinary    = "lmctfy"
+	CreaperBinary   = "lmctfy-creaper"
+	CpuSharesPerCpu = 1024
 )
 
 type driver struct {
+}
+
+// dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
+// the slave's fd is 0, or stdin
+func dupSlave(slave *os.File) error {
+	if err := system.Dup2(slave.Fd(), 0); err != nil {
+		return err
+	}
+	if err := system.Dup2(slave.Fd(), 1); err != nil {
+		return err
+	}
+	if err := system.Dup2(slave.Fd(), 2); err != nil {
+		return err
+	}
+	return nil
 }
 
 func init() {
@@ -30,6 +47,7 @@ func init() {
 			log.Println(err)
 			return err
 		}
+
 		if err := setupCapabilities(args); err != nil {
 			log.Println(err)
 			return err
@@ -39,11 +57,29 @@ func init() {
 			log.Println(err)
 			return err
 		}
+
 		if err := changeUser(args); err != nil {
 			log.Println(err)
 			return err
 		}
 
+		if args.Console != "" {
+			slave, err := system.OpenTerminal(args.Console, syscall.O_RDWR)
+			if err != nil {
+				return fmt.Errorf("open terminal %s", err)
+			}
+			if err := dupSlave(slave); err != nil {
+				return fmt.Errorf("dup2 slave %s", err)
+			}
+		}
+		if _, err := system.Setsid(); err != nil {
+			return fmt.Errorf("setsid %s", err)
+		}
+		if args.Console != "" {
+			if err := system.Setctty(); err != nil {
+				return fmt.Errorf("setctty %s", err)
+			}
+		}
 		if len(args.Args) == 0 {
 			log.Printf("Input Args missing. Error!")
 			os.Exit(127)
@@ -53,9 +89,8 @@ func init() {
 			log.Printf("Unable to locate %v", args.Args[0])
 			os.Exit(127)
 		}
-		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
+		if err := syscall.Exec(path, args.Args, args.Env); err != nil {
 			errorMsg := fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
-			log.Println(errorMsg)
 			return errorMsg
 		}
 		panic("Unreachable")
@@ -94,9 +129,8 @@ func buildDockerInitCmd(c *execdriver.Command, pipes *execdriver.Pipes) []string
 		addFlag(&args, "-privileged", "")
 	}
 	addFlag(&args, "-driver", DriverName)
-
 	if c.Console != "" {
-		addFlag(&args, "-console", c.Console)
+		addFlag(&args, "-console", "/dev/console")
 	}
 	if c.ConfigPath != "" {
 		addFlag(&args, "-root", c.ConfigPath)
@@ -122,9 +156,28 @@ func buildLmctfyConfig(c *execdriver.Command) string {
 		output = append(output, fmt.Sprintf("memory: { %s }", strings.Join(memoryArgs, " ")))
 	}
 	if c.Resources.CpuShares > 0 {
-		output = append(output, fmt.Sprintf("cpu: {limit: %d}", c.Resources.CpuShares))
+		output = append(output, fmt.Sprintf("cpu: {limit: %d}", c.Resources.CpuShares/CpuSharesPerCpu))
 	}
 	return strings.Join(output, " ")
+}
+
+func buildConsoleSetupWrapper(c *execdriver.Command) []string {
+	var cmd []string
+	if c.Console == "" {
+		return cmd
+	}
+	cmd = append(cmd, fmt.Sprintf("mount --bind %s %s -o %s &&", c.Console, filepath.Join(c.Rootfs, "dev/console"), "nosuid,noexec,relatime"))
+	cmd = append(cmd, fmt.Sprintf("mount -t devpts devpts %s -o %s &&", filepath.Join(c.Rootfs, "dev/pts"), "nosuid,noexec,relatime,ptmxmode=0666"))
+	ptmx := filepath.Join(c.Rootfs, "dev/ptmx")
+	cmd = append(cmd, fmt.Sprintf("rm %s &&", ptmx))
+	cmd = append(cmd, fmt.Sprintf("ln -s %s %s &&", "pts/ptmx", ptmx))
+
+	devConsole := filepath.Join(c.Rootfs, "dev/console")
+	cmd = append(cmd, fmt.Sprintf("chmod 0600 %s &&", c.Console))
+	devConsoleMajorMinor := fmt.Sprintf("`ls -l %s | awk '{print $5 \" \" $6}'| sed s/,//`", c.Console)
+	cmd = append(cmd, fmt.Sprintf("mknod -m=0600 %s c %s;", devConsole, devConsoleMajorMinor))
+	cmd = append(cmd, fmt.Sprintf("mount --bind %s %s &&", c.Console, devConsole))
+	return cmd
 }
 
 func buildMountCommand(source, destination string, rw, private bool) []string {
@@ -148,15 +201,19 @@ func buildMountWrapper(c *execdriver.Command) []string {
 		absDestinationPath := filepath.Join(c.Rootfs, mount.Destination)
 		cmd = append(cmd, buildMountCommand(mount.Source, absDestinationPath, mount.Writable, mount.Private)...)
 	}
-	cmd = append(cmd, fmt.Sprintf("mount --move $(cat /proc/mounts | grep shm | awk '{print $2}') %s &&", filepath.Join(c.Rootfs, "dev/shm")))
-	cmd = append(cmd, fmt.Sprintf("mount --move /sys %s &&", filepath.Join(c.Rootfs, "sys")))
-	cmd = append(cmd, fmt.Sprintf("mount --move /proc %s &&", filepath.Join(c.Rootfs, "proc")))
+	const mountOpts = "nosuid,nodev,noexec,relatime"
+	cmd = append(cmd, fmt.Sprintf("mount -t tmpfs shm %s -o %s &&", filepath.Join(c.Rootfs, "dev/shm"), "size=65536k," + mountOpts))
+	cmd = append(cmd, "umount /sys &&")
+	cmd = append(cmd, fmt.Sprintf("mount -t sysfs sysfs %s -o %s &&", filepath.Join(c.Rootfs, "sys"), mountOpts))
+	cmd = append(cmd, "umount /proc &&")
+	cmd = append(cmd, fmt.Sprintf("mount -t proc proc %s -o %s &&", filepath.Join(c.Rootfs, "proc"), mountOpts))
 	return cmd
 }
 
 func buildPivotRootWrapper(c *execdriver.Command, origCmd []string) []string {
 	cmd := []string{}
 	cmd = append(cmd, buildMountWrapper(c)...)
+	cmd = append(cmd, buildConsoleSetupWrapper(c)...)
 	cmd = append(cmd, fmt.Sprintf("cd %s &&", c.Rootfs))
 	cmd = append(cmd, "mkdir old-root &&")
 	cmd = append(cmd, "pivot_root . old-root &&")
@@ -198,39 +255,48 @@ func buildCreaperCmd(c *execdriver.Command, pipes *execdriver.Pipes) []string {
 }
 
 func setupExecCmd(c *execdriver.Command, pipes *execdriver.Pipes) error {
-	var err error
+	term, err := setupTerminal(c, pipes)
+	if err != nil {
+		return err
+	}
+	c.Terminal = term
 	cmd := buildCreaperCmd(c, pipes)
 	c.Path, err = exec.LookPath(cmd[0])
 	if err != nil {
 		return err
 	}
 	c.Args = append([]string{cmd[0]}, cmd[1:]...)
+	c.Cmd.Env = c.Env
+	if err := term.Attach(&c.Cmd); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	var err error
-	if err = execdriver.SetTerminal(c, pipes); err != nil {
-		return -1, err
-	}
-	message := make(chan error)
 	if err = setupExecCmd(c, pipes); err != nil {
 		return -1, err
 	}
-	go func() {
-		if err := c.Run(); err != nil {
-			message <- fmt.Errorf("container creation failed. error: %s\ncommand:%s", err, c.Args)
-		} else {
-			message <- nil
-		}
-	}()
-
+	if c.Cmd.Stdout == nil {
+		c.Cmd.Stdout = os.Stdout
+	}
+	if c.Cmd.Stderr == nil {
+		c.Cmd.Stderr = os.Stderr
+	}
+	if err = c.Start(); err != nil {
+		return -1, err
+	}
 	if startCallback != nil {
 		startCallback(c)
 	}
-
-	err = <-message
-	return 0, err
+	if err = c.Wait(); err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			return -1, err
+		}
+	}
+	status := c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	return status, err
 }
 
 func removeContainer(id string) error {
