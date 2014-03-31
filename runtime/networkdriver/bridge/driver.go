@@ -300,6 +300,10 @@ func createBridgeIface(name string) error {
 	}
 
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), siocBRADDBR, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
+		if err == syscall.EEXIST {
+			utils.Debugf("Bridge socket creation failed with EEXIST, ignoring: %v", err)
+			return nil
+		}
 		return fmt.Errorf("Error creating bridge: %s", err)
 	}
 	return nil
