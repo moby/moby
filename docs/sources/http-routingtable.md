@@ -1,4 +1,3 @@
-
 # HTTP Routing Table
 
 [**/api**](#cap-/api) | [**/auth**](#cap-/auth) |

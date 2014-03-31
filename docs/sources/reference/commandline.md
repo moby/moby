@@ -1,7 +1,7 @@
 
 # Commands
 
-Contents:
+## Contents:
 
 -   [Command Line Help](cli/)
 -   [Options](cli/#options)

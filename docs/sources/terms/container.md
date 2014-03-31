@@ -4,6 +4,8 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 # Container
 
+## Introduction
+
 ![](../../_images/docker-filesystems-busyboxrw.png)
 
 Once you start a process in Docker from an

@@ -15,14 +15,14 @@ no parameters or execute `docker help`:
 
       ...
 
-# Options
+## Options
 
 Single character commandline options can be combined, so rather than
 typing `docker run -t -i --name test busybox sh`,
 you can write `docker run -ti --name test busybox sh`{.docutils
 .literal}.
 
-## Boolean
+### Boolean
 
 Boolean options look like `-d=false`. The value you
 see is the default value which gets set if you do **not** use the
@@ -32,7 +32,7 @@ so `docker run -d` **will** run in “detached” mode,
 in the background. Other boolean options are similar – specifying them
 will set the value to the opposite of the default value.
 
-## Multi
+### Multi
 
 Options like `-a=[]` indicate they can be specified
 multiple times:
@@ -44,17 +44,15 @@ Sometimes this can use a more complex value string, as for
 
     docker run -v /host:/container example/mysql
 
-## Strings and Integers
+### Strings and Integers
 
 Options like `-name=""` expect a string, and they
 can only be specified once. Options like `-c=0`
 expect an integer, and they can only be specified once.
 
-* * * * *
+## Commands
 
-# Commands
-
-# `daemon`
+### `daemon`
 
     Usage of docker:
       -D, --debug=false: Enable debug mode
@@ -120,7 +118,7 @@ Docker supports softlinks for the Docker data directory
     export TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
-# `attach`
+### `attach`
 
     Usage: docker attach CONTAINER
 
@@ -173,7 +171,7 @@ To kill the container, use `docker kill`.
     ^C$
     $ sudo docker stop $ID
 
-# `build`
+### `build`
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
@@ -266,7 +264,7 @@ repository is used as `Dockerfile`. Note that you
 can specify an arbitrary Git repository by using the `git://`{.docutils
 .literal} schema.
 
-# `commit`
+### `commit`
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
@@ -277,7 +275,7 @@ can specify an arbitrary Git repository by using the `git://`{.docutils
       --run="": Configuration to be applied when the image is launched with `docker run`.
                (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
-## Commit an existing container
+### Commit an existing container
 
     $ sudo docker ps
     ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
@@ -289,7 +287,7 @@ can specify an arbitrary Git repository by using the `git://`{.docutils
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
     SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
-## Change the command that a container runs
+### Change the command that a container runs
 
 Sometimes you have an application container running just a service and
 you need to make a quick change and then change it back.
@@ -303,11 +301,11 @@ then change the image to run `ls /etc`.
     933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
     $ docker run -t test2
     adduser.conf            gshadow          login.defs           rc0.d
-    alternatives            gshadow-         logrotate.d          rc1.d
+    alternatives            gshadow-       logrotate.d          rc1.d
     apt                     host.conf        lsb-base             rc2.d
     ...
 
-### Full -run example
+### Full `-run` example
 
 The `--run` JSON hash changes the `Config`{.docutils
 .literal} section when running `docker inspect CONTAINERID`{.docutils
@@ -346,7 +344,7 @@ The `--run` JSON hash changes the `Config`{.docutils
         "AttachStdout" : false
     }' $CONTAINER_ID
 
-# `cp`
+### `cp`
 
     Usage: docker cp CONTAINER:PATH HOSTPATH
 
@@ -356,7 +354,7 @@ The `--run` JSON hash changes the `Config`{.docutils
     $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
     $ sudo docker cp blue_frog:/etc/hosts .
 
-# `diff`
+### `diff`
 
     Usage: docker diff CONTAINER
 
@@ -384,7 +382,7 @@ For example:
     A /go/src/github.com/dotcloud/docker/.git
     ....
 
-# `events`
+### `events`
 
     Usage: docker events
 
@@ -393,7 +391,7 @@ For example:
     --since="": Show previously created events and then stream.
                (either seconds since epoch, or date string as below)
 
-## Examples
+## Examples:
 
 You’ll need two shells for this example.
 
@@ -427,7 +425,7 @@ You’ll need two shells for this example.
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-# `export`
+### `export`
 
     Usage: docker export CONTAINER
 
@@ -437,7 +435,7 @@ For example:
 
     $ sudo docker export red_panda > latest.tar
 
-# `history`
+### `history`
 
     Usage: docker history [OPTIONS] IMAGE
 
@@ -478,7 +476,7 @@ To see how the `docker:latest` image was built:
     ae6dde92a94e        2 weeks ago         /bin/sh -c #(nop) MAINTAINER Solomon Hykes <solomon@dotcloud.com>
     ubuntu:12.04        6 months ago
 
-# `images`
+### `images`
 
     Usage: docker images [OPTIONS] [NAME]
 
@@ -490,7 +488,7 @@ To see how the `docker:latest` image was built:
       --tree=false: output graph in tree format
       --viz=false: output graph in graphviz format
 
-## Listing the most recently created images
+### Listing the most recently created images
 
     $ sudo docker images | head
     REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
@@ -504,7 +502,7 @@ To see how the `docker:latest` image was built:
     tryout                        latest              2629d1fa0b81        23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ce        24 hours ago        1.089 GB
 
-## Listing the full length image IDs
+### Listing the full length image IDs
 
     $ sudo docker images --no-trunc | head
     REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             VIRTUAL SIZE
@@ -518,14 +516,14 @@ To see how the `docker:latest` image was built:
     tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
 
-## Displaying images visually
+### Displaying images visually
 
     $ sudo docker images --viz | dot -Tpng -o docker.png
 
 ![Example inheritance graph of Docker
 images.](../../../_images/docker_images.gif)
 
-## Displaying image hierarchy
+### Displaying image hierarchy
 
     $ sudo docker images --tree
 
@@ -551,7 +549,7 @@ images.](../../../_images/docker_images.gif)
                             └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
                               └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
 
-# `import`
+### `import`
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
@@ -587,7 +585,7 @@ the ownership of the files (especially root ownership) during the
 archiving with tar. If you are not root (or the sudo command) when you
 tar, then the ownerships might not get preserved.
 
-# `info`
+### `info`
 
     Usage: docker info
 
@@ -605,7 +603,7 @@ tar, then the ownerships might not get preserved.
     Kernel Version: 3.8.0-33-generic
     WARNING: No swap limit support
 
-# `insert`
+### `insert`
 
     Usage: docker insert IMAGE URL PATH
 
@@ -624,7 +622,7 @@ image, plus the new file.
     $ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/master/postinstall /tmp/postinstall.sh
     06fd35556d7b
 
-# `inspect`
+### `inspect`
 
     Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
@@ -678,7 +676,7 @@ contains complex json object, so to grab it as JSON, you use
 
     $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
 
-# `kill`
+### `kill`
 
     Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
 
@@ -689,23 +687,23 @@ contains complex json object, so to grab it as JSON, you use
 The main process inside the container will be sent SIGKILL, or any
 signal specified with option `--signal`.
 
-## Known Issues (kill)
+**Known Issues (kill):**
 
--   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+- [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
     that `docker kill` may leave directories behind
     and make it difficult to remove the container.
--   [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
+- [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
     1.0.0 beta3 removed `lcx-kill` which is used by
     Docker versions before 0.8.0; see the issue for a workaround.
 
-# `load`
+### `load`
 
     Usage: docker load < repository.tar
 
     Loads a tarred repository from the standard input stream.
     Restores both images and tags.
 
-# `login`
+### `login`
 
     Usage: docker login [OPTIONS] [SERVER]
 
@@ -721,7 +719,7 @@ signal specified with option `--signal`.
     example:
     docker login localhost:8080
 
-# `logs`
+### `logs`
 
     Usage: docker logs [OPTIONS] CONTAINER
 
@@ -740,13 +738,13 @@ The `docker logs --follow` command combines
 .literal}: it will first return all logs from the beginning and then
 continue streaming new output from the container’s stdout and stderr.
 
-# `port`
+### `port`
 
     Usage: docker port [OPTIONS] CONTAINER PRIVATE_PORT
 
     Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
-# `ps`
+### `ps`
 
     Usage: docker ps [OPTIONS]
 
@@ -776,34 +774,34 @@ manage it, you can’t attach to it. To bring them out of
 `docker ps` will show only running containers by
 default. To see all containers: `docker ps -a`
 
-# `pull`
+### `pull`
 
     Usage: docker pull NAME
 
     Pull an image or a repository from the registry
 
-# `push`
+### `push`
 
     Usage: docker push NAME
 
     Push an image or a repository to the registry
 
-# `restart`
+### `restart`
 
     Usage: docker restart [OPTIONS] NAME
 
     Restart a running container
 
-# `rm`
+### `rm`
 
     Usage: docker rm [OPTIONS] CONTAINER
 
     Remove one or more containers
         --link="": Remove the link instead of the actual container
 
-## Known Issues (rm)
+### Known Issues (rm)
 
--   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+- [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
     that `docker kill` may leave directories behind
     and make it difficult to remove the container.
 
@@ -829,7 +827,7 @@ This command will delete all stopped containers. The command
 IDs and pass them to the `rm` command which will
 delete them. Any running containers will not be deleted.
 
-# `rmi`
+### `rmi`
 
     Usage: docker rmi IMAGE [IMAGE...]
 
@@ -837,7 +835,7 @@ delete them. Any running containers will not be deleted.
 
       -f, --force=false: Force
 
-## Removing tagged images
+### Removing tagged images
 
 Images can be removed either by their short or long ID’s, or their image
 names. If an image has more than one name, each of them needs to be
@@ -865,7 +863,7 @@ removed before the image is removed.
     Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
-# `run`
+### `run`
 
     Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
@@ -917,9 +915,9 @@ for more detailed information about the `--expose`,
 Containers*](../../../use/working_with_links_names/#working-with-links-names)
 for specific examples using `--link`.
 
-## Known Issues (run -volumes-from)
+### Known Issues (run -volumes-from)
 
--   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
+- [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
     “lxc-start: Permission denied - failed to mount” could indicate a
     permissions problem with AppArmor. Please see the issue for a
     workaround.
@@ -1067,14 +1065,14 @@ application change:
     option means that when the container exits, the container’s layer is
     removed.
 
-# `save`
+### `save`
 
     Usage: docker save image > repository.tar
 
     Streams a tarred repository to the standard output stream.
     Contains all parent layers, and all tags + versions.
 
-# `search`
+### `search`
 
     Usage: docker search TERM
 
@@ -1084,7 +1082,7 @@ application change:
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
-# `start`
+### `start`
 
     Usage: docker start [OPTIONS] CONTAINER
 
@@ -1093,7 +1091,7 @@ application change:
       -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false: Attach container's stdin
 
-# `stop`
+### `stop`
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
@@ -1104,7 +1102,7 @@ application change:
 The main process inside the container will receive SIGTERM, and after a
 grace period, SIGKILL
 
-# `tag`
+### `tag`
 
     Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
@@ -1112,18 +1110,18 @@ grace period, SIGKILL
 
       -f, --force=false: Force
 
-# `top`
+### `top`
 
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 
-# `version`
+### `version`
 
 Show the version of the Docker client, daemon, and latest released
 version.
 
-# `wait`
+### `wait`
 
     Usage: docker wait [OPTIONS] NAME
 

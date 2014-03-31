@@ -2,50 +2,35 @@ page_title: docker.io Accounts API
 page_description: API Documentation for docker.io accounts.
 page_keywords: API, Docker, accounts, REST, documentation
 
-# [docker.io Accounts API](#id1)
+# Docker IO Accounts API
 
-Table of Contents
+## Endpoints
 
--   [docker.io Accounts API](#docker-io-accounts-api)
-    -   [1. Endpoints](#endpoints)
-        -   [1.1 Get a single user](#get-a-single-user)
-        -   [1.2 Update a single user](#update-a-single-user)
-        -   [1.3 List email addresses for a
-            user](#list-email-addresses-for-a-user)
-        -   [1.4 Add email address for a
-            user](#add-email-address-for-a-user)
-        -   [1.5 Update an email address for a
-            user](#update-an-email-address-for-a-user)
-        -   [1.6 Delete email address for a
-            user](#delete-email-address-for-a-user)
-
-## [1. Endpoints](#id2)
-
-### [1.1 Get a single user](#id3)
+### Get A Single User
 
  `GET `{.descname}`/api/v1.1/users/:username/`{.descname}
 :   Get profile info for the specified user.
 
     Parameters:
 
-    -   **username** – username of the user whose profile info is being
+    - **username** – username of the user whose profile info is being
         requested.
 
     Request Headers:
 
      
 
-    -   **Authorization** – required authentication credentials of
+    - **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
 
     Status Codes:
 
-    -   **200** – success, user data returned.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+    - **200** – success, user data returned.
+    - **401** – authentication error.
+    - **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `profile_read` scope.
-    -   **404** – the specified username does not exist.
+    - **404** – the specified username does not exist.
 
     **Example request**:
 
@@ -74,45 +59,45 @@ Table of Contents
             "is_active": true
         }
 
-### [1.2 Update a single user](#id4)
+### Update A Single User
 
  `PATCH `{.descname}`/api/v1.1/users/:username/`{.descname}
 :   Update profile info for the specified user.
 
     Parameters:
 
-    -   **username** – username of the user whose profile info is being
+    - **username** – username of the user whose profile info is being
         updated.
 
     Json Parameters:
 
      
 
-    -   **full\_name** (*string*) – (optional) the new name of the user.
-    -   **location** (*string*) – (optional) the new location.
-    -   **company** (*string*) – (optional) the new company of the user.
-    -   **profile\_url** (*string*) – (optional) the new profile url.
-    -   **gravatar\_email** (*string*) – (optional) the new Gravatar
+    - **full\_name** (*string*) – (optional) the new name of the user.
+    - **location** (*string*) – (optional) the new location.
+    - **company** (*string*) – (optional) the new company of the user.
+    - **profile\_url** (*string*) – (optional) the new profile url.
+    - **gravatar\_email** (*string*) – (optional) the new Gravatar
         email address.
 
     Request Headers:
 
      
 
-    -   **Authorization** – required authentication credentials of
+    - **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+    - **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
     Status Codes:
 
-    -   **200** – success, user data updated.
-    -   **400** – post data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+    - **200** – success, user data updated.
+    - **400** – post data validation error.
+    - **401** – authentication error.
+    - **403** – permission error, authenticated user must be the user
         whose data is being updated, OAuth access tokens must have
         `profile_write` scope.
-    -   **404** – the specified username does not exist.
+    - **404** – the specified username does not exist.
 
     **Example request**:
 
@@ -147,31 +132,31 @@ Table of Contents
             "is_active": true
         }
 
-### [1.3 List email addresses for a user](#id5)
+### List Email Addresses For A User
 
  `GET `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   List email info for the specified user.
 
     Parameters:
 
-    -   **username** – username of the user whose profile info is being
+    - **username** – username of the user whose profile info is being
         updated.
 
     Request Headers:
 
      
 
-    -   **Authorization** – required authentication credentials of
+    - **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token
 
     Status Codes:
 
-    -   **200** – success, user data updated.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+    - **200** – success, user data updated.
+    - **401** – authentication error.
+    - **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `email_read` scope.
-    -   **404** – the specified username does not exist.
+    - **404** – the specified username does not exist.
 
     **Example request**:
 
@@ -185,7 +170,7 @@ Table of Contents
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        [
+        
             {
                 "email": "jane.doe@example.com",
                 "verified": true,
@@ -193,7 +178,7 @@ Table of Contents
             }
         ]
 
-### [1.4 Add email address for a user](#id6)
+### Add Email Address For A User
 
  `POST `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   Add a new email address to the specified user’s account. The email
@@ -204,26 +189,26 @@ Table of Contents
 
      
 
-    -   **email** (*string*) – email address to be added.
+    - **email** (*string*) – email address to be added.
 
     Request Headers:
 
      
 
-    -   **Authorization** – required authentication credentials of
+    - **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+    - **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
     Status Codes:
 
-    -   **201** – success, new email added.
-    -   **400** – data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+    - **201** – success, new email added.
+    - **400** – data validation error.
+    - **401** – authentication error.
+    - **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `email_write` scope.
-    -   **404** – the specified username does not exist.
+    - **404** – the specified username does not exist.
 
     **Example request**:
 
@@ -248,7 +233,7 @@ Table of Contents
             "primary": false
         }
 
-### [1.5 Update an email address for a user](#id7)
+### Update An Email Address For A User
 
  `PATCH `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   Update an email address for the specified user to either verify an
@@ -259,17 +244,17 @@ Table of Contents
 
     Parameters:
 
-    -   **username** – username of the user whose email info is being
+    - **username** – username of the user whose email info is being
         updated.
 
     Json Parameters:
 
      
 
-    -   **email** (*string*) – the email address to be updated.
-    -   **verified** (*boolean*) – (optional) whether the email address
+    - **email** (*string*) – the email address to be updated.
+    - **verified** (*boolean*) – (optional) whether the email address
         is verified, must be `true` or absent.
-    -   **primary** (*boolean*) – (optional) whether to set the email
+    - **primary** (*boolean*) – (optional) whether to set the email
         address as the primary email, must be `true`
         or absent.
 
@@ -277,20 +262,20 @@ Table of Contents
 
      
 
-    -   **Authorization** – required authentication credentials of
+    - **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+    - **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
     Status Codes:
 
-    -   **200** – success, user’s email updated.
-    -   **400** – data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+    - **200** – success, user’s email updated.
+    - **400** – data validation error.
+    - **401** – authentication error.
+    - **403** – permission error, authenticated user must be the user
         whose data is being updated, OAuth access tokens must have
         `email_write` scope.
-    -   **404** – the specified username or email address does not
+    - **404** – the specified username or email address does not
         exist.
 
     **Example request**:
@@ -318,7 +303,7 @@ Table of Contents
             "primary": false
         }
 
-### [1.6 Delete email address for a user](#id8)
+### Delete Email Address For A User
 
  `DELETE `{.descname}`/api/v1.1/users/:username/emails/`{.descname}
 :   Delete an email address from the specified user’s account. You
@@ -328,26 +313,26 @@ Table of Contents
 
      
 
-    -   **email** (*string*) – email address to be deleted.
+    - **email** (*string*) – email address to be deleted.
 
     Request Headers:
 
      
 
-    -   **Authorization** – required authentication credentials of
+    - **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+    - **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
     Status Codes:
 
-    -   **204** – success, email address removed.
-    -   **400** – validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+    - **204** – success, email address removed.
+    - **400** – validation error.
+    - **401** – authentication error.
+    - **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `email_write` scope.
-    -   **404** – the specified username or email address does not
+    - **404** – the specified username or email address does not
         exist.
 
     **Example request**:
@@ -366,5 +351,3 @@ Table of Contents
 
         HTTP/1.1 204 NO CONTENT
         Content-Length: 0
-
-

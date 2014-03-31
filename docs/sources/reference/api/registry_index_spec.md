@@ -4,55 +4,55 @@ page_keywords: docker, registry, api, index
 
 # Registry & Index Spec
 
-## 1. The 3 roles
+## The 3 roles
 
-### 1.1 Index
+### Index
 
 The Index is responsible for centralizing information about:
 
--   User accounts
--   Checksums of the images
--   Public namespaces
+- User accounts
+- Checksums of the images
+- Public namespaces
 
 The Index has different components:
 
--   Web UI
--   Meta-data store (comments, stars, list public repositories)
--   Authentication service
--   Tokenization
+- Web UI
+- Meta-data store (comments, stars, list public repositories)
+- Authentication service
+- Tokenization
 
 The index is authoritative for those information.
 
 We expect that there will be only one instance of the index, run and
 managed by Docker Inc.
 
-### 1.2 Registry
+### Registry
 
--   It stores the images and the graph for a set of repositories
--   It does not have user accounts data
--   It has no notion of user accounts or authorization
--   It delegates authentication and authorization to the Index Auth
+- It stores the images and the graph for a set of repositories
+- It does not have user accounts data
+- It has no notion of user accounts or authorization
+- It delegates authentication and authorization to the Index Auth
     service using tokens
--   It supports different storage backends (S3, cloud files, local FS)
--   It doesn’t have a local database
--   [Source Code](https://github.com/dotcloud/docker-registry)
+- It supports different storage backends (S3, cloud files, local FS)
+- It doesn’t have a local database
+- [Source Code](https://github.com/dotcloud/docker-registry)
 
 We expect that there will be multiple registries out there. To help to
 grasp the context, here are some examples of registries:
 
--   **sponsor registry**: such a registry is provided by a third-party
+- **sponsor registry**: such a registry is provided by a third-party
     hosting infrastructure as a convenience for their customers and the
     docker community as a whole. Its costs are supported by the third
     party, but the management and operation of the registry are
     supported by dotCloud. It features read/write access, and delegates
     authentication and authorization to the Index.
--   **mirror registry**: such a registry is provided by a third-party
+- **mirror registry**: such a registry is provided by a third-party
     hosting infrastructure but is targeted at their customers only. Some
     mechanism (unspecified to date) ensures that public images are
     pulled from a sponsor registry to the mirror registry, to make sure
     that the customers of the third-party provider can “docker pull”
     those images locally.
--   **vendor registry**: such a registry is provided by a software
+- **vendor registry**: such a registry is provided by a software
     vendor, who wants to distribute docker images. It would be operated
     and managed by the vendor. Only users authorized by the vendor would
     be able to get write access. Some images would be public (accessible
@@ -62,19 +62,20 @@ grasp the context, here are some examples of registries:
     basho/riak1.3” and automatically push from the vendor registry
     (instead of a sponsor registry); i.e. get all the convenience of a
     sponsor registry, while retaining control on the asset distribution.
--   **private registry**: such a registry is located behind a firewall,
+- **private registry**: such a registry is located behind a firewall,
     or protected by an additional security layer (HTTP authorization,
     SSL client-side certificates, IP address authorization...). The
     registry is operated by a private entity, outside of dotCloud’s
     control. It can optionally delegate additional authorization to the
     Index, but it is not mandatory.
 
-Note
-
-The latter implies that while HTTP is the protocol of choice for a registry, multiple schemes are possible (and in some cases, trivial):
-:   -   HTTP with GET (and PUT for read-write registries);
-    -   local mount point;
-    -   remote docker addressed through SSH.
+> **Note:** The latter implies that while HTTP is the protocol
+> of choice for a registry, multiple schemes are possible (and
+> in some cases, trivial):
+>
+> - HTTP with GET (and PUT for read-write registries);
+> - local mount point;
+> - remote docker addressed through SSH.
 
 The latter would only require two new commands in docker, e.g.
 `registryget` and `registryput`{.docutils .literal},
@@ -82,17 +83,17 @@ wrapping access to the local filesystem (and optionally doing
 consistency checks). Authentication and authorization are then delegated
 to SSH (e.g. with public keys).
 
-### 1.3 Docker
+### Docker
 
 On top of being a runtime for LXC, Docker is the Registry client. It
 supports:
 
--   Push / Pull on the registry
--   Client authentication on the Index
+- Push / Pull on the registry
+- Client authentication on the Index
 
-## 2. Workflow
+## Workflow
 
-### 2.1 Pull
+### Pull
 
 ![](../../../_images/docker_pull_chart.png)
 
@@ -146,9 +147,9 @@ and for an active account.
 2.  (Index -\> Docker) HTTP 200 OK
 
     > **Headers**:
-    > :   -   Authorization: Token
+    > :   - Authorization: Token
     >         signature=123abc,repository=”foo/bar”,access=write
-    >     -   X-Docker-Endpoints: registry.docker.io [,
+    >     - X-Docker-Endpoints: registry.docker.io [,
     >         registry2.docker.io]
     >
     > **Body**:
@@ -187,7 +188,7 @@ Note
 If someone makes a second request, then we will always give a new token,
 never reuse tokens.
 
-### 2.2 Push
+### Push
 
 ![](../../../_images/docker_push_chart.png)
 
@@ -203,17 +204,15 @@ never reuse tokens.
     pushed by docker and store the repository (with its images)
 6.  docker contacts the index to give checksums for upload images
 
-Note
+> **Note:**
+> **It’s possible not to use the Index at all!** In this case, a deployed
+> version of the Registry is deployed to store and serve images. Those
+> images are not authenticated and the security is not guaranteed.
 
-**It’s possible not to use the Index at all!** In this case, a deployed
-version of the Registry is deployed to store and serve images. Those
-images are not authenticated and the security is not guaranteed.
-
-Note
-
-**Index can be replaced!** For a private Registry deployed, a custom
-Index can be used to serve and validate token according to different
-policies.
+> **Note:**
+> **Index can be replaced!** For a private Registry deployed, a custom
+> Index can be used to serve and validate token according to different
+> policies.
 
 Docker computes the checksums and submit them to the Index at the end of
 the push. When a repository name does not have checksums on the Index,
@@ -228,7 +227,7 @@ the end).
             true
 
         **Action**::
-        :   -   in index, we allocated a new repository, and set to
+        :   - in index, we allocated a new repository, and set to
                 initialized
 
         **Body**::
@@ -240,9 +239,9 @@ the end).
 
 2.  (Index -\> Docker) 200 Created
     :   **Headers**:
-        :   -   WWW-Authenticate: Token
+        :   - WWW-Authenticate: Token
                 signature=123abc,repository=”foo/bar”,access=write
-            -   X-Docker-Endpoints: registry.docker.io [,
+            - X-Docker-Endpoints: registry.docker.io [,
                 registry2.docker.io]
 
 3.  (Docker -\> Registry) PUT /v1/images/98765432\_parent/json
@@ -256,18 +255,18 @@ the end).
             signature=123abc,repository=”foo/bar”,access=write
 
         **Action**::
-        :   -   Index:
+        :   - Index:
                 :   will invalidate the token.
 
-            -   Registry:
+            - Registry:
                 :   grants a session (if token is approved) and fetches
                     the images id
 
 5.  (Docker -\> Registry) PUT /v1/images/98765432\_parent/json
     :   **Headers**::
-        :   -   Authorization: Token
+        :   - Authorization: Token
                 signature=123abc,repository=”foo/bar”,access=write
-            -   Cookie: (Cookie provided by the Registry)
+            - Cookie: (Cookie provided by the Registry)
 
 6.  (Docker -\> Registry) PUT /v1/images/98765432/json
     :   **Headers**:
@@ -304,19 +303,17 @@ the end).
 
     **Return** HTTP 204
 
-Note
-
-If push fails and they need to start again, what happens in the index,
-there will already be a record for the namespace/name, but it will be
-initialized. Should we allow it, or mark as name already used? One edge
-case could be if someone pushes the same thing at the same time with two
-different shells.
+> **Note:** If push fails and they need to start again, what happens in the index,
+> there will already be a record for the namespace/name, but it will be
+> initialized. Should we allow it, or mark as name already used? One edge
+> case could be if someone pushes the same thing at the same time with two
+> different shells.
 
 If it’s a retry on the Registry, Docker has a cookie (provided by the
 registry after token validation). So the Index won’t have to provide a
 new token.
 
-### 2.3 Delete
+### Delete
 
 If you need to delete something from the index or registry, we need a
 nice clean way to do that. Here is the workflow.
@@ -336,11 +333,9 @@ nice clean way to do that. Here is the workflow.
 6.  docker contacts the index to let it know it was removed from the
     registry, the index removes all records from the database.
 
-Note
-
-The Docker client should present an “Are you sure?” prompt to confirm
-the deletion before starting the process. Once it starts it can’t be
-undone.
+> **Note:** The Docker client should present an “Are you sure?” prompt to confirm
+> the deletion before starting the process. Once it starts it can’t be
+> undone.
 
 #### API (deleting repository foo/bar):
 
@@ -350,7 +345,7 @@ undone.
             true
 
         **Action**::
-        :   -   in index, we make sure it is a valid repository, and set
+        :   - in index, we make sure it is a valid repository, and set
                 to deleted (logically)
 
         **Body**::
@@ -358,9 +353,9 @@ undone.
 
 2.  (Index -\> Docker) 202 Accepted
     :   **Headers**:
-        :   -   WWW-Authenticate: Token
+        :   - WWW-Authenticate: Token
                 signature=123abc,repository=”foo/bar”,access=delete
-            -   X-Docker-Endpoints: registry.docker.io [,
+            - X-Docker-Endpoints: registry.docker.io [,
                 registry2.docker.io] \# list of endpoints where this
                 repo lives.
 
@@ -375,10 +370,10 @@ undone.
             signature=123abc,repository=”foo/bar”,access=delete
 
         **Action**::
-        :   -   Index:
+        :   - Index:
                 :   will invalidate the token.
 
-            -   Registry:
+            - Registry:
                 :   deletes the repository (if token is approved)
 
 5.  (Registry -\> Docker) 200 OK
@@ -396,20 +391,20 @@ undone.
     >
     > **Return** HTTP 200
 
-## 3. How to use the Registry in standalone mode
+## How to use the Registry in standalone mode
 
 The Index has two main purposes (along with its fancy social features):
 
--   Resolve short names (to avoid passing absolute URLs all the time)
-    :   -   username/projectname -\>
+- Resolve short names (to avoid passing absolute URLs all the time)
+    :   - username/projectname -\>
             https://registry.docker.io/users/\<username\>/repositories/\<projectname\>/
-        -   team/projectname -\>
+        - team/projectname -\>
             https://registry.docker.io/team/\<team\>/repositories/\<projectname\>/
 
--   Authenticate a user as a repos owner (for a central referenced
+- Authenticate a user as a repos owner (for a central referenced
     repository)
 
-### 3.1 Without an Index
+### Without an Index
 
 Using the Registry without the Index can be useful to store the images
 on a private network without having to rely on an external entity
@@ -430,12 +425,12 @@ As hinted previously, a standalone registry can also be implemented by
 any HTTP server handling GET/PUT requests (or even only GET requests if
 no write access is necessary).
 
-### 3.2 With an Index
+### With an Index
 
 The Index data needed by the Registry are simple:
 
--   Serve the checksums
--   Provide and authorize a Token
+- Serve the checksums
+- Provide and authorize a Token
 
 In the scenario of a Registry running on a private network with the need
 of centralizing and authorizing, it’s easy to use a custom Index.
@@ -446,12 +441,12 @@ specific Index, it’ll be the private entity responsibility (basically
 the organization who uses Docker in a private environment) to maintain
 the Index and the Docker’s configuration among its consumers.
 
-## 4. The API
+## The API
 
 The first version of the api is available here:
 [https://github.com/jpetazzo/docker/blob/acd51ecea8f5d3c02b00a08176171c59442df8b3/docs/images-repositories-push-pull.md](https://github.com/jpetazzo/docker/blob/acd51ecea8f5d3c02b00a08176171c59442df8b3/docs/images-repositories-push-pull.md)
 
-### 4.1 Images
+### Images
 
 The format returned in the images is not defined here (for layer and
 JSON), basically because Registry stores exactly the same kind of
@@ -469,9 +464,9 @@ file is empty.
     GET /v1/images/<image_id>/ancestry
     PUT /v1/images/<image_id>/ancestry
 
-### 4.2 Users
+### Users
 
-#### 4.2.1 Create a user (Index)
+### Create a user (Index)
 
 POST /v1/users
 
@@ -479,9 +474,9 @@ POST /v1/users
 :   {“email”: “[sam@dotcloud.com](mailto:sam%40dotcloud.com)”,
     “password”: “toto42”, “username”: “foobar”’}
 **Validation**:
-:   -   **username**: min 4 character, max 30 characters, must match the
+:   - **username**: min 4 character, max 30 characters, must match the
         regular expression [a-z0-9\_].
-    -   **password**: min 5 characters
+    - **password**: min 5 characters
 
 **Valid**: return HTTP 200
 
@@ -494,7 +489,7 @@ Note
 A user account will be valid only if the email has been validated (a
 validation link is sent to the email address).
 
-#### 4.2.2 Update a user (Index)
+### Update a user (Index)
 
 PUT /v1/users/\<username\>
 
@@ -506,7 +501,7 @@ Note
 We can also update email address, if they do, they will need to reverify
 their new email address.
 
-#### 4.2.3 Login (Index)
+### Login (Index)
 
 Does nothing else but asking for a user authentication. Can be used to
 validate credentials. HTTP Basic Auth for now, maybe change in future.
@@ -514,11 +509,11 @@ validate credentials. HTTP Basic Auth for now, maybe change in future.
 GET /v1/users
 
 **Return**:
-:   -   Valid: HTTP 200
-    -   Invalid login: HTTP 401
-    -   Account inactive: HTTP 403 Account is not Active
+:   - Valid: HTTP 200
+    - Invalid login: HTTP 401
+    - Account inactive: HTTP 403 Account is not Active
 
-### 4.3 Tags (Registry)
+### Tags (Registry)
 
 The Registry does not know anything about users. Even though
 repositories are under usernames, it’s just a namespace for the
@@ -527,11 +522,11 @@ per user later, without modifying the Registry’s API.
 
 The following naming restrictions apply:
 
--   Namespaces must match the same regular expression as usernames (See
+- Namespaces must match the same regular expression as usernames (See
     4.2.1.)
--   Repository names must match the regular expression [a-zA-Z0-9-\_.]
+- Repository names must match the regular expression [a-zA-Z0-9-\_.]
 
-#### 4.3.1 Get all tags
+### Get all tags:
 
 GET /v1/repositories/\<namespace\>/\<repository\_name\>/tags
 
@@ -541,25 +536,25 @@ GET /v1/repositories/\<namespace\>/\<repository\_name\>/tags
     “0.1.1”:
     “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087” }
 
-#### 4.3.2 Read the content of a tag (resolve the image id)
+### Read the content of a tag (resolve the image id):
 
 GET /v1/repositories/\<namespace\>/\<repo\_name\>/tags/\<tag\>
 
 **Return**:
 :   “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”
 
-#### 4.3.3 Delete a tag (registry)
+### Delete a tag (registry):
 
 DELETE /v1/repositories/\<namespace\>/\<repo\_name\>/tags/\<tag\>
 
-### 4.4 Images (Index)
+## Images (Index)
 
 For the Index to “resolve” the repository name to a Registry location,
 it uses the X-Docker-Endpoints header. In other terms, this requests
 always add a `X-Docker-Endpoints` to indicate the
 location of the registry which hosts this repository.
 
-#### 4.4.1 Get the images
+### Get the images:
 
 GET /v1/repositories/\<namespace\>/\<repo\_name\>/images
 
@@ -569,7 +564,7 @@ GET /v1/repositories/\<namespace\>/\<repo\_name\>/images
     “checksum”:
     “[md5:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087](md5:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087)”}]
 
-#### 4.4.2 Add/update the images
+### Add/update the images:
 
 You always add images, you never remove them.
 
@@ -584,15 +579,15 @@ PUT /v1/repositories/\<namespace\>/\<repo\_name\>/images
 
 **Return** 204
 
-### 4.5 Repositories
+### Repositories
 
-#### 4.5.1 Remove a Repository (Registry)
+### Remove a Repository (Registry)
 
 DELETE /v1/repositories/\<namespace\>/\<repo\_name\>
 
 Return 200 OK
 
-#### 4.5.2 Remove a Repository (Index)
+### Remove a Repository (Index)
 
 This starts the delete process. see 2.3 for more details.
 
@@ -600,12 +595,12 @@ DELETE /v1/repositories/\<namespace\>/\<repo\_name\>
 
 Return 202 OK
 
-## 5. Chaining Registries
+## Chaining Registries
 
 It’s possible to chain Registries server for several reasons:
 
--   Load balancing
--   Delegate the next request to another server
+- Load balancing
+- Delegate the next request to another server
 
 When a Registry is a reference for a repository, it should host the
 entire images chain in order to avoid breaking the chain during the
@@ -623,9 +618,9 @@ On every request, a special header can be returned:
 On the next request, the client will always pick a server from this
 list.
 
-## 6. Authentication & Authorization
+## Authentication & Authorization
 
-### 6.1 On the Index
+### On the Index
 
 The Index supports both “Basic” and “Token” challenges. Usually when
 there is a `401 Unauthorized`, the Index replies
@@ -639,16 +634,16 @@ You have 3 options:
 1.  Provide user credentials and ask for a token
 
     > **Header**:
-    > :   -   Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
-    >     -   X-Docker-Token: true
+    > :   - Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
+    >     - X-Docker-Token: true
     >
     > In this case, along with the 200 response, you’ll get a new token
     > (if user auth is ok): If authorization isn’t correct you get a 401
     > response. If account isn’t active you will get a 403 response.
     >
     > **Response**:
-    > :   -   200 OK
-    >     -   X-Docker-Token: Token
+    > :   - 200 OK
+    >     - X-Docker-Token: Token
     >         signature=123abc,repository=”foo/bar”,access=read
     >
 2.  Provide user credentials only
@@ -686,9 +681,9 @@ Next request:
     GET /(...)
     Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="
 
-## 7 Document Version
+## Document Version
 
--   1.0 : May 6th 2013 : initial release
--   1.1 : June 1st 2013 : Added Delete Repository and way to handle new
+- 1.0 : May 6th 2013 : initial release
+- 1.1 : June 1st 2013 : Added Delete Repository and way to handle new
     source namespace.
 

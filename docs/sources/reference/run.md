@@ -2,7 +2,7 @@ page_title: Docker Run Reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
-# [Docker Run Reference](#id2)
+# Docker Run Reference
 
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its
@@ -25,7 +25,7 @@ Table of Contents
     -   [Overriding `Dockerfile` Image
         Defaults](#overriding-dockerfile-image-defaults)
 
-## [General Form](#id3)
+## General Form
 
 As you’ve seen in the [*Examples*](../../examples/#example-list), the
 basic run command takes this form:
@@ -52,7 +52,7 @@ control over runtime behavior to the operator, allowing them to override
 all defaults set by the developer during `docker build`{.docutils
 .literal} and nearly all the defaults set by the Docker runtime itself.
 
-## [Operator Exclusive Options](#id4)
+## Operator Exclusive Options
 
 Only the operator (the person executing `docker run`{.docutils
 .literal}) can set the following options.
@@ -72,7 +72,7 @@ Only the operator (the person executing `docker run`{.docutils
 -   [Runtime Privilege and LXC
     Configuration](#runtime-privilege-and-lxc-configuration)
 
-### [Detached vs Foreground](#id6)
+### Detached vs Foreground
 
 When starting a Docker container, you must first decide if you want to
 run the container in the background in a “detached” mode or in the
@@ -80,7 +80,7 @@ default foreground mode:
 
     -d=false: Detached mode: Run container in the background, print new container id
 
-#### [Detached (-d)](#id7)
+**Detached (-d)**
 
 In detached mode (`-d=true` or just `-d`{.docutils
 .literal}), all I/O should be done through network connections or shared
@@ -91,7 +91,7 @@ a detached container with `docker`
 container in the detached mode, then you cannot use the `-rm`{.docutils
 .literal} option.
 
-#### [Foreground](#id8)
+**Foreground**
 
 In foreground mode (the default when `-d` is not
 specified), `docker run` can start the process in
@@ -119,9 +119,9 @@ as well as persistent standard input (`stdin`), so
 you’ll use `-i -t` together in most interactive
 cases.
 
-### [Container Identification](#id9)
+### Container Identification
 
-#### [Name (-name)](#id10)
+**Name (-name)**
 
 The operator can identify a container in three ways:
 
@@ -139,7 +139,7 @@ when defining
 (or any other place you need to identify a container). This works for
 both background and foreground Docker containers.
 
-#### [PID Equivalent](#id11)
+**PID Equivalent**
 
 And finally, to help with automation, you can have Docker write the
 container ID out to a file of your choosing. This is similar to how some
@@ -148,7 +148,7 @@ PID files):
 
     -cidfile="": Write the container ID to the file
 
-### [Network Settings](#id12)
+### Network Settings
 
     -n=true   : Enable networking for this container
     -dns=[]   : Set custom dns servers for the container
@@ -162,7 +162,7 @@ files or STDIN/STDOUT only.
 Your container will use the same DNS servers as the host by default, but
 you can override this with `-dns`.
 
-### [Clean Up (-rm)](#id13)
+### Clean Up (-rm)
 
 By default a container’s file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
@@ -174,7 +174,7 @@ the container exits**, you can add the `-rm` flag:
 
     -rm=false: Automatically remove the container when it exits (incompatible with -d)
 
-### [Runtime Constraints on CPU and Memory](#id14)
+### Runtime Constraints on CPU and Memory
 
 The operator can also adjust the performance parameters of the
 container:
@@ -193,7 +193,7 @@ the same priority and get the same proportion of CPU cycles, but you can
 tell the kernel to give more shares of CPU time to one or more
 containers when you start them via Docker.
 
-### [Runtime Privilege and LXC Configuration](#id15)
+### Runtime Privilege and LXC Configuration
 
     -privileged=false: Give extended privileges to this container
     -lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -222,8 +222,7 @@ Note that in the future, a given host’s Docker daemon may not use LXC,
 so this is an implementation-specific configuration meant for operators
 already familiar with using LXC directly.
 
-## [Overriding `Dockerfile` Image Defaults](#id5)
-
+## Overriding `Dockerfile` Image Defaults
 When a developer builds an image from a
 [*Dockerfile*](../builder/#dockerbuilder) or when she commits it, the
 developer can set a number of default parameters that take effect when
@@ -245,7 +244,7 @@ how the operator can override that setting.
 -   [USER](#user)
 -   [WORKDIR](#workdir)
 
-### [CMD (Default Command or Options)](#id16)
+### CMD (Default Command or Options)
 
 Recall the optional `COMMAND` in the Docker
 commandline:
@@ -263,7 +262,7 @@ If the image also specifies an `ENTRYPOINT` then the
 `CMD` or `COMMAND`{.docutils .literal} get appended
 as arguments to the `ENTRYPOINT`.
 
-### [ENTRYPOINT (Default Command to Execute at Runtime](#id17)
+### ENTRYPOINT (Default Command to Execute at Runtime
 
     -entrypoint="": Overwrite the default entrypoint set by the image
 
@@ -288,7 +287,7 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     docker run -i -t -entrypoint /bin/bash example/redis -c ls -l
     docker run -i -t -entrypoint /usr/bin/redis-cli example/redis --help
 
-### [EXPOSE (Incoming Ports)](#id18)
+### EXPOSE (Incoming Ports)
 
 The `Dockerfile` doesn’t give much control over
 networking, only providing the `EXPOSE` instruction
@@ -334,7 +333,7 @@ via a private networking interface. Docker will set some environment
 variables in the client container to help indicate which interface and
 port to use.
 
-### [ENV (Environment Variables)](#id19)
+### ENV (Environment Variables)
 
 The operator can **set any environment variable** in the container by
 using one or more `-e` flags, even overriding those
@@ -397,7 +396,7 @@ client:
     $ docker run -i -t -rm -link redis-name:redis_alias -entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
     172.17.0.32:6379>
 
-### [VOLUME (Shared Filesystems)](#id20)
+### VOLUME (Shared Filesystems)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
            If "container-dir" is missing, then docker creates a new volume.
@@ -410,7 +409,7 @@ define one or more `VOLUME`s associated with an
 image, but only the operator can give access from one container to
 another (or from a container to a volume mounted on the host).
 
-### [USER](#id21)
+### USER
 
 The default user within a container is `root` (id =
 0), but if the developer created additional users, those are accessible
@@ -420,7 +419,7 @@ override it
 
     -u="": Username or UID
 
-### [WORKDIR](#id22)
+### WORKDIR
 
 The default working directory for running binaries within a container is
 the root directory (`/`), but the developer can set

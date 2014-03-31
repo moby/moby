@@ -2,7 +2,9 @@ page_title: Dockerfile Reference
 page_description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
 page_keywords: builder, docker, Dockerfile, automation, image creation
 
-# [Dockerfile Reference](#id2)
+# Dockerfile Reference
+
+### Introduction
 
 **Docker can act as a builder** and read instructions from a text
 `Dockerfile` to automate the steps you would
@@ -10,30 +12,7 @@ otherwise take manually to create an image. Executing
 `docker build` will run your steps and commit them
 along the way, giving you a final image.
 
-Table of Contents
-
--   [Dockerfile Reference](#dockerfile-reference)
-    -   [1. Usage](#usage)
-    -   [2. Format](#format)
-    -   [3. Instructions](#instructions)
-        -   [3.1 FROM](#from)
-        -   [3.2 MAINTAINER](#maintainer)
-        -   [3.3 RUN](#run)
-            -   [Known Issues (RUN)](#known-issues-run)
-
-        -   [3.4 CMD](#cmd)
-        -   [3.5 EXPOSE](#expose)
-        -   [3.6 ENV](#env)
-        -   [3.7 ADD](#add)
-        -   [3.8 ENTRYPOINT](#entrypoint)
-        -   [3.9 VOLUME](#volume)
-        -   [3.10 USER](#user)
-        -   [3.11 WORKDIR](#workdir)
-        -   [3.11 ONBUILD](#onbuild)
-
-    -   [4. Dockerfile Examples](#dockerfile-examples)
-
-## [1. Usage](#id3)
+## Usage
 
 To [*build*](../commandline/cli/#cli-build) an image from a source
 repository, create a description file called `Dockerfile`{.docutils
@@ -85,7 +64,7 @@ When you’re done with your build, you’re ready to look into [*Pushing a
 repository to its
 registry*](../../use/workingwithrepository/#image-push).
 
-## [2. Format](#id4)
+## Format
 
 Here is the format of the Dockerfile:
 
@@ -106,12 +85,12 @@ be treated as an argument. This allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
-## [3. Instructions](#id5)
+## Instructions
 
 Here is the set of instructions you can use in a `Dockerfile`{.docutils
 .literal} for building images.
 
-### [3.1 FROM](#id6)
+### FROM
 
 > `FROM <image>`
 
@@ -138,14 +117,14 @@ If no `tag` is given to the `FROM`{.docutils
 .literal} instruction, `latest` is assumed. If the
 used tag does not exist, an error will be returned.
 
-### [3.2 MAINTAINER](#id7)
+### MAINTAINER
 
 > `MAINTAINER <name>`
 
 The `MAINTAINER` instruction allows you to set the
 *Author* field of the generated images.
 
-### [3.3 RUN](#id8)
+### RUN
 
 RUN has 2 forms:
 
@@ -168,7 +147,7 @@ The *exec* form makes it possible to avoid shell string munging, and to
 `RUN` commands using a base image that does not
 contain `/bin/sh`.
 
-#### [Known Issues (RUN)](#id9)
+**Known Issues (RUN):**
 
 -   [Issue 783](https://github.com/dotcloud/docker/issues/783) is about
     file permissions problems that can occur when using the AUFS file
@@ -177,7 +156,7 @@ contain `/bin/sh`.
 -   [Issue 2424](https://github.com/dotcloud/docker/issues/2424) Locale
     will not be set automatically.
 
-### [3.4 CMD](#id10)
+### CMD
 
 CMD has three forms:
 
@@ -230,7 +209,7 @@ Don’t confuse `RUN` with `CMD`{.docutils .literal}.
 result; `CMD` does not execute anything at build
 time, but specifies the intended command for the image.
 
-### [3.5 EXPOSE](#id11)
+### EXPOSE
 
 > `EXPOSE <port> [<port>...]`
 
@@ -241,7 +220,7 @@ within links. This is functionally equivalent to running
 Ports*](../../use/port_redirection/#port-redirection) for detailed
 information.
 
-### [3.6 ENV](#id12)
+### ENV
 
 > `ENV <key> <value>`
 
@@ -263,7 +242,7 @@ One example where this can cause unexpected consequenses, is setting
 persist when the container is run interactively; for example:
 `docker run -t -i image bash`
 
-### [3.7 ADD](#id13)
+### ADD
 
 > `ADD <src> <dest>`
 
@@ -345,7 +324,7 @@ The copy obeys the following rules:
 -   If `<dest>` doesn’t exist, it is created along
     with all missing directories in its path.
 
-### [3.8 ENTRYPOINT](#id14)
+### ENTRYPOINT
 
 ENTRYPOINT has two forms:
 
@@ -390,7 +369,7 @@ optional but default, you could use a CMD:
     CMD ["-l", "-"]
     ENTRYPOINT ["/usr/bin/wc"]
 
-### [3.9 VOLUME](#id15)
+### VOLUME
 
 > `VOLUME ["/data"]`
 
@@ -401,14 +380,14 @@ information/examples and mounting instructions via docker client, refer
 to [*Share Directories via
 Volumes*](../../use/working_with_volumes/#volume-def) documentation.
 
-### [3.10 USER](#id16)
+### USER
 
 > `USER daemon`
 
 The `USER` instruction sets the username or UID to
 use when running the image.
 
-### [3.11 WORKDIR](#id17)
+### WORKDIR
 
 > `WORKDIR /path/to/workdir`
 
@@ -418,7 +397,7 @@ for the `RUN`, `CMD`{.docutils .literal} and
 
 It can be used multiple times in the one Dockerfile.
 
-### [3.11 ONBUILD](#id18)
+### ONBUILD
 
 > `ONBUILD [INSTRUCTION]`
 
@@ -480,7 +459,7 @@ Warning
 
 ONBUILD may not trigger FROM or MAINTAINER instructions.
 
-## [4. Dockerfile Examples](#id19)
+## Dockerfile Examples
 
     # Nginx
     #
