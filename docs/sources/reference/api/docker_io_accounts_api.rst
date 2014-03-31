@@ -49,14 +49,14 @@ docker.io Accounts API
         {
             "id": 2,
             "username": "janedoe",
-            "url": "",
+            "url": "https://www.docker.io/api/v1.1/users/janedoe/",
             "date_joined": "2014-02-12T17:58:01.431312Z",
             "type": "User",
             "full_name": "Jane Doe",
             "location": "San Francisco, CA",
             "company": "Success, Inc.",
             "profile_url": "https://docker.io/",
-            "gravatar_email": "jane.doe+gravatar@example.com",
+            "gravatar_url": "https://secure.gravatar.com/avatar/0212b397124be4acd4e7dea9aa357.jpg?s=80&r=g&d=mm"
             "email": "jane.doe@example.com",
             "is_active": true
         }
@@ -111,14 +111,14 @@ docker.io Accounts API
         {
             "id": 2,
             "username": "janedoe",
-            "url": "",
+            "url": "https://www.docker.io/api/v1.1/users/janedoe/",
             "date_joined": "2014-02-12T17:58:01.431312Z",
             "type": "User",
             "full_name": "Jane Doe",
             "location": "Private Island",
             "company": "Retired",
             "profile_url": "http://janedoe.com/",
-            "gravatar_email": "jane.doe+gravatar@example.com",
+            "gravatar_url": "https://secure.gravatar.com/avatar/0212b397124be4acd4e7dea9aa357.jpg?s=80&r=g&d=mm"
             "email": "jane.doe@example.com",
             "is_active": true
         }
