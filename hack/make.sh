@@ -43,6 +43,7 @@ DEFAULT_BUNDLES=(
 	binary
 	test
 	test-integration
+	test-integration-cli
 	dynbinary
 	dyntest
 	dyntest-integration
