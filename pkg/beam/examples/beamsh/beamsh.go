@@ -20,7 +20,6 @@ import (
 )
 
 var rootPlugins = []string{
-	"devnull",
 	"stdio",
 }
 
@@ -529,12 +528,23 @@ func GetHandler(name string) Handler {
 	} else if name == "print" {
 		return func(args []string, in beam.Receiver, out beam.Sender) {
 			for {
-				_, a, err := in.Receive()
+				payload, a, err := in.Receive()
 				if err != nil {
 					return
 				}
-				if a != nil {
-					io.Copy(os.Stdout, a)
+				// Skip commands
+				if a != nil && data.Message(payload).Get("cmd") == nil {
+					dup, err := beam.SendPipe(out, payload)
+					if err != nil {
+						a.Close()
+						return
+					}
+					io.Copy(io.MultiWriter(os.Stdout, dup), a)
+					dup.Close()
+				} else {
+					if err := out.Send(payload, a); err != nil {
+						return
+					}
 				}
 			}
 		}
