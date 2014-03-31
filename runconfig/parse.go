@@ -52,6 +52,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
 		flDriverOpts  opts.ListOpts
+		flEnvFile     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -78,6 +79,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
+	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of ENV variables")
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
@@ -199,6 +201,20 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		}
 	}
 
+	// collect all the environment variables for the container
+	envVariables := []string{}
+	for _, ef := range flEnvFile.GetAll() {
+		parsedVars, err := opts.ParseEnvFile(ef)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		envVariables = append(envVariables, parsedVars...)
+	}
+	// parse the '-e' and '--env' after, to allow override
+	envVariables = append(envVariables, flEnv.GetAll()...)
+	// boo, there's no debug output for docker run
+	//utils.Debugf("Environment variables for the container: %#v", envVariables)
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -213,7 +229,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
-		Env:             flEnv.GetAll(),
+		Env:             envVariables,
 		Cmd:             runCmd,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),

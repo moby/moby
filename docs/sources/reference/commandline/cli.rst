@@ -1152,6 +1152,7 @@ image is removed.
       --cidfile="": Write the container ID to the file
       -d, --detach=false: Detached mode: Run container in the background, print new container id
       -e, --env=[]: Set environment variables
+      --env-file="": Read in a line delimited file of ENV variables
       -h, --hostname="": Container host name
       -i, --interactive=false: Keep stdin open even if not attached
       --privileged=false: Give extended privileges to this container
@@ -1283,6 +1284,54 @@ in Docker.
 This exposes port ``80`` of the container for use within a link without
 publishing the port to the host system's interfaces. :ref:`port_redirection`
 explains in detail how to manipulate ports in Docker.
+
+.. code-block:: bash
+
+    $ sudo docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
+
+This sets environmental variables in the container. For illustration all three
+flags are shown here. Where ``-e``, ``--env`` take an environment variable and
+value, or if no "=" is provided, then that variable's current value is passed
+through (i.e. $MYVAR1 from the host is set to $MYVAR1 in the container). All
+three flags, ``-e``, ``--env``  and ``--env-file`` can be repeated.
+
+Regardless of the order of these three flags, the ``--env-file`` are processed
+first, and then ``-e``/``--env`` flags. This way, the ``-e`` or ``--env`` will
+override variables as needed.
+
+.. code-block:: bash
+
+    $ cat ./env.list
+    TEST_FOO=BAR
+    $ sudo docker run --env TEST_FOO="This is a test" --env-file ./env.list busybox env | grep TEST_FOO
+    TEST_FOO=This is a test
+
+The ``--env-file`` flag takes a filename as an argument and expects each line
+to be in the VAR=VAL format, mimicking the argument passed to ``--env``.
+Comment lines need only be prefixed with ``#``
+
+An example of a file passed with ``--env-file``
+
+.. code-block:: bash
+
+    $ cat ./env.list
+    TEST_FOO=BAR
+
+    # this is a comment
+    TEST_APP_DEST_HOST=10.10.0.127
+    TEST_APP_DEST_PORT=8888
+
+    # pass through this variable from the caller
+    TEST_PASSTHROUGH
+    $ sudo TEST_PASSTHROUGH=howdy docker run --env-file ./env.list busybox env
+    HOME=/
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    HOSTNAME=5198e0745561
+    TEST_FOO=BAR
+    TEST_APP_DEST_HOST=10.10.0.127
+    TEST_APP_DEST_PORT=8888
+    TEST_PASSTHROUGH=howdy
+
 
 .. code-block:: bash
 
