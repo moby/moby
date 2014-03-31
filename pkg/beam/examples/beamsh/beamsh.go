@@ -361,6 +361,39 @@ func GetHandler(name string) Handler {
 				}
 			}
 		}
+	} else if name == "prompt" {
+		return func(args []string, in beam.Receiver, out beam.Sender) {
+			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
+			if err != nil {
+				return
+			}
+			defer stdout.Close()
+			stderr, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
+			if err != nil {
+				return
+			}
+			defer stderr.Close()
+			if len(args) < 2 {
+				fmt.Fprintf(stderr, "usage: %s PROMPT...\n", args[0])
+				return
+			}
+			if !term.IsTerminal(0) {
+				fmt.Fprintf(stderr, "can't prompt: no tty available...\n")
+				return
+			}
+			fmt.Printf("%s: ", strings.Join(args[1:], " "))
+			oldState, _ := term.SaveState(0)
+			term.DisableEcho(0, oldState)
+			line, _, err := bufio.NewReader(os.Stdin).ReadLine()
+			if err != nil {
+				fmt.Fprintln(stderr, err.Error())
+				return
+			}
+			val := string(line)
+			fmt.Printf("\n")
+			term.RestoreTerminal(0, oldState)
+			out.Send(data.Empty().Set("fromcmd", args...).Set("value", val).Bytes(), nil)
+		}
 	} else if name == "stdio" {
 		return func(args []string, in beam.Receiver, out beam.Sender) {
 			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
