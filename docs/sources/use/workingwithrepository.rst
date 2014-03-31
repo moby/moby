@@ -196,10 +196,16 @@ point to specific ``Dockerfile``'s or Git branches.
 Private Registry
 ----------------
 
-Private registries and private shared repositories are 
-only possible by hosting `your own registry
-<https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
-repository on your own registry, you must prefix the tag with the
+Docker registries allow you - and those you choose - to exclusively create
+and host nonpublic Docker images in private Docker repositories.
+
+There are two ways you can start working privately:
+
+ - By `signing up <https://index.docker.io/plans/>`_ for the **Docker Index**
+   managed by `Docker IO <https://www.docker.io/>`_, or; 
+ - By hosting your own `Docker registry <https://github.com/dotcloud/docker-registry>`_. 
+
+To push or pull to a repository on your own registry, you must prefix the tag with the
 address of the registry's host (a ``.`` or ``:`` is used to identify a host), 
 like this:
 
