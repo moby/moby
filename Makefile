@@ -17,10 +17,13 @@ cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
 docs: docs-build
-	docker run --rm -i -t -p 8000:8000 "$(DOCKER_DOCS_IMAGE)"
+	docker run --rm -i -t -p 8000:8000 "$(DOCKER_DOCS_IMAGE)" mkdocs serve
 
 docs-shell: docs-build
 	docker run --rm -i -t -p 8000:8000 "$(DOCKER_DOCS_IMAGE)" bash
+
+docs-release: docs-build
+	docker run --rm -i -t -p 8000:8000 --env AWS_S3_BUCKET="$(AWS_S3_BUCKET)" "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test test-integration

@@ -1,13 +1,13 @@
-FROM 		debian:stable
-MAINTAINER	SvenDowideit@docker.com
 #
-#    docker build -t docker:docs . && docker run -p 8000:8000 docker:docs
+# See the top level Makefile in https://github.com/dotcloud/docker for usage.
 #
+FROM 		debian:testing
+MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-RUN 	apt-get update && apt-get install -yq make python-pip python-setuptools
+RUN 	apt-get update && apt-get install -yq make gcc python-sphinx python-pip python-setuptools
 RUN	pip install mkdocs
 
-RUN	apt-get install -yq vim-tiny git pandoc
+RUN	apt-get install -yq vim-tiny git pandoc s3cmd=1.1.0*
 
 # pip installs from docs/requirements.txt, but here to increase cacheability
 RUN	pip install Sphinx==1.2.1
@@ -24,8 +24,12 @@ RUN	make -C /docs clean docs
 
 WORKDIR	/docs
 
-#CMD 	["mkdocs", "serve"]
-CMD	bash
 
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000
+
+# Setup s3cmd config
+ADD	s3cfg  /.s3cfg
+
+#CMD 	["mkdocs", "serve"]
+CMD	bash
