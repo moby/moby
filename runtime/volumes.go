@@ -88,7 +88,11 @@ func applyVolumesFrom(container *Container) error {
 				if _, exists := container.Volumes[volPath]; exists {
 					continue
 				}
-				if err := os.MkdirAll(filepath.Join(container.basefs, volPath), 0755); err != nil {
+				stat, err := os.Stat(filepath.Join(c.basefs, volPath))
+				if err != nil {
+					return err
+				}
+				if err := createIfNotExists(filepath.Join(container.basefs, volPath), stat.IsDir()); err != nil {
 					return err
 				}
 				container.Volumes[volPath] = id
@@ -208,24 +212,8 @@ func createVolumes(container *Container) error {
 		if err != nil {
 			return err
 		}
-
-		if _, err := os.Stat(rootVolPath); err != nil {
-			if os.IsNotExist(err) {
-				if volIsDir {
-					if err := os.MkdirAll(rootVolPath, 0755); err != nil {
-						return err
-					}
-				} else {
-					if err := os.MkdirAll(filepath.Dir(rootVolPath), 0755); err != nil {
-						return err
-					}
-					if f, err := os.OpenFile(rootVolPath, os.O_CREATE, 0755); err != nil {
-						return err
-					} else {
-						f.Close()
-					}
-				}
-			}
+		if err := createIfNotExists(rootVolPath, volIsDir); err != nil {
+			return err
 		}
 
 		// Do not copy or change permissions if we are mounting from the host
@@ -261,6 +249,28 @@ func createVolumes(container *Container) error {
 						}
 					}
 				}
+			}
+		}
+	}
+	return nil
+}
+
+func createIfNotExists(path string, isDir bool) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			if isDir {
+				if err := os.MkdirAll(path, 0755); err != nil {
+					return err
+				}
+			} else {
+				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+					return err
+				}
+				f, err := os.OpenFile(path, os.O_CREATE, 0755)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
 			}
 		}
 	}

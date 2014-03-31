@@ -253,3 +253,21 @@ func TestDockerRunWithoutNetworking(t *testing.T) {
 	logDone("run - disable networking with --networking=false")
 	logDone("run - disable networking with -n=false")
 }
+
+// Regression test for #4741
+func TestDockerRunWithVolumesAsFiles(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/etc/hosts:/target-file", "busybox", "true")
+	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil && exitCode != 0 {
+		t.Fatal("1", out, stderr, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--volumes-from", "test-data", "busybox", "cat", "/target-file")
+	out, stderr, exitCode, err = runCommandWithStdoutStderr(runCmd)
+	if err != nil && exitCode != 0 {
+		t.Fatal("2", out, stderr, err)
+	}
+	deleteAllContainers()
+
+	logDone("run - regression test for #4741 - volumes from as files")
+}
