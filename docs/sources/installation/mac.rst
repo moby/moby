@@ -66,7 +66,7 @@ Run the following commands to get it downloaded and set up:
 .. code-block:: bash
 
     # Get the docker client file
-    DIR=$(mktemp -d) && \
+    DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
     curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
     gunzip $DIR/ld.tgz && \
     tar xvf $DIR/ld.tar -C $DIR/ && \
