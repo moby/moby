@@ -4,21 +4,21 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 # Docker Remote API
 
-## 1. Brief introduction
+## Introduction
 
--   The Remote API is replacing rcli
--   By default the Docker daemon listens on unix:///var/run/docker.sock
-    and the client must have root access to interact with the daemon
--   If a group named *docker* exists on your system, docker will apply
-    ownership of the socket to the group
--   The API tends to be REST, but for some complex commands, like attach
-    or pull, the HTTP connection is hijacked to transport stdout stdin
-    and stderr
--   Since API version 1.2, the auth configuration is now handled client
-    side, so the client has to send the authConfig as POST in
-    /images/(name)/push
+- The Remote API is replacing rcli
+- By default the Docker daemon listens on unix:///var/run/docker.sock
+  and the client must have root access to interact with the daemon
+- If a group named *docker* exists on your system, docker will apply
+  ownership of the socket to the group
+- The API tends to be REST, but for some complex commands, like attach
+  or pull, the HTTP connection is hijacked to transport stdout stdin
+  and stderr
+- Since API version 1.2, the auth configuration is now handled client
+  side, so the client has to send the authConfig as POST in
+  `/images/(name)/push`.
 
-## 2. Versions
+## Docker Remote API Versions
 
 The current version of the API is 1.10
 
@@ -28,25 +28,25 @@ Calling /images/\<name\>/insert is the same as calling
 You can still call an old version of the api using
 /v1.0/images/\<name\>/insert
 
-### v1.10
+## Docker Remote API v1.10
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.10*](../docker_remote_api_v1.10/)
 
-#### What’s new
+### What’s new
 
  `DELETE `{.descname}`/images/`{.descname}(*name*)
 :   **New!** You can now use the force parameter to force delete of an
     image, even if it’s tagged in multiple repositories.
 
-### v1.9
+## Docker Remote API v1.9
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.9*](../docker_remote_api_v1.9/)
 
-#### What’s new
+### What’s New
 
  `POST `{.descname}`/build`{.descname}
 :   **New!** This endpoint now takes a serialized ConfigFile which it
@@ -54,13 +54,13 @@ You can still call an old version of the api using
     base image. Clients which previously implemented the version
     accepting an AuthConfig object must be updated.
 
-### v1.8
+## Docker Remote API v1.8
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.8*](../docker_remote_api_v1.8/)
 
-#### What’s new
+### What’s New
 
  `POST `{.descname}`/build`{.descname}
 :   **New!** This endpoint now returns build status as json stream. In
@@ -82,13 +82,13 @@ You can still call an old version of the api using
     possible to get the current value and the total of the progress
     without having to parse the string.
 
-### v1.7
+## Docker Remote API v1.7
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.7*](../docker_remote_api_v1.7/)
 
-#### What’s new
+### What’s New
 
  `GET `{.descname}`/images/json`{.descname}
 :   The format of the json returned from this uri changed. Instead of an
@@ -179,13 +179,13 @@ You can still call an old version of the api using
     output is now generated in the client, using the
     `/images/json` data.
 
-### v1.6
+## Docker Remote API v1.6
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.6*](../docker_remote_api_v1.6/)
 
-#### What’s new
+### What’s New
 
  `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}
 :   **New!** You can now split stderr from stdout. This is done by
@@ -195,13 +195,13 @@ You can still call an old version of the api using
     The WebSocket attach is unchanged. Note that attach calls on the
     previous API version didn’t change. Stdout and stderr are merged.
 
-### v1.5
+## Docker Remote API v1.5
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.5*](../docker_remote_api_v1.5/)
 
-#### What’s new
+### What’s New
 
  `POST `{.descname}`/images/create`{.descname}
 :   **New!** You can now pass registry credentials (via an AuthConfig
@@ -216,13 +216,13 @@ You can still call an old version of the api using
     dicts each containing PublicPort, PrivatePort and Type describing a
     port mapping.
 
-### v1.4
+## Docker Remote API v1.4
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.4*](../docker_remote_api_v1.4/)
 
-#### What’s new
+### What’s New
 
  `POST `{.descname}`/images/create`{.descname}
 :   **New!** When pulling a repo, all images are now downloaded in
@@ -235,16 +235,16 @@ You can still call an old version of the api using
  `GET `{.descname}`/events:`{.descname}
 :   **New!** Image’s name added in the events
 
-### v1.3
+## Docker Remote API v1.3
 
 docker v0.5.0
 [51f6c4a](https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.3*](../docker_remote_api_v1.3/)
 
-#### What’s new
+### What’s New
 
  `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}
 :   List the processes running inside a container.
@@ -254,10 +254,10 @@ docker v0.5.0
 
 Builder (/build):
 
--   Simplify the upload of the build context
--   Simply stream a tarball instead of multipart upload with 4
-    intermediary buffers
--   Simpler, less memory usage, less disk usage and faster
+- Simplify the upload of the build context
+- Simply stream a tarball instead of multipart upload with 4
+  intermediary buffers
+- Simpler, less memory usage, less disk usage and faster
 
 Warning
 
@@ -266,23 +266,23 @@ break on /build.
 
 List containers (/containers/json):
 
--   You can use size=1 to get the size of the containers
+- You can use size=1 to get the size of the containers
 
 Start containers (/containers/\<id\>/start):
 
--   You can now pass host-specific configuration (e.g. bind mounts) in
-    the POST body for start calls
+- You can now pass host-specific configuration (e.g. bind mounts) in
+  the POST body for start calls
 
-### v1.2
+## Docker Remote API v1.2
 
 docker v0.4.2
 [2e7649b](https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.2*](../docker_remote_api_v1.2/)
 
-#### What’s new
+### What’s New
 
 The auth configuration is now handled by the client.
 
@@ -302,16 +302,16 @@ The client should send it’s authConfig as POST on each call of
 :   Now returns a JSON structure with the list of images
     deleted/untagged.
 
-### v1.1
+## Docker Remote API v1.1
 
 docker v0.4.0
 [a8ae398](https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.1*](../docker_remote_api_v1.1/)
 
-#### What’s new
+### What’s New
 
  `POST `{.descname}`/images/create`{.descname}
 :   
@@ -330,15 +330,15 @@ docker v0.4.0
     >     {"error":"Invalid..."}
     >     ...
 
-### v1.0
+## Docker Remote API v1.0
 
 docker v0.3.4
 [8d73740](https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
 
-#### Full Documentation
+### Full Documentation
 
 [*Docker Remote API v1.0*](../docker_remote_api_v1.0/)
 
-#### What’s new
+### What’s New
 
 Initial version

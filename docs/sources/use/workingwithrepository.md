@@ -4,6 +4,8 @@ page_keywords: repo, repositories, usage, pull image, push image, image, documen
 
 # Share Images via Repositories
 
+## Introduction
+
 A *repository* is a shareable collection of tagged
 [*images*](../../terms/image/#image-def) that together create the file
 systems for containers. The repository’s name is a label that indicates
@@ -25,12 +27,14 @@ repositories. You can host your own Registry too! Docker acts as a
 client for these services via `docker search, pull, login`{.docutils
 .literal} and `push`.
 
-## Local Repositories
+## Repositories
+
+### Local Repositories
 
 Docker images which have been created and labeled on your local Docker
 server need to be pushed to a Public or Private registry to be shared.
 
-## Public Repositories
+### Public Repositories
 
 There are two types of public repositories: *top-level* repositories
 which are controlled by the Docker team, and *user* repositories created
@@ -200,7 +204,7 @@ See also
 [Docker Blog: How to use your own
 registry](http://blog.docker.io/2013/07/how-to-use-your-own-registry/)
 
-## Authentication file
+## Authentication File
 
 The authentication is stored in a json file, `.dockercfg`{.docutils
 .literal} located in your home directory. It supports multiple registry

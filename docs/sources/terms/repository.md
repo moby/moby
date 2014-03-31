@@ -4,6 +4,8 @@ page_keywords: containers, lxc, concepts, explanation, image, repository, contai
 
 # Repository
 
+## Introduction
+
 A repository is a set of images either on your local Docker server, or
 shared, by pushing it to a [*Registry*](../registry/#registry-def)
 server.

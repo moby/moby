@@ -4,6 +4,8 @@ page_keywords: Examples, Usage, links, docker, documentation, examples, names, n
 
 # Link via an Ambassador Container
 
+## Introduction
+
 Rather than hardcoding network links between a service consumer and
 provider, Docker encourages service portability.
 

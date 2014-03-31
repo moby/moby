@@ -4,24 +4,27 @@ page_keywords: Examples, Usage, volume, docker, documentation, examples
 
 # Share Directories via Volumes
 
+## Introduction
+
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
 System*](../../terms/layer/#ufs-def) to provide several useful features
 for persistent or shared data:
 
--   **Data volumes can be shared and reused between containers.** This
-    is the feature that makes data volumes so powerful. You can use it
-    for anything from hot database upgrades to custom backup or
-    replication tools. See the example below.
--   **Changes to a data volume are made directly**, without the overhead
-    of a copy-on-write mechanism. This is good for very large files.
--   **Changes to a data volume will not be included at the next commit**
-    because they are not recorded as regular filesystem changes in the
-    top layer of the [*Union File System*](../../terms/layer/#ufs-def)
--   **Volumes persist until no containers use them** as they are a
-    reference counted resource. The container does not need to be
-    running to share its volumes, but running it can help protect it
-    against accidental removal via `docker rm`.
+- **Data volumes can be shared and reused between containers:**  
+  This is the feature that makes data volumes so powerful. You can
+  use it for anything from hot database upgrades to custom backup or
+  replication tools. See the example below.
+- **Changes to a data volume are made directly:**  
+  Without the overhead of a copy-on-write mechanism. This is good for
+  very large files.
+- **Changes to a data volume will not be included at the next commit:**  
+  Because they are not recorded as regular filesystem changes in the
+  top layer of the [*Union File System*](../../terms/layer/#ufs-def)
+- **Volumes persist until no containers use them:**  
+  As they are a reference counted resource. The container does not need to be
+  running to share its volumes, but running it can help protect it
+  against accidental removal via `docker rm`.
 
 Each container can have zero or more data volumes.
 

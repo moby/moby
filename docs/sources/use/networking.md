@@ -4,15 +4,16 @@ page_keywords: network, networking, bridge, docker, documentation
 
 # Configure Networking
 
+## Introduction
+
 Docker uses Linux bridge capabilities to provide network connectivity to
 containers. The `docker0` bridge interface is
 managed by Docker for this purpose. When the Docker daemon starts it :
 
--   creates the `docker0` bridge if not present
--   searches for an IP address range which doesn’t overlap with an
-    existing route
--   picks an IP in the selected range
--   assigns this IP to the `docker0` bridge
+- creates the `docker0` bridge if not present
+- searches for an IP address range which doesn’t overlap with an existing route
+- picks an IP in the selected range
+- assigns this IP to the `docker0` bridge
 
 <!-- -->
 

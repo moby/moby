@@ -5,8 +5,7 @@ page_keywords: systemd, upstart, supervisor, docker, documentation, host integra
 # Automatically Start Containers
 
 You can use your Docker containers with process managers like
-`upstart`, `systemd`{.docutils .literal} and
-`supervisor`.
+`upstart`, `systemd`{.docutils .literal} and `supervisor`.
 
 ## Introduction
 
