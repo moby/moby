@@ -797,13 +797,18 @@ func (runtime *Runtime) shutdown() error {
 	group := sync.WaitGroup{}
 	utils.Debugf("starting clean shutdown of all containers...")
 	for _, container := range runtime.List() {
-		if container.State.IsRunning() {
-			utils.Debugf("stopping %s", container.ID)
+		c := container
+		if c.State.IsRunning() {
+			utils.Debugf("stopping %s", c.ID)
 			group.Add(1)
 
 			go func() {
 				defer group.Done()
-				container.Stop(10)
+				if err := c.KillSig(15); err != nil {
+					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
+				}
+				c.Wait()
+				utils.Debugf("container stopped %s", c.ID)
 			}()
 		}
 	}
