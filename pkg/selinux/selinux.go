@@ -312,13 +312,10 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 	if !SelinuxEnabled() {
 		return "", ""
 	}
-	lxcPath := fmt.Sprintf("%s/content/lxc_contexts", GetSELinuxPolicyRoot())
-	fileLabel = "system_u:object_r:svirt_sandbox_file_t:s0"
-	processLabel = "system_u:system_r:svirt_lxc_net_t:s0"
-
+	lxcPath := fmt.Sprintf("%s/contexts/lxc_contexts", GetSELinuxPolicyRoot())
 	in, err := os.Open(lxcPath)
 	if err != nil {
-		goto exit
+		return "", ""
 	}
 	defer in.Close()
 
@@ -352,6 +349,11 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 			}
 		}
 	}
+
+	if processLabel == "" || fileLabel == "" {
+		return "", ""
+	}
+
 exit:
 	mcs := IntToMcs(os.Getpid(), 1024)
 	scon := NewContext(processLabel)
