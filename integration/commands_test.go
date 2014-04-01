@@ -1129,8 +1129,13 @@ func TestCmdKill(t *testing.T) {
 	})
 
 	setTimeout(t, "SIGUSR2 timed out", 2*time.Second, func() {
-		for i := 0; i < 10; i++ {
-			if err := cli2.CmdKill("--signal=USR2", container.ID); err != nil {
+		for i := 0; i < 20; i++ {
+			sig := "USR2"
+			if i%2 != 0 {
+				// Swap to testing "SIGUSR2" for every odd iteration
+				sig = "SIGUSR2"
+			}
+			if err := cli2.CmdKill("--signal="+sig, container.ID); err != nil {
 				t.Fatal(err)
 			}
 			if err := expectPipe("SIGUSR2", stdout); err != nil {
