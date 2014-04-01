@@ -1,9 +1,10 @@
 package runtime
 
 import (
+	"testing"
+
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"testing"
 )
 
 func TestMergeLxcConfig(t *testing.T) {

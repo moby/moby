@@ -2,12 +2,13 @@ package native
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/runtime/execdriver/native/configuration"
 	"github.com/dotcloud/docker/runtime/execdriver/native/template"
-	"os"
 )
 
 // createContainer populates and configures the container type with the
