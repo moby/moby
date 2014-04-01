@@ -5,7 +5,7 @@ import (
 )
 
 func assertVersion(t *testing.T, a, b string, result int) {
-	if r := Version(a).compareTo(b); r != result {
+	if r := Version(a).compareTo(Version(b)); r != result {
 		t.Fatalf("Unexpected version comparison result. Found %d, expected %d", r, result)
 	}
 }
