@@ -864,7 +864,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 	info.mountPath = path
 	info.floating = false
 
-	return devices.setInitialized(hash)
+	return devices.setInitialized(info)
 }
 
 func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
@@ -955,12 +955,7 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	return devinfo != nil && devinfo.Exists != 0
 }
 
-func (devices *DeviceSet) setInitialized(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
-
+func (devices *DeviceSet) setInitialized(info *DevInfo) error {
 	info.Initialized = true
 	if err := devices.saveMetadata(); err != nil {
 		info.Initialized = false
