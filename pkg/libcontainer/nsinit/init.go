@@ -58,6 +58,8 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := system.ParentDeathSignal(uintptr(syscall.SIGTERM)); err != nil {
 		return fmt.Errorf("parent death signal %s", err)
 	}
+
+	label.Init()
 	ns.logger.Println("setup mount namespace")
 	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot, container.Context["mount_label"]); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
