@@ -426,7 +426,7 @@ func (container *Container) Start() (err error) {
 	defer container.Unlock()
 
 	if container.State.IsRunning() {
-		return fmt.Errorf("The container %s is already running.", container.ID)
+		return nil
 	}
 
 	defer func() {

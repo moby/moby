@@ -2064,9 +2064,11 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s container_id", job.Name)
 	}
-	name := job.Args[0]
-	runtime := srv.runtime
-	container := runtime.Get(name)
+	var (
+		name      = job.Args[0]
+		runtime   = srv.runtime
+		container = runtime.Get(name)
+	)
 
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
