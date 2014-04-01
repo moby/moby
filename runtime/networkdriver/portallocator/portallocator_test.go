@@ -118,6 +118,19 @@ func TestAllocateAllPorts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// release a port in the middle and ensure we get another tcp port
+	port := BeginPortRange + 5
+	if err := ReleasePort(defaultIP, "tcp", port); err != nil {
+		t.Fatal(err)
+	}
+	newPort, err := RequestPort(defaultIP, "tcp", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newPort != port {
+		t.Fatalf("Expected port %d got %d", port, newPort)
+	}
 }
 
 func BenchmarkAllocatePorts(b *testing.B) {
