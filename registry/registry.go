@@ -437,11 +437,13 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
+	tarsumLayer := &utils.TarSum{Reader: layer}
 	h := sha256.New()
-	checksumLayer := &utils.CheckSum{Reader: layer, Hash: h}
-	tarsumLayer := &utils.TarSum{Reader: checksumLayer}
+	h.Write(jsonRaw)
+	h.Write([]byte{'\n'})
+	checksumLayer := &utils.CheckSum{Reader: tarsumLayer, Hash: h}
 
-	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
+	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", checksumLayer)
 	if err != nil {
 		return "", "", err
 	}
