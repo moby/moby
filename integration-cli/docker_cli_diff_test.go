@@ -64,3 +64,28 @@ func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 
 	logDone("diff - check if ignored files show up in diff")
 }
+
+func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sleep 0")
+	cid, _, err := runCommandWithOutput(runCmd)
+	errorOut(err, t, fmt.Sprintf("%s", err))
+	cleanCID := stripTrailingCharacters(cid)
+
+	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
+	out, _, err := runCommandWithOutput(diffCmd)
+	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+	go deleteContainer(cleanCID)
+
+	expected := map[string]bool{
+		"C /dev":      true,
+		"A /dev/full": true, // busybox
+		"C /dev/ptmx": true, // libcontainer
+		"A /dev/kmsg": true, // lxc
+	}
+
+	for _, line := range strings.Split(out, "\n") {
+		if line != "" && !expected[line] {
+			t.Errorf("'%s' is shown in the diff but shouldn't", line)
+		}
+	}
+}
