@@ -18,8 +18,8 @@ type (
 )
 
 var (
+	ErrAllPortsAllocated    = errors.New("all ports are allocated")
 	ErrPortAlreadyAllocated = errors.New("port has already been allocated")
-	ErrPortExceedsRange     = errors.New("port exceeds upper range")
 	ErrUnknownProtocol      = errors.New("unknown protocol")
 )
 
@@ -152,17 +152,21 @@ func equalsDefault(ip net.IP) bool {
 
 func findNextPort(proto string, allocated *collections.OrderedIntSet) (int, error) {
 	port := nextPort(proto)
+	startSearchPort := port
 	for allocated.Exists(port) {
 		port = nextPort(proto)
-	}
-	if port > EndPortRange {
-		return 0, ErrPortExceedsRange
+		if startSearchPort == port {
+			return 0, ErrAllPortsAllocated
+		}
 	}
 	return port, nil
 }
 
 func nextPort(proto string) int {
 	c := currentDynamicPort[proto] + 1
+	if c > EndPortRange {
+		c = BeginPortRange
+	}
 	currentDynamicPort[proto] = c
 	return c
 }

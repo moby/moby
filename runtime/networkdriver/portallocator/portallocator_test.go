@@ -110,8 +110,8 @@ func TestAllocateAllPorts(t *testing.T) {
 		}
 	}
 
-	if _, err := RequestPort(defaultIP, "tcp", 0); err != ErrPortExceedsRange {
-		t.Fatalf("Expected error %s got %s", ErrPortExceedsRange, err)
+	if _, err := RequestPort(defaultIP, "tcp", 0); err != ErrAllPortsAllocated {
+		t.Fatalf("Expected error %s got %s", ErrAllPortsAllocated, err)
 	}
 
 	_, err := RequestPort(defaultIP, "udp", 0)
