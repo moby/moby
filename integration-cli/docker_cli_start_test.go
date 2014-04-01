@@ -20,9 +20,8 @@ func TestDockerStartWithPortCollision(t *testing.T) {
 	}
 
 	startCmd := exec.Command(dockerBinary, "start", "-a", "fail")
-	out, stderr, exitCode, err = runCommandWithStdoutStderr(startCmd)
-	if err != nil && exitCode != 1 {
-		t.Fatal(out, err)
+	if _, _, _, err := runCommandWithStdoutStderr(startCmd); err == nil {
+		t.Fatalf("should receive a port confict error")
 	}
 
 	killCmd := exec.Command(dockerBinary, "kill", "conflict")
