@@ -1405,7 +1405,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 }
 
 // Retrieve the all the images to be uploaded in the correct order
-func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[string][]string, error) {
+func (srv *Server) getImageList(localRepo map[string]string, requestedTag string) ([]string, map[string][]string, error) {
 	var (
 		imageList   []string
 		imagesSeen  map[string]bool     = make(map[string]bool)
@@ -1413,6 +1413,9 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[stri
 	)
 
 	for tag, id := range localRepo {
+		if requestedTag != "" && requestedTag != tag {
+			continue
+		}
 		var imageListForThisTag []string
 
 		tagsByImage[id] = append(tagsByImage[id], tag)
@@ -1439,25 +1442,29 @@ func (srv *Server) getImageList(localRepo map[string]string) ([]string, map[stri
 		// append to main image list
 		imageList = append(imageList, imageListForThisTag...)
 	}
-
+	if len(imageList) == 0 {
+		return nil, nil, fmt.Errorf("No images found for the requested repository / tag")
+	}
 	utils.Debugf("Image list: %v", imageList)
 	utils.Debugf("Tags by image: %v", tagsByImage)
 
 	return imageList, tagsByImage, nil
 }
 
-func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, sf *utils.StreamFormatter) error {
+func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	utils.Debugf("Local repo: %s", localRepo)
-	imgList, tagsByImage, err := srv.getImageList(localRepo)
+	imgList, tagsByImage, err := srv.getImageList(localRepo, tag)
 	if err != nil {
 		return err
 	}
 
 	out.Write(sf.FormatStatus("", "Sending image list"))
 
-	var repoData *registry.RepositoryData
-	var imageIndex []*registry.ImgData
+	var (
+		repoData   *registry.RepositoryData
+		imageIndex []*registry.ImgData
+	)
 
 	for _, imgId := range imgList {
 		if tags, exists := tagsByImage[imgId]; exists {
@@ -1492,8 +1499,12 @@ func (srv *Server) pushRepository(r *registry.Registry, out io.Writer, localName
 		return err
 	}
 
+	nTag := 1
+	if tag == "" {
+		nTag = len(localRepo)
+	}
 	for _, ep := range repoData.Endpoints {
-		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, len(localRepo)))
+		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, nTag))
 
 		for _, imgId := range imgList {
 			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
@@ -1579,6 +1590,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 		metaHeaders map[string][]string
 	)
 
+	tag := job.Getenv("tag")
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 	if _, err := srv.poolAdd("push", localName); err != nil {
@@ -1604,11 +1616,14 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	}
 
 	if err != nil {
-		reposLen := len(srv.runtime.Repositories().Repositories[localName])
+		reposLen := 1
+		if tag == "" {
+			reposLen = len(srv.runtime.Repositories().Repositories[localName])
+		}
 		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
 		// If it fails, try to get the repository
 		if localRepo, exists := srv.runtime.Repositories().Repositories[localName]; exists {
-			if err := srv.pushRepository(r, job.Stdout, localName, remoteName, localRepo, sf); err != nil {
+			if err := srv.pushRepository(r, job.Stdout, localName, remoteName, localRepo, tag, sf); err != nil {
 				return job.Error(err)
 			}
 			return engine.StatusOK

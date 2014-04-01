@@ -1007,11 +1007,9 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
 ::
 
-    Usage: docker pull NAME
+    Usage: docker pull NAME[:TAG]
 
     Pull an image or a repository from the registry
-
-      -t, --tag="": Download tagged image in repository
 
 
 .. _cli_push:
@@ -1021,7 +1019,7 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
 ::
 
-    Usage: docker push NAME
+    Usage: docker push NAME[:TAG]
 
     Push an image or a repository to the registry
 

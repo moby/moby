@@ -1004,7 +1004,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := cli.Subcmd("push", "NAME", "Push an image or a repository to the registry")
+	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1017,8 +1017,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	cli.LoadConfigFile()
 
+	remote, tag := utils.ParseRepositoryTag(name)
+
 	// Resolve the Repository name from fqn to hostname + name
-	hostname, _, err := registry.ResolveRepositoryName(name)
+	hostname, _, err := registry.ResolveRepositoryName(remote)
 	if err != nil {
 		return err
 	}
@@ -1037,6 +1039,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	v := url.Values{}
+	v.Set("tag", tag)
 	push := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
@@ -1046,7 +1049,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 			base64.URLEncoding.EncodeToString(buf),
 		}
 
-		return cli.stream("POST", "/images/"+name+"/push?"+v.Encode(), nil, cli.out, map[string][]string{
+		return cli.stream("POST", "/images/"+remote+"/push?"+v.Encode(), nil, cli.out, map[string][]string{
 			"X-Registry-Auth": registryAuthHeader,
 		})
 	}

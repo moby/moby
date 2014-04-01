@@ -517,6 +517,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	job := eng.Job("push", vars["name"])
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
+	job.Setenv("tag", r.Form.Get("tag"))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
 		streamJSON(job, w, true)
