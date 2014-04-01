@@ -418,7 +418,23 @@ instruction.  For example:
 
 The output of the final ``pwd`` command in this Dockerfile would be ``/a/b/c``.
 
-3.11 ONBUILD
+3.12 INTERACTIVE
+----------------
+
+    ``INTERACTIVE true``
+
+The ``INTERACTIVE`` instruction keeps stdin open when running the
+image.
+
+3.13 TTY
+--------
+
+    ``TTY true``
+
+The ``TTY`` instruction allocates a pseudo-tty when running the
+image.
+
+3.14 ONBUILD
 ------------
 
     ``ONBUILD [INSTRUCTION]``
