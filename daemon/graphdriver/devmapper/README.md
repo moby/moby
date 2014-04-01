@@ -125,3 +125,19 @@ Here is the list of supported options:
     Example use:
 
     ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
+
+ *  `dm.blkdiscard`
+
+    Enables or disables the use of blkdiscard when removing
+    devicemapper devices. This is enabled by default (only) if using
+    loopback devices and is required to res-parsify the loopback file
+    on image/container removal.
+
+    Disabling this on loopback can lead to *much* faster container
+    removal times, but will make the space used in /var/lib/docker
+    directory not be returned to the system for other use when
+    containers are removed.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.blkdiscard=false``
