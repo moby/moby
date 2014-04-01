@@ -54,11 +54,6 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-	// this is our best effort to let the process know that the parent has died and that it
-	// should it should act on it how it sees fit
-	if err := system.ParentDeathSignal(uintptr(syscall.SIGTERM)); err != nil {
-		return fmt.Errorf("parent death signal %s", err)
-	}
 	if err := setupNetwork(container, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}

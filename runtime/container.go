@@ -915,7 +915,6 @@ func (container *Container) Stop(seconds int) error {
 
 	// 1. Send a SIGTERM
 	if err := container.KillSig(15); err != nil {
-		utils.Debugf("Error sending kill SIGTERM: %s", err)
 		log.Print("Failed to send SIGTERM to the process, force killing")
 		if err := container.KillSig(9); err != nil {
 			return err

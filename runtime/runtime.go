@@ -174,6 +174,7 @@ func (runtime *Runtime) Register(container *Container) error {
 		if container.State.IsGhost() {
 			utils.Debugf("killing ghost %s", container.ID)
 
+			existingPid := container.State.Pid
 			container.State.SetGhost(false)
 			container.State.SetStopped(0)
 
@@ -181,9 +182,23 @@ func (runtime *Runtime) Register(container *Container) error {
 			// no ghost processes are left when docker dies
 			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
 				lxc.KillLxc(container.ID, 9)
-				if err := container.Unmount(); err != nil {
-					utils.Debugf("ghost unmount error %s", err)
+			} else {
+				// use the current driver and ensure that the container is dead x.x
+				cmd := &execdriver.Command{
+					ID: container.ID,
 				}
+				var err error
+				cmd.Process, err = os.FindProcess(existingPid)
+				if err != nil {
+					utils.Debugf("cannot find existing process for %d", existingPid)
+				}
+				runtime.execDriver.Terminate(cmd)
+			}
+			if err := container.Unmount(); err != nil {
+				utils.Debugf("ghost unmount error %s", err)
+			}
+			if err := container.ToDisk(); err != nil {
+				utils.Debugf("saving ghost state to disk %s", err)
 			}
 		}
 
@@ -778,8 +793,36 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 	return runtime, nil
 }
 
+func (runtime *Runtime) shutdown() error {
+	group := sync.WaitGroup{}
+	utils.Debugf("starting clean shutdown of all containers...")
+	for _, container := range runtime.List() {
+		c := container
+		if c.State.IsRunning() {
+			utils.Debugf("stopping %s", c.ID)
+			group.Add(1)
+
+			go func() {
+				defer group.Done()
+				if err := c.KillSig(15); err != nil {
+					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
+				}
+				c.Wait()
+				utils.Debugf("container stopped %s", c.ID)
+			}()
+		}
+	}
+	group.Wait()
+
+	return nil
+}
+
 func (runtime *Runtime) Close() error {
 	errorsStrings := []string{}
+	if err := runtime.shutdown(); err != nil {
+		utils.Errorf("runtime.shutdown(): %s", err)
+		errorsStrings = append(errorsStrings, err.Error())
+	}
 	if err := portallocator.ReleaseAll(); err != nil {
 		utils.Errorf("portallocator.ReleaseAll(): %s", err)
 		errorsStrings = append(errorsStrings, err.Error())
