@@ -59,3 +59,7 @@ func NetworkSetMaster(iface, master *net.Interface) error {
 func NetworkLinkDown(iface *net.Interface) error {
 	return ErrNotImplemented
 }
+
+func CreateBridge(name string, setMacAddr bool) error {
+	return ErrNotImplemented
+}
