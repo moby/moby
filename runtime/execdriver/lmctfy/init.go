@@ -1,14 +1,44 @@
 package lmctfy
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/syndtr/gocapability/capability"
+	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
 )
+
+func setupEnv(args *execdriver.InitArgs) error {
+	// Get env
+	var env []string
+	content, err := ioutil.ReadFile(".dockerenv")
+	if err != nil {
+		return fmt.Errorf("Unable to load environment variables: %v", err)
+	}
+	if err := json.Unmarshal(content, &env); err != nil {
+		return fmt.Errorf("Unable to unmarshal environment variables: %v", err)
+	}
+	// Propagate the plugin-specific container env variable
+	env = append(env, "container="+os.Getenv("container"))
+
+	args.Env = env
+
+	os.Clearenv()
+	for _, kv := range args.Env {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) == 1 {
+			parts = append(parts, "")
+		}
+		os.Setenv(parts[0], parts[1])
+	}
+
+	return nil
+}
 
 func setupHostname(args *execdriver.InitArgs) error {
 	hostname := getEnv(args, "HOSTNAME")
@@ -96,4 +126,19 @@ func getEnv(args *execdriver.InitArgs, key string) string {
 		}
 	}
 	return ""
+}
+
+// dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
+// the slave's fd is 0, or stdin
+func dupSlave(slave *os.File) error {
+	if err := system.Dup2(slave.Fd(), 0); err != nil {
+		return err
+	}
+	if err := system.Dup2(slave.Fd(), 1); err != nil {
+		return err
+	}
+	if err := system.Dup2(slave.Fd(), 2); err != nil {
+		return err
+	}
+	return nil
 }

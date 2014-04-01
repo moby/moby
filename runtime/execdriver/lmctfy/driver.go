@@ -24,25 +24,14 @@ const (
 type driver struct {
 }
 
-// dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
-// the slave's fd is 0, or stdin
-func dupSlave(slave *os.File) error {
-	if err := system.Dup2(slave.Fd(), 0); err != nil {
-		return err
-	}
-	if err := system.Dup2(slave.Fd(), 1); err != nil {
-		return err
-	}
-	if err := system.Dup2(slave.Fd(), 2); err != nil {
-		return err
-	}
-	return nil
-}
-
 func init() {
 	// This method gets invoked from docker init.
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		log := log.New(os.Stderr, "", log.Lshortfile)
+		if err := setupEnv(args); err != nil {
+			log.Println(err)
+			return err
+		}
 		if err := setupHostname(args); err != nil {
 			log.Println(err)
 			return err
@@ -112,6 +101,14 @@ func addFlag(args *[]string, flagName, value string) {
 	*args = append(*args, flagName, value)
 }
 
+func buildUserCmd(c *execdriver.Command) string {
+	cmd := []string{c.Entrypoint}
+	for _, arg := range c.Arguments {
+		cmd = append(cmd, strconv.Quote(arg))
+	}
+	return strings.Join(cmd, " ")
+}
+
 func buildDockerInitCmd(c *execdriver.Command, pipes *execdriver.Pipes) []string {
 	args := []string{"./" + path.Base(c.InitPath)}
 	if c.User != "" {
@@ -135,7 +132,7 @@ func buildDockerInitCmd(c *execdriver.Command, pipes *execdriver.Pipes) []string
 	if c.ConfigPath != "" {
 		addFlag(&args, "-root", c.ConfigPath)
 	}
-	args = append(args, c.Entrypoint+" "+strings.Join(c.Arguments, " "))
+	args = append(args, buildUserCmd(c))
 	return args
 }
 
@@ -166,17 +163,15 @@ func buildConsoleSetupWrapper(c *execdriver.Command) []string {
 	if c.Console == "" {
 		return cmd
 	}
-	cmd = append(cmd, fmt.Sprintf("mount --bind %s %s -o %s &&", c.Console, filepath.Join(c.Rootfs, "dev/console"), "nosuid,noexec,relatime"))
 	cmd = append(cmd, fmt.Sprintf("mount -t devpts devpts %s -o %s &&", filepath.Join(c.Rootfs, "dev/pts"), "nosuid,noexec,relatime,ptmxmode=0666"))
 	ptmx := filepath.Join(c.Rootfs, "dev/ptmx")
 	cmd = append(cmd, fmt.Sprintf("rm %s &&", ptmx))
 	cmd = append(cmd, fmt.Sprintf("ln -s %s %s &&", "pts/ptmx", ptmx))
 
-	devConsole := filepath.Join(c.Rootfs, "dev/console")
 	cmd = append(cmd, fmt.Sprintf("chmod 0600 %s &&", c.Console))
-	devConsoleMajorMinor := fmt.Sprintf("`ls -l %s | awk '{print $5 \" \" $6}'| sed s/,//`", c.Console)
-	cmd = append(cmd, fmt.Sprintf("mknod -m=0600 %s c %s;", devConsole, devConsoleMajorMinor))
-	cmd = append(cmd, fmt.Sprintf("mount --bind %s %s &&", c.Console, devConsole))
+	cmd = append(cmd, fmt.Sprintf("chown root %s &&", c.Console))
+	cmd = append(cmd, fmt.Sprintf("mount --bind %s %s -o %s &&", c.Console, filepath.Join(c.Rootfs, "dev/console"), "nosuid,noexec,relatime"))
+
 	return cmd
 }
 
@@ -202,7 +197,7 @@ func buildMountWrapper(c *execdriver.Command) []string {
 		cmd = append(cmd, buildMountCommand(mount.Source, absDestinationPath, mount.Writable, mount.Private)...)
 	}
 	const mountOpts = "nosuid,nodev,noexec,relatime"
-	cmd = append(cmd, fmt.Sprintf("mount -t tmpfs shm %s -o %s &&", filepath.Join(c.Rootfs, "dev/shm"), "size=65536k," + mountOpts))
+	cmd = append(cmd, fmt.Sprintf("mount -t tmpfs shm %s -o %s &&", filepath.Join(c.Rootfs, "dev/shm"), "size=65536k,"+mountOpts))
 	cmd = append(cmd, "umount /sys &&")
 	cmd = append(cmd, fmt.Sprintf("mount -t sysfs sysfs %s -o %s &&", filepath.Join(c.Rootfs, "sys"), mountOpts))
 	cmd = append(cmd, "umount /proc &&")
