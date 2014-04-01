@@ -313,7 +313,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	if oldInfo != nil && !oldInfo.Initialized {
 		utils.Debugf("Removing uninitialized base image")
-		if err := devices.deleteDevice(""); err != nil {
+		if err := devices.deleteDevice(oldInfo); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
@@ -592,12 +592,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	return nil
 }
 
-func (devices *DeviceSet) deleteDevice(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("hash %s doesn't exists", hash)
-	}
-
+func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
 	// manually
@@ -652,7 +647,7 @@ func (devices *DeviceSet) DeleteDevice(hash string) error {
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
-	return devices.deleteDevice(hash)
+	return devices.deleteDevice(info)
 }
 
 func (devices *DeviceSet) deactivatePool() error {
