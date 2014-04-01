@@ -7,10 +7,10 @@ import (
 
 type Version string
 
-func (me Version) compareTo(other string) int {
+func (me Version) compareTo(other Version) int {
 	var (
 		meTab    = strings.Split(string(me), ".")
-		otherTab = strings.Split(other, ".")
+		otherTab = strings.Split(string(other), ".")
 	)
 	for i, s := range meTab {
 		var meInt, otherInt int
@@ -31,22 +31,22 @@ func (me Version) compareTo(other string) int {
 	return 0
 }
 
-func (me Version) LessThan(other string) bool {
+func (me Version) LessThan(other Version) bool {
 	return me.compareTo(other) == -1
 }
 
-func (me Version) LessThanOrEqualTo(other string) bool {
+func (me Version) LessThanOrEqualTo(other Version) bool {
 	return me.compareTo(other) <= 0
 }
 
-func (me Version) GreaterThan(other string) bool {
+func (me Version) GreaterThan(other Version) bool {
 	return me.compareTo(other) == 1
 }
 
-func (me Version) GreaterThanOrEqualTo(other string) bool {
+func (me Version) GreaterThanOrEqualTo(other Version) bool {
 	return me.compareTo(other) >= 0
 }
 
-func (me Version) Equal(other string) bool {
+func (me Version) Equal(other Version) bool {
 	return me.compareTo(other) == 0
 }

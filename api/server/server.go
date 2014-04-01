@@ -940,7 +940,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
-			if len(userAgent) == 2 && !dockerVersion.Equal(userAgent[1]) {
+			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
 				utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
 		}

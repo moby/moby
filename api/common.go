@@ -3,13 +3,17 @@ package api
 import (
 	"fmt"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/version"
 	"github.com/dotcloud/docker/utils"
 	"mime"
 	"strings"
 )
 
+var (
+	APIVERSION version.Version = "1.10"
+)
+
 const (
-	APIVERSION        = "1.10"
 	DEFAULTHTTPHOST   = "127.0.0.1"
 	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
 )
