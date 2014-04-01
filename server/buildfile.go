@@ -419,8 +419,20 @@ func (b *buildFile) addContext(container *runtime.Container, orig, dest string, 
 		return err
 	}
 
+	chownR := func(destPath string, uid, gid int) error {
+		return filepath.Walk(destPath, func(path string, info os.FileInfo, err error) error {
+			if err := os.Lchown(path, uid, gid); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
 	if fi.IsDir() {
 		if err := archive.CopyWithTar(origPath, destPath); err != nil {
+			return err
+		}
+		if err := chownR(destPath, 0, 0); err != nil {
 			return err
 		}
 		return nil
@@ -450,6 +462,10 @@ func (b *buildFile) addContext(container *runtime.Container, orig, dest string, 
 		return err
 	}
 	if err := archive.CopyWithTar(origPath, destPath); err != nil {
+		return err
+	}
+
+	if err := chownR(destPath, 0, 0); err != nil {
 		return err
 	}
 	return nil
@@ -486,27 +502,35 @@ func (b *buildFile) CmdAdd(args string) error {
 	)
 
 	if utils.IsURL(orig) {
+		// Initiate the download
 		isRemote = true
 		resp, err := utils.Download(orig)
 		if err != nil {
 			return err
 		}
+
+		// Create a tmp dir
 		tmpDirName, err := ioutil.TempDir(b.contextPath, "docker-remote")
 		if err != nil {
 			return err
 		}
+
+		// Create a tmp file within our tmp dir
 		tmpFileName := path.Join(tmpDirName, "tmp")
 		tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
 			return err
 		}
 		defer os.RemoveAll(tmpDirName)
-		if _, err = io.Copy(tmpFile, resp.Body); err != nil {
+
+		// Download and dump result to tmp file
+		if _, err := io.Copy(tmpFile, resp.Body); err != nil {
 			tmpFile.Close()
 			return err
 		}
-		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 		tmpFile.Close()
+
+		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// Process the checksum
 		r, err := archive.Tar(tmpFileName, archive.Uncompressed)
