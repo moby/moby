@@ -235,12 +235,8 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 	return info, nil
 }
 
-func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
-	utils.Debugf("activateDeviceIfNeeded(%v)", hash)
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
+func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
+	utils.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
 
 	if devinfo, _ := getInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
@@ -343,7 +339,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
-	if err = devices.activateDeviceIfNeeded(""); err != nil {
+	if err = devices.activateDeviceIfNeeded(info); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -605,7 +601,7 @@ func (devices *DeviceSet) deleteDevice(hash string) error {
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
 	// manually
-	if err := devices.activateDeviceIfNeeded(hash); err == nil {
+	if err := devices.activateDeviceIfNeeded(info); err == nil {
 		if err := BlockDeviceDiscard(info.DevName()); err != nil {
 			utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
 		}
@@ -858,7 +854,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 		return nil
 	}
 
-	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
@@ -1028,7 +1024,7 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 		TransactionId: info.TransactionId,
 	}
 
-	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
 		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
