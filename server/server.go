@@ -142,12 +142,8 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 		// The largest legal signal is 31, so let's parse on 5 bits
 		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
 		if err != nil {
-			// The signal is not a number, treat it as a string
-			sig = uint64(signal.SignalMap[job.Args[1]])
-			if sig == 0 && strings.HasPrefix(job.Args[1], "SIG") {
-				// If signal is prefixed with SIG, try with it stripped (ie, "SIGKILL", etc)
-				sig = uint64(signal.SignalMap[job.Args[1][3:]])
-			}
+			// The signal is not a number, treat it as a string (either like "KILL" or like "SIGKILL")
+			sig = uint64(signal.SignalMap[strings.TrimPrefix(job.Args[1], "SIG")])
 			if sig == 0 {
 				return job.Errorf("Invalid signal: %s", job.Args[1])
 			}
