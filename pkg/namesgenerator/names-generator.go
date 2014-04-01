@@ -83,7 +83,7 @@ func GenerateRandomName(checker NameChecker) (string, error) {
 	retry := 5
 	rand.Seed(time.Now().UnixNano())
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
-	for checker != nil && checker.Exists(name) && retry > 0 {
+	for checker != nil && checker.Exists(name) && retry > 0 || name == "boring_wozniak" /* Steve Wozniak is not boring */ {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
 		retry = retry - 1
 	}
