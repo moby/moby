@@ -27,7 +27,9 @@ func DropCapabilities(container *libcontainer.Container) error {
 func getCapabilitiesMask(container *libcontainer.Container) []capability.Cap {
 	drop := []capability.Cap{}
 	for _, c := range container.CapabilitiesMask {
-		drop = append(drop, c.Value)
+		if !c.Enabled {
+			drop = append(drop, c.Value)
+		}
 	}
 	return drop
 }

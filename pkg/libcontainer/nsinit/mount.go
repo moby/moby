@@ -32,11 +32,6 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
-	if readonly {
-		if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
-			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
-		}
-	}
 	if err := mountSystem(rootfs, mountLabel); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
@@ -79,6 +74,12 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	} else {
 		if err := rootPivot(rootfs); err != nil {
 			return err
+		}
+	}
+
+	if readonly {
+		if err := system.Mount("/", "/", "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
+			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
 		}
 	}
 

@@ -3,13 +3,14 @@
 package nsinit
 
 import (
+	"os"
+	"os/exec"
+	"syscall"
+
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
-	"os"
-	"os/exec"
-	"syscall"
 )
 
 // Exec performes setup outside of a namespace so that a container can be

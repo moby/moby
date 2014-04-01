@@ -30,9 +30,9 @@ lxc.pts = 1024
 
 # disable the main console
 lxc.console = none
-{{if getProcessLabel .Context}}
-lxc.se_context = {{ getProcessLabel .Context}}
-{{$MOUNTLABEL := getMountLabel .Context}}
+{{if .ProcessLabel}}
+lxc.se_context = {{ .ProcessLabel}}
+{{$MOUNTLABEL := .MountLabel}}
 {{end}}
 
 # no controlling tty at all
@@ -125,7 +125,7 @@ lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 
 {{if .Config.lxc}}
 {{range $value := .Config.lxc}}
-{{$value}}
+lxc.{{$value}}
 {{end}}
 {{end}}
 `
@@ -147,12 +147,23 @@ func getMemorySwap(v *execdriver.Resources) int64 {
 	return v.Memory * 2
 }
 
-func getProcessLabel(c execdriver.Context) string {
-	return c["process_label"]
+func getProcessLabel(c map[string][]string) string {
+	return getLabel(c, "process")
 }
 
-func getMountLabel(c execdriver.Context) string {
-	return c["mount_label"]
+func getMountLabel(c map[string][]string) string {
+	return getLabel(c, "mount")
+}
+
+func getLabel(c map[string][]string, name string) string {
+	label := c["label"]
+	for _, l := range label {
+		parts := strings.SplitN(l, "=", 2)
+		if strings.TrimSpace(parts[0]) == name {
+			return strings.TrimSpace(parts[1])
+		}
+	}
+	return ""
 }
 
 func init() {

@@ -404,7 +404,6 @@ func populateCommand(c *Container) {
 		User:       c.Config.User,
 		Config:     driverConfig,
 		Resources:  resources,
-		Context:    c.Config.Context,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }

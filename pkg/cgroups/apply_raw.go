@@ -49,6 +49,9 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	if err := raw.setupCpu(c, pid); err != nil {
 		return nil, err
 	}
+	if err := raw.setupCpuset(c, pid); err != nil {
+		return nil, err
+	}
 	return raw, nil
 }
 
@@ -170,6 +173,25 @@ func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
+func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
+	if c.CpusetCpus != "" {
+		dir, err := raw.join("cpuset", pid)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err != nil {
+				os.RemoveAll(dir)
+			}
+		}()
+
+		if err := writeFile(dir, "cpuset.cpus", c.CpusetCpus); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (raw *rawCgroup) Cleanup() error {
 	get := func(subsystem string) string {
 		path, _ := raw.path(subsystem)
@@ -180,6 +202,7 @@ func (raw *rawCgroup) Cleanup() error {
 		get("memory"),
 		get("devices"),
 		get("cpu"),
+		get("cpuset"),
 	} {
 		if path != "" {
 			os.RemoveAll(path)
