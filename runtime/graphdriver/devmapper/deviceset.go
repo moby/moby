@@ -666,20 +666,16 @@ func (devices *DeviceSet) deactivatePool() error {
 	return nil
 }
 
-func (devices *DeviceSet) deactivateDevice(hash string) error {
-	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
+func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
+	utils.Debugf("[devmapper] deactivateDevice(%s)", info.Hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
 
 	// Wait for the unmount to be effective,
 	// by watching the value of Info.OpenCount for the device
-	if err := devices.waitClose(hash); err != nil {
-		utils.Errorf("Warning: error waiting for device %s to close: %s\n", hash, err)
+	if err := devices.waitClose(info); err != nil {
+		utils.Errorf("Warning: error waiting for device %s to close: %s\n", info.Hash, err)
 	}
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
 	devinfo, err := getInfo(info.Name())
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -760,11 +756,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 // waitClose blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is closed,
 // or b) the 10 second timeout expires.
-func (devices *DeviceSet) waitClose(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
+func (devices *DeviceSet) waitClose(info *DevInfo) error {
 	i := 0
 	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(info.Name())
@@ -772,7 +764,7 @@ func (devices *DeviceSet) waitClose(hash string) error {
 			return err
 		}
 		if i%100 == 0 {
-			utils.Debugf("Waiting for unmount of %s: opencount=%d", hash, devinfo.OpenCount)
+			utils.Debugf("Waiting for unmount of %s: opencount=%d", info.Hash, devinfo.OpenCount)
 		}
 		if devinfo.OpenCount == 0 {
 			break
@@ -782,7 +774,7 @@ func (devices *DeviceSet) waitClose(hash string) error {
 		devices.Lock()
 	}
 	if i == 1000 {
-		return fmt.Errorf("Timeout while waiting for device %s to close", hash)
+		return fmt.Errorf("Timeout while waiting for device %s to close", info.Hash)
 	}
 	return nil
 }
@@ -805,15 +797,18 @@ func (devices *DeviceSet) Shutdown() error {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
 			}
 
-			if err := devices.deactivateDevice(info.Hash); err != nil {
+			if err := devices.deactivateDevice(info); err != nil {
 				utils.Debugf("Shutdown deactivate %s , error: %s\n", info.Hash, err)
 			}
 		}
 		info.lock.Unlock()
 	}
 
-	if err := devices.deactivateDevice(""); err != nil {
-		utils.Debugf("Shutdown deactivate base , error: %s\n", err)
+	info := devices.Devices[""]
+	if info != nil {
+		if err := devices.deactivateDevice(info); err != nil {
+			utils.Debugf("Shutdown deactivate base , error: %s\n", err)
+		}
 	}
 
 	if err := devices.deactivatePool(); err != nil {
@@ -920,7 +915,7 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 	}
 	utils.Debugf("[devmapper] Unmount done")
 
-	if err := devices.deactivateDevice(hash); err != nil {
+	if err := devices.deactivateDevice(info); err != nil {
 		return err
 	}
 
