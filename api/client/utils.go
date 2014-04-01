@@ -25,6 +25,7 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/pkg/version"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/utils"
 )
@@ -32,6 +33,12 @@ import (
 var (
 	ErrConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 )
+
+func init() {
+	if apiVersion := os.Getenv("DOCKER_API_VERSION"); apiVersion != "" {
+		api.APIVERSION = version.Version(apiVersion)
+	}
+}
 
 func (cli *DockerCli) dial() (net.Conn, error) {
 	if cli.tlsConfig != nil && cli.proto != "unix" {
