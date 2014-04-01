@@ -62,9 +62,6 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	}
 	// In non-privileged mode, this fails. Discard the error.
 	setupLoopbackDevices(rootfs)
-	if err := setupDev(rootfs); err != nil {
-		return err
-	}
 	if err := setupPtmx(rootfs, console, mountLabel); err != nil {
 		return err
 	}
@@ -168,30 +165,6 @@ func copyDevNode(rootfs, node string) error {
 	)
 	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("copy %s %s", node, err)
-	}
-	return nil
-}
-
-// setupDev symlinks the current processes pipes into the
-// appropriate destination on the containers rootfs
-func setupDev(rootfs string) error {
-	for _, link := range []struct {
-		from string
-		to   string
-	}{
-		{"/proc/kcore", "/dev/core"},
-		{"/proc/self/fd", "/dev/fd"},
-		{"/proc/self/fd/0", "/dev/stdin"},
-		{"/proc/self/fd/1", "/dev/stdout"},
-		{"/proc/self/fd/2", "/dev/stderr"},
-	} {
-		dest := filepath.Join(rootfs, link.to)
-		if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove %s %s", dest, err)
-		}
-		if err := os.Symlink(link.from, dest); err != nil {
-			return fmt.Errorf("symlink %s %s", dest, err)
-		}
 	}
 	return nil
 }
