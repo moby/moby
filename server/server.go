@@ -54,7 +54,7 @@ func InitServer(job *engine.Job) engine.Status {
 	gosignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
+		log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
 		utils.RemovePidFile(srv.runtime.Config().Pidfile)
 		srv.Close()
 		os.Exit(0)
