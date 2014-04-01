@@ -214,6 +214,14 @@ func (devices *DeviceSet) saveMetadata() error {
 	return nil
 }
 
+func (devices *DeviceSet) lookupDevice(hash string) (*DevInfo, error) {
+	info := devices.Devices[hash]
+	if info == nil {
+		return nil, fmt.Errorf("Unknown device %s", hash)
+	}
+	return info, nil
+}
+
 func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
 	utils.Debugf("registerDevice(%v, %v)", id, hash)
 	info := &DevInfo{
@@ -306,7 +314,7 @@ func (devices *DeviceSet) loadMetaData() error {
 }
 
 func (devices *DeviceSet) setupBaseImage() error {
-	oldInfo := devices.Devices[""]
+	oldInfo, _ := devices.lookupDevice("")
 	if oldInfo != nil && oldInfo.Initialized {
 		return nil
 	}
@@ -565,13 +573,13 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if devices.Devices[hash] != nil {
-		return fmt.Errorf("hash %s already exists", hash)
+	if info, _ := devices.lookupDevice(hash); info != nil {
+		return fmt.Errorf("device %s already exists", hash)
 	}
 
-	baseInfo := devices.Devices[baseHash]
-	if baseInfo == nil {
-		return fmt.Errorf("Error adding device for '%s': can't find device for parent '%s'", hash, baseHash)
+	baseInfo, err := devices.lookupDevice(baseHash)
+	if err != nil {
+		return err
 	}
 
 	baseInfo.lock.Lock()
@@ -639,9 +647,9 @@ func (devices *DeviceSet) DeleteDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
 	}
 
 	info.lock.Lock()
@@ -804,7 +812,7 @@ func (devices *DeviceSet) Shutdown() error {
 		info.lock.Unlock()
 	}
 
-	info := devices.Devices[""]
+	info, _ := devices.lookupDevice("")
 	if info != nil {
 		if err := devices.deactivateDevice(info); err != nil {
 			utils.Debugf("Shutdown deactivate base , error: %s\n", err)
@@ -822,9 +830,9 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
 	}
 
 	info.lock.Lock()
@@ -851,7 +859,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 	var flags uintptr = sysMsMgcVal
 
 	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	err := sysMount(info.DevName(), path, "ext4", flags, mountOptions)
+	err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	if err != nil && err == sysEInval {
 		mountOptions = label.FormatMountLabel(mountLabel, "")
 		err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
@@ -873,9 +881,9 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("UnmountDevice: no such device %s\n", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
 	}
 
 	info.lock.Lock()
@@ -928,14 +936,15 @@ func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	return devices.Devices[hash] != nil
+	info, _ := devices.lookupDevice(hash)
+	return info != nil
 }
 
 func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
+	info, _ := devices.lookupDevice(hash)
 	return info != nil && info.Initialized
 }
 
@@ -943,7 +952,7 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
+	info, _ := devices.lookupDevice(hash)
 	if info == nil {
 		return false
 	}
@@ -995,9 +1004,9 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return nil, fmt.Errorf("No device %s", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return nil, err
 	}
 
 	info.lock.Lock()
