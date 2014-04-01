@@ -51,7 +51,8 @@ type DevInfo struct {
 }
 
 type MetaData struct {
-	Devices map[string]*DevInfo `json:devices`
+	Devices     map[string]*DevInfo `json:devices`
+	devicesLock sync.Mutex          `json:"-"` // Protects all read/writes to Devices map
 }
 
 type DeviceSet struct {
@@ -179,7 +180,9 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 }
 
 func (devices *DeviceSet) saveMetadata() error {
+	devices.devicesLock.Lock()
 	jsonData, err := json.Marshal(devices.MetaData)
+	devices.devicesLock.Unlock()
 	if err != nil {
 		return fmt.Errorf("Error encoding metadata to json: %s", err)
 	}
@@ -215,6 +218,8 @@ func (devices *DeviceSet) saveMetadata() error {
 }
 
 func (devices *DeviceSet) lookupDevice(hash string) (*DevInfo, error) {
+	devices.devicesLock.Lock()
+	defer devices.devicesLock.Unlock()
 	info := devices.Devices[hash]
 	if info == nil {
 		return nil, fmt.Errorf("Unknown device %s", hash)
@@ -233,10 +238,15 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 		devices:       devices,
 	}
 
+	devices.devicesLock.Lock()
 	devices.Devices[hash] = info
+	devices.devicesLock.Unlock()
+
 	if err := devices.saveMetadata(); err != nil {
 		// Try to remove unused device
+		devices.devicesLock.Lock()
 		delete(devices.Devices, hash)
+		devices.devicesLock.Unlock()
 		return nil, err
 	}
 
@@ -632,10 +642,14 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 	}
 
 	devices.allocateTransactionId()
+	devices.devicesLock.Lock()
 	delete(devices.Devices, info.Hash)
+	devices.devicesLock.Unlock()
 
 	if err := devices.saveMetadata(); err != nil {
+		devices.devicesLock.Lock()
 		devices.Devices[info.Hash] = info
+		devices.devicesLock.Unlock()
 		utils.Debugf("Error saving meta data: %s\n", err)
 		return err
 	}
@@ -795,7 +809,15 @@ func (devices *DeviceSet) Shutdown() error {
 	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 
+	var devs []*DevInfo
+
+	devices.devicesLock.Lock()
 	for _, info := range devices.Devices {
+		devs = append(devs, info)
+	}
+	devices.devicesLock.Unlock()
+
+	for _, info := range devs {
 		info.lock.Lock()
 		if info.mountCount > 0 {
 			// We use MNT_DETACH here in case it is still busy in some running
@@ -979,12 +1001,15 @@ func (devices *DeviceSet) List() []string {
 	devices.Lock()
 	defer devices.Unlock()
 
+	devices.devicesLock.Lock()
 	ids := make([]string, len(devices.Devices))
 	i := 0
 	for k := range devices.Devices {
 		ids[i] = k
 		i++
 	}
+	devices.devicesLock.Unlock()
+
 	return ids
 }
 
