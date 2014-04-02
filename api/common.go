@@ -3,15 +3,16 @@ package api
 import (
 	"fmt"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/version"
 	"github.com/dotcloud/docker/utils"
 	"mime"
 	"strings"
 )
 
 const (
-	APIVERSION        = "1.10"
-	DEFAULTHTTPHOST   = "127.0.0.1"
-	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+	APIVERSION        version.Version = "1.10"
+	DEFAULTHTTPHOST                   = "127.0.0.1"
+	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
 )
 
 func ValidateHost(val string) (string, error) {
