@@ -506,7 +506,12 @@ func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 	}
 
 	if !filepath.IsAbs(dest) {
-		dest = filepath.Join("/", b.config.WorkingDir, dest)
+		newDest := filepath.Join("/", b.config.WorkingDir, dest)
+		if strings.HasSuffix(dest, "/") {
+			// preserve trailing slash
+			newDest += "/"
+		}
+		dest = newDest
 	}
 
 	cmd := b.config.Cmd
