@@ -1,6 +1,7 @@
 package beam
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
@@ -99,4 +100,14 @@ func Copy(dst Sender, src Receiver) (int, error) {
 	}
 	panic("impossibru!")
 	return n, nil
+}
+
+// MsgDesc returns a human readable description of a beam message, usually
+// for debugging purposes.
+func MsgDesc(payload []byte, attachment *os.File) string {
+	var filedesc string = "<nil>"
+	if attachment != nil {
+		filedesc = fmt.Sprintf("%d", attachment.Fd())
+	}
+	return fmt.Sprintf("'%s'[%s]", payload, filedesc)
 }

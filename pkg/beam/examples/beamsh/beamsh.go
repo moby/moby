@@ -851,13 +851,9 @@ func SendToConn(connections chan net.Conn, src beam.Receiver) error {
 	return nil
 }
 
-func msgDesc(payload []byte, attachment *os.File) string {
-	var filedesc string = "<nil>"
-	if attachment != nil {
-		filedesc = fmt.Sprintf("%d", attachment.Fd())
-	}
-	return fmt.Sprintf("'%s'[%s]", payload, filedesc)
 
+func msgDesc(payload []byte, attachment *os.File) string {
+	return beam.MsgDesc(payload, attachment)
 }
 
 func ReceiveFromConn(connections chan net.Conn, dst beam.Sender) error {
