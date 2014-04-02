@@ -124,6 +124,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"container_copy":   srv.ContainerCopy,
 		"insert":           srv.ImageInsert,
 		"attach":           srv.ContainerAttach,
+		"logs":             srv.ContainerLogs,
 		"search":           srv.ImagesSearch,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
@@ -2250,6 +2251,96 @@ func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
 		return engine.StatusOK
 	}
 	return job.Errorf("No such container: %s", name)
+}
+
+func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name   = job.Args[0]
+		stdout = job.GetenvBool("stdout")
+		stderr = job.GetenvBool("stderr")
+		follow = job.GetenvBool("follow")
+		times  = job.GetenvBool("timestamps")
+		format string
+	)
+	if !(stdout || stderr) {
+		return job.Errorf("You must choose at least one stream")
+	}
+	if times {
+		format = time.StampMilli
+	}
+	container := srv.daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	cLog, err := container.ReadLog("json")
+	if err != nil && os.IsNotExist(err) {
+		// Legacy logs
+		utils.Debugf("Old logs format")
+		if stdout {
+			cLog, err := container.ReadLog("stdout")
+			if err != nil {
+				utils.Errorf("Error reading logs (stdout): %s", err)
+			} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
+				utils.Errorf("Error streaming logs (stdout): %s", err)
+			}
+		}
+		if stderr {
+			cLog, err := container.ReadLog("stderr")
+			if err != nil {
+				utils.Errorf("Error reading logs (stderr): %s", err)
+			} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
+				utils.Errorf("Error streaming logs (stderr): %s", err)
+			}
+		}
+	} else if err != nil {
+		utils.Errorf("Error reading logs (json): %s", err)
+	} else {
+		dec := json.NewDecoder(cLog)
+		for {
+			l := &utils.JSONLog{}
+
+			if err := dec.Decode(l); err == io.EOF {
+				break
+			} else if err != nil {
+				utils.Errorf("Error streaming logs: %s", err)
+				break
+			}
+			logLine := l.Log
+			if times {
+				logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
+			}
+			if l.Stream == "stdout" && stdout {
+				fmt.Fprintf(job.Stdout, "%s", logLine)
+			}
+			if l.Stream == "stderr" && stderr {
+				fmt.Fprintf(job.Stderr, "%s", logLine)
+			}
+		}
+	}
+	if follow {
+		errors := make(chan error, 2)
+		if stdout {
+			stdoutPipe := container.StdoutLogPipe()
+			go func() {
+				errors <- utils.WriteLog(stdoutPipe, job.Stdout, format)
+			}()
+		}
+		if stderr {
+			stderrPipe := container.StderrLogPipe()
+			go func() {
+				errors <- utils.WriteLog(stderrPipe, job.Stderr, format)
+			}()
+		}
+		err := <-errors
+		if err != nil {
+			utils.Errorf("%s", err)
+		}
+	}
+	return engine.StatusOK
 }
 
 func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {

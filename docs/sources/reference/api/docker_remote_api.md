@@ -45,6 +45,10 @@ You can still call an old version of the api using
 You can now use the `-until` parameter to close connection
 after timestamp.
 
+`GET /containers/(id)/logs`
+
+This url is prefered method for getting container logs now.
+
 ### v1.10
 
 #### Full Documentation

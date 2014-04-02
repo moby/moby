@@ -341,18 +341,15 @@ func (r *bufReader) Close() error {
 type WriteBroadcaster struct {
 	sync.Mutex
 	buf     *bytes.Buffer
-	writers map[StreamWriter]bool
-}
-
-type StreamWriter struct {
-	wc     io.WriteCloser
-	stream string
+	streams map[string](map[io.WriteCloser]struct{})
 }
 
 func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
-	sw := StreamWriter{wc: writer, stream: stream}
-	w.writers[sw] = true
+	if _, ok := w.streams[stream]; !ok {
+		w.streams[stream] = make(map[io.WriteCloser]struct{})
+	}
+	w.streams[stream][writer] = struct{}{}
 	w.Unlock()
 }
 
@@ -362,33 +359,83 @@ type JSONLog struct {
 	Created time.Time `json:"time"`
 }
 
+func (jl *JSONLog) Format(format string) (string, error) {
+	if format == "" {
+		return jl.Log, nil
+	}
+	if format == "json" {
+		m, err := json.Marshal(jl)
+		return string(m), err
+	}
+	return fmt.Sprintf("[%s] %s", jl.Created.Format(format), jl.Log), nil
+}
+
+func WriteLog(src io.Reader, dst io.WriteCloser, format string) error {
+	dec := json.NewDecoder(src)
+	for {
+		l := &JSONLog{}
+
+		if err := dec.Decode(l); err == io.EOF {
+			return nil
+		} else if err != nil {
+			Errorf("Error streaming logs: %s", err)
+			return err
+		}
+		line, err := l.Format(format)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(dst, "%s", line)
+	}
+}
+
+type LogFormatter struct {
+	wc         io.WriteCloser
+	timeFormat string
+}
+
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
+	created := time.Now().UTC()
 	w.Lock()
 	defer w.Unlock()
+	if writers, ok := w.streams[""]; ok {
+		for sw := range writers {
+			if n, err := sw.Write(p); err != nil || n != len(p) {
+				// On error, evict the writer
+				delete(writers, sw)
+			}
+		}
+	}
 	w.buf.Write(p)
-	for sw := range w.writers {
-		lp := p
-		if sw.stream != "" {
-			lp = nil
-			for {
-				line, err := w.buf.ReadString('\n')
+	lines := []string{}
+	for {
+		line, err := w.buf.ReadString('\n')
+		if err != nil {
+			w.buf.Write([]byte(line))
+			break
+		}
+		lines = append(lines, line)
+	}
+
+	if len(lines) != 0 {
+		for stream, writers := range w.streams {
+			if stream == "" {
+				continue
+			}
+			var lp []byte
+			for _, line := range lines {
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: stream, Created: created})
 				if err != nil {
-					w.buf.Write([]byte(line))
-					break
-				}
-				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now().UTC()})
-				if err != nil {
-					// On error, evict the writer
-					delete(w.writers, sw)
-					continue
+					Errorf("Error making JSON log line: %s", err)
 				}
 				lp = append(lp, b...)
 				lp = append(lp, '\n')
 			}
-		}
-		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
-			// On error, evict the writer
-			delete(w.writers, sw)
+			for sw := range writers {
+				if _, err := sw.Write(lp); err != nil {
+					delete(writers, sw)
+				}
+			}
 		}
 	}
 	return len(p), nil
@@ -397,15 +444,20 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 func (w *WriteBroadcaster) CloseWriters() error {
 	w.Lock()
 	defer w.Unlock()
-	for sw := range w.writers {
-		sw.wc.Close()
+	for _, writers := range w.streams {
+		for w := range writers {
+			w.Close()
+		}
 	}
-	w.writers = make(map[StreamWriter]bool)
+	w.streams = make(map[string](map[io.WriteCloser]struct{}))
 	return nil
 }
 
 func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[StreamWriter]bool), buf: bytes.NewBuffer(nil)}
+	return &WriteBroadcaster{
+		streams: make(map[string](map[io.WriteCloser]struct{})),
+		buf:     bytes.NewBuffer(nil),
+	}
 }
 
 func GetTotalUsedFds() int {
