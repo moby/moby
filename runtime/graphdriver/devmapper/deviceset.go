@@ -47,11 +47,17 @@ type DevInfo struct {
 	// sometimes release that lock while sleeping. In that case
 	// this per-device lock is still held, protecting against
 	// other accesses to the device that we're doing the wait on.
+	//
+	// WARNING: In order to avoid AB-BA deadlocks when releasing
+	// the global lock while holding the per-device locks all
+	// device locks must be aquired *before* the device lock, and
+	// multiple device locks should be aquired parent before child.
 	lock sync.Mutex `json:"-"`
 }
 
 type MetaData struct {
-	Devices map[string]*DevInfo `json:devices`
+	Devices     map[string]*DevInfo `json:devices`
+	devicesLock sync.Mutex          `json:"-"` // Protects all read/writes to Devices map
 }
 
 type DeviceSet struct {
@@ -179,7 +185,9 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 }
 
 func (devices *DeviceSet) saveMetadata() error {
+	devices.devicesLock.Lock()
 	jsonData, err := json.Marshal(devices.MetaData)
+	devices.devicesLock.Unlock()
 	if err != nil {
 		return fmt.Errorf("Error encoding metadata to json: %s", err)
 	}
@@ -214,6 +222,16 @@ func (devices *DeviceSet) saveMetadata() error {
 	return nil
 }
 
+func (devices *DeviceSet) lookupDevice(hash string) (*DevInfo, error) {
+	devices.devicesLock.Lock()
+	defer devices.devicesLock.Unlock()
+	info := devices.Devices[hash]
+	if info == nil {
+		return nil, fmt.Errorf("Unknown device %s", hash)
+	}
+	return info, nil
+}
+
 func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
 	utils.Debugf("registerDevice(%v, %v)", id, hash)
 	info := &DevInfo{
@@ -225,22 +243,23 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 		devices:       devices,
 	}
 
+	devices.devicesLock.Lock()
 	devices.Devices[hash] = info
+	devices.devicesLock.Unlock()
+
 	if err := devices.saveMetadata(); err != nil {
 		// Try to remove unused device
+		devices.devicesLock.Lock()
 		delete(devices.Devices, hash)
+		devices.devicesLock.Unlock()
 		return nil, err
 	}
 
 	return info, nil
 }
 
-func (devices *DeviceSet) activateDeviceIfNeeded(hash string) error {
-	utils.Debugf("activateDeviceIfNeeded(%v)", hash)
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
+func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
+	utils.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
 
 	if devinfo, _ := getInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
@@ -310,14 +329,14 @@ func (devices *DeviceSet) loadMetaData() error {
 }
 
 func (devices *DeviceSet) setupBaseImage() error {
-	oldInfo := devices.Devices[""]
+	oldInfo, _ := devices.lookupDevice("")
 	if oldInfo != nil && oldInfo.Initialized {
 		return nil
 	}
 
 	if oldInfo != nil && !oldInfo.Initialized {
 		utils.Debugf("Removing uninitialized base image")
-		if err := devices.deleteDevice(""); err != nil {
+		if err := devices.deleteDevice(oldInfo); err != nil {
 			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
@@ -343,7 +362,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
-	if err = devices.activateDeviceIfNeeded(""); err != nil {
+	if err = devices.activateDeviceIfNeeded(info); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -566,20 +585,20 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 }
 
 func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
-	devices.Lock()
-	defer devices.Unlock()
-
-	if devices.Devices[hash] != nil {
-		return fmt.Errorf("hash %s already exists", hash)
-	}
-
-	baseInfo := devices.Devices[baseHash]
-	if baseInfo == nil {
-		return fmt.Errorf("Error adding device for '%s': can't find device for parent '%s'", hash, baseHash)
+	baseInfo, err := devices.lookupDevice(baseHash)
+	if err != nil {
+		return err
 	}
 
 	baseInfo.lock.Lock()
 	defer baseInfo.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
+
+	if info, _ := devices.lookupDevice(hash); info != nil {
+		return fmt.Errorf("device %s already exists", hash)
+	}
 
 	deviceId := devices.allocateDeviceId()
 
@@ -596,16 +615,11 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	return nil
 }
 
-func (devices *DeviceSet) deleteDevice(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("hash %s doesn't exists", hash)
-	}
-
+func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
 	// manually
-	if err := devices.activateDeviceIfNeeded(hash); err == nil {
+	if err := devices.activateDeviceIfNeeded(info); err == nil {
 		if err := BlockDeviceDiscard(info.DevName()); err != nil {
 			utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
 		}
@@ -633,10 +647,14 @@ func (devices *DeviceSet) deleteDevice(hash string) error {
 	}
 
 	devices.allocateTransactionId()
+	devices.devicesLock.Lock()
 	delete(devices.Devices, info.Hash)
+	devices.devicesLock.Unlock()
 
 	if err := devices.saveMetadata(); err != nil {
+		devices.devicesLock.Lock()
 		devices.Devices[info.Hash] = info
+		devices.devicesLock.Unlock()
 		utils.Debugf("Error saving meta data: %s\n", err)
 		return err
 	}
@@ -645,18 +663,18 @@ func (devices *DeviceSet) deleteDevice(hash string) error {
 }
 
 func (devices *DeviceSet) DeleteDevice(hash string) error {
-	devices.Lock()
-	defer devices.Unlock()
-
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
 	}
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
-	return devices.deleteDevice(hash)
+	devices.Lock()
+	defer devices.Unlock()
+
+	return devices.deleteDevice(info)
 }
 
 func (devices *DeviceSet) deactivatePool() error {
@@ -675,20 +693,16 @@ func (devices *DeviceSet) deactivatePool() error {
 	return nil
 }
 
-func (devices *DeviceSet) deactivateDevice(hash string) error {
-	utils.Debugf("[devmapper] deactivateDevice(%s)", hash)
+func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
+	utils.Debugf("[devmapper] deactivateDevice(%s)", info.Hash)
 	defer utils.Debugf("[devmapper] deactivateDevice END")
 
 	// Wait for the unmount to be effective,
 	// by watching the value of Info.OpenCount for the device
-	if err := devices.waitClose(hash); err != nil {
-		utils.Errorf("Warning: error waiting for device %s to close: %s\n", hash, err)
+	if err := devices.waitClose(info); err != nil {
+		utils.Errorf("Warning: error waiting for device %s to close: %s\n", info.Hash, err)
 	}
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
 	devinfo, err := getInfo(info.Name())
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -769,11 +783,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 // waitClose blocks until either:
 // a) the device registered at <device_set_prefix>-<hash> is closed,
 // or b) the 10 second timeout expires.
-func (devices *DeviceSet) waitClose(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
+func (devices *DeviceSet) waitClose(info *DevInfo) error {
 	i := 0
 	for ; i < 1000; i += 1 {
 		devinfo, err := getInfo(info.Name())
@@ -781,7 +791,7 @@ func (devices *DeviceSet) waitClose(hash string) error {
 			return err
 		}
 		if i%100 == 0 {
-			utils.Debugf("Waiting for unmount of %s: opencount=%d", hash, devinfo.OpenCount)
+			utils.Debugf("Waiting for unmount of %s: opencount=%d", info.Hash, devinfo.OpenCount)
 		}
 		if devinfo.OpenCount == 0 {
 			break
@@ -791,20 +801,26 @@ func (devices *DeviceSet) waitClose(hash string) error {
 		devices.Lock()
 	}
 	if i == 1000 {
-		return fmt.Errorf("Timeout while waiting for device %s to close", hash)
+		return fmt.Errorf("Timeout while waiting for device %s to close", info.Hash)
 	}
 	return nil
 }
 
 func (devices *DeviceSet) Shutdown() error {
-	devices.Lock()
-	defer devices.Unlock()
 
 	utils.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
 	utils.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer utils.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
 
+	var devs []*DevInfo
+
+	devices.devicesLock.Lock()
 	for _, info := range devices.Devices {
+		devs = append(devs, info)
+	}
+	devices.devicesLock.Unlock()
+
+	for _, info := range devs {
 		info.lock.Lock()
 		if info.mountCount > 0 {
 			// We use MNT_DETACH here in case it is still busy in some running
@@ -814,35 +830,46 @@ func (devices *DeviceSet) Shutdown() error {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
 			}
 
-			if err := devices.deactivateDevice(info.Hash); err != nil {
+			devices.Lock()
+			if err := devices.deactivateDevice(info); err != nil {
 				utils.Debugf("Shutdown deactivate %s , error: %s\n", info.Hash, err)
 			}
+			devices.Unlock()
 		}
 		info.lock.Unlock()
 	}
 
-	if err := devices.deactivateDevice(""); err != nil {
-		utils.Debugf("Shutdown deactivate base , error: %s\n", err)
+	info, _ := devices.lookupDevice("")
+	if info != nil {
+		info.lock.Lock()
+		devices.Lock()
+		if err := devices.deactivateDevice(info); err != nil {
+			utils.Debugf("Shutdown deactivate base , error: %s\n", err)
+		}
+		devices.Unlock()
+		info.lock.Unlock()
 	}
 
+	devices.Lock()
 	if err := devices.deactivatePool(); err != nil {
 		utils.Debugf("Shutdown deactivate pool , error: %s\n", err)
 	}
+	devices.Unlock()
 
 	return nil
 }
 
 func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) error {
-	devices.Lock()
-	defer devices.Unlock()
-
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
 	}
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
 
 	if info.mountCount > 0 {
 		if path != info.mountPath {
@@ -858,14 +885,14 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 		return nil
 	}
 
-	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
 	var flags uintptr = sysMsMgcVal
 
 	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	err := sysMount(info.DevName(), path, "ext4", flags, mountOptions)
+	err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	if err != nil && err == sysEInval {
 		mountOptions = label.FormatMountLabel(mountLabel, "")
 		err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
@@ -878,22 +905,23 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 	info.mountPath = path
 	info.floating = false
 
-	return devices.setInitialized(hash)
+	return devices.setInitialized(info)
 }
 
 func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 	utils.Debugf("[devmapper] UnmountDevice(hash=%s, mode=%d)", hash, mode)
 	defer utils.Debugf("[devmapper] UnmountDevice END")
-	devices.Lock()
-	defer devices.Unlock()
 
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("UnmountDevice: no such device %s\n", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
 	}
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
 
 	if mode == UnmountFloat {
 		if info.floating {
@@ -929,7 +957,7 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 	}
 	utils.Debugf("[devmapper] Unmount done")
 
-	if err := devices.deactivateDevice(hash); err != nil {
+	if err := devices.deactivateDevice(info); err != nil {
 		return err
 	}
 
@@ -942,22 +970,20 @@ func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	return devices.Devices[hash] != nil
+	info, _ := devices.lookupDevice(hash)
+	return info != nil
 }
 
 func (devices *DeviceSet) HasInitializedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	info := devices.Devices[hash]
+	info, _ := devices.lookupDevice(hash)
 	return info != nil && info.Initialized
 }
 
 func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
-	devices.Lock()
-	defer devices.Unlock()
-
-	info := devices.Devices[hash]
+	info, _ := devices.lookupDevice(hash)
 	if info == nil {
 		return false
 	}
@@ -965,16 +991,14 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
+	devices.Lock()
+	defer devices.Unlock()
+
 	devinfo, _ := getInfo(info.Name())
 	return devinfo != nil && devinfo.Exists != 0
 }
 
-func (devices *DeviceSet) setInitialized(hash string) error {
-	info := devices.Devices[hash]
-	if info == nil {
-		return fmt.Errorf("Unknown device %s", hash)
-	}
-
+func (devices *DeviceSet) setInitialized(info *DevInfo) error {
 	info.Initialized = true
 	if err := devices.saveMetadata(); err != nil {
 		info.Initialized = false
@@ -989,12 +1013,15 @@ func (devices *DeviceSet) List() []string {
 	devices.Lock()
 	defer devices.Unlock()
 
+	devices.devicesLock.Lock()
 	ids := make([]string, len(devices.Devices))
 	i := 0
 	for k := range devices.Devices {
 		ids[i] = k
 		i++
 	}
+	devices.devicesLock.Unlock()
+
 	return ids
 }
 
@@ -1011,16 +1038,16 @@ func (devices *DeviceSet) deviceStatus(devName string) (sizeInSectors, mappedSec
 }
 
 func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
-	devices.Lock()
-	defer devices.Unlock()
-
-	info := devices.Devices[hash]
-	if info == nil {
-		return nil, fmt.Errorf("No device %s", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return nil, err
 	}
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
 
 	status := &DevStatus{
 		DeviceId:      info.DeviceId,
@@ -1028,7 +1055,7 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 		TransactionId: info.TransactionId,
 	}
 
-	if err := devices.activateDeviceIfNeeded(hash); err != nil {
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
 		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
