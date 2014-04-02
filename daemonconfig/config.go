@@ -1,10 +1,9 @@
 package daemonconfig
 
 import (
-	"net"
-
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runtime/networkdriver"
+	"net"
 )
 
 const (

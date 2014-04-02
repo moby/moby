@@ -312,7 +312,7 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 	if !SelinuxEnabled() {
 		return "", ""
 	}
-	lxcPath := fmt.Sprintf("%s/content/lxc_contexts", GetSELinuxPolicyRoot())
+	lxcPath := fmt.Sprintf("%s/contexts/lxc_contexts", GetSELinuxPolicyRoot())
 	in, err := os.Open(lxcPath)
 	if err != nil {
 		return "", ""
