@@ -1,6 +1,6 @@
-<div id="topmostnav" class="navbar navbar-static-top">
-    <div class="navbar-inner">
+<div id="topmostnav" class="navbar-collapse collapse navbar-static-top">
 	    <a class="brand" href="/" title="{{ site_name }}"><img src="http://www.docker.io/static/img/docker-top-logo.png"> </a>
+    <div class="navbar-inner">
             <ul class="nav navbar-nav pull-right">
                 <li><a href="/" title="Homepage">Home</a></li>
                 <li class=""><a href="/learn_more/" title="Learn more about Docker">Learn More</a></li>
@@ -20,17 +20,17 @@
         <!-- Collapsed navigation -->
         <div class="navbar-header">
             <!-- Expander button -->
-            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+	    <a class="pull-left navbar-toggle navbar-brand"  data-toggle="collapse" data-target="#topmostnav" href="#">{{ site_name }}</a>
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#docsnav">
                 <span class="sr-only">Toggle navigation</span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-
         </div>
 
         <!-- Expanded navigation -->
-        <div class="navbar-collapse collapse">
+        <div id="docsnav" class="navbar-collapse collapse">
             <!-- Main navigation -->
             <ul class="nav navbar-nav">
             {% for nav_item in nav %}
