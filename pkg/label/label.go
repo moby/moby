@@ -21,3 +21,6 @@ func SetFileLabel(path string, fileLabel string) error {
 func GetPidCon(pid int) (string, error) {
 	return "", nil
 }
+
+func Init() {
+}

@@ -67,3 +67,7 @@ func SetFileLabel(path string, fileLabel string) error {
 func GetPidCon(pid int) (string, error) {
 	return selinux.Getpidcon(pid)
 }
+
+func Init() {
+	selinux.SelinuxEnabled()
+}

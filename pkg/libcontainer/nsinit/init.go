@@ -57,6 +57,8 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := setupNetwork(container, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
+
+	label.Init()
 	ns.logger.Println("setup mount namespace")
 	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot, container.Context["mount_label"]); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
