@@ -28,7 +28,4 @@ WORKDIR	/docs
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000
 
-# Setup s3cmd config
-ADD	s3cfg  /.s3cfg
-
 CMD 	["mkdocs", "serve"]
