@@ -32,8 +32,8 @@ lxc.pts = 1024
 lxc.console = none
 {{if getProcessLabel .Context}}
 lxc.se_context = {{ getProcessLabel .Context}}
-{{$MOUNTLABEL := getMountLabel .Context}}
 {{end}}
+{{$MOUNTLABEL := getMountLabel .Context}}
 
 # no controlling tty at all
 lxc.tty = 1
@@ -90,8 +90,8 @@ lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noe
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
 {{end}}
 
-lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" "$MOUNTLABEL"}} 0 0
-lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" "$MOUNTLABEL"}} 0 0
+lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" $MOUNTLABEL}} 0 0
+lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" $MOUNTLABEL}} 0 0
 
 {{range $value := .Mounts}}
 {{if $value.Writable}}
