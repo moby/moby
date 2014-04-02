@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
@@ -823,6 +824,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 func (srv *Server) DockerVersion(job *engine.Job) engine.Status {
 	v := &engine.Env{}
 	v.Set("Version", dockerversion.VERSION)
+	v.SetJson("ApiVersion", api.APIVERSION)
 	v.Set("GitCommit", dockerversion.GITCOMMIT)
 	v.Set("GoVersion", goruntime.Version())
 	v.Set("Os", goruntime.GOOS)
