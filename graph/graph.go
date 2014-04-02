@@ -259,6 +259,7 @@ func SetupInitLayer(initLayer string) error {
 		"/etc/hosts":       "file",
 		"/etc/hostname":    "file",
 		"/dev/console":     "file",
+		"/etc/mtab":        "/proc/mounts",
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {
@@ -285,6 +286,10 @@ func SetupInitLayer(initLayer string) error {
 						return err
 					}
 					f.Close()
+				default:
+					if err := os.Symlink(typ, path.Join(initLayer, pth)); err != nil {
+						return err
+					}
 				}
 			} else {
 				return err
