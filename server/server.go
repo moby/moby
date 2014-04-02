@@ -54,11 +54,16 @@ func InitServer(job *engine.Job) engine.Status {
 	c := make(chan os.Signal, 1)
 	gosignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
-		utils.RemovePidFile(srv.runtime.Config().Pidfile)
-		srv.Close()
-		os.Exit(0)
+		for sig := range c {
+			log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
+			switch sig {
+			case os.Interrupt, syscall.SIGTERM:
+				utils.RemovePidFile(srv.runtime.Config().Pidfile)
+				srv.Close()
+			case syscall.SIGQUIT:
+			}
+			os.Exit(128 + int(sig.(syscall.Signal)))
+		}
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
