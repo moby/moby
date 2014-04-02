@@ -17,7 +17,17 @@ func TestVersionEnsureSucceeds(t *testing.T) {
 		t.Fatal("failed to execute docker version")
 	}
 
-	stringsToCheck := []string{"Client version:", "Go version (client):", "Git commit (client):", "Server version:", "Git commit (server):", "Go version (server):", "Last stable version:"}
+	stringsToCheck := []string{
+		"Client version:",
+		"Client API version:",
+		"Go version (client):",
+		"Git commit (client):",
+		"Server version:",
+		"Server API version:",
+		"Git commit (server):",
+		"Go version (server):",
+		"Last stable version:",
+	}
 
 	for _, linePrefix := range stringsToCheck {
 		if !strings.Contains(out, linePrefix) {
