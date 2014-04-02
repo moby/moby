@@ -1133,8 +1133,6 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate images used to build)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-	flViz := cmd.Bool([]string{"v", "#viz", "-viz"}, false, "Output graph in graphviz format")
-	flTree := cmd.Bool([]string{"t", "#tree", "-tree"}, false, "Output graph in tree format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1146,189 +1144,60 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	filter := cmd.Arg(0)
 
-	if *flViz || *flTree {
-		body, _, err := readBody(cli.call("GET", "/images/json?all=1", nil, false))
-		if err != nil {
-			return err
+	v := url.Values{}
+	if cmd.NArg() == 1 {
+		v.Set("filter", filter)
+	}
+	if *all {
+		v.Set("all", "1")
+	}
+
+	body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
+
+	if err != nil {
+		return err
+	}
+
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	if !*quiet {
+		fmt.Fprintln(w, "NAME\tTAG\tCREATED\tVIRTUAL SIZE\tLAYER ID")
+	}
+	for _, e := range outs.Data {
+		id := e.Get("Id")
+		if !*noTrunc {
+			id = utils.TruncateID(id)
 		}
-
-		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadListFrom(body); err != nil {
-			return err
-		}
-
-		var (
-			printNode  func(cli *DockerCli, noTrunc bool, image *engine.Env, prefix string)
-			startImage *engine.Env
-
-			roots    = engine.NewTable("Created", outs.Len())
-			byParent = make(map[string]*engine.Table)
-		)
-
-		for _, image := range outs.Data {
-			if image.Get("ParentId") == "" {
-				roots.Add(image)
-			} else {
-				if children, exists := byParent[image.Get("ParentId")]; exists {
-					children.Add(image)
-				} else {
-					byParent[image.Get("ParentId")] = engine.NewTable("Created", 1)
-					byParent[image.Get("ParentId")].Add(image)
-				}
-			}
-
-			if filter != "" {
-				if filter == image.Get("Id") || filter == utils.TruncateID(image.Get("Id")) {
-					startImage = image
-				}
-
-				for _, repotag := range image.GetList("RepoTags") {
-					if repotag == filter {
-						startImage = image
-					}
-				}
-			}
-		}
-
-		if *flViz {
-			fmt.Fprintf(cli.out, "digraph docker {\n")
-			printNode = (*DockerCli).printVizNode
-		} else {
-			printNode = (*DockerCli).printTreeNode
-		}
-
-		if startImage != nil {
-			root := engine.NewTable("Created", 1)
-			root.Add(startImage)
-			cli.WalkTree(*noTrunc, root, byParent, "", printNode)
-		} else if filter == "" {
-			cli.WalkTree(*noTrunc, roots, byParent, "", printNode)
-		}
-		if *flViz {
-			fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")
-		}
-	} else {
-		v := url.Values{}
-		if cmd.NArg() == 1 {
-			v.Set("filter", filter)
-		}
-		if *all {
-			v.Set("all", "1")
-		}
-
-		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
-
-		if err != nil {
-			return err
-		}
-
-		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadListFrom(body); err != nil {
-			return err
-		}
-
-		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "NAME\tTAG\tCREATED\tVIRTUAL SIZE\tLAYER ID")
-		}
-		for _, e := range outs.Data {
-			id := e.Get("Id")
-			if !*noTrunc {
-				id = utils.TruncateID(id)
+			name := e.Get("Name")
+			if name == "" {
+				name = "<none>"
 			}
-			if !*quiet {
-				name := e.Get("Name")
-				if name == "" {
-					name = "<none>"
-				}
-				tag := e.Get("Tag")
-				if tag == "" {
-					tag = "<none>"
-				}
-				fmt.Fprintf(w, "%s\t%s\t%s ago\t%s\t%s\n",
-					name,
-					tag,
-					utils.HumanDuration(time.Now().UTC().Sub(time.Unix(e.GetInt64("Created"), 0))),
-					utils.HumanSize(e.GetInt64("VirtualSize")),
-					id,
-				)
+			tag := e.Get("Tag")
+			if tag == "" {
+				tag = "<none>"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s ago\t%s\t%s\n",
+				name,
+				tag,
+				utils.HumanDuration(time.Now().UTC().Sub(time.Unix(e.GetInt64("Created"), 0))),
+				utils.HumanSize(e.GetInt64("VirtualSize")),
+				id,
+			)
+		} else {
+			if name := e.Get("Name"); name != "" {
+				fmt.Fprintf(w, "%s:%s\n", name, e.Get("Tag"))
 			} else {
-				if name := e.Get("Name"); name != "" {
-					fmt.Fprintf(w, "%s:%s\n", name, e.Get("Tag"))
-				} else {
-					fmt.Fprintf(w, "%s\n", id)
-				}
+				fmt.Fprintf(w, "%s\n", id)
 			}
 		}
-		w.Flush()
 	}
+	w.Flush()
 	return nil
-}
-
-func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[string]*engine.Table, prefix string, printNode func(cli *DockerCli, noTrunc bool, image *engine.Env, prefix string)) {
-	length := images.Len()
-	if length > 1 {
-		for index, image := range images.Data {
-			if index+1 == length {
-				printNode(cli, noTrunc, image, prefix+"└─")
-				if subimages, exists := byParent[image.Get("Id")]; exists {
-					cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
-				}
-			} else {
-				printNode(cli, noTrunc, image, prefix+"\u251C─")
-				if subimages, exists := byParent[image.Get("Id")]; exists {
-					cli.WalkTree(noTrunc, subimages, byParent, prefix+"\u2502 ", printNode)
-				}
-			}
-		}
-	} else {
-		for _, image := range images.Data {
-			printNode(cli, noTrunc, image, prefix+"└─")
-			if subimages, exists := byParent[image.Get("Id")]; exists {
-				cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
-			}
-		}
-	}
-}
-
-func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix string) {
-	var (
-		imageID  string
-		parentID string
-	)
-	if noTrunc {
-		imageID = image.Get("Id")
-		parentID = image.Get("ParentId")
-	} else {
-		imageID = utils.TruncateID(image.Get("Id"))
-		parentID = utils.TruncateID(image.Get("ParentId"))
-	}
-	if parentID == "" {
-		fmt.Fprintf(cli.out, " base -> \"%s\" [style=invis]\n", imageID)
-	} else {
-		fmt.Fprintf(cli.out, " \"%s\" -> \"%s\"\n", parentID, imageID)
-	}
-	if name := image.Get("Name"); name != "" {
-		entryName := fmt.Sprintf("%s:%s", image.Get("Name"), image.Get("Tag"))
-		fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n", imageID, entryName)
-	}
-}
-
-func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix string) {
-	var imageID string
-	if noTrunc {
-		imageID = image.Get("Id")
-	} else {
-		imageID = utils.TruncateID(image.Get("Id"))
-	}
-
-	var entryName string
-	if name := image.Get("Name"); name != "" {
-		entryName = fmt.Sprintf("%s:%s", image.Get("Name"), image.Get("Tag"))
-	} else {
-		entryName = imageID
-	}
-	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s\n", prefix, entryName, utils.HumanSize(image.GetInt64("VirtualSize")))
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
