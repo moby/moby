@@ -394,6 +394,14 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 }
 
 func (b *buildFile) addContext(container *runtime.Container, orig, dest string, remote bool) error {
+	workingDir := "/"
+	if b.config.WorkingDir != "" {
+		workingDir = b.config.WorkingDir
+	}
+	if len(dest) > 0 && dest[0] == '.' {
+		dest = filepath.Join(workingDir, dest)
+	}
+
 	var (
 		err      error
 		origPath = path.Join(b.contextPath, orig)
