@@ -326,6 +326,35 @@ The copy obeys the following rules:
   written at ``<dest>``.
 * If ``<dest>`` doesn't exist, it is created along with all missing
   directories in its path.
+* If ``<src>`` is a URI with the scheme prefix of ``image://``, then followed
+  by the image name (including registry and/or tag, if needed), and has a
+  suffix of ``:`` and the path to be copied from. (i.e.
+  image://[registry[:port]]<name>[:tag]:<path> )
+
+A couple of examples on the usage of this ``image://`` in ``<src>``
+
+.. code-block:: bash
+
+    FROM scratch
+    ADD image://vbatts/fat-buildtime:/build/runtime/ /
+    ENTRYPOINT ["/runtime/bin/myapp"]
+
+Will copy the entire ``/build/runtime/`` directory, from the image
+``vbatts/fat-build``, to the root filesystem of the image being built.
+
+.. note::
+    If you build such a thin runtime, that does not provide ``/bin/sh``, then
+    the ``CMD`` instruction will fail
+
+.. code-block:: bash
+
+    FROM busybox
+    ADD image://my.registry.lan:5000/vbatts/fat-buildtime:stable:/build/runtime/bin/myapp /
+    CMD "/myapp"
+
+Will copy the file ``/build/runtime/bin/myapp`` from
+``my.registry.lan:5000/vbatts/fat-buildtime:stable`` image, to the root
+filesystem of the image being built.
 
 .. _dockerfile_entrypoint:
 
