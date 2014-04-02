@@ -1359,6 +1359,35 @@ ID may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
 in the same mode (read write or read only) as the reference container.
 
+The ``-a`` flag tells ``docker run`` to bind to the container's stdin, stdout
+or stderr. This makes it possible to manipulate the output and input as needed.
+
+.. code-block:: bash
+
+   $ sudo echo "test" | docker run -i -a stdin ubuntu cat -
+
+This pipes data into a container and prints the container's ID by attaching
+only to the container's stdin.
+
+.. code-block:: bash
+
+   $ sudo docker run -a stderr ubuntu echo test
+
+This isn't going to print anything unless there's an error because we've only
+attached to the stderr of the container. The container's logs still store
+what's been written to stderr and stdout.
+
+.. code-block:: bash
+
+   $ sudo cat somefile | docker run -i -a stdin mybuilder dobuild
+
+This is how piping a file into a container could be done for a build.
+The container's ID will be printed after the build is done and the build logs
+could be retrieved using ``docker logs``. This is useful if you need to pipe
+a file or something else into a container and retrieve the container's ID once
+the container has finished running.
+
+
 A complete example
 ..................
 
