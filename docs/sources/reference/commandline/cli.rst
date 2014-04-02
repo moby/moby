@@ -953,18 +953,6 @@ it will first return all logs from the beginning and then continue streaming
 new output from the container's stdout and stderr.
 
 
-.. _cli_port:
-
-``port``
---------
-
-::
-
-    Usage: docker port [OPTIONS] CONTAINER PRIVATE_PORT
-
-    Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
-
-
 .. _cli_ps:
 
 ``ps``

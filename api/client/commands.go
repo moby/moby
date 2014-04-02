@@ -25,7 +25,6 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
@@ -62,7 +61,6 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"load", "Load an image from a tar archive"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
-		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
@@ -758,44 +756,7 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPort(args ...string) error {
-	cmd := cli.Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() != 2 {
-		cmd.Usage()
-		return nil
-	}
-
-	var (
-		port      = cmd.Arg(1)
-		proto     = "tcp"
-		parts     = strings.SplitN(port, "/", 2)
-		container api.Container
-	)
-
-	if len(parts) == 2 && len(parts[1]) != 0 {
-		port = parts[0]
-		proto = parts[1]
-	}
-	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false))
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(body, &container)
-	if err != nil {
-		return err
-	}
-
-	if frontends, exists := container.NetworkSettings.Ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
-		for _, frontend := range frontends {
-			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
-		}
-	} else {
-		return fmt.Errorf("Error: No public port '%s' published for %s", cmd.Arg(1), cmd.Arg(0))
-	}
-	return nil
+	return fmt.Errorf("docker port was removed, please use inspect. (ie: docker inspect -f \"{{json .HostConfig.PortBindings}}\" [CONTAINER])")
 }
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
