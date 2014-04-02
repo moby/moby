@@ -36,6 +36,86 @@
 	    	#topmostnav {
 			margin-bottom: 0;
 	    	}
+		#topmostnav {
+			/* position: fixed; */
+			width: 100%;
+			height: 70px;
+			z-index: 10;
+			background-color: #f2f2f2;
+		}
+		#topmostnav ul li a {
+			  padding: 25px 15px 25px 15px;
+			    color: #777777;
+		}
+		#topmostnav .navbar-inner {
+			  padding-right: 0px;
+			    padding-left: 0px;
+		}
+		#topmostnav ul li.active {
+			  color: #555555;
+			    text-decoration: none;
+			      background-color: #d8d8d8;
+		}
+		#topmostnav ul li.active a:hover {
+			  background-color: #d8d8d8;
+		}
+		/* Horizontal Thin Sticky Menu */
+		#horizontal_thin_menu {
+			   position: fixed; 
+			    width: 100%;
+			      top: 70px;
+			        background-color: #5992a3;
+				  height: 30px;
+				    color: white;
+				      text-align: right;
+				        padding: 5px 10px;
+					  z-index: 10;
+		}
+		#horizontal_thin_menu a {
+			  display: inline-block;
+			    color: white;
+			      padding: 0px 10px;
+		}
+
+		/* Main Docs Navigaton Menu (Horizontal) */
+		#stickynav {
+			/*  position: fixed; */
+			    width: 100%;
+			/*      top: 100px;	*/
+			        background-color: #71afc0;
+		/*		  height: 50px; */
+				    padding: 0px 10px;
+				      color: white;
+				        z-index: 10;
+			background-image: url();
+		}
+		#stickynav ul .dropdown a {
+			  background-color: none;
+			    color: #fff;
+			      font-size: 18px;
+		}
+		#stickynav ul .dropdown a:hover {
+			  color: #5992a3;
+			    background-color: #f2f2f2;
+			      text-decoration: underline;
+		}
+		#stickynav ul .dropdown.active {
+			  background-color: #f2f2f2;
+			    text-decoration: underline;
+		}
+		#stickynav ul .dropdown.active a,
+		#stickynav ul .dropdown-menu a {
+			  color: #5992a3;
+		}
+		#stickynav .dropdown.searchbox {
+			  padding: 12px;
+		}
+		#stickynav .dropdown.searchbox input {
+			  color: #333;
+		}
+		#stickynav .navbar-right {
+			  margin-right: 0px;
+		}
 	    .navbar-index-search {
 		    padding-top: 13px;
 	    }
