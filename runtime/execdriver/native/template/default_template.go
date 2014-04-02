@@ -7,7 +7,7 @@ import (
 
 // New returns the docker default configuration for libcontainer
 func New() *libcontainer.Container {
-	return &libcontainer.Container{
+	container := &libcontainer.Container{
 		CapabilitiesMask: libcontainer.Capabilities{
 			libcontainer.GetCapability("SETPCAP"),
 			libcontainer.GetCapability("SYS_MODULE"),
@@ -23,6 +23,7 @@ func New() *libcontainer.Container {
 			libcontainer.GetCapability("MAC_OVERRIDE"),
 			libcontainer.GetCapability("MAC_ADMIN"),
 			libcontainer.GetCapability("NET_ADMIN"),
+			libcontainer.GetCapability("MKNOD"),
 		},
 		Namespaces: libcontainer.Namespaces{
 			libcontainer.GetNamespace("NEWNS"),
@@ -39,4 +40,6 @@ func New() *libcontainer.Container {
 			"apparmor_profile": "docker-default",
 		},
 	}
+	container.CapabilitiesMask.Get("MKNOD").Enabled = true
+	return container
 }
