@@ -32,9 +32,8 @@ lxc.pts = 1024
 lxc.console = none
 {{if .ProcessLabel}}
 lxc.se_context = {{ .ProcessLabel}}
-{{$MOUNTLABEL := .MountLabel}}
 {{end}}
-{{$MOUNTLABEL := getMountLabel .Context}}
+{{$MOUNTLABEL := .MountLabel}}
 
 # no controlling tty at all
 lxc.tty = 1
@@ -152,14 +151,6 @@ func getMemorySwap(v *execdriver.Resources) int64 {
 	return v.Memory * 2
 }
 
-func getProcessLabel(c map[string][]string) string {
-	return getLabel(c, "process")
-}
-
-func getMountLabel(c map[string][]string) string {
-	return getLabel(c, "mount")
-}
-
 func getLabel(c map[string][]string, name string) string {
 	label := c["label"]
 	for _, l := range label {
@@ -175,8 +166,6 @@ func init() {
 	var err error
 	funcMap := template.FuncMap{
 		"getMemorySwap":     getMemorySwap,
-		"getProcessLabel":   getProcessLabel,
-		"getMountLabel":     getMountLabel,
 		"escapeFstabSpaces": escapeFstabSpaces,
 		"formatMountLabel":  label.FormatMountLabel,
 	}
