@@ -824,7 +824,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 func (srv *Server) DockerVersion(job *engine.Job) engine.Status {
 	v := &engine.Env{}
 	v.Set("Version", dockerversion.VERSION)
-	v.Set("ApiVersion", api.APIVERSION)
+	v.SetJson("ApiVersion", api.APIVERSION)
 	v.Set("GitCommit", dockerversion.GITCOMMIT)
 	v.Set("GoVersion", goruntime.Version())
 	v.Set("Os", goruntime.GOOS)
