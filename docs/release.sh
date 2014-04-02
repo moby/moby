@@ -20,6 +20,9 @@ EOF
 #VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
 
+[ -e s3cfg ] || usage
+cp s3cfg ${HOME}/.s3cfg
+
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
 	s3cmd mb s3://$BUCKET 2>/dev/null || true
