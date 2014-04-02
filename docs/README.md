@@ -55,13 +55,13 @@ starts clean.
   ``../CONTRIBUTING.md``](../CONTRIBUTING.md)).
 * [Remember to sign your work!](../CONTRIBUTING.md#sign-your-work)
 * Work in your own fork of the code, we accept pull requests.
-* Change the ``.md`` files with your favourite editor -- try to keep the
+* Change the ``.md`` files with your favorite editor -- try to keep the
   lines short (80 chars) and respect Markdown conventions. 
 * Run ``make clean docs`` to clean up old files and generate new ones,
   or just ``make docs`` to update after small changes.
 * Your static website can now be found in the ``_build`` directory.
 * To preview what you have generated run ``make server`` and open
-  http://localhost:8000/ in your favourite browser.
+  http://localhost:8000/ in your favorite browser.
 
 ``make clean docs`` must complete without any warnings or errors.
 
