@@ -1230,8 +1230,11 @@ func TestDeleteImages(t *testing.T) {
 	}
 	images = getImages(eng, t, false, "")
 
-	if images.Len() != initialImages.Len() {
-		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
+	// 'docker images' lists names images only by default.
+	// So it doesn't matter anymore if the same underlying ID is named twice: that
+	// counts as 2 distinct images. Possible reuse of layers is an implementation detail.
+	if images.Len() != initialImages.Len() - 1 {
+		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len() - 1)
 	}
 }
 
