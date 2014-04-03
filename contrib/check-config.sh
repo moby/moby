@@ -5,10 +5,15 @@ set -e
 # see also https://github.com/lxc/lxc/blob/lxc-1.0.2/src/lxc/lxc-checkconfig.in
 
 : ${CONFIG:=/proc/config.gz}
-: ${GREP:=zgrep}
+
+if ! command -v zgrep &> /dev/null; then
+	zgrep() {
+		zcat "$2" | grep "$1"
+	}
+fi
 
 is_set() {
-	$GREP "CONFIG_$1=[y|m]" $CONFIG > /dev/null
+	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
 }
 
 # see http://en.wikipedia.org/wiki/ANSI_escape_code#Colors
