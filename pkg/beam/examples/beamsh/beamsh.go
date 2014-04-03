@@ -187,7 +187,7 @@ func executeCommand(out beam.Sender, cmd *dockerscript.Command) error {
 }
 
 
-type Handler func([]string, beam.Receiver, beam.Sender)
+type Handler func([]string, io.Writer, io.Writer, beam.Receiver, beam.Sender)
 
 
 func Handlers() (*beam.UnixConn, error) {
@@ -228,8 +228,18 @@ func Handlers() (*beam.UnixConn, error) {
 				if handler == nil {
 					return
 				}
+				stdout, err := beam.SendPipe(conn, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", cmd...).Bytes())
+				if err != nil {
+					return
+				}
+				defer stdout.Close()
+				stderr, err := beam.SendPipe(conn, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", cmd...).Bytes())
+				if err != nil {
+					return
+				}
+				defer stderr.Close()
 				Debugf("[handlers] calling %s\n", strings.Join(cmd, " "))
-				handler(cmd, beam.Receiver(conn), beam.Sender(conn))
+				handler(cmd, stdout, stderr, beam.Receiver(conn), beam.Sender(conn))
 				Debugf("[handlers] returned: %s\n", strings.Join(cmd, " "))
 			}(payload, conn)
 		}
@@ -242,17 +252,7 @@ func Handlers() (*beam.UnixConn, error) {
 
 func GetHandler(name string) Handler {
 	if name == "logger" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
-			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stdout.Close()
-			stderr, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stderr.Close()
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if err := os.MkdirAll("logs", 0700); err != nil {
 				fmt.Fprintf(stderr, "%v\n", err)
 				return
@@ -293,17 +293,7 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "render" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
-			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stdout.Close()
-			stderr, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stderr.Close()
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if len(args) != 2 {
 				fmt.Fprintf(stderr, "Usage: %s FORMAT\n", args[0])
 				out.Send(data.Empty().Set("status", "1").Bytes(), nil)
@@ -334,7 +324,7 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "devnull" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			for {
 				_, attachment, err := in.Receive()
 				if err != nil {
@@ -346,17 +336,7 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "prompt" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
-			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stdout.Close()
-			stderr, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stderr.Close()
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if len(args) < 2 {
 				fmt.Fprintf(stderr, "usage: %s PROMPT...\n", args[0])
 				return
@@ -379,17 +359,7 @@ func GetHandler(name string) Handler {
 			out.Send(data.Empty().Set("fromcmd", args...).Set("value", val).Bytes(), nil)
 		}
 	} else if name == "stdio" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
-			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stdout.Close()
-			stderr, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stderr.Close()
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			var tasks sync.WaitGroup
 			defer tasks.Wait()
 
@@ -412,16 +382,11 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "echo" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
-			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Bytes())
-			if err != nil {
-				return
-			}
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			fmt.Fprintln(stdout, strings.Join(args[1:], " "))
-			stdout.Close()
 		}
 	} else if name == "pass" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			for {
 				payload, attachment, err := in.Receive()
 				if err != nil {
@@ -436,24 +401,14 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "in" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			os.Chdir(args[1])
-			GetHandler("pass")([]string{"pass"}, in, out)
+			GetHandler("pass")([]string{"pass"}, stdout, stderr, in, out)
 		}
 	} else if name == "exec" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			cmd := exec.Command(args[1], args[2:]...)
-			stdout, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stdout.Close()
 			cmd.Stdout = stdout
-			stderr, err := beam.SendPipe(out, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", args...).Bytes())
-			if err != nil {
-				return
-			}
-			defer stderr.Close()
 			cmd.Stderr = stderr
 			cmd.Stdin = os.Stdin
 			execErr := cmd.Run()
@@ -466,7 +421,7 @@ func GetHandler(name string) Handler {
 			out.Send(data.Empty().Set("status", status).Set("cmd", args...).Bytes(), nil)
 		}
 	} else if name == "trace" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			for {
 				p, a, err := in.Receive()
 				if err != nil {
@@ -486,11 +441,11 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "emit" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			out.Send(data.Parse(args[1:]).Bytes(), nil)
 		}
 	} else if name == "print" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			for {
 				payload, a, err := in.Receive()
 				if err != nil {
@@ -513,7 +468,7 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "multiprint" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			var tasks sync.WaitGroup
 			for {
 				payload, a, err := in.Receive()
@@ -535,7 +490,7 @@ func GetHandler(name string) Handler {
 			tasks.Wait()
 		}
 	} else if name == "listen" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if len(args) != 2 {
 				out.Send(data.Empty().Set("status", "1").Set("message", "wrong number of arguments").Bytes(), nil)
 				return
@@ -565,7 +520,7 @@ func GetHandler(name string) Handler {
 			}
 		}
 	} else if name == "beamsend" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if len(args) < 2 {
 				if err := out.Send(data.Empty().Set("status", "1").Set("message", "wrong number of arguments").Bytes(), nil); err != nil {
 					Fatal(err)
@@ -583,7 +538,7 @@ func GetHandler(name string) Handler {
 			SendToConn(connections, in)
 		}
 	} else if name == "beamreceive" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if len(args) != 2 {
 				if err := out.Send(data.Empty().Set("status", "1").Set("message", "wrong number of arguments").Bytes(), nil); err != nil {
 					Fatal(err)
@@ -601,7 +556,7 @@ func GetHandler(name string) Handler {
 			ReceiveFromConn(connections, out)
 		}
 	} else if name == "connect" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			if len(args) != 2 {
 				out.Send(data.Empty().Set("status", "1").Set("message", "wrong number of arguments").Bytes(), nil)
 				return
@@ -650,7 +605,7 @@ func GetHandler(name string) Handler {
 			tasks.Wait()
 		}
 	} else if name == "openfile" {
-		return func(args []string, in beam.Receiver, out beam.Sender) {
+		return func(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 			for _, name := range args {
 				f, err := os.Open(name)
 				if err != nil {
