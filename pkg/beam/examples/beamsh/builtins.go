@@ -226,24 +226,24 @@ func CmdPrint(args []string, stdout, stderr io.Writer, in beam.Receiver, out bea
 
 func CmdMultiprint(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 	var tasks sync.WaitGroup
-	for {
-		payload, a, err := in.Receive()
-		if err != nil {
-			return
-		}
-		if a != nil {
-			tasks.Add(1)
-			go func(payload []byte, attachment *os.File) {
-				defer tasks.Done()
-				msg := data.Message(string(payload))
-				input := bufio.NewScanner(attachment)
-				for input.Scan() {
-					fmt.Printf("[%s] %s\n", msg.Pretty(), input.Text())
-				}
-			}(payload, a)
-		}
+	defer tasks.Wait()
+	r := beam.NewRouter(out)
+	multiprint := func(p []byte, a *os.File) error {
+		tasks.Add(1)
+		go func() {
+			defer tasks.Done()
+			defer a.Close()
+			msg := data.Message(string(p))
+			input := bufio.NewScanner(a)
+			for input.Scan() {
+				fmt.Printf("[%s] %s\n", msg.Pretty(), input.Text())
+			}
+		}()
+		return nil
 	}
-	tasks.Wait()
+	r.NewRoute().KeyIncludes("type", "job").Passthrough(out)
+	r.NewRoute().HasAttachment().Handler(multiprint).Tee(out)
+	beam.Copy(r, in)
 }
 
 func CmdListen(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {

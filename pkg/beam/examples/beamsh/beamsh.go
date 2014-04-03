@@ -153,7 +153,7 @@ func executeCommand(out beam.Sender, cmd *dockerscript.Command) error {
 		return fmt.Errorf("empty command")
 	}
 	Debugf("[executeCommand] sending job '%s'\n", strings.Join(cmd.Args, " "))
-	job, err := beam.SendConn(out, data.Empty().Set("cmd", cmd.Args...).Bytes())
+	job, err := beam.SendConn(out, data.Empty().Set("cmd", cmd.Args...).Set("type", "job").Bytes())
 	if err != nil {
 		return fmt.Errorf("%v\n", err)
 	}
