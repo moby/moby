@@ -16,6 +16,7 @@ import (
 // - Integration tests should have side-effects limited to the host environment being tested.
 
 func TestLogin(t *testing.T) {
+	t.Skip("FIXME: please remove dependency on external services")
 	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
 	authConfig := &registry.AuthConfig{
@@ -34,6 +35,7 @@ func TestLogin(t *testing.T) {
 }
 
 func TestCreateAccount(t *testing.T) {
+	t.Skip("FIXME: please remove dependency on external services")
 	tokenBuffer := make([]byte, 16)
 	_, err := rand.Read(tokenBuffer)
 	if err != nil {
