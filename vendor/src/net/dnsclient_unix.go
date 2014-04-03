@@ -157,9 +157,23 @@ func convertRR_AAAA(records []dnsRR) []IP {
 }
 
 var cfg *dnsConfig
+var cfgLock sync.RWMutex
+var cfgCond chan struct{}
 var dnserr error
 
-func loadConfig() { cfg, dnserr = dnsReadConfig() }
+func loadConfig() {
+	cfgCond = make(chan struct{})
+	cfg, dnserr = dnsReadConfig()
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			<-cfgCond
+			cfgLock.Lock()
+			cfg, dnserr = dnsReadConfig()
+			cfgLock.Unlock()
+		}
+	}()
+}
 
 var onceLoadConfig sync.Once
 
@@ -168,10 +182,18 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 		return name, nil, &DNSError{Err: "invalid domain name", Name: name}
 	}
 	onceLoadConfig.Do(loadConfig)
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	select {
+	case cfgCond <- struct{}{}:
+	default:
+	}
+
 	if dnserr != nil || cfg == nil {
 		err = dnserr
 		return
 	}
+
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.'
@@ -233,10 +255,13 @@ func goLookupHost(name string) (addrs []string, err error) {
 		return
 	}
 	onceLoadConfig.Do(loadConfig)
+	cfgLock.RLock()
 	if dnserr != nil || cfg == nil {
 		err = dnserr
+		cfgLock.RUnlock()
 		return
 	}
+	cfgLock.RUnlock()
 	ips, err := goLookupIP(name)
 	if err != nil {
 		return
@@ -268,10 +293,13 @@ func goLookupIP(name string) (addrs []IP, err error) {
 		}
 	}
 	onceLoadConfig.Do(loadConfig)
+	cfgLock.RLock()
 	if dnserr != nil || cfg == nil {
 		err = dnserr
+		cfgLock.RUnlock()
 		return
 	}
+	cfgLock.RUnlock()
 	var records []dnsRR
 	var cname string
 	var err4, err6 error
@@ -308,10 +336,13 @@ func goLookupIP(name string) (addrs []IP, err error) {
 // answers.
 func goLookupCNAME(name string) (cname string, err error) {
 	onceLoadConfig.Do(loadConfig)
+	cfgLock.RLock()
 	if dnserr != nil || cfg == nil {
 		err = dnserr
+		cfgLock.RUnlock()
 		return
 	}
+	cfgLock.RUnlock()
 	_, rr, err := lookup(name, dnsTypeCNAME)
 	if err != nil {
 		return
