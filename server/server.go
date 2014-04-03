@@ -2335,25 +2335,36 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 }
 
 func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
-	if len(job.Args) != 2 {
-		return job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
+	if len(job.Args) != 3 {
+		return job.Errorf("Usage: %s CONTAINER IN|OUT RESOURCE\n", job.Name)
 	}
 
 	var (
 		name     = job.Args[0]
-		resource = job.Args[1]
+		method   = job.Args[1]
+		resource = job.Args[2]
 	)
 
 	if container := srv.daemon.Get(name); container != nil {
 
-		data, err := container.Copy(resource)
-		if err != nil {
-			return job.Error(err)
-		}
-		defer data.Close()
+		switch method {
+		case "OUT":
+			data, err := container.CopyGet(resource)
+			if err != nil {
+				return job.Error(err)
+			}
+			defer data.Close()
 
-		if _, err := io.Copy(job.Stdout, data); err != nil {
-			return job.Error(err)
+			if _, err := io.Copy(job.Stdout, data); err != nil {
+				return job.Error(err)
+			}
+
+		case "IN":
+			if err := container.CopyPut(resource, job.Stdin); err != nil {
+				return job.Error(err)
+			}
+		default:
+			return fmt.Errorf("Unknown method: %s", method)
 		}
 		return engine.StatusOK
 	}

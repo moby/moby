@@ -2145,7 +2145,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
+	cmd := cli.Subcmd("cp", "[CONTAINER1:]PATHFROM [CONTAINER1:]PATHTO", "Copy files/folders from the PATHFROM to PATHTO")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -2155,32 +2155,45 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		return nil
 	}
 
-	var copyData engine.Env
-	info := strings.Split(cmd.Arg(0), ":")
+	var (
+		copyData engine.Env
+		info1    = strings.Split(cmd.Arg(0), ":")
+		info2    = strings.Split(cmd.Arg(1), ":")
+	)
+	if len(info1) == 2 && len(info2) == 2 { // container to container
+		fmt.Errorf("Error: container to container transfert not yet implemented")
+	} else if len(info1) == 2 { // container to host
+		copyData.Set("Resource", info1[1])
+		copyData.Set("HostPath", cmd.Arg(1))
 
-	if len(info) != 2 {
+		stream, statusCode, err := cli.call("POST", "/containers/"+info1[0]+"/copy", copyData, false)
+		if stream != nil {
+			defer stream.Close()
+		}
+		if statusCode == 404 {
+			return fmt.Errorf("No such container: %v", info1[0])
+		}
+		if err != nil {
+			return err
+		}
+
+		if statusCode == 200 {
+			if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
+				return err
+			}
+		}
+	} else if len(info2) == 2 { // host to container
+		tar, err := archive.Tar(cmd.Arg(0), archive.Uncompressed)
+		if err != nil {
+			return err
+		}
+		headers := http.Header(make(map[string][]string))
+		headers.Add("Resource", info2[1])
+		return cli.stream("PUT", "/containers/"+info2[0]+"/copy", tar, nil, headers)
+	} else {
 		return fmt.Errorf("Error: Path not specified")
 	}
 
-	copyData.Set("Resource", info[1])
-	copyData.Set("HostPath", cmd.Arg(1))
-
-	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, false)
-	if stream != nil {
-		defer stream.Close()
-	}
-	if statusCode == 404 {
-		return fmt.Errorf("No such container: %v", info[0])
-	}
-	if err != nil {
-		return err
-	}
-
-	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
