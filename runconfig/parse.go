@@ -224,7 +224,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		WorkingDir:      *flWorkingDir,
 	}
 
-	driverOptions, err := parseDriverOpts(flDriverOpts)
+	driverOptions, err := flDriverOpts.SplitAtDot()
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -250,25 +250,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
-}
-
-// options will come in the format of name.key=value or name.option
-func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
-	out := make(map[string][]string, len(opts.GetAll()))
-	for _, o := range opts.GetAll() {
-		parts := strings.SplitN(o, ".", 2)
-		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid opt format %s", o)
-		} else if strings.TrimSpace(parts[0]) == "" {
-			return nil, fmt.Errorf("key cannot be empty %s", o)
-		}
-		values, exists := out[parts[0]]
-		if !exists {
-			values = []string{}
-		}
-		out[parts[0]] = append(values, parts[1])
-	}
-	return out, nil
 }
 
 func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
