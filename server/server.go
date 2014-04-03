@@ -82,6 +82,7 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.runtime", srv.runtime)
 
+	// FIXME: 'insert' is deprecated and should be removed in a future version.
 	for name, handler := range map[string]engine.Handler{
 		"export":           srv.ContainerExport,
 		"create":           srv.ContainerCreate,
@@ -641,7 +642,9 @@ func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+// FIXME: 'insert' is deprecated and should be removed in a future version.
 func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
+	fmt.Fprintf(job.Stderr, "Warning: '%s' is deprecated and will be removed in a future version. Please use 'build' and 'ADD' instead.\n", job.Name)
 	if len(job.Args) != 3 {
 		return job.Errorf("Usage: %s IMAGE URL PATH\n", job.Name)
 	}
