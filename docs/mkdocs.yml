@@ -21,14 +21,19 @@ copyright: Copyright &copy; 2014, Docker.
 
 
 pages:
-- ['index.md', 'Home']
+
+# Introduction:
+- ['introduction/home.md', 'Introduction', 'Introduction Home']
+- ['introduction/understanding-docker.md', 'Introduction', 'Understanding Docker']
+- ['introduction/technology.md', 'Introduction', 'The Technology']
+- ['introduction/working-with-docker.md', 'Introduction', 'Working with Docker']
+- ['introduction/get-docker.md', 'Introduction', 'Get Docker']
+
 #- ['user-guide/writing-your-docs.md', 'User Guide', 'Writing your docs']
 #- ['user-guide/styling-your-docs.md', 'User Guide', 'Styling your docs']
 #- ['user-guide/configuration.md', 'User Guide', 'Configuration']
 #- ['about/license.md', 'About', 'License']
 #./faq.md
-
-
 
   #- ['reference/commandline/index.md', 'reference/commandline', 'index']
 - ['reference/commandline/cli.md', 'Reference Guide', 'Command Line']
