@@ -55,8 +55,6 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
-	// In non-privileged mode, this fails. Discard the error.
-	setupLoopbackDevices(rootfs)
 	if err := setupPtmx(rootfs, console, mountLabel); err != nil {
 		return err
 	}
@@ -138,19 +136,6 @@ func copyDevNodes(rootfs string) error {
 		if err := copyDevNode(rootfs, node); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func setupLoopbackDevices(rootfs string) error {
-	for i := 0; ; i++ {
-		if err := copyDevNode(rootfs, fmt.Sprintf("loop%d", i)); err != nil {
-			if !os.IsNotExist(err) {
-				return err
-			}
-			break
-		}
-
 	}
 	return nil
 }
