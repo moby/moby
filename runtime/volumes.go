@@ -81,8 +81,13 @@ func applyVolumesFrom(container *Container) error {
 
 			c := container.runtime.Get(specParts[0])
 			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
+				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", specParts[0])
 			}
+
+			if err := c.Mount(); err != nil {
+				return fmt.Errorf("Container %s failed to mount. Impossible to mount its volumes", specParts[0])
+			}
+			defer c.Unmount()
 
 			for volPath, id := range c.Volumes {
 				if _, exists := container.Volumes[volPath]; exists {
