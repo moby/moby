@@ -117,6 +117,41 @@ func (r *Route) KeyStartsWith(k string, beginning ...string) *Route {
 	return r
 }
 
+func (r *Route) KeyEquals(k string, full...string) *Route {
+	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
+		values := data.Message(payload).Get(k)
+		if len(values) != len(full) {
+			return false
+		}
+		for i, v := range full {
+			if v != values[i] {
+				return false
+			}
+		}
+		return true
+	})
+	return r
+}
+
+func (r *Route) KeyIncludes(k, v string) *Route {
+	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
+		for _, val := range data.Message(payload).Get(k) {
+			if val == v {
+				return true
+			}
+		}
+		return false
+	})
+	return r
+}
+
+func (r *Route) NoKey(k string) *Route {
+	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
+		return len(data.Message(payload).Get(k)) == 0
+	})
+	return r
+}
+
 func (r *Route) Passthrough(dst Sender) *Route {
 	r.handler = func(payload []byte, attachment *os.File) error {
 		return dst.Send(payload, attachment)
