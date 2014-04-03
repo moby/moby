@@ -335,14 +335,6 @@ func goLookupIP(name string) (addrs []IP, err error) {
 // depending on our lookup code, so that Go and C get the same
 // answers.
 func goLookupCNAME(name string) (cname string, err error) {
-	onceLoadConfig.Do(loadConfig)
-	cfgLock.RLock()
-	if dnserr != nil || cfg == nil {
-		err = dnserr
-		cfgLock.RUnlock()
-		return
-	}
-	cfgLock.RUnlock()
 	_, rr, err := lookup(name, dnsTypeCNAME)
 	if err != nil {
 		return
