@@ -29,18 +29,16 @@ func GenLabels(options string) (string, string, error) {
 }
 
 func FormatMountLabel(src string, MountLabel string) string {
-	var mountLabel string
-	if src != "" {
-		mountLabel = src
-		if MountLabel != "" {
-			mountLabel = fmt.Sprintf("%s,context=\"%s\"", mountLabel, MountLabel)
-		}
-	} else {
-		if MountLabel != "" {
-			mountLabel = fmt.Sprintf("context=\"%s\"", MountLabel)
+	if selinux.SelinuxEnabled() {
+		if src != "" {
+			if MountLabel != "" {
+				return fmt.Sprintf("%s,context=\"%s\"", src, MountLabel)
+			}
+		} else if MountLabel != "" {
+			return fmt.Sprintf("context=\"%s\"", MountLabel)
 		}
 	}
-	return mountLabel
+	return src
 }
 
 func SetProcessLabel(processLabel string) error {

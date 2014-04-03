@@ -34,10 +34,16 @@ var (
 	mcsList               = make(map[string]bool)
 	selinuxfs             = "unknown"
 	selinuxEnabled        = false
-	selinuxEnabledChecked = false
+	selinuxEnabledChecked = true
 )
 
 type SELinuxContext map[string]string
+
+func init() {
+	if os.Getenv("DOCKER_SELINUX") != "" {
+		selinuxEnabledChecked = false
+	}
+}
 
 func GetSelinuxMountPoint() string {
 	if selinuxfs != "unknown" {
