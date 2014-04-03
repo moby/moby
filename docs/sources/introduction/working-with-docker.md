@@ -1,12 +1,12 @@
 page_title: Working with Docker and the Dockerfile
 page_description: Working with Docker and The Dockerfile explained in depth
-page_keywords: docker, introduction, documentation, about, technology, understanding, dockerfile
+page_keywords: docker, introduction, documentation, about, technology, understanding, Dockerfile
 
 # Working with Docker and the Dockerfile
 
 *How to use and work with Docker and Docker's main element?*
 
-> **Warning! Don't let this long page bore you.**  
+> **Warning! Don't let this long page bore you.**
 > If you prefer a summary and would like to get started **_very 
 > quickly_**, you can check out the glossary of all available client
 > commands on our [User's Manual: Commands Reference](
@@ -14,21 +14,21 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 ## Introduction
 
-On the last page (i.e., [Page 2](technology.md)) we have covered the 
-parts forming Docker (e.g. the client and the daemon), studied the underlying
-technology and *how* everything works (i.e., the underlying technology). It
-should be clear how beneficial containers are compared to virtual-machines and
-how much Docker adds on top of plain LXC.
+On the last page (i.e., [Page 2](technology.md)) we covered the
+parts forming Docker (e.g. the client and the daemon), studied the
+underlying technology and *how* everything works (i.e., the underlying
+technology). It should be clear how beneficial containers are compared
+to virtual machines.
 
 Now, it is time to get practical and see *how to work with* the Docker client,
-Docker images and the Dockerfile (i.e., Docker's elements).
+Docker images and the `Dockerfile`.
 
 > **Note:** You are encouraged to take a good look at the container,
 > image and Dockerfile explanations here to have a better understanding
 > on what exactly they are and to get an overall idea on how to work with
 > them. On the next page (i.e., [Page 4](get-docker.md)), you will be
 > able to find links for platform-centric installation instructions and
-> also, more goal-oriented usage tutorials based on Dockerfiles.
+> also, more goal-oriented usage tutorials based on `Dockerfile`s.
 
 ## Elements of Docker
 
@@ -40,7 +40,7 @@ elements of Docker are:
  - The Dockerfile.
 
 > **Note:** This page is more *practical* than *technical*. If you are
-> interested in understanding how these tools work behind the scenes 
+> interested in understanding how these tools work behind the scenes
 > and do their job, you can always read more on
 > [Page 2: How Does Everything Work](technology.md).
 
