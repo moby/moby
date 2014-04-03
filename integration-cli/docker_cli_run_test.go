@@ -272,6 +272,24 @@ func TestDockerRunWithVolumesAsFiles(t *testing.T) {
 	logDone("run - regression test for #4741 - volumes from as files")
 }
 
+// Regression test for #4979
+func TestDockerRunWithVolumesFromExited(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
+	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil && exitCode != 0 {
+		t.Fatal("1", out, stderr, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--volumes-from", "test-data", "busybox", "cat", "/some/dir/file")
+	out, stderr, exitCode, err = runCommandWithStdoutStderr(runCmd)
+	if err != nil && exitCode != 0 {
+		t.Fatal("2", out, stderr, err)
+	}
+	deleteAllContainers()
+
+	logDone("run - regression test for #4979 - volumes-from on exited container")
+}
+
 // Regression test for #4830
 func TestDockerRunWithRelativePath(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-v", "tmp:/other-tmp", "busybox", "true")
