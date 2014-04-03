@@ -20,10 +20,12 @@ RUN	pip install MarkdownTools2
 ADD 	. /docs
 
 #build the sphinx html
-RUN	make -C /docs clean docs
+#RUN	make -C /docs clean docs
 
 WORKDIR	/docs
 
+#convert to markdown
+RUN	./convert.sh
 
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000
