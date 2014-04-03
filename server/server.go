@@ -54,15 +54,29 @@ func InitServer(job *engine.Job) engine.Status {
 	c := make(chan os.Signal, 1)
 	gosignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
+		interruptCount := 0
 		for sig := range c {
-			log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
-			switch sig {
-			case os.Interrupt, syscall.SIGTERM:
-				utils.RemovePidFile(srv.runtime.Config().Pidfile)
-				srv.Close()
-			case syscall.SIGQUIT:
-			}
-			os.Exit(128 + int(sig.(syscall.Signal)))
+			go func() {
+				log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
+				switch sig {
+				case os.Interrupt, syscall.SIGTERM:
+					// If the user really wants to interrupt, let him do so.
+					if interruptCount < 3 {
+						interruptCount++
+						// Initiate the cleanup only once
+						if interruptCount == 1 {
+							utils.RemovePidFile(srv.runtime.Config().Pidfile)
+							srv.Close()
+						} else {
+							return
+						}
+					} else {
+						log.Printf("Force shutdown of docker, interrupting cleanup\n")
+					}
+				case syscall.SIGQUIT:
+				}
+				os.Exit(128 + int(sig.(syscall.Signal)))
+			}()
 		}
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
