@@ -16,7 +16,6 @@ import (
 
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/api/server"
-	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
@@ -24,42 +23,6 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
-
-func TestGetVersion(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	var err error
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", "/version", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME getting the version should require an actual running Server
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	out := engine.NewOutput()
-	v, err := out.AddEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := io.Copy(out, r.Body); err != nil {
-		t.Fatal(err)
-	}
-	out.Close()
-	expected := dockerversion.VERSION
-	if result := v.Get("Version"); result != expected {
-		t.Errorf("Expected version %s, %s found", expected, result)
-	}
-	expected = "application/json"
-	if result := r.HeaderMap.Get("Content-Type"); result != expected {
-		t.Errorf("Expected Content-Type %s, %s found", expected, result)
-	}
-}
 
 func TestGetInfo(t *testing.T) {
 	eng := NewTestEngine(t)
