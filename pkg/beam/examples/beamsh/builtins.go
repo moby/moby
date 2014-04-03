@@ -188,23 +188,13 @@ func CmdExec(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam
 }
 
 func CmdTrace(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
-	for {
-		p, a, err := in.Receive()
-		if err != nil {
-			return
-		}
-		var msg string
-		if pretty := data.Message(string(p)).Pretty(); pretty != "" {
-			msg = pretty
-		} else {
-			msg = string(p)
-		}
-		if a != nil {
-			msg = fmt.Sprintf("%s [%d]", msg, a.Fd())
-		}
-		fmt.Printf("===> %s\n", msg)
-		out.Send(p, a)
-	}
+	r := beam.NewRouter(out)
+	r.NewRoute().All().Handler(func(payload []byte, attachment *os.File) error {
+		fmt.Printf("===> %s\n", beam.MsgDesc(payload, attachment))
+		out.Send(payload, attachment)
+		return nil
+	})
+	beam.Copy(r, in)
 }
 
 func CmdEmit(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
