@@ -68,7 +68,18 @@ easy. **See the** :ref:`installmirrors` **section below if you are not in
 the United States.** Other sources of the Debian packages may be
 faster for you to install.
 
-First add the Docker repository key to your local keychain.
+First, check that your APT system can deal with ``https`` URLs:
+the file ``/usr/lib/apt/methods/https`` should exist. If it doesn't,
+you need to install the package ``apt-transport-https``.
+
+.. code-block:: bash
+
+   [ -e /usr/lib/apt/methods/https ] || {
+     apt-get update
+     apt-get install apt-transport-https
+   }
+
+Then, add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
@@ -82,7 +93,7 @@ continue installation.*
 
 .. code-block:: bash
 
-   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main\
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
    sudo apt-get install lxc-docker
