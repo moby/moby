@@ -494,6 +494,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 		srcConfig := &runconfig.Config{
 			Image: srcInfo["name"],
+			Cmd:   []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)},
 		}
 		srcContainer, _, err := b.runtime.Create(srcConfig, "")
 		if err != nil {
