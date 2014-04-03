@@ -27,7 +27,7 @@ func (r *Router) Send(payload []byte, attachment *os.File) (err error) {
 		}
 	}
 	if r.sink != nil {
-		//fmt.Printf("[Router.Send] no match. sending to sink\n")
+		// fmt.Printf("[%d] [Router.Send] no match. sending %s to sink %#v\n", os.Getpid(), MsgDesc(payload, attachment), r.sink)
 		return r.sink.Send(payload, attachment)
 	}
 	//fmt.Printf("[Router.Send] no match. return error.\n")
@@ -101,9 +101,17 @@ func (route *Route) Tee(dst Sender) *Route {
 	return route
 }
 
+func (r *Route) Filter(f func([]byte, *os.File) bool) *Route {
+	r.rules = append(r.rules, f)
+	return r
+}
+
 func (r *Route) KeyStartsWith(k string, beginning ...string) *Route {
 	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
 		values := data.Message(payload).Get(k)
+		if values == nil {
+			return false
+		}
 		if len(values) < len(beginning) {
 			return false
 		}
@@ -116,6 +124,7 @@ func (r *Route) KeyStartsWith(k string, beginning ...string) *Route {
 	})
 	return r
 }
+
 
 func (r *Route) KeyEquals(k string, full...string) *Route {
 	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
@@ -148,6 +157,13 @@ func (r *Route) KeyIncludes(k, v string) *Route {
 func (r *Route) NoKey(k string) *Route {
 	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
 		return len(data.Message(payload).Get(k)) == 0
+	})
+	return r
+}
+
+func (r *Route) KeyExists(k string) *Route {
+	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
+		return data.Message(payload).Get(k) != nil
 	})
 	return r
 }

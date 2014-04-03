@@ -24,6 +24,11 @@ type SendCloser interface {
 	Close() error
 }
 
+type ReceiveSender interface {
+	Receiver
+	Sender
+}
+
 func SendPipe(dst Sender, data []byte) (*os.File, error) {
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -110,4 +115,21 @@ func MsgDesc(payload []byte, attachment *os.File) string {
 		filedesc = fmt.Sprintf("%d", attachment.Fd())
 	}
 	return fmt.Sprintf("'%s'[%s]", payload, filedesc)
+}
+
+type devnull struct{}
+
+func Devnull() ReceiveSender {
+	return devnull{}
+}
+
+func (d devnull) Send(p []byte, a *os.File) error {
+	if a != nil {
+		a.Close()
+	}
+	return nil
+}
+
+func (d devnull) Receive() ([]byte, *os.File, error) {
+	return nil, nil, io.EOF
 }

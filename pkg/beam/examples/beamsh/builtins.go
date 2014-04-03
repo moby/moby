@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/pkg/beam"
 	"github.com/dotcloud/docker/pkg/beam/data"
 	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/utils"
 	"text/template"
 	"fmt"
 	"sync"
@@ -167,6 +168,27 @@ func CmdPass(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam
 	}
 }
 
+func CmdSpawn(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
+	c := exec.Command(utils.SelfPath())
+	r, w, err := os.Pipe()
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return
+	}
+	c.Stdin = r
+	c.Stdout = stdout
+	c.Stderr = stderr
+	go func() {
+		fmt.Fprintf(w, strings.Join(args[1:], " "))
+		w.Sync()
+		w.Close()
+	}()
+	if err := c.Run(); err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return
+	}
+}
+
 func CmdIn(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 	os.Chdir(args[1])
 	GetHandler("pass")([]string{"pass"}, stdout, stderr, in, out)
@@ -176,8 +198,46 @@ func CmdExec(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam
 	cmd := exec.Command(args[1], args[2:]...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	cmd.Stdin = os.Stdin
+	//cmd.Stdin = os.Stdin
+	local, remote, err := beam.SocketPair()
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return
+	}
+	child, err := beam.FileConn(local)
+	if err != nil {
+		local.Close()
+		remote.Close()
+		fmt.Fprintf(stderr, "%v\n", err)
+		return
+	}
+	local.Close()
+	cmd.ExtraFiles = append(cmd.ExtraFiles, remote)
+
+	var tasks sync.WaitGroup
+	tasks.Add(1)
+	go func() {
+		defer Debugf("done copying to child\n")
+		defer tasks.Done()
+		defer child.CloseWrite()
+		beam.Copy(child, in)
+	}()
+
+	tasks.Add(1)
+	go func() {
+		defer Debugf("done copying from child %d\n")
+		defer tasks.Done()
+		r := beam.NewRouter(out)
+		r.NewRoute().All().Handler(func(p []byte, a *os.File) error {
+			return out.Send(data.Message(p).Set("pid", fmt.Sprintf("%d", cmd.Process.Pid)).Bytes(), a)
+		})
+		beam.Copy(r, child)
+	}()
 	execErr := cmd.Run()
+	// We can close both ends of the socket without worrying about data stuck in the buffer,
+	// because unix socket writes are fully synchronous.
+	child.Close()
+	tasks.Wait()
 	var status string
 	if execErr != nil {
 		status = execErr.Error()
@@ -190,7 +250,11 @@ func CmdExec(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam
 func CmdTrace(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 	r := beam.NewRouter(out)
 	r.NewRoute().All().Handler(func(payload []byte, attachment *os.File) error {
-		fmt.Printf("===> %s\n", beam.MsgDesc(payload, attachment))
+		var sfd string = "nil"
+		if attachment != nil {
+			sfd = fmt.Sprintf("%d", attachment.Fd())
+		}
+		fmt.Printf("===> %s [%s]\n", data.Message(payload).Pretty(), sfd)
 		out.Send(payload, attachment)
 		return nil
 	})
