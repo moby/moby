@@ -98,7 +98,7 @@ echo
 echo 'Generally Necessary:'
 
 echo -n '- '
-cgroupCpuDir="$(awk '/[, ]cpu[, ]/ && $8 == "cgroup" { print $5 }' /proc/$$/mountinfo | head -n1)"
+cgroupCpuDir="$(awk '/[, ]cpu([, ]|$)/ && $8 == "cgroup" { print $5 }' /proc/$$/mountinfo | head -n1)"
 cgroupDir="$(dirname "$cgroupCpuDir")"
 if [ -d "$cgroupDir/cpu" ]; then
 	echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
