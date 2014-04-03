@@ -56,7 +56,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
 		{"info", "Display system-wide information"},
-		{"insert", "Insert a file in an image"},
+		{"insert", "*deprecated* Insert a file in an image"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"load", "Load an image from a tar archive"},
@@ -85,6 +85,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	return nil
 }
 
+// FIXME: remove after one release
 func (cli *DockerCli) CmdInsert(args ...string) error {
 	cmd := cli.Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
@@ -94,6 +95,7 @@ func (cli *DockerCli) CmdInsert(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+	fmt.Fprintln(cli.err, "insert has been deprecated, to add files to an image use a Dockerfile and ADD your changes")
 
 	v := url.Values{}
 	v.Set("url", cmd.Arg(1))
