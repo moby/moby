@@ -50,7 +50,7 @@ Then, create an ``index.js`` file that defines a web app using the
       res.send('Hello World\n');
     });
 
-    app.listen(PORT)
+    app.listen(PORT);
     console.log('Running on http://localhost:' + PORT);
 
 
