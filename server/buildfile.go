@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -74,30 +75,34 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	}
 }
 
+func (b *buildFile) pullImage(name string) (*image.Image, error) {
+	remote, tag := utils.ParseRepositoryTag(name)
+	pullRegistryAuth := b.authConfig
+	if len(b.configFile.Configs) > 0 {
+		// The request came with a full auth config file, we prefer to use that
+		endpoint, _, err := registry.ResolveRepositoryName(remote)
+		if err != nil {
+			return nil, err
+		}
+		resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+		pullRegistryAuth = &resolvedAuth
+	}
+	job := b.srv.Eng.Job("pull", remote, tag)
+	job.SetenvBool("json", b.sf.Json())
+	job.SetenvBool("parallel", true)
+	job.SetenvJson("authConfig", pullRegistryAuth)
+	job.Stdout.Add(b.outOld)
+	if err := job.Run(); err != nil {
+		return nil, err
+	}
+	return b.runtime.Repositories().LookupImage(name)
+}
+
 func (b *buildFile) CmdFrom(name string) error {
 	image, err := b.runtime.Repositories().LookupImage(name)
 	if err != nil {
 		if b.runtime.Graph().IsNotExist(err) {
-			remote, tag := utils.ParseRepositoryTag(name)
-			pullRegistryAuth := b.authConfig
-			if len(b.configFile.Configs) > 0 {
-				// The request came with a full auth config file, we prefer to use that
-				endpoint, _, err := registry.ResolveRepositoryName(remote)
-				if err != nil {
-					return err
-				}
-				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
-				pullRegistryAuth = &resolvedAuth
-			}
-			job := b.srv.Eng.Job("pull", remote, tag)
-			job.SetenvBool("json", b.sf.Json())
-			job.SetenvBool("parallel", true)
-			job.SetenvJson("authConfig", pullRegistryAuth)
-			job.Stdout.Add(b.outOld)
-			if err := job.Run(); err != nil {
-				return err
-			}
-			image, err = b.runtime.Repositories().LookupImage(name)
+			image, err = b.pullImage(name)
 			if err != nil {
 				return err
 			}
@@ -479,7 +484,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	// ADD a path from an existing image, to the new build
 	if utils.IsIMAGE(orig) {
 		// 1) derive the host we are copying files from
-		// 2) TODO does the image exist locally, if not maybe 'pull' it?
+		// 2) does the image exist locally, if not maybe 'pull' it
 		// 3) mount up that image
 		// 4) tar up the src
 		// 4) copy files over to the new
@@ -489,7 +494,15 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		// Check if the image exists
 		if _, err = b.runtime.Repositories().LookupImage(srcInfo["name"]); err != nil {
-			return err
+			// the error is something besides the image not being present
+			if !b.runtime.Graph().IsNotExist(err) {
+				return err
+			}
+			// otherwise, pull the image
+			_, err = b.pullImage(srcInfo["name"])
+			if err != nil {
+				return err
+			}
 		}
 
 		srcConfig := &runconfig.Config{
