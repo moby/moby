@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -370,4 +372,85 @@ func TestCpUnprivilegedUser(t *testing.T) {
 	}
 
 	logDone("cp - unprivileged user")
+}
+
+func TestCopyContainerHost(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to create temp dir: %v", err))
+	}
+	defer os.RemoveAll(tmpDir)
+
+	containerCmd := `echo -n test > /foo`
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
+	cid, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	}
+	cleanCID := stripTrailingCharacters(cid)
+	time.Sleep(time.Second)
+	copyCmd := exec.Command(dockerBinary, "cp", fmt.Sprintf("%s:/foo", cleanCID), tmpDir+"/bar")
+
+	_, _, err = runCommandWithOutput(copyCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to copy from the container: %v", err))
+	}
+	file, err := os.Open(tmpDir + "/bar/foo")
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to open the temp file: %v", err))
+	}
+	defer file.Close()
+
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to read the temp file: %v", err))
+	}
+	if string(content) != "test" {
+		t.Errorf("the file wasn't copied")
+	}
+	go deleteContainer(cleanCID)
+
+	logDone("copy - check copy from container to host")
+}
+
+func TestCopyHostContainer(t *testing.T) {
+	tmpFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to create temp file: %v", err))
+	}
+	fmt.Fprintf(tmpFile, "test")
+	defer tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "ls")
+	cid, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	}
+	cleanCID := stripTrailingCharacters(cid)
+	time.Sleep(time.Second)
+	copyCmd := exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/foo", cleanCID))
+
+	_, _, err = runCommandWithOutput(copyCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to copy from the container: %v", err))
+	}
+
+	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
+	out, _, err := runCommandWithOutput(diffCmd)
+	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+
+	found := false
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains("A /foo", line) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("couldn't find the new file in docker diff's output: %v", out)
+	}
+	go deleteContainer(cleanCID)
+
+	logDone("copy - check copy from host to container")
 }
