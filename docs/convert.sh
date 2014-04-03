@@ -34,3 +34,8 @@ do
 done
 
 echo "# Docker documentation" > sources/index.md
+
+#annoyingly, there are lots of failures
+patch --fuzz 50 -t -p2 < pr4923.patch || true
+
+#TODO: need to de-unicode
