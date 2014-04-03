@@ -171,9 +171,12 @@ func loadConfig() {
 		for {
 			time.Sleep(5 * time.Second)
 			<-cfg.ch
-			cfg.mu.Lock()
-			cfg.dnsConfig, dnserr = dnsReadConfig()
-			cfg.mu.Unlock()
+			if ncfg, err := dnsReadConfig(); err == nil {
+				// In case of error, we keep the previous config
+				cfg.mu.Lock()
+				cfg.dnsConfig = ncfg
+				cfg.mu.Unlock()
+			}
 		}
 	}()
 }
