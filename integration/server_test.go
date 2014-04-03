@@ -30,8 +30,8 @@ func TestImageTagImageDelete(t *testing.T) {
 
 	images := getAllImages(eng, t)
 
-	nExpected := len(initialImages.Data[0].GetList("RepoTags")) + 3
-	nActual := len(images.Data[0].GetList("RepoTags"))
+	nExpected := len(initialImages.Data) + 3
+	nActual := len(images.Data)
 	if nExpected != nActual {
 		t.Errorf("Expected %d images, %d found", nExpected, nActual)
 	}
@@ -42,8 +42,8 @@ func TestImageTagImageDelete(t *testing.T) {
 
 	images = getAllImages(eng, t)
 
-	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 2
-	nActual = len(images.Data[0].GetList("RepoTags"))
+	nExpected = len(initialImages.Data) + 2
+	nActual = len(images.Data)
 	if nExpected != nActual {
 		t.Errorf("Expected %d images, %d found", nExpected, nActual)
 	}
@@ -54,8 +54,8 @@ func TestImageTagImageDelete(t *testing.T) {
 
 	images = getAllImages(eng, t)
 
-	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 1
-	nActual = len(images.Data[0].GetList("RepoTags"))
+	nExpected = len(initialImages.Data) + 1
+	nActual = len(images.Data)
 
 	if err := srv.DeleteImage("utest:tag1", engine.NewTable("", 0), true, false, false); err != nil {
 		t.Fatal(err)
@@ -593,7 +593,7 @@ func TestRmi(t *testing.T) {
 		if strings.Contains(unitTestImageID, image.Get("Id")) {
 			continue
 		}
-		if image.GetList("RepoTags")[0] == "<none>:<none>" {
+		if image.Get("Name") == "" {
 			t.Fatalf("Expected tagged image, got untagged one.")
 		}
 	}
@@ -617,25 +617,25 @@ func TestImagesFilter(t *testing.T) {
 
 	images := getImages(eng, t, false, "utest*/*")
 
-	if len(images.Data[0].GetList("RepoTags")) != 2 {
+	if len(images.Data) != 2 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
 	images = getImages(eng, t, false, "utest")
 
-	if len(images.Data[0].GetList("RepoTags")) != 1 {
+	if len(images.Data) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
 	images = getImages(eng, t, false, "utest*")
 
-	if len(images.Data[0].GetList("RepoTags")) != 1 {
+	if len(images.Data) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
 	images = getImages(eng, t, false, "*5000*/*")
 
-	if len(images.Data[0].GetList("RepoTags")) != 1 {
+	if len(images.Data) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 }

@@ -728,70 +728,50 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 }
 
 func (srv *Server) Images(job *engine.Job) engine.Status {
-	var (
-		allImages map[string]*image.Image
-		err       error
-	)
-	if job.GetenvBool("all") {
-		allImages, err = srv.runtime.Graph().Map()
-	} else {
-		allImages, err = srv.runtime.Graph().Heads()
-	}
-	if err != nil {
-		return job.Error(err)
-	}
-	lookup := make(map[string]*engine.Env)
-	for name, repository := range srv.runtime.Repositories().Repositories {
+	// What we currently call 'Repository' is what should really be used as the image.
+	entries := engine.NewTable("Name", 0)
+	for name, repo := range srv.runtime.Repositories().Repositories {
 		if job.Getenv("filter") != "" {
 			if match, _ := path.Match(job.Getenv("filter"), name); !match {
 				continue
 			}
 		}
-		for tag, id := range repository {
-			image, err := srv.runtime.Graph().Get(id)
+		for version, id := range repo {
+			img, err := srv.runtime.Graph().Get(id)
 			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
+				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, version, err)
 				continue
 			}
-
-			if out, exists := lookup[id]; exists {
-				out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
-			} else {
-				out := &engine.Env{}
-				delete(allImages, id)
-				out.Set("ParentId", image.Parent)
-				out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
-				out.Set("Id", image.ID)
-				out.SetInt64("Created", image.Created.Unix())
-				out.SetInt64("Size", image.Size)
-				out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-				lookup[id] = out
-			}
-
+			entry := &engine.Env{}
+			entry.Set("Name", name)
+			entry.Set("Tag", version)
+			entry.Set("Id", id)
+			entry.Set("ParentId", img.Parent)
+			entry.SetInt64("Created", img.Created.Unix())
+			entry.SetInt64("Size", img.Size)
+			entry.SetInt64("VirtualSize", img.GetParentsSize(0)+img.Size)
+			entries.Add(entry)
 		}
 	}
-
-	outs := engine.NewTable("Created", len(lookup))
-	for _, value := range lookup {
-		outs.Add(value)
-	}
-
-	// Display images which aren't part of a repository/tag
-	if job.Getenv("filter") == "" {
-		for _, image := range allImages {
-			out := &engine.Env{}
-			out.Set("ParentId", image.Parent)
-			out.SetList("RepoTags", []string{"<none>:<none>"})
-			out.Set("Id", image.ID)
-			out.SetInt64("Created", image.Created.Unix())
-			out.SetInt64("Size", image.Size)
-			out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-			outs.Add(out)
+	entries.Sort()
+	if job.GetenvBool("all") {
+		allImages, err := srv.runtime.Graph().Map()
+		if err != nil {
+			return job.Error(err)
 		}
-	}
+		for id, img := range allImages {
+			entry := &engine.Env{}
+			entry.Set("Name", "")
+			entry.Set("Tag", "")
+			entry.Set("Id", id)
+			entry.SetInt64("Created", img.Created.Unix())
+			entry.SetInt64("Size", img.Size)
+			entry.SetInt64("VirtualSize", img.GetParentsSize(0)+img.Size)
+			entries.Add(entry)
+		}
 
-	outs.ReverseSort()
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+	}
+	if _, err := entries.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK

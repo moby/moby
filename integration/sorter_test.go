@@ -39,7 +39,7 @@ func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 
 	images := getImages(eng, t, true, "")
 
-	if repoTags := images.Data[0].GetList("RepoTags"); repoTags[0] != "repo:zed" && repoTags[0] != "repo:bar" {
+	if images.Data[0].Get("Tag") != "bar" && images.Data[0].Get("Tag") != "zed" {
 		t.Errorf("Expected Images to be ordered by most recent creation date.")
 	}
 }
