@@ -22,6 +22,8 @@ Docker Remote API
 - Since API version 1.2, the auth configuration is now handled client
   side, so the client has to send the authConfig as POST in
   /images/(name)/push
+- authConfig, set as the ``X-Registry-Auth`` header, is currently a Base64 encoded (json) string with credentials:  
+  ``{'username': string, 'password': string, 'email': string, 'serveraddress' : string}``
 
 2. Versions
 ===========
