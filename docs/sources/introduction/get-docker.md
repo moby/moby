@@ -1,6 +1,6 @@
 page_title: Getting Docker
 page_description: Getting Docker and installation tutorials
-page_keywords: docker, introduction, documentation, about, technology, understanding, dockerfile
+page_keywords: docker, introduction, documentation, about, technology, understanding, Dockerfile
 
 # Getting Docker
 
@@ -8,15 +8,13 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 ## Introductions
 
-Once you are comfortable with your level of knowledge on Docker, and 
-feel like actually trying the product, you can download and start using 
-it by following the links listed below. There, you will find instructions, 
-specifically tailored for your platform of choice. 
+Once you are comfortable with your level of knowledge of Docker, and
+feel like actually trying the product, you can download and start using
+it by following the links listed below. There, you will find
+instructions, specifically tailored for your platform of choice.
 
-Docker is a flexible tool and offers a unified experience across 
-different systems. In order to achieve this, it adapts itself and works 
-specifically to make the most out of all available features and tools 
-provided by the underlying operating-system on the computer it resides.
+Docker is a flexible tool and tries to offers a unified experience across
+different systems.
 
 ## Installation Instructions
 
@@ -39,16 +37,16 @@ provided by the underlying operating-system on the computer it resides.
 
 ### Mac OS X (Using VirtualBox)
 
-In order to work, Docker makes use of some Linux Kernel features which 
-are not supported by Mac OS X. The solution of getting Docker to run on 
-OS X consists of running it inside a lightweight virtual machine. 
+In order to work, Docker makes use of some Linux Kernel features which
+are not supported by Mac OS X. To run Docker on OS X we install and run
+a lightweight virtual machine and run Docker on that.
 
- - **Mac OS X Snow Leopard:**  
+ - **Mac OS X :**  
  [Installation on Mac OS X](../installation/mac.md)
 
 ### Windows (Using VirtualBox)
 
-Docker can run on Windows using a VM like VirtualBox. You then run Linux 
+Docker can run on Windows using a VM like VirtualBox. You then run Linux
 within the VM.
 
  - **Windows:**  
