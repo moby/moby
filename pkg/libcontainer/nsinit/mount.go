@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -21,9 +22,9 @@ const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NOD
 //
 // There is no need to unmount the new mounts because as soon as the mount namespace
 // is no longer in use, the mounts will be removed automatically
-func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, console string, readonly, noPivotRoot bool, mountLabel string) error {
+func setupNewMountNamespace(container *libcontainer.Container, rootfs, console string) error {
 	flag := syscall.MS_PRIVATE
-	if noPivotRoot {
+	if container.NoPivotRoot {
 		flag = syscall.MS_SLAVE
 	}
 	if err := system.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
@@ -32,11 +33,11 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
-	if err := mountSystem(rootfs, mountLabel); err != nil {
+	if err := mountSystem(rootfs, container.Context["mount_label"], container.SystemMountData); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
 
-	for _, m := range bindMounts {
+	for _, m := range container.Mounts {
 		flags := syscall.MS_BIND | syscall.MS_REC
 		if !m.Writable {
 			flags = flags | syscall.MS_RDONLY
@@ -57,14 +58,14 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	}
 	// In non-privileged mode, this fails. Discard the error.
 	setupLoopbackDevices(rootfs)
-	if err := setupPtmx(rootfs, console, mountLabel); err != nil {
+	if err := setupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
 		return err
 	}
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
-	if noPivotRoot {
+	if container.NoPivotRoot {
 		if err := rootMsMove(rootfs); err != nil {
 			return err
 		}
@@ -74,7 +75,7 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 		}
 	}
 
-	if readonly {
+	if container.ReadonlyFs {
 		if err := system.Mount("/", "/", "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
 			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
 		}
@@ -206,23 +207,23 @@ func setupConsole(rootfs, console string, mountLabel string) error {
 
 // mountSystem sets up linux specific system mounts like sys, proc, shm, and devpts
 // inside the mount namespace
-func mountSystem(rootfs string, mountLabel string) error {
+func mountSystem(rootfs, mountLabel string, additionalData map[string]map[string]string) error {
 	for _, m := range []struct {
 		source string
 		path   string
 		device string
 		flags  int
-		data   string
 	}{
 		{source: "proc", path: filepath.Join(rootfs, "proc"), device: "proc", flags: defaultMountFlags},
 		{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags},
-		{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaultMountFlags, data: label.FormatMountLabel("mode=1755,size=65536k", mountLabel)},
-		{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: label.FormatMountLabel("newinstance,ptmxmode=0666,mode=620,gid=5", mountLabel)},
+		{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaultMountFlags},
+		{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC},
 	} {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
 		}
-		if err := system.Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
+		mountData := getMountdata(m.source, additionalData)
+		if err := system.Mount(m.source, m.path, m.device, uintptr(m.flags), label.FormatMountLabel(mountData, mountLabel)); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.source, m.path, err)
 		}
 	}
@@ -270,4 +271,31 @@ func remountSys() error {
 		}
 	}
 	return nil
+}
+
+func getDefaultSystemMountData() map[string]map[string]string {
+	return map[string]map[string]string{
+		"shm":    {"size": "65536k", "mode": "1755"},
+		"devpts": {"newinstance": "", "ptmxmode": "0666", "mode": "620", "gid": "5"},
+	}
+}
+
+func getMountdata(src string, additionalData map[string]map[string]string) string {
+	data := getDefaultSystemMountData()[src]
+	if more := additionalData[src]; more != nil {
+		// merge the additional data with the defaults
+		for k, v := range more {
+			data[k] = v
+		}
+	}
+
+	d := []string{}
+	for k, v := range data {
+		join := k
+		if v != "" {
+			join = fmt.Sprintf("%s=%s", join, v)
+		}
+		d = append(d, join)
+	}
+	return strings.Join(d, ",")
 }

@@ -59,8 +59,9 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	label.Init()
+
 	ns.logger.Println("setup mount namespace")
-	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot, container.Context["mount_label"]); err != nil {
+	if err := setupNewMountNamespace(container, rootfs, console); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {

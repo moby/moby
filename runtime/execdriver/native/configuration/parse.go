@@ -28,7 +28,8 @@ var actions = map[string]Action{
 
 	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
 
-	"fs.readonly": readonlyFs, // make the rootfs of the container read only
+	"fs.readonly":        readonlyFs, // make the rootfs of the container read only
+	"fs.system.shm.size": shmSize,    // dev/shm size
 }
 
 func cpusetCpus(container *libcontainer.Container, context interface{}, value string) error {
@@ -159,6 +160,17 @@ func vethMacAddress(container *libcontainer.Container, context interface{}, valu
 		return fmt.Errorf("not veth configured for container")
 	}
 	veth.Context["mac"] = value
+	return nil
+}
+
+func shmSize(container *libcontainer.Container, context interface{}, value string) error {
+	if container.SystemMountData == nil {
+		container.SystemMountData = make(map[string]map[string]string)
+	}
+
+	container.SystemMountData["shm"] = map[string]string{
+		"size": value,
+	}
 	return nil
 }
 
