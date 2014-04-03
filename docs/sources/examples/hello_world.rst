@@ -127,7 +127,7 @@ Attach to the container to see the results in real-time.
   process to see what is going on.
 - **"--sig-proxy=false"** Do not forward signals to the container; allows
   us to exit the attachment using Control-C without stopping the container.
-- **$container_id** The Id of the container we want to attach too.
+- **$container_id** The Id of the container we want to attach to.
 
 Exit from the container attachment by pressing Control-C.
 
