@@ -41,8 +41,8 @@ Let's take a look.
                                               |     Host(s)     |
                   The Client Sends Commands   |_________________|
                   -------------------------   |                 |
-      [docker] <= pull, push, run, load .. => | [docker daemon] |
-       client                                 |                 |
+                  [docker] <= pull, run =>    | [docker daemon] |
+                           client             |                 |
                                               | - container 1   |
                                               | - container 2   |
                                               | - ..            |
@@ -124,7 +124,7 @@ Elements of Docker can be considered anything that the above mentioned tools
  Container and container image build-process.
 
 To get practical and learn what they are, and **_how to work_** with
-them, continue to [Page 3](working-with-docker.md). If you would like to
+them, continue to [Working with Docker](working-with-docker.md). If you would like to
 understand **_how they work_**, stay here and continue reading.
 
 ## The underlying technology
@@ -272,17 +272,17 @@ http://docs.docker.io/en/latest/use/workingwithrepository) section of our
 
 ## Where to go from here
 
-### Understand Docker
+### Understanding Docker
 
-Visit [Page 1](understanding-docker.md) of our Getting Started manual.
+Visit [Understanding Docker](understanding-docker.md) in our Getting Started manual.
 
 ### Get practical and learn how to use Docker straight away
 
-Visit [Page 3](working-with-docker.md) of our Getting Started manual.
+Visit [Working with Docker](working-with-docker.md) in our Getting Started manual.
 
 ### Get the product and go hands-on
 
-Visit [Page 4](get-docker.md) of our Getting Started manual.
+Visit [Get Docker](get-docker.md) in our Getting Started manual.
 
 ### Get the whole story
 
