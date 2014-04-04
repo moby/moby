@@ -1,19 +1,33 @@
-FROM ubuntu:12.04
-MAINTAINER Nick Stinemates
 #
-#    docker build -t docker:docs . && docker run -p 8000:8000 docker:docs
+# See the top level Makefile in https://github.com/dotcloud/docker for usage.
 #
+FROM 		debian:testing
+MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-# TODO switch to http://packages.ubuntu.com/trusty/python-sphinxcontrib-httpdomain once trusty is released
+RUN 	apt-get update && apt-get install -yq make gcc python-sphinx python-pip python-setuptools
+RUN	pip install mkdocs
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq make python-pip python-setuptools
+RUN	apt-get install -yq vim-tiny git pandoc s3cmd=1.1.0*
+
 # pip installs from docs/requirements.txt, but here to increase cacheability
-RUN pip install Sphinx==1.2.1
-RUN pip install sphinxcontrib-httpdomain==1.2.0
-ADD . /docs
-RUN make -C /docs clean docs
+RUN	pip install Sphinx==1.2.1
+RUN	pip install sphinxcontrib-httpdomain==1.2.0
 
-WORKDIR /docs/_build/html
-CMD ["python", "-m", "SimpleHTTPServer"]
+# add MarkdownTools to get transclusion
+RUN	easy_install -U setuptools
+RUN	pip install MarkdownTools2
+
+ADD 	. /docs
+
+#build the sphinx html
+#RUN	make -C /docs clean docs
+
+WORKDIR	/docs
+
+#convert to markdown
+RUN	./convert.sh
+
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
-EXPOSE 8000
+EXPOSE	8000
+
+CMD 	["mkdocs", "serve"]
