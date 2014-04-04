@@ -8,8 +8,8 @@ Note
 
 Docker is still under heavy development! We don’t recommend using it in
 production yet, but we’re getting closer with each release. Please see
-our blog post, [“Getting to Docker
-1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+our blog post, ["Getting to Docker
+1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Note
 
@@ -28,6 +28,11 @@ to create and maintain additional packages for the RHEL distribution.
 
 Also note that due to the current Docker limitations, Docker is able to
 run only on the **64 bit** architecture.
+
+You will need [RHEL
+6.5](https://access.redhat.com/site/articles/3078#RHEL6) or higher, with
+a RHEL 6 kernel version 2.6.32-431 or higher as this has specific kernel
+fixes to allow Docker to work.
 
 ## Installation
 

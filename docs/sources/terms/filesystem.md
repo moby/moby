@@ -4,6 +4,8 @@ page_keywords: containers, files, linux
 
 # File System
 
+## Introduction
+
 ![](../../_images/docker-filesystems-generic.png)
 
 In order for a Linux system to run, it typically needs two [file

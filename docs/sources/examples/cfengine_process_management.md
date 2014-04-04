@@ -108,7 +108,7 @@ allows to start several processes as part of a normal
 
 We can now log in to our new container and see that both
 `apache2` and `sshd`{.docutils .literal} are
-running. We have set the root password to “password” in the Dockerfile
+running. We have set the root password to "password" in the Dockerfile
 above and can use that to log in with ssh:
 
     ssh -p222 root@127.0.0.1

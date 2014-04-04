@@ -12,7 +12,7 @@ There are three major areas to consider when reviewing Docker security:
 -   the intrinsic security of containers, as implemented by kernel
     namespaces and cgroups;
 -   the attack surface of the Docker daemon itself;
--   the “hardening” security features of the kernel and how they
+-   the "hardening" security features of the kernel and how they
     interact with containers.
 
 ## Kernel Namespaces
@@ -149,7 +149,7 @@ existing monitoring/supervision processes (e.g. NRPE, collectd, etc).
 By default, Docker starts containers with a very restricted set of
 capabilities. What does that mean?
 
-Capabilities turn the binary “root/non-root” dichotomy into a
+Capabilities turn the binary "root/non-root" dichotomy into a
 fine-grained access control system. Processes (like web servers) that
 just need to bind on a port below 1024 do not have to run as root: they
 can just be granted the `net_bind_service`
@@ -182,12 +182,12 @@ infrastructure around the container:
     is specifically engineered to behave like a router or firewall, of
     course).
 
-This means that in most cases, containers will not need “real” root
+This means that in most cases, containers will not need "real" root
 privileges *at all*. And therefore, containers can run with a reduced
-capability set; meaning that “root” within a container has much less
-privileges than the real “root”. For instance, it is possible to:
+capability set; meaning that "root" within a container has much less
+privileges than the real "root". For instance, it is possible to:
 
--   deny all “mount” operations;
+-   deny all "mount" operations;
 -   deny access to raw sockets (to prevent packet spoofing);
 -   deny access to some filesystem operations, like creating new device
     nodes, changing the owner of files, or altering attributes
