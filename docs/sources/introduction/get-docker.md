@@ -63,17 +63,17 @@ within the VM.
 
 ## Where to go from here
 
-### Understand Docker
+### Understanding Docker
 
-Visit [Page 1](understanding-docker.md) of our Getting Started manual.
+Visit [Understanding Docker](understanding-docker.md) in our Getting Started manual.
 
 ### Learn about parts of Docker and the underlying technology
 
-Visit [Page 2](technology.md) of our Getting Started manual.
+Visit [Understanding the Technology](technology.md) in our Getting Started manual.
 
 ### Get practical and learn how to use Docker straight away
 
-Visit [Page 3](working-with-docker.md) of our Getting Started manual.
+Visit [Working with Docker](working-with-docker.md) in our Getting Started manual.
 
 ### Get the whole story
 
