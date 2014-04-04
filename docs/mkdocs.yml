@@ -2,7 +2,7 @@ site_name: Docker
 site_url: http://docs.docker.io/
 site_url: /
 site_description: Docker documentation.
-site_favicon: theme/docker/static/favicon.png
+site_favicon: /img/favicon.png
 
 dev_addr: '0.0.0.0:8000'
 
