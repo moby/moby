@@ -66,7 +66,7 @@ isolated container. Docker provides a simple abstraction layer to these
 technologies.
 
 > **Note:** If you would like to learn more about the underlying technology,
-> why not jump to [Page 2](technology.md) where we talk about them? You can
+> why not jump to [Understanding the Technology](technology.md) where we talk about them? You can
 > always come back here to continue learning about features of Docker and what
 > makes it different.
 
