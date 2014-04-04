@@ -149,7 +149,7 @@ In terms of IT, an image is a frozen-in-time collection of all files,
 folders, programs etc. of a computer. In fact, it is the entirety of
 everything important powering the computer.
 
-As we have explained in our [introduction](home.md), applications
+As we have explained in our [introduction](../index.md), applications
 inside the containers depend on libraries and tools supplied by
 the operating system to work. They also depend on drivers, again
 supplied by the OS to communicate with the hardware. This can mean

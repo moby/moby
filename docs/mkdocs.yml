@@ -23,11 +23,12 @@ copyright: Copyright &copy; 2014, Docker.
 pages:
 
 # Introduction:
-- ['introduction/home.md', 'Introduction', 'Introduction Home']
-- ['introduction/understanding-docker.md', 'Introduction', 'Understanding Docker']
-- ['introduction/technology.md', 'Introduction', 'The Technology']
-- ['introduction/working-with-docker.md', 'Introduction', 'Working with Docker']
-- ['introduction/get-docker.md', 'Introduction', 'Get Docker']
+- ['index.md', 'Home']
+#- ['introduction/home.md', 'Introduction', 'Introduction Home']
+- ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
+- ['introduction/technology.md', 'About', 'The Technology']
+- ['introduction/working-with-docker.md', 'About', 'Working with Docker']
+- ['introduction/get-docker.md', 'About', 'Get Docker']
 
 #- ['user-guide/writing-your-docs.md', 'User Guide', 'Writing your docs']
 #- ['user-guide/styling-your-docs.md', 'User Guide', 'Styling your docs']
