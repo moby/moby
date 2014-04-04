@@ -9,65 +9,6 @@ import (
 	"time"
 )
 
-func TestImageTagImageDelete(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	srv := mkServerFromEngine(eng, t)
-
-	initialImages := getAllImages(eng, t)
-	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("tag", unitTestImageName, "utest/docker", "tag2").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("tag", unitTestImageName, "utest:5000/docker", "tag3").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	images := getAllImages(eng, t)
-
-	nExpected := len(initialImages.Data[0].GetList("RepoTags")) + 3
-	nActual := len(images.Data[0].GetList("RepoTags"))
-	if nExpected != nActual {
-		t.Errorf("Expected %d images, %d found", nExpected, nActual)
-	}
-
-	if err := srv.DeleteImage("utest/docker:tag2", engine.NewTable("", 0), true, false, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 2
-	nActual = len(images.Data[0].GetList("RepoTags"))
-	if nExpected != nActual {
-		t.Errorf("Expected %d images, %d found", nExpected, nActual)
-	}
-
-	if err := srv.DeleteImage("utest:5000/docker:tag3", engine.NewTable("", 0), true, false, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 1
-	nActual = len(images.Data[0].GetList("RepoTags"))
-
-	if err := srv.DeleteImage("utest:tag1", engine.NewTable("", 0), true, false, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	if images.Len() != initialImages.Len() {
-		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
-	}
-}
-
 func TestCreateRm(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
