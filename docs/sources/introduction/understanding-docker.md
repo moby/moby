@@ -32,32 +32,37 @@ Docker has three major components:
 
 * Docker containers.
 * Docker images.
-* Docker Registries.
+* Docker registries.
 
 #### Docker containers
 
 Docker containers are like a directory. A Docker container holds
 everything that is needed for an application to run. Each container is
 created from a Docker image. Docker containers can be run, started,
-stopped, moved and deleted.
+stopped, moved and deleted. Each container is an isolated and secure
+application platform. You can consider Docker containers the *run*
+portion of the Docker framework.
 
 #### Docker images
 
-The Docker image is a read-only template, for example an Ubuntu
+The Docker image is a template, for example an Ubuntu
 operating system with Apache and your web application installed. Docker
 containers are launched from images. Docker provides a simple way to
-build new images or update existing images.
+build new images or update existing images. You can consider Docker
+images to be the *build* portion of the Docker framework.
 
 #### Docker Registries
 
 Docker registries hold images. These are public (or private!) stores
-that you can push or pull your own or others images to and from. Docker
-registries allow you to build simple and powerful development and
-deployment work flows.
+that you can upload or download images to and from. These images can be
+images you create yourself or you can make use of images that others
+have previously created. Docker registries allow you to build simple and
+powerful development and deployment work flows. You can consider Docker
+registries the *share* portion of the Docker framework.
 
 ### How does Docker work?
 
-Docker is a client-server application. The Docker *client* commands the Docker
+Docker is a client-server framework. The Docker *client* commands the Docker
 *daemon*, which in turn creates, builds and manages containers.
 
 The Docker daemon takes advantage of some neat Linux kernel and
@@ -72,24 +77,32 @@ technologies.
 
 ## Features of Docker
 
-In order to get a truly good grasp of full range of capabilities of Docker, one
-would need to take a look at its [User's Manual](http://docs.docker.io). Here,
-we will just attempt to summarize those features and give you an idea of what can be achieved with Docker.
+In order to get a good grasp of the capabilities of Docker you should
+read the [User's Manual](http://docs.docker.io). Let's look at a summary
+of Docker's features to give you an idea of how Docker might be useful
+to you.
 
 ### User centric and simple to use
 
 *Docker is made for humans.*
 
 It's easy to get started and easy to build and deploy applications with
-Docker: or as we say "*dockerise*" them!
+Docker: or as we say "*dockerise*" them! As much of Docker as possible
+uses plain English for commands and tries to be as lightweight and
+transparent as possible. We want to get out of the way so you can build
+and deploy your applications.
 
 ### Docker is Portable
 
 *Dockerise And Go!*
 
-Docker containers are highly portable.
+Docker containers are highly portable. Docker provides a standard
+container format to hold your applications:
 
-Any machine, be it bare-metal or virtualized can run any Docker
+* You take care of your applications inside the container, and;
+* Docker takes care of managing the container.
+
+Any machine, be it bare-metal or virtualized, can run any Docker
 container. The sole requirement is to have Docker installed.
 
 **This translates to:**
@@ -103,19 +116,21 @@ container. The sole requirement is to have Docker installed.
 *No more resources waste.*
 
 Containers are lightweight, in fact, they are extremely lightweight.
-Unlike VMs, which have the overhead of a hypervisor, Docker does not
-need to anything other than what the actual process requires to run.
+Unlike traditional virtual machines, which have the overhead of a
+hypervisor, Docker relies on operating system level features to provide
+isolation and security. A Docker container does not need anything more
+than what your application needs to run.
 
 This translates to:
 
  - Ability to deploy a large number of applications on a single system;
- - Literally lightening fast start up times and reduced overhead.
+ - Lightning fast start up times and reduced overhead.
 
 ### Docker can run anything
 
 *An amazing host! (again, pun intended.)*
 
-Docker isn't perspective about what applications or services you can run
+Docker isn't prescriptive about what applications or services you can run
 inside containers. We provide use cases and examples for running web
 services, databases, applications - just about anything you can imagine
 can run in a Docker container.
@@ -133,20 +148,22 @@ Today, it is possible to install and use Docker almost anywhere. Even on
 non-Linux systems such as Windows or Mac OS X thanks to a project called
 [Boot2Docker](http://boot2docker.io).
 
-**This translates to running Docker (therefore containers) _anywhere_:**
+**This translates to running Docker (and Docker containers!) _anywhere_:**
 
  - **Linux:**  
  Ubuntu, CentOS / RHEL, Fedora, Gentoo, openSUSE and more.
  - **Infrastructure-as-a-Service:**  
  Amazon AWS, Google GCE, Rackspace Cloud and probably, your favorite IaaS.
+ - **Microsoft Windows**  
+ - **OS X**  
 
-### Responsible (i.e., manages and limits resources)
+### Docker is Responsible
 
 *A tool that you can trust.*
 
 Docker does not just bring you a set of tools to isolate and run
-applications. It also allows you to put in restraints and set up
-constraints *and it keeps track*.
+applications. It also allows you to specify constraints and controls on
+those resources.
 
 **This translates to:**
 
@@ -155,7 +172,7 @@ constraints *and it keeps track*.
 
 Without dealing with complicated commands or third party applications.
 
-### Social (i.e., share containers and images)
+### Docker is Social
 
 *Docker knows that No One Is an Island.*
 
@@ -170,8 +187,8 @@ even run your own registry behind your firewall.
 **This translates to:**
 
  - No more wasting time building everything from scratch;
- - Easily save your application stack's *without* waiting 15 to 60 minutes;
- - Share and benefit with/from the rest of the Docker community.
+ - Easily and quickly save your application stack;
+ - Share and benefit from the depth of the Docker community.
 
 ## Docker versus Virtual Machines
 
@@ -183,9 +200,9 @@ even run your own registry behind your firewall.
 
  - Easy on the resources;
  - Extremely light to deal with;
- - Do not come with overheads;
+ - Do not come with substantial overhead;
  - Very easy to work with;
- - Agnostic in essence;
+ - Agnostic;
  - Can work *on* virtual machines;
  - Secure and isolated;
  - *Artful*, *social*, *fun*, and;
@@ -208,11 +225,11 @@ be used in a lot of different use cases.
  Build, test and ship applications with nothing but Docker and lean
  containers.
  - **Re-usable building blocks to create more:**  
- Any container can be a base for the next, and each command a new block.
+ Docker images are easily updated building blocks.
  - **Automatically build-able:**  
- It has never been this easy to instruct and build - *anything*.
- - **Built upon:**  
- Numerous third party tools and platforms are built on Docker, for your containers.
+ It has never been this easy to build - *anything*.
+ - **Easy to integrate:**  
+ A powerful, fully featured API allows you to integrate Docker into your tooling.
 
 ### For sysadmins
 
@@ -223,7 +240,7 @@ be used in a lot of different use cases.
  - **Improvements on speed and integration:**  
  Containers are almost nothing more than isolated, secure processes.
  - **Lowered costs of infrastructure:**  
- Containers are lightweight and heavy on resources compared to VMs.
+ Containers are lightweight and heavy on resources compared to virtual machines.
  - **Portable configurations:**  
  Issues and overheads with dealing with configurations and systems are eliminated.
 
@@ -233,7 +250,8 @@ be used in a lot of different use cases.
  Replacing VMs with containers provide security without additional
  hardware (or software).
  - **Portable:**  
- You can securely carry around applications, the exact way they exist.
+ You can easily move applications and workloads from different operating
+ systems and platforms.
 
 ## Where to go from here
 

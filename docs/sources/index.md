@@ -8,16 +8,11 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 ## Introduction
 
-Operating systems, like Linux or Windows, are what makes a computer
-usable. These collections of programs provide the *core functionality*
-that applications, from databases to graphics editors, depend and build
-upon on an *everything-shared* environment.
-
-[**Docker**](http://www.docker.io) leverages some key operating system
-features like process management and networking. It allows you to create
-containers holding all the core dependencies for an application to run
-on. Each container is kept isolated from any other, and
-nothing gets shared.
+[**Docker**](http://www.docker.io) is a container based virtualization
+framework. Unlike traditional virtualization Docker is fast, lightweight
+and easy to use. Docker allows you to create containers holding
+all the dependencies for an application. Each container is kept isolated
+from any other, and nothing gets shared.
 
 ## Docker highlights
 
@@ -39,8 +34,8 @@ And most importantly:
 
 ## About this guide
 
-In this introduction we will take you on a tour. Let us show you what
-makes Docker so amazing and help you to *get started*.
+In this introduction we will take you on a tour and show you what
+makes Docker tick.
 
 On the [**first page**](introduction/understanding-docker.md), which is
 **_informative_**:
