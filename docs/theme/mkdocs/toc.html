@@ -1,4 +1,4 @@
-<div class="bs-sidebar hidden-print affix well" role="complementary">
+<div id="left_menu_navigation" class="bs-sidebar hidden-print affix well" role="complementary">
     <ul class="nav bs-sidenav">
     {% for toc_item in toc %}
         <li class="main {% if toc_item.active %}active{% endif %}"><a href="{{ toc_item.url }}">{{ toc_item.title }}</a></li>
