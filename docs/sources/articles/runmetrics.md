@@ -8,7 +8,7 @@ Linux Containers rely on [control
 groups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
 which not only track groups of processes, but also expose metrics about
 CPU, memory, and block I/O usage. You can access those metrics and
-obtain network usage metrics as well. This is relevant for “pure” LXC
+obtain network usage metrics as well. This is relevant for "pure" LXC
 containers, as well as for Docker containers.
 
 ## Control Groups
@@ -69,7 +69,7 @@ more pseudo-files containing statistics.
 
 ### Memory Metrics: `memory.stat`
 
-Memory metrics are found in the “memory” cgroup. Note that the memory
+Memory metrics are found in the "memory" cgroup. Note that the memory
 control group adds a little overhead, because it does very fine-grained
 accounting of the memory usage on your host. Therefore, many distros
 chose to not enable it by default. Generally, to enable it, all you have
@@ -113,9 +113,9 @@ contains statistics relevant to the processes within the cgroup,
 excluding sub-cgroups. The second half (with the `total_`{.docutils
 .literal} prefix) includes sub-cgroups as well.
 
-Some metrics are “gauges”, i.e. values that can increase or decrease
+Some metrics are "gauges", i.e. values that can increase or decrease
 (e.g. swap, the amount of swap space used by the members of the cgroup).
-Some others are “counters”, i.e. values that can only go up, because
+Some others are "counters", i.e. values that can only go up, because
 they represent occurrences of a specific event (e.g. pgfault, which
 indicates the number of page faults which happened since the creation of
 the cgroup; this number can never decrease).
@@ -124,7 +124,7 @@ cache
 :   the amount of memory used by the processes of this control group
     that can be associated precisely with a block on a block device.
     When you read from and write to files on disk, this amount will
-    increase. This will be the case if you use “conventional” I/O
+    increase. This will be the case if you use "conventional" I/O
     (`open`, `read`{.docutils .literal},
     `write` syscalls) as well as mapped files (with
     `mmap`). It also accounts for the memory used by
@@ -138,7 +138,7 @@ mapped\_file
     memory is used; it rather tells you *how* it is used.
 pgfault and pgmajfault
 :   indicate the number of times that a process of the cgroup triggered
-    a “page fault” and a “major fault”, respectively. A page fault
+    a "page fault" and a "major fault", respectively. A page fault
     happens when a process accesses a part of its virtual memory space
     which is nonexistent or protected. The former can happen if the
     process is buggy and tries to access an invalid address (it will
@@ -150,26 +150,26 @@ pgfault and pgmajfault
     the CPU complete the memory access. It can also happen when the
     process writes to a copy-on-write memory zone: likewise, the kernel
     will preempt the process, duplicate the memory page, and resume the
-    write operation on the process’ own copy of the page. “Major” faults
+    write operation on the process’ own copy of the page. "Major" faults
     happen when the kernel actually has to read the data from disk. When
     it just has to duplicate an existing page, or allocate an empty
-    page, it’s a regular (or “minor”) fault.
+    page, it’s a regular (or "minor") fault.
 swap
 :   the amount of swap currently used by the processes in this cgroup.
 active\_anon and inactive\_anon
 :   the amount of *anonymous* memory that has been identified has
-    respectively *active* and *inactive* by the kernel. “Anonymous”
+    respectively *active* and *inactive* by the kernel. "Anonymous"
     memory is the memory that is *not* linked to disk pages. In other
     words, that’s the equivalent of the rss counter described above. In
     fact, the very definition of the rss counter is **active\_anon** +
     **inactive\_anon** - **tmpfs** (where tmpfs is the amount of memory
     used up by `tmpfs` filesystems mounted by this
-    control group). Now, what’s the difference between “active” and
-    “inactive”? Pages are initially “active”; and at regular intervals,
+    control group). Now, what’s the difference between "active" and
+    "inactive"? Pages are initially "active"; and at regular intervals,
     the kernel sweeps over the memory, and tags some pages as
-    “inactive”. Whenever they are accessed again, they are immediately
-    retagged “active”. When the kernel is almost out of memory, and time
-    comes to swap out to disk, the kernel will swap “inactive” pages.
+    "inactive". Whenever they are accessed again, they are immediately
+    retagged "active". When the kernel is almost out of memory, and time
+    comes to swap out to disk, the kernel will swap "inactive" pages.
 active\_file and inactive\_file
 :   cache memory, with *active* and *inactive* similar to the *anon*
     memory above. The exact formula is cache = **active\_file** +
@@ -182,7 +182,7 @@ active\_file and inactive\_file
     dirty/modified pages have to be written to disk first).
 unevictable
 :   the amount of memory that cannot be reclaimed; generally, it will
-    account for memory that has been “locked” with `mlock`{.docutils
+    account for memory that has been "locked" with `mlock`{.docutils
     .literal}. It is often used by crypto frameworks to make sure that
     secret keys and other sensitive material never gets swapped out to
     disk.
@@ -216,10 +216,10 @@ code), and `system` is the time during which the CPU
 was executing system calls on behalf of those processes.
 
 Those times are expressed in ticks of 1/100th of a second. Actually,
-they are expressed in “user jiffies”. There are `USER_HZ`{.docutils
-.literal} *“jiffies”* per second, and on x86 systems,
+they are expressed in "user jiffies". There are `USER_HZ`{.docutils
+.literal} *"jiffies"* per second, and on x86 systems,
 `USER_HZ` is 100. This used to map exactly to the
-number of scheduler “ticks” per second; but with the advent of higher
+number of scheduler "ticks" per second; but with the advent of higher
 frequency scheduling, as well as [tickless
 kernels](http://lwn.net/Articles/549580/), the number of kernel ticks
 wasn’t relevant anymore. It stuck around anyway, mainly for legacy and
@@ -339,7 +339,7 @@ For example:
 
     ip netns exec mycontainer netstat -i
 
-`ip netns` finds the “mycontainer” container by
+`ip netns` finds the "mycontainer" container by
 using namespaces pseudo-files. Each process belongs to one network
 namespace, one PID namespace, one `mnt` namespace,
 etc., and those namespaces are materialized under
@@ -366,7 +366,7 @@ measure network usage. From there, you can examine the pseudo-file named
 `tasks`, which containes the PIDs that are in the
 control group (i.e. in the container). Pick any one of them.
 
-Putting everything together, if the “short ID” of a container is held in
+Putting everything together, if the "short ID" of a container is held in
 the environment variable `$CID`, then you can do
 this:
 

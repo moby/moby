@@ -79,9 +79,9 @@ mapped to a local port
 
     $ sudo docker run -d -p 5000 --name web_worker /builds/github.com/shykes/helloflask/master /usr/local/bin/runapp
 
--   **“docker run -d “** run a command in a new container. We pass “-d”
+-   **"docker run -d "** run a command in a new container. We pass "-d"
     so it runs as a daemon.
--   **“-p 5000”** the web app is going to listen on this port, so it
+-   **"-p 5000"** the web app is going to listen on this port, so it
     must be mapped from the container to the host system.
 -   **/usr/local/bin/runapp** is the command which starts the web app.
 

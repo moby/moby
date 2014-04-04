@@ -8,8 +8,8 @@ Note
 
 Docker is still under heavy development! We don’t recommend using it in
 production yet, but we’re getting closer with each release. Please see
-our blog post, [“Getting to Docker
-1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+our blog post, ["Getting to Docker
+1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Note
 
@@ -42,7 +42,7 @@ should propagate shortly.
 The package should properly pull in all the necessary dependencies and
 prompt for all necessary kernel options. The ebuilds for 0.7+ include
 use flags to pull in the proper dependencies of the major storage
-drivers, with the “device-mapper” use flag being enabled by default,
+drivers, with the "device-mapper" use flag being enabled by default,
 since that is the simplest installation path.
 
     sudo emerge -av app-emulation/docker

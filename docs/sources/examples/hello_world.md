@@ -2,7 +2,7 @@ page_title: Hello world example
 page_description: A simple hello world example with Docker
 page_keywords: docker, example, hello world
 
-# Check your Docker install
+# Check your Docker installation
 
 This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
@@ -18,7 +18,7 @@ privileges to access docker on your machine.
 Please refer to [*Installation*](../../installation/#installation-list)
 for installation instructions.
 
-# Hello World
+## Hello World
 
 Note
 
@@ -49,19 +49,17 @@ standard out.
 
 **Explanation:**
 
--   **“sudo”** execute the following commands as user *root*
--   **“docker run”** run a command in a new container
--   **“busybox”** is the image we are running the command in.
--   **“/bin/echo”** is the command we want to run in the container
--   **“hello world”** is the input for the echo command
+-   **"sudo"** execute the following commands as user *root*
+-   **"docker run"** run a command in a new container
+-   **"busybox"** is the image we are running the command in.
+-   **"/bin/echo"** is the command we want to run in the container
+-   **"hello world"** is the input for the echo command
 
 **Video:**
 
 See the example in action
 
-* * * * *
-
-# Hello World Daemon
+## Hello World Daemon
 
 Note
 
@@ -84,38 +82,38 @@ continue to do this until we stop it.
 We are going to run a simple hello world daemon in a new container made
 from the `ubuntu` image.
 
--   **“sudo docker run -d “** run a command in a new container. We pass
-    “-d” so it runs as a daemon.
--   **“ubuntu”** is the image we want to run the command inside of.
--   **“/bin/sh -c”** is the command we want to run in the container
--   **“while true; do echo hello world; sleep 1; done”** is the mini
+-   **"sudo docker run -d "** run a command in a new container. We pass
+    "-d" so it runs as a daemon.
+-   **"ubuntu"** is the image we want to run the command inside of.
+-   **"/bin/sh -c"** is the command we want to run in the container
+-   **"while true; do echo hello world; sleep 1; done"** is the mini
     script we want to run, that will just print hello world once a
     second until we stop it.
--   **\$CONTAINER\_ID** the output of the run command will return a
+-   **\$container\_id** the output of the run command will return a
     container id, we can use in future commands to see what is going on
     with this process.
 
 <!-- -->
 
-    sudo docker logs $CONTAINER_ID
+    sudo docker logs $container_id
 
 Check the logs make sure it is working correctly.
 
--   **“docker logs**” This will return the logs for a container
--   **\$CONTAINER\_ID** The Id of the container we want the logs for.
+-   **"docker logs**" This will return the logs for a container
+-   **\$container\_id** The Id of the container we want the logs for.
 
 <!-- -->
 
-    sudo docker attach -sig-proxy=false $CONTAINER_ID
+    sudo docker attach --sig-proxy=false $container_id
 
 Attach to the container to see the results in real-time.
 
--   **“docker attach**” This will allow us to attach to a background
+-   **"docker attach**" This will allow us to attach to a background
     process to see what is going on.
--   **“-sig-proxy=false”** Do not forward signals to the container;
+-   **"–sig-proxy=false"** Do not forward signals to the container;
     allows us to exit the attachment using Control-C without stopping
     the container.
--   **\$CONTAINER\_ID** The Id of the container we want to attach too.
+-   **\$container\_id** The Id of the container we want to attach to.
 
 Exit from the container attachment by pressing Control-C.
 
@@ -123,16 +121,16 @@ Exit from the container attachment by pressing Control-C.
 
 Check the process list to make sure it is running.
 
--   **“docker ps”** this shows all running process managed by docker
+-   **"docker ps"** this shows all running process managed by docker
 
 <!-- -->
 
-    sudo docker stop $CONTAINER_ID
+    sudo docker stop $container_id
 
 Stop the container, since we don’t need it anymore.
 
--   **“docker stop”** This stops a container
--   **\$CONTAINER\_ID** The Id of the container we want to stop.
+-   **"docker stop"** This stops a container
+-   **\$container\_id** The Id of the container we want to stop.
 
 <!-- -->
 

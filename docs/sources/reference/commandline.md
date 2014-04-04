@@ -1,7 +1,7 @@
 
 # Commands
 
-Contents:
+## Contents:
 
 -   [Command Line Help](cli/)
 -   [Options](cli/#options)
@@ -18,7 +18,6 @@ Contents:
 -   [`images`](cli/#images)
 -   [`import`](cli/#import)
 -   [`info`](cli/#info)
--   [`insert`](cli/#insert)
 -   [`inspect`](cli/#inspect)
 -   [`kill`](cli/#kill)
 -   [`load`](cli/#load)

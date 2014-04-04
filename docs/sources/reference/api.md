@@ -1,4 +1,3 @@
-
 # APIs
 
 Your programs and scripts can access Docker’s functionality via these
@@ -98,5 +97,3 @@ interfaces:
             user](docker_io_accounts_api/#update-an-email-address-for-a-user)
         -   [1.6 Delete email address for a
             user](docker_io_accounts_api/#delete-email-address-for-a-user)
-
-

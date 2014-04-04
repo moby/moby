@@ -4,6 +4,8 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 # Layers
 
+## Introduction
+
 In a traditional Linux boot, the kernel first mounts the root [*File
 System*](../filesystem/#filesystem-def) as read-only, checks its
 integrity, and then switches the whole rootfs volume to read-write mode.

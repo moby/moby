@@ -4,6 +4,8 @@ page_keywords: Examples, Usage, links, linking, docker, documentation, examples,
 
 # Link Containers
 
+## Introduction
+
 From version 0.6.5 you are now able to `name` a
 container and `link` it to another container by
 referring to its name. This will create a parent -\> child relationship

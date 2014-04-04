@@ -4,19 +4,17 @@ page_keywords: API, Docker, index, REST, documentation
 
 # Docker Index API
 
-## 1. Brief introduction
+## Introduction
 
--   This is the REST API for the Docker index
--   Authorization is done with basic auth over SSL
--   Not all commands require authentication, only those noted as such.
+- This is the REST API for the Docker index
+- Authorization is done with basic auth over SSL
+- Not all commands require authentication, only those noted as such.
 
-## 2. Endpoints
+## Repository
 
-### 2.1 Repository
+### Repositories
 
-#### Repositories
-
-##### User Repo
+### User Repo
 
  `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}
 :   Create a user repository with the given `namespace`{.docutils
@@ -35,8 +33,8 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **namespace** – the namespace for the repo
-    -   **repo\_name** – the name for the repo
+    - **namespace** – the namespace for the repo
+    - **repo\_name** – the name for the repo
 
     **Example Response**:
 
@@ -51,10 +49,10 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – Created
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active
+    - **200** – Created
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active
 
  `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}
 :   Delete a user repository with the given `namespace`{.docutils
@@ -73,8 +71,8 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **namespace** – the namespace for the repo
-    -   **repo\_name** – the name for the repo
+    - **namespace** – the namespace for the repo
+    - **repo\_name** – the name for the repo
 
     **Example Response**:
 
@@ -89,13 +87,13 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – Deleted
-    -   **202** – Accepted
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active
+    - **200** – Deleted
+    - **202** – Accepted
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active
 
-##### Library Repo
+### Library Repo
 
  `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}
 :   Create a library repository with the given `repo_name`{.docutils
@@ -118,7 +116,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **repo\_name** – the library name for the repo
+    - **repo\_name** – the library name for the repo
 
     **Example Response**:
 
@@ -133,10 +131,10 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – Created
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active
+    - **200** – Created
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active
 
  `DELETE `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}
 :   Delete a library repository with the given `repo_name`{.docutils
@@ -159,7 +157,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **repo\_name** – the library name for the repo
+    - **repo\_name** – the library name for the repo
 
     **Example Response**:
 
@@ -174,15 +172,15 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – Deleted
-    -   **202** – Accepted
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active
+    - **200** – Deleted
+    - **202** – Accepted
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active
 
-#### Repository Images
+### Repository Images
 
-##### User Repo Images
+### User Repo Images
 
  `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}
 :   Update the images for a user repo.
@@ -200,8 +198,8 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **namespace** – the namespace for the repo
-    -   **repo\_name** – the name for the repo
+    - **namespace** – the namespace for the repo
+    - **repo\_name** – the name for the repo
 
     **Example Response**:
 
@@ -213,10 +211,10 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **204** – Created
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active or permission denied
+    - **204** – Created
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active or permission denied
 
  `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}
 :   get the images for a user repo.
@@ -229,8 +227,8 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **namespace** – the namespace for the repo
-    -   **repo\_name** – the name for the repo
+    - **namespace** – the namespace for the repo
+    - **repo\_name** – the name for the repo
 
     **Example Response**:
 
@@ -245,10 +243,10 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – OK
-    -   **404** – Not found
+    - **200** – OK
+    - **404** – Not found
 
-##### Library Repo Images
+### Library Repo Images
 
  `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}
 :   Update the images for a library repo.
@@ -266,7 +264,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **repo\_name** – the library name for the repo
+    - **repo\_name** – the library name for the repo
 
     **Example Response**:
 
@@ -278,10 +276,10 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **204** – Created
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active or permission denied
+    - **204** – Created
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active or permission denied
 
  `GET `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}
 :   get the images for a library repo.
@@ -294,7 +292,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **repo\_name** – the library name for the repo
+    - **repo\_name** – the library name for the repo
 
     **Example Response**:
 
@@ -309,12 +307,12 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – OK
-    -   **404** – Not found
+    - **200** – OK
+    - **404** – Not found
 
-#### Repository Authorization
+### Repository Authorization
 
-##### Library Repo
+### Library Repo
 
  `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/auth`{.descname}
 :   authorize a token for a library repo
@@ -328,7 +326,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **repo\_name** – the library name for the repo
+    - **repo\_name** – the library name for the repo
 
     **Example Response**:
 
@@ -340,11 +338,11 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – OK
-    -   **403** – Permission denied
-    -   **404** – Not found
+    - **200** – OK
+    - **403** – Permission denied
+    - **404** – Not found
 
-##### User Repo
+### User Repo
 
  `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/auth`{.descname}
 :   authorize a token for a user repo
@@ -358,8 +356,8 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **namespace** – the namespace for the repo
-    -   **repo\_name** – the name for the repo
+    - **namespace** – the namespace for the repo
+    - **repo\_name** – the name for the repo
 
     **Example Response**:
 
@@ -371,13 +369,13 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – OK
-    -   **403** – Permission denied
-    -   **404** – Not found
+    - **200** – OK
+    - **403** – Permission denied
+    - **404** – Not found
 
-### 2.2 Users
+### Users
 
-#### User Login
+### User Login
 
  `GET `{.descname}`/v1/users`{.descname}
 :   If you want to check your login, you can try this endpoint
@@ -399,11 +397,11 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **200** – no error
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active
+    - **200** – no error
+    - **401** – Unauthorized
+    - **403** – Account is not Active
 
-#### User Register
+### User Register
 
  `POST `{.descname}`/v1/users`{.descname}
 :   Registering a new account.
@@ -423,10 +421,10 @@ page_keywords: API, Docker, index, REST, documentation
 
      
 
-    -   **email** – valid email address, that needs to be confirmed
-    -   **username** – min 4 character, max 30 characters, must match
+    - **email** – valid email address, that needs to be confirmed
+    - **username** – min 4 character, max 30 characters, must match
         the regular expression [a-z0-9\_].
-    -   **password** – min 5 characters
+    - **password** – min 5 characters
 
     **Example Response**:
 
@@ -438,10 +436,10 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **201** – User Created
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **201** – User Created
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
 
-#### Update User
+### Update User
 
  `PUT `{.descname}`/v1/users/`{.descname}(*username*)`/`{.descname}
 :   Change a password or email address for given user. If you pass in an
@@ -465,7 +463,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    -   **username** – username for the person you want to update
+    - **username** – username for the person you want to update
 
     **Example Response**:
 
@@ -477,17 +475,17 @@ page_keywords: API, Docker, index, REST, documentation
 
     Status Codes:
 
-    -   **204** – User Updated
-    -   **400** – Errors (invalid json, missing or invalid fields, etc)
-    -   **401** – Unauthorized
-    -   **403** – Account is not Active
-    -   **404** – User not found
+    - **204** – User Updated
+    - **400** – Errors (invalid json, missing or invalid fields, etc)
+    - **401** – Unauthorized
+    - **403** – Account is not Active
+    - **404** – User not found
 
-### 2.3 Search
+## Search
 
 If you need to search the index, this is the endpoint you would use.
 
-#### Search
+### Search
 
  `GET `{.descname}`/v1/search`{.descname}
 :   Search the Index given a search term. It accepts
@@ -517,13 +515,11 @@ If you need to search the index, this is the endpoint you would use.
 
     Query Parameters:
 
-     
-
-    -   **q** – what you want to search for
+    - **q** – what you want to search for
 
     Status Codes:
 
-    -   **200** – no error
-    -   **500** – server error
+    - **200** – no error
+    - **500** – server error
 
 

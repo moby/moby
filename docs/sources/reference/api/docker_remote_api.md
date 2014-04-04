@@ -17,6 +17,10 @@ page_keywords: API, Docker, rcli, REST, documentation
 -   Since API version 1.2, the auth configuration is now handled client
     side, so the client has to send the authConfig as POST in
     /images/(name)/push
+-   authConfig, set as the `X-Registry-Auth` header,
+    is currently a Base64 encoded (json) string with credentials:
+    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`{.docutils
+    .literal}
 
 ## 2. Versions
 
@@ -38,7 +42,13 @@ You can still call an old version of the api using
 
  `DELETE `{.descname}`/images/`{.descname}(*name*)
 :   **New!** You can now use the force parameter to force delete of an
-    image, even if it’s tagged in multiple repositories.
+    image, even if it’s tagged in multiple repositories. **New!** You
+    can now use the noprune parameter to prevent the deletion of parent
+    images
+
+ `DELETE `{.descname}`/containers/`{.descname}(*id*)
+:   **New!** You can now use the force paramter to force delete a
+    container, even if it is currently running
 
 ### v1.9
 
@@ -175,7 +185,7 @@ You can still call an old version of the api using
         ]
 
  `GET `{.descname}`/images/viz`{.descname}
-:   This URI no longer exists. The `images -viz`
+:   This URI no longer exists. The `images --viz`
     output is now generated in the client, using the
     `/images/json` data.
 
