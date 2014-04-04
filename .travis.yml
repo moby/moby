@@ -10,8 +10,6 @@ install: true
 
 before_script:
   - env | sort
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq python-yaml
   - sudo pip install -r docs/requirements.txt
 
 script:
