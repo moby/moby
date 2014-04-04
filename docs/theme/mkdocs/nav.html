@@ -12,14 +12,15 @@
    </div>
    <a class="pull-left brand" href="/" title="{{ site_name }}"><img src="http://www.docker.io/static/img/docker-top-logo.png"> </a>
 </div>
-
+<div id="horizontal_thin_menu">
+  <a href="https://www.docker.io/account/signup/">sign up</a>
+  <a href="https://www.docker.io/account/login/">login</a>
+</div>
 <div id="stickynav" class="navbar navbar-default navbar-static-top NOTnavbar-inverse" role="navigation">
     <div class="Ncontainer">
-
-
         <!-- Collapsed navigation -->
         <div class="navbar-header">
-            <!-- Expander button -->
+        <!-- Expander button -->
 	    <a class="pull-left navbar-toggle navbar-brand"  data-toggle="collapse" data-target="#topmostnav" href="#">{{ site_name }}</a>
             <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#docsnav">
                 <span class="sr-only">Toggle navigation</span>
@@ -28,12 +29,10 @@
                 <span class="icon-bar"></span>
             </button>
         </div>
-
-
         <!-- Expanded navigation -->
         <div id="docsnav" class="navbar-collapse collapse">
             <!-- Main navigation -->
-            <ul class="nav navbar-nav">
+            <ul id="main-nav" class="nav navbar-nav">
             {% for nav_item in nav %}
             {% if nav_item.children %}
                 <li class="dropdown{% if nav_item.active %} active{% endif %}">
@@ -53,26 +52,15 @@
             {% endif %}
             {% endfor %}
             </ul>
-
             <!-- Search, Navigation and Repo links -->
             <ul class="nav navbar-nav navbar-right">
                 {% if include_search %}
                 <li>
-                    <a href="#searchModal" data-toggle="modal"><i class="fa fa-search"></i> Search</a>
+                    <a href="#searchModal" data-toggle="modal"><i class="fa fa-search"></i>Search</a>
                 </li>
                 {% endif %}
-		<li>
-<form id="search_box_header" class="navbar-index-search pull-right"><span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span><input id="st-search-input" type="text" class="search-query ui-autocomplete-input" placeholder="search" autocomplete="off"></form>
-		</li>
-                <li {% if not previous_page %}class="disabled"{% endif %}>
-                    <a rel="next" {% if previous_page %}href="{{ previous_page.url }}"{% endif %}>
-                        <i class="fa fa-arrow-left"></i> Previous
-                    </a>
-                </li>
-                <li {% if not next_page %}class="disabled"{% endif %}>
-                    <a rel="prev" {% if next_page %}href="{{ next_page.url }}"{% endif %}>
-                        Next <i class="fa fa-arrow-right"></i>
-                    </a>
+                <li>
+                    <form id="search_box_header" class="navbar-index-search pull-right"><span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span><input id="st-search-input" type="text" class="search-query ui-autocomplete-input" placeholder="search" autocomplete="off"></form>
                 </li>
                 {% if repo_url %}
                 <li>
@@ -88,7 +76,5 @@
                 {% endif %}
             </ul>
         </div>
-
-
     </div>
 </div>
