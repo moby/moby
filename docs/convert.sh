@@ -16,6 +16,9 @@ HTML_FILES=$(find _build -name '*.html' | sed 's/_build\/html\/\(.*\)\/index.htm
 for name in ${HTML_FILES} 
 do
 	echo $name
+	# lets not use gratuitious unicode quotes that cause terrible copy and paste issues
+	sed -i 's/&#8220;/"/g' _build/html/${name}/index.html
+	sed -i 's/&#8221;/"/g' _build/html/${name}/index.html
         pandoc -f html -t markdown --atx-headers -o sources/${name}.md1 _build/html/${name}/index.html
 
 	#add the meta-data from the rst
