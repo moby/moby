@@ -24,47 +24,6 @@ import (
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-func TestGetInfo(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	job := eng.Job("images")
-	initialImages, err := job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-	req, err := http.NewRequest("GET", "/info", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := httptest.NewRecorder()
-
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	out := engine.NewOutput()
-	i, err := out.AddEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := io.Copy(out, r.Body); err != nil {
-		t.Fatal(err)
-	}
-	out.Close()
-	if images := i.GetInt("Images"); images != initialImages.Len() {
-		t.Errorf("Expected images: %d, %d found", initialImages.Len(), images)
-	}
-	expected := "application/json"
-	if result := r.HeaderMap.Get("Content-Type"); result != expected {
-		t.Errorf("Expected Content-Type %s, %s found", expected, result)
-	}
-}
-
 func TestGetEvents(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)

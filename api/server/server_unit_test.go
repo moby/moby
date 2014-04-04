@@ -111,3 +111,70 @@ func TestGetVersion(t *testing.T) {
 		t.Errorf("Expected Content-Type %s, %s found", expected, result)
 	}
 }
+
+func TestGetInfo(t *testing.T) {
+	tmp, err := utils.TestDirectory("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	eng, err := engine.New(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var called bool
+	eng.Register("info", func(job *engine.Job) engine.Status {
+		called = true
+		v := &engine.Env{}
+		v.SetInt("Containers", 1)
+		v.SetInt("Images", 42000)
+		if _, err := v.WriteTo(job.Stdout); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
+	})
+
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", "/info", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// FIXME getting the version should require an actual running Server
+	if err := ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatalf("handler was not called")
+	}
+
+	out := engine.NewOutput()
+	i, err := out.AddEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(out, r.Body); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	{
+		expected := 42000
+		result := i.GetInt("Images")
+		if expected != result {
+			t.Fatalf("%#v\n", result)
+		}
+	}
+	{
+		expected := 1
+		result := i.GetInt("Containers")
+		if expected != result {
+			t.Fatalf("%#v\n", result)
+		}
+	}
+	{
+		expected := "application/json"
+		if result := r.HeaderMap.Get("Content-Type"); result != expected {
+			t.Fatalf("%#v\n", result)
+		}
+	}
+}
