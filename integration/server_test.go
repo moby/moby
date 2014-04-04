@@ -640,6 +640,7 @@ func TestImagesFilter(t *testing.T) {
 	}
 }
 
+// FIXE: 'insert' is deprecated and should be removed in a future version.
 func TestImageInsert(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()

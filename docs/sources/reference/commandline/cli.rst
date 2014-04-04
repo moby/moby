@@ -711,34 +711,6 @@ preserved.
 	WARNING: No swap limit support
 
 
-.. _cli_insert:
-
-``insert``
-----------
-
-::
-
-    Usage: docker insert IMAGE URL PATH
-
-    Insert a file from URL in the IMAGE at PATH
-
-Use the specified ``IMAGE`` as the parent for a new image which adds a
-:ref:`layer <layer_def>` containing the new file. The ``insert`` command does
-not modify the original image, and the new image has the contents of the parent
-image, plus the new file.
-
-
-Examples
-~~~~~~~~
-
-Insert file from GitHub
-.......................
-
-.. code-block:: bash
-
-    $ sudo docker insert 8283e18b24bc https://raw.github.com/metalivedev/django/master/postinstall /tmp/postinstall.sh
-    06fd35556d7b
-
 .. _cli_inspect:
 
 ``inspect``

@@ -458,6 +458,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 	return job.Run()
 }
 
+// FIXME: 'insert' is deprecated as of 0.10, and should be removed in a future version.
 func postImagesInsert(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
