@@ -2364,7 +2364,7 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 		default:
-			return fmt.Errorf("Unknown method: %s", method)
+			return job.Errorf("Unknown method: %s", method)
 		}
 		return engine.StatusOK
 	}

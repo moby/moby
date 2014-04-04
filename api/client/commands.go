@@ -2145,7 +2145,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "[CONTAINER1:]PATHFROM [CONTAINER1:]PATHTO", "Copy files/folders from the PATHFROM to PATHTO")
+	cmd := cli.Subcmd("cp", "[CONTAINERSRC:]PATHSRC [CONTAINERDST:]PATHDST", "Copy files/folders from PATHSRC to PATHDST")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -2157,43 +2157,54 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	var (
 		copyData engine.Env
-		info1    = strings.Split(cmd.Arg(0), ":")
-		info2    = strings.Split(cmd.Arg(1), ":")
+		infoSrc  = strings.Split(cmd.Arg(0), ":")
+		infoDst  = strings.Split(cmd.Arg(1), ":")
+		pathSrc  = cmd.Arg(0)
+		pathDst  = cmd.Arg(1)
 	)
-	if len(info1) == 2 && len(info2) == 2 { // container to container
-		fmt.Errorf("Error: container to container transfert not yet implemented")
-	} else if len(info1) == 2 { // container to host
-		copyData.Set("Resource", info1[1])
-		copyData.Set("HostPath", cmd.Arg(1))
+	if len(infoSrc) != 2 && len(infoDst) != 2 {
+		return fmt.Errorf("Error: Path not specified")
+	}
+	if len(infoSrc) == 2 && len(infoDst) == 2 { // container to container
+		tmpDir, err := ioutil.TempDir("", "")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmpDir)
+		pathSrc = tmpDir
+		pathDst = tmpDir
 
-		stream, statusCode, err := cli.call("POST", "/containers/"+info1[0]+"/copy", copyData, false)
+	}
+	if len(infoSrc) == 2 { // container to host
+		copyData.Set("Resource", infoSrc[1])
+		copyData.Set("HostPath", pathDst)
+
+		stream, statusCode, err := cli.call("POST", "/containers/"+infoSrc[0]+"/copy", copyData, false)
 		if stream != nil {
 			defer stream.Close()
 		}
 		if statusCode == 404 {
-			return fmt.Errorf("No such container: %v", info1[0])
+			return fmt.Errorf("No such container: %v", infoSrc[0])
 		}
 		if err != nil {
 			return err
 		}
 
 		if statusCode == 200 {
-			if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
+			if err := archive.Untar(stream, pathDst, &archive.TarOptions{NoLchown: true}); err != nil {
 				return err
 			}
 		}
-	} else if len(info2) == 2 { // host to container
-		tar, err := archive.Tar(cmd.Arg(0), archive.Uncompressed)
+	}
+	if len(infoDst) == 2 { // host to container
+		tar, err := archive.Tar(pathSrc, archive.Uncompressed)
 		if err != nil {
 			return err
 		}
 		headers := http.Header(make(map[string][]string))
-		headers.Add("Resource", info2[1])
-		return cli.stream("PUT", "/containers/"+info2[0]+"/copy", tar, nil, headers)
-	} else {
-		return fmt.Errorf("Error: Path not specified")
+		headers.Add("Resource", infoDst[1])
+		return cli.stream("PUT", "/containers/"+infoDst[0]+"/copy", tar, nil, headers)
 	}
-
 	return nil
 }
 
