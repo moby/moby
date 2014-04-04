@@ -95,21 +95,3 @@ func TestEnviron(t *testing.T) {
 		t.Fatalf("bar not found in the environ")
 	}
 }
-
-func TestEnvWriteTo(t *testing.T) {
-	e := &Env{}
-	inputKey := "Version"
-	inputVal := "42.1"
-	e.Set(inputKey, inputVal)
-	out := NewOutput()
-	e2, err := out.AddEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.WriteTo(out)
-	result := e2.Get(inputKey)
-	expected := inputVal
-	if expected != result {
-		t.Fatalf("%#v\n", result)
-	}
-}
