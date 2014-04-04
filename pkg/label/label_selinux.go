@@ -10,12 +10,15 @@ import (
 
 func GenLabels(options string) (string, string, error) {
 	processLabel, mountLabel := selinux.GetLxcContexts()
-	var err error
 	if processLabel == "" { // SELinux is disabled
-		return "", "", err
+		return "", "", nil
 	}
-	s := strings.Fields(options)
-	l := len(s)
+
+	var (
+		err error
+		s   = strings.Fields(options)
+		l   = len(s)
+	)
 	if l > 0 {
 		pcon := selinux.NewContext(processLabel)
 		for i := 0; i < l; i++ {
@@ -28,19 +31,16 @@ func GenLabels(options string) (string, string, error) {
 	return processLabel, mountLabel, err
 }
 
-func FormatMountLabel(src string, MountLabel string) string {
-	var mountLabel string
-	if src != "" {
-		mountLabel = src
-		if MountLabel != "" {
-			mountLabel = fmt.Sprintf("%s,context=\"%s\"", mountLabel, MountLabel)
-		}
-	} else {
-		if MountLabel != "" {
-			mountLabel = fmt.Sprintf("context=\"%s\"", MountLabel)
+func FormatMountLabel(src string, mountLabel string) string {
+	if mountLabel != "" {
+		switch src {
+		case "":
+			src = fmt.Sprintf("%s,context=%s", src, mountLabel)
+		default:
+			src = fmt.Sprintf("context=%s", mountLabel)
 		}
 	}
-	return mountLabel
+	return src
 }
 
 func SetProcessLabel(processLabel string) error {
