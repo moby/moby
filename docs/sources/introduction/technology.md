@@ -10,9 +10,8 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 When it comes to understanding Docker and its underlying technology
 there is no *magic* involved. Everything is based on tried and tested
-features of the *Linux kernel*. All the tools and parts either make use
-of those features directly, or, build upon them to provide the functionality
-*intelligently*, for example networking.
+features of the *Linux kernel*. Docker either makes use of those
+features directly or builds upon them to provide new functionality.
 
 Aside from the technology, one of the major factors that make Docker
 great is the way it is built. The project's core is very lightweight and
@@ -68,31 +67,29 @@ an intermediary: the Docker client.
 
 ### Docker client
 
-The Docker client is an application which can run either on the same
-computer as the Docker daemon, or elsewhere. It is tasked with accepting
-commands from the user (i.e. *you*) and communicating back and forth
-with a Docker daemon to manage container lifecycle on any host.
+The Docker client is the primary user interface to Docker. It is tasked
+with accepting commands from the user and communicating back and forth
+with a Docker daemon to manage the container lifecycle on any host.
 
 ### Docker Index, the central Docker registry
 
 The [Docker Index](http://index.docker.io) is the global archive (and
 directory) of user supplied Docker container images. It currently hosts
-a very large – in fact, rapidly growing – number of projects where you
+a large – in fact, rapidly growing – number of projects where you
 can find almost any popular application or deployment stack readily
-available to download and run with a single command (e.g. `docker pull`
-`[repository]/[application]`).
+available to download and run with a single command.
 
-As a social community project, Docker tries to provide all necessary tools for
-everyone to grow with other *Dockers*. By issuing a single command through the
-Docker client (i.e. `docker push [name]`), you can start sharing your own
+As a social community project, Docker tries to provide all necessary
+tools for everyone to grow with other *Dockers*. By issuing a single
+command through the Docker client you can start sharing your own
 creations with the rest of the world.
 
-However, knowing that not everything can be shared (e.g. proprietary
-code), Docker Index also offers private repositories. In order to see
-the available plans, you can click [here](https://index.docker.io/plans).
+However, knowing that not everything can be shared the Docker Index also
+offers private repositories. In order to see the available plans, you
+can click [here](https://index.docker.io/plans).
 
 Using the [Docker Registry](https://github.com/dotcloud/docker-registry), it is
-also possible to run your own private Docker Image registry service on your own
+also possible to run your own private Docker image registry service on your own
 servers.
 
 > **Note:** To learn more about the [*Docker Image Index*](
@@ -102,26 +99,24 @@ servers.
 ### Summary
 
  - **When you install Docker, you get all the components:**  
- i.e. the daemon, the client and access to the public image index.
- - **Alternatively, you can spread them across a collection of machines:**  
- e.g. Servers with the Docker daemon running, controlled by the Docker client.
+ The daemon, the client and access to the public image registry: the [Docker Index](http://index.docker.io).
+ - **You can run these components together or distributed:**  
+ Servers with the Docker daemon running, controlled by the Docker client.
  - **You can benefit form the public registry:**  
- e.g. `docker pull [user or repository]/[image name][:tag]`
- - **You can start a private one for proprietary use.**  
- i.e. Sign up for a [plan](https://index.docker.io/plans) or host your own
-[Docker registry](https://github.com/dotcloud/docker-registry).
+ Download and build upon images created by the community.
+ - **You can start a private repository for proprietary use.**  
+ Sign up for a [plan](https://index.docker.io/plans) or host your own [Docker registry](https://github.com/dotcloud/docker-registry).
 
 ## Elements of Docker
 
-Elements of Docker can be considered anything that the above mentioned tools
-(or parts) use. This includes the following:
+The basic elements of Docker are:
 
  - **Containers, which allow:**  
- Security, portability and resources management.
+ The run portion of Docker. Your applications run inside of containers.
  - **Images, which provide:**  
- The base for applications inside the containers to run, and;
+ The build portion of Docker. Your containers are built from images.
  - **The Dockerfile, which automates:**  
- Container and container image build-process.
+ A file that contains simple instructions that build Docker images.
 
 To get practical and learn what they are, and **_how to work_** with
 them, continue to [Working with Docker](working-with-docker.md). If you would like to
@@ -129,15 +124,15 @@ understand **_how they work_**, stay here and continue reading.
 
 ## The underlying technology
 
-The power of Docker comes from the underlying technology. A series of
-operating system features are carefully glued together to provide
-Docker's features and provide an easy to use interface to those
-features. In this section, we will see the main Linux kernel features
-that Docker uses to make easy containerization happen.
+The power of Docker comes from the underlying technology it is built
+from. A series of operating system features are carefully glued together
+to provide Docker's features and provide an easy to use interface to
+those features. In this section, we will see the main operating system
+features that Docker uses to make easy containerization happen.
 
 ### Namespaces
 
-Docker takes advantage of a technology called `namespsaces` to provide
+Docker takes advantage of a technology called `namespaces` to provide
 an isolated workspace we call a *container*.  When you run a container,
 Docker creates a set of *namespaces* for that container.
 
@@ -162,10 +157,10 @@ Some of the namespaces Docker uses are:
 Docker also makes use of another technology called `cgroups` or control
 groups. A key need to run applications in isolation is to have them
 contained, not just in terms of related filesystem and/or dependencies,
-but also, resources. Control groups allow the functionality to fairly
+but also, resources. Control groups allow Docker to fairly
 share available hardware resources to containers and if asked, set up to
-limits and constraints (e.g. limiting the memory to a maximum of 128
-MBs).
+limits and constraints, for example limiting the memory to a maximum of 128
+MBs.
 
 ### UnionFS
 
@@ -189,82 +184,80 @@ Let's see how it works!
 
 ### How does a container work?
 
-A container consists of operating system images, user added files and
-meta-data that hold some additional information such as the process
-(i.e. application) to start and the arguments to pass when you run it.
-Since images are always read-only, a read-write layer gets added on top
-through the union file system as well.
-
-This, together, provides a location for all sorts of dependencies to reside.
-They are operated by executing the process, providing it the container itself
-as the base of its system and by controlling it through Linux kernel features
-for the purposes of isolation, security and more.
+A container consists of an operating system, user added files and
+meta-data. Each container is built from an image. That image tells
+Docker what the container holds, what process to run when the container
+is launched and a variety of other configuration data. The Docker image
+is read-only. When Docker runs a container from an image it adds a
+read-write layer on top of the image (using the UnionFS technology we
+saw earlier) to run inside the container.
 
 ### What happens when you run a container?
 
-The Docker daemon accepts varying instructions to run containers.
-Depending on the commands passed, it can skip certain steps. To have
-an overall idea, let's take a look at a simple `Hello world` example.
+The Docker client (or the API!) tells the Docker daemon to run a
+container. Let's take a look at a simple `Hello world` example.
 
-Imagine running the following command: `docker run -i -t ubuntu /bin/bash`
+    $ docker run -i -t ubuntu /bin/bash
+
+Let's break down this command. The Docker client is launched using the
+`docker` binary. The bare minimum the Docker client needs to tell the
+Docker daemon is:
+
+* What Docker image to build the container from;
+* The command you want to run inside the container when it is launched.
+
+So what happens under the covers when we run this command?
 
 Docker begins with:
 
- - **Pulling the `ubuntu:latest` image:**  
- i.e. downloading it from the [Docker Index](https://index.docker.io)
+ - **Pulling the `ubuntu` image:**  
+ Docker checks for the presence of the `ubuntu` image and if it doesn't
+ exist locally on the host, then Docker downloads it from the [Docker Index](https://index.docker.io)
  - **Creates a new container:**  
- i.e. starts container creation procedure
+ Once Docker has the image it creates a container from it.
  - **Allocates a filesystem and mounts a read-write _layer_:**  
- i.e. makes use of the filesystem drivers and desired technology
+ The container is created in the filesystem and a read-write layer is added to the image.
  - **Allocates a network / bridge interface:**  
- i.e. `docker0`
+ Creates a network interface that allows the Docker container to talk to the local host.
  - **Sets up an IP address:**  
- i.e. intelligently find and attach an available IP address
+ Intelligently finds and attaches an available IP address from a pool.
  - **Executes _a_ process that you specify:**  
- i.e. runs your application, and;
+ Runs your application, and;
  - **Captures and provides application output:**  
- i.e. for you to see the application feedback.
-
-> **Tip:** If you do not specify a tag, Docker fetches the image tagged
-> ":latest" from the given repository, i.e., `repo_name/image_name` defaults
-> to `repo_name/image_name:latest`. Therefore, `ubuntu` is actually
-> `ubuntu:latest`. The Ubuntu repository contains several others, including
-> `12.04`, `13.10`, `lucid`, `precise` and more.
+ Connects and logs standard input, outputs and errors for you to see how your application is running.
 
 ### How does a Docker Image work?
 
-When you start building your container (e.g. install an application on
-`ubuntu:12.04` and commit the *difference*), technically, this does not
-change the parent Ubuntu image but adds a new logical *layer* that forms
-yet a new one.
+We've already seen that Docker images are read-only templates that
+Docker containers are launched from. When you launch that container it
+creates a read-write layer on top of that image that your application is
+run in.
 
-The term layer is used actively when referring to Docker, because all
-commands executed on an image during the build process forms a new layer on top
-of the parent, without modifying or changing what's underneath (e.g. the
-*base image*). 
+Docker images are built using a simple descriptive set of steps we
+call *instructions*. Instructions are stored in a file called a
+`Dockerfile`. Each instruction writes a new layer to an image using the
+UnionFS technology we saw earlier.
 
-The lowest-level, read-only images (i.e. Ubuntu) are referred to as
-*base-images*. They are supplied by Docker and can be trusted.
+Every image starts from a base image, for example `ubuntu` a base Ubuntu
+image or `fedora` a base Fedora image. Docker builds and provides these
+base images via the [Docker Index](http://index.docker.io).
 
-Therefore, technically, an image is a read-only layer that you can build upon. 
+### How does a Docker registry work?
 
-Through filesystems, drivers and by analysing which technology is available,
-Docker creates, manages and works with images depending on the system.
+The Docker registry is a store for your Docker images. Once you build a
+Docker image you can *push* it to the [Docker
+Index](http://index.docker.io) or to a private registry you run behind
+your firewall.
 
-### How does the image registry index work?
+Using the Docker client, you can search for already published images and
+then pull them down to your Docker host to build containers from them
+(or even build on these images).
 
-The Docker Index works by users submitting their committed images. A committed
-image is a read-only snapshot taken from a container after the build process
-that can be used as a base to run new containers or to build new images for new
-containers.
-
-Using the Docker client, you can search-and-find (`docker search [name]`
-and `docker pull [name]`) some already published images to start running
-containers or push one of your own images to share publicly.
-
-If you have a private repository which you'd like to share amongst those you
-designate, you can also use the central registry index, the Docker Index by
-[signing up for a plan](https://index.docker.io/plans).
+The [Docker Index](http://index.docker.io) provides both public and
+private storage for images. Public storage is searchable and can be
+downloaded by anyone. Private repositories are excluded from search
+results and only you and your users can pull them down and use them to
+build containers. You can [sign up for a plan here](https://index.docker.io/plans).
 
 To learn more, check out the [Working With Repositories](
 http://docs.docker.io/en/latest/use/workingwithrepository) section of our
