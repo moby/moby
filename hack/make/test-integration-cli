@@ -31,5 +31,5 @@ bundle_test_integration_cli 2>&1 \
 
 DOCKERD_PID=$(cat $DEST/docker.pid)
 kill $DOCKERD_PID
-wait $DOCKERD_PID
+wait $DOCKERD_PID || true
 )
