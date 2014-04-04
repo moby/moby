@@ -22,7 +22,7 @@ func TestTop(t *testing.T) {
 	_, err = runCommand(killCmd)
 	errorOut(err, t, fmt.Sprintf("failed to kill container: %v", err))
 
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
 
 	if !strings.Contains(out, "sleep 20") {
 		t.Fatal("top should've listed sleep 20 in the process list")

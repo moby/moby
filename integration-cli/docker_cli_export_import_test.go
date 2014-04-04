@@ -40,8 +40,8 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	out, _, err = runCommandWithOutput(inspectCmd)
 	errorOut(err, t, fmt.Sprintf("output should've been an image id: %v %v", out, err))
 
-	go deleteImages("testexp")
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
+	deleteImages("testexp")
 
 	os.Remove("/tmp/testexp.tar")
 

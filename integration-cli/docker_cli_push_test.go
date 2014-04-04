@@ -26,7 +26,7 @@ func TestPushBusyboxImage(t *testing.T) {
 	out, exitCode, err = runCommandWithOutput(pushCmd)
 	errorOut(err, t, fmt.Sprintf("%v %v", out, err))
 
-	go deleteImages(repoName)
+	deleteImages(repoName)
 
 	if err != nil || exitCode != 0 {
 		t.Fatal("pushing the image to the private registry has failed")

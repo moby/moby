@@ -42,8 +42,8 @@ func TestSaveAndLoadRepo(t *testing.T) {
 	out, _, err = runCommandWithOutput(inspectCmd)
 	errorOut(err, t, fmt.Sprintf("the repo should exist after loading it: %v %v", out, err))
 
-	go deleteImages(repoName)
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
+	deleteImages(repoName)
 
 	os.Remove("/tmp/foobar-save-load-test.tar")
 
