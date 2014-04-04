@@ -600,8 +600,6 @@ To see how the ``docker:latest`` image was built:
       -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only show numeric IDs
-      -t, --tree=false: Output graph in tree format
-      -v, --viz=false: Output graph in graphviz format
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -636,46 +634,6 @@ Listing the full length image IDs
 	<none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
 	tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
 	<none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
-
-Displaying images visually
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-    $ sudo docker images --viz | dot -Tpng -o docker.png
-
-.. image:: docker_images.gif
-   :alt: Example inheritance graph of Docker images.
-
-
-Displaying image hierarchy
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-    $ sudo docker images --tree
-
-    ├─8dbd9e392a96 Size: 131.5 MB (virtual 131.5 MB) Tags: ubuntu:12.04,ubuntu:latest,ubuntu:precise
-    └─27cf78414709 Size: 180.1 MB (virtual 180.1 MB)
-      └─b750fe79269d Size: 24.65 kB (virtual 180.1 MB) Tags: ubuntu:12.10,ubuntu:quantal
-        ├─f98de3b610d5 Size: 12.29 kB (virtual 180.1 MB)
-        │ └─7da80deb7dbf Size: 16.38 kB (virtual 180.1 MB)
-        │   └─65ed2fee0a34 Size: 20.66 kB (virtual 180.2 MB)
-        │     └─a2b9ea53dddc Size: 819.7 MB (virtual 999.8 MB)
-        │       └─a29b932eaba8 Size: 28.67 kB (virtual 999.9 MB)
-        │         └─e270a44f124d Size: 12.29 kB (virtual 999.9 MB) Tags: progrium/buildstep:latest
-        └─17e74ac162d8 Size: 53.93 kB (virtual 180.2 MB)
-          └─339a3f56b760 Size: 24.65 kB (virtual 180.2 MB)
-            └─904fcc40e34d Size: 96.7 MB (virtual 276.9 MB)
-              └─b1b0235328dd Size: 363.3 MB (virtual 640.2 MB)
-                └─7cb05d1acb3b Size: 20.48 kB (virtual 640.2 MB)
-                  └─47bf6f34832d Size: 20.48 kB (virtual 640.2 MB)
-                    └─f165104e82ed Size: 12.29 kB (virtual 640.2 MB)
-                      └─d9cf85a47b7e Size: 1.911 MB (virtual 642.2 MB)
-                        └─3ee562df86ca Size: 17.07 kB (virtual 642.2 MB)
-                          └─b05fc2d00e4a Size: 24.96 kB (virtual 642.2 MB)
-                            └─c96a99614930 Size: 12.29 kB (virtual 642.2 MB)
-                              └─a6a357a48c49 Size: 12.29 kB (virtual 642.2 MB) Tags: ndj/mongodb:latest
 
 .. _cli_import:
 

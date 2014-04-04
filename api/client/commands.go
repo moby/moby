@@ -1137,8 +1137,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate images used to build)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-	flViz := cmd.Bool([]string{"v", "#viz", "-viz"}, false, "Output graph in graphviz format")
-	flTree := cmd.Bool([]string{"t", "#tree", "-tree"}, false, "Output graph in tree format")
+	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
+	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
+	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1150,6 +1151,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	filter := cmd.Arg(0)
 
+	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	if *flViz || *flTree {
 		body, _, err := readBody(cli.call("GET", "/images/json?all=1", nil, false))
 		if err != nil {
@@ -1260,6 +1262,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	return nil
 }
 
+// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[string]*engine.Table, prefix string, printNode func(cli *DockerCli, noTrunc bool, image *engine.Env, prefix string)) {
 	length := images.Len()
 	if length > 1 {
@@ -1286,6 +1289,7 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[
 	}
 }
 
+// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix string) {
 	var (
 		imageID  string
@@ -1309,6 +1313,7 @@ func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix strin
 	}
 }
 
+// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix string) {
 	var imageID string
 	if noTrunc {
