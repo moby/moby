@@ -11,10 +11,7 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 Once you are comfortable with your level of knowledge of Docker, and
 feel like actually trying the product, you can download and start using
 it by following the links listed below. There, you will find
-instructions, specifically tailored for your platform of choice.
-
-Docker is a flexible tool and tries to offers a unified experience across
-different systems.
+installation instructions, specifically tailored for your platform of choice.
 
 ## Installation Instructions
 
@@ -35,7 +32,7 @@ different systems.
  - **openSUSE:**  
  [Installation on openSUSE](../installation/openSUSE.md)
 
-### Mac OS X (Using VirtualBox)
+### Mac OS X (Using Boot2Docker)
 
 In order to work, Docker makes use of some Linux Kernel features which
 are not supported by Mac OS X. To run Docker on OS X we install and run
@@ -44,15 +41,15 @@ a lightweight virtual machine and run Docker on that.
  - **Mac OS X :**  
  [Installation on Mac OS X](../installation/mac.md)
 
-### Windows (Using VirtualBox)
+### Windows (Using Boot2Docker)
 
-Docker can run on Windows using a VM like VirtualBox. You then run Linux
-within the VM.
+Docker can also run on Windows using a virtual machine. You then run
+Linux and Docker inside that virtual machine.
 
  - **Windows:**  
  [Installation on Windows](../installation/windows.md)
 
-### Infrastructure-as-a-Service (IaaS)
+### Infrastructure-as-a-Service
 
  - **Amazon EC2:**  
  [Installation on Amazon EC2](../installation/amazon.md)
