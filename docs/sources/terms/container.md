@@ -4,6 +4,8 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 # Container
 
+## Introduction
+
 ![](../../_images/docker-filesystems-busyboxrw.png)
 
 Once you start a process in Docker from an
@@ -21,7 +23,7 @@ its unique id, networking configuration, and resource limits is called a
 Containers can change, and so they have state. A container may be
 **running** or **exited**.
 
-When a container is running, the idea of a “container” also includes a
+When a container is running, the idea of a "container" also includes a
 tree of processes running on the CPU, isolated from the other processes
 running on the host.
 

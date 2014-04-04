@@ -20,8 +20,9 @@ application running on CentOS. You can get the full source code at
 
 ## Create Node.js app
 
-First, create a `package.json` file that describes
-your app and its dependencies:
+First, create a directory `src` where all the files
+would live. Then create a `package.json` file that
+describes your app and its dependencies:
 
     {
       "name": "docker-centos-hello",
@@ -48,7 +49,7 @@ app using the [Express.js](http://expressjs.com/) framework:
       res.send('Hello World\n');
     });
 
-    app.listen(PORT)
+    app.listen(PORT);
     console.log('Running on http://localhost:' + PORT);
 
 In the next steps, we’ll look at how you can run this app inside a

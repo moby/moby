@@ -21,8 +21,8 @@ page_keywords: faq, questions, documentation, docker
 > Not at this time, Docker currently only runs on Linux, but you can use
 > VirtualBox to run Docker in a virtual machine on your box, and get the
 > best of both worlds. Check out the [*Mac OS
-> X*](../installation/mac/#macosx) and
-> [*Windows*](../installation/windows/#windows) installation guides. The
+> X*](../installation/mac/#macosx) and [*Microsoft
+> Windows*](../installation/windows/#windows) installation guides. The
 > small Linux distribution boot2docker can be run inside virtual
 > machines on these two operating systems.
 
@@ -35,7 +35,7 @@ page_keywords: faq, questions, documentation, docker
 
 ### What does Docker add to just plain LXC?
 
-> Docker is not a replacement for LXC. “LXC” refers to capabilities of
+> Docker is not a replacement for LXC. "LXC" refers to capabilities of
 > the Linux kernel (specifically namespaces and control groups) which
 > allow sandboxing processes from one another, and controlling their
 > resource allocations. On top of this low-level foundation of kernel
@@ -90,8 +90,8 @@ page_keywords: faq, questions, documentation, docker
 >         by only sending diffs.
 >
 > -   *Component re-use.*
->     :   Any container can be used as a [*“base
->         image”*](../terms/image/#base-image-def) to create more
+>     :   Any container can be used as a [*"base
+>         image"*](../terms/image/#base-image-def) to create more
 >         specialized components. This can be done manually or as part
 >         of an automated build. For example you can prepare the ideal
 >         Python environment, and use it as a base for 10 different
@@ -105,7 +105,7 @@ page_keywords: faq, questions, documentation, docker
 >         Postgres to IRC bouncers to Rails app servers to Hadoop to
 >         base images for various Linux distros. The
 >         [*registry*](../reference/api/registry_index_spec/#registryindexspec)
->         also includes an official “standard library” of useful
+>         also includes an official "standard library" of useful
 >         containers maintained by the Docker team. The registry itself
 >         is open-source, so anyone can deploy their own registry to
 >         store and transfer private containers, for internal server

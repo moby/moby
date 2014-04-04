@@ -4,6 +4,8 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 # Image
 
+## Introduction
+
 ![](../../_images/docker-filesystems-debian.png)
 
 In Docker terminology, a read-only [*Layer*](../layer/#layer-def) is
