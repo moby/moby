@@ -70,7 +70,7 @@ func TestGetVersion(t *testing.T) {
 	eng.Register("version", func(job *engine.Job) engine.Status {
 		called = true
 		v := &engine.Env{}
-		v.Set("Version", "42.1")
+		v.SetJson("Version", "42.1")
 		v.Set("ApiVersion", "1.1.1.1.1")
 		v.Set("GoVersion", "2.42")
 		v.Set("Os", "Linux")
