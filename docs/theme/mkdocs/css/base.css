@@ -116,6 +116,11 @@ body { padding-top: 0; }
     padding: 25px 15px 25px 15px;
     color: #777777;
 }
+#topmostnav .navbar-nav {
+	right: 0px;
+	top: 0px;
+	position: absolute;
+}
 #topmostnav .navbar-inner {
     padding-right: 0px;
     padding-left: 0px;
