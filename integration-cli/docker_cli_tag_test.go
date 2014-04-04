@@ -79,7 +79,7 @@ func TestTagValidPrefixedRepo(t *testing.T) {
 			t.Errorf("tag busybox %v should have worked: %s", repo, err)
 			continue
 		}
-		go deleteImages(repo)
+		deleteImages(repo)
 		logMessage := fmt.Sprintf("tag - busybox %v", repo)
 		logDone(logMessage)
 	}

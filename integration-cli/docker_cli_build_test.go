@@ -18,7 +18,7 @@ func TestBuildSixtySteps(t *testing.T) {
 		t.Fatal("failed to build the image")
 	}
 
-	go deleteImages("foobuildsixtysteps")
+	deleteImages("foobuildsixtysteps")
 
 	logDone("build - build an image with sixty build steps")
 }

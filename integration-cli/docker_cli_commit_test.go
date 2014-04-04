@@ -27,8 +27,8 @@ func TestCommitAfterContainerIsDone(t *testing.T) {
 	out, _, err = runCommandWithOutput(inspectCmd)
 	errorOut(err, t, fmt.Sprintf("failed to inspect image: %v %v", out, err))
 
-	go deleteContainer(cleanedContainerID)
-	go deleteImages(cleanedImageID)
+	deleteContainer(cleanedContainerID)
+	deleteImages(cleanedImageID)
 
 	logDone("commit - echo foo and commit the image")
 }

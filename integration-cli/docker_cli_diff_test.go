@@ -30,7 +30,7 @@ func TestDiffFilenameShownInOutput(t *testing.T) {
 	if !found {
 		t.Errorf("couldn't find the new file in docker diff's output: %v", out)
 	}
-	go deleteContainer(cleanCID)
+	deleteContainer(cleanCID)
 
 	logDone("diff - check if created file shows up")
 }
@@ -53,7 +53,7 @@ func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 		out, _, err := runCommandWithOutput(diffCmd)
 		errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
 
-		go deleteContainer(cleanCID)
+		deleteContainer(cleanCID)
 
 		for _, filename := range dockerinitFiles {
 			if strings.Contains(out, filename) {
@@ -74,7 +74,7 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
 	out, _, err := runCommandWithOutput(diffCmd)
 	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
-	go deleteContainer(cleanCID)
+	deleteContainer(cleanCID)
 
 	expected := map[string]bool{
 		"C /dev":      true,

@@ -24,7 +24,7 @@ func TestLogsContainerSmallerThanPage(t *testing.T) {
 		t.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
 
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
 
 	logDone("logs - logs container running echo smaller than page size")
 }
@@ -47,7 +47,7 @@ func TestLogsContainerBiggerThanPage(t *testing.T) {
 		t.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
 
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
 
 	logDone("logs - logs container running echo bigger than page size")
 }
@@ -70,7 +70,7 @@ func TestLogsContainerMuchBiggerThanPage(t *testing.T) {
 		t.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
 
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
 
 	logDone("logs - logs container running echo much bigger than page size")
 }

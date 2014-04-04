@@ -30,7 +30,7 @@ func TestKillContainer(t *testing.T) {
 		t.Fatal("killed container is still running")
 	}
 
-	go deleteContainer(cleanedContainerID)
+	deleteContainer(cleanedContainerID)
 
 	logDone("kill - kill container running sleep 10")
 }
