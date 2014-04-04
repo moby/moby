@@ -8,8 +8,8 @@ Note
 
 Docker is still under heavy development! We don’t recommend using it in
 production yet, but we’re getting closer with each release. Please see
-our blog post, [“Getting to Docker
-1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+our blog post, ["Getting to Docker
+1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 There are several ways to install Docker on AWS EC2:
 
@@ -34,9 +34,9 @@ course.**
         button at the bottom right.
 
 2.  **Tell CloudInit to install Docker:**
-    -   When you’re on the “Configure Instance Details” step, expand the
-        “Advanced Details” section.
-    -   Under “User data”, select “As text”.
+    -   When you’re on the "Configure Instance Details" step, expand the
+        "Advanced Details" section.
+    -   Under "User data", select "As text".
     -   Enter `#include https://get.docker.io` into
         the instance *User Data*.
         [CloudInit](https://help.ubuntu.com/community/CloudInit) is part

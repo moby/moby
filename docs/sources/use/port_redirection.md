@@ -4,6 +4,8 @@ page_keywords: Usage, basic port, docker, documentation, examples
 
 # Redirect Ports
 
+## Introduction
+
 Interacting with a service is commonly done through a connection to a
 port. When this service runs inside a container, one can connect to the
 port after finding the IP address of the container as follows:

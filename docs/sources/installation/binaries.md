@@ -8,8 +8,8 @@ Note
 
 Docker is still under heavy development! We don’t recommend using it in
 production yet, but we’re getting closer with each release. Please see
-our blog post, [“Getting to Docker
-1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+our blog post, ["Getting to Docker
+1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 **This instruction set is meant for hackers who want to try out Docker
 on a variety of environments.**
@@ -23,22 +23,26 @@ packages for many distributions, and more keep showing up all the time!
 To run properly, docker needs the following software to be installed at
 runtime:
 
--   iproute2 version 3.5 or later (build after 2012-05-21), and
-    specifically the “ip” utility
 -   iptables version 1.4 or later
--   The LXC utility scripts
-    ([http://lxc.sourceforge.net](http://lxc.sourceforge.net)) version
-    0.8 or later
 -   Git version 1.7 or later
 -   XZ Utils 4.9 or later
+-   a [properly
+    mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
+    cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount
+    point [is](https://github.com/dotcloud/docker/issues/2683)
+    [not](https://github.com/dotcloud/docker/issues/3485)
+    [sufficient](https://github.com/dotcloud/docker/issues/4568))
 
 ## Check kernel dependencies
 
 Docker in daemon mode has specific kernel requirements. For details,
 check your distribution in [*Installation*](../#installation-list).
 
+In general, a 3.8 Linux kernel (or higher) is preferred, as some of the
+prior versions have known issues that are triggered by Docker.
+
 Note that Docker also has a client mode, which can run on virtually any
-linux kernel (it even builds on OSX!).
+Linux kernel (it even builds on OSX!).
 
 ## Get the docker binary:
 
@@ -69,7 +73,9 @@ all the client commands.
 
 Warning
 
-The *docker* group is root-equivalent.
+The *docker* group (or the group specified with `-G`{.docutils
+.literal}) is root-equivalent; see [*Docker Daemon Attack
+Surface*](../../articles/security/#dockersecurity-daemon) details.
 
 ## Upgrades
 
