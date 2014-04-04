@@ -13,8 +13,8 @@ Note
 
 Docker is still under heavy development! We don’t recommend using it in
 production yet, but we’re getting closer with each release. Please see
-our blog post, [“Getting to Docker
-1.0”](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+our blog post, ["Getting to Docker
+1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Docker is supported on the following versions of Ubuntu:
 
@@ -38,7 +38,7 @@ with a 3.2 kernel, so we need to upgrade it. The kernel you’ll install
 when following these steps comes with AUFS built in. We also include the
 generic headers to enable packages that depend on them, like ZFS and the
 VirtualBox guest additions. If you didn’t install the headers for your
-“precise” kernel, then you can skip these headers for the “raring”
+"precise" kernel, then you can skip these headers for the "raring"
 kernel. But it is safer to include them if you’re not sure.
 
     # install the backported kernel
@@ -56,13 +56,13 @@ These instructions have changed for 0.6. If you are upgrading from an
 earlier version, you will need to follow them again.
 
 Docker is available as a Debian package, which makes installation easy.
-**See the :ref:\`installmirrors\` section below if you are not in the
-United States.** Other sources of the Debian packages may be faster for
-you to install.
+**See the** [*Mirrors*](#installmirrors) **section below if you are not
+in the United States.** Other sources of the Debian packages may be
+faster for you to install.
 
 First add the Docker repository key to your local keychain.
 
-    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install
 the `lxc-docker` package.
@@ -121,7 +121,7 @@ upgrading from an earlier version, you will need to follow them again.
 
 First add the Docker repository key to your local keychain.
 
-    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install
 the `lxc-docker` package.
@@ -156,11 +156,15 @@ socket read/writable by the *docker* group when the daemon starts. The
 `docker` daemon must always run as the root user,
 but if you run the `docker` client as a user in the
 *docker* group then you don’t need to add `sudo` to
-all the client commands.
+all the client commands. As of 0.9.0, you can specify that a group other
+than `docker` should own the Unix socket with the
+`-G` option.
 
 Warning
 
-The *docker* group is root-equivalent.
+The *docker* group (or the group specified with `-G`{.docutils
+.literal}) is root-equivalent; see [*Docker Daemon Attack
+Surface*](../../articles/security/#dockersecurity-daemon) details.
 
 **Example:**
 
@@ -259,9 +263,9 @@ Docker daemon for the containers:
     sudo nano /etc/default/docker
     ---
     # Add:
-    DOCKER_OPTS="-dns 8.8.8.8"
+    DOCKER_OPTS="--dns 8.8.8.8"
     # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
-    # multiple DNS servers can be specified: -dns 8.8.8.8 -dns 192.168.1.1
+    # multiple DNS servers can be specified: --dns 8.8.8.8 --dns 192.168.1.1
 
 The Docker daemon has to be restarted:
 

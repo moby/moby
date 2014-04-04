@@ -6,7 +6,6 @@ page_keywords: todo, docker, documentation, installation, usage, examples, contr
 
 This documentation has the following resources:
 
--   [Introduction](../)
 -   [Installation](../installation/)
 -   [Use](../use/)
 -   [Examples](../examples/)
