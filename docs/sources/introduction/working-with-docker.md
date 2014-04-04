@@ -14,7 +14,7 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 ## Introduction
 
-On the last page (i.e., [Page 2](technology.md)) we covered the
+On the last page (i.e., [Understanding the Technology](technology.md)) we covered the
 parts forming Docker (e.g. the client and the daemon), studied the
 underlying technology and *how* everything works (i.e., the underlying
 technology). It should be clear how beneficial containers are compared
@@ -26,13 +26,13 @@ Docker images and the `Dockerfile`.
 > **Note:** You are encouraged to take a good look at the container,
 > image and Dockerfile explanations here to have a better understanding
 > on what exactly they are and to get an overall idea on how to work with
-> them. On the next page (i.e., [Page 4](get-docker.md)), you will be
+> them. On the next page (i.e., [Get Docker](get-docker.md)), you will be
 > able to find links for platform-centric installation instructions and
 > also, more goal-oriented usage tutorials based on `Dockerfile`s.
 
 ## Elements of Docker
 
-As we mentioned on the previous page (i.e., [Page 2](technology.md)), main
+As we mentioned on the previous page (i.e., [Understanding the Technology](technology.md)), main
 elements of Docker are:
 
  - Containers;
@@ -42,7 +42,7 @@ elements of Docker are:
 > **Note:** This page is more *practical* than *technical*. If you are
 > interested in understanding how these tools work behind the scenes
 > and do their job, you can always read more on
-> [Page 2: How Does Everything Work](technology.md).
+> [Understanding the Technology](technology.md).
 
 ## Working with the Docker client
 
