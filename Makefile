@@ -10,7 +10,7 @@ DOCKER_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_MOUNT := $(if $(BINDDIR),-v "$(CURDIR)/$(BINDDIR):/go/src/github.com/dotcloud/docker/$(BINDDIR)")
 
-DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TESTFLAGS $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
+DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TESTFLAGS -e DOCKER_GRAPHDRIVER -e DOCKER_EXECDRIVER $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
 DOCKER_RUN_DOCS := docker run --rm -it -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)"
 
 default: binary

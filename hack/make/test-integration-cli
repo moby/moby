@@ -7,6 +7,8 @@ set -e
 # subshell so that we can export PATH without breaking other things
 (
 export PATH="$DEST/../binary:$DEST/../dynbinary:$PATH"
+DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
+DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
 
 bundle_test_integration_cli() {
 	go_test_dir ./integration-cli
@@ -17,7 +19,8 @@ if ! command -v docker &> /dev/null; then
 	false
 fi
 
-docker -d -D -p $DEST/docker.pid &> $DEST/docker.log &
+echo "running cli integration tests using graphdriver: '$DOCKER_GRAPHDRIVER' and execdriver: '$DOCKER_EXECDRIVER'" 
+docker -d -D -s $DOCKER_GRAPHDRIVER -e $DOCKER_EXECDRIVER -p $DEST/docker.pid &> $DEST/docker.log &
 
 # pull the busybox image before running the tests
 sleep 2
