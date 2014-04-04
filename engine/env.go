@@ -194,7 +194,25 @@ func (env *Env) SetAuto(k string, v interface{}) {
 }
 
 func (env *Env) Encode(dst io.Writer) error {
-	return json.NewEncoder(dst).Encode(env.Map())
+	m := make(map[string]interface{})
+	for k, v := range env.Map() {
+		var val interface{}
+		if err := json.Unmarshal([]byte(v), &val); err == nil {
+			// FIXME: we fix-convert float values to int, because
+			// encoding/json decodes integers to float64, but cannot encode them back.
+			// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
+			if fval, isFloat := val.(float64); isFloat {
+				val = int(fval)
+			}
+			m[k] = val
+		} else {
+			m[k] = v
+		}
+	}
+	if err := json.NewEncoder(dst).Encode(&m); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (env *Env) WriteTo(dst io.Writer) (n int64, err error) {
