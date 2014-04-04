@@ -267,7 +267,7 @@ share, sand-box and isolate an application).
 
 > **Tip:** Containers, despite holding everything inside, are nothing like 
 > VMs. To learn more about their differences, see the detailed comparison 
-> on [Page 1: *Docker Compared Against Virtual-Machines*](understanding-docker.md).
+> in [*Docker Compared Against Virtual-Machines*](understanding-docker.md).
 
 In order to create or start a container, you need an image. This could be an
 empty Ubuntu instance, or, someone's *committed* personal image that is designed
@@ -355,7 +355,7 @@ Docker go through them one by one.
 ### The Dockerfile
 
 You can streamline and automate the whole Docker image creation process
-successively, in a maintanable and predictable way by using Dockerfiles.
+successively, in a maintainable and predictable way by using Dockerfiles.
 
 A Dockerfile is a script (i.e., a set of instructions) to be read and 
 run by the Docker client to build a brand new container image with 
@@ -379,11 +379,11 @@ A `Dockerfile` contains instructions written in the below format:
     # Example:
     FROM ubuntu
 
-All arguments provided after an instruction, unless it is a Docker 
-specific one (e.g. `FROM`), are passed directly to the container to 
-be executed.
+All arguments provided after an instruction, unless it is a Docker
+specific one (e.g. `FROM`), are passed directly to the container to be
+executed.
 
-Although there is not a script requirement, instructions are generally 
+Although there is not a script requirement, instructions are generally
 advised to be written in all capitals for the purposes of clarity.
 
 A `#` sign is used to comment-out text:
@@ -524,17 +524,17 @@ Output:
 
 ## Where to go from here
 
-### Understand Docker
+### Understanding Docker
 
-Visit [Page 1](understanding-docker.md) of our Getting Started manual.
+Visit [Understanding Docker](understanding-docker.md) in our Getting Started manual.
 
 ### Learn about parts of Docker and the underlying technology
 
-Visit [Page 2](technology.md) of our Getting Started manual.
+Visit [Understanding the Technology](technology.md) in our Getting Started manual.
 
 ### Get the product and go hands-on
 
-Visit [Page 4](get-docker.md) of our Getting Started manual.
+Visit [Get Docker](get-docker.md) in our Getting Started manual.
 
 ### Get the whole story
 

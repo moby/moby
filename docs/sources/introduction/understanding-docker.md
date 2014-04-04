@@ -239,15 +239,15 @@ be used in a lot of different use cases.
 
 ### Learn about Parts of Docker and the underlying technology
 
-Visit [Page 2](technology.md) of our Getting Started manual.
+Visit [Understanding the Technology](technology.md) in our Getting Started manual.
 
 ### Get practical and learn how to use Docker straight away
 
-Visit [Page 3](working-with-docker.md) of our Getting Started manual.
+Visit [Working with Docker](working-with-docker.md) in our Getting Started manual.
 
 ### Get the product and go hands-on
 
-Visit [Page 4](get-docker.md) of our Getting Started manual.
+Visit [Get Docker](get-docker.md) in our Getting Started manual.
 
 ### Get the whole story
 
