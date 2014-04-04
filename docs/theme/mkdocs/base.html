@@ -9,121 +9,16 @@
         {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
         {% if site_favicon %}<link rel="shortcut icon" href="{{ site_favicon }}">
         {% else %}<link rel="shortcut icon" href="{{ base_url }}/img/favicon.ico">{% endif %}
-
         <title>{{ page_title }}</title>
-
         <link href="{{ base_url }}/css/bootstrap-custom.min.css" rel="stylesheet">
-
         <link href="{{ base_url }}/css/font-awesome-4.0.3.css" rel="stylesheet">
         <link href="{{ base_url }}/css/prettify-1.0.css" rel="stylesheet">
         <link href="{{ base_url }}/css/base.css" rel="stylesheet">
-
         <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
         <!--[if lt IE 9]>
             <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
             <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
         <![endif]-->
-
-	<!-- Sven hacking -->
-	<style>
-		body { padding-top: 0; }
-		@media (min-width: 992px) {
-		.bs-sidebar.affix {
-			position: relative;
-			top: 0;
-		}
-		}
-	    	#topmostnav {
-			margin-bottom: 0;
-	    	}
-		#topmostnav {
-			/* position: fixed; */
-			width: 100%;
-			height: 70px;
-			z-index: 10;
-			background-color: #f2f2f2;
-		}
-		#topmostnav ul li a {
-			  padding: 25px 15px 25px 15px;
-			    color: #777777;
-		}
-		#topmostnav .navbar-inner {
-			  padding-right: 0px;
-			    padding-left: 0px;
-		}
-		#topmostnav ul li.active {
-			  color: #555555;
-			    text-decoration: none;
-			      background-color: #d8d8d8;
-		}
-		#topmostnav ul li.active a:hover {
-			  background-color: #d8d8d8;
-		}
-		/* Horizontal Thin Sticky Menu */
-		#horizontal_thin_menu {
-			   position: fixed; 
-			    width: 100%;
-			      top: 70px;
-			        background-color: #5992a3;
-				  height: 30px;
-				    color: white;
-				      text-align: right;
-				        padding: 5px 10px;
-					  z-index: 10;
-		}
-		#horizontal_thin_menu a {
-			  display: inline-block;
-			    color: white;
-			      padding: 0px 10px;
-		}
-
-		/* Main Docs Navigaton Menu (Horizontal) */
-		#stickynav {
-			/*  position: fixed; */
-			    width: 100%;
-			/*      top: 100px;	*/
-			        background-color: #71afc0;
-		/*		  height: 50px; */
-				    padding: 0px 10px;
-				      color: white;
-				        z-index: 10;
-			background-image: url();
-		}
-		#stickynav ul .dropdown a {
-			  background-color: none;
-			    color: #fff;
-			      font-size: 18px;
-		}
-		#stickynav ul .dropdown a:hover {
-			  color: #5992a3;
-			    background-color: #f2f2f2;
-			      text-decoration: underline;
-		}
-		#stickynav ul .dropdown.active {
-			  background-color: #f2f2f2;
-			    text-decoration: underline;
-		}
-		#stickynav ul .dropdown.active a,
-		#stickynav ul .dropdown-menu a {
-			  color: #5992a3;
-		}
-		#stickynav .dropdown.searchbox {
-			  padding: 12px;
-		}
-		#stickynav .dropdown.searchbox input {
-			  color: #333;
-		}
-		#stickynav .navbar-right {
-			  margin-right: 0px;
-		}
-		ul.nav li.dropdown:hover > ul.dropdown-menu {
-			    display: block;    
-		}
-	    .navbar-index-search {
-		    padding-top: 13px;
-	    }
-	</style
-
         {% if config.theme_center_lead %}
         <style>
             div.col-md-9 h1:first-of-type {
@@ -131,40 +26,120 @@
                 font-size: 60px;
                 font-weight: 300;
             }
-
             div.col-md-9 p:first-of-type {
                 text-align: center;
             }
         </style>
         {% endif %}
     </head>
-
     <body>
-
-        {% include "nav.html" %}
-
-        <div class="container-fluid">
-            <div class="col-md-3">{% include "toc.html" %}</div>
-            <div class="col-md-9" role="main">{% include "content.html" %}</div>
+        <div id="wrap">
+            {% include "nav.html" %}
+            <div id="main" class="container-fluid">
+                <div class="col-md-3">{% include "toc.html" %}</div>
+                <div class="col-md-9" role="main">{% include "content.html" %}</div>
+            </div>
+            {% if include_search %}{% include "search.html" %}{% endif %}
         </div>
-
-        {% if include_search %}{% include "search.html" %}{% endif %}
-
+        <!-- footer -->
+        <div id="footer">
+        <div class="footer-landscape">
+        <div class="footer-landscape-image">
+        <div class="container">
+        <div class="row footer">
+        <div class="tbox span12">
+        <span class="footer-licence">Docker is an open source project, sponsored by <a href="http://www.docker.com">Docker, Inc.</a> under the <a href="https://github.com/dotcloud/docker/blob/master/LICENSE" title="Docker licence, hosted in the Github repository">Apache 2.0 licence</a></span>
+        <form class="form-inline" style="display: block; float:right;">
+        <input type="text" id="st-search-input" class="st-search-input input-large" placeholder="Search all of Docker" autocomplete="off" autocorrect="off" autocapitalize="off" style="outline: none;">
+        <div id="st-results-container"></div>
+        </form>
+        </div>
+        <div class="span12 tbox">
+        <div class="tbox footer-items-right">
+        <div class="textright social links" style="width: 200px;">
+        <a title="Docker on Twitter" class="twitter" href="http://twitter.com/docker">Twitter</a>
+        <a title="Docker on GitHub" class="github" href="https://github.com/dotcloud/docker/">GitHub</a>
+        <a title="Docker on Reddit" class="reddit" href="http://www.reddit.com/r/Docker/">Reddit</a>
+        <a title="Docker on Google+" class="googleplus" href="https://plus.google.com/u/0/b/100381662757235514581/communities/108146856671494713993">Google+</a>
+        <a title="Docker on Facebook" class="facebook" href="https://www.facebook.com/docker.run">Facebook</a>
+        <a title="Docker on SlideShare" class="slideshare" href="http://www.slideshare.net/dotCloud">Slideshare</a>
+        <a title="Docker on Youtube" class="youtube" href="http://www.youtube.com/user/dockerrun/">Youtube</a>
+        <a title="Docker on Flickr" class="flickr" href="http://www.flickr.com/photos/99741659@N08/">Flickr</a>
+        <a title="Docker on LinkedIn" class="linkedin" href="http://www.linkedin.com/company/dotcloud">LinkedIn</a>
+        </div>
+        </div>
+        <div class="tbox footerlist" style="clear: left;">
+        <h4>About</h4>
+        <ul class="unstyled">
+        <li><a href="/news/" title="News and updates">News</a></li>
+        <li><a href="/press/" title="Docker in the media">Press</a></li>
+        <li><a href="/team/" title="The team behind">Team</a></li>
+        <li><a href="/jobs/" title="Docker jobs">Jobs</a></li>
+        </ul>
+        </div>
+        <div class="tbox footerlist">
+        <h4>Get started</h4>
+        <ul class="unstyled">
+        <li><a href="/gettingstarted/" title="getting started">Getting started</a></li>
+        <li><a href="/learn/dockerfile/" title="Events and meetups">Dockerfile tutorial</a></li>
+        </ul>
+        <h4>Security</h4>
+        <ul class="unstyled">
+        <li><a href="/security/" title="Docker Security">Security Reporting</a></li>
+        </ul>
+        </div>
+        <div class="tbox footerlist">
+        <h4>Community</h4>
+        <ul class="unstyled">
+        <li><a href="http://blog.docker.io" title="Docker Blog">Blog</a></li>
+        <li><a href="/community/" title="Community">Community</a></li>
+        <li><a href="/events/" title="Events">Events</a></li>
+        <li><a href="/meetups/" title="Meetups">Meetups</a></li>
+        <li><a href="/live/" title="Live streaming">Live</a></li>
+        <li><a href="/docker-beta/" title="Docker BETA">Docker Beta</a></li>
+        </ul>
+        </div>
+        <div class="tbox footerlist">
+        <h4>Contact</h4>
+        <ul class="unstyled">
+        <li><a href="/contact/" title="Contact">Contact</a></li>
+        </ul>
+        <h4>Docker Index</h4>
+        <ul class="unstyled">
+        <li><a href="https://index.docker.io" title="Docker Index">Search</a></li>
+        <li><a href="https://index.docker.io/help/" title="Docker Index Help">Support</a></li>
+        </ul>
+        </div>
+        <div class="tbox footerlist">
+        <h4>Legal</h4>
+        <ul class="unstyled">
+        <li><a href="http://www.docker.com/terms_of_service/" title="Terms of service">Terms of Service</a></li>
+        <li><a href="http://www.docker.com/privacy_policy/" title="Privacy policy">Privacy Policy</a></li>
+        <li><a href="http://www.docker.com/trademark_guidelines/" title="Trademark Guidelines">Trademark Guidelines</a></li>
+        </ul>
+        </div>
+        </div>
+        </div>
+        </div>
+        </div>
+        </div>
+        </div>
+        <!-- end of footer -->
         <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
         <script src="{{ base_url }}/js/bootstrap-3.0.3.min.js"></script>
         <script src="{{ base_url }}/js/prettify-1.0.min.js"></script>
         <script src="{{ base_url }}/js/base.js"></script>
-	<script type="text/javascript">
-		var Swiftype = window.Swiftype || {};
-		  (function() {
-		       Swiftype.key = 'LYsKveHxy41JKjfo1n7m';
-
-	           /** DO NOT EDIT BELOW THIS LINE **/
-	           var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
-		   script.src = "//s.swiftypecdn.com/embed.js";
-	           var entry = document.getElementsByTagName('script')[0];
-		       entry.parentNode.insertBefore(script, entry);
-		         }());
-	</script>
+        <script type="text/javascript">
+        var Swiftype = window.Swiftype || {};
+        (function() {
+            Swiftype.key = 'LYsKveHxy41JKjfo1n7m';
+            var script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.async = true;
+            script.src = "//s.swiftypecdn.com/embed.js";
+            var entry = document.getElementsByTagName('script')[0];
+            entry.parentNode.insertBefore(script, entry);
+        }());
+        </script>
     </body>
 </html>
