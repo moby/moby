@@ -43,11 +43,6 @@ into it:
    stop on runlevel [!2345]
    respawn
    script
-     # Wait for docker to finish starting up first.
-     FILE=/var/run/docker.sock
-     while [ ! -e $FILE ] ; do
-       inotifywait -t 2 -e create $(dirname $FILE)
-     done
      /usr/bin/docker start -a redis_server
    end script
 
