@@ -739,6 +739,10 @@ func (container *Container) allocateNetwork() error {
 		}
 	}
 
+    if !iptables.ExistsNetworkMetricRule(container.NetworkSettings.IPAddress) {
+		iptables.CreateNetworkMetricRules(container.NetworkSettings.IPAddress)
+	}
+
 	if container.Config.PortSpecs != nil {
 		utils.Debugf("Migrating port mappings for container: %s", strings.Join(container.Config.PortSpecs, ", "))
 		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
@@ -808,13 +812,8 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.Ports = bindings
 	container.NetworkSettings.Bridge = env.Get("Bridge")
 	container.NetworkSettings.IPAddress = env.Get("IP")
-	fmt.Println("IP: %s", container.NetworkSettings.IPAddress)
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
-
-	if !iptables.ExistsNetworkMetricRule(container.NetworkSettings.IPAddress) {
-		iptables.CreateNetworkMetricRules(container.NetworkSettings.IPAddress)
-	}
 
 	return nil
 }
