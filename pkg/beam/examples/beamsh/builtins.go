@@ -436,3 +436,7 @@ func CmdOpenfile(args []string, stdout, stderr io.Writer, in beam.Receiver, out 
 		}
 	}
 }
+
+func CmdChdir(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
+	os.Chdir(args[1])
+}

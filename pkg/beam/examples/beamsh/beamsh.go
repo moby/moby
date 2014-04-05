@@ -323,6 +323,8 @@ func GetHandler(name string) Handler {
 		return CmdOpenfile
 	} else if name == "spawn" {
 		return CmdSpawn
+	} else if name == "chdir" {
+		return CmdChdir
 	}
 	return nil
 }
