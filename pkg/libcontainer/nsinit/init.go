@@ -48,7 +48,9 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-	if err := system.ParentDeathSignal(); err != nil {
+	// this is our best effort to let the process know that the parent has died and that it
+	// should it should act on it how it sees fit
+	if err := system.ParentDeathSignal(uintptr(syscall.SIGTERM)); err != nil {
 		return fmt.Errorf("parent death signal %s", err)
 	}
 	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs, container.NoPivotRoot); err != nil {
@@ -124,7 +126,11 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 		if err != nil {
 			return err
 		}
-		return strategy.Initialize(config, context)
+
+		err1 := strategy.Initialize(config, context)
+		if err1 != nil {
+			return err1
+		}
 	}
 	return nil
 }

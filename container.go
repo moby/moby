@@ -368,14 +368,18 @@ func populateCommand(c *Container) {
 		driverConfig []string
 	)
 
+	en = &execdriver.Network{
+		Mtu:       c.runtime.config.Mtu,
+		Interface: nil,
+	}
+
 	if !c.Config.NetworkDisabled {
 		network := c.NetworkSettings
-		en = &execdriver.Network{
+		en.Interface = &execdriver.NetworkInterface{
 			Gateway:     network.Gateway,
 			Bridge:      network.Bridge,
 			IPAddress:   network.IPAddress,
 			IPPrefixLen: network.IPPrefixLen,
-			Mtu:         c.runtime.config.Mtu,
 		}
 	}
 
@@ -845,7 +849,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		utils.Errorf("Error running container: %s", err)
 	}
 
-	if container.runtime.srv.IsRunning() {
+	if container.runtime != nil && container.runtime.srv != nil && container.runtime.srv.IsRunning() {
 		container.State.SetStopped(exitCode)
 
 		// FIXME: there is a race condition here which causes this to fail during the unit tests.
