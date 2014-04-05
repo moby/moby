@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -18,7 +19,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"os/signal"
+	gosignal "os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -47,7 +48,7 @@ func InitServer(job *engine.Job) engine.Status {
 	}
 	job.Logf("Setting up signal traps")
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	gosignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
@@ -122,56 +123,30 @@ func (v *simpleVersionInfo) Version() string {
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
-	signalMap := map[string]syscall.Signal{
-		"HUP":  syscall.SIGHUP,
-		"INT":  syscall.SIGINT,
-		"QUIT": syscall.SIGQUIT,
-		"ILL":  syscall.SIGILL,
-		"TRAP": syscall.SIGTRAP,
-		"ABRT": syscall.SIGABRT,
-		"BUS":  syscall.SIGBUS,
-		"FPE":  syscall.SIGFPE,
-		"KILL": syscall.SIGKILL,
-		"USR1": syscall.SIGUSR1,
-		"SEGV": syscall.SIGSEGV,
-		"USR2": syscall.SIGUSR2,
-		"PIPE": syscall.SIGPIPE,
-		"ALRM": syscall.SIGALRM,
-		"TERM": syscall.SIGTERM,
-		//"STKFLT": syscall.SIGSTKFLT,
-		"CHLD":   syscall.SIGCHLD,
-		"CONT":   syscall.SIGCONT,
-		"STOP":   syscall.SIGSTOP,
-		"TSTP":   syscall.SIGTSTP,
-		"TTIN":   syscall.SIGTTIN,
-		"TTOU":   syscall.SIGTTOU,
-		"URG":    syscall.SIGURG,
-		"XCPU":   syscall.SIGXCPU,
-		"XFSZ":   syscall.SIGXFSZ,
-		"VTALRM": syscall.SIGVTALRM,
-		"PROF":   syscall.SIGPROF,
-		"WINCH":  syscall.SIGWINCH,
-		"IO":     syscall.SIGIO,
-		//"PWR":    syscall.SIGPWR,
-		"SYS": syscall.SIGSYS,
-	}
-
 	if n := len(job.Args); n < 1 || n > 2 {
 		return job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
 	}
-	name := job.Args[0]
-	var sig uint64
+	var (
+		name = job.Args[0]
+		sig  uint64
+		err  error
+	)
+
+	// If we have a signal, look at it. Otherwise, do nothing
 	if len(job.Args) == 2 && job.Args[1] != "" {
-		sig = uint64(signalMap[job.Args[1]])
-		if sig == 0 {
-			var err error
-			// The largest legal signal is 31, so let's parse on 5 bits
-			sig, err = strconv.ParseUint(job.Args[1], 10, 5)
-			if err != nil {
+		// Check if we passed the singal as a number:
+		// The largest legal signal is 31, so let's parse on 5 bits
+		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
+		if err != nil {
+			// The signal is not a number, treat it as a string
+			sig = uint64(signal.SignalMap[job.Args[1]])
+			if sig == 0 {
 				return job.Errorf("Invalid signal: %s", job.Args[1])
 			}
+
 		}
 	}
+
 	if container := srv.runtime.Get(name); container != nil {
 		// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 		if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
@@ -1039,12 +1014,17 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config runconfig.Config
-	if err := job.GetenvJson("config", &config); err != nil {
+	var config = container.Config
+	var newConfig runconfig.Config
+	if err := job.GetenvJson("config", &newConfig); err != nil {
 		return job.Error(err)
 	}
 
-	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
+	if err := runconfig.Merge(&newConfig, config); err != nil {
+		return job.Error(err)
+	}
+
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1087,16 +1067,32 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 
 		if !srv.runtime.graph.Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
-			imgJSON, imgSize, err := r.GetRemoteImageJSON(id, endpoint, token)
-			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-				// FIXME: Keep going in case of error?
-				return err
-			}
-			img, err := NewImgJSON(imgJSON)
-			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-				return fmt.Errorf("Failed to parse json: %s", err)
+			var (
+				imgJSON []byte
+				imgSize int
+				err     error
+				img     *Image
+			)
+			retries := 5
+			for j := 1; j <= retries; j++ {
+				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
+				if err != nil && j == retries {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+					return err
+				} else if err != nil {
+					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+					continue
+				}
+				img, err = NewImgJSON(imgJSON)
+				if err != nil && j == retries {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+					return fmt.Errorf("Failed to parse json: %s", err)
+				} else if err != nil {
+					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+					continue
+				} else {
+					break
+				}
 			}
 
 			// Get the layer
@@ -2390,7 +2386,13 @@ func (srv *Server) IsRunning() bool {
 }
 
 func (srv *Server) Close() error {
+	if srv == nil {
+		return nil
+	}
 	srv.SetRunning(false)
+	if srv.runtime == nil {
+		return nil
+	}
 	return srv.runtime.Close()
 }
 

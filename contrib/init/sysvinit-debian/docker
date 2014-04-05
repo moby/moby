@@ -21,6 +21,7 @@ BASE=$(basename $0)
 # modify these in /etc/default/$BASE (/etc/default/docker)
 DOCKER=/usr/bin/$BASE
 DOCKER_PIDFILE=/var/run/$BASE.pid
+DOCKER_LOGFILE=/var/log/$BASE.log
 DOCKER_OPTS=
 DOCKER_DESC="Docker"
 
@@ -50,23 +51,37 @@ fail_unless_root() {
 	fi
 }
 
+cgroupfs_mount() {
+	# see also https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount
+	if grep -v '^#' /etc/fstab | grep -q cgroup \
+		|| [ ! -e /proc/cgroups ] \
+		|| [ ! -d /sys/fs/cgroup ]; then
+		return
+	fi
+	if ! mountpoint -q /sys/fs/cgroup; then
+		mount -t tmpfs -o uid=0,gid=0,mode=0755 cgroup /sys/fs/cgroup
+	fi
+	(
+		cd /sys/fs/cgroup
+		for sys in $(awk '!/^#/ { if ($4 == 1) print $1 }' /proc/cgroups); do
+			mkdir -p $sys
+			if ! mountpoint -q $sys; then
+				if ! mount -n -t cgroup -o $sys cgroup $sys; then
+					rmdir $sys || true
+				fi
+			fi
+		done
+	)
+}
+
 case "$1" in
 	start)
 		fail_unless_root
 
-		if ! grep -q cgroup /proc/mounts; then
-			# rough approximation of cgroupfs-mount
-			mount -t tmpfs -o uid=0,gid=0,mode=0755 cgroup /sys/fs/cgroup
-			for sys in $(cut -d'	' -f1 /proc/cgroups); do
-				mkdir -p /sys/fs/cgroup/$sys
-				if ! mount -n -t cgroup -o $sys cgroup /sys/fs/cgroup/$sys 2>/dev/null; then
-					rmdir /sys/fs/cgroup/$sys 2>/dev/null || true
-				fi
-			done
-		fi
+		cgroupfs_mount
 
-		touch /var/log/docker.log
-		chgrp docker /var/log/docker.log
+		touch "$DOCKER_LOGFILE"
+		chgrp docker "$DOCKER_LOGFILE"
 
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
@@ -76,7 +91,7 @@ case "$1" in
 			-- \
 				-d -p "$DOCKER_PIDFILE" \
 				$DOCKER_OPTS \
-					> /var/log/docker.log 2>&1
+					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
 		;;
 

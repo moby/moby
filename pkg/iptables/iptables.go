@@ -141,13 +141,13 @@ func CreateNetworkMetricRules(ip string) error {
 		return fmt.Errorf("Error when creating metrics rules for %s", ip)
 	}
 
-	if input, err := Raw("-I", "FORWARD", "-o", "docker0", "-d", ip, "!", "-s", InternalNetwork); err != nil {
+	if input, err := Raw("-I", "FORWARD", "1", "-o", "docker0", "-d", ip, "!", "-s", InternalNetwork); err != nil {
 		return err
 	} else if len(input) != 0 {
 		return fmt.Errorf("Error when creating metrics input rule: %s", input)
 	}
 
-	if output, err := Raw("-I", "FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip, "!", "-d", InternalNetwork); err != nil {
+	if output, err := Raw("-I", "FORWARD", "1", "-i", "docker0", "!", "-o", "docker0", "-s", ip, "!", "-d", InternalNetwork); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return fmt.Errorf("Error when creating metrics output rule: %s", output)

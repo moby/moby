@@ -94,6 +94,13 @@ func (d *Driver) CreateWithQuota(id, parent string, quota int64) error {
 }
 
 func (d *Driver) Remove(id string) error {
+	if !d.DeviceSet.HasDevice(id) {
+		// Consider removing a non-existing device a no-op
+		// This is useful to be able to progress on container removal
+		// if the underlying device has gone away due to earlier errors
+		return nil
+	}
+
 	// Sink the float from create in case no Get() call was made
 	if err := d.DeviceSet.UnmountDevice(id, UnmountSink); err != nil {
 		return err
