@@ -843,8 +843,14 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		exitCode int
 	)
 
-	pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
-	exitCode, err = container.runtime.Run(container, pipes, callback)
+	if container.command == nil {
+		// This happends when you have a GHOST container with lxc
+		populateCommand(container)
+		err = container.runtime.RestoreCommand(container)
+	} else {
+		pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
+		exitCode, err = container.runtime.Run(container, pipes, callback)
+	}
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
 	}

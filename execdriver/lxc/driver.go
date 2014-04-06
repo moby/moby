@@ -200,6 +200,18 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return KillLxc(c.ID, sig)
 }
 
+func (d *driver) Restore(c *execdriver.Command) error {
+	for {
+		output, err := exec.Command("lxc-info", "-n", c.ID).CombinedOutput()
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(output), "RUNNING") {
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
 func (d *driver) version() string {
 	var (
 		version string

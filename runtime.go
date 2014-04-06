@@ -155,28 +155,6 @@ func (runtime *Runtime) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		if container.State.IsGhost() {
-			utils.Debugf("killing ghost %s", container.ID)
-
-			existingPid := container.State.Pid
-			container.State.SetGhost(false)
-			container.State.SetStopped(0)
-
-			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
-				lxc.KillLxc(container.ID, 9)
-			} else {
-				command := &execdriver.Command{
-					ID: container.ID,
-				}
-				command.Process = &os.Process{Pid: existingPid}
-				runtime.execDriver.Kill(command, 9)
-			}
-			// ensure that the filesystem is also unmounted
-			unmountVolumesForContainer(container)
-			if err := container.Unmount(); err != nil {
-				utils.Debugf("ghost unmount error %s", err)
-			}
-		}
 
 		info := runtime.execDriver.Info(container.ID)
 		if !info.IsRunning() {
@@ -200,7 +178,16 @@ func (runtime *Runtime) Register(container *Container) error {
 					return err
 				}
 			}
-		}
+		} else {
+			utils.Debugf("Reconnecting to container %v", container.ID)
+
+			if err := container.allocateNetwork(); err != nil {
+				return err
+			}
+
+			container.waitLock = make(chan struct{})
+			go container.monitor(nil)
+  		}
 	} else {
 		// When the container is not running, we still initialize the waitLock
 		// chan and close it. Receiving on nil chan blocks whereas receiving on a
@@ -862,6 +849,11 @@ func (runtime *Runtime) Run(c *Container, pipes *execdriver.Pipes, startCallback
 func (runtime *Runtime) Kill(c *Container, sig int) error {
 	return runtime.execDriver.Kill(c.command, sig)
 }
+
+func (runtime *Runtime) RestoreCommand(c *Container) error {
+	return runtime.execDriver.Restore(c.command)
+}
+
 
 // Nuke kills all containers then removes all content
 // from the content root, including images, volumes and
