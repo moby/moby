@@ -635,8 +635,9 @@ func (runtime *Runtime) Commit(container *Container, repository, tag, comment, a
 
 	// Create a new image from the container's base layers + a new layer from container changes
 	var (
-		containerID, containerImage string
-		containerConfig             *runconfig.Config
+		containerID     string
+		containerImage  string
+		containerConfig *runconfig.Config
 	)
 	if container != nil {
 		containerID = container.ID

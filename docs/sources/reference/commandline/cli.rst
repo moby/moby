@@ -318,6 +318,7 @@ by using the ``git://`` schema.
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
       --run="": Configuration changes to be applied when the image is launched with `docker run`.
                (ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+      --no-merge=false: Disable the automatic merge from the parent. Only the values from --run will be applied
 
 .. _cli_commit_examples:
 
