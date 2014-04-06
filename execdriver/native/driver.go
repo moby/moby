@@ -113,6 +113,10 @@ func (d *driver) Kill(p *execdriver.Command, sig int) error {
 	return err
 }
 
+func (d *driver) Restore(c *execdriver.Command) error {
+    return nil
+}
+
 func (d *driver) Info(id string) execdriver.Info {
 	return &info{
 		ID:     id,
