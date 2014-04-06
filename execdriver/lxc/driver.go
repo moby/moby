@@ -211,6 +211,7 @@ func (d *driver) Restore(c *execdriver.Command) error {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
+}
 
 func (d *driver) version() string {
 	var (
