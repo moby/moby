@@ -16,9 +16,9 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### User Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}
-:   Create a user repository with the given `namespace`{.docutils
-    .literal} and `repo_name`.
+ `PUT /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/`
+:   Create a user repository with the given `namespace`
+ and `repo_name`.
 
     **Example Request**:
 
@@ -54,9 +54,9 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/`{.descname}
-:   Delete a user repository with the given `namespace`{.docutils
-    .literal} and `repo_name`.
+ `DELETE /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/`
+:   Delete a user repository with the given `namespace`
+ and `repo_name`.
 
     **Example Request**:
 
@@ -95,13 +95,13 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Library Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}
-:   Create a library repository with the given `repo_name`{.docutils
-    .literal}. This is a restricted feature only available to docker
+ `PUT /v1/repositories/`(*repo\_name*)`/`
+:   Create a library repository with the given `repo_name`
+. This is a restricted feature only available to docker
     admins.
 
-    When namespace is missing, it is assumed to be `library`{.docutils
-    .literal}
+    When namespace is missing, it is assumed to be `library`
+
 
     **Example Request**:
 
@@ -136,13 +136,13 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/`{.descname}
-:   Delete a library repository with the given `repo_name`{.docutils
-    .literal}. This is a restricted feature only available to docker
+ `DELETE /v1/repositories/`(*repo\_name*)`/`
+:   Delete a library repository with the given `repo_name`
+. This is a restricted feature only available to docker
     admins.
 
-    When namespace is missing, it is assumed to be `library`{.docutils
-    .literal}
+    When namespace is missing, it is assumed to be `library`
+
 
     **Example Request**:
 
@@ -182,7 +182,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### User Repo Images
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}
+ `PUT /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/images`
 :   Update the images for a user repo.
 
     **Example Request**:
@@ -216,7 +216,7 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active or permission denied
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/images`{.descname}
+ `GET /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/images`
 :   get the images for a user repo.
 
     **Example Request**:
@@ -248,7 +248,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Library Repo Images
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}
+ `PUT /v1/repositories/`(*repo\_name*)`/images`
 :   Update the images for a library repo.
 
     **Example Request**:
@@ -281,7 +281,7 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active or permission denied
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/images`{.descname}
+ `GET /v1/repositories/`(*repo\_name*)`/images`
 :   get the images for a library repo.
 
     **Example Request**:
@@ -314,7 +314,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Library Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*repo\_name*)`/auth`{.descname}
+ `PUT /v1/repositories/`(*repo\_name*)`/auth`
 :   authorize a token for a library repo
 
     **Example Request**:
@@ -344,7 +344,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### User Repo
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repo\_name*)`/auth`{.descname}
+ `PUT /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/auth`
 :   authorize a token for a user repo
 
     **Example Request**:
@@ -377,7 +377,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### User Login
 
- `GET `{.descname}`/v1/users`{.descname}
+ `GET /v1/users`
 :   If you want to check your login, you can try this endpoint
 
     **Example Request**:
@@ -403,7 +403,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### User Register
 
- `POST `{.descname}`/v1/users`{.descname}
+ `POST /v1/users`
 :   Registering a new account.
 
     **Example request**:
@@ -441,7 +441,7 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Update User
 
- `PUT `{.descname}`/v1/users/`{.descname}(*username*)`/`{.descname}
+ `PUT /v1/users/`(*username*)`/`
 :   Change a password or email address for given user. If you pass in an
     email, it will add it to your account, it will not remove the old
     one. Passwords will be updated.
@@ -487,7 +487,7 @@ If you need to search the index, this is the endpoint you would use.
 
 ### Search
 
- `GET `{.descname}`/v1/search`{.descname}
+ `GET /v1/search`
 :   Search the Index given a search term. It accepts
     [GET](http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3)
     only.

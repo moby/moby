@@ -63,13 +63,13 @@ Table of Contents
 ## [1. Brief introduction](#id2)
 
 -   The Remote API has replaced rcli
--   The daemon listens on `unix:///var/run/docker.sock`{.docutils
-    .literal}, but you can [*Bind Docker to another host/port or a Unix
+-   The daemon listens on `unix:///var/run/docker.sock`
+, but you can [*Bind Docker to another host/port or a Unix
     socket*](../../../../use/basics/#bind-docker).
 -   The API tends to be REST, but for some complex commands, like
-    `attach` or `pull`{.docutils .literal}, the HTTP
-    connection is hijacked to transport `stdout, stdin`{.docutils
-    .literal} and `stderr`
+    `attach` or `pull`, the HTTP
+    connection is hijacked to transport `stdout, stdin`
+ and `stderr`
 
 ## [2. Endpoints](#id3)
 
@@ -77,7 +77,7 @@ Table of Contents
 
 #### [List containers](#id5)
 
- `GET `{.descname}`/containers/json`{.descname}
+ `GET /containers/json`
 :   List containers
 
     **Example request**:
@@ -155,7 +155,7 @@ Table of Contents
 
 #### [Create a container](#id6)
 
- `POST `{.descname}`/containers/create`{.descname}
+ `POST /containers/create`
 :   Create a container
 
     **Example request**:
@@ -216,9 +216,9 @@ Table of Contents
 
 #### [Inspect a container](#id7)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}
-:   Return low-level information on the container `id`{.docutils
-    .literal}
+ `GET /containers/`(*id*)`/json`
+:   Return low-level information on the container `id`
+
 
     **Example request**:
 
@@ -285,7 +285,7 @@ Table of Contents
 
 #### [List processes running inside a container](#id8)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}
+ `GET /containers/`(*id*)`/top`
 :   List processes running inside the container `id`
 
     **Example request**:
@@ -331,7 +331,7 @@ Table of Contents
 
 #### [Inspect changes on a container’s filesystem](#id9)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/changes`{.descname}
+ `GET /containers/`(*id*)`/changes`
 :   Inspect changes on container `id` ‘s filesystem
 
     **Example request**:
@@ -366,7 +366,7 @@ Table of Contents
 
 #### [Export a container](#id10)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/export`{.descname}
+ `GET /containers/`(*id*)`/export`
 :   Export the contents of container `id`
 
     **Example request**:
@@ -388,7 +388,7 @@ Table of Contents
 
 #### [Start a container](#id11)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/start`{.descname}
+ `POST /containers/`(*id*)`/start`
 :   Start the container `id`
 
     **Example request**:
@@ -426,7 +426,7 @@ Table of Contents
 
 #### [Stop a container](#id12)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/stop`{.descname}
+ `POST /containers/`(*id*)`/stop`
 :   Stop the container `id`
 
     **Example request**:
@@ -451,7 +451,7 @@ Table of Contents
 
 #### [Restart a container](#id13)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/restart`{.descname}
+ `POST /containers/`(*id*)`/restart`
 :   Restart the container `id`
 
     **Example request**:
@@ -476,7 +476,7 @@ Table of Contents
 
 #### [Kill a container](#id14)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/kill`{.descname}
+ `POST /containers/`(*id*)`/kill`
 :   Kill the container `id`
 
     **Example request**:
@@ -495,7 +495,7 @@ Table of Contents
 
 #### [Attach to a container](#id15)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}
+ `POST /containers/`(*id*)`/attach`
 :   Attach to the container `id`
 
     **Example request**:
@@ -534,8 +534,8 @@ Table of Contents
     **Stream details**:
 
     When using the TTY setting is enabled in
-    [`POST /containers/create`{.xref .http .http-post .docutils
-    .literal}](../../docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
+    [`POST /containers/create`
+](../../docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
     the stream is the raw data from the process PTY and client’s stdin.
     When the TTY is disabled, then the stream is multiplexed to separate
     stdout and stderr.
@@ -577,7 +577,7 @@ Table of Contents
 
 #### [Wait a container](#id16)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/wait`{.descname}
+ `POST /containers/`(*id*)`/wait`
 :   Block until container `id` stops, then returns
     the exit code
 
@@ -600,7 +600,7 @@ Table of Contents
 
 #### [Remove a container](#id17)
 
- `DELETE `{.descname}`/containers/`{.descname}(*id*)
+ `DELETE /containers/`(*id*)
 :   Remove the container `id` from the filesystem
 
     **Example request**:
@@ -627,7 +627,7 @@ Table of Contents
 
 #### [Copy files or folders from a container](#id18)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/copy`{.descname}
+ `POST /containers/`(*id*)`/copy`
 :   Copy files or folders of container `id`
 
     **Example request**:
@@ -656,7 +656,7 @@ Table of Contents
 
 #### [List Images](#id20)
 
- `GET `{.descname}`/images/json`{.descname}
+ `GET /images/json`
 :   **Example request**:
 
         GET /images/json?all=0 HTTP/1.1
@@ -693,7 +693,7 @@ Table of Contents
 
 #### [Create an image](#id21)
 
- `POST `{.descname}`/images/create`{.descname}
+ `POST /images/create`
 :   Create an image, either by pull it from the registry or by importing
     it
 
@@ -738,9 +738,9 @@ Table of Contents
 
 #### [Insert a file in an image](#id22)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
+ `POST /images/`(*name*)`/insert`
 :   Insert a file from `url` in the image
-    `name` at `path`{.docutils .literal}
+    `name` at `path`
 
     **Example request**:
 
@@ -763,7 +763,7 @@ Table of Contents
 
 #### [Inspect an image](#id23)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/json`{.descname}
+ `GET /images/`(*name*)`/json`
 :   Return low-level information on the image `name`
 
     **Example request**:
@@ -812,7 +812,7 @@ Table of Contents
 
 #### [Get the history of an image](#id24)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/history`{.descname}
+ `GET /images/`(*name*)`/history`
 :   Return the history of the image `name`
 
     **Example request**:
@@ -845,7 +845,7 @@ Table of Contents
 
 #### [Push an image on the registry](#id25)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
+ `POST /images/`(*name*)`/push`
 :   Push the image `name` on the registry
 
     **Example request**:
@@ -883,7 +883,7 @@ Table of Contents
 
 #### [Tag an image into a repository](#id26)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/tag`{.descname}
+ `POST /images/`(*name*)`/tag`
 :   Tag the image `name` into a repository
 
     **Example request**:
@@ -911,7 +911,7 @@ Table of Contents
 
 #### [Remove an image](#id27)
 
- `DELETE `{.descname}`/images/`{.descname}(*name*)
+ `DELETE /images/`(*name*)
 :   Remove the image `name` from the filesystem
 
     **Example request**:
@@ -938,7 +938,7 @@ Table of Contents
 
 #### [Search images](#id28)
 
- `GET `{.descname}`/images/search`{.descname}
+ `GET /images/search`
 :   Search for an image in the docker index.
 
     Note
@@ -995,7 +995,7 @@ Table of Contents
 
 #### [Build an image from Dockerfile via stdin](#id30)
 
- `POST `{.descname}`/build`{.descname}
+ `POST /build`
 :   Build an image from Dockerfile via stdin
 
     **Example request**:
@@ -1014,8 +1014,8 @@ Table of Contents
     The stream must be a tar archive compressed with one of the
     following algorithms: identity (no compression), gzip, bzip2, xz.
 
-    The archive must include a file called `Dockerfile`{.docutils
-    .literal} at its root. It may include any number of other files,
+    The archive must include a file called `Dockerfile`
+ at its root. It may include any number of other files,
     which will be accessible in the build context (See the [*ADD build
     command*](../../../builder/#dockerbuilder)).
 
@@ -1042,7 +1042,7 @@ Table of Contents
 
 #### [Check auth configuration](#id31)
 
- `POST `{.descname}`/auth`{.descname}
+ `POST /auth`
 :   Get the default username and email
 
     **Example request**:
@@ -1069,7 +1069,7 @@ Table of Contents
 
 #### [Display system-wide information](#id32)
 
- `GET `{.descname}`/info`{.descname}
+ `GET /info`
 :   Display system-wide information
 
     **Example request**:
@@ -1099,7 +1099,7 @@ Table of Contents
 
 #### [Show the docker version information](#id33)
 
- `GET `{.descname}`/version`{.descname}
+ `GET /version`
 :   Show the docker version information
 
     **Example request**:
@@ -1124,7 +1124,7 @@ Table of Contents
 
 #### [Create a new image from a container’s changes](#id34)
 
- `POST `{.descname}`/commit`{.descname}
+ `POST /commit`
 :   Create a new image from a container’s changes
 
     **Example request**:
@@ -1159,7 +1159,7 @@ Table of Contents
 
 #### [Monitor Docker’s events](#id35)
 
- `GET `{.descname}`/events`{.descname}
+ `GET /events`
 :   Get events from docker, either in real time via streaming, or via
     polling (using since)
 
@@ -1190,7 +1190,7 @@ Table of Contents
 
 #### [Get a tarball containing all images and tags in a repository](#id36)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/get`{.descname}
+ `GET /images/`(*name*)`/get`
 :   Get a tarball containing all images and metadata for the repository
     specified by `name`.
 
@@ -1211,7 +1211,7 @@ Table of Contents
 
 #### [Load a tarball with a set of images and tags into docker](#id37)
 
- `POST `{.descname}`/images/load`{.descname}
+ `POST /images/load`
 :   Load a set of images and tags into the docker repository.
 
     **Example request**

@@ -79,7 +79,7 @@ need to provide your client keys, certificates and trusted CA:
 Warning
 
 As shown in the example above, you don’t have to run the
-`docker` client with `sudo`{.docutils .literal} or
+`docker` client with `sudo` or
 the `docker` group when you use certificate
 authentication. That means anyone with the keys can give any
 instructions to your Docker daemon, giving them root access to the

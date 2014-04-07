@@ -30,7 +30,7 @@ managed by Docker for this purpose. When the Docker daemon starts it :
 At runtime, a [*specific kind of virtual interface*](#vethxxxx-device)
 is given to each container which is then bonded to the
 `docker0` bridge. Each container also receives a
-dedicated IP address from the same range as `docker0`{.docutils
+dedicated IP address from the same range as `docker0`
 .literal}. The `docker0` IP address is used as the
 default gateway for the container.
 
@@ -52,9 +52,9 @@ Docker will try hard to find an IP range that is not used by the host.
 Even though it works for most cases, it’s not bullet-proof and sometimes
 you need to have more control over the IP addressing scheme.
 
-For this purpose, Docker allows you to manage the `docker0`{.docutils
-.literal} bridge or your own one using the `-b=<bridgename>`{.docutils
-.literal} parameter.
+For this purpose, Docker allows you to manage the `docker0`
+bridge or your own one using the `-b=<bridgename>`
+parameter.
 
 In this scenario:
 

@@ -115,8 +115,8 @@ socket.
 You can also expose the REST API over HTTP if you explicitly decide so.
 However, if you do that, being aware of the abovementioned security
 implication, you should ensure that it will be reachable only from a
-trusted network or VPN; or protected with e.g. `stunnel`{.docutils
-.literal} and client SSL certificates.
+trusted network or VPN; or protected with e.g. `stunnel`
+and client SSL certificates.
 
 Recent improvements in Linux namespaces will soon allow to run
 full-featured containers without root privileges, thanks to the new user

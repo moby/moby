@@ -19,7 +19,7 @@ no parameters or execute `docker help`:
 
 Single character commandline options can be combined, so rather than
 typing `docker run -t -i --name test busybox sh`,
-you can write `docker run -ti --name test busybox sh`{.docutils
+you can write `docker run -ti --name test busybox sh`
 .literal}.
 
 ### Boolean
@@ -49,10 +49,6 @@ Sometimes this can use a more complex value string, as for
 Options like `--name=""` expect a string, and they
 can only be specified once. Options like `-c=0`
 expect an integer, and they can only be specified once.
-
-* * * * *
-
-## Commands
 
 ## `daemon`
 
@@ -96,10 +92,10 @@ To set the DNS server for all Docker containers, use
 To set the DNS search domain for all Docker containers, use
 `docker -d --dns-search example.com`.
 
-To run the daemon with debug output, use `docker -d -D`{.docutils
+To run the daemon with debug output, use `docker -d -D`
 .literal}.
 
-To use lxc as the execution driver, use `docker -d -e lxc`{.docutils
+To use lxc as the execution driver, use `docker -d -e lxc`
 .literal}.
 
 The docker client will also honor the `DOCKER_HOST`
@@ -114,8 +110,8 @@ client.
 
 To run the daemon with [systemd socket
 activation](http://0pointer.de/blog/projects/socket-activation.html),
-use `docker -d -H fd://`. Using `fd://`{.docutils
-.literal} will work perfectly for most setups but you can also specify
+use `docker -d -H fd://`. Using `fd://`
+will work perfectly for most setups but you can also specify
 individual sockets too `docker -d -H fd://3`. If the
 specified socket activated files aren’t found then docker will exit. You
 can find examples of using systemd socket activation with docker and
@@ -123,7 +119,7 @@ systemd in the [docker source
 tree](https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/tmp`{.docutils
+(`/var/lib/docker`) and for `/tmp`
 .literal}. TMPDIR and the data directory can be set like this:
 
     TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
@@ -141,8 +137,8 @@ Docker supports softlinks for the Docker data directory
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
 You can detach from the container again (and leave it running) with
-`CTRL-c` (for a quiet exit) or `CTRL-\`{.docutils
-.literal} to get a stacktrace of the Docker client when it quits. When
+`CTRL-c` (for a quiet exit) or `CTRL-\`
+to get a stacktrace of the Docker client when it quits. When
 you detach from the container’s process the exit code will be returned
 to the client.
 
@@ -194,11 +190,11 @@ To kill the container, use `docker kill`.
       --no-cache: Do not use the cache when building the image.
       --rm=true: Remove intermediate containers after a successful build
 
-The files at `PATH` or `URL`{.docutils .literal} are
+The files at `PATH` or `URL` are
 called the "context" of the build. The build process may refer to any of
 the files in the context, for example when using an
 [*ADD*](../../builder/#dockerfile-add) instruction. When a single
-`Dockerfile` is given as `URL`{.docutils .literal},
+`Dockerfile` is given as `URL`,
 then no context is set.
 
 When a Git repository is set as `URL`, then the
@@ -249,7 +245,7 @@ machine and that no parsing of the `Dockerfile`
 happens at the client side (where you’re running
 `docker build`). That means that *all* the files at
 `PATH` get sent, not just the ones listed to
-[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`{.docutils
+[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`
 .literal}.
 
 The transfer of context from the local machine to the Docker daemon is
@@ -263,24 +259,24 @@ affect the build cache.
     $ sudo docker build -t vieux/apache:2.0 .
 
 This will build like the previous example, but it will then tag the
-resulting image. The repository name will be `vieux/apache`{.docutils
-.literal} and the tag will be `2.0`
+resulting image. The repository name will be `vieux/apache`
+and the tag will be `2.0`
 
     $ sudo docker build - < Dockerfile
 
 This will read a `Dockerfile` from *stdin* without
 context. Due to the lack of a context, no contents of any local
 directory will be sent to the `docker` daemon. Since
-there is no context, a `Dockerfile` `ADD`{.docutils
-.literal} only works if it refers to a remote URL.
+there is no context, a `Dockerfile` `ADD`
+only works if it refers to a remote URL.
 
     $ sudo docker build github.com/creack/docker-firefox
 
 This will clone the GitHub repository and use the cloned repository as
 context. The `Dockerfile` at the root of the
 repository is used as `Dockerfile`. Note that you
-can specify an arbitrary Git repository by using the `git://`{.docutils
-.literal} schema.
+can specify an arbitrary Git repository by using the `git://`
+schema.
 
 ## `commit`
 
@@ -355,9 +351,9 @@ clobbered the ‘EXPOSE 22’ setting from the parent container.
 
 #### Full –run example
 
-The `--run` JSON hash changes the `Config`{.docutils
-.literal} section when running `docker inspect CONTAINERID`{.docutils
-.literal} or `config` when running
+The `--run` JSON hash changes the `Config`
+section when running `docker inspect CONTAINERID`
+or `config` when running
 `docker inspect IMAGEID`. Existing configuration
 key-values that are not overridden in the JSON hash will be merged in.
 
@@ -630,9 +626,9 @@ output:
 #### Find a Specific Port Mapping
 
 The `.Field` syntax doesn’t work when the field name
-begins with a number, but the template language’s `index`{.docutils
-.literal} function does. The `.NetworkSettings.Ports`{.docutils
-.literal} section contains a map of the internal port mappings to a list
+begins with a number, but the template language’s `index`
+function does. The `.NetworkSettings.Ports`
+section contains a map of the internal port mappings to a list
 of external address/port objects, so to grab just the numeric public
 port, you use `index` to find the specific port map,
 and then `index` 0 contains first object inside of
@@ -644,8 +640,8 @@ the public address.
 #### Get config
 
 The `.Field` syntax doesn’t work when the field
-contains JSON data, but the template language’s custom `json`{.docutils
-.literal} function does. The `.config` section
+contains JSON data, but the template language’s custom `json`
+function does. The `.config` section
 contains complex json object, so to grab it as JSON, you use
 `json` to convert config object into JSON
 
@@ -728,7 +724,7 @@ does not guarantee execution order when combined with a
 any logs at the time you execute `docker logs`).
 
 The `docker logs --follow` command combines
-`docker logs` and `docker attach`{.docutils
+`docker logs` and `docker attach`
 .literal}: it will first return all logs from the beginning and then
 continue streaming new output from the container’s stdout and stderr.
 
@@ -767,7 +763,7 @@ It is a container that was running when the docker daemon was restarted
 is still running, but as this docker daemon process is not able to
 manage it, you can’t attach to it. To bring them out of
 `Ghost` Status, you need to use
-`docker kill` or `docker restart`{.docutils
+`docker kill` or `docker restart`
 .literal}.
 
 `docker ps` will show only running containers by
@@ -819,8 +815,8 @@ This will remove the container referenced under the link
     $ sudo docker rm --link /webapp/redis
     /webapp/redis
 
-This will remove the underlying link between `/webapp`{.docutils
-.literal} and the `/redis` containers removing all
+This will remove the underlying link between `/webapp`
+and the `/redis` containers removing all
 network communication.
 
     $ sudo docker rm `docker ps -a -q`
@@ -901,8 +897,8 @@ removed before the image is removed.
       --name="": Assign the specified name to the container. If no name is specific docker will generate a random name
       -P, --publish-all=false: Publish all exposed ports to the host interfaces
 
-The `docker run` command first `creates`{.docutils
-.literal} a writeable container layer over the specified image, and then
+The `docker run` command first `creates`
+a writeable container layer over the specified image, and then
 `starts` it using the specified command. That is,
 `docker run` is equivalent to the API
 `/containers/create` then
@@ -916,7 +912,7 @@ container runs*](#cli-commit-examples).
 
 See [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
 for more detailed information about the `--expose`,
-`-p`, `-P`{.docutils .literal} and
+`-p`, `-P` and
 `--link` parameters, and [*Link
 Containers*](../../../use/working_with_links_names/#working-with-links-names)
 for specific examples using `--link`.
@@ -943,8 +939,8 @@ already, Docker will return an error. Docker will close this file when
     mount: permission denied
 
 This will *not* work, because by default, most potentially dangerous
-kernel capabilities are dropped; including `cap_sys_admin`{.docutils
-.literal} (which is required to mount filesystems). However, the
+kernel capabilities are dropped; including `cap_sys_admin`
+(which is required to mount filesystems). However, the
 `--privileged` flag will allow it to run:
 
     $ sudo docker run --privileged ubuntu bash
@@ -978,8 +974,8 @@ current working directory.
 
 When the host directory of a bind-mounted volume doesn’t exist, Docker
 will automatically create this directory on the host for you. In the
-example above, Docker will create the `/doesnt/exist`{.docutils
-.literal} folder before starting your container.
+example above, Docker will create the `/doesnt/exist`
+folder before starting your container.
 
     $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
@@ -991,7 +987,7 @@ the full access to create and manipulate the host’s docker daemon.
     $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
 This binds port `8080` of the container to port
-`80` on `127.0.0.1`{.docutils .literal} of the host
+`80` on `127.0.0.1` of the host
 machine. [*Redirect
 Ports*](../../../use/port_redirection/#port-redirection) explains in
 detail how to manipulate ports in Docker.
@@ -1011,13 +1007,13 @@ three flags are shown here. Where `-e`,
 `--env` take an environment variable and value, or
 if no "=" is provided, then that variable’s current value is passed
 through (i.e. \$MYVAR1 from the host is set to \$MYVAR1 in the
-container). All three flags, `-e`, `--env`{.docutils
-.literal} and `--env-file` can be repeated.
+container). All three flags, `-e`, `--env`
+and `--env-file` can be repeated.
 
-Regardless of the order of these three flags, the `--env-file`{.docutils
-.literal} are processed first, and then `-e`{.docutils
+Regardless of the order of these three flags, the `--env-file`
+are processed first, and then `-e`
 .literal}/`--env` flags. This way, the
-`-e` or `--env`{.docutils .literal} will override
+`-e` or `--env` will override
 variables as needed.
 
     $ cat ./env.list
@@ -1068,14 +1064,14 @@ variables. The `--name` flag will assign the name
 
 The `--volumes-from` flag mounts all the defined
 volumes from the referenced containers. Containers can be specified by a
-comma separated list or by repetitions of the `--volumes-from`{.docutils
-.literal} argument. The container ID may be optionally suffixed with
-`:ro` or `:rw`{.docutils .literal} to mount the
+comma separated list or by repetitions of the `--volumes-from`
+argument. The container ID may be optionally suffixed with
+`:ro` or `:rw` to mount the
 volumes in read-only or read-write mode, respectively. By default, the
 volumes are mounted in the same mode (read write or read only) as the
 reference container.
 
-The `-a` flag tells `docker run`{.docutils .literal}
+The `-a` flag tells `docker run`
 to bind to the container’s stdin, stdout or stderr. This makes it
 possible to manipulate the output and input as needed.
 
@@ -1109,8 +1105,8 @@ retrieve the container’s ID once the container has finished running.
 This example shows 5 containers that might be set up to test a web
 application change:
 
-1.  Start a pre-prepared volume image `static-web-files`{.docutils
-    .literal} (in the background) that has CSS, image and static HTML in
+1.  Start a pre-prepared volume image `static-web-files`
+ (in the background) that has CSS, image and static HTML in
     it, (with a `VOLUME` instruction in the
     `Dockerfile` to allow the web server to use
     those files);
@@ -1119,25 +1115,25 @@ application change:
     `8098` to any containers that link to it;
 3.  Start the `appserver` image, restricting its
     memory usage to 100MB, setting two environment variables
-    `DEVELOPMENT` and `BRANCH`{.docutils .literal}
-    and bind-mounting the current directory (`$(pwd)`{.docutils
-    .literal}) in the container in read-only mode as
+    `DEVELOPMENT` and `BRANCH`
+    and bind-mounting the current directory (`$(pwd)`
+) in the container in read-only mode as
     `/app/bin`;
 4.  Start the `webserver`, mapping port
-    `443` in the container to port `1443`{.docutils
-    .literal} on the Docker server, setting the DNS server to
+    `443` in the container to port `1443`
+ on the Docker server, setting the DNS server to
     `dns.dev.org` and DNS search domain to
     `dev.org`, creating a volume to put the log
     files into (so we can access it from another container), then
     importing the files from the volume exposed by the
     `static` container, and linking to all exposed
-    ports from `riak` and `app`{.docutils .literal}.
-    Lastly, we set the hostname to `web.sven.dev.org`{.docutils
-    .literal} so its consistent with the pre-generated SSL certificate;
+    ports from `riak` and `app`.
+    Lastly, we set the hostname to `web.sven.dev.org`
+ so its consistent with the pre-generated SSL certificate;
 5.  Finally, we create a container that runs
     `tail -f access.log` using the logs volume from
     the `web` container, setting the workdir to
-    `/var/log/httpd`. The `--rm`{.docutils .literal}
+    `/var/log/httpd`. The `--rm`
     option means that when the container exits, the container’s layer is
     removed.
 

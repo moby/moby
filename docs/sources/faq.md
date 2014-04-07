@@ -85,7 +85,7 @@ page_keywords: faq, questions, documentation, docker
 >         includes how a container was assembled and by whom, so you get
 >         full traceability from the production server all the way back
 >         to the upstream developer. Docker also implements incremental
->         uploads and downloads, similar to `git pull`{.docutils
+>         uploads and downloads, similar to `git pull`
 >         .literal}, so new versions of a container can be transferred
 >         by only sending diffs.
 >

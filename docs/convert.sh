@@ -30,7 +30,15 @@ do
 
 	rm sources/${name}.md1
 
-	sed -i 's/{.docutils .literal}//' sources/${name}.md
+	sed -i 's/{.docutils .literal}//g' sources/${name}.md
+	sed -i 's/{.docutils$//g' sources/${name}.md
+	sed -i 's/^.literal} //g' sources/${name}.md
+	sed -i 's/`{.descname}`//g' sources/${name}.md
+	sed -i 's/{.descname}//g' sources/${name}.md
+	sed -i 's/{.xref}//g' sources/${name}.md
+	sed -i 's/{.xref .doc .docutils .literal}//g' sources/${name}.md
+	sed -i 's/{.xref .http .http-post .docutils$//g' sources/${name}.md
+	sed -i 's/^    .literal}//g' sources/${name}.md
 
 	# git it all so we can test
 #	git add ${name}.md

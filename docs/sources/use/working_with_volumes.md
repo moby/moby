@@ -43,8 +43,8 @@ container with two new volumes:
 This command will create the new container with two new volumes that
 exits instantly (`true` is pretty much the smallest,
 simplest program that you can run). Once created you can mount its
-volumes in any other container using the `-volumes-from`{.docutils
-.literal} option; irrespective of whether the container is running or
+volumes in any other container using the `--volumes-from`
+option; irrespective of whether the container is running or
 not.
 
 Or, you can use the VOLUME instruction in a Dockerfile to add one or
@@ -63,8 +63,8 @@ containers, or want to use from non-persistent containers, its best to
 create a named Data Volume Container, and then to mount the data from
 it.
 
-Create a named container with volumes to share (`/var/volume1`{.docutils
-.literal} and `/var/volume2`):
+Create a named container with volumes to share (`/var/volume1`
+and `/var/volume2`):
 
     $ docker run -v /var/volume1 -v /var/volume2 -name DATA busybox true
 
@@ -109,8 +109,8 @@ For example:
 
     sudo docker run -t -i -v /var/logs:/var/host_logs:ro ubuntu bash
 
-The command above mounts the host directory `/var/logs`{.docutils
-.literal} into the container with read only permissions as
+The command above mounts the host directory `/var/logs`
+into the container with read only permissions as
 `/var/host_logs`.
 
 New in version v0.5.0.
@@ -131,7 +131,7 @@ the daemon’s machine.
 ### Backup, restore, or migrate data volumes
 
 You cannot back up volumes using `docker export`,
-`docker save` and `docker cp`{.docutils .literal}
+`docker save` and `docker cp`
 because they are external to images. Instead you can use
 `--volumes-from` to start a new container that can
 access the data-container’s volume. For example:
@@ -146,8 +146,8 @@ access the data-container’s volume. For example:
 -   `busybox` - a small simpler image - good for
     quick maintenance
 -   `tar cvf /backup/backup.tar /data` - creates an
-    uncompressed tar file of all the files in the `/data`{.docutils
-    .literal} directory
+    uncompressed tar file of all the files in the `/data`
+ directory
 
 Then to restore to the same container, or another that you’ve made
 elsewhere:

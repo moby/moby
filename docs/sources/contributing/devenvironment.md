@@ -35,8 +35,8 @@ Again, you can do it in other ways but you need to do more work.
     git clone http://git@github.com/dotcloud/docker
     cd docker
 
-To checkout a different revision just use `git checkout`{.docutils
-.literal} with the name of branch or revision number.
+To checkout a different revision just use `git checkout`
+with the name of branch or revision number.
 
 ## Build the Environment
 

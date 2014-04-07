@@ -15,8 +15,8 @@ along the way, giving you a final image.
 ## Usage
 
 To [*build*](../commandline/cli/#cli-build) an image from a source
-repository, create a description file called `Dockerfile`{.docutils
-.literal} at the root of your repository. This file will describe the
+repository, create a description file called `Dockerfile`
+at the root of your repository. This file will describe the
 steps to assemble the image.
 
 Then call `docker build` with the path of your
@@ -85,12 +85,12 @@ be treated as an argument. This allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
-## Instructions
+## [3. Instructions](#id5)
 
-Here is the set of instructions you can use in a `Dockerfile`{.docutils
-.literal} for building images.
+Here is the set of instructions you can use in a `Dockerfile`
+for building images.
 
-### FROM
+### [3.1 FROM](#id6)
 
 > `FROM <image>`
 
@@ -110,11 +110,11 @@ the `Dockerfile`.
 
 `FROM` can appear multiple times within a single
 Dockerfile in order to create multiple images. Simply make a note of the
-last image id output by the commit before each new `FROM`{.docutils
-.literal} command.
+last image id output by the commit before each new `FROM`
+command.
 
-If no `tag` is given to the `FROM`{.docutils
-.literal} instruction, `latest` is assumed. If the
+If no `tag` is given to the `FROM`
+instruction, `latest` is assumed. If the
 used tag does not exist, an error will be returned.
 
 ### MAINTAINER
@@ -151,8 +151,8 @@ contain `/bin/sh`.
 
 -   [Issue 783](https://github.com/dotcloud/docker/issues/783) is about
     file permissions problems that can occur when using the AUFS file
-    system. You might notice it during an attempt to `rm`{.docutils
-    .literal} a file, for example. The issue describes a workaround.
+    system. You might notice it during an attempt to `rm`
+ a file, for example. The issue describes a workaround.
 -   [Issue 2424](https://github.com/dotcloud/docker/issues/2424) Locale
     will not be set automatically.
 
@@ -179,8 +179,8 @@ is functionally equivalent to running
 `docker commit -run '{"Cmd": <command>}'` outside
 the builder.
 
-If you use the *shell* form of the CMD, then the `<command>`{.docutils
-.literal} will execute in `/bin/sh -c`:
+If you use the *shell* form of the CMD, then the `<command>`
+will execute in `/bin/sh -c`:
 
     FROM ubuntu
     CMD echo "This is a test." | wc -
@@ -204,28 +204,28 @@ they will override the default specified in CMD.
 
 Note
 
-Don’t confuse `RUN` with `CMD`{.docutils .literal}.
+Don’t confuse `RUN` with `CMD`.
 `RUN` actually runs a command and commits the
 result; `CMD` does not execute anything at build
 time, but specifies the intended command for the image.
 
-### EXPOSE
+### [3.5 EXPOSE](#id11)
 
 > `EXPOSE <port> [<port>...]`
 
 The `EXPOSE` instruction exposes ports for use
 within links. This is functionally equivalent to running
-`docker commit -run '{"PortSpecs": ["<port>", "<port2>"]}'`{.docutils
-.literal} outside the builder. Refer to [*Redirect
+`docker commit --run '{"PortSpecs": ["<port>", "<port2>"]}'`
+outside the builder. Refer to [*Redirect
 Ports*](../../use/port_redirection/#port-redirection) for detailed
 information.
 
-### ENV
+### [3.6 ENV](#id12)
 
 > `ENV <key> <value>`
 
 The `ENV` instruction sets the environment variable
-`<key>` to the value `<value>`{.docutils .literal}.
+`<key>` to the value `<value>`.
 This value will be passed to all future `RUN`
 instructions. This is functionally equivalent to prefixing the command
 with `<key>=<value>`
@@ -261,31 +261,31 @@ All new files and directories are created with mode 0755, uid and gid 0.
 
 Note
 
-if you build using STDIN (`docker build - < somefile`{.docutils
+if you build using STDIN (`docker build - < somefile`
 .literal}), there is no build context, so the Dockerfile can only
 contain an URL based ADD statement.
 
 Note
 
 if your URL files are protected using authentication, you will need to
-use an `RUN wget` , `RUN curl`{.docutils .literal}
+use an `RUN wget` , `RUN curl`
 or other tool from within the container as ADD does not support
 authentication.
 
 The copy obeys the following rules:
 
 -   The `<src>` path must be inside the *context* of
-    the build; you cannot `ADD ../something /something`{.docutils
-    .literal}, because the first step of a `docker build`{.docutils
-    .literal} is to send the context directory (and subdirectories) to
+    the build; you cannot `ADD ../something /something`
+, because the first step of a `docker build`
+ is to send the context directory (and subdirectories) to
     the docker daemon.
 
--   If `<src>` is a URL and `<dest>`{.docutils
-    .literal} does not end with a trailing slash, then a file is
+-   If `<src>` is a URL and `<dest>`
+ does not end with a trailing slash, then a file is
     downloaded from the URL and copied to `<dest>`.
 
--   If `<src>` is a URL and `<dest>`{.docutils
-    .literal} does end with a trailing slash, then the filename is
+-   If `<src>` is a URL and `<dest>`
+ does end with a trailing slash, then the filename is
     inferred from the URL and the file is downloaded to
     `<dest>/<filename>`. For instance,
     `ADD http://example.com/foobar /` would create
@@ -318,8 +318,8 @@ The copy obeys the following rules:
 
 -   If `<dest>` does not end with a trailing slash,
     it will be considered a regular file and the contents of
-    `<src>` will be written at `<dest>`{.docutils
-    .literal}.
+    `<src>` will be written at `<dest>`
+.
 
 -   If `<dest>` doesn’t exist, it is created along
     with all missing directories in its path.
@@ -344,15 +344,15 @@ was just that executable.
 
 The `ENTRYPOINT` instruction adds an entry command
 that will **not** be overwritten when arguments are passed to
-`docker run`, unlike the behavior of `CMD`{.docutils
+`docker run`, unlike the behavior of `CMD`
 .literal}. This allows arguments to be passed to the entrypoint. i.e.
 `docker run <image> -d` will pass the "-d" argument
 to the ENTRYPOINT.
 
 You can specify parameters either in the ENTRYPOINT JSON array (as in
 "like an exec" above), or by using a CMD statement. Parameters in the
-ENTRYPOINT will not be overridden by the `docker run`{.docutils
-.literal} arguments, but parameters specified via CMD will be overridden
+ENTRYPOINT will not be overridden by the `docker run`
+arguments, but parameters specified via CMD will be overridden
 by `docker run` arguments.
 
 Like a `CMD`, you can specify a plain string for the
@@ -392,7 +392,7 @@ use when running the image.
 > `WORKDIR /path/to/workdir`
 
 The `WORKDIR` instruction sets the working directory
-for the `RUN`, `CMD`{.docutils .literal} and
+for the `RUN`, `CMD` and
 `ENTRYPOINT` Dockerfile commands that follow it.
 
 It can be used multiple times in the one Dockerfile.
