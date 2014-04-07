@@ -569,3 +569,73 @@ func TestRestartWithVolumes(t *testing.T) {
 		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
 	}
 }
+
+func TestLinkedContainers(t *testing.T) {
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+
+	linkedContainer0, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
+		Cmd:   []string{"sleep", "2"},
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer daemon.Destroy(linkedContainer0)
+	if err := linkedContainer0.Start(); err != nil {
+		t.Fatal(err)
+	}
+	linkedContainer0.WaitTimeout(250 * time.Millisecond)
+	if !linkedContainer0.State.IsRunning() {
+		t.Fatal("Linked container 0 not running")
+	}
+
+	linkedContainer1, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
+		Cmd:   []string{"sleep", "2"},
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer daemon.Destroy(linkedContainer1)
+	if err := linkedContainer1.Start(); err != nil {
+		t.Fatal(err)
+	}
+	linkedContainer1.WaitTimeout(250 * time.Millisecond)
+	if !linkedContainer1.State.IsRunning() {
+		t.Fatal("Linked container 1 not running")
+	}
+
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
+		Cmd:   []string{"/bin/sh", "-c", "ping -c 1 container0 -W 1 && ping -c 1 container1 -W 1"},
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer daemon.Destroy(container)
+
+	if err := daemon.RegisterLink(container, linkedContainer0, "container0"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := daemon.RegisterLink(container, linkedContainer1, "container1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected ping container exit code %d (expected 0)", code)
+	}
+
+	if err := linkedContainer0.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := linkedContainer1.Kill(); err != nil {
+		t.Fatal(err)
+	}
+}

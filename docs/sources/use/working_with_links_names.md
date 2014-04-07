@@ -109,3 +109,32 @@ the Redis container.
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
     4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
+
+## Resolving Links by Name
+
+New in version v0.11.
+
+Linked containers can be accessed by hostname.  Hostnames are mapped by
+appending entries to '/etc/hosts' using the linked container's alias.
+
+For example, linking a container using '--link redis:db' will generate the
+following '/etc/hosts' file:
+
+    root@6541a75d44a0:/# cat /etc/hosts
+    172.17.0.3  6541a75d44a0
+    172.17.0.2  db
+
+    127.0.0.1   localhost
+    ::1     localhost ip6-localhost ip6-loopback
+    fe00::0     ip6-localnet
+    ff00::0     ip6-mcastprefix
+    ff02::1     ip6-allnodes
+    ff02::2     ip6-allrouters
+    root@6541a75d44a0:/#
+
+Using this mechanism, you can communicate with the linked container by
+name:
+
+    root@6541a75d44a0:/# echo PING | redis-cli -h db
+    PONG
+    root@6541a75d44a0:/#
