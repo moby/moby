@@ -18,6 +18,7 @@ const DefaultProfile = `
 @{PROC}=/proc/
 
 profile docker-default flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
   network,
   capability,
   file,
