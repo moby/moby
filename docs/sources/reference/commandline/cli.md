@@ -359,10 +359,9 @@ maintainable way.
 
 ## cp
 
-Copy files/folders from a container's filesystem to the host
-path.  Paths are relative to the root of the filesystem.
+Copy files/folders from HOST/CONTAINER to HOST/CONTAINER
 
-    Usage: docker cp CONTAINER:PATH HOSTPATH
+    Usage: docker cp [CONTAINERSRC:]PATHSRC [CONTAINERDST:]PATHDST
 
     Copy files/folders from the PATH to the HOSTPATH
 
