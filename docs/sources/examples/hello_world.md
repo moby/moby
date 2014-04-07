@@ -89,7 +89,7 @@ from the `ubuntu` image.
 -   **"while true; do echo hello world; sleep 1; done"** is the mini
     script we want to run, that will just print hello world once a
     second until we stop it.
--   **\$container\_id** the output of the run command will return a
+-   **$container_id** the output of the run command will return a
     container id, we can use in future commands to see what is going on
     with this process.
 
@@ -100,7 +100,7 @@ from the `ubuntu` image.
 Check the logs make sure it is working correctly.
 
 -   **"docker logs**" This will return the logs for a container
--   **\$container\_id** The Id of the container we want the logs for.
+-   **$container_id** The Id of the container we want the logs for.
 
 <!-- -->
 
@@ -113,7 +113,7 @@ Attach to the container to see the results in real-time.
 -   **"–sig-proxy=false"** Do not forward signals to the container;
     allows us to exit the attachment using Control-C without stopping
     the container.
--   **\$container\_id** The Id of the container we want to attach to.
+-   **$container_id** The Id of the container we want to attach to.
 
 Exit from the container attachment by pressing Control-C.
 
@@ -130,7 +130,7 @@ Check the process list to make sure it is running.
 Stop the container, since we don’t need it anymore.
 
 -   **"docker stop"** This stops a container
--   **\$container\_id** The Id of the container we want to stop.
+-   **$container_id** The Id of the container we want to stop.
 
 <!-- -->
 
