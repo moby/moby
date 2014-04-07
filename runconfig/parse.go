@@ -66,6 +66,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
+		_ = cmd.Bool([]string{"#foreground", "-foreground"}, false, "Run in foreground")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to stdin, stdout or stderr.")

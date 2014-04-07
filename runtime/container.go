@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver/foreground"
 	"github.com/dotcloud/docker/runtime/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -37,6 +38,8 @@ type Container struct {
 	sync.Mutex
 	root   string // Path to the "home" of the container, including metadata.
 	basefs string // Path to the graphdriver mountpoint
+
+	execDriver execdriver.Driver
 
 	ID string
 
@@ -573,6 +576,22 @@ func (container *Container) Start() (err error) {
 	}
 	container.waitLock = make(chan struct{})
 
+	if container.hostConfig.CliAddress != "" {
+		container.execDriver = foreground.NewDriver(container.hostConfig.CliAddress, runtime.config.Root, runtime.sysInitPath, runtime.execDriver)
+	} else {
+		// For non-foreground launches the ReuseCurrent option is dangerous, so we skip it
+		if unitConf, ok := container.command.Config["unit"]; ok {
+			var newUnitConf []string
+			for _, opt := range unitConf {
+				if strings.HasPrefix(strings.ToLower(opt), "reusecurrent") {
+					continue
+				}
+				newUnitConf = append(newUnitConf, opt)
+			}
+			container.command.Config["unit"] = newUnitConf
+		}
+	}
+
 	callbackLock := make(chan struct{})
 	callback := func(command *execdriver.Command) {
 		container.State.SetRunning(command.Pid())
@@ -808,7 +827,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	)
 
 	pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
-	exitCode, err = container.runtime.Run(container, pipes, callback)
+	exitCode, err = container.execDriver.Run(container.command, pipes, callback)
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
 	}
@@ -883,7 +902,7 @@ func (container *Container) KillSig(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
-	return container.runtime.Kill(container, sig)
+	return container.execDriver.Kill(container.command, sig)
 }
 
 func (container *Container) Kill() error {
