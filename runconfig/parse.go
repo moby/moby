@@ -45,7 +45,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
-		flDriverOpts  opts.ListOpts
 		flEnvFile     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
@@ -79,8 +78,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom dns search domains")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "#-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-	cmd.Var(&flDriverOpts, []string{"o", "-opt"}, "Add custom driver options")
+	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -224,11 +222,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		WorkingDir:      *flWorkingDir,
 	}
 
-	driverOptions, err := parseDriverOpts(flDriverOpts)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-
 	hostConfig := &HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
@@ -237,7 +230,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
-		DriverOptions:   driverOptions,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {

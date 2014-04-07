@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime/execdriver"
@@ -723,6 +724,9 @@ func NewRuntime(config *daemonconfig.Config, eng *engine.Engine) (*Runtime, erro
 }
 
 func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Runtime, error) {
+	if !config.EnableSelinuxSupport {
+		selinux.SetDisabled()
+	}
 
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
