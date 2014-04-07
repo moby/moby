@@ -11,13 +11,8 @@ import (
 const DefaultProfilePath = "/etc/apparmor.d/docker"
 const DefaultProfile = `
 # AppArmor profile from lxc for containers.
-@{HOME}=@{HOMEDIRS}/*/ /root/
-@{HOMEDIRS}=/home/
-#@{HOMEDIRS}+=
-@{multiarch}=*-linux-gnu*
-@{PROC}=/proc/
-@{pid}=self
 
+#include <tunables/global>
 profile docker-default flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
   network,
