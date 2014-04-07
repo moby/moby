@@ -33,7 +33,7 @@ basic run command takes this form:
     docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
-see [*Options*](../commandline/cli/#cli-options).
+see [*Option types*](../commandline/cli/#cli-options).
 
 The list of `[OPTIONS]` breaks down into two groups:
 
