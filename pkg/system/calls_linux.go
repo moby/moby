@@ -143,3 +143,7 @@ func SetCloneFlags(cmd *exec.Cmd, flag uintptr) {
 	}
 	cmd.SysProcAttr.Cloneflags = flag
 }
+
+func Gettid() int {
+	return syscall.Gettid()
+}

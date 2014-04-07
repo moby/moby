@@ -39,6 +39,11 @@ var (
 
 type SELinuxContext map[string]string
 
+// SetDisabled disables selinux support for the package
+func SetDisabled() {
+	selinuxEnabled, selinuxEnabledChecked = false, true
+}
+
 func GetSelinuxMountPoint() string {
 	if selinuxfs != "unknown" {
 		return selinuxfs
@@ -140,15 +145,6 @@ func Setfilecon(path string, scon string) error {
 	return system.Lsetxattr(path, xattrNameSelinux, []byte(scon), 0)
 }
 
-func Getfilecon(path string) (string, error) {
-	var scon []byte
-
-	cnt, err := syscall.Getxattr(path, xattrNameSelinux, scon)
-	scon = make([]byte, cnt)
-	cnt, err = syscall.Getxattr(path, xattrNameSelinux, scon)
-	return string(scon), err
-}
-
 func Setfscreatecon(scon string) error {
 	return writeCon("/proc/self/attr/fscreate", scon)
 }
@@ -188,7 +184,7 @@ func writeCon(name string, val string) error {
 }
 
 func Setexeccon(scon string) error {
-	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/exec", syscall.Gettid()), scon)
+	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/exec", system.Gettid()), scon)
 }
 
 func (c SELinuxContext) Get() string {
