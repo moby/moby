@@ -107,3 +107,7 @@ func errorOutOnNonNilError(err error, t *testing.T, message string) {
 		t.Fatalf(message)
 	}
 }
+
+func nLines(s string) int {
+	return strings.Count(s, "\n")
+}

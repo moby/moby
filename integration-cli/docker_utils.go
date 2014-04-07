@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"testing"
 )
 
 func deleteContainer(container string) error {
@@ -53,4 +54,10 @@ func deleteImages(images string) error {
 	}
 
 	return err
+}
+
+func cmd(t *testing.T, args ...string) (string, int, error) {
+	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
+	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	return out, status, err
 }
