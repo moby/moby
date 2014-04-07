@@ -28,6 +28,7 @@ type Config struct {
 	ExecDriver                  string
 	Mtu                         int
 	DisableNetwork              bool
+	Options                     map[string][]string
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -46,6 +47,8 @@ func ConfigFromJob(job *engine.Job) *Config {
 		GraphDriver:                 job.Getenv("GraphDriver"),
 		ExecDriver:                  job.Getenv("ExecDriver"),
 	}
+	job.GetenvJson("Options", &config.Options)
+
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns
 	}

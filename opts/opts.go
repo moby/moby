@@ -60,6 +60,24 @@ func (opts *ListOpts) GetMap() map[string]struct{} {
 	return ret
 }
 
+func (opts *ListOpts) SplitAtDot() (map[string][]string, error) {
+	out := make(map[string][]string, len(opts.GetAll()))
+	for _, o := range opts.GetAll() {
+		parts := strings.SplitN(o, ".", 2)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid opt format %s, missing '.'", o)
+		} else if strings.TrimSpace(parts[0]) == "" {
+			return nil, fmt.Errorf("key cannot be empty %s", o)
+		}
+		values, exists := out[parts[0]]
+		if !exists {
+			values = []string{}
+		}
+		out[parts[0]] = append(values, parts[1])
+	}
+	return out, nil
+}
+
 // GetAll returns the values' slice.
 // FIXME: Can we remove this?
 func (opts *ListOpts) GetAll() []string {

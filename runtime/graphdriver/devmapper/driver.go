@@ -25,8 +25,8 @@ type Driver struct {
 	home string
 }
 
-var Init = func(home string) (graphdriver.Driver, error) {
-	deviceSet, err := NewDeviceSet(home, true)
+var Init = func(home string, options map[string][]string) (graphdriver.Driver, error) {
+	deviceSet, err := NewDeviceSet(home, true, options["dm"])
 	if err != nil {
 		return nil, err
 	}

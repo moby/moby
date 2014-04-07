@@ -22,7 +22,7 @@ func init() {
 	graphdriver.Register("btrfs", Init)
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options map[string][]string) (graphdriver.Driver, error) {
 	rootdir := path.Dir(home)
 
 	var buf syscall.Statfs_t
@@ -31,7 +31,7 @@ func Init(home string) (graphdriver.Driver, error) {
 	}
 
 	if buf.Type != 0x9123683E {
-		return nil, fmt.Errorf("%s is not a btrfs filesystem", rootdir)
+		return nil, graphdriver.ErrNotSupported
 	}
 
 	return &Driver{

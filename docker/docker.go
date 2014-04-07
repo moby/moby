@@ -40,6 +40,7 @@ func main() {
 	var (
 		flVersion            = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 		flDaemon             = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+		flDaemonOpts         opts.ListOpts
 		flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 		flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
 		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge; use 'none' to disable container networking")
@@ -67,6 +68,7 @@ func main() {
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
 	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
+	flag.Var(&flDaemonOpts, []string{"o", "-opt"}, "Set custom daemon options")
 
 	flag.Parse()
 
@@ -98,6 +100,12 @@ func main() {
 	if *flDaemon {
 		if flag.NArg() != 0 {
 			flag.Usage()
+			return
+		}
+
+		options, err := flDaemonOpts.SplitAtDot()
+		if err != nil {
+			log.Fatal(err)
 			return
 		}
 
@@ -147,6 +155,7 @@ func main() {
 			job.Setenv("GraphDriver", *flGraphDriver)
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
+			job.SetenvJson("Options", options)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
 			}
@@ -169,6 +178,7 @@ func main() {
 		job.Setenv("TlsCa", *flCa)
 		job.Setenv("TlsCert", *flCert)
 		job.Setenv("TlsKey", *flKey)
+		job.SetenvJson("Options", options)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

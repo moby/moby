@@ -54,6 +54,9 @@ func denyAllDevmapper() {
 	DmTaskGetInfo = func(task *CDmTask, info *Info) int {
 		panic("DmTaskGetInfo: this method should not be called here")
 	}
+	DmTaskGetDriverVersion = func(task *CDmTask) string {
+		panic("DmTaskGetDriverVersion: this method should not be called here")
+	}
 	DmGetNextTarget = func(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {
 		panic("DmGetNextTarget: this method should not be called here")
 	}
@@ -120,7 +123,7 @@ func mkTestDirectory(t *testing.T) string {
 
 func newDriver(t *testing.T) *Driver {
 	home := mkTestDirectory(t)
-	d, err := Init(home)
+	d, err := Init(home, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,6 +213,14 @@ func TestInit(t *testing.T) {
 			info.Exists = 0
 			return 1
 		}
+		DmTaskGetDriverVersion = func(task *CDmTask) string {
+			calls["DmTaskGetDriverVersion"] = true
+			expectedTask := &task1
+			if task != expectedTask {
+				t.Fatalf("Wrong libdevmapper call\nExpected: DmTaskGetDriverVersion(%v)\nReceived: DmTaskGetDriverVersion(%v)\n", expectedTask, task)
+			}
+			return "1.1.1"
+		}
 		DmTaskSetSector = func(task *CDmTask, sector uint64) int {
 			calls["DmTaskSetSector"] = true
 			expectedTask := &task1
@@ -289,7 +300,7 @@ func TestInit(t *testing.T) {
 			}
 			return nil
 		}
-		driver, err := Init(home)
+		driver, err := Init(home, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -311,6 +322,7 @@ func TestInit(t *testing.T) {
 		"DmTaskSetName",
 		"DmTaskRun",
 		"DmTaskGetInfo",
+		"DmTaskGetDriverVersion",
 		"DmTaskDestroy",
 		"execRun",
 		"DmTaskCreate",
@@ -321,13 +333,13 @@ func TestInit(t *testing.T) {
 		"DmTaskSetMessage",
 		"DmTaskSetAddNode",
 	)
-	taskTypes.Assert(t, "0", "6", "17")
+	taskTypes.Assert(t, "0", "6", "9", "17")
 	taskMessages.Assert(t, "create_thin 0", "set_transaction_id 0 1")
 }
 
-func fakeInit() func(home string) (graphdriver.Driver, error) {
+func fakeInit() func(home string, options map[string][]string) (graphdriver.Driver, error) {
 	oldInit := Init
-	Init = func(home string) (graphdriver.Driver, error) {
+	Init = func(home string, options map[string][]string) (graphdriver.Driver, error) {
 		return &Driver{
 			home: home,
 		}, nil
@@ -335,7 +347,7 @@ func fakeInit() func(home string) (graphdriver.Driver, error) {
 	return oldInit
 }
 
-func restoreInit(init func(home string) (graphdriver.Driver, error)) {
+func restoreInit(init func(home string, options map[string][]string) (graphdriver.Driver, error)) {
 	Init = init
 }
 
@@ -362,6 +374,10 @@ func mockAllDevmapper(calls Set) {
 	DmTaskGetInfo = func(task *CDmTask, info *Info) int {
 		calls["DmTaskGetInfo"] = true
 		return 1
+	}
+	DmTaskGetDriverVersion = func(task *CDmTask) string {
+		calls["DmTaskGetDriverVersion"] = true
+		return "1.1.1"
 	}
 	DmTaskSetSector = func(task *CDmTask, sector uint64) int {
 		calls["DmTaskSetSector"] = true
@@ -479,6 +495,7 @@ func TestDriverCreate(t *testing.T) {
 			"DmTaskSetName",
 			"DmTaskRun",
 			"DmTaskGetInfo",
+			"DmTaskGetDriverVersion",
 			"execRun",
 			"DmTaskCreate",
 			"DmTaskSetTarget",
@@ -597,6 +614,7 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetName",
 			"DmTaskRun",
 			"DmTaskGetInfo",
+			"DmTaskGetDriverVersion",
 			"execRun",
 			"DmTaskCreate",
 			"DmTaskSetTarget",
@@ -780,7 +798,7 @@ func TestInitCleanedDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver, err := Init(d.home)
+	driver, err := Init(d.home, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
