@@ -361,12 +361,8 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 func populateCommand(c *Container) {
 	var (
 		en           *execdriver.Network
-		driverConfig = c.hostConfig.DriverOptions
-	)
-
-	if driverConfig == nil {
 		driverConfig = make(map[string][]string)
-	}
+	)
 
 	en = &execdriver.Network{
 		Mtu:       c.runtime.config.Mtu,
