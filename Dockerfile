@@ -87,7 +87,7 @@ RUN	git config --global user.email 'docker-dummy@example.com'
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
-ENV	DOCKER_BUILDTAGS	apparmor selinux
+ENV	DOCKER_BUILDTAGS	apparmor
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]
