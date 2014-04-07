@@ -16,6 +16,7 @@ const DefaultProfile = `
 #@{HOMEDIRS}+=
 @{multiarch}=*-linux-gnu*
 @{PROC}=/proc/
+@{pid}=self
 
 profile docker-default flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
