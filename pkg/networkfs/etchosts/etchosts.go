@@ -15,7 +15,7 @@ var defaultContent = map[string]string{
 	"ip6-allrouters":                       "ff02::2",
 }
 
-func Build(path, IP, hostname, domainname string) error {
+func Build(path, IP, hostname, domainname string, extraContent *map[string]string) error {
 	content := bytes.NewBuffer(nil)
 	if IP != "" {
 		if domainname != "" {
@@ -30,5 +30,14 @@ func Build(path, IP, hostname, domainname string) error {
 			return err
 		}
 	}
+
+	if extraContent != nil {
+		for hosts, ip := range *extraContent {
+			if _, err := content.WriteString(fmt.Sprintf("%s\t%s\n", ip, hosts)); err != nil {
+				return err
+			}
+		}
+	}
+
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
 }

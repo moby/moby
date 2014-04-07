@@ -357,7 +357,20 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	}
 
 	container.HostsPath = path.Join(container.root, "hosts")
-	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname)
+
+	extraContent := make(map[string]string)
+
+	children, err := container.daemon.Children(container.Name)
+	if err != nil {
+		return err
+	}
+
+	for linkAlias, child := range children {
+		_, alias := path.Split(linkAlias)
+		extraContent[alias] = child.NetworkSettings.IPAddress
+	}
+
+	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
 }
 
 func (container *Container) allocateNetwork() error {
