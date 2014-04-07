@@ -26,7 +26,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -62,7 +61,6 @@ type Runtime struct {
 
 // Mountpoints should be private to the container
 func remountPrivate(mountPoint string) error {
-
 	mounted, err := mount.Mounted(mountPoint)
 	if err != nil {
 		return err
@@ -373,53 +371,86 @@ func (runtime *Runtime) restore() error {
 
 // Create creates a new container from the given configuration with a given name.
 func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Container, []string, error) {
-	// Lookup image
+	var (
+		container *Container
+		warnings  []string
+	)
+
 	img, err := runtime.repositories.LookupImage(config.Image)
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := runtime.checkImageDepth(img); err != nil {
+		return nil, nil, err
+	}
+	if warnings, err = runtime.mergeAndVerifyConfig(config, img); err != nil {
+		return nil, nil, err
+	}
+	if container, err = runtime.newContainer(name, config, img); err != nil {
+		return nil, nil, err
+	}
+	if err := runtime.createRootfs(container, img); err != nil {
+		return nil, nil, err
+	}
+	if err := runtime.setupContainerDns(container, config); err != nil {
+		return nil, nil, err
+	}
+	if err := container.ToDisk(); err != nil {
+		return nil, nil, err
+	}
+	if err := runtime.Register(container); err != nil {
+		return nil, nil, err
+	}
+	return container, warnings, nil
+}
 
+func (runtime *Runtime) checkImageDepth(img *image.Image) error {
 	// We add 2 layers to the depth because the container's rw and
 	// init layer add to the restriction
 	depth, err := img.Depth()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-
 	if depth+2 >= MaxImageDepth {
-		return nil, nil, fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+		return fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
 	}
+	return nil
+}
 
-	checkDeprecatedExpose := func(config *runconfig.Config) bool {
-		if config != nil {
-			if config.PortSpecs != nil {
-				for _, p := range config.PortSpecs {
-					if strings.Contains(p, ":") {
-						return true
-					}
+func (runtime *Runtime) checkDeprecatedExpose(config *runconfig.Config) bool {
+	if config != nil {
+		if config.PortSpecs != nil {
+			for _, p := range config.PortSpecs {
+				if strings.Contains(p, ":") {
+					return true
 				}
 			}
 		}
-		return false
 	}
+	return false
+}
 
+func (runtime *Runtime) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) ([]string, error) {
 	warnings := []string{}
-	if checkDeprecatedExpose(img.Config) || checkDeprecatedExpose(config) {
+	if runtime.checkDeprecatedExpose(img.Config) || runtime.checkDeprecatedExpose(config) {
 		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
 	}
-
 	if img.Config != nil {
 		if err := runconfig.Merge(config, img.Config); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
-
 	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return nil, nil, fmt.Errorf("No command specified")
+		return nil, fmt.Errorf("No command specified")
 	}
+	return warnings, nil
+}
 
-	// Generate id
-	id := utils.GenerateRandomID()
+func (runtime *Runtime) generateIdAndName(name string) (string, string, error) {
+	var (
+		err error
+		id  = utils.GenerateRandomID()
+	)
 
 	if name == "" {
 		name, err = generateRandomName(runtime)
@@ -428,47 +459,51 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 		}
 	} else {
 		if !validContainerNamePattern.MatchString(name) {
-			return nil, nil, fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
+			return "", "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 		}
 	}
-
 	if name[0] != '/' {
 		name = "/" + name
 	}
-
 	// Set the enitity in the graph using the default name specified
 	if _, err := runtime.containerGraph.Set(name, id); err != nil {
 		if !graphdb.IsNonUniqueNameError(err) {
-			return nil, nil, err
+			return "", "", err
 		}
 
 		conflictingContainer, err := runtime.GetByName(name)
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find entity") {
-				return nil, nil, err
+				return "", "", err
 			}
 
 			// Remove name and continue starting the container
 			if err := runtime.containerGraph.Delete(name); err != nil {
-				return nil, nil, err
+				return "", "", err
 			}
 		} else {
 			nameAsKnownByUser := strings.TrimPrefix(name, "/")
-			return nil, nil, fmt.Errorf(
+			return "", "", fmt.Errorf(
 				"Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser,
 				utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
 		}
 	}
+	return id, name, nil
+}
 
+func (runtime *Runtime) generateHostname(id string, config *runconfig.Config) {
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
+}
 
-	var args []string
-	var entrypoint string
-
+func (runtime *Runtime) getEntrypointAndArgs(config *runconfig.Config) (string, []string) {
+	var (
+		entrypoint string
+		args       []string
+	)
 	if len(config.Entrypoint) != 0 {
 		entrypoint = config.Entrypoint[0]
 		args = append(config.Entrypoint[1:], config.Cmd...)
@@ -476,6 +511,21 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 		entrypoint = config.Cmd[0]
 		args = config.Cmd[1:]
 	}
+	return entrypoint, args
+}
+
+func (runtime *Runtime) newContainer(name string, config *runconfig.Config, img *image.Image) (*Container, error) {
+	var (
+		id  string
+		err error
+	)
+	id, name, err = runtime.generateIdAndName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	runtime.generateHostname(id, config)
+	entrypoint, args := runtime.getEntrypointAndArgs(config)
 
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
@@ -492,42 +542,50 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 		ExecDriver:      runtime.execDriver.Name(),
 	}
 	container.root = runtime.containerRoot(container.ID)
+	return container, nil
+}
+
+func (runtime *Runtime) createRootfs(container *Container, img *image.Image) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
-		return nil, nil, err
+		return err
 	}
-
 	initID := fmt.Sprintf("%s-init", container.ID)
 	if err := runtime.driver.Create(initID, img.ID, ""); err != nil {
-		return nil, nil, err
+		return err
 	}
 	initPath, err := runtime.driver.Get(initID)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	defer runtime.driver.Put(initID)
 
 	if err := graph.SetupInitLayer(initPath); err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	if err := runtime.driver.Create(container.ID, initID, ""); err != nil {
-		return nil, nil, err
+		return err
 	}
+	return nil
+}
+
+func (runtime *Runtime) setupContainerDns(container *Container, config *runconfig.Config) error {
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-
 	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
 		runtime.config.Dns = DefaultDns
 	}
 
 	// If custom dns exists, then create a resolv.conf for the container
 	if len(config.Dns) > 0 || len(runtime.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(runtime.config.DnsSearch) > 0 {
-		dns := utils.GetNameservers(resolvConf)
-		dnsSearch := utils.GetSearchDomains(resolvConf)
+		var (
+			dns       = utils.GetNameservers(resolvConf)
+			dnsSearch = utils.GetSearchDomains(resolvConf)
+		)
 		if len(config.Dns) > 0 {
 			dns = config.Dns
 		} else if len(runtime.config.Dns) > 0 {
@@ -541,33 +599,23 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
 		f, err := os.Create(container.ResolvConfPath)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 		defer f.Close()
 		for _, dns := range dns {
 			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return nil, nil, err
+				return err
 			}
 		}
 		if len(dnsSearch) > 0 {
 			if _, err := f.Write([]byte("search " + strings.Join(dnsSearch, " ") + "\n")); err != nil {
-				return nil, nil, err
+				return err
 			}
 		}
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
 	}
-
-	// Step 2: save the container json
-	if err := container.ToDisk(); err != nil {
-		return nil, nil, err
-	}
-
-	// Step 3: register the container
-	if err := runtime.Register(container); err != nil {
-		return nil, nil, err
-	}
-	return container, warnings, nil
+	return nil
 }
 
 // Commit creates a new filesystem image from the current state of a container.
@@ -972,29 +1020,4 @@ func (runtime *Runtime) ContainerGraph() *graphdb.Database {
 
 func (runtime *Runtime) SetServer(server Server) {
 	runtime.srv = server
-}
-
-// History is a convenience type for storing a list of containers,
-// ordered by creation date.
-type History []*Container
-
-func (history *History) Len() int {
-	return len(*history)
-}
-
-func (history *History) Less(i, j int) bool {
-	containers := *history
-	return containers[j].When().Before(containers[i].When())
-}
-
-func (history *History) Swap(i, j int) {
-	containers := *history
-	tmp := containers[i]
-	containers[i] = containers[j]
-	containers[j] = tmp
-}
-
-func (history *History) Add(container *Container) {
-	*history = append(*history, container)
-	sort.Sort(history)
 }
