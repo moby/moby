@@ -15,12 +15,13 @@ where the parent container can see selected information about its child.
 
 New in version v0.6.5.
 
-You can now name your container by using the `-name`
-flag. If no name is provided, Docker will automatically generate a name.
-You can see this name using the `docker ps` command.
+You can now name your container by using the `--name`
+flag. If no name is provided, Docker will automatically
+generate a name. You can see this name using the `docker ps`
+command.
 
-    # format is "sudo docker run -name <container_name> <image_name> <command>"
-    $ sudo docker run -name test ubuntu /bin/bash
+    # format is "sudo docker run --name <container_name> <image_name> <command>"
+    $ sudo docker run --name test ubuntu /bin/bash
 
     # the flag "-a" Show all containers. Only running containers are shown by default.
     $ sudo docker ps -a
@@ -49,8 +50,8 @@ database container only exposes port 8080 then the linked container will
 only be allowed to access port 8080 and nothing else if inter-container
 communication is set to false.
 
-For example, there is an image called `crosbymichael/redis`{.docutils
-.literal} that exposes the port 6379 and starts the Redis server. Let’s
+For example, there is an image called `crosbymichael/redis`
+that exposes the port 6379 and starts the Redis server. Let’s
 name the container as `redis` based on that image
 and run it as daemon.
 
@@ -101,8 +102,18 @@ Accessing the network information along with the environment of the
 child container allows us to easily connect to the Redis service on the
 specific IP and port in the environment.
 
+Note
+
+These Environment variables are only set for the first process in the
+container. Similarly, some daemons (such as `sshd`)
+will scrub them when spawning shells for connection.
+
+You can work around this by storing the initial `env`
+in a file, or looking at `/proc/1/environ`
+.literal}.
+
 Running `docker ps` shows the 2 containers, and the
-`webapp/db` alias name for the redis container.
+`webapp/db` alias name for the Redis container.
 
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES

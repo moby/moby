@@ -24,8 +24,8 @@ a tool for sharing**. The Docker project provides a Central Registry to
 host public repositories, namespaced by user, and a Central Index which
 provides user authentication and search over all the public
 repositories. You can host your own Registry too! Docker acts as a
-client for these services via `docker search, pull, login`{.docutils
-.literal} and `push`.
+client for these services via `docker search, pull, login`
+and `push`.
 
 ## Repositories
 
@@ -80,8 +80,8 @@ There you can see two example results: `centos` and
 shows that it comes from the public repository of a user,
 `slantview/`, while the first result
 (`centos`) doesn’t explicitly list a repository so
-it comes from the trusted Central Repository. The `/`{.docutils
-.literal} character separates a user’s repository and the image name.
+it comes from the trusted Central Repository. The `/`
+character separates a user’s repository and the image name.
 
 Once you have found the image name, you can download it:
 
@@ -146,8 +146,8 @@ when you push a commit.
 ### To setup a trusted build
 
 1.  Create a [Docker Index account](https://index.docker.io/) and login.
-2.  Link your GitHub account through the `Link Accounts`{.docutils
-    .literal} menu.
+2.  Link your GitHub account through the `Link Accounts`
+ menu.
 3.  [Configure a Trusted build](https://index.docker.io/builds/).
 4.  Pick a GitHub project that has a `Dockerfile`
     that you want to build.
@@ -169,8 +169,8 @@ index, and it will show you the status of your builds, and the build
 history.
 
 Once you’ve created a Trusted Build you can deactivate or delete it. You
-cannot however push to a Trusted Build with the `docker push`{.docutils
-.literal} command. You can only manage it by committing code to your
+cannot however push to a Trusted Build with the `docker push`
+command. You can only manage it by committing code to your
 GitHub repository.
 
 You can create multiple Trusted Builds per repository and configure them
@@ -206,8 +206,8 @@ registry](http://blog.docker.io/2013/07/how-to-use-your-own-registry/)
 
 ## Authentication File
 
-The authentication is stored in a json file, `.dockercfg`{.docutils
-.literal} located in your home directory. It supports multiple registry
+The authentication is stored in a json file, `.dockercfg`
+located in your home directory. It supports multiple registry
 urls.
 
 `docker login` will create the

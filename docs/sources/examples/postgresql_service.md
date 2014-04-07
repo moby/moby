@@ -110,8 +110,8 @@ variables that can then be used to connect:
 ### Connecting from your host system
 
 Assuming you have the postgresql-client installed, you can use the
-host-mapped port to test as well. You need to use `docker ps`{.docutils
-.literal} to find out what local host port the container is mapped to
+host-mapped port to test as well. You need to use `docker ps`
+to find out what local host port the container is mapped to
 first:
 
     $ docker ps

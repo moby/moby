@@ -78,7 +78,7 @@ grasp the context, here are some examples of registries:
 > - remote docker addressed through SSH.
 
 The latter would only require two new commands in docker, e.g.
-`registryget` and `registryput`{.docutils .literal},
+`registryget` and `registryput`,
 wrapping access to the local filesystem (and optionally doing
 consistency checks). Authentication and authorization are then delegated
 to SSH (e.g. with public keys).
@@ -99,8 +99,8 @@ supports:
 
 1.  Contact the Index to know where I should download “samalba/busybox”
 2.  Index replies: a. `samalba/busybox` is on
-    Registry A b. here are the checksums for `samalba/busybox`{.docutils
-    .literal} (for all layers) c. token
+    Registry A b. here are the checksums for `samalba/busybox`
+ (for all layers) c. token
 3.  Contact Registry A to receive the layers for
     `samalba/busybox` (all of them to the base
     image). Registry A is authoritative for “samalba/busybox” but keeps
@@ -666,8 +666,8 @@ The Registry only supports the Token challenge:
     401 Unauthorized
     WWW-Authenticate: Token
 
-The only way is to provide a token on `401 Unauthorized`{.docutils
-.literal} responses:
+The only way is to provide a token on `401 Unauthorized`
+responses:
 
     Authorization: Token signature=123abc,repository="foo/bar",access=read
 

@@ -63,7 +63,7 @@ The latter implies that while HTTP is the protocol of choice for a registry, mul
     - remote docker addressed through SSH.
 
 The latter would only require two new commands in docker, e.g.
-`registryget` and `registryput`{.docutils .literal},
+`registryget` and `registryput`,
 wrapping access to the local filesystem (and optionally doing
 consistency checks). Authentication and authorization are then delegated
 to SSH (e.g. with public keys).
@@ -74,7 +74,7 @@ to SSH (e.g. with public keys).
 
 ### Layer
 
- `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}
+ `GET /v1/images/`(*image\_id*)`/layer`
 :   get image layer for a given `image_id`
 
     **Example Request**:
@@ -104,7 +104,7 @@ to SSH (e.g. with public keys).
     - **401** – Requires authorization
     - **404** – Image not found
 
- `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/layer`{.descname}
+ `PUT /v1/images/`(*image\_id*)`/layer`
 :   put image layer for a given `image_id`
 
     **Example Request**:
@@ -137,7 +137,7 @@ to SSH (e.g. with public keys).
 
 ### Image
 
- `PUT `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}
+ `PUT /v1/images/`(*image\_id*)`/json`
 :   put image for a given `image_id`
 
     **Example Request**:
@@ -197,7 +197,7 @@ to SSH (e.g. with public keys).
     - **200** – OK
     - **401** – Requires authorization
 
- `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/json`{.descname}
+ `GET /v1/images/`(*image\_id*)`/json`
 :   get image for a given `image_id`
 
     **Example Request**:
@@ -260,7 +260,7 @@ to SSH (e.g. with public keys).
 
 ### Ancestry
 
- `GET `{.descname}`/v1/images/`{.descname}(*image\_id*)`/ancestry`{.descname}
+ `GET /v1/images/`(*image\_id*)`/ancestry`
 :   get ancestry for an image given an `image_id`
 
     **Example Request**:
@@ -295,7 +295,7 @@ to SSH (e.g. with public keys).
 
 ### Tags
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags`{.descname}
+ `GET /v1/repositories/`(*namespace*)`/`(*repository*)`/tags`
 :   get all of the tags for the given repo.
 
     **Example Request**:
@@ -330,7 +330,7 @@ to SSH (e.g. with public keys).
     - **401** – Requires authorization
     - **404** – Repository not found
 
- `GET `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)
+ `GET /v1/repositories/`(*namespace*)`/`(*repository*)`/tags/`(*tag*)
 :   get a tag for the given repo.
 
     **Example Request**:
@@ -363,7 +363,7 @@ to SSH (e.g. with public keys).
     - **401** – Requires authorization
     - **404** – Tag not found
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)
+ `DELETE /v1/repositories/`(*namespace*)`/`(*repository*)`/tags/`(*tag*)
 :   delete the tag for the repo
 
     **Example Request**:
@@ -395,7 +395,7 @@ to SSH (e.g. with public keys).
     - **401** – Requires authorization
     - **404** – Tag not found
 
- `PUT `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/tags/`{.descname}(*tag*)
+ `PUT /v1/repositories/`(*namespace*)`/`(*repository*)`/tags/`(*tag*)
 :   put a tag for the given repo.
 
     **Example Request**:
@@ -432,7 +432,7 @@ to SSH (e.g. with public keys).
 
 ### Repositories
 
- `DELETE `{.descname}`/v1/repositories/`{.descname}(*namespace*)`/`{.descname}(*repository*)`/`{.descname}
+ `DELETE /v1/repositories/`(*namespace*)`/`(*repository*)`/`
 :   delete a repository
 
     **Example Request**:
@@ -467,7 +467,7 @@ to SSH (e.g. with public keys).
 
 ### Status
 
- `GET `{.descname}`/v1/_ping`{.descname}
+ `GET /v1/_ping`
 :   Check status of the registry. This endpoint is also used to
     determine if the registry supports SSL.
 

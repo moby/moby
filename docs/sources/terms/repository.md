@@ -13,8 +13,8 @@ server.
 Images can be associated with a repository (or multiple) by giving them
 an image name using one of three different commands:
 
-1.  At build time (e.g. `sudo docker build -t IMAGENAME`{.docutils
-    .literal}),
+1.  At build time (e.g. `sudo docker build -t IMAGENAME`
+),
 2.  When committing a container (e.g.
     `sudo docker commit CONTAINERID IMAGENAME`) or
 3.  When tagging an image id with an image name (e.g.
@@ -22,10 +22,10 @@ an image name using one of three different commands:
 
 A Fully Qualified Image Name (FQIN) can be made up of 3 parts:
 
-`[registry_hostname[:port]/][user_name/](repository_name[:version_tag])`{.docutils
+`[registry_hostname[:port]/][user_name/](repository_name[:version_tag])`
 .literal}
 
-`version_tag` defaults to `latest`{.docutils
+`version_tag` defaults to `latest`
 .literal}, `username` and
 `registry_hostname` default to an empty string. When
 `registry_hostname` is an empty string, then

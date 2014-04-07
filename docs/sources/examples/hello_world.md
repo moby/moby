@@ -11,8 +11,8 @@ your Docker install, run the following command:
     $ sudo docker info
 
 If you get `docker: command not found` or something
-like `/var/lib/docker/repositories: permission denied`{.docutils
-.literal} you may have an incomplete Docker installation or insufficient
+like `/var/lib/docker/repositories: permission denied`
+you may have an incomplete Docker installation or insufficient
 privileges to access docker on your machine.
 
 Please refer to [*Installation*](../../installation/#installation-list)
@@ -37,7 +37,7 @@ Download the small base image named `busybox`:
 
 The `busybox` image is a minimal Linux system. You
 can do the same with any number of other images, such as
-`debian`, `ubuntu`{.docutils .literal} or
+`debian`, `ubuntu` or
 `centos`. The images can be found and retrieved
 using the [Docker index](http://index.docker.io).
 

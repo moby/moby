@@ -67,7 +67,7 @@ Table of Contents
 
 #### [List containers](#id5)
 
- `GET `{.descname}`/containers/json`{.descname}
+ `GET /containers/json`
 :   List containers
 
     **Example request**:
@@ -131,7 +131,7 @@ Table of Contents
 
 #### [Create a container](#id6)
 
- `POST `{.descname}`/containers/create`{.descname}
+ `POST /containers/create`
 :   Create a container
 
     **Example request**:
@@ -186,9 +186,9 @@ Table of Contents
 
 #### [Inspect a container](#id7)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}
-:   Return low-level information on the container `id`{.docutils
-    .literal}
+ `GET /containers/`(*id*)`/json`
+:   Return low-level information on the container `id`
+
 
     **Example request**:
 
@@ -253,7 +253,7 @@ Table of Contents
 
 #### [Inspect changes on a container’s filesystem](#id8)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/changes`{.descname}
+ `GET /containers/`(*id*)`/changes`
 :   Inspect changes on container `id` ‘s filesystem
 
     **Example request**:
@@ -288,7 +288,7 @@ Table of Contents
 
 #### [Export a container](#id9)
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/export`{.descname}
+ `GET /containers/`(*id*)`/export`
 :   Export the contents of container `id`
 
     **Example request**:
@@ -310,7 +310,7 @@ Table of Contents
 
 #### [Start a container](#id10)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/start`{.descname}
+ `POST /containers/`(*id*)`/start`
 :   Start the container `id`
 
     **Example request**:
@@ -329,7 +329,7 @@ Table of Contents
 
 #### [Stop a container](#id11)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/stop`{.descname}
+ `POST /containers/`(*id*)`/stop`
 :   Stop the container `id`
 
     **Example request**:
@@ -354,7 +354,7 @@ Table of Contents
 
 #### [Restart a container](#id12)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/restart`{.descname}
+ `POST /containers/`(*id*)`/restart`
 :   Restart the container `id`
 
     **Example request**:
@@ -379,7 +379,7 @@ Table of Contents
 
 #### [Kill a container](#id13)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/kill`{.descname}
+ `POST /containers/`(*id*)`/kill`
 :   Kill the container `id`
 
     **Example request**:
@@ -398,7 +398,7 @@ Table of Contents
 
 #### [Attach to a container](#id14)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}
+ `POST /containers/`(*id*)`/attach`
 :   Attach to the container `id`
 
     **Example request**:
@@ -436,7 +436,7 @@ Table of Contents
 
 #### [Wait a container](#id15)
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/wait`{.descname}
+ `POST /containers/`(*id*)`/wait`
 :   Block until container `id` stops, then returns
     the exit code
 
@@ -459,7 +459,7 @@ Table of Contents
 
 #### [Remove a container](#id16)
 
- `DELETE `{.descname}`/containers/`{.descname}(*id*)
+ `DELETE /containers/`(*id*)
 :   Remove the container `id` from the filesystem
 
     **Example request**:
@@ -488,7 +488,7 @@ Table of Contents
 
 #### [List Images](#id18)
 
- `GET `{.descname}`/images/`{.descname}(*format*)
+ `GET /images/`(*format*)
 :   List images `format` could be json or viz (json
     default)
 
@@ -558,7 +558,7 @@ Table of Contents
 
 #### [Create an image](#id19)
 
- `POST `{.descname}`/images/create`{.descname}
+ `POST /images/create`
 :   Create an image, either by pull it from the registry or by importing
     it
 
@@ -593,9 +593,9 @@ Table of Contents
 
 #### [Insert a file in an image](#id20)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
+ `POST /images/`(*name*)`/insert`
 :   Insert a file from `url` in the image
-    `name` at `path`{.docutils .literal}
+    `name` at `path`
 
     **Example request**:
 
@@ -618,7 +618,7 @@ Table of Contents
 
 #### [Inspect an image](#id21)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/json`{.descname}
+ `GET /images/`(*name*)`/json`
 :   Return low-level information on the image `name`
 
     **Example request**:
@@ -665,7 +665,7 @@ Table of Contents
 
 #### [Get the history of an image](#id22)
 
- `GET `{.descname}`/images/`{.descname}(*name*)`/history`{.descname}
+ `GET /images/`(*name*)`/history`
 :   Return the history of the image `name`
 
     **Example request**:
@@ -698,7 +698,7 @@ Table of Contents
 
 #### [Push an image on the registry](#id23)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
+ `POST /images/`(*name*)`/push`
 :   Push the image `name` on the registry
 
     > **Example request**:
@@ -729,7 +729,7 @@ Table of Contents
 
 #### [Tag an image into a repository](#id24)
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/tag`{.descname}
+ `POST /images/`(*name*)`/tag`
 :   Tag the image `name` into a repository
 
     **Example request**:
@@ -757,7 +757,7 @@ Table of Contents
 
 #### [Remove an image](#id25)
 
- `DELETE `{.descname}`/images/`{.descname}(*name*)
+ `DELETE /images/`(*name*)
 :   Remove the image `name` from the filesystem
 
     **Example request**:
@@ -776,7 +776,7 @@ Table of Contents
 
 #### [Search images](#id26)
 
- `GET `{.descname}`/images/search`{.descname}
+ `GET /images/search`
 :   Search for an image in the docker index
 
     **Example request**:
@@ -811,7 +811,7 @@ Table of Contents
 
 #### [Build an image from Dockerfile via stdin](#id28)
 
- `POST `{.descname}`/build`{.descname}
+ `POST /build`
 :   Build an image from Dockerfile via stdin
 
     **Example request**:
@@ -840,7 +840,7 @@ Table of Contents
 
 #### [Get default username and email](#id29)
 
- `GET `{.descname}`/auth`{.descname}
+ `GET /auth`
 :   Get the default username and email
 
     **Example request**:
@@ -864,7 +864,7 @@ Table of Contents
 
 #### [Check auth configuration and store it](#id30)
 
- `POST `{.descname}`/auth`{.descname}
+ `POST /auth`
 :   Get the default username and email
 
     **Example request**:
@@ -890,7 +890,7 @@ Table of Contents
 
 #### [Display system-wide information](#id31)
 
- `GET `{.descname}`/info`{.descname}
+ `GET /info`
 :   Display system-wide information
 
     **Example request**:
@@ -919,7 +919,7 @@ Table of Contents
 
 #### [Show the docker version information](#id32)
 
- `GET `{.descname}`/version`{.descname}
+ `GET /version`
 :   Show the docker version information
 
     **Example request**:
@@ -944,7 +944,7 @@ Table of Contents
 
 #### [Create a new image from a container’s changes](#id33)
 
- `POST `{.descname}`/commit`{.descname}
+ `POST /commit`
 :   Create a new image from a container’s changes
 
     **Example request**:

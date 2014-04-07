@@ -77,7 +77,7 @@ has created some environment variables in our web application container.
     DB_PORT_6379_TCP_PROTO=tcp
 
 We can see that we’ve got a small list of environment variables prefixed
-with `DB`. The `DB`{.docutils .literal} comes from
+with `DB`. The `DB` comes from
 the link alias specified when we launched the container. Let’s use the
 `DB_PORT_6379_TCP_ADDR` variable to connect to our
 Redis container.

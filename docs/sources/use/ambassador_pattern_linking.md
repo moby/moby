@@ -31,8 +31,8 @@ This pattern also allows you to transparently move the redis server to a
 different docker host from the consumer.
 
 Using the `svendowideit/ambassador` container, the
-link wiring is controlled entirely from the `docker run`{.docutils
-.literal} parameters.
+link wiring is controlled entirely from the `docker run`
+parameters.
 
 ## Two host Example
 
@@ -61,8 +61,8 @@ linking to the local redis ambassador.
 
 ## How it works
 
-The following example shows what the `svendowideit/ambassador`{.docutils
-.literal} container does automatically (with a tiny amount of
+The following example shows what the `svendowideit/ambassador`
+container does automatically (with a tiny amount of
 `sed`)
 
 On the docker host (192.168.1.52) that redis will run on:
@@ -133,9 +133,9 @@ out the (possibly multiple) link environment variables to set up the
 port forwarding. On the remote host, you need to set the variable using
 the `-e` command line option.
 
-`-expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379`{.docutils
-.literal} will forward the local `1234` port to the
-remote IP and port - in this case `192.168.1.52:6379`{.docutils
+`--expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379`
+will forward the local `1234` port to the
+remote IP and port - in this case `192.168.1.52:6379`
 .literal}.
 
     #

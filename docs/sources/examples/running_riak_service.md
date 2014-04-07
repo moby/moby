@@ -101,7 +101,7 @@ are started:
 ## Create a `supervisord` configuration file
 
 Create an empty file called `supervisord.conf`. Make
-sure it’s at the same directory level as your `Dockerfile`{.docutils
+sure it’s at the same directory level as your `Dockerfile`
 .literal}:
 
     touch supervisord.conf

@@ -54,8 +54,8 @@ To get your Debian-based containers to use the proxy, you can do one of
 three things
 
 1.  Add an apt Proxy setting
-    `echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy`{.docutils
-    .literal}
+    `echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy`
+
 2.  Set an environment variable:
     `http_proxy=http://dockerhost:3142/`
 3.  Change your `sources.list` entries to start with
@@ -71,14 +71,14 @@ a local version of a common base:
     # docker build -t my_ubuntu .
 
 **Option 2** is good for testing, but will break other HTTP clients
-which obey `http_proxy`, such as `curl`{.docutils
+which obey `http_proxy`, such as `curl`
 .literal}, `wget` and others:
 
     $ sudo docker run --rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
 
 **Option 3** is the least portable, but there will be times when you
-might need to do it and you can do it from your `Dockerfile`{.docutils
-.literal} too.
+might need to do it and you can do it from your `Dockerfile`
+too.
 
 Apt-cacher-ng has some tools that allow you to manage the repository,
 and they can be used by leveraging the `VOLUME`
