@@ -108,7 +108,7 @@ something like this
     PASS
     ok      github.com/dotcloud/docker/utils        0.017s
 
-If \$TESTFLAGS is set in the environment, it is passed as extra
+If $TESTFLAGS is set in the environment, it is passed as extra
 arguments to ‘go test’. You can use this to select certain tests to run,
 eg.
 

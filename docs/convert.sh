@@ -40,6 +40,10 @@ do
 	sed -i 's/{.xref .http .http-post .docutils$//g' sources/${name}.md
 	sed -i 's/^    .literal}//g' sources/${name}.md
 
+	sed -i 's/\\\$container\\_id/\$container_id/' sources/examples/hello_world.md
+	sed -i 's/\\\$TESTFLAGS/\$TESTFLAGS/' sources/contributing/devenvironment.md
+	sed -i 's/\\\$MYVAR1/\$MYVAR1/g' sources/reference/commandline/cli.md
+
 	# git it all so we can test
 #	git add ${name}.md
 done

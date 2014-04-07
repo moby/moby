@@ -1006,7 +1006,7 @@ This sets environmental variables in the container. For illustration all
 three flags are shown here. Where `-e`,
 `--env` take an environment variable and value, or
 if no "=" is provided, then that variable’s current value is passed
-through (i.e. \$MYVAR1 from the host is set to \$MYVAR1 in the
+through (i.e. $MYVAR1 from the host is set to $MYVAR1 in the
 container). All three flags, `-e`, `--env`
 and `--env-file` can be repeated.
 
