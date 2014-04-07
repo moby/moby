@@ -9,30 +9,31 @@ import (
 )
 
 func GenLabels(options string) (string, string, error) {
-	processLabel, mountLabel := selinux.GetLxcContexts()
-	if processLabel == "" { // SELinux is disabled
+	if !selinux.SelinuxEnabled() {
 		return "", "", nil
 	}
-
-	var (
-		err error
-		s   = strings.Fields(options)
-		l   = len(s)
-	)
-	if l > 0 {
-		pcon := selinux.NewContext(processLabel)
-		for i := 0; i < l; i++ {
-			o := strings.Split(s[i], "=")
-			pcon[o[0]] = o[1]
+	var err error
+	processLabel, mountLabel := selinux.GetLxcContexts()
+	if processLabel != "" {
+		var (
+			s = strings.Fields(options)
+			l = len(s)
+		)
+		if l > 0 {
+			pcon := selinux.NewContext(processLabel)
+			for i := 0; i < l; i++ {
+				o := strings.Split(s[i], "=")
+				pcon[o[0]] = o[1]
+			}
+			processLabel = pcon.Get()
+			mountLabel, err = selinux.CopyLevel(processLabel, mountLabel)
 		}
-		processLabel = pcon.Get()
-		mountLabel, err = selinux.CopyLevel(processLabel, mountLabel)
 	}
 	return processLabel, mountLabel, err
 }
 
 func FormatMountLabel(src string, mountLabel string) string {
-	if mountLabel != "" {
+	if selinux.SelinuxEnabled() && mountLabel != "" {
 		switch src {
 		case "":
 			src = fmt.Sprintf("%s,context=%s", src, mountLabel)
@@ -65,6 +66,9 @@ func SetFileLabel(path string, fileLabel string) error {
 }
 
 func GetPidCon(pid int) (string, error) {
+	if !selinux.SelinuxEnabled() {
+		return "", nil
+	}
 	return selinux.Getpidcon(pid)
 }
 
