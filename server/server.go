@@ -707,9 +707,6 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 	if i, ok := imageFilters["untagged"]; ok && strings.ToLower(i) == "true" {
 		filt_tagged = false
 	}
-	if i, ok := imageFilters["tagged"]; ok && strings.ToLower(i) == "false" {
-		filt_tagged = false
-	}
 
 	if job.GetenvBool("all") && !filt_tagged {
 		allImages, err = srv.daemon.Graph().Map()

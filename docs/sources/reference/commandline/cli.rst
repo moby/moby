@@ -687,7 +687,6 @@ The filtering flag (-f or --filter) format is of "key=value". If there are more
 than one flag, then either semi-colon delimit (";"), or pass multiple flags.
 
 Current filters:
- * tagged (boolean - true or false)
  * untagged (boolean - true or false)
 
 
@@ -697,7 +696,7 @@ Filtering for untagged images
 
 .. code-block:: bash
 
-    $ sudo docker images --filter "tagged=false"
+    $ sudo docker images --filter "untagged=true"
 
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     <none>              <none>              8abc22fbb042        4 weeks ago         0 B
