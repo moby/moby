@@ -23,8 +23,9 @@ copyright: Copyright &copy; 2014, Docker.
 pages:
 
 # Introduction:
-- ['index.md', 'Home']
+#- ['index.md', 'Home']
 #- ['introduction/home.md', 'Introduction', 'Introduction Home']
+- ['index.md', 'About', 'Docker']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 - ['introduction/technology.md', 'About', 'The Technology']
 - ['introduction/working-with-docker.md', 'About', 'Working with Docker']
@@ -55,22 +56,22 @@ pages:
 - ['reference/api/docker_remote_api_v1.9.md', 'Reference', 'Docker Remote API v1.9']
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
 #./toctree.md
-- ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
-- ['installation/gentoolinux.md', 'Installation', 'Gentoo']
-- ['installation/google.md', 'Installation', 'Google Cloud Platform']
-  #- ['installation/index.md', 'Installation', 'index']
-- ['installation/rackspace.md', 'Installation', 'Rackspace Cloud']
-- ['installation/softlayer.md', 'Installation', 'IBM Softlayer']
-- ['installation/archlinux.md', 'Installation', 'Arch Linux']
-- ['installation/frugalware.md', 'Installation', 'FrugalWare']
-- ['installation/fedora.md', 'Installation', 'Fedora']
-- ['installation/ubuntulinux.md', 'Installation', 'Ubuntu']
-- ['installation/openSUSE.md', 'Installation', 'openSUSE']
-- ['installation/amazon.md', 'Installation', 'Amazon EC2']
-- ['installation/binaries.md', 'Installation', 'Binaries']
-- ['installation/cruxlinux.md', 'Installation', 'CRUX Linux']
-- ['installation/mac.md', 'Installation', 'Mac OS X']
-- ['installation/windows.md', 'Installation', 'Microsoft Windows']
+- ['installation/rhel.md', 'Install', 'Red Hat Enterprise Linux']
+- ['installation/gentoolinux.md', 'Install', 'Gentoo']
+- ['installation/google.md', 'Install', 'Google Cloud Platform']
+  #- ['installation/index.md', 'Install', 'index']
+- ['installation/rackspace.md', 'Install', 'Rackspace Cloud']
+- ['installation/softlayer.md', 'Install', 'IBM Softlayer']
+- ['installation/archlinux.md', 'Install', 'Arch Linux']
+- ['installation/frugalware.md', 'Install', 'FrugalWare']
+- ['installation/fedora.md', 'Install', 'Fedora']
+- ['installation/ubuntulinux.md', 'Install', 'Ubuntu']
+- ['installation/openSUSE.md', 'Install', 'openSUSE']
+- ['installation/amazon.md', 'Install', 'Amazon EC2']
+- ['installation/binaries.md', 'Install', 'Binaries']
+- ['installation/cruxlinux.md', 'Install', 'CRUX Linux']
+- ['installation/mac.md', 'Install', 'Mac OS X']
+- ['installation/windows.md', 'Install', 'Microsoft Windows']
 
 - ['examples/hello_world.md', 'Examples', 'Hello World']
 - ['use/basics.md', 'Examples', 'First Steps with Docker']
@@ -97,13 +98,13 @@ pages:
 - ['examples/using_supervisord.md', 'Examples', 'Using Supervisord']
 - ['examples/cfengine_process_management.md', 'Examples', 'Process Management with CFEngine']
 
-- ['contributing/contributing.md', 'Contributing', 'Contributing']
+- ['contributing/contributing.md', 'Contribute', 'Contributing']
   #- ['contributing/index.md', 'Contributing', 'index']
-- ['contributing/devenvironment.md', 'Contributing', 'Development Environment']
+- ['contributing/devenvironment.md', 'Contribute', 'Development Environment']
 
 # Docker Index docs:
-- ['index/home.md', 'Docker Index', 'Docker Index Help']
-- ['index/docs.md', 'Docker Index', 'Docker Index Documentation']
+- ['index/home.md', 'INDEX', 'Docker Index Help']
+- ['index/docs.md', 'INDEX', 'Docker Index Documentation']
 
 
   #- ['static_files/README.md', 'static_files', 'README']
