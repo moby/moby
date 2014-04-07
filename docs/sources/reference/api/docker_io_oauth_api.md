@@ -49,7 +49,7 @@ Once You have registered you are ready to start integrating docker.io
 accounts into your application! The process is usually started by a user
 following a link in your application to an OAuth Authorization endpoint.
 
- `GET `{.descname}`/api/v1.1/o/authorize/`{.descname}
+ `GET /api/v1.1/o/authorize/`
 :   Request that a docker.io user authorize your application. If the
     user is not already logged in, they will be prompted to login. The
     user is then presented with a form to authorize your application for
@@ -61,24 +61,24 @@ following a link in your application to an OAuth Authorization endpoint.
 
      
 
-    - **client\_id** – The `client_id` given to
+    -   **client\_id** – The `client_id` given to
         your application at registration.
-    - **response\_type** – MUST be set to `code`.
+    -   **response\_type** – MUST be set to `code`.
         This specifies that you would like an Authorization Code
         returned.
-    - **redirect\_uri** – The URI to redirect back to after the user
+    -   **redirect\_uri** – The URI to redirect back to after the user
         has authorized your application. If omitted, the first of your
         registered `response_uris` is used. If
         included, it must be one of the URIs which were submitted when
         registering your application.
-    - **scope** – The extent of access permissions you are requesting.
-        Currently, the scope options are `profile_read`{.docutils
+    -   **scope** – The extent of access permissions you are requesting.
+        Currently, the scope options are `profile_read`
         .literal}, `profile_write`,
-        `email_read`, and `email_write`{.docutils
+        `email_read`, and `email_write`
         .literal}. Scopes must be separated by a space. If omitted, the
         default scopes `profile_read email_read` are
         used.
-    - **state** – (Recommended) Used by your application to maintain
+    -   **state** – (Recommended) Used by your application to maintain
         state between the authorization request and callback to protect
         against CSRF attacks.
 
@@ -122,7 +122,7 @@ your application’s specified `redirect_uri` which
 includes a `code` parameter that you must then use
 to get an Access Token.
 
- `POST `{.descname}`/api/v1.1/o/token/`{.descname}
+ `POST /api/v1.1/o/token/`
 :   Submit your newly granted Authorization Code and your application’s
     credentials to receive an Access Token and Refresh Token. The code
     is valid for 60 seconds and cannot be used more than once.
@@ -139,11 +139,11 @@ to get an Access Token.
 
      
 
-    - **grant\_type** – MUST be set to `authorization_code`{.docutils
+    -   **grant\_type** – MUST be set to `authorization_code`
         .literal}
-    - **code** – The authorization code received from the user’s
+    -   **code** – The authorization code received from the user’s
         redirect request.
-    - **redirect\_uri** – The same `redirect_uri`
+    -   **redirect\_uri** – The same `redirect_uri`
         used in the authentication request.
 
     **Example Request**
@@ -182,11 +182,11 @@ to get an Access Token.
 
 ### Refresh a Token
 
-Once the Access Token expires you can use your `refresh_token`{.docutils
-.literal} to have docker.io issue your application a new Access Token,
+Once the Access Token expires you can use your `refresh_token`
+to have docker.io issue your application a new Access Token,
 if the user has not revoked access from your application.
 
- `POST `{.descname}`/api/v1.1/o/token/`{.descname}
+ `POST /api/v1.1/o/token/`
 :   Submit your `refresh_token` and application’s
     credentials to receive a new Access Token and Refresh Token. The
     `refresh_token` can be used only once.
@@ -203,11 +203,11 @@ if the user has not revoked access from your application.
 
      
 
-    - **grant\_type** – MUST be set to `refresh_token`{.docutils
+    -   **grant\_type** – MUST be set to `refresh_token`
         .literal}
-    - **refresh\_token** – The `refresh_token`
+    -   **refresh\_token** – The `refresh_token`
         which was issued to your application.
-    - **scope** – (optional) The scope of the access token to be
+    -   **scope** – (optional) The scope of the access token to be
         returned. Must not include any scope not originally granted by
         the user and if omitted is treated as equal to the scope
         originally granted.

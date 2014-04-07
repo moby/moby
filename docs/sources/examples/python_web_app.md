@@ -64,9 +64,9 @@ commands, try things out, and then exit when you’re done.
 Save the changes we just made in the container to a new image called
 `/builds/github.com/shykes/helloflask/master`. You
 now have 3 different ways to refer to the container: name
-`pybuilder_run`, short-id `c8b2e8228f11`{.docutils
+`pybuilder_run`, short-id `c8b2e8228f11`
 .literal}, or long-id
-`c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9`{.docutils
+`c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9`
 .literal}.
 
     $ sudo docker commit pybuilder_run /builds/github.com/shykes/helloflask/master
@@ -101,8 +101,8 @@ in the logs.
 ## See the webapp output
 
 Look up the public-facing port which is NAT-ed. Find the private port
-used by the container and store it inside of the `WEB_PORT`{.docutils
-.literal} variable.
+used by the container and store it inside of the `WEB_PORT`
+variable.
 
 Access the web app using the `curl` binary. If
 everything worked as planned you should see the line

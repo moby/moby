@@ -162,7 +162,7 @@ than `docker` should own the Unix socket with the
 
 Warning
 
-The *docker* group (or the group specified with `-G`{.docutils
+The *docker* group (or the group specified with `-G`
 .literal}) is root-equivalent; see [*Docker Daemon Attack
 Surface*](../../articles/security/#dockersecurity-daemon) details.
 

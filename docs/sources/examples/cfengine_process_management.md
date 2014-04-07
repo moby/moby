@@ -51,8 +51,8 @@ policies, if desired.
 ## Usage
 
 This example assumes you have Docker installed and working. We will
-install and manage `apache2` and `sshd`{.docutils
-.literal} in a single container.
+install and manage `apache2` and `sshd`
+in a single container.
 
 There are three steps:
 
@@ -107,7 +107,7 @@ allows to start several processes as part of a normal
 `docker run` command.
 
 We can now log in to our new container and see that both
-`apache2` and `sshd`{.docutils .literal} are
+`apache2` and `sshd` are
 running. We have set the root password to "password" in the Dockerfile
 above and can use that to log in with ssh:
 
@@ -145,8 +145,8 @@ To make sure your applications get managed in the same manner, there are
 just two things you need to adjust from the above example:
 
 -   In the Dockerfile used above, install your applications instead of
-    `apache2` and `sshd`{.docutils .literal}.
+    `apache2` and `sshd`.
 -   When you start the container with `docker run`,
     specify the command line arguments to your applications rather than
-    `apache2` and `sshd`{.docutils .literal}.
+    `apache2` and `sshd`.
 

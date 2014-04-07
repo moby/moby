@@ -13,8 +13,8 @@ your Docker install, run the following command:
     docker info
 
 If you get `docker: command not found` or something
-like `/var/lib/docker/repositories: permission denied`{.docutils
-.literal} you may have an incomplete docker installation or insufficient
+like `/var/lib/docker/repositories: permission denied`
+you may have an incomplete docker installation or insufficient
 privileges to access Docker on your machine.
 
 Please refer to [*Installation*](../../installation/#installation-list)
@@ -37,7 +37,10 @@ hash `539c0211cd76: Download complete` which is the
 short form of the image ID. These short image IDs are the first 12
 characters of the full image ID - which can be found using
 `docker inspect` or
-`docker images -notrunc=true`
+`docker images --no-trunc=true`
+
+**If you’re using OS X** then you shouldn’t use `sudo`
+.literal}
 
 ## Running an interactive shell
 
@@ -85,7 +88,7 @@ For example:
 when no `-H` was passed in.
 
 `-H` also accepts short form for TCP bindings:
-`host[:port]` or `:port`{.docutils .literal}
+`host[:port]` or `:port`
 
     # Run docker in daemon mode
     sudo <path to>/docker -H 0.0.0.0:5555 -d &

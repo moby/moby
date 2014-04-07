@@ -62,7 +62,7 @@ combinations of options for TCP port are the following:
     # Bind TCP port 8080 of the container to a dynamically allocated TCP port on all available interfaces of the host machine.
     docker run -p 8080 <image> <cmd>
 
-UDP ports can also be bound by adding a trailing `/udp`{.docutils
+UDP ports can also be bound by adding a trailing `/udp`
 .literal}. All the combinations described for TCP work. Here is only one
 example:
 
@@ -88,7 +88,7 @@ docker-specific way called linking.
 To briefly present the concept of linking, let us consider two
 containers: `server`, containing the service, and
 `client`, accessing the service. Once
-`server` is running, `client`{.docutils .literal} is
+`server` is running, `client` is
 started and links to server. Linking sets environment variables in
 `client` giving it some information about
 `server`. In this sense, linking is a method of
@@ -99,28 +99,28 @@ two containers. We mentioned that the tricky part about this
 communication was that the IP address of `server`
 was not fixed. Therefore, some of the environment variables are going to
 be used to inform `client` about this IP address.
-This process called exposure, is possible because `client`{.docutils
-.literal} is started after `server` has been
+This process called exposure, is possible because `client`
+is started after `server` has been
 started.
 
 Here is a full example. On `server`, the port of
 interest is exposed. The exposure is done either through the
-`-expose` parameter to the `docker run`{.docutils
-.literal} command, or the `EXPOSE` build command in
+`--expose` parameter to the `docker run`
+command, or the `EXPOSE` build command in
 a Dockerfile:
 
     # Expose port 80
-    docker run -expose 80 -name server <image> <cmd>
+    docker run --expose 80 --name server <image> <cmd>
 
-The `client` then links to the `server`{.docutils
+The `client` then links to the `server`
 .literal}:
 
     # Link
-    docker run -name client -link server:linked-server <image> <cmd>
+    docker run --name client --link server:linked-server <image> <cmd>
 
-`client` locally refers to `server`{.docutils
-.literal} as `linked-server`. The following
-environment variables, among others, are available on `client`{.docutils
+`client` locally refers to `server`
+as `linked-server`. The following
+environment variables, among others, are available on `client`
 .literal}:
 
     # The default protocol, ip, and port of the service running in the container
@@ -133,8 +133,8 @@ environment variables, among others, are available on `client`{.docutils
     LINKED-SERVER_PORT_80_TCP_PORT=80
 
 This tells `client` that a service is running on
-port 80 of `server` and that `server`{.docutils
-.literal} is accessible at the IP address 172.17.0.8
+port 80 of `server` and that `server`
+is accessible at the IP address 172.17.0.8
 
 Note: Using the `-p` parameter also exposes the
 port..

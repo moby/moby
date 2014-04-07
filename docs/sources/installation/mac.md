@@ -33,8 +33,8 @@ not simply copy the package without running the installer.
 ### boot2docker
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
-handy script to easily manage the VM running the `docker`{.docutils
-.literal} daemon. It also takes care of the installation for the OS
+handy script to easily manage the VM running the `docker`
+daemon. It also takes care of the installation for the OS
 image that is used for the job.
 
 Open up a new terminal window, if you have not already.

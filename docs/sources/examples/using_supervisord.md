@@ -46,7 +46,7 @@ our container.
     RUN mkdir -p /var/log/supervisor
 
 Here we’re installing the `openssh-server`,
-`apache2` and `supervisor`{.docutils .literal}
+`apache2` and `supervisor`
 (which provides the Supervisor daemon) packages. We’re also creating two
 new directories that are needed to run our SSH daemon and Supervisor.
 
@@ -73,8 +73,8 @@ file.
 The `supervisord.conf` configuration file contains
 directives that configure Supervisor and the processes it manages. The
 first block `[supervisord]` provides configuration
-for Supervisor itself. We’re using one directive, `nodaemon`{.docutils
-.literal} which tells Supervisor to run interactively rather than
+for Supervisor itself. We’re using one directive, `nodaemon`
+which tells Supervisor to run interactively rather than
 daemonize.
 
 The next two blocks manage the services we wish to control. Each block

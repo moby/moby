@@ -21,8 +21,8 @@ If you are using any Linux not already shipping with the 3.8 kernel you
 will need to install it. And this is a little more difficult on
 Rackspace.
 
-Rackspace boots their servers using grub’s `menu.lst`{.docutils
-.literal} and does not like non ‘virtual’ packages (e.g. Xen compatible)
+Rackspace boots their servers using grub’s `menu.lst`
+and does not like non ‘virtual’ packages (e.g. Xen compatible)
 kernels there, although they do work. This results in
 `update-grub` not having the expected result, and
 you will need to set the kernel manually.
@@ -35,7 +35,7 @@ you will need to set the kernel manually.
     # install the new kernel
     apt-get install linux-generic-lts-raring
 
-Great, now you have the kernel installed in `/boot/`{.docutils
+Great, now you have the kernel installed in `/boot/`
 .literal}, next you need to make it boot next time.
 
     # find the exact names

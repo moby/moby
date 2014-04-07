@@ -90,6 +90,6 @@ There is a rc script created for Docker. To start the Docker service:
 To start on system boot:
 
 -   Edit `/etc/rc.conf`
--   Put `docker` into the `SERVICES=(...)`{.docutils
-    .literal} array after `net`.
+-   Put `docker` into the `SERVICES=(...)`
+ array after `net`.
 

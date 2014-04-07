@@ -13,8 +13,8 @@ Note
     access*](../../installation/binaries/#dockergroup)
 
 The goal of this example is to show you how you can build your own
-Docker images from a parent image using a `Dockerfile`{.docutils
-.literal} . We will do that by making a simple Node.js hello world web
+Docker images from a parent image using a `Dockerfile`
+. We will do that by making a simple Node.js hello world web
 application running on CentOS. You can get the full source code at
 [https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
 
@@ -134,8 +134,8 @@ Your `Dockerfile` should now look like this:
 ## Building your image
 
 Go to the directory that has your `Dockerfile` and
-run the following command to build a Docker image. The `-t`{.docutils
-.literal} flag let’s you tag your image so it’s easier to find later
+run the following command to build a Docker image. The `-t`
+flag let’s you tag your image so it’s easier to find later
 using the `docker images` command:
 
     sudo docker build -t <your username>/centos-node-hello .

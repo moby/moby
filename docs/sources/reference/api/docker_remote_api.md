@@ -19,8 +19,8 @@ page_keywords: API, Docker, rcli, REST, documentation
     /images/(name)/push
 -   authConfig, set as the `X-Registry-Auth` header,
     is currently a Base64 encoded (json) string with credentials:
-    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`{.docutils
-    .literal}
+    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`
+
 
 ## 2. Versions
 
@@ -40,13 +40,13 @@ You can still call an old version of the api using
 
 #### What’s new
 
- `DELETE `{.descname}`/images/`{.descname}(*name*)
+ `DELETE /images/`(*name*)
 :   **New!** You can now use the force parameter to force delete of an
     image, even if it’s tagged in multiple repositories. **New!** You
     can now use the noprune parameter to prevent the deletion of parent
     images
 
- `DELETE `{.descname}`/containers/`{.descname}(*id*)
+ `DELETE /containers/`(*id*)
 :   **New!** You can now use the force paramter to force delete a
     container, even if it is currently running
 
@@ -58,7 +58,7 @@ You can still call an old version of the api using
 
 #### What’s new
 
- `POST `{.descname}`/build`{.descname}
+ `POST /build`
 :   **New!** This endpoint now takes a serialized ConfigFile which it
     uses to resolve the proper registry auth credentials for pulling the
     base image. Clients which previously implemented the version
@@ -68,26 +68,26 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-`docker_remote_api_v1.8`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.8`
 
 #### What’s new
 
- `POST `{.descname}`/build`{.descname}
+ `POST /build`
 :   **New!** This endpoint now returns build status as json stream. In
     case of a build error, it returns the exit status of the failed
     command.
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/json`{.descname}
+ `GET /containers/`(*id*)`/json`
 :   **New!** This endpoint now returns the host config for the
     container.
 
- `POST `{.descname}`/images/create`{.descname}
+ `POST /images/create`
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
+ `POST /images/`(*name*)`/insert`
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
+ `POST /images/`(*name*)`/push`
 :   **New!** progressDetail object was added in the JSON. It’s now
     possible to get the current value and the total of the progress
     without having to parse the string.
@@ -96,11 +96,11 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-`docker_remote_api_v1.7`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.7`
 
 #### What’s new
 
- `GET `{.descname}`/images/json`{.descname}
+ `GET /images/json`
 :   The format of the json returned from this uri changed. Instead of an
     entry for each repo/tag on an image, each image is only represented
     once, with a nested attribute indicating the repo/tags that apply to
@@ -184,7 +184,7 @@ You can still call an old version of the api using
           }
         ]
 
- `GET `{.descname}`/images/viz`{.descname}
+ `GET /images/viz`
 :   This URI no longer exists. The `images --viz`
     output is now generated in the client, using the
     `/images/json` data.
@@ -193,15 +193,15 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-`docker_remote_api_v1.6`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.6`
 
 #### What’s new
 
- `POST `{.descname}`/containers/`{.descname}(*id*)`/attach`{.descname}
+ `POST /containers/`(*id*)`/attach`
 :   **New!** You can now split stderr from stdout. This is done by
     prefixing a header to each transmition. See
-    [`POST /containers/(id)/attach`{.xref .http .http-post .docutils
-    .literal}](../docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
+    [`POST /containers/(id)/attach`
+](../docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
     The WebSocket attach is unchanged. Note that attach calls on the
     previous API version didn’t change. Stdout and stderr are merged.
 
@@ -209,19 +209,19 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-`docker_remote_api_v1.5`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.5`
 
 #### What’s new
 
- `POST `{.descname}`/images/create`{.descname}
+ `POST /images/create`
 :   **New!** You can now pass registry credentials (via an AuthConfig
     object) through the X-Registry-Auth header
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
+ `POST /images/`(*name*)`/push`
 :   **New!** The AuthConfig object now needs to be passed through the
     X-Registry-Auth header
 
- `GET `{.descname}`/containers/json`{.descname}
+ `GET /containers/json`
 :   **New!** The format of the Ports entry has been changed to a list of
     dicts each containing PublicPort, PrivatePort and Type describing a
     port mapping.
@@ -230,19 +230,19 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-`docker_remote_api_v1.4`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.4`
 
 #### What’s new
 
- `POST `{.descname}`/images/create`{.descname}
+ `POST /images/create`
 :   **New!** When pulling a repo, all images are now downloaded in
     parallel.
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}
+ `GET /containers/`(*id*)`/top`
 :   **New!** You can now use ps args with docker top, like docker top
     \<container\_id\> aux
 
- `GET `{.descname}`/events:`{.descname}
+ `GET /events:`
 :   **New!** Image’s name added in the events
 
 ### v1.3
@@ -252,14 +252,14 @@ docker v0.5.0
 
 #### Full Documentation
 
-`docker_remote_api_v1.3`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.3`
 
 #### What’s new
 
- `GET `{.descname}`/containers/`{.descname}(*id*)`/top`{.descname}
+ `GET /containers/`(*id*)`/top`
 :   List the processes running inside a container.
 
- `GET `{.descname}`/events:`{.descname}
+ `GET /events:`
 :   **New!** Monitor docker’s events via streaming or via polling
 
 Builder (/build):
@@ -290,7 +290,7 @@ docker v0.4.2
 
 #### Full Documentation
 
-`docker_remote_api_v1.2`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.2`
 
 #### What’s new
 
@@ -299,16 +299,16 @@ The auth configuration is now handled by the client.
 The client should send it’s authConfig as POST on each call of
 /images/(name)/push
 
- `GET `{.descname}`/auth`{.descname}
+ `GET /auth`
 :   **Deprecated.**
 
- `POST `{.descname}`/auth`{.descname}
+ `POST /auth`
 :   Only checks the configuration but doesn’t store it on the server
 
     Deleting an image is now improved, will only untag the image if it
     has children and remove all the untagged parents if has any.
 
- `POST `{.descname}`/images/<name>/delete`{.descname}
+ `POST /images/<name>/delete`
 :   Now returns a JSON structure with the list of images
     deleted/untagged.
 
@@ -319,17 +319,17 @@ docker v0.4.0
 
 #### Full Documentation
 
-`docker_remote_api_v1.1`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.1`
 
 #### What’s new
 
- `POST `{.descname}`/images/create`{.descname}
+ `POST /images/create`
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/insert`{.descname}
+ `POST /images/`(*name*)`/insert`
 :   
 
- `POST `{.descname}`/images/`{.descname}(*name*)`/push`{.descname}
+ `POST /images/`(*name*)`/push`
 :   Uses json stream instead of HTML hijack, it looks like this:
 
     >     HTTP/1.1 200 OK
@@ -347,7 +347,7 @@ docker v0.3.4
 
 #### Full Documentation
 
-`docker_remote_api_v1.0`{.xref .doc .docutils .literal}
+`docker_remote_api_v1.0`
 
 #### What’s new
 

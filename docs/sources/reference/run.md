@@ -49,12 +49,12 @@ The list of `[OPTIONS]` breaks down into two groups:
 
 Together, the `docker run [OPTIONS]` give complete
 control over runtime behavior to the operator, allowing them to override
-all defaults set by the developer during `docker build`{.docutils
-.literal} and nearly all the defaults set by the Docker runtime itself.
+all defaults set by the developer during `docker build`
+and nearly all the defaults set by the Docker runtime itself.
 
 ## Operator Exclusive Options
 
-Only the operator (the person executing `docker run`{.docutils
+Only the operator (the person executing `docker run`
 .literal}) can set the following options.
 
 -   [Detached vs Foreground](#detached-vs-foreground)
@@ -82,16 +82,16 @@ default foreground mode:
 
 **Detached (-d)**
 
-In detached mode (`-d=true` or just `-d`{.docutils
+In detached mode (`-d=true` or just `-d`
 .literal}), all I/O should be done through network connections or shared
 volumes because the container is no longer listening to the commandline
 where you executed `docker run`. You can reattach to
 a detached container with `docker`
 [*attach*](../commandline/cli/#cli-attach). If you choose to run a
-container in the detached mode, then you cannot use the `-rm`{.docutils
-.literal} option.
+container in the detached mode, then you cannot use the `--rm`
+option.
 
-**Foreground**
+#### [Foreground](#id8)
 
 In foreground mode (the default when `-d` is not
 specified), `docker run` can start the process in
@@ -109,7 +109,7 @@ If you do not specify `-a` then Docker will [attach
 everything
 (stdin,stdout,stderr)](https://github.com/dotcloud/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
 You can specify to which of the three standard streams
-(`stdin`, `stdout`{.docutils .literal},
+(`stdin`, `stdout`,
 `stderr`) you’d like to connect instead, as in:
 
     docker run -a stdin -a stdout -i -t ubuntu /bin/bash
@@ -206,23 +206,26 @@ by default a container is not allowed to access any devices, but a
 and documentation on [cgroups
 devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
-When the operator executes `docker run -privileged`,
-Docker will enable to access to all devices on the host as well as set
-some configuration in AppArmor to allow the container nearly all the
-same access to the host as processes running outside containers on the
-host. Additional information about running with `-privileged`{.docutils
-.literal} is available on the [Docker
+When the operator executes `docker run --privileged`
+.literal}, Docker will enable to access to all devices on the host as
+well as set some configuration in AppArmor to allow the container nearly
+all the same access to the host as processes running outside containers
+on the host. Additional information about running with
+`--privileged` is available on the [Docker
 Blog](http://blog.docker.io/2013/09/docker-can-now-run-within-docker/).
 
-An operator can also specify LXC options using one or more
-`-lxc-conf` parameters. These can be new parameters
+If the Docker daemon was started using the `lxc`
+exec-driver (`docker -d --exec-driver=lxc`) then the
+operator can also specify LXC options using one or more
+`--lxc-conf` parameters. These can be new parameters
 or override existing parameters from the
 [lxc-template.go](https://github.com/dotcloud/docker/blob/master/execdriver/lxc/lxc_template.go).
 Note that in the future, a given host’s Docker daemon may not use LXC,
 so this is an implementation-specific configuration meant for operators
 already familiar with using LXC directly.
 
-## Overriding `Dockerfile` Image Defaults
+## [Overriding `Dockerfile` Image Defaults](#id5)
+
 When a developer builds an image from a
 [*Dockerfile*](../builder/#dockerbuilder) or when she commits it, the
 developer can set a number of default parameters that take effect when
@@ -253,13 +256,13 @@ commandline:
 
 This command is optional because the person who created the
 `IMAGE` may have already provided a default
-`COMMAND` using the `Dockerfile`{.docutils .literal}
+`COMMAND` using the `Dockerfile`
 `CMD`. As the operator (the person running a
-container from the image), you can override that `CMD`{.docutils
-.literal} just by specifying a new `COMMAND`.
+container from the image), you can override that `CMD`
+just by specifying a new `COMMAND`.
 
 If the image also specifies an `ENTRYPOINT` then the
-`CMD` or `COMMAND`{.docutils .literal} get appended
+`CMD` or `COMMAND` get appended
 as arguments to the `ENTRYPOINT`.
 
 ### ENTRYPOINT (Default Command to Execute at Runtime
@@ -272,7 +275,7 @@ but it is (purposely) more difficult to override. The
 `ENTRYPOINT` gives a container its default nature or
 behavior, so that when you set an `ENTRYPOINT` you
 can run the container *as if it were that binary*, complete with default
-options, and you can pass in more options via the `COMMAND`{.docutils
+options, and you can pass in more options via the `COMMAND`
 .literal}. But, sometimes an operator may want to run something else
 inside the container, so you can override the default
 `ENTRYPOINT` at runtime by using a string to specify
@@ -321,26 +324,26 @@ choices: start the server container with `-P` or
 `-p,` or start the client container with
 `-link`.
 
-If the operator uses `-P` or `-p`{.docutils
-.literal} then Docker will make the exposed port accessible on the host
+If the operator uses `-P` or `-p`
+then Docker will make the exposed port accessible on the host
 and the ports will be available to any client that can reach the host.
 To find the map between the host ports and the exposed ports, use
 `docker port`)
 
-If the operator uses `-link` when starting the new
+If the operator uses `--link` when starting the new
 client container, then the client container can access the exposed port
 via a private networking interface. Docker will set some environment
 variables in the client container to help indicate which interface and
 port to use.
 
-### ENV (Environment Variables)
+### [ENV (Environment Variables)](#id19)
 
 The operator can **set any environment variable** in the container by
 using one or more `-e` flags, even overriding those
-already defined by the developer with a Dockefile `ENV`{.docutils
+already defined by the developer with a Dockefile `ENV`
 .literal}:
 
-    $ docker run -e "deep=purple" -rm ubuntu /bin/bash -c export
+    $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
     declare -x HOME="/"
     declare -x HOSTNAME="85bc26a0e200"
     declare -x OLDPWD
@@ -350,7 +353,7 @@ already defined by the developer with a Dockefile `ENV`{.docutils
     declare -x container="lxc"
     declare -x deep="purple"
 
-Similarly the operator can set the **hostname** with `-h`{.docutils
+Similarly the operator can set the **hostname** with `-h`
 .literal}.
 
 `-link name:alias` also sets environment variables,

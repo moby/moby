@@ -48,13 +48,13 @@ the process is likely to be a member of a container named
 For each container, one cgroup will be created in each hierarchy. On
 older systems with older versions of the LXC userland tools, the name of
 the cgroup will be the name of the container. With more recent versions
-of the LXC tools, the cgroup will be `lxc/<container_name>.`{.docutils
+of the LXC tools, the cgroup will be `lxc/<container_name>.`
 .literal}
 
 For Docker containers using cgroups, the container name will be the full
 ID or long ID of the container. If a container shows up as ae836c95b4c3
 in `docker ps`, its long ID might be something like
-`ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`{.docutils
+`ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`
 .literal}. You can look it up with `docker inspect`
 or `docker ps -notrunc`.
 
@@ -110,8 +110,8 @@ Here is what it will look like:
 
 The first half (without the `total_` prefix)
 contains statistics relevant to the processes within the cgroup,
-excluding sub-cgroups. The second half (with the `total_`{.docutils
-.literal} prefix) includes sub-cgroups as well.
+excluding sub-cgroups. The second half (with the `total_`
+prefix) includes sub-cgroups as well.
 
 Some metrics are "gauges", i.e. values that can increase or decrease
 (e.g. swap, the amount of swap space used by the members of the cgroup).
@@ -125,7 +125,7 @@ cache
     that can be associated precisely with a block on a block device.
     When you read from and write to files on disk, this amount will
     increase. This will be the case if you use "conventional" I/O
-    (`open`, `read`{.docutils .literal},
+    (`open`, `read`,
     `write` syscalls) as well as mapped files (with
     `mmap`). It also accounts for the memory used by
     `tmpfs` mounts, though the reasons are unclear.
@@ -182,8 +182,8 @@ active\_file and inactive\_file
     dirty/modified pages have to be written to disk first).
 unevictable
 :   the amount of memory that cannot be reclaimed; generally, it will
-    account for memory that has been "locked" with `mlock`{.docutils
-    .literal}. It is often used by crypto frameworks to make sure that
+    account for memory that has been "locked" with `mlock`
+. It is often used by crypto frameworks to make sure that
     secret keys and other sensitive material never gets swapped out to
     disk.
 memory and memsw limits
@@ -206,7 +206,7 @@ Now that we’ve covered memory metrics, everything else will look very
 simple in comparison. CPU metrics will be found in the
 `cpuacct` controller.
 
-For each container, you will find a pseudo-file `cpuacct.stat`{.docutils
+For each container, you will find a pseudo-file `cpuacct.stat`
 .literal}, containing the CPU usage accumulated by the processes of the
 container, broken down between `user` and
 `system` time. If you’re not familiar with the
@@ -216,8 +216,8 @@ code), and `system` is the time during which the CPU
 was executing system calls on behalf of those processes.
 
 Those times are expressed in ticks of 1/100th of a second. Actually,
-they are expressed in "user jiffies". There are `USER_HZ`{.docutils
-.literal} *"jiffies"* per second, and on x86 systems,
+they are expressed in "user jiffies". There are `USER_HZ`
+*"jiffies"* per second, and on x86 systems,
 `USER_HZ` is 100. This used to map exactly to the
 number of scheduler "ticks" per second; but with the advent of higher
 frequency scheduling, as well as [tickless
@@ -268,8 +268,8 @@ those metrics wouldn’t be very useful. You want per-interface metrics
 (because traffic happening on the local `lo`
 interface doesn’t really count). But since processes in a single cgroup
 can belong to multiple network namespaces, those metrics would be harder
-to interpret: multiple network namespaces means multiple `lo`{.docutils
-.literal} interfaces, potentially multiple `eth0`
+to interpret: multiple network namespaces means multiple `lo`
+interfaces, potentially multiple `eth0`
 interfaces, etc.; so this is why there is no easy way to gather network
 metrics with control groups.
 
@@ -285,7 +285,7 @@ traffic on a web server:
 
     iptables -I OUTPUT -p tcp --sport 80
 
-There is no `-j` or `-g`{.docutils .literal} flag,
+There is no `-j` or `-g` flag,
 so the rule will just count matched packets and go to the following
 rule.
 
@@ -298,10 +298,10 @@ prevent iptables from doing DNS reverse lookups, which are probably
 useless in this scenario.
 
 Counters include packets and bytes. If you want to setup metrics for
-container traffic like this, you could execute a `for`{.docutils
-.literal} loop to add two `iptables` rules per
-container IP address (one in each direction), in the `FORWARD`{.docutils
-.literal} chain. This will only meter traffic going through the NAT
+container traffic like this, you could execute a `for`
+loop to add two `iptables` rules per
+container IP address (one in each direction), in the `FORWARD`
+chain. This will only meter traffic going through the NAT
 layer; you will also have to add traffic going through the userland
 proxy.
 
@@ -356,8 +356,8 @@ container, we need to:
 
 -   Find out the PID of any process within the container that we want to
     investigate;
--   Create a symlink from `/var/run/netns/<somename>`{.docutils
-    .literal} to `/proc/<thepid>/ns/net`
+-   Create a symlink from `/var/run/netns/<somename>`
+ to `/proc/<thepid>/ns/net`
 -   Execute `ip netns exec <somename> ....`
 
 Please review [*Enumerating Cgroups*](#run-findpid) to learn how to find
@@ -407,7 +407,7 @@ Sometimes, you do not care about real time metric collection, but when a
 container exits, you want to know how much CPU, memory, etc. it has
 used.
 
-Docker makes this difficult because it relies on `lxc-start`{.docutils
+Docker makes this difficult because it relies on `lxc-start`
 .literal}, which carefully cleans up after itself, but it is still
 possible. It is usually easier to collect metrics at regular intervals
 (e.g. every minute, with the collectd LXC plugin) and rely on that
