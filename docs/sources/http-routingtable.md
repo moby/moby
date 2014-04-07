@@ -20,7 +20,7 @@
      [`DELETE /api/v1.1/users/:username/emails/`{.xref}](../reference/api/docker_io_accounts_api/#delete--api-v1.1-users--username-emails-)                               **
                                                                                                                                                                           
      **/auth**                                                                                                                                                            
-     [`GET /auth`{.xref}](../reference/api/docker_remote_api_v1.1/#get--auth)                                                                                             **
+     [`GET /auth`{.xref}](../reference/api/docker_remote_api/#get--auth)                                                                                                  **
      [`POST /auth`{.xref}](../reference/api/docker_remote_api_v1.9/#post--auth)                                                                                           **
                                                                                                                                                                           
      **/build**                                                                                                                                                           
@@ -52,7 +52,7 @@
      [`GET /events:`{.xref}](../reference/api/docker_remote_api/#get--events-)                                                                                            **
                                                                                                                                                                           
      **/images**                                                                                                                                                          
-     [`GET /images/(format)`{.xref}](../reference/api/docker_remote_api_v1.6/#get--images-(format))                                                                       **
+     [`GET /images/(format)`{.xref}](../reference/api/archive/docker_remote_api_v1.6/#get--images-(format))                                                               **
      [`DELETE /images/(name)`{.xref}](../reference/api/docker_remote_api_v1.9/#delete--images-(name))                                                                     **
      [`GET /images/(name)/get`{.xref}](../reference/api/docker_remote_api_v1.9/#get--images-(name)-get)                                                                   **
      [`GET /images/(name)/history`{.xref}](../reference/api/docker_remote_api_v1.9/#get--images-(name)-history)                                                           **

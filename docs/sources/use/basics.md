@@ -173,5 +173,5 @@ You now have a image state from which you can create new instances.
 
 Read more about [*Share Images via
 Repositories*](../workingwithrepository/#working-with-the-repository) or
-continue to the complete [*Command Line
-Help*](../../reference/commandline/cli/#cli)
+continue to the complete [*Command
+Line*](../../reference/commandline/cli/#cli)
