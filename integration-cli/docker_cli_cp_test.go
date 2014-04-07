@@ -451,19 +451,24 @@ func TestCpHostContainer(t *testing.T) {
 		errorOut(err, t, fmt.Sprintf("failed to cp from the container: %v", err))
 	}
 
+	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/etc/passwd", cleanCID))
+	_, _, err = runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp from the container: %v", err))
+	}
+
 	// docker diff to see if the file was added
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
 	out, _, err := runCommandWithOutput(diffCmd)
 	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
-	found := false
+	found := 0
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains("A /foo", line) {
-			found = true
-			break
+		if line == "A /foo" || line == "C /etc/passwd" {
+			found += 1
 		}
 	}
-	if !found {
-		t.Errorf("couldn't find the new file in docker diff's output: %v", out)
+	if found != 2 {
+		t.Errorf("couldn't find the new file2 in docker diff's output: %v", out)
 	}
 
 	// cleanup
