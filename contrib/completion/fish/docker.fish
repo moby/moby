@@ -107,7 +107,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from history' -a '(__fish_pr
 
 # images
 complete -c docker -f -n '__fish_docker_no_subcommand' -a images -d 'List images'
-complete -c docker -A -f -n '__fish_seen_subcommand_from images' -s a -l all -d 'Show all images (by default filter out the intermediate images used to build)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from images' -s a -l all -d 'Show all images (by default filter out the intermediate image layers)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from images' -l no-trunc -d "Don't truncate output"
 complete -c docker -A -f -n '__fish_seen_subcommand_from images' -s q -l quiet -d 'Only show numeric IDs'
 complete -c docker -A -f -n '__fish_seen_subcommand_from images' -s t -l tree -d 'Output graph in tree format'

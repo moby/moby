@@ -1136,7 +1136,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := cli.Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
-	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate images used to build)")
+	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate image layers)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")

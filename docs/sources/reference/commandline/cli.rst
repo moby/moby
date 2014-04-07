@@ -597,9 +597,16 @@ To see how the ``docker:latest`` image was built:
 
     List images
 
-      -a, --all=false: Show all images (by default filter out the intermediate images used to build)
+      -a, --all=false: Show all images (by default filter out the intermediate image layers)
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only show numeric IDs
+
+The default ``docker images`` will show all top level images, their repository
+and tags, and their virtual size.
+
+Docker images have intermediate layers that increase reuseability, decrease 
+disk usage, and speed up ``docker build`` by allowing each step to be cached.
+These intermediate layers are not shown by default.
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
