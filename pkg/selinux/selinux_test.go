@@ -38,7 +38,6 @@ func TestSELinux(t *testing.T) {
 		t.Log("getenforcemode ", selinux.SelinuxGetEnforceMode())
 		pid := os.Getpid()
 		t.Log("PID:%d MCS:%s\n", pid, selinux.IntToMcs(pid, 1023))
-		t.Log(selinux.Getcon())
 		err = selinux.Setfscreatecon("unconfined_u:unconfined_r:unconfined_t:s0")
 		if err == nil {
 			t.Log(selinux.Getfscreatecon())
@@ -54,7 +53,6 @@ func TestSELinux(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Log(selinux.Getpidcon(1))
-		t.Log(selinux.GetSelinuxMountPoint())
 	} else {
 		t.Log("Disabled")
 	}

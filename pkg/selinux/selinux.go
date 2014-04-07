@@ -44,7 +44,7 @@ func SetDisabled() {
 	selinuxEnabled, selinuxEnabledChecked = false, true
 }
 
-func GetSelinuxMountPoint() string {
+func getSelinuxMountPoint() string {
 	if selinuxfs != "unknown" {
 		return selinuxfs
 	}
@@ -75,15 +75,15 @@ func SelinuxEnabled() bool {
 		return selinuxEnabled
 	}
 	selinuxEnabledChecked = true
-	if fs := GetSelinuxMountPoint(); fs != "" {
-		if con, _ := Getcon(); con != "kernel" {
+	if fs := getSelinuxMountPoint(); fs != "" {
+		if con, _ := getcon(); con != "kernel" {
 			selinuxEnabled = true
 		}
 	}
 	return selinuxEnabled
 }
 
-func ReadConfig(target string) (value string) {
+func readConfig(target string) (value string) {
 	var (
 		val, key string
 		bufin    *bufio.Reader
@@ -124,8 +124,8 @@ func ReadConfig(target string) (value string) {
 	return ""
 }
 
-func GetSELinuxPolicyRoot() string {
-	return selinuxDir + ReadConfig(selinuxTypeTag)
+func getSELinuxPolicyRoot() string {
+	return selinuxDir + readConfig(selinuxTypeTag)
 }
 
 func readCon(name string) (string, error) {
@@ -153,7 +153,7 @@ func Getfscreatecon() (string, error) {
 	return readCon("/proc/self/attr/fscreate")
 }
 
-func Getcon() (string, error) {
+func getcon() (string, error) {
 	return readCon("/proc/self/attr/current")
 }
 
@@ -220,7 +220,7 @@ func SelinuxGetEnforce() int {
 }
 
 func SelinuxGetEnforceMode() int {
-	switch ReadConfig(selinuxTag) {
+	switch readConfig(selinuxTag) {
 	case "enforcing":
 		return Enforcing
 	case "permissive":
@@ -292,13 +292,6 @@ func uniqMcs(catRange uint32) string {
 	return mcs
 }
 
-func FreeContext(con string) {
-	if con != "" {
-		scon := NewContext(con)
-		mcsDelete(scon["level"])
-	}
-}
-
 func GetLxcContexts() (processLabel string, fileLabel string) {
 	var (
 		val, key string
@@ -308,7 +301,7 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 	if !SelinuxEnabled() {
 		return "", ""
 	}
-	lxcPath := fmt.Sprintf("%s/contexts/lxc_contexts", GetSELinuxPolicyRoot())
+	lxcPath := fmt.Sprintf("%s/contexts/lxc_contexts", getSELinuxPolicyRoot())
 	in, err := os.Open(lxcPath)
 	if err != nil {
 		return "", ""
