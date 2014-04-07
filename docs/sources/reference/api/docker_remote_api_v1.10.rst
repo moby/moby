@@ -620,6 +620,7 @@ Copy files or folders from a container
            Content-Type: application/json
 
            {
+                "HostPath":".",
                 "Resource":"test.txt"
            }
 
