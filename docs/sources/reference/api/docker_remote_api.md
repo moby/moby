@@ -68,7 +68,7 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-[*Docker Remote API v1.8*](../docker_remote_api_v1.8/)
+`docker_remote_api_v1.8`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -96,7 +96,7 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-[*Docker Remote API v1.7*](../docker_remote_api_v1.7/)
+`docker_remote_api_v1.7`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -193,7 +193,7 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-[*Docker Remote API v1.6*](../docker_remote_api_v1.6/)
+`docker_remote_api_v1.6`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -209,7 +209,7 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-[*Docker Remote API v1.5*](../docker_remote_api_v1.5/)
+`docker_remote_api_v1.5`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -230,7 +230,7 @@ You can still call an old version of the api using
 
 #### Full Documentation
 
-[*Docker Remote API v1.4*](../docker_remote_api_v1.4/)
+`docker_remote_api_v1.4`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -252,7 +252,7 @@ docker v0.5.0
 
 #### Full Documentation
 
-[*Docker Remote API v1.3*](../docker_remote_api_v1.3/)
+`docker_remote_api_v1.3`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -290,7 +290,7 @@ docker v0.4.2
 
 #### Full Documentation
 
-[*Docker Remote API v1.2*](../docker_remote_api_v1.2/)
+`docker_remote_api_v1.2`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -319,7 +319,7 @@ docker v0.4.0
 
 #### Full Documentation
 
-[*Docker Remote API v1.1*](../docker_remote_api_v1.1/)
+`docker_remote_api_v1.1`{.xref .doc .docutils .literal}
 
 #### What’s new
 
@@ -347,7 +347,7 @@ docker v0.3.4
 
 #### Full Documentation
 
-[*Docker Remote API v1.0*](../docker_remote_api_v1.0/)
+`docker_remote_api_v1.0`{.xref .doc .docutils .literal}
 
 #### What’s new
 

@@ -2,7 +2,7 @@ page_title: Command Line Interface
 page_description: Docker's CLI command description and usage
 page_keywords: Docker, Docker documentation, CLI, command line
 
-# Command Line Help
+# Command Line
 
 To list available commands, either run `docker` with
 no parameters or execute `docker help`:
@@ -15,7 +15,7 @@ no parameters or execute `docker help`:
 
       ...
 
-## Options
+## Option types
 
 Single character commandline options can be combined, so rather than
 typing `docker run -t -i --name test busybox sh`,
@@ -46,31 +46,41 @@ Sometimes this can use a more complex value string, as for
 
 ### Strings and Integers
 
-Options like `-name=""` expect a string, and they
+Options like `--name=""` expect a string, and they
 can only be specified once. Options like `-c=0`
 expect an integer, and they can only be specified once.
 
+* * * * *
+
 ## Commands
 
-### `daemon`
+## `daemon`
 
     Usage of docker:
       -D, --debug=false: Enable debug mode
       -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
+      -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
-      --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
+      -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
+      --dns-search=[]: Force Docker to use specific DNS search domains
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
-      --iptables=true: Disable docker's addition of iptables rules
+      --ip-forward=true: Enable net.ipv4.ip_forward
+      --iptables=true: Enable Docker's addition of iptables rules
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
       -e, --exec-driver="native": Force the docker runtime to use a specific exec driver
       -v, --version=false: Print version information and quit
+      --tls=false: Use TLS; implied by tls-verify flags
+      --tlscacert="~/.docker/ca.pem": Trust only remotes providing a certificate signed by the CA given here
+      --tlscert="~/.docker/cert.pem": Path to TLS certificate file
+      --tlskey="~/.docker/key.pem": Path to TLS key file
+      --tlsverify=false: Use TLS and verify the remote (daemon: verify client, client: verify daemon)
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
 The Docker daemon is the persistent process that manages containers.
@@ -81,7 +91,10 @@ To force Docker to use devicemapper as the storage driver, use
 `docker -d -s devicemapper`.
 
 To set the DNS server for all Docker containers, use
-`docker -d -dns 8.8.8.8`.
+`docker -d --dns 8.8.8.8`.
+
+To set the DNS search domain for all Docker containers, use
+`docker -d --dns-search example.com`.
 
 To run the daemon with debug output, use `docker -d -D`{.docutils
 .literal}.
@@ -118,7 +131,7 @@ Docker supports softlinks for the Docker data directory
     export TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
-### `attach`
+## `attach`
 
     Usage: docker attach CONTAINER
 
@@ -137,7 +150,7 @@ To stop a container, use `docker stop`.
 
 To kill the container, use `docker kill`.
 
-## Examples:
+### Examples:
 
     $ ID=$(sudo docker run -d ubuntu /usr/bin/top -b)
     $ sudo docker attach $ID
@@ -171,7 +184,7 @@ To kill the container, use `docker kill`.
     ^C$
     $ sudo docker stop $ID
 
-### `build`
+## `build`
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
@@ -186,15 +199,20 @@ called the "context" of the build. The build process may refer to any of
 the files in the context, for example when using an
 [*ADD*](../../builder/#dockerfile-add) instruction. When a single
 `Dockerfile` is given as `URL`{.docutils .literal},
-then no context is set. When a Git repository is set as `URL`{.docutils
-.literal}, then the repository is used as the context. Git repositories
-are cloned with their submodules (git clone –recursive).
+then no context is set.
+
+When a Git repository is set as `URL`, then the
+repository is used as the context. The Git repository is cloned with its
+submodules (git clone –recursive). A fresh git clone occurs in a
+temporary directory on your local host, and then this is sent to the
+Docker daemon as the context. This way, your local user credentials and
+vpn’s etc can be used to access private repositories
 
 See also
 
 [*Dockerfile Reference*](../../builder/#dockerbuilder).
 
-## Examples:
+### Examples:
 
     $ sudo docker build .
     Uploading context 10240 bytes
@@ -264,7 +282,7 @@ repository is used as `Dockerfile`. Note that you
 can specify an arbitrary Git repository by using the `git://`{.docutils
 .literal} schema.
 
-### `commit`
+## `commit`
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
@@ -272,8 +290,8 @@ can specify an arbitrary Git repository by using the `git://`{.docutils
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      --run="": Configuration to be applied when the image is launched with `docker run`.
-               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+      --run="": Configuration changes to be applied when the image is launched with `docker run`.
+               (ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 ### Commit an existing container
 
@@ -305,7 +323,7 @@ then change the image to run `ls /etc`.
     apt                     host.conf        lsb-base             rc2.d
     ...
 
-### Merged configs example
+#### Merged configs example
 
 Say you have a Dockerfile like so:
 
@@ -335,7 +353,7 @@ Note that this is currently a shallow merge. So, for example, if you had
 specified a new port spec in the –run= config above, that would have
 clobbered the ‘EXPOSE 22’ setting from the parent container.
 
-### Full –run example
+#### Full –run example
 
 The `--run` JSON hash changes the `Config`{.docutils
 .literal} section when running `docker inspect CONTAINERID`{.docutils
@@ -353,6 +371,7 @@ key-values that are not overridden in the JSON hash will be merged in.
         "VolumesFrom" : "",
         "Cmd" : ["cat", "-e", "/etc/resolv.conf"],
         "Dns" : ["8.8.8.8", "8.8.4.4"],
+        "DnsSearch" : ["example.com"],
         "MemorySwap" : 0,
         "AttachStdin" : false,
         "AttachStderr" : false,
@@ -375,7 +394,7 @@ key-values that are not overridden in the JSON hash will be merged in.
         "AttachStdout" : false
     }' $CONTAINER_ID
 
-### `cp`
+## `cp`
 
     Usage: docker cp CONTAINER:PATH HOSTPATH
 
@@ -385,7 +404,7 @@ key-values that are not overridden in the JSON hash will be merged in.
     $ sudo docker cp 7bb0e258aefe:/etc/debian_version .
     $ sudo docker cp blue_frog:/etc/hosts .
 
-### `diff`
+## `diff`
 
     Usage: docker diff CONTAINER
 
@@ -413,7 +432,7 @@ For example:
     A /go/src/github.com/dotcloud/docker/.git
     ....
 
-### `events`
+## `events`
 
     Usage: docker events
 
@@ -422,41 +441,41 @@ For example:
     --since="": Show previously created events and then stream.
                (either seconds since epoch, or date string as below)
 
-## Examples:
+### Examples
 
 You’ll need two shells for this example.
 
-### Shell 1: Listening for events
+#### Shell 1: Listening for events
 
     $ sudo docker events
 
-### Shell 2: Start and Stop a Container
+#### Shell 2: Start and Stop a Container
 
     $ sudo docker start 4386fb97867d
     $ sudo docker stop 4386fb97867d
 
-### Shell 1: (Again .. now showing events)
+#### Shell 1: (Again .. now showing events)
 
     [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-### Show events in the past from a specified time
+#### Show events in the past from a specified time
 
-    $ sudo docker events -since 1378216169
+    $ sudo docker events --since 1378216169
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03'
+    $ sudo docker events --since '2013-09-03'
     [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-### `export`
+## `export`
 
     Usage: docker export CONTAINER
 
@@ -466,7 +485,7 @@ For example:
 
     $ sudo docker export red_panda > latest.tar
 
-# `history`
+## `history`
 
     Usage: docker history [OPTIONS] IMAGE
 
@@ -486,7 +505,7 @@ To see how the `docker:latest` image was built:
     750d58736b4b6cc0f9a9abe8f258cef269e3e9dceced1146503522be9f985ada   6 weeks ago         /bin/sh -c #(nop) MAINTAINER Tianon Gravi <admwiggin@gmail.com> - mkimage-debootstrap.sh -t jessie.tar.xz jessie http://http.debian.net/debian             0 B
     511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158   9 months ago                                                                                                                                                                   0 B
 
-# `images`
+## `images`
 
     Usage: docker images [OPTIONS] [NAME]
 
@@ -496,7 +515,7 @@ To see how the `docker:latest` image was built:
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only show numeric IDs
 
-## Listing the most recently created images
+### Listing the most recently created images
 
     $ sudo docker images | head
     REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
@@ -524,7 +543,7 @@ To see how the `docker:latest` image was built:
     tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
 
-### `import`
+## `import`
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
@@ -537,21 +556,21 @@ point to a single file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or
 local directory or archive, you can use the `-`
 parameter to take the data from *stdin*.
 
-## Examples
+### Examples
 
-### Import from a remote location
+#### Import from a remote location
 
 This will create a new untagged image.
 
     $ sudo docker import http://example.com/exampleimage.tgz
 
-### Import from a local file
+#### Import from a local file
 
 Import to docker via pipe and *stdin*.
 
     $ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
 
-### Import from a local directory
+#### Import from a local directory
 
     $ sudo tar -c . | docker import - exampleimagedir
 
@@ -560,7 +579,7 @@ the ownership of the files (especially root ownership) during the
 archiving with tar. If you are not root (or the sudo command) when you
 tar, then the ownerships might not get preserved.
 
-### `info`
+## `info`
 
     Usage: docker info
 
@@ -578,7 +597,7 @@ tar, then the ownerships might not get preserved.
     Kernel Version: 3.8.0-33-generic
     WARNING: No swap limit support
 
-### `inspect`
+## `inspect`
 
     Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
@@ -592,23 +611,23 @@ specified, the given template will be executed for each result.
 Go’s [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
 
-## Examples
+### Examples
 
-### Get an instance’s IP Address
+#### Get an instance’s IP Address
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
     $ sudo docker inspect --format='{{.NetworkSettings.IPAddress}}' $INSTANCE_ID
 
-### List All Port Bindings
+#### List All Port Bindings
 
 One can loop over arrays and maps in the results to produce simple text
 output:
 
-    $ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
-### Find a Specific Port Mapping
+#### Find a Specific Port Mapping
 
 The `.Field` syntax doesn’t work when the field name
 begins with a number, but the template language’s `index`{.docutils
@@ -620,9 +639,9 @@ and then `index` 0 contains first object inside of
 that. Then we ask for the `HostPort` field to get
 the public address.
 
-    $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
-### Get config
+#### Get config
 
 The `.Field` syntax doesn’t work when the field
 contains JSON data, but the template language’s custom `json`{.docutils
@@ -630,9 +649,9 @@ contains JSON data, but the template language’s custom `json`{.docutils
 contains complex json object, so to grab it as JSON, you use
 `json` to convert config object into JSON
 
-    $ sudo docker inspect -format='{{json .config}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{json .config}}' $INSTANCE_ID
 
-### `kill`
+## `kill`
 
     Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
 
@@ -643,31 +662,50 @@ contains complex json object, so to grab it as JSON, you use
 The main process inside the container will be sent SIGKILL, or any
 signal specified with option `--signal`.
 
-**Known Issues (kill):**
+### Known Issues (kill)
 
-- [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+-   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
     that `docker kill` may leave directories behind
     and make it difficult to remove the container.
-- [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
+-   [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
     1.0.0 beta3 removed `lcx-kill` which is used by
     Docker versions before 0.8.0; see the issue for a workaround.
 
-### `load`
+## `load`
 
-    Usage: docker load < repository.tar
+    Usage: docker load
 
-    Loads a tarred repository from the standard input stream.
-    Restores both images and tags.
+    Load an image from a tar archive on STDIN
 
-### `login`
+      -i, --input="": Read from a tar archive file, instead of STDIN
+
+Loads a tarred repository from a file or the standard input stream.
+Restores both images and tags.
+
+    $ sudo docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    $ sudo docker load < busybox.tar
+    $ sudo docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    busybox             latest              769b9341d937        7 weeks ago         2.489 MB
+    $ sudo docker load --input fedora.tar
+    $ sudo docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    busybox             latest              769b9341d937        7 weeks ago         2.489 MB
+    fedora              rawhide             0d20aec6529d        7 weeks ago         387 MB
+    fedora              20                  58394af37342        7 weeks ago         385.5 MB
+    fedora              heisenbug           58394af37342        7 weeks ago         385.5 MB
+    fedora              latest              58394af37342        7 weeks ago         385.5 MB
+
+## `login`
 
     Usage: docker login [OPTIONS] [SERVER]
 
     Register or Login to the docker registry server
 
-    -e, --email="": email
-    -p, --password="": password
-    -u, --username="": username
+    -e, --email="": Email
+    -p, --password="": Password
+    -u, --username="": Username
 
     If you want to login to a private registry you can
     specify this by adding the server name.
@@ -675,7 +713,7 @@ signal specified with option `--signal`.
     example:
     docker login localhost:8080
 
-### `logs`
+## `logs`
 
     Usage: docker logs [OPTIONS] CONTAINER
 
@@ -694,21 +732,26 @@ The `docker logs --follow` command combines
 .literal}: it will first return all logs from the beginning and then
 continue streaming new output from the container’s stdout and stderr.
 
-### `port`
+## `port`
 
     Usage: docker port [OPTIONS] CONTAINER PRIVATE_PORT
 
     Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
-### `ps`
+## `ps`
 
     Usage: docker ps [OPTIONS]
 
     List containers
 
       -a, --all=false: Show all containers. Only running containers are shown by default.
+      --before="": Show only container created before Id or Name, include non-running ones.
+      -l, --latest=false: Show only the latest created container, include non-running ones.
+      -n=-1: Show n last created containers, include non-running ones.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
+      -s, --size=false: Display sizes, not to be used with -q
+      --since="": Show only containers created since Id or Name, include non-running ones.
 
 Running `docker ps` showing 2 linked containers.
 
@@ -730,19 +773,19 @@ manage it, you can’t attach to it. To bring them out of
 `docker ps` will show only running containers by
 default. To see all containers: `docker ps -a`
 
-# `pull`
+## `pull`
 
     Usage: docker pull NAME[:TAG]
 
     Pull an image or a repository from the registry
 
-# `push`
+## `push`
 
     Usage: docker push NAME[:TAG]
 
     Push an image or a repository to the registry
 
-# `restart`
+## `restart`
 
     Usage: docker restart [OPTIONS] NAME
 
@@ -750,7 +793,7 @@ default. To see all containers: `docker ps -a`
 
        -t, --time=10: Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10
 
-# `rm`
+## `rm`
 
     Usage: docker rm [OPTIONS] CONTAINER
 
@@ -759,13 +802,13 @@ default. To see all containers: `docker ps -a`
         -f, --force=false: Force removal of running container
         -v, --volumes=false: Remove the volumes associated to the container
 
-## Known Issues (rm)
+### Known Issues (rm)
 
 -   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
     that `docker kill` may leave directories behind
     and make it difficult to remove the container.
 
-## Examples:
+### Examples:
 
     $ sudo docker rm /redis
     /redis
@@ -787,13 +830,14 @@ This command will delete all stopped containers. The command
 IDs and pass them to the `rm` command which will
 delete them. Any running containers will not be deleted.
 
-### `rmi`
+## `rmi`
 
     Usage: docker rmi IMAGE [IMAGE...]
 
     Remove one or more images
 
       -f, --force=false: Force
+      --no-prune=false: Do not delete untagged parents
 
 ### Removing tagged images
 
@@ -823,7 +867,7 @@ removed before the image is removed.
     Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
-### `run`
+## `run`
 
     Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
@@ -835,7 +879,7 @@ removed before the image is removed.
       -d, --detach=false: Detached mode: Run container in the background, print new container id
       -e, --env=[]: Set environment variables
       --env-file="": Read in a line delimited file of ENV variables
-      -h, --host="": Container host name
+      -h, --hostname="": Container host name
       -i, --interactive=false: Keep stdin open even if not attached
       --privileged=false: Give extended privileges to this container
       -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
@@ -845,11 +889,12 @@ removed before the image is removed.
       -t, --tty=false: Allocate a pseudo-tty
       -u, --user="": Username or UID
       --dns=[]: Set custom dns servers for the container
+      --dns-search=[]: Set custom DNS search domains for the container
       -v, --volume=[]: Create a bind mount to a directory or file with: [host-path]:[container-path]:[rw|ro]. If a directory "container-path" is missing, then docker creates a new volume.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
-      --lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       --expose=[]: Expose a port from the container without publishing it to your host
       --link="": Add link to another container (name:alias)
@@ -876,14 +921,14 @@ for more detailed information about the `--expose`,
 Containers*](../../../use/working_with_links_names/#working-with-links-names)
 for specific examples using `--link`.
 
-### Known Issues (run -volumes-from)
+### Known Issues (run –volumes-from)
 
-- [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
+-   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
     "lxc-start: Permission denied - failed to mount" could indicate a
     permissions problem with AppArmor. Please see the issue for a
     workaround.
 
-## Examples:
+### Examples:
 
     $ sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 
@@ -900,7 +945,7 @@ already, Docker will return an error. Docker will close this file when
 This will *not* work, because by default, most potentially dangerous
 kernel capabilities are dropped; including `cap_sys_admin`{.docutils
 .literal} (which is required to mount filesystems). However, the
-`-privileged` flag will allow it to run:
+`--privileged` flag will allow it to run:
 
     $ sudo docker run --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
@@ -908,7 +953,7 @@ kernel capabilities are dropped; including `cap_sys_admin`{.docutils
     Filesystem      Size  Used Avail Use% Mounted on
     none            1.9G     0  1.9G   0% /mnt
 
-The `-privileged` flag gives *all* capabilities to
+The `--privileged` flag gives *all* capabilities to
 the container, and it also lifts all the limitations enforced by the
 `device` cgroup controller. In other words, the
 container can then do almost everything that the host can do. This flag
@@ -1053,12 +1098,12 @@ logs could be retrieved using `docker logs`. This is
 useful if you need to pipe a file or something else into a container and
 retrieve the container’s ID once the container has finished running.
 
-### A complete example
+#### A complete example
 
     $ sudo docker run -d --name static static-web-files sh
     $ sudo docker run -d --expose=8098 --name riak riakserver
     $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-    $ sudo docker run -d -p 1443:443 --dns=dns.dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+    $ sudo docker run -d -p 1443:443 --dns=dns.dev.org --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
     $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows 5 containers that might be set up to test a web
@@ -1081,7 +1126,8 @@ application change:
 4.  Start the `webserver`, mapping port
     `443` in the container to port `1443`{.docutils
     .literal} on the Docker server, setting the DNS server to
-    `dns.dev.org`, creating a volume to put the log
+    `dns.dev.org` and DNS search domain to
+    `dev.org`, creating a volume to put the log
     files into (so we can access it from another container), then
     importing the files from the volume exposed by the
     `static` container, and linking to all exposed
@@ -1091,18 +1137,31 @@ application change:
 5.  Finally, we create a container that runs
     `tail -f access.log` using the logs volume from
     the `web` container, setting the workdir to
-    `/var/log/httpd`. The `-rm`{.docutils .literal}
+    `/var/log/httpd`. The `--rm`{.docutils .literal}
     option means that when the container exits, the container’s layer is
     removed.
 
-### `save`
+## `save`
 
-    Usage: docker save image > repository.tar
+    Usage: docker save IMAGE
 
-    Streams a tarred repository to the standard output stream.
-    Contains all parent layers, and all tags + versions.
+    Save an image to a tar archive (streamed to stdout by default)
 
-### `search`
+      -o, --output="": Write to an file, instead of STDOUT
+
+Produces a tarred repository to the standard output stream. Contains all
+parent layers, and all tags + versions, or specified repo:tag.
+
+    $ sudo docker save busybox > busybox.tar
+    $ ls -sh b.tar
+    2.7M b.tar
+    $ sudo docker save --output busybox.tar busybox
+    $ ls -sh b.tar
+    2.7M b.tar
+    $ sudo docker save -o fedora-all.tar fedora
+    $ sudo docker save -o fedora-latest.tar fedora:latest
+
+## `search`
 
     Usage: docker search TERM
 
@@ -1112,7 +1171,7 @@ application change:
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
-### `start`
+## `start`
 
     Usage: docker start [OPTIONS] CONTAINER
 
@@ -1121,7 +1180,7 @@ application change:
       -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false: Attach container's stdin
 
-### `stop`
+## `stop`
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
@@ -1132,7 +1191,7 @@ application change:
 The main process inside the container will receive SIGTERM, and after a
 grace period, SIGKILL
 
-### `tag`
+## `tag`
 
     Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
@@ -1140,18 +1199,18 @@ grace period, SIGKILL
 
       -f, --force=false: Force
 
-### `top`
+## `top`
 
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Lookup the running processes of a container
 
-### `version`
+## `version`
 
 Show the version of the Docker client, daemon, and latest released
 version.
 
-### `wait`
+## `wait`
 
     Usage: docker wait [OPTIONS] NAME
 
