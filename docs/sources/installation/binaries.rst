@@ -93,12 +93,16 @@ the client commands.
 Upgrades
 --------
 
-To upgrade your manual installation of Docker, first kill the docker
+To upgrade your manual installation of Docker, first stop the Docker
 daemon:
 
 .. code-block:: bash
 
    killall docker
+
+This will tell the Docker daemon to send ``SIGTERM`` to all the containers.
+If all the containers stop, the daemon will then stop. If there is a problem
+``SIGKILL`` will terminate all containers and the daemon instantly.
 
 Then follow the regular installation steps.
 

@@ -1418,6 +1418,13 @@ Contains all parent layers, and all tags + versions, or specified repo:tag.
 
 The main process inside the container will receive SIGTERM, and after a grace period, SIGKILL
 
+If you need a safe way to send SIGTERM to all your containers and wait indefinitely to allow them
+to exit cleanly, send a SIGTERM to the Docker daemon. The Daemon will only exit if all the containers
+have exited too.
+If you send a SIGKILL to the Docker daemon,  this amounts to SIGKILL-ing all its containers.
+If you don't want to corrupt your data, don't SIGKILL the container runtime underneath it 
+and you will be fine. 
+
 .. _cli_tag:
 
 ``tag``
