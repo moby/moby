@@ -53,9 +53,13 @@ RELEASE_BUNDLES=(
 )
 
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
-	RELEASE_BUNDLES=( test "${RELEASE_BUNDLES[@]}" )
+	RELEASE_BUNDLES=(
+		test test-integration
+		"${RELEASE_BUNDLES[@]}"
+		test-integration-cli
+	)
 fi
-	
+
 VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
 
