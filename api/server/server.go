@@ -558,6 +558,9 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	if err := parseForm(r); err != nil {
 		return nil
 	}
+	if contentType := r.Header.Get("Content-Type"); !api.MatchesContentType(contentType, "application/json") {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
 	var (
 		out         engine.Env
 		job         = eng.Job("create", r.Form.Get("name"))
