@@ -188,9 +188,7 @@ omit the executable, in which case you must specify an ENTRYPOINT as
 well.
 
 When used in the shell or exec formats, the ``CMD`` instruction sets
-the command to be executed when running the image.  This is
-functionally equivalent to running ``docker commit --run '{"Cmd":
-<command>}'`` outside the builder.
+the command to be executed when running the image.
 
 If you use the *shell* form of the CMD, then the ``<command>`` will
 execute in ``/bin/sh -c``:
@@ -230,10 +228,10 @@ override the default specified in CMD.
 
     ``EXPOSE <port> [<port>...]``
 
-The ``EXPOSE`` instruction exposes ports for use within links. This is
-functionally equivalent to running ``docker commit --run '{"PortSpecs":
-["<port>", "<port2>"]}'`` outside the builder. Refer to
-:ref:`port_redirection` for detailed information.
+The ``EXPOSE`` instructions informs Docker that the container will listen
+on the specified network ports at runtime. Docker uses this information
+to interconnect containers using links (see :ref:`links <working_with_links_names>`),
+and to setup port redirection on the host system (see :ref:`port_redirection`).
 
 .. _dockerfile_env:
 
