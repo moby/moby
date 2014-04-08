@@ -246,6 +246,15 @@ func (env *Env) Import(src interface{}) (err error) {
 	return nil
 }
 
+func (env *Env) ToScript() string {
+	var s string
+	for _, kv := range *env {
+		parts := strings.SplitN(kv, "=", 2)
+		s = fmt.Sprintf("%senv %s %s\n", s, parts[0], parts[1])
+	}
+	return s
+}
+
 func (env *Env) Map() map[string]string {
 	m := make(map[string]string)
 	for _, kv := range *env {

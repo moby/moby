@@ -134,3 +134,38 @@ func (cfg *Config) CmdVolume(args string) error {
 	}
 	return nil
 }
+
+// Print a config back as a script
+
+func (cfg *Config) AsScript() string {
+	var ops []string
+	if cfg.User != "" {
+		ops = append(ops, fmt.Sprintf("user %s", cfg.User))
+	}
+	for port := range cfg.ExposedPorts {
+		ops = append(ops, fmt.Sprintf("expose %s", port))
+	}
+	if len(cfg.Env) != 0 {
+		ops = append(ops, (*engine.Env)(&cfg.Env).ToScript())
+	}
+	if len(cfg.Cmd) != 0 {
+		if j, err := json.Marshal(cfg.Cmd); err == nil {
+			ops = append(ops, fmt.Sprintf("cmd %s", j))
+		}
+	}
+	for volume := range cfg.Volumes {
+		ops = append(ops, fmt.Sprintf("volume %s", volume))
+	}
+	if cfg.WorkingDir != "" {
+		ops = append(ops, fmt.Sprintf("workdir %s", cfg.WorkingDir))
+	}
+	if len(cfg.Entrypoint) != 0 {
+		if j, err := json.Marshal(cfg.Entrypoint); err == nil {
+			ops = append(ops, fmt.Sprintf("entrypoint %s", j))
+		}
+	}
+	for _, trigger := range cfg.OnBuild {
+		ops = append(ops, fmt.Sprintf("onbuild %s", trigger))
+	}
+	return strings.Join(ops, "\n")
+}
