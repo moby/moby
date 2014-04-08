@@ -533,45 +533,6 @@ func TestGetContainersByName(t *testing.T) {
 	}
 }
 
-func TestPostCommit(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
-
-	// Create a container and remove a file
-	containerID := createTestContainer(eng,
-		&runconfig.Config{
-			Image: unitTestImageID,
-			Cmd:   []string{"touch", "/test"},
-		},
-		t,
-	)
-
-	containerRun(eng, containerID, t)
-
-	req, err := http.NewRequest("POST", "/commit?repo=testrepo&testtag=tag&container="+containerID, bytes.NewReader([]byte{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-	if r.Code != http.StatusCreated {
-		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
-	}
-
-	var env engine.Env
-	if err := env.Decode(r.Body); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := srv.ImageInspect(env.Get("Id")); err != nil {
-		t.Fatalf("The image has not been committed")
-	}
-}
-
 func TestPostContainersCreate(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()

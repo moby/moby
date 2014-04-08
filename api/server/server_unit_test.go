@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"net/http"
@@ -13,6 +14,34 @@ import (
 	"os"
 	"testing"
 )
+
+func TestPostCommit(t *testing.T) {
+	eng := tmpEngine(t)
+	defer rmEngine(eng)
+	var called bool
+	eng.Register("commit", func(job *engine.Job) engine.Status {
+		if job.Getenv("changes") != "user solomon\nentrypoint [\"awesome\",\"command\"]\nenv foo bar\nentrypoint echo" {
+			t.Fatalf("%#v\n", job.Getenv("changes"))
+		}
+		if job.Getenv("repo") != "myimage" {
+			t.Fatalf("%#v\n", job.Getenv("repo"))
+		}
+		if job.Getenv("tag") != "mytag" {
+			t.Fatalf("%#v\n", job.Getenv("tag"))
+		}
+		called = true
+		return engine.StatusOK
+	})
+	// legacy config object
+	cfg := &runconfig.Config{}
+	cfg.User = "solomon"
+	cfg.Entrypoint = []string{"awesome", "command"}
+	r := serveRequest("POST", "/commit?repo=myimage&tag=mytag&changes=env foo bar\nentrypoint echo", toJson(cfg, t), eng, t)
+	if !called {
+		t.Fatalf("handler was not called")
+	}
+	readEnv(r.Body, t)
+}
 
 func TestGetBoolParam(t *testing.T) {
 	if ret, err := getBoolParam("true"); err != nil || !ret {

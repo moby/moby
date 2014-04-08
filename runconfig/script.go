@@ -54,16 +54,16 @@ func (cfg *Config) FindEnvKey(key string) int {
 }
 
 func (cfg *Config) CmdCmd(args string) error {
-	cfg.Cmd = parseArgCommand(args)
+	cfg.Cmd = ParseArgCommand(args)
 	return nil
 }
 
 func (cfg *Config) CmdEntrypoint(args string) error {
-	cfg.Entrypoint = parseArgCommand(args)
+	cfg.Entrypoint = ParseArgCommand(args)
 	return nil
 }
 
-// parseArgCommand parses a command from a single string. The syntax is as follows:
+// ParseArgCommand parses a command from a single string. The syntax is as follows:
 // 1) If the string is a valid json-encoded array of strings, the decoded array is returned.
 // 2) Otherwise, the 3-part array {"/bin/sh", "-c", <input>} is returned.
 //
@@ -73,7 +73,7 @@ func (cfg *Config) CmdEntrypoint(args string) error {
 //
 // FIXME: the aforementioned shell syntax is still not implemented. The additional difficulty
 // is that we must now support the current syntax, which in certain cases conflicts with shell.
-func parseArgCommand(input string) []string {
+func ParseArgCommand(input string) []string {
 	var cmd []string
 	if err := json.Unmarshal([]byte(input), &cmd); err != nil {
 		cmd = []string{"/bin/sh", "-c", input}
