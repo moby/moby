@@ -229,7 +229,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PublishAllPorts: *flPublishAll,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),
-		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
+		VolumesFrom:     flVolumesFrom.GetAll(),
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
