@@ -273,6 +273,11 @@ EOF
 	# Upload repo
 	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
+# Check that HTTPS transport is available to APT
+if [ ! -e /usr/lib/apt/methods/https ]; then
+	apt-get update
+	apt-get install -y apt-transport-https
+fi
 # Add the repository to your APT sources
 echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
 # Then import the repository key
