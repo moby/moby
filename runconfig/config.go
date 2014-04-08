@@ -25,8 +25,6 @@ type Config struct {
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
 	Env             []string
 	Cmd             []string
-	Dns             []string
-	DnsSearch       []string
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
 	VolumesFrom     string
@@ -65,12 +63,6 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	}
 	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
 		config.Cmd = Cmd
-	}
-	if Dns := job.GetenvList("Dns"); Dns != nil {
-		config.Dns = Dns
-	}
-	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
-		config.DnsSearch = DnsSearch
 	}
 	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
 		config.Entrypoint = Entrypoint

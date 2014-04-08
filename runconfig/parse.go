@@ -213,8 +213,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		AttachStderr:    flAttach.Get("stderr"),
 		Env:             envVariables,
 		Cmd:             runCmd,
-		Dns:             flDns.GetAll(),
-		DnsSearch:       flDnsSearch.GetAll(),
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
@@ -230,6 +228,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
+		Dns:             flDns.GetAll(),
+		DnsSearch:       flDnsSearch.GetAll(),
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {

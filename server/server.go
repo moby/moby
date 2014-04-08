@@ -1731,15 +1731,6 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 		job.Errorf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}
-	resolvConf, err := utils.GetResolvConf()
-	if err != nil {
-		return job.Error(err)
-	}
-	if !config.NetworkDisabled && len(config.Dns) == 0 && len(srv.runtime.Config().Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		job.Errorf("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", runtime.DefaultDns)
-		config.Dns = runtime.DefaultDns
-	}
-
 	container, buildWarnings, err := srv.runtime.Create(config, name)
 	if err != nil {
 		if srv.runtime.Graph().IsNotExist(err) {
