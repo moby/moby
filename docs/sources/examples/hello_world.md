@@ -59,6 +59,8 @@ standard out.
 
 See the example in action
 
+<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/7658.js&quot;id=&quot;asciicast-7658&quot; async></script></body>"></iframe>
+
 ## Hello World Daemon
 
 Note
@@ -141,6 +143,8 @@ Make sure it is really stopped.
 **Video:**
 
 See the example in action
+
+<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/2562.js&quot;id=&quot;asciicast-2562&quot; async></script></body>"></iframe>
 
 The next example in the series is a [*Node.js Web
 App*](../nodejs_web_app/#nodejs-web-app) example, or you could skip to

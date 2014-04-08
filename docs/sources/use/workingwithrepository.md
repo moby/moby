@@ -199,6 +199,8 @@ searchable (or indexed at all) in the Central Index, and there will be
 no user name checking performed. Your registry will function completely
 independently from the Central Index.
 
+<iframe width="640" height="360" src="//www.youtube.com/embed/CAewZCBT4PI?rel=0" frameborder="0" allowfullscreen></iframe>
+
 See also
 
 [Docker Blog: How to use your own
