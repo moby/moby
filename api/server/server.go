@@ -823,6 +823,18 @@ func getImagesByName(eng *engine.Engine, version version.Version, w http.Respons
 	return job.Run()
 }
 
+func getLayersGet(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if version.GreaterThan("1.0") {
+		w.Header().Set("Content-Type", "application/x-tar")
+	}
+	job := eng.Job("layer_export", vars["name"])
+	job.Stdout.Add(w)
+	return job.Run()
+}
+
 func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if version.LessThan("1.3") {
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
@@ -1007,6 +1019,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/{name:.*}/get":           getImagesGet,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
+			"/layers/{name:.*}/get":           getLayersGet,
 			"/containers/ps":                  getContainersJSON,
 			"/containers/json":                getContainersJSON,
 			"/containers/{name:.*}/export":    getContainersExport,
