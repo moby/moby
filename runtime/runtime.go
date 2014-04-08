@@ -24,6 +24,7 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"regexp"
@@ -393,9 +394,6 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	if err := runtime.createRootfs(container, img); err != nil {
 		return nil, nil, err
 	}
-	if err := runtime.setupContainerDns(container, config); err != nil {
-		return nil, nil, err
-	}
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
 	}
@@ -568,53 +566,6 @@ func (runtime *Runtime) createRootfs(container *Container, img *image.Image) err
 
 	if err := runtime.driver.Create(container.ID, initID, ""); err != nil {
 		return err
-	}
-	return nil
-}
-
-func (runtime *Runtime) setupContainerDns(container *Container, config *runconfig.Config) error {
-	resolvConf, err := utils.GetResolvConf()
-	if err != nil {
-		return err
-	}
-	if len(config.Dns) == 0 && len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		runtime.config.Dns = DefaultDns
-	}
-
-	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 || len(runtime.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(runtime.config.DnsSearch) > 0 {
-		var (
-			dns       = utils.GetNameservers(resolvConf)
-			dnsSearch = utils.GetSearchDomains(resolvConf)
-		)
-		if len(config.Dns) > 0 {
-			dns = config.Dns
-		} else if len(runtime.config.Dns) > 0 {
-			dns = runtime.config.Dns
-		}
-		if len(config.DnsSearch) > 0 {
-			dnsSearch = config.DnsSearch
-		} else if len(runtime.config.DnsSearch) > 0 {
-			dnsSearch = runtime.config.DnsSearch
-		}
-		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
-		f, err := os.Create(container.ResolvConfPath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		for _, dns := range dns {
-			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return err
-			}
-		}
-		if len(dnsSearch) > 0 {
-			if _, err := f.Write([]byte("search " + strings.Join(dnsSearch, " ") + "\n")); err != nil {
-				return err
-			}
-		}
-	} else {
-		container.ResolvConfPath = "/etc/resolv.conf"
 	}
 	return nil
 }
@@ -839,6 +790,9 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		eng:            eng,
 	}
 
+	if err := runtime.checkLocaldns(); err != nil {
+		return nil, err
+	}
 	if err := runtime.restore(); err != nil {
 		return nil, err
 	}
@@ -1024,4 +978,16 @@ func (runtime *Runtime) ContainerGraph() *graphdb.Database {
 
 func (runtime *Runtime) SetServer(server Server) {
 	runtime.srv = server
+}
+
+func (runtime *Runtime) checkLocaldns() error {
+	resolvConf, err := utils.GetResolvConf()
+	if err != nil {
+		return err
+	}
+	if len(runtime.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
+		log.Printf("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", DefaultDns)
+		runtime.config.Dns = DefaultDns
+	}
+	return nil
 }

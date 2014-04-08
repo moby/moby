@@ -94,25 +94,6 @@ func Merge(userConf, imageConf *Config) error {
 	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
 		userConf.Cmd = imageConf.Cmd
 	}
-	if userConf.Dns == nil || len(userConf.Dns) == 0 {
-		userConf.Dns = imageConf.Dns
-	} else {
-		dnsSet := make(map[string]struct{}, len(userConf.Dns))
-		for _, dns := range userConf.Dns {
-			dnsSet[dns] = struct{}{}
-		}
-		for _, dns := range imageConf.Dns {
-			if _, exists := dnsSet[dns]; !exists {
-				userConf.Dns = append(userConf.Dns, dns)
-			}
-		}
-	}
-	if userConf.DnsSearch == nil || len(userConf.DnsSearch) == 0 {
-		userConf.DnsSearch = imageConf.DnsSearch
-	} else {
-		//duplicates aren't an issue here
-		userConf.DnsSearch = append(userConf.DnsSearch, imageConf.DnsSearch...)
-	}
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
