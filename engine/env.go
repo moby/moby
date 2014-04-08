@@ -137,8 +137,17 @@ func (env *Env) SetList(key string, value []string) error {
 	return env.SetJson(key, value)
 }
 
-func (env *Env) Set(key, value string) {
-	*env = append(*env, key+"="+value)
+// FIXME: Set and Add are not distinguished (Set always appends).
+// We still implement both to allow the caller to specify intent.
+// This should make things easier later.
+func (env *Env) Set(key string, values ...string) {
+	env.Add(key, values...)
+}
+
+func (env *Env) Add(key string, values ...string) {
+	for _, value := range values {
+		*env = append(*env, key+"="+value)
+	}
 }
 
 func NewDecoder(src io.Reader) *Decoder {
