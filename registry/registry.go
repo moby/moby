@@ -417,6 +417,9 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode == 401 && strings.HasPrefix(registry, "http://") {
+		return utils.NewHTTPRequestError("HTTP code 401, Docker will not send auth headers over HTTP.", res)
+	}
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
