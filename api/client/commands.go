@@ -1434,7 +1434,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
-	flConfig := cmd.String([]string{"#run", "#-run"}, "", "this option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
+	flConfig := cmd.String([]string{"run", "-run"}, "", "this option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
