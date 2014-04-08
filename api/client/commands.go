@@ -1472,7 +1472,6 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		env    engine.Env
 	)
 	if *flConfig != "" {
-		fmt.Fprintf(cli.err, "WARNING: 'commit --run' is deprecated and will be removed in a future version, in favor of inline Dockerfile-compatible commands.\n")
 		config = &runconfig.Config{}
 		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
 			return err
