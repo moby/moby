@@ -3,7 +3,7 @@
 #### background
 
 libcontainer specifies configuration options for what a container is.  It provides a native Go implementation 
-for using linux namespaces with no external dependencies.  libcontainer provides many convience functions for working with namespaces, networking, and management.  
+for using Linux namespaces with no external dependencies.  libcontainer provides many convenience functions for working with namespaces, networking, and management.  
 
 
 #### container
@@ -91,7 +91,7 @@ Sample `container.json` file:
 ```
 
 Using this configuration and the current directory holding the rootfs for a process, one can use libcontainer to exec the container. Running the life of the namespace, a `pid` file 
-is written to the current directory with the pid of the namespaced process to the external world.  A client can use this pid to wait, kill, or perform other operation with the container.  If a user tries to run an new process inside an existing container with a live namespace the namespace will be joined by the new process.
+is written to the current directory with the pid of the namespaced process to the external world.  A client can use this pid to wait, kill, or perform other operation with the container.  If a user tries to run a new process inside an existing container with a live namespace, the namespace will be joined by the new process.
 
 
 You may also specify an alternate root place where the `container.json` file is read and where the `pid` file will be saved.
@@ -99,7 +99,7 @@ You may also specify an alternate root place where the `container.json` file is 
 #### nsinit
 
 `nsinit` is a cli application used as the reference implementation of libcontainer.  It is able to 
-spawn or join new containers giving the current directory.  To use `nsinit` cd into a linux 
+spawn or join new containers giving the current directory.  To use `nsinit` cd into a Linux 
 rootfs and copy a `container.json` file into the directory with your specified configuration.
 
 To execute `/bin/bash` in the current directory as a container just run:
