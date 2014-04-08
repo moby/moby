@@ -24,6 +24,12 @@ ADD 	. /docs
 
 WORKDIR	/docs
 
+# get my sitemap.xml branch of mkdocs and use that for now
+RUN	git clone https://github.com/SvenDowideit/mkdocs	;\
+	cd mkdocs						;\
+	git checkout add-sitemap				;\
+	./setup.py install
+
 #convert to markdown
 RUN	./convert.sh
 
