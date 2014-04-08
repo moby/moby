@@ -22,6 +22,9 @@ for the RHEL distribution.
 Also note that due to the current Docker limitations, Docker is able to run
 only on the **64 bit** architecture.
 
+You will need `RHEL 6.5`_ or higher, with a RHEL 6 kernel version 2.6.32-431 or higher
+as this has specific kernel fixes to allow Docker to work.
+
 Installation
 ------------
 
@@ -78,4 +81,5 @@ If you have any issues - please report them directly in the `Red Hat Bugzilla fo
 .. _EPEL installation instructions: https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F
 .. _Red Hat Bugzilla for docker-io component : https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora%20EPEL&component=docker-io
 .. _bug report: https://bugzilla.redhat.com/show_bug.cgi?id=1043676
+.. _RHEL 6.5: https://access.redhat.com/site/articles/3078#RHEL6
 

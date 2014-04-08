@@ -5,6 +5,7 @@ package netlink
 import (
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"net"
 	"syscall"
 	"unsafe"
@@ -17,9 +18,15 @@ const (
 	IFLA_INFO_DATA = 2
 	VETH_INFO_PEER = 1
 	IFLA_NET_NS_FD = 28
+	SIOC_BRADDBR   = 0x89a0
 )
 
 var nextSeqNr int
+
+type ifreqHwaddr struct {
+	IfrnName   [16]byte
+	IfruHwaddr syscall.RawSockaddr
+}
 
 func nativeEndian() binary.ByteOrder {
 	var x uint32 = 0x01020304
@@ -807,4 +814,48 @@ func NetworkCreateVethPair(name1, name2 string) error {
 		return err
 	}
 	return s.HandleAck(wb.Seq)
+}
+
+// Create the actual bridge device.  This is more backward-compatible than
+// netlink.NetworkLinkAdd and works on RHEL 6.
+func CreateBridge(name string, setMacAddr bool) error {
+	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+	if err != nil {
+		// ipv6 issue, creating with ipv4
+		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+		if err != nil {
+			return err
+		}
+	}
+	defer syscall.Close(s)
+
+	nameBytePtr, err := syscall.BytePtrFromString(name)
+	if err != nil {
+		return err
+	}
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), SIOC_BRADDBR, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
+		return err
+	}
+	if setMacAddr {
+		return setBridgeMacAddress(s, name)
+	}
+	return nil
+}
+
+func setBridgeMacAddress(s int, name string) error {
+	ifr := ifreqHwaddr{}
+	ifr.IfruHwaddr.Family = syscall.ARPHRD_ETHER
+	copy(ifr.IfrnName[:], name)
+
+	for i := 0; i < 6; i++ {
+		ifr.IfruHwaddr.Data[i] = int8(rand.Intn(255))
+	}
+
+	ifr.IfruHwaddr.Data[0] &^= 0x1 // clear multicast bit
+	ifr.IfruHwaddr.Data[0] |= 0x2  // set local assignment bit (IEEE802)
+
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), syscall.SIOCSIFHWADDR, uintptr(unsafe.Pointer(&ifr))); err != 0 {
+		return err
+	}
+	return nil
 }

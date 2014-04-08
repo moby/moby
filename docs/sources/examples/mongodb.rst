@@ -47,7 +47,7 @@ divert ``/sbin/initctl`` to ``/bin/true`` so it thinks everything is working.
 
     # Hack for initctl not being available in Ubuntu
     RUN dpkg-divert --local --rename --add /sbin/initctl
-    RUN ln -s /bin/true /sbin/initctl
+    RUN ln -sf /bin/true /sbin/initctl
 
 Afterwards we'll be able to update our apt repositories and install MongoDB
 
@@ -86,10 +86,10 @@ the local port!
 .. code-block:: bash
 
     # Regular style
-    MONGO_ID=$(sudo docker run -d <yourname>/mongodb)
+    MONGO_ID=$(sudo docker run -P -d <yourname>/mongodb)
 
     # Lean and mean
-    MONGO_ID=$(sudo docker run -d <yourname>/mongodb --noprealloc --smallfiles)
+    MONGO_ID=$(sudo docker run -P -d <yourname>/mongodb --noprealloc --smallfiles)
 
     # Check the logs out
     sudo docker logs $MONGO_ID

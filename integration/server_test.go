@@ -1,72 +1,13 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/server"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestImageTagImageDelete(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	srv := mkServerFromEngine(eng, t)
-
-	initialImages := getAllImages(eng, t)
-	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("tag", unitTestImageName, "utest/docker", "tag2").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("tag", unitTestImageName, "utest:5000/docker", "tag3").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	images := getAllImages(eng, t)
-
-	nExpected := len(initialImages.Data[0].GetList("RepoTags")) + 3
-	nActual := len(images.Data[0].GetList("RepoTags"))
-	if nExpected != nActual {
-		t.Errorf("Expected %d images, %d found", nExpected, nActual)
-	}
-
-	if err := srv.DeleteImage("utest/docker:tag2", engine.NewTable("", 0), true, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 2
-	nActual = len(images.Data[0].GetList("RepoTags"))
-	if nExpected != nActual {
-		t.Errorf("Expected %d images, %d found", nExpected, nActual)
-	}
-
-	if err := srv.DeleteImage("utest:5000/docker:tag3", engine.NewTable("", 0), true, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	nExpected = len(initialImages.Data[0].GetList("RepoTags")) + 1
-	nActual = len(images.Data[0].GetList("RepoTags"))
-
-	if err := srv.DeleteImage("utest:tag1", engine.NewTable("", 0), true, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	if images.Len() != initialImages.Len() {
-		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
-	}
-}
 
 func TestCreateRm(t *testing.T) {
 	eng := NewTestEngine(t)
@@ -203,15 +144,22 @@ func TestCreateRmRunning(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := runconfig.Parse([]string{"-name", "foo", unitTestImageID, "sleep 300"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"--name", "foo", unitTestImageID, "sleep 300"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	id := createTestContainer(eng, config, t)
 
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
+	job := eng.Job("start", id)
+	if err := job.ImportEnv(hostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("containers")
 	outs, err := job.Stdout.AddListTable()
 	if err != nil {
 		t.Fatal(err)
@@ -224,19 +172,24 @@ func TestCreateRmRunning(t *testing.T) {
 		t.Errorf("Expected 1 container, %v found", len(outs.Data))
 	}
 
-	job = eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
+	// Test cannot remove running container
+	job = eng.Job("container_delete", id)
+	job.SetenvBool("forceRemove", false)
+	if err := job.Run(); err == nil {
+		t.Fatal("Expected container delete to fail")
+	}
+
+	job = eng.Job("containers")
+	outs, err = job.Stdout.AddListTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	// Test cannot remove running container
-	job = eng.Job("container_delete", id)
-	job.SetenvBool("forceRemove", false)
-	if err := job.Run(); err == nil {
-		t.Fatal("Expected container delete to fail")
+	if len(outs.Data) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(outs.Data))
 	}
 
 	// Test can force removal of running container
@@ -278,6 +231,63 @@ func TestCommit(t *testing.T) {
 	job.SetenvJson("config", config)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestMergeConfigOnCommit(t *testing.T) {
+	eng := NewTestEngine(t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+
+	container1, _, _ := mkContainer(runtime, []string{"-e", "FOO=bar", unitTestImageID, "echo test > /tmp/foo"}, t)
+	defer runtime.Destroy(container1)
+
+	config, _, _, err := runconfig.Parse([]string{container1.ID, "cat /tmp/foo"}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	job := eng.Job("commit", container1.ID)
+	job.Setenv("repo", "testrepo")
+	job.Setenv("tag", "testtag")
+	job.SetenvJson("config", config)
+	var newId string
+	job.Stdout.AddString(&newId)
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	container2, _, _ := mkContainer(runtime, []string{newId}, t)
+	defer runtime.Destroy(container2)
+
+	job = eng.Job("inspect", container1.Name, "container")
+	baseContainer, _ := job.Stdout.AddEnv()
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	job = eng.Job("inspect", container2.Name, "container")
+	commitContainer, _ := job.Stdout.AddEnv()
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	baseConfig := baseContainer.GetSubEnv("Config")
+	commitConfig := commitContainer.GetSubEnv("Config")
+
+	if commitConfig.Get("Env") != baseConfig.Get("Env") {
+		t.Fatalf("Env config in committed container should be %v, was %v",
+			baseConfig.Get("Env"), commitConfig.Get("Env"))
+	}
+
+	if baseConfig.Get("Cmd") != "[\"echo test \\u003e /tmp/foo\"]" {
+		t.Fatalf("Cmd in base container should be [\"echo test \\u003e /tmp/foo\"], was %s",
+			baseConfig.Get("Cmd"))
+	}
+
+	if commitConfig.Get("Cmd") != "[\"cat /tmp/foo\"]" {
+		t.Fatalf("Cmd in committed container should be [\"cat /tmp/foo\"], was %s",
+			commitConfig.Get("Cmd"))
 	}
 }
 
@@ -510,7 +520,7 @@ func TestRmi(t *testing.T) {
 		t.Fatalf("Expected 2 new images, found %d.", images.Len()-initialImages.Len())
 	}
 
-	if err = srv.DeleteImage(imageID, engine.NewTable("", 0), true, false); err != nil {
+	if err = srv.DeleteImage(imageID, engine.NewTable("", 0), true, false, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -571,6 +581,7 @@ func TestImagesFilter(t *testing.T) {
 	}
 }
 
+// FIXE: 'insert' is deprecated and should be removed in a future version.
 func TestImageInsert(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkRuntimeFromEngine(eng, t).Nuke()
@@ -682,7 +693,7 @@ func TestListContainers(t *testing.T) {
 	}
 }
 
-func assertContainerList(srv *docker.Server, all bool, limit int, since, before string, expected []string) bool {
+func assertContainerList(srv *server.Server, all bool, limit int, since, before string, expected []string) bool {
 	job := srv.Eng.Job("containers")
 	job.SetenvBool("all", all)
 	job.SetenvInt("limit", limit)
@@ -746,7 +757,7 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 
 	// Try to remove the tag
 	imgs := engine.NewTable("", 0)
-	if err := srv.DeleteImage("utest:tag1", imgs, true, false); err != nil {
+	if err := srv.DeleteImage("utest:tag1", imgs, true, false, false); err != nil {
 		t.Fatal(err)
 	}
 

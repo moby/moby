@@ -174,7 +174,7 @@ __docker_subcommand () {
         (ps)
             _arguments '-a[Show all containers. Only running containers are shown by default]' \
                 '-h[Show help]' \
-                '-before-id=-[Show only container created before Id, include non-running one]:containers:__docker_containers' \
+                '--before-id=-[Show only container created before Id, include non-running one]:containers:__docker_containers' \
             '-n=-[Show n last created containers, include non-running one]:n:(1 5 10 25 50)'
             ;;
         (tag)

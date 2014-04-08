@@ -22,6 +22,8 @@ Docker Remote API
 - Since API version 1.2, the auth configuration is now handled client
   side, so the client has to send the authConfig as POST in
   /images/(name)/push
+- authConfig, set as the ``X-Registry-Auth`` header, is currently a Base64 encoded (json) string with credentials:  
+  ``{'username': string, 'password': string, 'email': string, 'serveraddress' : string}``
 
 2. Versions
 ===========
@@ -50,6 +52,7 @@ What's new
 
    **New!** You can now use the force parameter to force delete of an image, even if it's
    tagged in multiple repositories.
+   **New!** You can now use the noprune parameter to prevent the deletion of parent images
 
 .. http:delete:: /containers/(id)
 
@@ -203,7 +206,7 @@ What's new
 
 .. http:get:: /images/viz
 
-   This URI no longer exists.  The ``images -viz`` output is now generated in
+   This URI no longer exists.  The ``images --viz`` output is now generated in
    the client, using the ``/images/json`` data.
 
 v1.6

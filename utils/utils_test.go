@@ -444,6 +444,30 @@ func TestParsePortMapping(t *testing.T) {
 	}
 }
 
+func TestGetNameservers(t *testing.T) {
+	for resolv, result := range map[string][]string{`
+nameserver 1.2.3.4
+nameserver 40.3.200.10
+search example.com`: {"1.2.3.4", "40.3.200.10"},
+		`search example.com`: {},
+		`nameserver 1.2.3.4
+search example.com
+nameserver 4.30.20.100`: {"1.2.3.4", "4.30.20.100"},
+		``: {},
+		`  nameserver 1.2.3.4   `: {"1.2.3.4"},
+		`search example.com
+nameserver 1.2.3.4
+#nameserver 4.3.2.1`: {"1.2.3.4"},
+		`search example.com
+nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4"},
+	} {
+		test := GetNameservers([]byte(resolv))
+		if !StrSlicesEqual(test, result) {
+			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
+		}
+	}
+}
+
 func TestGetNameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4
@@ -464,6 +488,33 @@ nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
 		test := GetNameserversAsCIDR([]byte(resolv))
 		if !StrSlicesEqual(test, result) {
 			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
+		}
+	}
+}
+
+func TestGetSearchDomains(t *testing.T) {
+	for resolv, result := range map[string][]string{
+		`search example.com`:           {"example.com"},
+		`search example.com # ignored`: {"example.com"},
+		` 	  search 	 example.com 	  `: {"example.com"},
+		` 	  search 	 example.com 	  # ignored`: {"example.com"},
+		`search foo.example.com example.com`: {"foo.example.com", "example.com"},
+		`	   search   	   foo.example.com 	 example.com 	`: {"foo.example.com", "example.com"},
+		`	   search   	   foo.example.com 	 example.com 	# ignored`: {"foo.example.com", "example.com"},
+		``:          {},
+		`# ignored`: {},
+		`nameserver 1.2.3.4
+search foo.example.com example.com`: {"foo.example.com", "example.com"},
+		`nameserver 1.2.3.4
+search dup1.example.com dup2.example.com
+search foo.example.com example.com`: {"foo.example.com", "example.com"},
+		`nameserver 1.2.3.4
+search foo.example.com example.com
+nameserver 4.30.20.100`: {"foo.example.com", "example.com"},
+	} {
+		test := GetSearchDomains([]byte(resolv))
+		if !StrSlicesEqual(test, result) {
+			t.Fatalf("Wrong search domain string {%s} should be %v. Input: %s", test, result, resolv)
 		}
 	}
 }

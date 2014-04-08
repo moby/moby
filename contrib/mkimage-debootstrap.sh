@@ -219,6 +219,7 @@ if [ -z "$strictDebootstrap" ]; then
 	
 	# make sure our packages lists are as up to date as we can get them
 	sudo chroot . apt-get update
+	sudo chroot . apt-get dist-upgrade -y
 fi
 
 if [ "$justTar" ]; then

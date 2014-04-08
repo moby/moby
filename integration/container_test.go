@@ -350,7 +350,7 @@ func TestStart(t *testing.T) {
 	if !container.State.IsRunning() {
 		t.Errorf("Container should be running")
 	}
-	if err := container.Start(); err == nil {
+	if err := container.Start(); err != nil {
 		t.Fatalf("A running container should be able to be started")
 	}
 
@@ -385,7 +385,7 @@ func TestCpuShares(t *testing.T) {
 	if !container.State.IsRunning() {
 		t.Errorf("Container should be running")
 	}
-	if err := container.Start(); err == nil {
+	if err := container.Start(); err != nil {
 		t.Fatalf("A running container should be able to be started")
 	}
 
@@ -431,28 +431,6 @@ func TestOutput(t *testing.T) {
 	}
 	if string(output) != "foobar" {
 		t.Fatalf("%s != %s", string(output), "foobar")
-	}
-}
-
-func TestContainerNetwork(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
-		&runconfig.Config{
-			Image: GetTestImage(runtime).ID,
-			Cmd:   []string{"ping", "-c", "1", "127.0.0.1"},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
-	if err := container.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if code := container.State.GetExitCode(); code != 0 {
-		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
 	}
 }
 
@@ -1109,7 +1087,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 	}
 }
 
-func BenchmarkRunSequencial(b *testing.B) {
+func BenchmarkRunSequential(b *testing.B) {
 	runtime := mkRuntime(b)
 	defer nuke(runtime)
 	for i := 0; i < b.N; i++ {
@@ -1295,123 +1273,6 @@ func TestBindMounts(t *testing.T) {
 	}
 }
 
-// Test that -volumes-from supports both read-only mounts
-func TestFromVolumesInReadonlyMode(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:   GetTestImage(runtime).ID,
-			Cmd:     []string{"/bin/echo", "-n", "foobar"},
-			Volumes: map[string]struct{}{"/test": {}},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !container.VolumesRW["/test"] {
-		t.Fail()
-	}
-
-	container2, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"/bin/echo", "-n", "foobar"},
-			VolumesFrom: container.ID + ":ro",
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container2)
-
-	_, err = container2.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if container.Volumes["/test"] != container2.Volumes["/test"] {
-		t.Logf("container volumes do not match: %s | %s ",
-			container.Volumes["/test"],
-			container2.Volumes["/test"])
-		t.Fail()
-	}
-
-	_, exists := container2.VolumesRW["/test"]
-	if !exists {
-		t.Logf("container2 is missing '/test' volume: %s", container2.VolumesRW)
-		t.Fail()
-	}
-
-	if container2.VolumesRW["/test"] != false {
-		t.Log("'/test' volume mounted in read-write mode, expected read-only")
-		t.Fail()
-	}
-}
-
-// Test that VolumesRW values are copied to the new container.  Regression test for #1201
-func TestVolumesFromReadonlyMount(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:   GetTestImage(runtime).ID,
-			Cmd:     []string{"/bin/echo", "-n", "foobar"},
-			Volumes: map[string]struct{}{"/test": {}},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !container.VolumesRW["/test"] {
-		t.Fail()
-	}
-
-	container2, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"/bin/echo", "-n", "foobar"},
-			VolumesFrom: container.ID,
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container2)
-
-	_, err = container2.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if container.Volumes["/test"] != container2.Volumes["/test"] {
-		t.Fail()
-	}
-
-	actual, exists := container2.VolumesRW["/test"]
-	if !exists {
-		t.Fail()
-	}
-
-	if container.VolumesRW["/test"] != actual {
-		t.Fail()
-	}
-}
-
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func TestRestartWithVolumes(t *testing.T) {
 	runtime := mkRuntime(t)
@@ -1456,70 +1317,50 @@ func TestRestartWithVolumes(t *testing.T) {
 	}
 }
 
-// Test for #1351
-func TestVolumesFromWithVolumes(t *testing.T) {
+func TestContainerNetwork(t *testing.T) {
 	runtime := mkRuntime(t)
 	defer nuke(runtime)
-
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image:   GetTestImage(runtime).ID,
-		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
-		Volumes: map[string]struct{}{"/test": {}},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
-
-	for key := range container.Config.Volumes {
-		if key != "/test" {
-			t.Fail()
-		}
-	}
-
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := container.Volumes["/test"]
-	if expected == "" {
-		t.Fail()
-	}
-
-	container2, _, err := runtime.Create(
+	container, _, err := runtime.Create(
 		&runconfig.Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"cat", "/test/foo"},
-			VolumesFrom: container.ID,
-			Volumes:     map[string]struct{}{"/test": {}},
+			Image: GetTestImage(runtime).ID,
+			// If I change this to ping 8.8.8.8 it fails.  Any idea why? - timthelion
+			Cmd: []string{"ping", "-c", "1", "127.0.0.1"},
 		},
 		"",
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container2)
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
+	}
+}
 
-	output, err := container2.Output()
+// Issue #4681
+func TestLoopbackFunctionsWhenNetworkingIsDissabled(t *testing.T) {
+	runtime := mkRuntime(t)
+	defer nuke(runtime)
+	container, _, err := runtime.Create(
+		&runconfig.Config{
+			Image:           GetTestImage(runtime).ID,
+			Cmd:             []string{"ping", "-c", "1", "127.0.0.1"},
+			NetworkDisabled: true,
+		},
+		"",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if string(output) != "bar" {
-		t.Fail()
-	}
-
-	if container.Volumes["/test"] != container2.Volumes["/test"] {
-		t.Fail()
-	}
-
-	// Ensure it restarts successfully
-	_, err = container2.Output()
-	if err != nil {
+	defer runtime.Destroy(container)
+	if err := container.Run(); err != nil {
 		t.Fatal(err)
+	}
+	if code := container.State.GetExitCode(); code != 0 {
+		t.Fatalf("Unexpected ping 127.0.0.1 exit code %d (expected 0)", code)
 	}
 }
 
@@ -1528,7 +1369,7 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime)
 
-	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show"}, nil)
+	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show", "up"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1580,7 +1421,7 @@ func TestPrivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, err := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+	if output, err := runContainer(eng, runtime, []string{"--privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
 		t.Fatalf("Could not mknod into privileged container %s %v", output, err)
 	}
 }
@@ -1589,131 +1430,25 @@ func TestPrivilegedCanMount(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"-privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+	if output, _ := runContainer(eng, runtime, []string{"--privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mount into privileged container")
 	}
 }
 
-func TestPrivilegedCannotMknod(t *testing.T) {
+func TestUnprivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 || echo ok"}, t); output != "ok\n" {
-		t.Fatal("Could mknod into secure container")
+	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+		t.Fatal("Couldn't mknod into secure container")
 	}
 }
 
-func TestPrivilegedCannotMount(t *testing.T) {
+func TestUnprivilegedCannotMount(t *testing.T) {
 	eng := NewTestEngine(t)
 	runtime := mkRuntimeFromEngine(eng, t)
 	defer runtime.Nuke()
 	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could mount into secure container")
-	}
-}
-
-func TestMultipleVolumesFrom(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image:   GetTestImage(runtime).ID,
-		Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
-		Volumes: map[string]struct{}{"/test": {}},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container)
-
-	for key := range container.Config.Volumes {
-		if key != "/test" {
-			t.Fail()
-		}
-	}
-
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := container.Volumes["/test"]
-	if expected == "" {
-		t.Fail()
-	}
-
-	container2, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:   GetTestImage(runtime).ID,
-			Cmd:     []string{"sh", "-c", "echo -n bar > /other/foo"},
-			Volumes: map[string]struct{}{"/other": {}},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container2)
-
-	for key := range container2.Config.Volumes {
-		if key != "/other" {
-			t.FailNow()
-		}
-	}
-	if _, err := container2.Output(); err != nil {
-		t.Fatal(err)
-	}
-
-	container3, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:       GetTestImage(runtime).ID,
-			Cmd:         []string{"/bin/echo", "-n", "foobar"},
-			VolumesFrom: strings.Join([]string{container.ID, container2.ID}, ","),
-		}, "")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Destroy(container3)
-
-	if _, err := container3.Output(); err != nil {
-		t.Fatal(err)
-	}
-
-	if container3.Volumes["/test"] != container.Volumes["/test"] {
-		t.Fail()
-	}
-	if container3.Volumes["/other"] != container2.Volumes["/other"] {
-		t.Fail()
-	}
-}
-
-func TestRestartGhost(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-
-	container, _, err := runtime.Create(
-		&runconfig.Config{
-			Image:   GetTestImage(runtime).ID,
-			Cmd:     []string{"sh", "-c", "echo -n bar > /test/foo"},
-			Volumes: map[string]struct{}{"/test": {}},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := container.Kill(); err != nil {
-		t.Fatal(err)
-	}
-
-	container.State.SetGhost(true)
-
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
 	}
 }

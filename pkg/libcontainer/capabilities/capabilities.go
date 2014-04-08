@@ -9,7 +9,7 @@ import (
 // DropCapabilities drops capabilities for the current process based
 // on the container's configuration.
 func DropCapabilities(container *libcontainer.Container) error {
-	if drop := getCapabilities(container); len(drop) > 0 {
+	if drop := getCapabilitiesMask(container); len(drop) > 0 {
 		c, err := capability.NewPid(os.Getpid())
 		if err != nil {
 			return err
@@ -23,11 +23,13 @@ func DropCapabilities(container *libcontainer.Container) error {
 	return nil
 }
 
-// getCapabilities returns the specific cap values for the libcontainer types
-func getCapabilities(container *libcontainer.Container) []capability.Cap {
+// getCapabilitiesMask returns the specific cap mask values for the libcontainer types
+func getCapabilitiesMask(container *libcontainer.Container) []capability.Cap {
 	drop := []capability.Cap{}
-	for _, c := range container.Capabilities {
-		drop = append(drop, c.Value)
+	for _, c := range container.CapabilitiesMask {
+		if !c.Enabled {
+			drop = append(drop, c.Value)
+		}
 	}
 	return drop
 }

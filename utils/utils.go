@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,6 +24,11 @@ import (
 	"sync"
 	"time"
 )
+
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
 
 // A common interface to access the Fatal method of
 // both testing.B and testing.T.
@@ -493,6 +499,34 @@ func TruncateID(id string) string {
 	return id[:shortLen]
 }
 
+// GenerateRandomID returns an unique id
+func GenerateRandomID() string {
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.Atoi(TruncateID(value)); err == nil {
+			continue
+		}
+		return value
+	}
+}
+
+func ValidateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("Id can't be empty")
+	}
+	if strings.Contains(id, ":") {
+		return fmt.Errorf("Invalid character in id: ':'")
+	}
+	return nil
+}
+
 // Code c/c from io.Copy() modified to handle escape sequence
 func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
 	buf := make([]byte, 32*1024)
@@ -685,7 +719,7 @@ func IsURL(str string) bool {
 }
 
 func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
 // GetResolvConf opens and read the content of /etc/resolv.conf.
@@ -702,52 +736,76 @@ func GetResolvConf() ([]byte, error) {
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {
-	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
-	if !bytes.Contains(parsedResolvConf, []byte("nameserver")) {
-		return true
-	}
-	for _, ip := range [][]byte{
-		[]byte("127.0.0.1"),
-		[]byte("127.0.1.1"),
-	} {
-		if bytes.Contains(parsedResolvConf, ip) {
-			return true
+	for _, line := range GetLines(resolvConf, []byte("#")) {
+		if !bytes.Contains(line, []byte("nameserver")) {
+			continue
 		}
+		for _, ip := range [][]byte{
+			[]byte("127.0.0.1"),
+			[]byte("127.0.1.1"),
+		} {
+			if bytes.Contains(line, ip) {
+				return true
+			}
+		}
+		return false
 	}
-	return false
+	return true
 }
 
-// StripComments parses input into lines and strips away comments.
-func StripComments(input []byte, commentMarker []byte) []byte {
+// GetLines parses input into lines and strips away comments.
+func GetLines(input []byte, commentMarker []byte) [][]byte {
 	lines := bytes.Split(input, []byte("\n"))
-	var output []byte
+	var output [][]byte
 	for _, currentLine := range lines {
 		var commentIndex = bytes.Index(currentLine, commentMarker)
 		if commentIndex == -1 {
-			output = append(output, currentLine...)
+			output = append(output, currentLine)
 		} else {
-			output = append(output, currentLine[:commentIndex]...)
+			output = append(output, currentLine[:commentIndex])
 		}
-		output = append(output, []byte("\n")...)
 	}
 	return output
+}
+
+// GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
+func GetNameservers(resolvConf []byte) []string {
+	nameservers := []string{}
+	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
+	for _, line := range GetLines(resolvConf, []byte("#")) {
+		var ns = re.FindSubmatch(line)
+		if len(ns) > 0 {
+			nameservers = append(nameservers, string(ns[1]))
+		}
+	}
+	return nameservers
 }
 
 // GetNameserversAsCIDR returns nameservers (if any) listed in
 // /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {
-	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
-	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
-		var ns = re.FindSubmatch(line)
-		if len(ns) > 0 {
-			nameservers = append(nameservers, string(ns[1])+"/32")
-		}
+	for _, nameserver := range GetNameservers(resolvConf) {
+		nameservers = append(nameservers, nameserver+"/32")
 	}
-
 	return nameservers
+}
+
+// GetSearchDomains returns search domains (if any) listed in /etc/resolv.conf
+// If more than one search line is encountered, only the contents of the last
+// one is returned.
+func GetSearchDomains(resolvConf []byte) []string {
+	re := regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
+	domains := []string{}
+	for _, line := range GetLines(resolvConf, []byte("#")) {
+		match := re.FindSubmatch(line)
+		if match == nil {
+			continue
+		}
+		domains = strings.Fields(string(match[1]))
+	}
+	return domains
 }
 
 // FIXME: Change this not to receive default value as parameter
@@ -1017,4 +1075,12 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
 	}
 	return realPath, nil
+}
+
+func ParseKeyValueOpt(opt string) (string, string, error) {
+	parts := strings.SplitN(opt, "=", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }

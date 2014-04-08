@@ -64,6 +64,7 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
+
 	if !userConf.Tty {
 		userConf.Tty = imageConf.Tty
 	}
@@ -93,20 +94,11 @@ func Merge(userConf, imageConf *Config) error {
 	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
 		userConf.Cmd = imageConf.Cmd
 	}
-	if userConf.Dns == nil || len(userConf.Dns) == 0 {
-		userConf.Dns = imageConf.Dns
-	} else {
-		//duplicates aren't an issue here
-		userConf.Dns = append(userConf.Dns, imageConf.Dns...)
-	}
 	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
 	if userConf.WorkingDir == "" {
 		userConf.WorkingDir = imageConf.WorkingDir
-	}
-	if userConf.VolumesFrom == "" {
-		userConf.VolumesFrom = imageConf.VolumesFrom
 	}
 	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes

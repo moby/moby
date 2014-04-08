@@ -25,6 +25,6 @@ before_script:
 script:
   - hack/travis/dco.py
   - hack/travis/gofmt.py
-  - make -sC docs SPHINXOPTS=-q docs man
+  - make -sC docs SPHINXOPTS=-qW docs man
 
 # vim:set sw=2 ts=2:

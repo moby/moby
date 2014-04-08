@@ -14,12 +14,10 @@ func Compare(a, b *Config) bool {
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
-		a.Tty != b.Tty ||
-		a.VolumesFrom != b.VolumesFrom {
+		a.Tty != b.Tty {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
-		len(a.Dns) != len(b.Dns) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
@@ -30,11 +28,6 @@ func Compare(a, b *Config) bool {
 
 	for i := 0; i < len(a.Cmd); i++ {
 		if a.Cmd[i] != b.Cmd[i] {
-			return false
-		}
-	}
-	for i := 0; i < len(a.Dns); i++ {
-		if a.Dns[i] != b.Dns[i] {
 			return false
 		}
 	}

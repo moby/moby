@@ -18,11 +18,11 @@ Firstly, we create a ``Dockerfile`` for our new Redis image.
 
 .. code-block:: bash
 
-    FROM        ubuntu:12.10
-    RUN         apt-get update
-    RUN         apt-get -y install redis-server
+    FROM        debian:jessie
+    RUN         apt-get update && apt-get install -y redis-server
     EXPOSE      6379
     ENTRYPOINT  ["/usr/bin/redis-server"]
+    CMD ["--bind", "0.0.0.0"]
 
 Next we build an image from our ``Dockerfile``. Replace ``<your username>`` 
 with your own user name.
@@ -49,7 +49,7 @@ use a container link to provide access to our Redis database.
 Create your web application container
 -------------------------------------
 
-Next we can create a container for our application. We're going to use the ``-link`` 
+Next we can create a container for our application. We're going to use the ``--link`` 
 flag to create a link to the ``redis`` container we've just created with an alias of 
 ``db``. This will create a secure tunnel to the ``redis`` container and expose the 
 Redis instance running inside that container to only this container.

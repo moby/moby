@@ -31,7 +31,7 @@ docker run -e AWS_S3_BUCKET=get-staging.docker.io \
            -e AWS_ACCESS_KEY=AKI1234... \
            -e AWS_SECRET_KEY=sEs4mE... \
            -e GPG_PASSPHRASE=m0resEs4mE... \
-           -i -t -privileged \
+           -i -t --privileged \
            docker ./hack/release.sh
 EOF
 	exit 1
@@ -53,34 +53,21 @@ RELEASE_BUNDLES=(
 )
 
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
-	RELEASE_BUNDLES=( test "${RELEASE_BUNDLES[@]}" )
-fi
-
-if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
-	echo >&2
-	echo >&2 'The build or tests appear to have failed.'
-	echo >&2
-	echo >&2 'You, as the release  maintainer, now have a couple options:'
-	echo >&2 '- delay release and fix issues'
-	echo >&2 '- delay release and fix issues'
-	echo >&2 '- did we mention how important this is?  issues need fixing :)'
-	echo >&2
-	echo >&2 'As a final LAST RESORT, you (because only you, the release maintainer,'
-	echo >&2 ' really knows all the hairy problems at hand with the current release'
-	echo >&2 ' issues) may bypass this checking by running this script again with the'
-	echo >&2 ' single argument of "--release-regardless-of-test-failure", which will skip'
-	echo >&2 ' running the test suite, and will only build the binaries and packages.  Please'
-	echo >&2 ' avoid using this if at all possible.'
-	echo >&2
-	echo >&2 'Regardless, we cannot stress enough the scarcity with which this bypass'
-	echo >&2 ' should be used.  If there are release issues, we should always err on the'
-	echo >&2 ' side of caution.'
-	echo >&2
-	exit 1
+	RELEASE_BUNDLES=(
+		test test-integration
+		"${RELEASE_BUNDLES[@]}"
+		test-integration-cli
+	)
 fi
 
 VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
+
+# These are the 2 keys we've used to sign the deb's
+#   release (get.docker.io)
+#	GPG_KEY="36A1D7869245C8950F966E92D8576A8BA88D21E9"
+#   test    (test.docker.io)
+#	GPG_KEY="740B314AE3941731B942C66ADF4FD13717AAD7D6"
 
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
@@ -114,76 +101,138 @@ s3_url() {
 	esac
 }
 
+build_all() {
+	if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
+		echo >&2
+		echo >&2 'The build or tests appear to have failed.'
+		echo >&2
+		echo >&2 'You, as the release  maintainer, now have a couple options:'
+		echo >&2 '- delay release and fix issues'
+		echo >&2 '- delay release and fix issues'
+		echo >&2 '- did we mention how important this is?  issues need fixing :)'
+		echo >&2
+		echo >&2 'As a final LAST RESORT, you (because only you, the release maintainer,'
+		echo >&2 ' really knows all the hairy problems at hand with the current release'
+		echo >&2 ' issues) may bypass this checking by running this script again with the'
+		echo >&2 ' single argument of "--release-regardless-of-test-failure", which will skip'
+		echo >&2 ' running the test suite, and will only build the binaries and packages.  Please'
+		echo >&2 ' avoid using this if at all possible.'
+		echo >&2
+		echo >&2 'Regardless, we cannot stress enough the scarcity with which this bypass'
+		echo >&2 ' should be used.  If there are release issues, we should always err on the'
+		echo >&2 ' side of caution.'
+		echo >&2
+		exit 1
+	fi
+}
+
+upload_release_build() {
+	src="$1"
+	dst="$2"
+	latest="$3"
+
+	echo
+	echo "Uploading $src"
+	echo "  to $dst"
+	echo
+	s3cmd --follow-symlinks --preserve --acl-public put "$src" "$dst"
+	if [ "$latest" ]; then
+		echo
+		echo "Copying to $latest"
+		echo
+		s3cmd --acl-public cp "$dst" "$latest"
+	fi
+
+	# get hash files too (see hash_files() in hack/make.sh)
+	for hashAlgo in md5 sha256; do
+		if [ -e "$src.$hashAlgo" ]; then
+			echo
+			echo "Uploading $src.$hashAlgo"
+			echo "  to $dst.$hashAlgo"
+			echo
+			s3cmd --follow-symlinks --preserve --acl-public --mime-type='text/plain' put "$src.$hashAlgo" "$dst.$hashAlgo"
+			if [ "$latest" ]; then
+				echo
+				echo "Copying to $latest.$hashAlgo"
+				echo
+				s3cmd --acl-public cp "$dst.$hashAlgo" "$latest.$hashAlgo"
+			fi
+		fi
+	done
+}
+
 release_build() {
 	GOOS=$1
 	GOARCH=$2
 
-	BINARY=bundles/$VERSION/cross/$GOOS/$GOARCH/docker-$VERSION
-	TGZ=bundles/$VERSION/tgz/$GOOS/$GOARCH/docker-$VERSION.tgz
+	binDir=bundles/$VERSION/cross/$GOOS/$GOARCH
+	tgzDir=bundles/$VERSION/tgz/$GOOS/$GOARCH
+	binary=docker-$VERSION
+	tgz=docker-$VERSION.tgz
+
+	latestBase=
+	if [ -z "$NOLATEST" ]; then
+		latestBase=docker-latest
+	fi
 
 	# we need to map our GOOS and GOARCH to uname values
 	# see https://en.wikipedia.org/wiki/Uname
 	# ie, GOOS=linux -> "uname -s"=Linux
 
-	S3OS=$GOOS
-	case "$S3OS" in
+	s3Os=$GOOS
+	case "$s3Os" in
 		darwin)
-			S3OS=Darwin
+			s3Os=Darwin
 			;;
 		freebsd)
-			S3OS=FreeBSD
+			s3Os=FreeBSD
 			;;
 		linux)
-			S3OS=Linux
+			s3Os=Linux
 			;;
 		*)
-			echo >&2 "error: can't convert $S3OS to an appropriate value for 'uname -s'"
+			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
 			exit 1
 			;;
 	esac
 
-	S3ARCH=$GOARCH
-	case "$S3ARCH" in
+	s3Arch=$GOARCH
+	case "$s3Arch" in
 		amd64)
-			S3ARCH=x86_64
+			s3Arch=x86_64
 			;;
 		386)
-			S3ARCH=i386
+			s3Arch=i386
 			;;
 		arm)
-			S3ARCH=armel
+			s3Arch=armel
 			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
 			;;
 		*)
-			echo >&2 "error: can't convert $S3ARCH to an appropriate value for 'uname -m'"
+			echo >&2 "error: can't convert $s3Arch to an appropriate value for 'uname -m'"
 			exit 1
 			;;
 	esac
 
-	S3DIR=s3://$BUCKET/builds/$S3OS/$S3ARCH
+	s3Dir=s3://$BUCKET/builds/$s3Os/$s3Arch
+	latest=
+	latestTgz=
+	if [ "$latestBase" ]; then
+		latest="$s3Dir/$latestBase"
+		latestTgz="$s3Dir/$latestBase.tgz"
+	fi
 
-	if [ ! -x "$BINARY" ]; then
-		echo >&2 "error: can't find $BINARY - was it compiled properly?"
+	if [ ! -x "$binDir/$binary" ]; then
+		echo >&2 "error: can't find $binDir/$binary - was it compiled properly?"
 		exit 1
 	fi
-	if [ ! -f "$TGZ" ]; then
-		echo >&2 "error: can't find $TGZ - was it packaged properly?"
+	if [ ! -f "$tgzDir/$tgz" ]; then
+		echo >&2 "error: can't find $tgzDir/$tgz - was it packaged properly?"
 		exit 1
 	fi
 
-	echo "Uploading $BINARY to $S3OS/$S3ARCH/docker-$VERSION"
-	s3cmd --follow-symlinks --preserve --acl-public put $BINARY $S3DIR/docker-$VERSION
-
-	echo "Uploading $TGZ to $S3OS/$S3ARCH/docker-$VERSION.tgz"
-	s3cmd --follow-symlinks --preserve --acl-public put $TGZ $S3DIR/docker-$VERSION.tgz
-
-	if [ -z "$NOLATEST" ]; then
-		echo "Copying $S3OS/$S3ARCH/docker-$VERSION to $S3OS/$S3ARCH/docker-latest"
-		s3cmd --acl-public cp $S3DIR/docker-$VERSION $S3DIR/docker-latest
-
-		echo "Copying $S3OS/$S3ARCH/docker-$VERSION.tgz to $S3OS/$S3ARCH/docker-latest.tgz"
-		s3cmd --acl-public cp $S3DIR/docker-$VERSION.tgz $S3DIR/docker-latest.tgz
-	fi
+	upload_release_build "$binDir/$binary" "$s3Dir/$binary" "$latest"
+	upload_release_build "$tgzDir/$tgz" "$s3Dir/$tgz" "$latestTgz"
 }
 
 # Upload the 'ubuntu' bundle to S3:
@@ -193,21 +242,6 @@ release_ubuntu() {
 	[ -e bundles/$VERSION/ubuntu ] || {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
 		exit 1
-	}
-	# Make sure that we have our keys
-	mkdir -p /.gnupg/
-	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
-	gpg --list-keys releasedocker >/dev/null || {
-		gpg --gen-key --batch <<EOF
-Key-Type: RSA
-Key-Length: 2048
-Passphrase: $GPG_PASSPHRASE
-Name-Real: Docker Release Tool
-Name-Email: docker@dotcloud.com
-Name-Comment: releasedocker
-Expire-Date: 0
-%commit
-EOF
 	}
 
 	# Sign our packages
@@ -243,10 +277,15 @@ EOF
 	# Upload repo
 	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
+# Check that HTTPS transport is available to APT
+if [ ! -e /usr/lib/apt/methods/https ]; then
+	apt-get update
+	apt-get install -y apt-transport-https
+fi
 # Add the repository to your APT sources
 echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
 # Then import the repository key
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 # Install docker
 apt-get update ; apt-get install -y lxc-docker
 
@@ -305,8 +344,28 @@ release_test() {
 	fi
 }
 
+setup_gpg() {
+	# Make sure that we have our keys
+	mkdir -p /.gnupg/
+	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
+	gpg --list-keys releasedocker >/dev/null || {
+		gpg --gen-key --batch <<EOF
+Key-Type: RSA
+Key-Length: 4096
+Passphrase: $GPG_PASSPHRASE
+Name-Real: Docker Release Tool
+Name-Email: docker@dotcloud.com
+Name-Comment: releasedocker
+Expire-Date: 0
+%commit
+EOF
+	}
+}
+
 main() {
+	build_all
 	setup_s3
+	setup_gpg
 	release_binaries
 	release_ubuntu
 	release_index

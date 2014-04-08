@@ -14,7 +14,7 @@
         "NEWUTS",
         "NEWNET"
     ],
-    "capabilities": [
+    "capabilities_mask": [
         "SETPCAP",
         "SYS_MODULE",
         "SYS_RAWIO",

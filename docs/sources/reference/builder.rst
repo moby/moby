@@ -13,12 +13,10 @@ Dockerfile Reference
 to create an image. Executing ``docker build`` will run your steps and
 commit them along the way, giving you a final image.
 
-.. contents:: Table of Contents
-
 .. _dockerfile_usage:
 
-1. Usage
-========
+Usage
+=====
 
 To :ref:`build <cli_build>` an image from a source repository, create
 a description file called ``Dockerfile`` at the root of your
@@ -49,7 +47,7 @@ to be created - so ``RUN cd /tmp`` will not have any effect on the next
 instructions.
 
 Whenever possible, Docker will re-use the intermediate images, 
-accelerating ``docker build`` significantly (indicated by ``Using cache``:
+accelerating ``docker build`` significantly (indicated by ``Using cache``):
 
 .. code-block:: bash
 
@@ -71,8 +69,8 @@ When you're done with your build, you're ready to look into
 
 .. _dockerfile_format:
 
-2. Format
-=========
+Format
+======
 
 Here is the format of the Dockerfile:
 
@@ -99,16 +97,14 @@ allows statements like:
 
 .. _dockerfile_instructions:
 
-3. Instructions
-===============
 
 Here is the set of instructions you can use in a ``Dockerfile`` for
 building images.
 
 .. _dockerfile_from:
 
-3.1 FROM
---------
+``FROM``
+========
 
     ``FROM <image>``
 
@@ -134,8 +130,8 @@ assumed. If the used tag does not exist, an error will be returned.
 
 .. _dockerfile_maintainer:
 
-3.2 MAINTAINER
---------------
+``MAINTAINER``
+==============
 
     ``MAINTAINER <name>``
 
@@ -144,8 +140,8 @@ the generated images.
 
 .. _dockerfile_run:
 
-3.3 RUN
--------
+``RUN``
+=======
 
 RUN has 2 forms:
 
@@ -174,8 +170,8 @@ Known Issues (RUN)
 
 .. _dockerfile_cmd:
 
-3.4 CMD
--------
+``CMD``
+=======
 
 CMD has three forms:
 
@@ -192,9 +188,7 @@ omit the executable, in which case you must specify an ENTRYPOINT as
 well.
 
 When used in the shell or exec formats, the ``CMD`` instruction sets
-the command to be executed when running the image.  This is
-functionally equivalent to running ``docker commit -run '{"Cmd":
-<command>}'`` outside the builder.
+the command to be executed when running the image.
 
 If you use the *shell* form of the CMD, then the ``<command>`` will
 execute in ``/bin/sh -c``:
@@ -229,20 +223,20 @@ override the default specified in CMD.
 
 .. _dockerfile_expose:
 
-3.5 EXPOSE
-----------
+``EXPOSE``
+==========
 
     ``EXPOSE <port> [<port>...]``
 
-The ``EXPOSE`` instruction exposes ports for use within links. This is
-functionally equivalent to running ``docker commit -run '{"PortSpecs":
-["<port>", "<port2>"]}'`` outside the builder. Refer to
-:ref:`port_redirection` for detailed information.
+The ``EXPOSE`` instructions informs Docker that the container will listen
+on the specified network ports at runtime. Docker uses this information
+to interconnect containers using links (see :ref:`links <working_with_links_names>`),
+and to setup port redirection on the host system (see :ref:`port_redirection`).
 
 .. _dockerfile_env:
 
-3.6 ENV
--------
+``ENV``
+=======
 
     ``ENV <key> <value>``
 
@@ -262,8 +256,8 @@ from the resulting image. You can view the values using ``docker inspect``, and 
 
 .. _dockerfile_add:
 
-3.7 ADD
--------
+``ADD``
+=======
 
     ``ADD <src> <dest>``
 
@@ -329,8 +323,8 @@ The copy obeys the following rules:
 
 .. _dockerfile_entrypoint:
 
-3.8 ENTRYPOINT
---------------
+``ENTRYPOINT``
+==============
 
 ENTRYPOINT has two forms:
 
@@ -378,8 +372,8 @@ this optional but default, you could use a CMD:
 
 .. _dockerfile_volume:
 
-3.9 VOLUME
-----------
+``VOLUME``
+==========
 
     ``VOLUME ["/data"]``
 
@@ -389,8 +383,8 @@ and mounting instructions via docker client, refer to :ref:`volume_def` document
 
 .. _dockerfile_user:
 
-3.10 USER
----------
+``USER``
+========
 
     ``USER daemon``
 
@@ -399,18 +393,27 @@ the image.
 
 .. _dockerfile_workdir:
 
-3.11 WORKDIR
-------------
+``WORKDIR``
+===========
 
     ``WORKDIR /path/to/workdir``
 
 The ``WORKDIR`` instruction sets the working directory for the ``RUN``, ``CMD`` and
 ``ENTRYPOINT``  Dockerfile commands that follow it.
 
-It can be used multiple times in the one Dockerfile.
+It can be used multiple times in the one Dockerfile.  If a relative path is
+provided, it will be relative to the path of the previous ``WORKDIR``
+instruction.  For example:
 
-3.11 ONBUILD
-------------
+    WORKDIR /a
+    WORKDIR b
+    WORKDIR c
+    RUN pwd
+
+The output of the final ``pwd`` command in this Dockerfile would be ``/a/b/c``.
+
+``ONBUILD``
+===========
 
     ``ONBUILD [INSTRUCTION]``
 
@@ -471,7 +474,7 @@ For example you might add something like this:
 
 .. _dockerfile_examples:
 
-4. Dockerfile Examples
+Dockerfile Examples
 ======================
 
 .. code-block:: bash
@@ -481,7 +484,7 @@ For example you might add something like this:
     # VERSION               0.0.1
 
     FROM      ubuntu
-    MAINTAINER Guillaume J. Charmes <guillaume@dotcloud.com>
+    MAINTAINER Guillaume J. Charmes <guillaume@docker.com>
 
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list

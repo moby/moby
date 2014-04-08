@@ -3,7 +3,7 @@
 #### background
 
 libcontainer specifies configuration options for what a container is.  It provides a native Go implementation 
-for using linux namespaces with no external dependencies.  libcontainer provides many convience functions for working with namespaces, networking, and management.  
+for using Linux namespaces with no external dependencies.  libcontainer provides many convenience functions for working with namespaces, networking, and management.  
 
 
 #### container
@@ -16,59 +16,82 @@ process are specified in this file.  The configuration is used for each process 
 Sample `container.json` file:
 ```json
 {
-    "hostname": "koye",
-    "tty": true,
-    "environment": [
-        "HOME=/",
-        "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
-        "container=docker",
-        "TERM=xterm-256color"
-    ],
-    "namespaces": [
-        "NEWIPC",
-        "NEWNS",
-        "NEWPID",
-        "NEWUTS",
-        "NEWNET"
-    ],
-    "capabilities": [
-        "SETPCAP",
-        "SYS_MODULE",
-        "SYS_RAWIO",
-        "SYS_PACCT",
-        "SYS_ADMIN",
-        "SYS_NICE",
-        "SYS_RESOURCE",
-        "SYS_TIME",
-        "SYS_TTY_CONFIG",
-        "MKNOD",
-        "AUDIT_WRITE",
-        "AUDIT_CONTROL",
-        "MAC_OVERRIDE",
-        "MAC_ADMIN",
-        "NET_ADMIN"
-    ],
-    "networks": [{
-            "type": "veth",
-            "context": {
-                "bridge": "docker0",
-                "prefix": "dock"
-            },
-            "address": "172.17.0.100/16",
-            "gateway": "172.17.42.1",
-            "mtu": 1500
-        }
-    ],
-    "cgroups": {
-        "name": "docker-koye",
-        "parent": "docker",
-        "memory": 5248000
-    }
+   "hostname" : "koye",
+   "networks" : [
+      {
+         "gateway" : "172.17.42.1",
+         "context" : {
+            "bridge" : "docker0",
+            "prefix" : "veth"
+         },
+         "address" : "172.17.0.2/16",
+         "type" : "veth",
+         "mtu" : 1500
+      }
+   ],
+   "cgroups" : {
+      "parent" : "docker",
+      "name" : "11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620"
+   },
+   "tty" : true,
+   "environment" : [
+      "HOME=/",
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "HOSTNAME=11bb30683fb0",
+      "TERM=xterm"
+   ],
+   "capabilities_mask" : [
+      "SETPCAP",
+      "SYS_MODULE",
+      "SYS_RAWIO",
+      "SYS_PACCT",
+      "SYS_ADMIN",
+      "SYS_NICE",
+      "SYS_RESOURCE",
+      "SYS_TIME",
+      "SYS_TTY_CONFIG",
+      "MKNOD",
+      "AUDIT_WRITE",
+      "AUDIT_CONTROL",
+      "MAC_OVERRIDE",
+      "MAC_ADMIN",
+      "NET_ADMIN"
+   ],
+   "context" : {
+      "apparmor_profile" : "docker-default"
+   },
+   "mounts" : [
+      {
+         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/resolv.conf",
+         "writable" : false,
+         "destination" : "/etc/resolv.conf",
+         "private" : true
+      },
+      {
+         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/hostname",
+         "writable" : false,
+         "destination" : "/etc/hostname",
+         "private" : true
+      },
+      {
+         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/hosts",
+         "writable" : false,
+         "destination" : "/etc/hosts",
+         "private" : true
+      }
+   ],
+   "namespaces" : [
+      "NEWNS",
+      "NEWUTS",
+      "NEWIPC",
+      "NEWPID",
+      "NEWNET"
+   ]
 }
 ```
 
 Using this configuration and the current directory holding the rootfs for a process, one can use libcontainer to exec the container. Running the life of the namespace, a `pid` file 
-is written to the current directory with the pid of the namespaced process to the external world.  A client can use this pid to wait, kill, or perform other operation with the container.  If a user tries to run an new process inside an existing container with a live namespace the namespace will be joined by the new process.
+is written to the current directory with the pid of the namespaced process to the external world.  A client can use this pid to wait, kill, or perform other operation with the container.  If a user tries to run a new process inside an existing container with a live namespace, the namespace will be joined by the new process.
 
 
 You may also specify an alternate root place where the `container.json` file is read and where the `pid` file will be saved.
@@ -76,7 +99,7 @@ You may also specify an alternate root place where the `container.json` file is 
 #### nsinit
 
 `nsinit` is a cli application used as the reference implementation of libcontainer.  It is able to 
-spawn or join new containers giving the current directory.  To use `nsinit` cd into a linux 
+spawn or join new containers giving the current directory.  To use `nsinit` cd into a Linux 
 rootfs and copy a `container.json` file into the directory with your specified configuration.
 
 To execute `/bin/bash` in the current directory as a container just run:

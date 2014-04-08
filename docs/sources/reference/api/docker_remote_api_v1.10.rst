@@ -136,6 +136,7 @@ Create a container
                 },
                 "VolumesFrom":"",
                 "WorkingDir":"",
+                "DisableNetwork": false,
                 "ExposedPorts":{
                         "22/tcp": {}
                 }
@@ -931,6 +932,7 @@ Remove an image
            ]
 
         :query force: 1/True/true or 0/False/false, default false
+        :query noprune: 1/True/true or 0/False/false, default false
         :statuscode 200: no error
         :statuscode 404: no such image
         :statuscode 409: conflict
@@ -1276,8 +1278,8 @@ In this version of the API, /attach, uses hijacking to transport stdin, stdout a
 3.3 CORS Requests
 -----------------
 
-To enable cross origin requests to the remote api add the flag "-api-enable-cors" when running docker in daemon mode.
+To enable cross origin requests to the remote api add the flag "--api-enable-cors" when running docker in daemon mode.
 
 .. code-block:: bash
 
-   docker -d -H="192.168.1.9:4243" -api-enable-cors
+   docker -d -H="192.168.1.9:4243" --api-enable-cors

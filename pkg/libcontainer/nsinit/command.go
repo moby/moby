@@ -39,7 +39,9 @@ func (c *DefaultCommandFactory) Create(container *libcontainer.Container, consol
 // flags on clone, unshare, and setns
 func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
 	for _, ns := range namespaces {
-		flag |= ns.Value
+		if ns.Enabled {
+			flag |= ns.Value
+		}
 	}
 	return flag
 }

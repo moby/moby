@@ -18,7 +18,7 @@ https://github.com/gasi/docker-node-hello.
 Create Node.js app
 ++++++++++++++++++
 
-First, create a ``package.json`` file that describes your app and its
+First, create a directory ``src`` where all the files would live. Then create a ``package.json`` file that describes your app and its
 dependencies:
 
 .. code-block:: json
@@ -50,7 +50,7 @@ Then, create an ``index.js`` file that defines a web app using the
       res.send('Hello World\n');
     });
 
-    app.listen(PORT)
+    app.listen(PORT);
     console.log('Running on http://localhost:' + PORT);
 
 
@@ -91,7 +91,7 @@ To install the right package for CentOS, we’ll use the instructions from the
 .. code-block:: bash
 
     # Enable EPEL for Node.js
-    RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
+    RUN     rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
     # Install Node.js and npm
     RUN     yum install -y npm
 

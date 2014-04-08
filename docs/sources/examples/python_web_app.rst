@@ -51,7 +51,7 @@ try things out, and then exit when you're done.
 
 .. code-block:: bash
 
-    $ sudo docker run -i -t -name pybuilder_run shykes/pybuilder bash
+    $ sudo docker run -i -t --name pybuilder_run shykes/pybuilder bash
 
     $$ URL=http://github.com/shykes/helloflask/archive/master.tar.gz
     $$ /usr/local/bin/buildapp $URL

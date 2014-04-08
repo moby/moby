@@ -3,15 +3,16 @@ package api
 import (
 	"fmt"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/version"
 	"github.com/dotcloud/docker/utils"
 	"mime"
 	"strings"
 )
 
 const (
-	APIVERSION        = "1.10"
-	DEFAULTHTTPHOST   = "127.0.0.1"
-	DEFAULTUNIXSOCKET = "/var/run/docker.sock"
+	APIVERSION        version.Version = "1.10"
+	DEFAULTHTTPHOST                   = "127.0.0.1"
+	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
 )
 
 func ValidateHost(val string) (string, error) {
@@ -23,8 +24,10 @@ func ValidateHost(val string) (string, error) {
 }
 
 //TODO remove, used on < 1.5 in getContainersJSON
-func displayablePorts(ports *engine.Table) string {
+func DisplayablePorts(ports *engine.Table) string {
 	result := []string{}
+	ports.SetKey("PublicPort")
+	ports.Sort()
 	for _, port := range ports.Data {
 		if port.Get("IP") == "" {
 			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))

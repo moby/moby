@@ -3,21 +3,20 @@ package runconfig
 import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/utils"
 )
 
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
-	LxcConf         []KeyValuePair
+	LxcConf         []utils.KeyValuePair
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
 	PublishAllPorts bool
-}
-
-type KeyValuePair struct {
-	Key   string
-	Value string
+	Dns             []string
+	DnsSearch       []string
+	VolumesFrom     []string
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -34,6 +33,14 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if Links := job.GetenvList("Links"); Links != nil {
 		hostConfig.Links = Links
 	}
-
+	if Dns := job.GetenvList("Dns"); Dns != nil {
+		hostConfig.Dns = Dns
+	}
+	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
+		hostConfig.DnsSearch = DnsSearch
+	}
+	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
+		hostConfig.VolumesFrom = VolumesFrom
+	}
 	return hostConfig
 }

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -27,7 +26,7 @@ var (
 )
 
 func pingRegistryEndpoint(endpoint string) (bool, error) {
-	if endpoint == auth.IndexServerAddress() {
+	if endpoint == IndexServerAddress() {
 		// Skip the check, we now this one is valid
 		// (and we never want to fallback to http in case of error)
 		return false, nil
@@ -42,7 +41,10 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 		conn.SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
 		return conn, nil
 	}
-	httpTransport := &http.Transport{Dial: httpDial}
+	httpTransport := &http.Transport{
+		Dial:  httpDial,
+		Proxy: http.ProxyFromEnvironment,
+	}
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
@@ -103,7 +105,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		nameParts[0] != "localhost" {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
-		return auth.IndexServerAddress(), reposName, err
+		return IndexServerAddress(), reposName, err
 	}
 	if len(nameParts) < 2 {
 		// There is a dot in repos name (and no registry address)
@@ -149,20 +151,6 @@ func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
 	return endpoint, nil
 }
 
-func doWithCookies(c *http.Client, req *http.Request) (*http.Response, error) {
-	for _, cookie := range c.Jar.Cookies(req.URL) {
-		req.AddCookie(cookie)
-	}
-	res, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if len(res.Cookies()) > 0 {
-		c.Jar.SetCookies(req.URL, res.Cookies())
-	}
-	return res, err
-}
-
 func setTokenAuth(req *http.Request, token []string) {
 	if req.Header.Get("Authorization") == "" { // Don't override
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
@@ -177,7 +165,7 @@ func (r *Registry) GetRemoteHistory(imgID, registry string, token []string) ([]s
 		return nil, err
 	}
 	setTokenAuth(req, token)
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +200,7 @@ func (r *Registry) LookupRemoteImage(imgID, registry string, token []string) boo
 		return false
 	}
 	setTokenAuth(req, token)
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		utils.Errorf("Error in LookupRemoteImage %s", err)
 		return false
@@ -229,7 +217,7 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
 	setTokenAuth(req, token)
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
@@ -256,7 +244,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	setTokenAuth(req, token)
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +270,7 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 			return nil, err
 		}
 		setTokenAuth(req, token)
-		res, err := doWithCookies(r.client, req)
+		res, err := r.client.Do(req)
 		if err != nil {
 			return nil, err
 		}
@@ -388,7 +376,7 @@ func (r *Registry) PushImageChecksumRegistry(imgData *ImgData, registry string, 
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
 	req.Header.Set("X-Docker-Checksum-Payload", imgData.ChecksumPayload)
 
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
@@ -424,11 +412,14 @@ func (r *Registry) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regis
 	req.Header.Add("Content-type", "application/json")
 	setTokenAuth(req, token)
 
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode == 401 && strings.HasPrefix(registry, "http://") {
+		return utils.NewHTTPRequestError("HTTP code 401, Docker will not send auth headers over HTTP.", res)
+	}
 	if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
@@ -449,18 +440,20 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 
 	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
+	tarsumLayer := &utils.TarSum{Reader: layer}
 	h := sha256.New()
-	checksumLayer := &utils.CheckSum{Reader: layer, Hash: h}
-	tarsumLayer := &utils.TarSum{Reader: checksumLayer}
+	h.Write(jsonRaw)
+	h.Write([]byte{'\n'})
+	checksumLayer := &utils.CheckSum{Reader: tarsumLayer, Hash: h}
 
-	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", tarsumLayer)
+	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", checksumLayer)
 	if err != nil {
 		return "", "", err
 	}
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
 	setTokenAuth(req, token)
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to upload layer: %s", err)
 	}
@@ -497,7 +490,7 @@ func (r *Registry) PushRegistryTag(remote, revision, tag, registry string, token
 	req.Header.Add("Content-type", "application/json")
 	setTokenAuth(req, token)
 	req.ContentLength = int64(len(revision))
-	res, err := doWithCookies(r.client, req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -615,7 +608,7 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 
 func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	utils.Debugf("Index server: %s", r.indexEndpoint)
-	u := auth.IndexServerAddress() + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
@@ -641,12 +634,12 @@ func (r *Registry) SearchRepositories(term string) (*SearchResults, error) {
 	return result, err
 }
 
-func (r *Registry) GetAuthConfig(withPasswd bool) *auth.AuthConfig {
+func (r *Registry) GetAuthConfig(withPasswd bool) *AuthConfig {
 	password := ""
 	if withPasswd {
 		password = r.authConfig.Password
 	}
-	return &auth.AuthConfig{
+	return &AuthConfig{
 		Username: r.authConfig.Username,
 		Password: password,
 		Email:    r.authConfig.Email,
@@ -682,12 +675,12 @@ type ImgData struct {
 
 type Registry struct {
 	client        *http.Client
-	authConfig    *auth.AuthConfig
+	authConfig    *AuthConfig
 	reqFactory    *utils.HTTPRequestFactory
 	indexEndpoint string
 }
 
-func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
+func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
@@ -707,13 +700,13 @@ func NewRegistry(authConfig *auth.AuthConfig, factory *utils.HTTPRequestFactory,
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
-	if indexEndpoint != auth.IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
+	if indexEndpoint != IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
 		standalone, err := pingRegistryEndpoint(indexEndpoint)
 		if err != nil {
 			return nil, err
 		}
 		if standalone {
-			utils.Debugf("Endpoint %s is eligible for private registry auth. Enabling decorator.", indexEndpoint)
+			utils.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}

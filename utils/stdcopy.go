@@ -108,12 +108,13 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 
 		// Retrieve the size of the frame
 		frameSize = int(binary.BigEndian.Uint32(buf[StdWriterSizeIndex : StdWriterSizeIndex+4]))
+		Debugf("framesize: %d", frameSize)
 
 		// Check if the buffer is big enough to read the frame.
 		// Extend it if necessary.
 		if frameSize+StdWriterPrefixLen > bufLen {
-			Debugf("Extending buffer cap.")
-			buf = append(buf, make([]byte, frameSize-len(buf)+1)...)
+			Debugf("Extending buffer cap by %d (was %d)", frameSize+StdWriterPrefixLen-bufLen+1, len(buf))
+			buf = append(buf, make([]byte, frameSize+StdWriterPrefixLen-bufLen+1)...)
 			bufLen = len(buf)
 		}
 

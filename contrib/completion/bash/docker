@@ -392,11 +392,8 @@ _docker_port()
 _docker_ps()
 {
 	case "$prev" in
-		--since-id|--before-id)
-			COMPREPLY=( $( compgen -W "$( __docker_q ps -a -q )" -- "$cur" ) )
-			# TODO replace this with __docker_containers_all
-			# see https://github.com/dotcloud/docker/issues/3565
-			return
+		--since|--before)
+ 			__docker_containers_all
 			;;
 		-n)
 			return
@@ -407,7 +404,7 @@ _docker_ps()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --no-trunc -l --latest --since-id --before-id -n" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --no-trunc -l --latest --since --before -n" -- "$cur" ) )
 			;;
 		*)
 			;;

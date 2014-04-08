@@ -19,14 +19,14 @@ Container Naming
 
 .. versionadded:: v0.6.5
 
-You can now name your container by using the ``-name`` flag. If no
+You can now name your container by using the ``--name`` flag. If no
 name is provided, Docker will automatically generate a name. You can
 see this name using the ``docker ps`` command.
 
 .. code-block:: bash
 
-    # format is "sudo docker run -name <container_name> <image_name> <command>"
-    $ sudo docker run -name test ubuntu /bin/bash
+    # format is "sudo docker run --name <container_name> <image_name> <command>"
+    $ sudo docker run --name test ubuntu /bin/bash
 
     # the flag "-a" Show all containers. Only running containers are shown by default.
     $ sudo docker ps -a
@@ -41,9 +41,9 @@ Links: service discovery for docker
 .. versionadded:: v0.6.5
 
 Links allow containers to discover and securely communicate with each
-other by using the flag ``-link name:alias``. Inter-container
+other by using the flag ``--link name:alias``. Inter-container
 communication can be disabled with the daemon flag
-``-icc=false``. With this flag set to ``false``, Container A cannot
+``--icc=false``. With this flag set to ``false``, Container A cannot
 access Container B unless explicitly allowed via a link. This is a
 huge win for securing your containers.  When two containers are linked
 together Docker creates a parent child relationship between the
@@ -63,7 +63,7 @@ based on that image and run it as a daemon.
 
 .. code-block:: bash
 
-    $ sudo docker run -d -name redis crosbymichael/redis
+    $ sudo docker run -d --name redis crosbymichael/redis
 
 We can issue all the commands that you would expect using the name
 ``redis``; start, stop, attach, using the name for our container. The
@@ -77,9 +77,9 @@ we need to establish a link.
 
 .. code-block:: bash
 
-    $ sudo docker run -t -i -link redis:db -name webapp ubuntu bash
+    $ sudo docker run -t -i --link redis:db --name webapp ubuntu bash
 
-When you specified ``-link redis:db`` you are telling Docker to link
+When you specified ``--link redis:db`` you are telling Docker to link
 the container named ``redis`` into this new container with the alias
 ``db``. Environment variables are prefixed with the alias so that the
 parent container can access network and environment information from
@@ -112,8 +112,16 @@ Accessing the network information along with the environment of the
 child container allows us to easily connect to the Redis service on
 the specific IP and port in the environment.
 
+.. note:: 
+    These Environment variables are only set for the first process in 
+    the container. Similarly, some daemons (such as ``sshd``) will 
+    scrub them when spawning shells for connection.
+
+    You can work around this by storing the initial ``env`` in a file, 
+    or looking at ``/proc/1/environ``.
+
 Running ``docker ps`` shows the 2 containers, and the ``webapp/db``
-alias name for the redis container.
+alias name for the Redis container.
 
 .. code-block:: bash
 

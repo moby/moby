@@ -4,6 +4,7 @@ package nsinit
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/system"
 	"os"
@@ -14,9 +15,12 @@ import (
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
 func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
-	for _, ns := range container.Namespaces {
-		if err := system.Unshare(ns.Value); err != nil {
-			return -1, err
+	for _, nsv := range container.Namespaces {
+		// skip the PID namespace on unshare because it it not supported
+		if nsv.Key != "NEWPID" {
+			if err := system.Unshare(nsv.Value); err != nil {
+				return -1, err
+			}
 		}
 	}
 	fds, err := ns.getNsFds(nspid, container)
@@ -29,10 +33,15 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 		closeFds()
 		return -1, err
 	}
-
+	processLabel, err := label.GetPidCon(nspid)
+	if err != nil {
+		closeFds()
+		return -1, err
+	}
 	// foreach namespace fd, use setns to join an existing container's namespaces
 	for _, fd := range fds {
 		if fd > 0 {
+			ns.logger.Printf("setns on %d\n", fd)
 			if err := system.Setns(fd, 0); err != nil {
 				closeFds()
 				return -1, fmt.Errorf("setns %s", err)
@@ -44,6 +53,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 	// if the container has a new pid and mount namespace we need to
 	// remount proc and sys to pick up the changes
 	if container.Namespaces.Contains("NEWNS") && container.Namespaces.Contains("NEWPID") {
+		ns.logger.Println("forking to remount /proc and /sys")
 		pid, err := system.Fork()
 		if err != nil {
 			return -1, err
@@ -73,6 +83,10 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 	}
 dropAndExec:
 	if err := finalizeNamespace(container); err != nil {
+		return -1, err
+	}
+	err = label.SetProcessLabel(processLabel)
+	if err != nil {
 		return -1, err
 	}
 	if err := system.Execv(args[0], args[0:], container.Env); err != nil {

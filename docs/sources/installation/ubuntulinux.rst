@@ -64,15 +64,26 @@ Installation
    an earlier version, you will need to follow them again.
 
 Docker is available as a Debian package, which makes installation
-easy. **See the :ref:`installmirrors` section below if you are not in
+easy. **See the** :ref:`installmirrors` **section below if you are not in
 the United States.** Other sources of the Debian packages may be
 faster for you to install.
 
-First add the Docker repository key to your local keychain.
+First, check that your APT system can deal with ``https`` URLs:
+the file ``/usr/lib/apt/methods/https`` should exist. If it doesn't,
+you need to install the package ``apt-transport-https``.
 
 .. code-block:: bash
 
-   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+   [ -e /usr/lib/apt/methods/https ] || {
+     apt-get update
+     apt-get install apt-transport-https
+   }
+
+Then, add the Docker repository key to your local keychain.
+
+.. code-block:: bash
+
+   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
@@ -82,7 +93,7 @@ continue installation.*
 
 .. code-block:: bash
 
-   sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+   sudo sh -c "echo deb https://get.docker.io/ubuntu docker main\
    > /etc/apt/sources.list.d/docker.list"
    sudo apt-get update
    sudo apt-get install lxc-docker
@@ -144,7 +155,7 @@ First add the Docker repository key to your local keychain.
 
 .. code-block:: bash
 
-   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install the
 ``lxc-docker`` package.
@@ -186,7 +197,7 @@ client commands. As of 0.9.0, you can specify that a group other than ``docker``
 should own the Unix socket with the ``-G`` option.
 
 .. warning:: The *docker* group (or the group specified with ``-G``) is
-   root-equivalent.
+   root-equivalent; see :ref:`dockersecurity_daemon` details.
 
 
 **Example:**
@@ -282,8 +293,6 @@ incoming connections on the Docker port (default 4243):
 
    sudo ufw allow 4243/tcp
 
-.. _installmirrors:
-
 Docker and local DNS server warnings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -309,9 +318,9 @@ daemon for the containers:
    sudo nano /etc/default/docker
    ---
    # Add:
-   DOCKER_OPTS="-dns 8.8.8.8"
+   DOCKER_OPTS="--dns 8.8.8.8"
    # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
-   # multiple DNS servers can be specified: -dns 8.8.8.8 -dns 192.168.1.1
+   # multiple DNS servers can be specified: --dns 8.8.8.8 --dns 192.168.1.1
 
 The Docker daemon has to be restarted:
 
@@ -341,6 +350,8 @@ NetworkManager and Docker need to be restarted afterwards:
     sudo restart docker
 
 .. warning:: This might make DNS resolution slower on some networks.
+
+.. _installmirrors:
 
 Mirrors
 ^^^^^^^

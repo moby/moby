@@ -3,8 +3,8 @@ package runconfig
 import (
 	"fmt"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
@@ -15,7 +15,7 @@ import (
 var (
 	ErrInvalidWorikingDirectory = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: -rm and -d")
+	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
 )
 
 //FIXME Only used in tests
@@ -42,8 +42,10 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
 		flDns         opts.ListOpts
+		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
+		flEnvFile     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -69,12 +71,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
+	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of ENV variables")
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
+	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom dns search domains")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -148,7 +152,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint = []string{*flEntrypoint}
 	}
 
-	lxcConf, err := parseLxcConfOpts(flLxcOpts)
+	lxcConf, err := parseKeyValueOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -179,6 +183,20 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		}
 	}
 
+	// collect all the environment variables for the container
+	envVariables := []string{}
+	for _, ef := range flEnvFile.GetAll() {
+		parsedVars, err := opts.ParseEnvFile(ef)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		envVariables = append(envVariables, parsedVars...)
+	}
+	// parse the '-e' and '--env' after, to allow override
+	envVariables = append(envVariables, flEnv.GetAll()...)
+	// boo, there's no debug output for docker run
+	//utils.Debugf("Environment variables for the container: %#v", envVariables)
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -193,12 +211,10 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
-		Env:             flEnv.GetAll(),
+		Env:             envVariables,
 		Cmd:             runCmd,
-		Dns:             flDns.GetAll(),
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
-		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 	}
@@ -211,6 +227,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
+		Dns:             flDns.GetAll(),
+		DnsSearch:       flDnsSearch.GetAll(),
+		VolumesFrom:     flVolumesFrom.GetAll(),
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -225,22 +244,33 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	return config, hostConfig, cmd, nil
 }
 
-func parseLxcConfOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
-	out := make([]KeyValuePair, opts.Len())
-	for i, o := range opts.GetAll() {
-		k, v, err := parseLxcOpt(o)
-		if err != nil {
-			return nil, err
+// options will come in the format of name.key=value or name.option
+func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
+	out := make(map[string][]string, len(opts.GetAll()))
+	for _, o := range opts.GetAll() {
+		parts := strings.SplitN(o, ".", 2)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid opt format %s", o)
+		} else if strings.TrimSpace(parts[0]) == "" {
+			return nil, fmt.Errorf("key cannot be empty %s", o)
 		}
-		out[i] = KeyValuePair{Key: k, Value: v}
+		values, exists := out[parts[0]]
+		if !exists {
+			values = []string{}
+		}
+		out[parts[0]] = append(values, parts[1])
 	}
 	return out, nil
 }
 
-func parseLxcOpt(opt string) (string, string, error) {
-	parts := strings.SplitN(opt, "=", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Unable to parse lxc conf option: %s", opt)
+func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
+	out := make([]utils.KeyValuePair, opts.Len())
+	for i, o := range opts.GetAll() {
+		k, v, err := utils.ParseKeyValueOpt(o)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = utils.KeyValuePair{Key: k, Value: v}
 	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
+	return out, nil
 }

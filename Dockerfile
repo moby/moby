@@ -6,13 +6,13 @@
 # docker build -t docker .
 #
 # # Mount your source in an interactive container for quick testing:
-# docker run -v `pwd`:/go/src/github.com/dotcloud/docker -privileged -i -t docker bash
+# docker run -v `pwd`:/go/src/github.com/dotcloud/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run -privileged docker hack/make.sh test
+# docker run --privileged docker hack/make.sh test
 #
 # # Publish a release:
-# docker run -privileged \
+# docker run --privileged \
 #  -e AWS_S3_BUCKET=baz \
 #  -e AWS_ACCESS_KEY=foo \
 #  -e AWS_SECRET_KEY=bar \
@@ -68,7 +68,10 @@ ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
 RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 
 # Compile Go for cross compilation
-ENV	DOCKER_CROSSPLATFORMS	linux/386 linux/arm darwin/amd64 darwin/386
+ENV	DOCKER_CROSSPLATFORMS	\
+	linux/386 linux/arm \
+	darwin/amd64 darwin/386 \
+	freebsd/amd64 freebsd/386 freebsd/arm
 # (set an explicit GOARM of 5 for maximum compatibility)
 ENV	GOARM	5
 RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
@@ -87,7 +90,7 @@ RUN	git config --global user.email 'docker-dummy@example.com'
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
-ENV	DOCKER_BUILDTAGS	apparmor
+ENV	DOCKER_BUILDTAGS	apparmor selinux
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]
