@@ -72,8 +72,35 @@ fi
 if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 	lsb_dist='Debian'
 fi
+if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
+	lsb_dist='Fedora'
+fi
 
 case "$lsb_dist" in
+	Fedora)
+		(
+			set -x
+			$sh_c 'sleep 3; yum -y -q install docker-io'
+		)
+		if command_exists docker && [ -e /var/run/docker.sock ]; then
+			(
+				set -x
+				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
+			) || true
+		fi
+		your_user=your-user
+		[ "$user" != 'root' ] && your_user="$user"
+		echo
+		echo 'If you would like to use Docker as a non-root user, you should now consider'
+		echo 'adding your user to the "docker" group with something like:'
+		echo
+		echo '  sudo usermod -aG docker' $your_user
+		echo
+		echo 'Remember that you will have to log out and back in for this to take effect!'
+		echo
+		exit 0
+		;;
+
 	Ubuntu|Debian)
 		export DEBIAN_FRONTEND=noninteractive
 		
