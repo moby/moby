@@ -1088,14 +1088,18 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config = container.Config
-	var newConfig runconfig.Config
+	var (
+		config    = container.Config
+		newConfig runconfig.Config
+	)
 	if err := job.GetenvJson("config", &newConfig); err != nil {
 		return job.Error(err)
 	}
 
-	if err := runconfig.Merge(&newConfig, config); err != nil {
-		return job.Error(err)
+	if !job.GetenvBool("no-merge") {
+		if err := runconfig.Merge(&newConfig, config); err != nil {
+			return job.Error(err)
+		}
 	}
 
 	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
