@@ -60,7 +60,17 @@ Docker is available as a Debian package, which makes installation easy.
 in the United States.** Other sources of the Debian packages may be
 faster for you to install.
 
-First add the Docker repository key to your local keychain.
+First, check that your APT system can deal with `https`
+URLs: the file `/usr/lib/apt/methods/https`
+should exist. If it doesn’t, you need to install the package
+`apt-transport-https`.
+
+    [ -e /usr/lib/apt/methods/https ] || {
+      apt-get update
+      apt-get install apt-transport-https
+    }
+
+Then, add the Docker repository key to your local keychain.
 
     sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
@@ -70,7 +80,7 @@ the `lxc-docker` package.
 *You may receive a warning that the package isn’t trusted. Answer yes to
 continue installation.*
 
-    sudo sh -c "echo deb http://get.docker.io/ubuntu docker main\
+    sudo sh -c "echo deb https://get.docker.io/ubuntu docker main\
     > /etc/apt/sources.list.d/docker.list"
     sudo apt-get update
     sudo apt-get install lxc-docker

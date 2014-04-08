@@ -13,6 +13,8 @@ our blog post, ["Getting to Docker
 
 There are several ways to install Docker on AWS EC2:
 
+-   [*Amazon QuickStart (Release Candidate - March
+    2014)*](#amazonquickstart-new) or
 -   [*Amazon QuickStart*](#amazonquickstart) or
 -   [*Standard Ubuntu Installation*](#amazonstandard)
 
@@ -60,6 +62,36 @@ add the *ubuntu* user to it so that you don’t have to use
 Once you’ve got Docker installed, you’re ready to try it out – head on
 over to the [*First steps with Docker*](../../use/basics/) or
 [*Examples*](../../examples/) section.
+
+## Amazon QuickStart (Release Candidate - March 2014)
+
+Amazon just published new Docker-ready AMIs (2014.03 Release Candidate).
+Docker packages can now be installed from Amazon’s provided Software
+Repository.
+
+1.  **Choose an image:**
+    -   Launch the [Create Instance
+        Wizard](https://console.aws.amazon.com/ec2/v2/home?#LaunchInstanceWizard:)
+        menu on your AWS Console.
+    -   Click the `Community AMI` menu option on the
+        left side
+    -   Search for ‘2014.03’ and select one of the Amazon provided AMI,
+        for example `amzn-ami-pv-2014.03.rc-0.x86_64-ebs`
+        .literal}
+    -   For testing you can use the default (possibly free)
+        `t1.micro` instance (more info on
+        [pricing](http://aws.amazon.com/en/ec2/pricing/)).
+    -   Click the `Next: Configure Instance Details`
+        button at the bottom right.
+
+2.  After a few more standard choices where defaults are probably ok,
+    your Amazon Linux instance should be running!
+3.  SSH to your instance to install Docker :
+    `ssh -i <path to your private key> ec2-user@<your public IP address>`
+
+4.  Once connected to the instance, type
+    `sudo yum install -y docker ; sudo service docker start`
+ to install and start Docker
 
 ## Standard Ubuntu Installation
 

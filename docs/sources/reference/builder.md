@@ -4,8 +4,6 @@ page_keywords: builder, docker, Dockerfile, automation, image creation
 
 # Dockerfile Reference
 
-### Introduction
-
 **Docker can act as a builder** and read instructions from a text
 `Dockerfile` to automate the steps you would
 otherwise take manually to create an image. Executing
@@ -45,7 +43,7 @@ effect on the next instructions.
 
 Whenever possible, Docker will re-use the intermediate images,
 accelerating `docker build` significantly (indicated
-by `Using cache`:
+by `Using cache`):
 
     $ docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
@@ -85,12 +83,10 @@ be treated as an argument. This allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
-## [3. Instructions](#id5)
-
 Here is the set of instructions you can use in a `Dockerfile`
 for building images.
 
-### [3.1 FROM](#id6)
+## `FROM`
 
 > `FROM <image>`
 
@@ -117,14 +113,14 @@ If no `tag` is given to the `FROM`
 instruction, `latest` is assumed. If the
 used tag does not exist, an error will be returned.
 
-### MAINTAINER
+## `MAINTAINER`
 
 > `MAINTAINER <name>`
 
 The `MAINTAINER` instruction allows you to set the
 *Author* field of the generated images.
 
-### RUN
+## `RUN`
 
 RUN has 2 forms:
 
@@ -147,7 +143,7 @@ The *exec* form makes it possible to avoid shell string munging, and to
 `RUN` commands using a base image that does not
 contain `/bin/sh`.
 
-**Known Issues (RUN):**
+### Known Issues (RUN)
 
 -   [Issue 783](https://github.com/dotcloud/docker/issues/783) is about
     file permissions problems that can occur when using the AUFS file
@@ -156,7 +152,7 @@ contain `/bin/sh`.
 -   [Issue 2424](https://github.com/dotcloud/docker/issues/2424) Locale
     will not be set automatically.
 
-### CMD
+## `CMD`
 
 CMD has three forms:
 
@@ -176,7 +172,7 @@ the executable, in which case you must specify an ENTRYPOINT as well.
 When used in the shell or exec formats, the `CMD`
 instruction sets the command to be executed when running the image. This
 is functionally equivalent to running
-`docker commit -run '{"Cmd": <command>}'` outside
+`docker commit --run '{"Cmd": <command>}'` outside
 the builder.
 
 If you use the *shell* form of the CMD, then the `<command>`
@@ -196,8 +192,8 @@ strings in the array:
 
 If you would like your container to run the same executable every time,
 then you should consider using `ENTRYPOINT` in
-combination with `CMD`. See [*3.8
-ENTRYPOINT*](#dockerfile-entrypoint).
+combination with `CMD`. See
+[*ENTRYPOINT*](#dockerfile-entrypoint).
 
 If the user specifies arguments to `docker run` then
 they will override the default specified in CMD.
@@ -209,7 +205,7 @@ Don’t confuse `RUN` with `CMD`.
 result; `CMD` does not execute anything at build
 time, but specifies the intended command for the image.
 
-### [3.5 EXPOSE](#id11)
+## `EXPOSE`
 
 > `EXPOSE <port> [<port>...]`
 
@@ -220,7 +216,7 @@ outside the builder. Refer to [*Redirect
 Ports*](../../use/port_redirection/#port-redirection) for detailed
 information.
 
-### [3.6 ENV](#id12)
+## `ENV`
 
 > `ENV <key> <value>`
 
@@ -242,7 +238,7 @@ One example where this can cause unexpected consequenses, is setting
 persist when the container is run interactively; for example:
 `docker run -t -i image bash`
 
-### ADD
+## `ADD`
 
 > `ADD <src> <dest>`
 
@@ -324,7 +320,7 @@ The copy obeys the following rules:
 -   If `<dest>` doesn’t exist, it is created along
     with all missing directories in its path.
 
-### ENTRYPOINT
+## `ENTRYPOINT`
 
 ENTRYPOINT has two forms:
 
@@ -369,7 +365,7 @@ optional but default, you could use a CMD:
     CMD ["-l", "-"]
     ENTRYPOINT ["/usr/bin/wc"]
 
-### VOLUME
+## `VOLUME`
 
 > `VOLUME ["/data"]`
 
@@ -380,14 +376,14 @@ information/examples and mounting instructions via docker client, refer
 to [*Share Directories via
 Volumes*](../../use/working_with_volumes/#volume-def) documentation.
 
-### USER
+## `USER`
 
 > `USER daemon`
 
 The `USER` instruction sets the username or UID to
 use when running the image.
 
-### WORKDIR
+## `WORKDIR`
 
 > `WORKDIR /path/to/workdir`
 
@@ -395,9 +391,16 @@ The `WORKDIR` instruction sets the working directory
 for the `RUN`, `CMD` and
 `ENTRYPOINT` Dockerfile commands that follow it.
 
-It can be used multiple times in the one Dockerfile.
+It can be used multiple times in the one Dockerfile. If a relative path
+is provided, it will be relative to the path of the previous
+`WORKDIR` instruction. For example:
 
-### ONBUILD
+> WORKDIR /a WORKDIR b WORKDIR c RUN pwd
+
+The output of the final `pwd` command in this
+Dockerfile would be `/a/b/c`.
+
+## `ONBUILD`
 
 > `ONBUILD [INSTRUCTION]`
 
@@ -466,7 +469,7 @@ ONBUILD may not trigger FROM or MAINTAINER instructions.
     # VERSION               0.0.1
 
     FROM      ubuntu
-    MAINTAINER Guillaume J. Charmes <guillaume@dotcloud.com>
+    MAINTAINER Guillaume J. Charmes <guillaume@docker.com>
 
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list

@@ -57,11 +57,12 @@ The `docker` daemon is accessed using the
 
 Run the following commands to get it downloaded and set up:
 
-    # Get the file
-    curl -o docker https://get.docker.io/builds/Darwin/x86_64/docker-latest
-
-    # Mark it executable
-    chmod +x docker
+    # Get the docker client file
+    DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
+    curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
+    gunzip $DIR/ld.tgz && \
+    tar xvf $DIR/ld.tar -C $DIR/ && \
+    cp $DIR/usr/local/bin/docker ./docker
 
     # Set the environment variable for the docker daemon
     export DOCKER_HOST=tcp://127.0.0.1:4243
