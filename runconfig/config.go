@@ -27,7 +27,6 @@ type Config struct {
 	Cmd             []string
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
-	VolumesFrom     string
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
@@ -49,7 +48,6 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		OpenStdin:       job.GetenvBool("OpenStdin"),
 		StdinOnce:       job.GetenvBool("StdinOnce"),
 		Image:           job.Getenv("Image"),
-		VolumesFrom:     job.Getenv("VolumesFrom"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
 	}

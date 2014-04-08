@@ -14,8 +14,7 @@ func Compare(a, b *Config) bool {
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
-		a.Tty != b.Tty ||
-		a.VolumesFrom != b.VolumesFrom {
+		a.Tty != b.Tty {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||

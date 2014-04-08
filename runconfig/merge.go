@@ -100,9 +100,6 @@ func Merge(userConf, imageConf *Config) error {
 	if userConf.WorkingDir == "" {
 		userConf.WorkingDir = imageConf.WorkingDir
 	}
-	if userConf.VolumesFrom == "" {
-		userConf.VolumesFrom = imageConf.VolumesFrom
-	}
 	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes
 	} else {

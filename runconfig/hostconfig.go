@@ -16,6 +16,7 @@ type HostConfig struct {
 	PublishAllPorts bool
 	Dns             []string
 	DnsSearch       []string
+	VolumesFrom     string
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -23,6 +24,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
+		VolumesFrom:     job.Getenv("VolumesFrom"),
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)

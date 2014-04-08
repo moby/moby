@@ -59,8 +59,9 @@ func setupMountsForContainer(container *Container, envPath string) error {
 }
 
 func applyVolumesFrom(container *Container) error {
-	if container.Config.VolumesFrom != "" {
-		for _, containerSpec := range strings.Split(container.Config.VolumesFrom, ",") {
+	volumesFrom := container.hostConfig.VolumesFrom
+	if volumesFrom != "" {
+		for _, containerSpec := range strings.Split(volumesFrom, ",") {
 			var (
 				mountRW   = true
 				specParts = strings.SplitN(containerSpec, ":", 2)
@@ -68,7 +69,7 @@ func applyVolumesFrom(container *Container) error {
 
 			switch len(specParts) {
 			case 0:
-				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
+				return fmt.Errorf("Malformed volumes-from specification: %s", volumesFrom)
 			case 2:
 				switch specParts[1] {
 				case "ro":
