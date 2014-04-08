@@ -13,12 +13,10 @@ Dockerfile Reference
 to create an image. Executing ``docker build`` will run your steps and
 commit them along the way, giving you a final image.
 
-.. contents:: Table of Contents
-
 .. _dockerfile_usage:
 
-1. Usage
-========
+Usage
+=====
 
 To :ref:`build <cli_build>` an image from a source repository, create
 a description file called ``Dockerfile`` at the root of your
@@ -71,8 +69,8 @@ When you're done with your build, you're ready to look into
 
 .. _dockerfile_format:
 
-2. Format
-=========
+Format
+======
 
 Here is the format of the Dockerfile:
 
@@ -99,16 +97,14 @@ allows statements like:
 
 .. _dockerfile_instructions:
 
-3. Instructions
-===============
 
 Here is the set of instructions you can use in a ``Dockerfile`` for
 building images.
 
 .. _dockerfile_from:
 
-3.1 FROM
---------
+``FROM``
+========
 
     ``FROM <image>``
 
@@ -134,8 +130,8 @@ assumed. If the used tag does not exist, an error will be returned.
 
 .. _dockerfile_maintainer:
 
-3.2 MAINTAINER
---------------
+``MAINTAINER``
+==============
 
     ``MAINTAINER <name>``
 
@@ -144,8 +140,8 @@ the generated images.
 
 .. _dockerfile_run:
 
-3.3 RUN
--------
+``RUN``
+=======
 
 RUN has 2 forms:
 
@@ -174,8 +170,8 @@ Known Issues (RUN)
 
 .. _dockerfile_cmd:
 
-3.4 CMD
--------
+``CMD``
+=======
 
 CMD has three forms:
 
@@ -229,8 +225,8 @@ override the default specified in CMD.
 
 .. _dockerfile_expose:
 
-3.5 EXPOSE
-----------
+``EXPOSE``
+==========
 
     ``EXPOSE <port> [<port>...]``
 
@@ -241,8 +237,8 @@ functionally equivalent to running ``docker commit --run '{"PortSpecs":
 
 .. _dockerfile_env:
 
-3.6 ENV
--------
+``ENV``
+=======
 
     ``ENV <key> <value>``
 
@@ -262,8 +258,8 @@ from the resulting image. You can view the values using ``docker inspect``, and 
 
 .. _dockerfile_add:
 
-3.7 ADD
--------
+``ADD``
+=======
 
     ``ADD <src> <dest>``
 
@@ -329,8 +325,8 @@ The copy obeys the following rules:
 
 .. _dockerfile_entrypoint:
 
-3.8 ENTRYPOINT
---------------
+``ENTRYPOINT``
+==============
 
 ENTRYPOINT has two forms:
 
@@ -378,8 +374,8 @@ this optional but default, you could use a CMD:
 
 .. _dockerfile_volume:
 
-3.9 VOLUME
-----------
+``VOLUME``
+==========
 
     ``VOLUME ["/data"]``
 
@@ -389,8 +385,8 @@ and mounting instructions via docker client, refer to :ref:`volume_def` document
 
 .. _dockerfile_user:
 
-3.10 USER
----------
+``USER``
+========
 
     ``USER daemon``
 
@@ -399,8 +395,8 @@ the image.
 
 .. _dockerfile_workdir:
 
-3.11 WORKDIR
-------------
+``WORKDIR``
+===========
 
     ``WORKDIR /path/to/workdir``
 
@@ -418,8 +414,8 @@ instruction.  For example:
 
 The output of the final ``pwd`` command in this Dockerfile would be ``/a/b/c``.
 
-3.11 ONBUILD
-------------
+``ONBUILD``
+===========
 
     ``ONBUILD [INSTRUCTION]``
 
@@ -480,7 +476,7 @@ For example you might add something like this:
 
 .. _dockerfile_examples:
 
-4. Dockerfile Examples
+Dockerfile Examples
 ======================
 
 .. code-block:: bash
