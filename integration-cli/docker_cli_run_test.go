@@ -301,3 +301,14 @@ func TestDockerRunWithRelativePath(t *testing.T) {
 
 	logDone("run - volume with relative path")
 }
+
+func TestVolumesMountedAsReadonly(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile")
+	if code, err := runCommand(cmd); err == nil || code == 0 {
+		t.Fatalf("run should fail because volume is ro: exit code %d", code)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes as readonly mount")
+}
