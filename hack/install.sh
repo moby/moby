@@ -103,7 +103,7 @@ case "$lsb_dist" in
 
 	Ubuntu|Debian)
 		export DEBIAN_FRONTEND=noninteractive
-		
+
 		did_apt_get_update=
 		apt_get_update() {
 			if [ -z "$did_apt_get_update" ]; then
@@ -111,21 +111,21 @@ case "$lsb_dist" in
 				did_apt_get_update=1
 			fi
 		}
-		
+
 		# aufs is preferred over devicemapper; try to ensure the driver is available.
 		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 			kern_extras="linux-image-extra-$(uname -r)"
-			
+
 			apt_get_update
 			( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
-			
+
 			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 				echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
 				echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
 				( set -x; sleep 10 )
 			fi
 		fi
-		
+
 		if [ ! -e /usr/lib/apt/methods/https ]; then
 			apt_get_update
 			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https' )
@@ -165,7 +165,7 @@ case "$lsb_dist" in
 		echo
 		exit 0
 		;;
-		
+
 	Gentoo)
 		if [ "$url" = "https://test.docker.io/" ]; then
 			echo >&2
@@ -180,7 +180,7 @@ case "$lsb_dist" in
 			echo >&2
 			exit 1
 		fi
-		
+
 		(
 			set -x
 			$sh_c 'sleep 3; emerge app-emulation/docker'
