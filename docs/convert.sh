@@ -50,3 +50,4 @@ done
 
 #annoyingly, there are lots of failures
 patch --fuzz 50 -t -p2 < pr4923.patch || true
+patch --fuzz 50 -t -p2 < asciinema.patch || true
