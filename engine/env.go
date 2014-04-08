@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -243,6 +244,23 @@ func (env *Env) Map() map[string]string {
 		m[parts[0]] = parts[1]
 	}
 	return m
+}
+
+var expandRe = regexp.MustCompile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
+
+// Expand returns a copy of value with all references to a variable in the form $KEY
+// replaced by the value of the corresponding key in env.
+// If a key has several value, the last value is used.
+func (env *Env) Expand(value string) string {
+	matches := expandRe.FindAllString(value, -1)
+	for _, match := range matches {
+		match = match[strings.Index(match, "$"):]
+		matchKey := strings.Trim(match, "${}")
+
+		matchVal := env.Get(matchKey)
+		value = strings.Replace(value, match, matchVal, -1)
+	}
+	return value
 }
 
 type Table struct {

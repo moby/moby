@@ -3,10 +3,10 @@ package runconfig
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/dockerfile"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -38,19 +38,8 @@ func (cfg *Config) CmdEnv(args string) error {
 	}
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
-
-	envKey := cfg.FindEnvKey(key)
-	replacedValue, err := cfg.ExpandVars(value)
-	if err != nil {
-		return err
-	}
-	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
-
-	if envKey >= 0 {
-		cfg.Env[envKey] = replacedVar
-	} else {
-		cfg.Env = append(cfg.Env, replacedVar)
-	}
+	env := (*engine.Env)(&cfg.Env)
+	env.Add(key, env.Expand(value))
 	return nil
 }
 
@@ -62,30 +51,6 @@ func (cfg *Config) FindEnvKey(key string) int {
 		}
 	}
 	return -1
-}
-
-func (cfg *Config) ExpandVars(value string) (string, error) {
-	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
-	if err != nil {
-		return value, err
-	}
-	matches := exp.FindAllString(value, -1)
-	for _, match := range matches {
-		match = match[strings.Index(match, "$"):]
-		matchKey := strings.Trim(match, "${}")
-
-		for _, envVar := range cfg.Env {
-			envParts := strings.SplitN(envVar, "=", 2)
-			envKey := envParts[0]
-			envValue := envParts[1]
-
-			if envKey == matchKey {
-				value = strings.Replace(value, match, envValue, -1)
-				break
-			}
-		}
-	}
-	return value, nil
 }
 
 func (cfg *Config) CmdCmd(args string) error {
