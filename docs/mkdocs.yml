@@ -17,7 +17,7 @@ theme_dir: ./theme/mkdocs/
 #include_search: true
 
 copyright: Copyright &copy; 2014, Docker.
-#google_analytics: ['UA-27795084-5', 'mkdocs.org']
+google_analytics: ['UA-6096819-11', 'docker.io']
 
 
 pages:
