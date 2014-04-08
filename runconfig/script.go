@@ -13,7 +13,7 @@ import (
 // Handle implements the dockerfile.Handler interface to allow scripting.
 // FIXME:... and we could also output the contents of a config as a Dockerfile :-)
 func (cfg *Config) Handle(stepname, cmd, arg string) error {
-	return dockerfile.ReflectorHandler(cfg).Handle(stepname, cmd, arg)
+	return dockerfile.ReflectorHandler(cfg, nil).Handle(stepname, cmd, arg)
 }
 
 // The ONBUILD command declares a build instruction to be executed in any future build
