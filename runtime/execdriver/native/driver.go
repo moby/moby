@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	DriverName = "native"
-	Version    = "0.1"
+	DriverName                = "native"
+	Version                   = "0.1"
+	BackupApparmorProfilePath = "apparmor/docker.back" // relative to docker root
 )
 
 func init() {
@@ -66,7 +67,8 @@ func NewDriver(root, initPath string) (*driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
-	if err := apparmor.InstallDefaultProfile(); err != nil {
+	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
+	if err := apparmor.InstallDefaultProfile(filepath.Join(root, "../..", BackupApparmorProfilePath)); err != nil {
 		return nil, err
 	}
 	return &driver{
