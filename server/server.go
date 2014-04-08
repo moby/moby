@@ -134,6 +134,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"info":             srv.DockerInfo,
 		"container_delete": srv.ContainerDestroy,
 		"image_export":     srv.ImageExport,
+		"image_root":       srv.ImageExportRoot,
 		"images":           srv.Images,
 		"history":          srv.ImageHistory,
 		"viz":              srv.ImagesViz,
@@ -409,7 +410,42 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func (srv *Server) ImageExportRoot(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s IMAGE\n", job.Name)
+	}
+	name := job.Args[0]
+	// get image json
+	tempdir, err := ioutil.TempDir("", "docker-export-")
+	if err != nil {
+		return job.Error(err)
+	}
+	defer os.RemoveAll(tempdir)
+
+	utils.Debugf("Serializing %s", name)
+
+	if err := srv.exportImage(job.Eng, name, tempdir); err != nil {
+		return job.Error(err)
+	}
+
+	fs, err := archive.Tar(tempdir, archive.Uncompressed)
+	if err != nil {
+		return job.Error(err)
+	}
+	defer fs.Close()
+
+	if _, err := io.Copy(job.Stdout, fs); err != nil {
+		return job.Error(err)
+	}
+	utils.Debugf("End Serializing %s", name)
+	return engine.StatusOK
+}
+
 func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
+	return srv.recursiveExportImage(eng, name, tempdir, true)
+}
+
+func (srv *Server) recursiveExportImage(eng *engine.Engine, name, tempdir string, recurse bool) error {
 	for n := name; n != ""; {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, n)
@@ -447,6 +483,10 @@ func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 		job.Stdout.Add(fsTar)
 		if err := job.Run(); err != nil {
 			return err
+		}
+
+		if !recurse {
+			return nil
 		}
 
 		// find parent
