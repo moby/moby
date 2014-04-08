@@ -316,8 +316,6 @@ by using the ``git://`` schema.
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      --run="": Configuration changes to be applied when the image is launched with `docker run`.
-               (ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 .. _cli_commit_examples:
 
@@ -336,96 +334,6 @@ Commit an existing container
 	REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
-Change the command that a container runs
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Sometimes you have an application container running just a service and you need
-to make a quick change and then change it back.
-
-In this example, we run a container with ``ls`` and then change the image to
-run ``ls /etc``.
-
-.. code-block:: bash
-
-        $ docker run -t --name test ubuntu ls
-        bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
-        $ docker commit --run='{"Cmd": ["ls","/etc"]}' test test2
-        933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
-        $ docker run -t test2
-        adduser.conf            gshadow          login.defs           rc0.d
-        alternatives            gshadow-         logrotate.d          rc1.d
-        apt                     host.conf        lsb-base             rc2.d
-        ...
-
-Merged configs example
-......................
-
-Say you have a Dockerfile like so:
-
-.. code-block:: bash
-
-        ENV MYVAR foobar
-        RUN apt-get install openssh
-        EXPOSE 22
-        CMD ["/usr/sbin/sshd -D"]
-        ...
-
-If you run that, make some changes, and then commit, Docker will merge the environment variable and exposed port configuration settings with any that you specify in the --run= option. This is a change from Docker 0.8.0 and prior where no attempt was made to preserve any existing configuration on commit.
-
-.. code-block:: bash
-
-        $ docker build -t me/foo .
-        $ docker run -t -i me/foo /bin/bash
-        foo-container$ [make changes in the container]
-        foo-container$ exit
-        $ docker commit --run='{"Cmd": ["ls"]}' [container-id] me/bar
-        ...
-
-The me/bar image will now have port 22 exposed, MYVAR env var set to 'foobar', and its default command will be ["ls"].
-
-Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the --run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
-
-Full --run example
-..................
-
-The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
-or ``config`` when running ``docker inspect IMAGEID``. Existing configuration key-values that are
-not overridden in the JSON hash will be merged in.
-
-(Multiline is okay within a single quote ``'``)
-
-.. code-block:: bash
-
-  $ sudo docker commit --run='
-  {
-      "Entrypoint" : null,
-      "Privileged" : false,
-      "User" : "",
-      "VolumesFrom" : "",
-      "Cmd" : ["cat", "-e", "/etc/resolv.conf"],
-      "Dns" : ["8.8.8.8", "8.8.4.4"],
-      "DnsSearch" : ["example.com"],
-      "MemorySwap" : 0,
-      "AttachStdin" : false,
-      "AttachStderr" : false,
-      "CpuShares" : 0,
-      "OpenStdin" : false,
-      "Volumes" : null,
-      "Hostname" : "122612f45831",
-      "PortSpecs" : ["22", "80", "443"],
-      "Image" : "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-      "Tty" : false,
-      "Env" : [
-         "HOME=/",
-         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      ],
-      "StdinOnce" : false,
-      "Domainname" : "",
-      "WorkingDir" : "/",
-      "NetworkDisabled" : false,
-      "Memory" : 0,
-      "AttachStdout" : false
-  }' $CONTAINER_ID
 
 .. _cli_cp:
 

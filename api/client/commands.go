@@ -1433,7 +1433,8 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := cli.Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
-	flConfig := cmd.String([]string{"#run", "-run"}, "", "Config automatically applied when the image is run. "+`(ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')`)
+	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
+	flConfig := cmd.String([]string{"#run", "#-run"}, "", "this option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1471,6 +1472,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		env    engine.Env
 	)
 	if *flConfig != "" {
+		fmt.Fprintf(cli.err, "WARNING: 'commit --run' is deprecated and will be removed in a future version, in favor of inline Dockerfile-compatible commands.\n")
 		config = &runconfig.Config{}
 		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
 			return err
