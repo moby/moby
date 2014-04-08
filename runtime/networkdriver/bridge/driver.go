@@ -68,12 +68,20 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	bridgeIface = job.Getenv("BridgeIface")
+	usingDefaultBridge := false
 	if bridgeIface == "" {
+		usingDefaultBridge = true
 		bridgeIface = DefaultNetworkBridge
 	}
 
 	addr, err := networkdriver.GetIfaceAddr(bridgeIface)
 	if err != nil {
+		// If we're not using the default bridge, fail without trying to create it
+		if !usingDefaultBridge {
+			job.Logf("bridge not found: %s", bridgeIface)
+			job.Error(err)
+			return engine.StatusErr
+		}
 		// If the iface is not found, try to create it
 		job.Logf("creating new bridge for %s", bridgeIface)
 		if err := createBridge(bridgeIP); err != nil {
