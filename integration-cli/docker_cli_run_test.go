@@ -312,3 +312,75 @@ func TestVolumesMountedAsReadonly(t *testing.T) {
 
 	logDone("run - volumes as readonly mount")
 }
+
+func TestVolumesFromInReadonlyMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:ro", "busybox", "touch", "/test/file")
+	if code, err := runCommand(cmd); err == nil || code == 0 {
+		t.Fatalf("run should fail because volume is ro: exit code %d", code)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes from as readonly mount")
+}
+
+// Regression test for #1201
+func TestVolumesFromInReadWriteMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent", "busybox", "touch", "/test/file")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes from as read write mount")
+}
+
+// Test for #1351
+func TestApplyVolumesFromBeforeVolumes(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "touch", "/test/foo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent", "-v", "/test", "busybox", "cat", "/test/foo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes from mounted first")
+}
+
+func TestMultipleVolumesFrom(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent1", "-v", "/test", "busybox", "touch", "/test/foo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--name", "parent2", "-v", "/other", "busybox", "touch", "/other/bar")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent1", "--volumes-from", "parent2",
+		"busybox", "sh", "-c", "cat /test/foo && cat /other/bar")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - multiple volumes from")
+}

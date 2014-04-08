@@ -163,36 +163,24 @@ func TestCompare(t *testing.T) {
 	volumes1 := make(map[string]struct{})
 	volumes1["/test1"] = struct{}{}
 	config1 := Config{
-		PortSpecs:   []string{"1111:1111", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes1,
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumes1,
 	}
 	config3 := Config{
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes1,
-	}
-	config4 := Config{
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "22222222",
-		Volumes:     volumes1,
+		PortSpecs: []string{"0000:0000", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumes1,
 	}
 	volumes2 := make(map[string]struct{})
 	volumes2["/test2"] = struct{}{}
 	config5 := Config{
-		PortSpecs:   []string{"0000:0000", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "11111111",
-		Volumes:     volumes2,
+		PortSpecs: []string{"0000:0000", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumes2,
 	}
 	if Compare(&config1, &config3) {
 		t.Fatalf("Compare should return false, PortSpecs are different")
-	}
-	if Compare(&config1, &config4) {
-		t.Fatalf("Compare should return false, VolumesFrom are different")
 	}
 	if Compare(&config1, &config5) {
 		t.Fatalf("Compare should return false, Volumes are different")
@@ -207,10 +195,9 @@ func TestMerge(t *testing.T) {
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
 	configImage := &Config{
-		PortSpecs:   []string{"1111:1111", "2222:2222"},
-		Env:         []string{"VAR1=1", "VAR2=2"},
-		VolumesFrom: "1111",
-		Volumes:     volumesImage,
+		PortSpecs: []string{"1111:1111", "2222:2222"},
+		Env:       []string{"VAR1=1", "VAR2=2"},
+		Volumes:   volumesImage,
 	}
 
 	volumesUser := make(map[string]struct{})
@@ -249,10 +236,6 @@ func TestMerge(t *testing.T) {
 		if v != "/test1" && v != "/test2" && v != "/test3" {
 			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
-	}
-
-	if configUser.VolumesFrom != "1111" {
-		t.Fatalf("Expected VolumesFrom to be 1111, found %s", configUser.VolumesFrom)
 	}
 
 	ports, _, err := nat.ParsePortSpecs([]string{"0000"})
