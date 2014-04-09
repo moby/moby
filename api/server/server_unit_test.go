@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
@@ -57,15 +59,8 @@ func TesthttpError(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	tmp, err := utils.TestDirectory("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	eng, err := engine.New(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
+	eng := tmpEngine(t)
+	defer rmEngine(eng)
 	var called bool
 	eng.Register("version", func(job *engine.Job) engine.Status {
 		called = true
@@ -80,49 +75,22 @@ func TestGetVersion(t *testing.T) {
 		}
 		return engine.StatusOK
 	})
-
-	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/version", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME getting the version should require an actual running Server
-	if err := ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	r := serveRequest("GET", "/version", nil, eng, t)
 	if !called {
 		t.Fatalf("handler was not called")
 	}
-	out := engine.NewOutput()
-	v, err := out.AddEnv()
-	if err != nil {
-		t.Fatal(err)
+	v := readEnv(r.Body, t)
+	if v.Get("Version") != "42.1" {
+		t.Fatalf("%#v\n", v)
 	}
-	if _, err := io.Copy(out, r.Body); err != nil {
-		t.Fatal(err)
-	}
-	out.Close()
-	expected := "42.1"
-	if result := v.Get("Version"); result != expected {
-		t.Errorf("Expected version %s, %s found", expected, result)
-	}
-	expected = "application/json"
-	if result := r.HeaderMap.Get("Content-Type"); result != expected {
-		t.Errorf("Expected Content-Type %s, %s found", expected, result)
+	if r.HeaderMap.Get("Content-Type") != "application/json" {
+		t.Fatalf("%#v\n", r)
 	}
 }
 
 func TestGetInfo(t *testing.T) {
-	tmp, err := utils.TestDirectory("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	eng, err := engine.New(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	eng := tmpEngine(t)
+	defer rmEngine(eng)
 	var called bool
 	eng.Register("info", func(job *engine.Job) engine.Status {
 		called = true
@@ -134,47 +102,67 @@ func TestGetInfo(t *testing.T) {
 		}
 		return engine.StatusOK
 	})
-
-	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/info", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME getting the version should require an actual running Server
-	if err := ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	r := serveRequest("GET", "/info", nil, eng, t)
 	if !called {
 		t.Fatalf("handler was not called")
 	}
+	v := readEnv(r.Body, t)
+	if v.GetInt("Images") != 42000 {
+		t.Fatalf("%#v\n", v)
+	}
+	if v.GetInt("Containers") != 1 {
+		t.Fatalf("%#v\n", v)
+	}
+	if r.HeaderMap.Get("Content-Type") != "application/json" {
+		t.Fatalf("%#v\n", r)
+	}
+}
 
-	out := engine.NewOutput()
-	i, err := out.AddEnv()
+func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *testing.T) *httptest.ResponseRecorder {
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest(method, target, body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := io.Copy(out, r.Body); err != nil {
+	if err := ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func tmpEngine(t *testing.T) *engine.Engine {
+	tmp, err := utils.TestDirectory("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return eng
+}
+
+func rmEngine(eng *engine.Engine) {
+	os.RemoveAll(eng.Root())
+}
+
+func readEnv(src io.Reader, t *testing.T) *engine.Env {
+	out := engine.NewOutput()
+	v, err := out.AddEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(out, src); err != nil {
 		t.Fatal(err)
 	}
 	out.Close()
-	{
-		expected := 42000
-		result := i.GetInt("Images")
-		if expected != result {
-			t.Fatalf("%#v\n", result)
-		}
+	return v
+}
+
+func toJson(data interface{}, t *testing.T) io.Reader {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(data); err != nil {
+		t.Fatal(err)
 	}
-	{
-		expected := 1
-		result := i.GetInt("Containers")
-		if expected != result {
-			t.Fatalf("%#v\n", result)
-		}
-	}
-	{
-		expected := "application/json"
-		if result := r.HeaderMap.Get("Content-Type"); result != expected {
-			t.Fatalf("%#v\n", result)
-		}
-	}
+	return &buf
 }
