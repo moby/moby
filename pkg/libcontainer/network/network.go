@@ -50,7 +50,7 @@ func SetInterfaceMaster(name, master string) error {
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkSetMaster(iface, masterIface)
+	return netlink.AddToBridge(iface, masterIface)
 }
 
 func SetDefaultGateway(ip string) error {
