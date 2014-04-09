@@ -123,7 +123,8 @@ ul.nav li.dropdown:hover > ul.dropdown-menu {
   font-size: 1.2em;
 }
 #stickynav #docsnav > #main-nav > li > a:hover {
-  color: #5992a3;
+  color: #fff;
+  background: #b1d5df;
 }
 #stickynav #docsnav #main-nav li.active > a {
   background-color: #f2f2f2;
@@ -132,32 +133,11 @@ ul.nav li.dropdown:hover > ul.dropdown-menu {
   color: #5992a3;
 }
 @media (min-width: 992px) {
-/*  #stickynav.affix {
-    top: 0px;
-  }
-  #stickynav.affix-top {
-    position: relative;
-  }
-  #stickynav.affix-bottom {
-    position: relative;
-    top: 0px;
-    bottom: auto; 
-  }*/
 }
 @media (max-width: 760px) {
-/*  #stickynav.affix {
-    position: static;
-  }*/
 }
 /* Left Menu Navigation (Sub-Category Nav.) */
 #left_menu_navigation {
-/*  padding: 0px;
-  background: #ff0;
-  background-color: #fff;
-  border: 1px solid #5992a3;
-  -webkit-border-radius: 0.3em;
-  -moz-border-radius: 0.3em;
-  border-radius: 0.3em;*/
 }
 #left_menu_navigation > h3 {
   padding-left: 0.5em;
@@ -166,6 +146,7 @@ ul.nav li.dropdown:hover > ul.dropdown-menu {
 #left_menu_navigation ul li.main {
   margin: 0px;
   font-size: 1.5em;
+  font-weight: bold;
 }
 #left_menu_navigation ul li {
   color: #444;

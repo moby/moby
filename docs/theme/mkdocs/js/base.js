@@ -1,43 +1,31 @@
 $(document).ready(function() {
-    /* Prettyify */
+    
+    // Prettyify
     prettyPrint();
 
-    $('#stickynav').scrollToFixed();
-
-    $('#left_menu_navigation').scrollToFixed({
-        marginTop: $('#stickynav').height(),
-        limit: $('#footer').offset().top - $('#left_menu_navigation').height() - 450,
-        zIndex: 1,
+    $('#stickynav').scrollToFixed({
+        dontSetWidth: true,
+        minWidth: 992,
     });
 
-    // /* Sticky TOC via Affix plug-in */
-    // $('#left_menu_navigation').affix({
-    //     offset: {
-    //         top: $('#left_menu_navigation').offset().top,
-    //         bottom: 450,
-    //     }
-    // });
-    // $('#stickynav').affix({
-    //     offset: {
-    //         top: ($('#stickynav').offset().top) + 
-    //              ($('#horizontal_thin_menu').offset().top) +
-    //              ($('#topmostnav').offset().top),
-    //     }
-    // });
+    // https://github.com/bigspotteddog/ScrollToFixed
+    $('#left_menu_navigation').scrollToFixed({
+        marginTop: $('#stickynav').height(),
+        limit: function () {
+            if ( $('#left_menu_navigation').height() + 120 >= $(window).height() ) {
+                console.log('bla');
+                return 1;
+            }
+            return $('#footer').offset().top - $('#footer').height() - 120;
+        },
+        zIndex: 1,
+        minWidth: 768,
+    });
+
+    console.log($('#left_menu_navigation').height() >= $(window).height());
 
 });
 
-// $(window).on("resize", function() {
-//     var isWindowTallEnough = $('#left_menu_navigation').height() + 20 < $(window).height();
-
-//     console.log(isWindowTallEnough);
-
-//     if (isWindowTallEnough) {
-//         $('#left_menu_navigation').removeClass("affix affix-top");
-//     } else {
-//         $('#left_menu_navigation').addClass("affix affix-top");
-//     }
-// });
 
 // /* Scrollspy */
 // var navHeight = $('#left_menu_navigation').outerHeight(true) + 10;
