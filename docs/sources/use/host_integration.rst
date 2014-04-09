@@ -42,6 +42,7 @@ into it:
    start on filesystem and started docker
    stop on runlevel [!2345]
    respawn
+   respawn limit 12 10
    script
      /usr/bin/docker start -a redis_server
    end script
