@@ -10,21 +10,11 @@ install: true
 
 before_script:
   - env | sort
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq python-yaml
-  - git remote add upstream git://github.com/dotcloud/docker.git
-  - upstream=master;
-    if [ "$TRAVIS_PULL_REQUEST" != false ]; then
-      upstream=$TRAVIS_BRANCH;
-    fi;
-    git fetch --append --no-tags upstream refs/heads/$upstream:refs/remotes/upstream/$upstream
-# sometimes we have upstream master already as origin/master (PRs), but other times we don't, so let's just make sure we have a completely unambiguous way to specify "upstream master" from here out
-# but if it's a PR against non-master, we need that upstream branch instead :)
   - sudo pip install -r docs/requirements.txt
 
 script:
-  - hack/travis/dco.py
-  - hack/travis/gofmt.py
+  - hack/make.sh validate-dco
+  - hack/make.sh validate-gofmt
   - make -sC docs SPHINXOPTS=-qW docs man
 
 # vim:set sw=2 ts=2:

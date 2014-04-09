@@ -40,13 +40,19 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
+	validate-dco
+	validate-gofmt
+	
 	binary
+	
 	test
 	test-integration
 	test-integration-cli
+	
 	dynbinary
 	dyntest
 	dyntest-integration
+	
 	cover
 	cross
 	tgz
