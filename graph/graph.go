@@ -272,15 +272,15 @@ func SetupInitLayer(initLayer string) error {
 
 		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
+				if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+					return err
+				}
 				switch typ {
 				case "dir":
 					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
 						return err
 					}
 				case "file":
-					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
-						return err
-					}
 					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
 					if err != nil {
 						return err
