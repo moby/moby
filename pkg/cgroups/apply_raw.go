@@ -78,17 +78,17 @@ func (raw *rawCgroup) join(subsystem string, pid int) (string, error) {
 }
 
 func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
-	if !c.DeviceAccess {
-		dir, err := raw.join("devices", pid)
+	dir, err := raw.join("devices", pid)
+	if err != nil {
+		return err
+	}
+	defer func() {
 		if err != nil {
-			return err
+			os.RemoveAll(dir)
 		}
+	}()
 
-		defer func() {
-			if err != nil {
-				os.RemoveAll(dir)
-			}
-		}()
+	if !c.DeviceAccess {
 
 		if err := writeFile(dir, "devices.deny", "a"); err != nil {
 			return err
@@ -132,16 +132,17 @@ func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 }
 
 func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
-	if c.Memory != 0 || c.MemorySwap != 0 {
-		dir, err := raw.join("memory", pid)
+	dir, err := raw.join("memory", pid)
+	if err != nil && (c.Memory != 0 || c.MemorySwap != 0) {
+		return err
+	}
+	defer func() {
 		if err != nil {
-			return err
+			os.RemoveAll(dir)
 		}
-		defer func() {
-			if err != nil {
-				os.RemoveAll(dir)
-			}
-		}()
+	}()
+
+	if c.Memory != 0 || c.MemorySwap != 0 {
 
 		if c.Memory != 0 {
 			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(c.Memory, 10)); err != nil {
@@ -178,9 +179,10 @@ func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
 }
 
 func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
+	// we don't want to join this cgroup unless it is specified
 	if c.CpusetCpus != "" {
 		dir, err := raw.join("cpuset", pid)
-		if err != nil {
+		if err != nil && c.CpusetCpus != "" {
 			return err
 		}
 		defer func() {
