@@ -66,6 +66,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr str
 		"-p", proto,
 		"-d", daddr,
 		"--dport", strconv.Itoa(port),
+		"!", "-i", c.Bridge,
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port))); err != nil {
 		return err
