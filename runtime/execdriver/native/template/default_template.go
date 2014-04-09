@@ -3,6 +3,7 @@ package template
 import (
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 )
 
 // New returns the docker default configuration for libcontainer
@@ -36,10 +37,11 @@ func New() *libcontainer.Container {
 			Parent:       "docker",
 			DeviceAccess: false,
 		},
-		Context: libcontainer.Context{
-			"apparmor_profile": "docker-default",
-		},
+		Context: libcontainer.Context{},
 	}
 	container.CapabilitiesMask.Get("MKNOD").Enabled = true
+	if apparmor.IsEnabled() {
+		container.Context["apparmor_profile"] = "docker-default"
+	}
 	return container
 }
