@@ -418,6 +418,9 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		// the layer is also a directory. Then we want to merge them (i.e.
 		// just apply the metadata from the layer).
 		if fi, err := os.Lstat(path); err == nil {
+			if fi.IsDir() && hdr.Name == "." {
+				continue
+			}
 			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
 				if err := os.RemoveAll(path); err != nil {
 					return err

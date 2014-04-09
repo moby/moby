@@ -386,9 +386,10 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 
 func (b *buildFile) addContext(container *daemon.Container, orig, dest string, remote bool) error {
 	var (
-		err      error
-		origPath = path.Join(b.contextPath, orig)
-		destPath = path.Join(container.RootfsPath(), dest)
+		err        error
+		destExists = true
+		origPath   = path.Join(b.contextPath, orig)
+		destPath   = path.Join(container.RootfsPath(), dest)
 	)
 
 	if destPath != container.RootfsPath() {
@@ -401,6 +402,14 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 	// Preserve the trailing '/'
 	if strings.HasSuffix(dest, "/") {
 		destPath = destPath + "/"
+	}
+	destStat, err := os.Stat(destPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			destExists = false
+		} else {
+			return err
+		}
 	}
 	fi, err := os.Stat(origPath)
 	if err != nil {
@@ -423,8 +432,20 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
-		if err := chownR(destPath, 0, 0); err != nil {
-			return err
+		if destExists {
+			files, err := ioutil.ReadDir(origPath)
+			if err != nil {
+				return err
+			}
+			for _, file := range files {
+				if err := chownR(filepath.Join(destPath, file.Name()), 0, 0); err != nil {
+					return err
+				}
+			}
+		} else {
+			if err := chownR(destPath, 0, 0); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -456,7 +477,12 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return err
 	}
 
-	if err := chownR(destPath, 0, 0); err != nil {
+	resPath := destPath
+	if destExists && destStat.IsDir() {
+		resPath = path.Join(destPath, path.Base(origPath))
+	}
+
+	if err := chownR(resPath, 0, 0); err != nil {
 		return err
 	}
 	return nil
