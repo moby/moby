@@ -63,6 +63,7 @@ func main() {
 		flCa                 = flag.String([]string{"-tlscacert"}, dockerConfDir+defaultCaFile, "Trust only remotes providing a certificate signed by the CA given here")
 		flCert               = flag.String([]string{"-tlscert"}, dockerConfDir+defaultCertFile, "Path to TLS certificate file")
 		flKey                = flag.String([]string{"-tlskey"}, dockerConfDir+defaultKeyFile, "Path to TLS key file")
+		flRemoveBroken       = flag.Bool([]string{"-remove-broken-containers"}, false, "Remove broken containers on daemon startup")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
@@ -147,6 +148,7 @@ func main() {
 			job.Setenv("GraphDriver", *flGraphDriver)
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
+			job.SetenvBool("RemoveBroken", *flRemoveBroken)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
 			}

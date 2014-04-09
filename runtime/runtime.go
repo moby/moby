@@ -129,7 +129,7 @@ func (runtime *Runtime) containerRoot(id string) string {
 func (runtime *Runtime) load(id string) (*Container, error) {
 	container := &Container{root: runtime.containerRoot(id)}
 	if err := container.FromDisk(); err != nil {
-		return nil, err
+		return container, err
 	}
 	if container.ID != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
@@ -319,6 +319,14 @@ func (runtime *Runtime) restore() error {
 		}
 		if err != nil {
 			utils.Errorf("Failed to load container %v: %v", id, err)
+			if container != nil && runtime.Config().RemoveBroken {
+				if err := runtime.Register(container); err != nil {
+					utils.Errorf("Failed to register container %s: %s", container.ID, err)
+				}
+				if err := runtime.Destroy(container); err != nil {
+					utils.Errorf("Failed to destroy broken container %v: %v", id, err)
+				}
+			}
 			continue
 		}
 
@@ -333,7 +341,7 @@ func (runtime *Runtime) restore() error {
 
 	register := func(container *Container) {
 		if err := runtime.Register(container); err != nil {
-			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+			utils.Errorf("Failed to register container %s: %s", container.ID, err)
 		}
 	}
 
