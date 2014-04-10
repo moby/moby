@@ -1,10 +1,11 @@
-<div id="left_menu_navigation" class="bs-sidebar hidden-print affix well" role="complementary">
-    <ul class="nav bs-sidenav">
-    {% for toc_item in toc %}
-        <li class="main {% if toc_item.active %}active{% endif %}"><a href="{{ toc_item.url }}">{{ toc_item.title }}</a></li>
-        {% for toc_item in toc_item.children %}
-            <li><a href="{{ toc_item.url }}">{{ toc_item.title }}</a></li>
-        {% endfor %}
+<div id="toc_table" class="bs-sidebar hidden-print" role="complementary">
+  <h2>{{ current_page.title }}</h2>
+  <h3>TABLE OF CONTENTS</h3>
+  <ul id="toc_navigation" class="nav bs-sidenav">
+  {% for toc_item in toc %}
+    {% for toc_item in toc_item.children %}
+      <li><a href="{{ toc_item.url }}">{{ toc_item.title }}</a></li>
     {% endfor %}
-    </ul>
+  {% endfor %}
+  </ul>
 </div>
