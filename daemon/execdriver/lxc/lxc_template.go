@@ -109,8 +109,15 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
-#lxc.aa_profile = unconfined
+# not unconfined
 {{end}}
+{{else}}
+# restrict access to proc
+lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/sys none bind,ro 0 0
+lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/irq none bind,ro 0 0
+lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/acpi none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/sysrq-trigger none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/kcore none bind,ro 0 0
 {{end}}
 
 # limits
