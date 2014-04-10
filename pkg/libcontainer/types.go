@@ -68,7 +68,7 @@ func (n Namespaces) Contains(ns string) bool {
 
 func (n Namespaces) Get(ns string) *Namespace {
 	for _, nsp := range n {
-		if nsp.Key == ns {
+		if nsp != nil && nsp.Key == ns {
 			return nsp
 		}
 	}
