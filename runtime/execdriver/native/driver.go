@@ -170,7 +170,8 @@ func (d *driver) Name() string {
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
-	subsystem := "devices"
+	// cpu is chosen because it is the only non optional subsystem in cgroups
+	subsystem := "cpu"
 	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
 	if err != nil {
 		return pids, err
