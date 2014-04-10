@@ -69,6 +69,7 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 		if err := b.runtime.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.outStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 		} else {
+			delete(containers, c)
 			fmt.Fprintf(b.outStream, "Removing intermediate container %s\n", utils.TruncateID(c))
 		}
 	}
@@ -780,14 +781,13 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
 			return "", err
+		} else if b.rm {
+			b.clearTmp(b.tmpContainers)
 		}
 		stepN += 1
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
-		if b.rm {
-			b.clearTmp(b.tmpContainers)
-		}
 		return b.image, nil
 	}
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
