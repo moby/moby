@@ -8,7 +8,7 @@ body {
   font-family: "Cabin", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-/* Fix common bootstrap issue */
+/* Fix bootstrap madding (//padding) issue(s) */
 .row {
   margin-left: 0;
   margin-right: 0;
@@ -30,7 +30,7 @@ body {
     padding-right: 0px;
 }
 
-/* Previous Next Floating Navigation */
+/* Previous & Next floating navigation */
 #nav_prev_next {
   position: fixed;
   bottom: 0; right: 1em;
@@ -63,7 +63,7 @@ body {
   min-width: 75px;
 }
 
-/* Scroll to top */
+/* Scroll to top button */
 #scroll_to_top {
   position: fixed;
   bottom: 0; left: 1em;
@@ -113,9 +113,9 @@ body {
   color: #777777;
 }
 #header .navbar-nav {
-	right: 0px;
-	top: 0px;
-	position: absolute;
+    right: 0px;
+    top: 0px;
+    position: absolute;
 }
 #header .navbar-inner {
   padding-right: 0px;
@@ -132,34 +132,27 @@ body {
 /* Horizontal Thin Sticky Menu */
 #horizontal_thin_menu {
   width: 100%;
-  top: 70px;
   background-color: #5992a3;
   height: 30px;
   color: white;
   text-align: right;
   padding: 5px 10px;
-  z-index: 10;
 }
-#horizontal_thin_menu a {
+#horizontal_thin_menu > a {
   display: inline-block;
   color: white;
   padding: 0px 10px;
 }
-/* Main Docs Navigaton Menu (Horizontal) */
+
+/* Main Docs navigaton menu (horizontal) */
 #nav_menu {
   position: relative;
   width: 100%;
   background-color: #71afc0;
   padding: 0px 10px;
   color: white;
-/*  background-image: url();
-  border-collapse: collapse;
-  border: 0px;*/
-  /*overflow: hidden;*/
 }
 #nav_menu > #docsnav {
-/*  padding-left: 0px !important;
-  padding-right: 0px !important;*/
 }
 #nav_menu > #docsnav > #nav_search_toggle {
   display: none;
@@ -272,19 +265,9 @@ body {
   width: 100%;
 }
 
-
-@media (min-width: 992px) {
-}
-@media (max-width: 800px) {
-  #nav_menu > #docsnav > #main-nav > li {
-    display: none;
-  }
-  #nav_menu > #docsnav > #main-nav > li.active {
-    display: block;
-  }
-}
-/* TOC */
+/* TOC (Left) */
 #toc_table {
+  padding-left: 1em;
 }
 #toc_table > h2 {
   margin: 0px;
@@ -313,24 +296,23 @@ body {
   margin: 0;
 }
 
-/* Content Area */
+/* Main content area */
 #main_content {
+  margin-left: -15px;
 }
 #main_content ol.breadcrumb {
   padding: 0.5em;
   margin: 0em 0em 0.5em 0em;
   background-color: #fff;
   border: 1px solid #5992a3;
-/*  -webkit-border-radius: 0.3em;
-  -moz-border-radius: 0.3em;
-  border-radius: 0.3em;*/
   width: 100%;
 }
 #main_content h1 {
   margin-top: 0px;
 }
+
+/* Footer from original CSSs */
 @media (min-width: 960px) {
-  /* Footer from original CSSs */
   #footer {
     height: 450px;
   }
@@ -442,27 +424,78 @@ body {
   }
 }
 
-/* Mobile CSS Adjustments */
+/*****************************
+*   Mobile CSS Adjustments   *
+*****************************/
+
+/* Horizontal nav. (menu & thin menu) convenience fix for Tablets */
+@media (min-width: 768px) and (max-width: 999px) {
+
+  #docsnav, #horizontal_thin_menu {
+    width: 100% !important;
+  }
+
+}
+
+@media (max-width: 991px) {
+
+  /* TOC Table (Left) */
+  #toc_table {
+    padding: 1em;
+    margin: 0em -15px 15px 0em;
+    background: #fff;
+    -webkit-border-radius: 7px 7px 7px 7px;
+    -moz-border-radius: 7px 7px 7px 7px;
+    border-radius: 7px 7px 7px 7px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+  }
+  #toc_table > h2 {
+    margin-bottom: 0.3em;
+    font-size: 2em;
+  }
+  #toc_table > h3 {
+    display: block;
+    margin: 0;
+  }
+  #toc_table > #toc_navigation {
+    display: none;
+  }
+  #toc_table > #toc_navigation > li:first-child {
+    margin-top: 1em !important;
+  }
+
+}
+
 @media (max-width: 800px) {
+
+  /* Disable breadcrumbs */
+  #main_content ol.breadcrumb {
+    display: none;
+  }
+
+  /* Shrink main navigation menu to one item (i.e., form breadcrumbs) */
+  #nav_menu > #docsnav > #main-nav > li {
+    display: none;
+  }
+  #nav_menu > #docsnav > #main-nav > li.active {
+    display: block;
+  }
   #nav_menu > #docsnav > span {
     display: block;
   }
-
   #nav_menu > #docsnav > span:hover {
     background: #b1d5df;
   }
-
   #nav_menu > #docsnav > span > b {
     border-top-color: #b1d5df !important;
   }
   #nav_menu > #docsnav > span:hover > b {
     border-top-color: #71afc0 !important;
   }
-
   #nav_menu > #docsnav > span:hover > #sub_main_menu {
     display: block;
   }
-
   #nav_menu > #docsnav > .arrow {
     display: block;
   }
@@ -504,8 +537,6 @@ body {
 
   /* Menu > Submenu (Dropdown) on Mobile */
   #nav_menu > #docsnav > #main-nav li .submenu {
-/*    left: 0;
-    right: 0;*/
   }
   #nav_menu > #docsnav > #main-nav > li:hover .submenu li {
     padding: 1em 2em;
@@ -519,6 +550,9 @@ body {
   /* Thin menu (login - signup) */
   #horizontal_thin_menu { display: none; }
 
+}
+
+@media (max-width: 850px) {
   /* Docker IO Navigation */
   #header {
     display: block;
@@ -534,39 +568,10 @@ body {
   #header .brand > img {
     height: 50px;
   }
-
 }
 
 @media (max-width: 999px) {
-  /* TOC */
-  #toc_table {
-    /*position: fixed;*/
-    padding: 1em;
-    /*margin: -10px 0em 1em -16px;*/
-    margin: 0em 0em 1em 0em;
-    background: #fff;
-    border-bottom: none;
-    -webkit-border-radius: 7px 7px 7px 7px;
-    -moz-border-radius: 7px 7px 7px 7px;
-    border-radius: 7px 7px 7px 7px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-  }
-  #toc_table > h2 {
-    /*display: none;*/
-    margin-bottom: 0.3em;
-    font-size: 2em;
-  }
-  #toc_table > h3 {
-    display: block;
-    margin: 0;
-  }
-  #toc_table > #toc_navigation {
-    display: none;
-  }
-  #toc_table > #toc_navigation > li:first-child {
-    margin-top: 1em !important;
-  }
+
   /* Search on mobile */
   #nav_menu > #docsnav > #nav_search {
     display: none;
@@ -581,8 +586,4 @@ body {
     padding-right: 0px !important;
   }
 
-  /* Breadcrumbs */
-  #main_content ol.breadcrumb {
-    display: none;
-  }
 }
