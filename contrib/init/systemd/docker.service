@@ -4,6 +4,7 @@ Documentation=http://docs.docker.io
 After=network.target
 
 [Service]
+EnvironmentFile=-/etc/default/docker
 ExecStart=/usr/bin/docker -d
 Restart=on-failure
 LimitNOFILE=1048576
