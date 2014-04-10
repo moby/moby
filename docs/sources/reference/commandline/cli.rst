@@ -411,7 +411,9 @@ For example:
 
     Get real time events from the server
 
-    --since="": Show previously created events and then stream.
+    --since="": Show all events created since timestamp
+               (either seconds since epoch, or date string as below)
+    --until="": Show events created before timestamp
                (either seconds since epoch, or date string as below)
 
 .. _cli_events_example:

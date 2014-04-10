@@ -221,8 +221,10 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 	}
 
 	var (
-		from  = job.Args[0]
-		since = job.GetenvInt64("since")
+		from    = job.Args[0]
+		since   = job.GetenvInt64("since")
+		until   = job.GetenvInt64("until")
+		timeout = time.NewTimer(time.Unix(until, 0).Sub(time.Now()))
 	)
 	sendEvent := func(event *utils.JSONMessage) error {
 		b, err := json.Marshal(event)
@@ -251,9 +253,9 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 	srv.Unlock()
 	job.Stdout.Write(nil) // flush
 	if since != 0 {
-		// If since, send previous events that happened after the timestamp
+		// If since, send previous events that happened after the timestamp and until timestamp
 		for _, event := range srv.GetEvents() {
-			if event.Time >= since {
+			if event.Time >= since && (event.Time <= until || until == 0) {
 				err := sendEvent(&event)
 				if err != nil && err.Error() == "JSON error" {
 					continue
@@ -265,13 +267,23 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 			}
 		}
 	}
-	for event := range listener {
-		err := sendEvent(&event)
-		if err != nil && err.Error() == "JSON error" {
-			continue
-		}
-		if err != nil {
-			return job.Error(err)
+
+	// If no until, disable timeout
+	if until == 0 {
+		timeout.Stop()
+	}
+	for {
+		select {
+		case event := <-listener:
+			err := sendEvent(&event)
+			if err != nil && err.Error() == "JSON error" {
+				continue
+			}
+			if err != nil {
+				return job.Error(err)
+			}
+		case <-timeout.C:
+			return engine.StatusOK
 		}
 	}
 	return engine.StatusOK
