@@ -1,12 +1,3 @@
-
- // $(document).bind("mobileinit", function(){
- //    $.extend($.mobile, {
- //      hashListeningEnabled: false,
- //      ajaxEnabled: false,
- //      pushStateEnabled: false,
- //    });
- //  });
-
 $(document).ready(function() {
 
   // Prettyify
@@ -43,7 +34,7 @@ function resizeMenuDropdown () {
 // https://github.com/bigspotteddog/ScrollToFixed
 function checkToScrollTOC () {
 
-  if ( $(window).width() > 768 ) {
+  if ( $(window).width() > 999 ) {
 
     if ( $('#toc_table').height() >= $(window).height() ) {
       $('#toc_table').trigger('detach.ScrollToFixed');
@@ -59,16 +50,6 @@ function checkToScrollTOC () {
     }
 
   }
-
-  // else
-
-  // {
-
-  //   $('#toc_table').scrollToFixed({
-  //     marginTop: $('#nav_menu').height() + 14,
-  //   });
-
-  // }
 
 }
 
