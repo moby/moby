@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 EnvironmentFile=-/etc/default/docker
-ExecStart=/usr/bin/docker -d
+ExecStart=/usr/bin/docker -d $DOCKER_OPTS
 Restart=on-failure
 LimitNOFILE=1048576
 LimitNPROC=1048576
