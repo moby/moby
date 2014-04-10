@@ -39,12 +39,16 @@
             </div>
             <div class="row">
                 <div class="container">
-                    <div class="col-md-3 nopadding">{% include "toc.html" %}</div>
-                    <div class="col-md-9" role="main">
-                        <main id="main_content" role="main">
-                            {% include "breadcrumbs.html" %}
-                            {{ content }}
-                        </main>
+                    <div class="row">
+                        <div class="col-md-3">
+                            {% include "toc.html" %}
+                        </div>
+                        <div class="col-md-9" role="main">
+                            <main id="main_content" role="main">
+                                {% include "breadcrumbs.html" %}
+                                {{ content }}
+                            </main>
+                        </div>
                     </div>
                 </div>
             </div>
