@@ -1,52 +1,85 @@
 
-/* Prettyify */
-$( document ).ready(function() {
-    prettyPrint();
+ // $(document).bind("mobileinit", function(){
+ //    $.extend($.mobile, {
+ //      hashListeningEnabled: false,
+ //      ajaxEnabled: false,
+ //      pushStateEnabled: false,
+ //    });
+ //  });
+
+$(document).ready(function() {
+
+  // Prettyify
+  prettyPrint();
+
+  // Resizing
+  resizeMenuDropdown();
+  checkToScrollTOC();
+
+  $('#nav_menu').scrollToFixed({
+    dontSetWidth: true,
+    // minWidth: 992,
+  });
+
+  console.log($('#toc_table').height() >= $(window).height());
+
+  $(window).on('resize', function() {
+    resizeMenuDropdown();
+    checkToScrollTOC();
+  });
+
+  $('#toc_table').on('click', function () {
+    $('#toc_table > #toc_navigation').toggle();
+  })
+
 });
 
+function resizeMenuDropdown () {
+  if ( $(window).width() >= 768 ) {
+    $('#main-nav > li > .submenu').css("max-height", ($('body').height() - 160) + 'px');
+  }
+}
 
-/* Scrollspy */
-var navHeight = $('.navbar').outerHeight(true) + 10
+// https://github.com/bigspotteddog/ScrollToFixed
+function checkToScrollTOC () {
 
-$('body').scrollspy({
-    target: '.bs-sidebar',
-    offset: navHeight
-})
+  if ( $(window).width() > 768 ) {
 
-
-/* Prevent disabled links from causing a page reload */
-$("li.disabled a").click(function() {
-    event.preventDefault();
-});
-
-
-/* Adjust the scroll height of anchors to compensate for the fixed navbar */
-window.disableShift = false;
-var shiftWindow = function() {
-    if (window.disableShift) {
-        window.disableShift = false;
+    if ( $('#toc_table').height() >= $(window).height() ) {
+      $('#toc_table').trigger('detach.ScrollToFixed');
     } else {
-        /* If we're at the bottom of the page, don't erronously scroll up */
-        var scrolledToBottomOfPage = (
-            (window.innerHeight + window.scrollY) >= document.body.offsetHeight
-        );
-        if (!scrolledToBottomOfPage) {
-            scrollBy(0, -60);
-        };
-    };
-};
-if (location.hash) {shiftWindow();}
-window.addEventListener("hashchange", shiftWindow);
+      $('#toc_table').scrollToFixed({
+        marginTop: $('#nav_menu').height() + 14,
+        limit: function () { return $('#footer').offset().top - 450; },
+        // bottom: 0,
+        zIndex: 1,
+        minWidth: 769,
+        removeOffsets: true,
+      });
+    }
 
+  }
 
-/* Deal with clicks on nav links that do not change the current anchor link. */
-$("ul.nav a" ).click(function() {
-    var href = this.href;
-    var suffix = location.hash;
-    var matchesCurrentHash = (href.indexOf(suffix, href.length - suffix.length) !== -1);
-    if (location.hash && matchesCurrentHash) {
-        /* Force a single 'hashchange' event to occur after the click event */
-        window.disableShift = true;
-        location.hash='';
-    };
-});
+  // else
+
+  // {
+
+  //   $('#toc_table').scrollToFixed({
+  //     marginTop: $('#nav_menu').height() + 14,
+  //   });
+
+  // }
+
+}
+
+// /* Scrollspy */
+// var navHeight = $('#toc_table').outerHeight(true) + 10;
+// $('body').scrollspy({
+//   target: '#toc_navigation',
+//   offset: navHeight
+// });
+
+// /* Prevent disabled links from causing a page reload */
+// $("li.disabled a").click(function() {
+//   event.preventDefault();
+// });
