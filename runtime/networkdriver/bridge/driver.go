@@ -68,24 +68,29 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	bridgeIface = job.Getenv("BridgeIface")
+	usingDefaultBridge := false
 	if bridgeIface == "" {
+		usingDefaultBridge = true
 		bridgeIface = DefaultNetworkBridge
 	}
 
 	addr, err := networkdriver.GetIfaceAddr(bridgeIface)
 	if err != nil {
+		// If we're not using the default bridge, fail without trying to create it
+		if !usingDefaultBridge {
+			job.Logf("bridge not found: %s", bridgeIface)
+			return job.Error(err)
+		}
 		// If the iface is not found, try to create it
 		job.Logf("creating new bridge for %s", bridgeIface)
 		if err := createBridge(bridgeIP); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 
 		job.Logf("getting iface addr")
 		addr, err = networkdriver.GetIfaceAddr(bridgeIface)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		network = addr.(*net.IPNet)
 	} else {
@@ -101,8 +106,7 @@ func InitDriver(job *engine.Job) engine.Status {
 	// Configure iptables for link support
 	if enableIPTables {
 		if err := setupIPTables(addr, icc); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 
@@ -115,15 +119,13 @@ func InitDriver(job *engine.Job) engine.Status {
 
 	// We can always try removing the iptables
 	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	if enableIPTables {
 		chain, err := iptables.NewChain("DOCKER", bridgeIface)
 		if err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 		portmapper.SetIptablesChain(chain)
 	}
@@ -140,8 +142,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		"link":               LinkContainers,
 	} {
 		if err := job.Eng.Register(name, f); err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		}
 	}
 	return engine.StatusOK
@@ -302,8 +303,7 @@ func Allocate(job *engine.Job) engine.Status {
 		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
 	}
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	out := engine.Env{}
@@ -387,8 +387,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 	// host ip, proto, and host port
 	hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
 	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 
 	var (
@@ -406,9 +405,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	if err := portmapper.Map(container, ip, hostPort); err != nil {
 		portallocator.ReleasePort(ip, proto, hostPort)
-
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	network.PortMappings = append(network.PortMappings, host)
 
@@ -417,8 +414,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 	out.SetInt("HostPort", hostPort)
 
 	if _, err := out.WriteTo(job.Stdout); err != nil {
-		job.Error(err)
-		return engine.StatusErr
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
@@ -445,11 +441,9 @@ func LinkContainers(job *engine.Job) engine.Status {
 			"--dport", port,
 			"-d", childIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		} else if len(output) != 0 {
-			job.Errorf("Error toggle iptables forward: %s", output)
-			return engine.StatusErr
+			return job.Errorf("Error toggle iptables forward: %s", output)
 		}
 
 		if output, err := iptables.Raw(action, "FORWARD",
@@ -459,11 +453,9 @@ func LinkContainers(job *engine.Job) engine.Status {
 			"--sport", port,
 			"-d", parentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			job.Error(err)
-			return engine.StatusErr
+			return job.Error(err)
 		} else if len(output) != 0 {
-			job.Errorf("Error toggle iptables forward: %s", output)
-			return engine.StatusErr
+			return job.Errorf("Error toggle iptables forward: %s", output)
 		}
 	}
 	return engine.StatusOK
