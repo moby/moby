@@ -285,6 +285,10 @@ body {
   font-size: 1.2em;
   padding-bottom: 0px;
 }
+#toc_table ul li.active {
+  font-weight: bold;
+  letter-spacing: 1px;
+}
 #toc_table ul li a {
   padding: 0.4em 0.5em 0.4em 0em;
 }
