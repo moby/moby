@@ -6,6 +6,7 @@ import (
 
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/runtime/execdriver"
 	"github.com/dotcloud/docker/runtime/execdriver/native/configuration"
 	"github.com/dotcloud/docker/runtime/execdriver/native/template"
@@ -80,7 +81,9 @@ func (d *driver) setPrivileged(container *libcontainer.Container) error {
 		c.Enabled = true
 	}
 	container.Cgroups.DeviceAccess = true
-	container.Context["apparmor_profile"] = "unconfined"
+	if apparmor.IsEnabled() {
+		container.Context["apparmor_profile"] = "unconfined"
+	}
 	return nil
 }
 

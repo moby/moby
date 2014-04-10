@@ -17,7 +17,7 @@ func IsEnabled() bool {
 }
 
 func ApplyProfile(pid int, name string) error {
-	if !IsEnabled() || name == "" {
+	if name == "" {
 		return nil
 	}
 
