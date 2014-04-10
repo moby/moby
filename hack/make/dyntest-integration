@@ -1,9 +1,8 @@
 #!/bin/bash
+set -e
 
 DEST=$1
 INIT=$DEST/../dynbinary/dockerinit-$VERSION
-
-set -e
 
 if [ ! -x "$INIT" ]; then
 	echo >&2 'error: dynbinary must be run before dyntest-integration'
