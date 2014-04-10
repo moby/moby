@@ -52,6 +52,11 @@ What's new
 
    **New!** You can now use the ``-until`` parameter to close connection after timestamp.
 
+.. http:post:: /images/(name)/insert
+
+  **Removed**
+
+
 v1.10
 *****
 
