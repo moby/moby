@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/pkg/dockerfile"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/registry"
@@ -1088,17 +1089,13 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	var config = container.Config
-	var newConfig runconfig.Config
-	if err := job.GetenvJson("config", &newConfig); err != nil {
-		return job.Error(err)
+	// Create a copy of the container original config
+	config := *container.Config
+	err := dockerfile.ParseScript([]byte(job.Env().Get("changes")), &config)
+	if err != nil {
+		return job.Errorf("can't apply changes: %v", err)
 	}
-
-	if err := runconfig.Merge(&newConfig, config); err != nil {
-		return job.Error(err)
-	}
-
-	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
+	img, err := srv.runtime.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &config)
 	if err != nil {
 		return job.Error(err)
 	}

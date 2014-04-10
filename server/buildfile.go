@@ -3,11 +3,11 @@ package server
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/dockerfile"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
@@ -18,8 +18,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -126,7 +124,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		case "MAINTAINER", "FROM":
 			return fmt.Errorf("Source image contains forbidden %s trigger: %s", stepInstruction, step)
 		}
-		if err := b.BuildStep(fmt.Sprintf("onbuild-%d", n), step); err != nil {
+		if err := dockerfile.ParseExpr(fmt.Sprintf("onbuild-%d", n), step, b); err != nil {
 			return err
 		}
 	}
@@ -137,18 +135,13 @@ func (b *buildFile) CmdFrom(name string) error {
 // The ONBUILD command declares a build instruction to be executed in any future build
 // using the current image as a base.
 func (b *buildFile) CmdOnbuild(trigger string) error {
-	splitTrigger := strings.Split(trigger, " ")
-	triggerInstruction := strings.ToUpper(strings.Trim(splitTrigger[0], " "))
-	switch triggerInstruction {
-	case "ONBUILD":
-		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-	case "MAINTAINER", "FROM":
-		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
+	if err := b.config.CmdOnbuild(trigger); err != nil {
+		return err
 	}
-	b.config.OnBuild = append(b.config.OnBuild, trigger)
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
+// FIXME: move this to the image config.
 func (b *buildFile) CmdMaintainer(name string) error {
 	b.maintainer = name
 	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
@@ -179,7 +172,8 @@ func (b *buildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	config, _, _, err := runconfig.Parse(append([]string{b.image}, b.buildCmdFromJson(args)...), nil)
+	// FIXME: clean this up
+	config, _, _, err := runconfig.Parse(append([]string{b.image}, runconfig.ParseArgCommand(args)...), nil)
 	if err != nil {
 		return err
 	}
@@ -220,112 +214,38 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
-func (b *buildFile) FindEnvKey(key string) int {
-	for k, envVar := range b.config.Env {
-		envParts := strings.SplitN(envVar, "=", 2)
-		if key == envParts[0] {
-			return k
-		}
-	}
-	return -1
-}
-
-func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
-	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
-	if err != nil {
-		return value, err
-	}
-	matches := exp.FindAllString(value, -1)
-	for _, match := range matches {
-		match = match[strings.Index(match, "$"):]
-		matchKey := strings.Trim(match, "${}")
-
-		for _, envVar := range b.config.Env {
-			envParts := strings.SplitN(envVar, "=", 2)
-			envKey := envParts[0]
-			envValue := envParts[1]
-
-			if envKey == matchKey {
-				value = strings.Replace(value, match, envValue, -1)
-				break
-			}
-		}
-	}
-	return value, nil
-}
-
 func (b *buildFile) CmdEnv(args string) error {
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ENV format")
-	}
-	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
-
-	envKey := b.FindEnvKey(key)
-	replacedValue, err := b.ReplaceEnvMatches(value)
-	if err != nil {
+	if err := b.config.CmdEnv(args); err != nil {
 		return err
 	}
-	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
-
-	if envKey >= 0 {
-		b.config.Env[envKey] = replacedVar
-	} else {
-		b.config.Env = append(b.config.Env, replacedVar)
-	}
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
-}
-
-func (b *buildFile) buildCmdFromJson(args string) []string {
-	var cmd []string
-	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, setting to /bin/sh -c", err)
-		cmd = []string{"/bin/sh", "-c", args}
-	}
-	return cmd
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", args))
 }
 
 func (b *buildFile) CmdCmd(args string) error {
-	cmd := b.buildCmdFromJson(args)
-	b.config.Cmd = cmd
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+	if err := b.config.CmdCmd(args); err != nil {
 		return err
 	}
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("CMD %v", args))
 }
 
 func (b *buildFile) CmdEntrypoint(args string) error {
-	entrypoint := b.buildCmdFromJson(args)
-	b.config.Entrypoint = entrypoint
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %v", entrypoint)); err != nil {
+	if err := b.config.CmdEntrypoint(args); err != nil {
 		return err
 	}
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %v", args))
 }
 
 func (b *buildFile) CmdExpose(args string) error {
-	portsTab := strings.Split(args, " ")
-
-	if b.config.ExposedPorts == nil {
-		b.config.ExposedPorts = make(nat.PortSet)
-	}
-	ports, _, err := nat.ParsePortSpecs(append(portsTab, b.config.PortSpecs...))
-	if err != nil {
+	if err := b.config.CmdExpose(args); err != nil {
 		return err
 	}
-	for port := range ports {
-		if _, exists := b.config.ExposedPorts[port]; !exists {
-			b.config.ExposedPorts[port] = struct{}{}
-		}
-	}
-	b.config.PortSpecs = nil
-
-	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
+	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", args))
 }
 
 func (b *buildFile) CmdUser(args string) error {
-	b.config.User = args
+	if err := b.config.CmdUser(args); err != nil {
+		return err
+	}
 	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
 }
 
@@ -337,37 +257,18 @@ func (b *buildFile) CmdCopy(args string) error {
 	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
 }
 
-func (b *buildFile) CmdWorkdir(workdir string) error {
-	if workdir[0] == '/' {
-		b.config.WorkingDir = workdir
-	} else {
-		if b.config.WorkingDir == "" {
-			b.config.WorkingDir = "/"
-		}
-		b.config.WorkingDir = filepath.Join(b.config.WorkingDir, workdir)
+func (b *buildFile) CmdWorkdir(args string) error {
+	if err := b.config.CmdWorkdir(args); err != nil {
+		return err
 	}
-	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", args))
 }
 
 func (b *buildFile) CmdVolume(args string) error {
-	if args == "" {
-		return fmt.Errorf("Volume cannot be empty")
-	}
-
-	var volume []string
-	if err := json.Unmarshal([]byte(args), &volume); err != nil {
-		volume = []string{args}
-	}
-	if b.config.Volumes == nil {
-		b.config.Volumes = map[string]struct{}{}
-	}
-	for _, v := range volume {
-		b.config.Volumes[v] = struct{}{}
-	}
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
+	if err := b.config.CmdVolume(args); err != nil {
 		return err
 	}
-	return nil
+	return b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args))
 }
 
 func (b *buildFile) checkPathForAddition(orig string) error {
@@ -480,15 +381,9 @@ func (b *buildFile) CmdAdd(args string) error {
 		return fmt.Errorf("Invalid ADD format")
 	}
 
-	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
-	if err != nil {
-		return err
-	}
-
-	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
-	if err != nil {
-		return err
-	}
+	env := (*engine.Env)(&b.config.Env)
+	orig := env.Expand(strings.Trim(tmp[0], " \t"))
+	dest := env.Expand(strings.Trim(tmp[1], " \t"))
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
@@ -737,9 +632,6 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	return nil
 }
 
-// Long lines can be split with a backslash
-var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
-
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
@@ -769,19 +661,9 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if len(fileBytes) == 0 {
 		return "", ErrDockerfileEmpty
 	}
-	var (
-		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
-		stepN      = 0
-	)
-	for _, line := range strings.Split(dockerfile, "\n") {
-		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
-		if len(line) == 0 {
-			continue
-		}
-		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
-			return "", err
-		}
-		stepN += 1
+	// Use dockerfile.ParseScript
+	if err := dockerfile.ParseScript(fileBytes, dockerfile.ReflectorHandler(b, b.errStream)); err != nil {
+		return "", err
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -793,27 +675,13 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
 }
 
-// BuildStep parses a single build step from `instruction` and executes it in the current context.
-func (b *buildFile) BuildStep(name, expression string) error {
-	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
-	tmp := strings.SplitN(expression, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid Dockerfile format")
+// Handle implements the dockerfile.Handler interface which allows it to be scripted with
+// the Dockerfile syntax.
+func (b *buildFile) Handle(name, instruction string, arguments string) error {
+	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, strings.Join([]string{instruction, arguments}, " "))
+	if err := dockerfile.ReflectorHandler(b, b.errStream).Handle(name, instruction, arguments); err != nil {
+		return err
 	}
-	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-	arguments := strings.Trim(tmp[1], " ")
-
-	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-	if !exists {
-		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-		return nil
-	}
-
-	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-	if ret != nil {
-		return ret.(error)
-	}
-
 	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
 	return nil
 }

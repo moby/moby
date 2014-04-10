@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -136,8 +137,17 @@ func (env *Env) SetList(key string, value []string) error {
 	return env.SetJson(key, value)
 }
 
-func (env *Env) Set(key, value string) {
-	*env = append(*env, key+"="+value)
+// FIXME: Set and Add are not distinguished (Set always appends).
+// We still implement both to allow the caller to specify intent.
+// This should make things easier later.
+func (env *Env) Set(key string, values ...string) {
+	env.Add(key, values...)
+}
+
+func (env *Env) Add(key string, values ...string) {
+	for _, value := range values {
+		*env = append(*env, key+"="+value)
+	}
 }
 
 func NewDecoder(src io.Reader) *Decoder {
@@ -236,6 +246,15 @@ func (env *Env) Import(src interface{}) (err error) {
 	return nil
 }
 
+func (env *Env) ToScript() string {
+	var s string
+	for _, kv := range *env {
+		parts := strings.SplitN(kv, "=", 2)
+		s = fmt.Sprintf("%senv %s %s\n", s, parts[0], parts[1])
+	}
+	return s
+}
+
 func (env *Env) Map() map[string]string {
 	m := make(map[string]string)
 	for _, kv := range *env {
@@ -243,6 +262,23 @@ func (env *Env) Map() map[string]string {
 		m[parts[0]] = parts[1]
 	}
 	return m
+}
+
+var expandRe = regexp.MustCompile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
+
+// Expand returns a copy of value with all references to a variable in the form $KEY
+// replaced by the value of the corresponding key in env.
+// If a key has several value, the last value is used.
+func (env *Env) Expand(value string) string {
+	matches := expandRe.FindAllString(value, -1)
+	for _, match := range matches {
+		match = match[strings.Index(match, "$"):]
+		matchKey := strings.Trim(match, "${}")
+
+		matchVal := env.Get(matchKey)
+		value = strings.Replace(value, match, matchVal, -1)
+	}
+	return value
 }
 
 type Table struct {
