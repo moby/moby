@@ -157,6 +157,13 @@ func main() {
 			}
 		}()
 
+		// TODO actually have a resolved graphdriver to show?
+		log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+			dockerversion.VERSION,
+			dockerversion.GITCOMMIT,
+			*flExecDriver,
+			*flGraphDriver)
+
 		// Serve api
 		job := eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
