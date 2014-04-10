@@ -448,12 +448,10 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		suppressOutput = job.GetenvBool("q")
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
-		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
 		context        io.ReadCloser
 	)
-	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
@@ -506,7 +504,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile)
+		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile)
 	id, err := b.Build(context)
 	if err != nil {
 		return job.Error(err)
@@ -1386,15 +1384,22 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName   = job.Args[0]
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
+		authConfig  registry.AuthConfig
+		configFile  = &registry.ConfigFile{}
 		metaHeaders map[string][]string
 	)
 	if len(job.Args) > 1 {
 		tag = job.Args[1]
 	}
 
-	job.GetenvJson("authConfig", authConfig)
+	job.GetenvJson("configFile", configFile)
 	job.GetenvJson("metaHeaders", metaHeaders)
+
+	endpoint, _, err := registry.ResolveRepositoryName(localName)
+	if err != nil {
+		return job.Error(err)
+	}
+	authConfig = configFile.ResolveAuthConfig(endpoint)
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
 	if err != nil {
@@ -1414,12 +1419,12 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err = registry.ExpandAndVerifyRegistryUrl(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
 
-	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err := registry.NewRegistry(&authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err != nil {
 		return job.Error(err)
 	}
