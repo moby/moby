@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
@@ -21,9 +22,9 @@ const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NOD
 //
 // There is no need to unmount the new mounts because as soon as the mount namespace
 // is no longer in use, the mounts will be removed automatically
-func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, console string, readonly, noPivotRoot bool, mountLabel string) error {
+func setupNewMountNamespace(rootfs, console string, container *libcontainer.Container) error {
 	flag := syscall.MS_PRIVATE
-	if noPivotRoot {
+	if container.NoPivotRoot {
 		flag = syscall.MS_SLAVE
 	}
 	if err := system.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
@@ -32,44 +33,28 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
-	if err := mountSystem(rootfs, mountLabel); err != nil {
+	if err := mountSystem(rootfs, container.Context["mount_label"]); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
-
-	for _, m := range bindMounts {
-		var (
-			flags = syscall.MS_BIND | syscall.MS_REC
-			dest  = filepath.Join(rootfs, m.Destination)
-		)
-		if !m.Writable {
-			flags = flags | syscall.MS_RDONLY
-		}
-		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
-			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
-		}
-		if !m.Writable {
-			if err := system.Mount(m.Source, dest, "bind", uintptr(flags|syscall.MS_REMOUNT), ""); err != nil {
-				return fmt.Errorf("remounting %s into %s %s", m.Source, dest, err)
-			}
-		}
-		if m.Private {
-			if err := system.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
-				return fmt.Errorf("mounting %s private %s", dest, err)
-			}
+	if err := setupBindmounts(rootfs, container.Mounts); err != nil {
+		return fmt.Errorf("bind mounts %s", err)
+	}
+	if restrictionPath := container.Context["restriction_path"]; restrictionPath != "" {
+		if err := restrict.Restrict(rootfs, restrictionPath); err != nil {
+			return fmt.Errorf("restrict %s", err)
 		}
 	}
-
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
-	if err := setupPtmx(rootfs, console, mountLabel); err != nil {
+	if err := setupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
 		return err
 	}
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
-	if noPivotRoot {
+	if container.NoPivotRoot {
 		if err := rootMsMove(rootfs); err != nil {
 			return err
 		}
@@ -79,7 +64,7 @@ func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, cons
 		}
 	}
 
-	if readonly {
+	if container.ReadonlyFs {
 		if err := system.Mount("/", "/", "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
 			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
 		}
@@ -259,6 +244,32 @@ func remountSys() error {
 	} else {
 		if err := system.Mount("sysfs", "/sys", "sysfs", uintptr(defaultMountFlags), ""); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func setupBindmounts(rootfs string, bindMounts []libcontainer.Mount) error {
+	for _, m := range bindMounts {
+		var (
+			flags = syscall.MS_BIND | syscall.MS_REC
+			dest  = filepath.Join(rootfs, m.Destination)
+		)
+		if !m.Writable {
+			flags = flags | syscall.MS_RDONLY
+		}
+		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
+			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
+		}
+		if !m.Writable {
+			if err := system.Mount(m.Source, dest, "bind", uintptr(flags|syscall.MS_REMOUNT), ""); err != nil {
+				return fmt.Errorf("remounting %s into %s %s", m.Source, dest, err)
+			}
+		}
+		if m.Private {
+			if err := system.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
+				return fmt.Errorf("mounting %s private %s", dest, err)
+			}
 		}
 	}
 	return nil
