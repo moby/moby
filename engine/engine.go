@@ -50,6 +50,10 @@ func (eng *Engine) Root() string {
 	return eng.root
 }
 
+func (eng *Engine) Nuke() error {
+	return eng.Job("nuke").Run()
+}
+
 func (eng *Engine) Register(name string, handler Handler) error {
 	_, exists := eng.handlers[name]
 	if exists {
