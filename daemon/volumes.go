@@ -246,22 +246,22 @@ func createVolumes(container *Container) error {
 					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
 						return err
 					}
+				}
+			}
 
-					var stat syscall.Stat_t
-					if err := syscall.Stat(rootVolPath, &stat); err != nil {
-						return err
-					}
-					var srcStat syscall.Stat_t
-					if err := syscall.Stat(srcPath, &srcStat); err != nil {
-						return err
-					}
-					// Change the source volume's ownership if it differs from the root
-					// files that were just copied
-					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-							return err
-						}
-					}
+			var stat syscall.Stat_t
+			if err := syscall.Stat(rootVolPath, &stat); err != nil {
+				return err
+			}
+			var srcStat syscall.Stat_t
+			if err := syscall.Stat(srcPath, &srcStat); err != nil {
+				return err
+			}
+			// Change the source volume's ownership if it differs from the root
+			// files that were just copied
+			if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+				if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+					return err
 				}
 			}
 		}
