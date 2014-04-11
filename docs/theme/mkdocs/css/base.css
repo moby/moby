@@ -247,7 +247,7 @@ body {
 #nav_menu > #docsnav > #nav_search {
   margin-top: 10px;
 }
-#nav_menu > #docsnav > #nav_search > #st-search-input {
+.search_input {
   height: 30px;
   color: #5992a3;
   font-weight: bold;
@@ -258,11 +258,11 @@ body {
   -moz-border-radius: 3px;
   border-radius: 3px;
 }
-#nav_menu > #docsnav > #nav_search > #st-search-input:focus {
+.search_input:focus {
   background: #fff;
 }
-#nav_menu > #docsnav > #nav_search > #st-search-input::-webkit-input-placeholder {
-    color: #71afc0;
+.search_input::-webkit-input-placeholder {
+  color: #71afc0;
 }
 #nav_menu > #docsnav > span {
   display: none;
