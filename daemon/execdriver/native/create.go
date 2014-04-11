@@ -34,6 +34,8 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
+	} else {
+		container.Mounts = append(container.Mounts, libcontainer.Mount{Type: "devtmpfs"})
 	}
 	if err := d.setupCgroups(container, c); err != nil {
 		return nil, err
