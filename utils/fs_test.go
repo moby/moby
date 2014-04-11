@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -23,6 +25,29 @@ func TestFollowSymLinkNormal(t *testing.T) {
 
 	if expected := abs(t, "testdata/b/c/data"); expected != rewrite {
 		t.Fatalf("Expected %s got %s", expected, rewrite)
+	}
+}
+
+func TestFollowSymLinkUnderLinkedDir(t *testing.T) {
+	dir, err := ioutil.TempDir("", "docker-fs-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Mkdir(filepath.Join(dir, "realdir"), 0700)
+	os.Symlink("realdir", filepath.Join(dir, "linkdir"))
+
+	linkDir := filepath.Join(dir, "linkdir", "foo")
+	dirUnderLinkDir := filepath.Join(dir, "linkdir", "foo", "bar")
+	os.MkdirAll(dirUnderLinkDir, 0700)
+
+	rewrite, err := FollowSymlinkInScope(dirUnderLinkDir, linkDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rewrite != dirUnderLinkDir {
+		t.Fatalf("Expected %s got %s", dirUnderLinkDir, rewrite)
 	}
 }
 
