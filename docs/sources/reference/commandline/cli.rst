@@ -383,8 +383,8 @@ Note that this is currently a shallow merge. So, for example, if you had specifi
 Full --run example
 ..................
 
-The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
-or ``config`` when running ``docker inspect IMAGEID``. Existing configuration key-values that are
+The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINER_ID``
+or ``config`` when running ``docker inspect IMAGE_ID``. Existing configuration key-values that are
 not overridden in the JSON hash will be merged in.
 
 (Multiline is okay within a single quote ``'``)

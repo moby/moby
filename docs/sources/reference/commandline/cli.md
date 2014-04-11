@@ -352,9 +352,9 @@ clobbered the ‘EXPOSE 22’ setting from the parent container.
 #### Full –run example
 
 The `--run` JSON hash changes the `Config`
-section when running `docker inspect CONTAINERID`
+section when running `docker inspect CONTAINER_ID`
 or `config` when running
-`docker inspect IMAGEID`. Existing configuration
+`docker inspect IMAGE_ID`. Existing configuration
 key-values that are not overridden in the JSON hash will be merged in.
 
 (Multiline is okay within a single quote `'`)
