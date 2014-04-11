@@ -1,8 +1,12 @@
-## Search
+# Docker Docs Search
 
-*Please activate JavaScript to enable the search functionality.*
+Search results for your query:
 
-<div style="float: left;"><input type="text" id="tipue_search_input"></div>
-<div style="float: left; margin-left: 13px;"><input type="button" id="tipue_search_button"></div>
+<form id="content_search" action="/jsearch/">
+  <span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span>
+  <input name="q" id="tipue_search_input" type="text" class="search_input search-query ui-autocomplete-input" placeholder="Search the Docs" autocomplete="off">
+</form>
+
+## Results:
+
 <div id="tipue_search_content"></div>
-
