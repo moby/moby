@@ -82,7 +82,7 @@ func (b *buildFile) CmdFrom(name string) error {
 			job := b.srv.Eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())
 			job.SetenvBool("parallel", true)
-			job.SetenvJson("configFile", b.configFile)
+			job.SetenvJson("auth", b.configFile)
 			job.Stdout.Add(b.outOld)
 			if err := job.Run(); err != nil {
 				return err
