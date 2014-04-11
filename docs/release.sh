@@ -32,7 +32,7 @@ setup_s3() {
 	# (When there are problems, it uses standard error instead.)
 	s3cmd info s3://$BUCKET | grep -q .
 	# Make the bucket accessible through website endpoints.
-	s3cmd ws-create --ws-index index.html --ws-error error.html s3://$BUCKET
+	s3cmd ws-create --ws-index index.html --ws-error jsearch.html s3://$BUCKET
 }
 
 build_current_documentation() {
