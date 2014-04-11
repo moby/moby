@@ -2,11 +2,58 @@ html,
 body {
   margin: 0;
   font-size: 14px;
-  background-color: #f2f2f2;
+  background-color: #fff;
   height: 100%;
   width: 100%;
   font-family: "Cabin", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
+
+/* Content rendering styles */
+#content {
+  font-size: 1.2em;
+  line-height: 1.8em;
+}
+#content h1 {
+  padding: 0.5em 0em 0em 0em;
+}
+#content h2 {
+  padding: 0.5em 0em 0.3em 0em;
+}
+#content h3 {
+  padding: 0.7em 0em 0.3em 0em;
+}
+#content ul {
+  margin: 1em 0em 1.2em 0.3em;
+}
+#content li {
+  margin: 0.5em 0em 0.3em 0em;
+}
+#content p {
+  margin-bottom: 1.2em;
+}
+#content pre {
+  margin: 2em 0em;
+  padding: 1em 2em !important;
+  line-height: 1.8em;
+  font-size: 1em;
+}
+#content code {
+}
+#content blockquote {
+  background: #f2f2f2;
+  border-left-color: #ccc;
+}
+#content blockquote p {
+  line-height: 1.6em;
+  margin-bottom: 0em !important;
+}
+#content  {
+  
+}
+#content  {
+  
+}
+/* Content rendering END */
 
 /* Fix bootstrap madding (//padding) issue(s) */
 .row {
@@ -301,17 +348,17 @@ body {
 }
 
 /* Main content area */
-#main_content {
+#content {
   margin-left: -15px;
 }
-#main_content ol.breadcrumb {
+ol.breadcrumb {
   padding: 0.5em;
-  margin: 0em 0em 0.5em 0em;
+  margin-bottom: 0.5em;
+  margin-left: -15px;
   background-color: #fff;
   border: 1px solid #5992a3;
-  width: 100%;
 }
-#main_content h1 {
+#content h1 {
   margin-top: 0px;
 }
 
@@ -474,7 +521,7 @@ body {
 @media (max-width: 800px) {
 
   /* Disable breadcrumbs */
-  #main_content ol.breadcrumb {
+  ol.breadcrumb {
     display: none;
   }
 
@@ -547,7 +594,7 @@ body {
   }
 
   /* Main Content Clip */
-  #main_content {
+  #content {
     max-width: 100%;
   }
 
