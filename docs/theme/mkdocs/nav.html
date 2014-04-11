@@ -1,23 +1,28 @@
 {% include "docker_io_nav.html" %}
 <nav id="nav_menu" class="navbar navbar-default navbar-static-top affix" role="navigation">
   <div id="docsnav" class="container">
-    <span>Sections <b class="caret"></b>
-      <ul id="sub_main_menu">
+    <span class="dd_menu">Sections <b class="caret"></b>
+      <ul class="dd_submenu">
       {% for menu in nav %}
+      {% if menu.title != '**HIDDEN**' %}
         <li {% if menu.active %}class="active"{% endif %}>
-          {% for item in menu.children[:1] %}
-          <a href="{{ item.url }}">{{ menu.title }}</a>
-          {% endfor %}
+          {% if menu.children %}
+            {% for item in menu.children[:1] %}
+              <a href="{{ item.url }}">{{ menu.title }}</a>
+            {% endfor %}
+          {% endif %}
         </li>
+      {% endif %}
       {% endfor %}
       </ul>
     </span>
     <b class="arrow pull-left"><img src="/img/docs_nav_menu_arrow_1x.png"></b>
     <ul id="main-nav" class="pull-left">
       {% for menu in nav %}
-      <li class="pull-left{% if menu.active %} active{% endif %}">
+      {% if menu.title != '**HIDDEN**' %}
+      <li class="dd_menu pull-left{% if menu.active %} active{% endif %}">
         <a href="#"><span>{{ menu.title }} <b class="caret"></b></span></a>
-        <ul class="submenu">
+        <ul class="dd_submenu">
         {% for menu in menu.children %}
           <li {% if menu.active %}class="active"{% endif %}>
             <a href="{{ menu.url }}">{{ menu.title }}</a>
@@ -25,6 +30,7 @@
         {% endfor %}
         </ul>
       </li>
+      {% endif %}
       {% endfor %}
     </ul>
     <button id="nav_search_toggle" type="button" class="st-search-launcher btn btn-default btn-sm pull-right">
