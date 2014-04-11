@@ -44,3 +44,17 @@ func Setup(rootfs, consolePath, mountLabel string) error {
 	}
 	return nil
 }
+
+func OpenAndDup(consolePath string) error {
+	slave, err := system.OpenTerminal(consolePath, syscall.O_RDWR)
+	if err != nil {
+		return fmt.Errorf("open terminal %s", err)
+	}
+	if err := system.Dup2(slave.Fd(), 0); err != nil {
+		return err
+	}
+	if err := system.Dup2(slave.Fd(), 1); err != nil {
+		return err
+	}
+	return system.Dup2(slave.Fd(), 2)
+}
