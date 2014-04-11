@@ -138,7 +138,8 @@ func TestRaceWriteBroadcaster(t *testing.T) {
 
 // Test the behavior of TruncIndex, an index for querying IDs from a non-conflicting prefix.
 func TestTruncIndex(t *testing.T) {
-	index := NewTruncIndex()
+	ids := []string{}
+	index := NewTruncIndex(ids)
 	// Get on an empty index
 	if _, err := index.Get("foobar"); err == nil {
 		t.Fatal("Get on an empty index should return an error")

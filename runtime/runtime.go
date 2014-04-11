@@ -779,7 +779,7 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 		containers:     list.New(),
 		graph:          g,
 		repositories:   repositories,
-		idIndex:        utils.NewTruncIndex(),
+		idIndex:        utils.NewTruncIndex([]string{}),
 		sysInfo:        sysInfo,
 		volumes:        volumes,
 		config:         config,
