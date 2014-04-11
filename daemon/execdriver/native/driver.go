@@ -23,7 +23,7 @@ import (
 
 const (
 	DriverName                = "native"
-	Version                   = "0.1"
+	Version                   = "0.2"
 	BackupApparmorProfilePath = "apparmor/docker.back" // relative to docker root
 )
 
