@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/console"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
@@ -155,40 +156,6 @@ func copyDevNode(rootfs, node string) error {
 	return nil
 }
 
-// setupConsole ensures that the container has a proper /dev/console setup
-func setupConsole(rootfs, console string, mountLabel string) error {
-	oldMask := system.Umask(0000)
-	defer system.Umask(oldMask)
-
-	stat, err := os.Stat(console)
-	if err != nil {
-		return fmt.Errorf("stat console %s %s", console, err)
-	}
-	var (
-		st   = stat.Sys().(*syscall.Stat_t)
-		dest = filepath.Join(rootfs, "dev/console")
-	)
-	if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove %s %s", dest, err)
-	}
-	if err := os.Chmod(console, 0600); err != nil {
-		return err
-	}
-	if err := os.Chown(console, 0, 0); err != nil {
-		return err
-	}
-	if err := system.Mknod(dest, (st.Mode&^07777)|0600, int(st.Rdev)); err != nil {
-		return fmt.Errorf("mknod %s %s", dest, err)
-	}
-	if err := label.SetFileLabel(console, mountLabel); err != nil {
-		return fmt.Errorf("SetFileLabel Failed %s %s", dest, err)
-	}
-	if err := system.Mount(console, dest, "bind", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("bind %s to %s %s", console, dest, err)
-	}
-	return nil
-}
-
 // mountSystem sets up linux specific system mounts like sys, proc, shm, and devpts
 // inside the mount namespace
 func mountSystem(rootfs string, container *libcontainer.Container) error {
@@ -205,7 +172,7 @@ func mountSystem(rootfs string, container *libcontainer.Container) error {
 
 // setupPtmx adds a symlink to pts/ptmx for /dev/ptmx and
 // finishes setting up /dev/console
-func setupPtmx(rootfs, console string, mountLabel string) error {
+func setupPtmx(rootfs, consolePath, mountLabel string) error {
 	ptmx := filepath.Join(rootfs, "dev/ptmx")
 	if err := os.Remove(ptmx); err != nil && !os.IsNotExist(err) {
 		return err
@@ -213,8 +180,8 @@ func setupPtmx(rootfs, console string, mountLabel string) error {
 	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
 		return fmt.Errorf("symlink dev ptmx %s", err)
 	}
-	if console != "" {
-		if err := setupConsole(rootfs, console, mountLabel); err != nil {
+	if consolePath != "" {
+		if err := console.Setup(rootfs, consolePath, mountLabel); err != nil {
 			return err
 		}
 	}
