@@ -10,6 +10,7 @@ dev_addr: '0.0.0.0:8000'
 
 docs_dir: sources
 
+include_search: true
 
 #theme: spacelab
 theme_dir: ./theme/mkdocs/
@@ -23,16 +24,15 @@ google_analytics: ['UA-6096819-11', 'docker.io']
 pages:
 
 # Introduction:
-#- ['index.md', 'Home']
-#- ['introduction/home.md', 'Introduction', 'Introduction Home']
 - ['index.md', 'About', 'Docker']
+- ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 - ['introduction/technology.md', 'About', 'The Technology']
 - ['introduction/working-with-docker.md', 'About', 'Working with Docker']
 - ['introduction/get-docker.md', 'About', 'Get Docker']
 
 # Installation:
-# - ['installation/index.md', 'Installation', 'Home']
+- ['installation/index.md', '**HIDDEN**']
 - ['installation/mac.md', 'Installation', 'Mac OS X']
 - ['installation/ubuntulinux.md', 'Installation', 'Ubuntu']
 - ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
@@ -50,8 +50,9 @@ pages:
 - ['installation/binaries.md', 'Installation', 'Binaries']
 
 # Examples:
-# - ['examples/index.md', 'Examples', 'Home']
+- ['use/index.md', '**HIDDEN**']
 - ['use/basics.md', 'Examples', 'First steps with Docker']
+- ['examples/index.md', '**HIDDEN**']
 - ['examples/hello_world.md', 'Examples', 'Hello World']
 - ['examples/nodejs_web_app.md', 'Examples', 'Node.js web application']
 - ['examples/python_web_app.md', 'Examples', 'Python web application']
@@ -65,7 +66,6 @@ pages:
 - ['examples/https.md', 'Examples', 'Running Docker with HTTPS']
 - ['examples/using_supervisord.md', 'Examples', 'Using Supervisor']
 - ['examples/cfengine_process_management.md', 'Examples', 'Process management with CFEngine']
-# - ['use/index.md', 'Examples', 'Home']
 - ['use/working_with_links_names.md', 'Examples', 'Linking containers together']
 - ['use/working_with_volumes.md', 'Examples', 'Sharing Directories using volumes']
 - ['use/puppet.md', 'Examples', 'Using Puppet']
@@ -75,44 +75,45 @@ pages:
 - ['use/ambassador_pattern_linking.md', 'Examples', 'Cross-Host linking using Ambassador Containers']
 - ['use/host_integration.md', 'Examples', 'Automatically starting Containers']
 
+#- ['user-guide/index.md', '**HIDDEN**']
 # - ['user-guide/writing-your-docs.md', 'User Guide', 'Writing your docs']
 # - ['user-guide/styling-your-docs.md', 'User Guide', 'Styling your docs']
 # - ['user-guide/configuration.md', 'User Guide', 'Configuration']
-# - ['about/license.md', 'About', 'License']
 # ./faq.md
 
 # Reference
-# - ['reference/commandline/index.md', 'reference/commandline', 'Home']
+- ['reference/index.md', '**HIDDEN**']
 - ['reference/commandline/cli.md', 'Reference', 'Command line']
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['reference/run.md', 'Reference', 'Run Reference']
-# - ['articles/index.md', 'Reference', 'Home']
+- ['articles/index.md', '**HIDDEN**']
 - ['articles/runmetrics.md', 'Reference', 'Runtime metrics']
 - ['articles/security.md', 'Reference', 'Security']
 - ['articles/baseimages.md', 'Reference', 'Creating a Base Image']
 - ['use/networking.md', 'Reference', 'Advanced networking']
-# - ['reference/index.md', 'Reference', 'Home']
 - ['reference/api/index_api.md', 'Reference', 'Docker Index API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/registry_index_spec.md', 'Reference', 'Registry & Index Spec']
-# - ['reference/api/index.md', 'Reference', 'Home']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
 - ['reference/api/docker_remote_api_v1.10.md', 'Reference', 'Docker Remote API v1.10']
 - ['reference/api/docker_remote_api_v1.9.md', 'Reference', 'Docker Remote API v1.9']
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
-# - ['articles/index.md', 'Reference', 'Home']
 
 # Contribute:
-# - ['contributing/index.md', 'Contributing', 'Home']
+- ['contributing/index.md', '**HIDDEN**']
 - ['contributing/contributing.md', 'Contribute', 'Contributing']
 - ['contributing/devenvironment.md', 'Contribute', 'Development environment']
+# - ['about/license.md', 'About', 'License']
 
 # Docker Index docs:
-# - ['index/home.md', 'Docker Index', 'Home']
+- ['index/index.md', '**HIDDEN**']
 - ['index/home.md', 'Docker Index', 'Help']
 - ['index/docs.md', 'Docker Index', 'Documentation']
 
+- ['jsearch.md', '**HIDDEN**']
+
 # - ['static_files/README.md', 'static_files', 'README']
+#- ['terms/index.md', '**HIDDEN**']
 # - ['terms/layer.md', 'terms', 'layer']
 # - ['terms/index.md', 'terms', 'Home']
 # - ['terms/registry.md', 'terms', 'registry']
