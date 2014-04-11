@@ -39,19 +39,21 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 		root:   cgroupRoot,
 		cgroup: cgroup,
 	}
+	for _, g := range []func(*Cgroup, int) error{
+		raw.setupDevices,
+		raw.setupMemory,
+		raw.setupCpu,
+		raw.setupCpuset,
+		raw.setupCpuacct,
+		raw.setupBlkio,
+		raw.setupPerfevent,
+		raw.setupFreezer,
+	} {
+		if err := g(c, pid); err != nil {
+			return nil, err
+		}
+	}
 
-	if err := raw.setupDevices(c, pid); err != nil {
-		return nil, err
-	}
-	if err := raw.setupMemory(c, pid); err != nil {
-		return nil, err
-	}
-	if err := raw.setupCpu(c, pid); err != nil {
-		return nil, err
-	}
-	if err := raw.setupCpuset(c, pid); err != nil {
-		return nil, err
-	}
 	return raw, nil
 }
 
@@ -198,6 +200,30 @@ func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
+func (raw *rawCgroup) setupCpuacct(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("cpuacct", pid)
+	return err
+}
+
+func (raw *rawCgroup) setupBlkio(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("blkio", pid)
+	return err
+}
+
+func (raw *rawCgroup) setupPerfevent(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("perf_event", pid)
+	return err
+}
+
+func (raw *rawCgroup) setupFreezer(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("freezer", pid)
+	return err
+}
+
 func (raw *rawCgroup) Cleanup() error {
 	get := func(subsystem string) string {
 		path, _ := raw.path(subsystem)
@@ -209,6 +235,10 @@ func (raw *rawCgroup) Cleanup() error {
 		get("devices"),
 		get("cpu"),
 		get("cpuset"),
+		get("cpuacct"),
+		get("blkio"),
+		get("perf_event"),
+		get("freezer"),
 	} {
 		if path != "" {
 			os.RemoveAll(path)
