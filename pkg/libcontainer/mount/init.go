@@ -1,15 +1,14 @@
 // +build linux
 
-package nsinit
+package mount
 
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/console"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/system"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -26,13 +25,13 @@ type mount struct {
 	data   string
 }
 
-// setupNewMountNamespace is used to initialize a new mount namespace for an new
-// container in the rootfs that is specified.
-//
-// There is no need to unmount the new mounts because as soon as the mount namespace
-// is no longer in use, the mounts will be removed automatically
-func setupNewMountNamespace(rootfs, console string, container *libcontainer.Container) error {
-	flag := syscall.MS_PRIVATE
+// InitializeMountNamespace setups up the devices, mount points, and filesystems for use inside a
+// new mount namepsace
+func InitializeMountNamespace(rootfs, console string, container *libcontainer.Container) error {
+	var (
+		err  error
+		flag = syscall.MS_PRIVATE
+	)
 	if container.NoPivotRoot {
 		flag = syscall.MS_SLAVE
 	}
@@ -48,7 +47,7 @@ func setupNewMountNamespace(rootfs, console string, container *libcontainer.Cont
 	if err := setupBindmounts(rootfs, container.Mounts); err != nil {
 		return fmt.Errorf("bind mounts %s", err)
 	}
-	if err := copyDevNodes(rootfs); err != nil {
+	if err := nodes.CopyN(rootfs, nodes.DefaultNodes); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
 	if restrictionPath := container.Context["restriction_path"]; restrictionPath != "" {
@@ -56,7 +55,7 @@ func setupNewMountNamespace(rootfs, console string, container *libcontainer.Cont
 			return fmt.Errorf("restrict %s", err)
 		}
 	}
-	if err := setupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
+	if err := SetupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
 		return err
 	}
 	if err := system.Chdir(rootfs); err != nil {
@@ -64,95 +63,22 @@ func setupNewMountNamespace(rootfs, console string, container *libcontainer.Cont
 	}
 
 	if container.NoPivotRoot {
-		if err := rootMsMove(rootfs); err != nil {
-			return err
-		}
+		err = MsMoveRoot(rootfs)
 	} else {
-		if err := rootPivot(rootfs); err != nil {
-			return err
-		}
+		err = PivotRoot(rootfs)
+	}
+	if err != nil {
+		return err
 	}
 
 	if container.ReadonlyFs {
-		if err := system.Mount("/", "/", "bind", syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_REC, ""); err != nil {
-			return fmt.Errorf("mounting %s as readonly %s", rootfs, err)
+		if err := SetReadonly(); err != nil {
+			return fmt.Errorf("set readonly %s", err)
 		}
 	}
 
 	system.Umask(0022)
 
-	return nil
-}
-
-// use a pivot root to setup the rootfs
-func rootPivot(rootfs string) error {
-	pivotDir, err := ioutil.TempDir(rootfs, ".pivot_root")
-	if err != nil {
-		return fmt.Errorf("can't create pivot_root dir %s", pivotDir, err)
-	}
-	if err := system.Pivotroot(rootfs, pivotDir); err != nil {
-		return fmt.Errorf("pivot_root %s", err)
-	}
-	if err := system.Chdir("/"); err != nil {
-		return fmt.Errorf("chdir / %s", err)
-	}
-	// path to pivot dir now changed, update
-	pivotDir = filepath.Join("/", filepath.Base(pivotDir))
-	if err := system.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
-		return fmt.Errorf("unmount pivot_root dir %s", err)
-	}
-	if err := os.Remove(pivotDir); err != nil {
-		return fmt.Errorf("remove pivot_root dir %s", err)
-	}
-	return nil
-}
-
-// use MS_MOVE and chroot to setup the rootfs
-func rootMsMove(rootfs string) error {
-	if err := system.Mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
-		return fmt.Errorf("mount move %s into / %s", rootfs, err)
-	}
-	if err := system.Chroot("."); err != nil {
-		return fmt.Errorf("chroot . %s", err)
-	}
-	if err := system.Chdir("/"); err != nil {
-		return fmt.Errorf("chdir / %s", err)
-	}
-	return nil
-}
-
-// copyDevNodes mknods the hosts devices so the new container has access to them
-func copyDevNodes(rootfs string) error {
-	oldMask := system.Umask(0000)
-	defer system.Umask(oldMask)
-
-	for _, node := range []string{
-		"null",
-		"zero",
-		"full",
-		"random",
-		"urandom",
-		"tty",
-	} {
-		if err := copyDevNode(rootfs, node); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func copyDevNode(rootfs, node string) error {
-	stat, err := os.Stat(filepath.Join("/dev", node))
-	if err != nil {
-		return err
-	}
-	var (
-		dest = filepath.Join(rootfs, "dev", node)
-		st   = stat.Sys().(*syscall.Stat_t)
-	)
-	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("copy %s %s", node, err)
-	}
 	return nil
 }
 
@@ -165,49 +91,6 @@ func mountSystem(rootfs string, container *libcontainer.Container) error {
 		}
 		if err := system.Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.source, m.path, err)
-		}
-	}
-	return nil
-}
-
-// setupPtmx adds a symlink to pts/ptmx for /dev/ptmx and
-// finishes setting up /dev/console
-func setupPtmx(rootfs, consolePath, mountLabel string) error {
-	ptmx := filepath.Join(rootfs, "dev/ptmx")
-	if err := os.Remove(ptmx); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
-		return fmt.Errorf("symlink dev ptmx %s", err)
-	}
-	if consolePath != "" {
-		if err := console.Setup(rootfs, consolePath, mountLabel); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// remountProc is used to detach and remount the proc filesystem
-// commonly needed with running a new process inside an existing container
-func remountProc() error {
-	if err := system.Unmount("/proc", syscall.MNT_DETACH); err != nil {
-		return err
-	}
-	if err := system.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), ""); err != nil {
-		return err
-	}
-	return nil
-}
-
-func remountSys() error {
-	if err := system.Unmount("/sys", syscall.MNT_DETACH); err != nil {
-		if err != syscall.EINVAL {
-			return err
-		}
-	} else {
-		if err := system.Mount("sysfs", "/sys", "sysfs", uintptr(defaultMountFlags), ""); err != nil {
-			return err
 		}
 	}
 	return nil

@@ -12,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
@@ -61,7 +62,7 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 
 	label.Init()
 	ns.logger.Println("setup mount namespace")
-	if err := setupNewMountNamespace(rootfs, console, container); err != nil {
+	if err := mount.InitializeMountNamespace(rootfs, console, container); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
