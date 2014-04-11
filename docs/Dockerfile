@@ -27,7 +27,7 @@ WORKDIR	/docs
 # get my sitemap.xml branch of mkdocs and use that for now
 RUN	git clone https://github.com/SvenDowideit/mkdocs	;\
 	cd mkdocs						;\
-	git checkout add-sitemap				;\
+	git checkout docker-markdown-merge			;\
 	./setup.py install
 
 #convert to markdown
