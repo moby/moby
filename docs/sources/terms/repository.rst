@@ -19,9 +19,9 @@ using one of three different commands:
 
 A `Fully Qualified Image Name` (FQIN) can be made up of 3 parts:
 
-``[registry_hostname[:port]/][user_name/](repository_name[:version_tag])``
+``[registry_hostname[:port]/][user_name/](repository_name:version_tag)``
 
-``version_tag`` defaults to ``latest``, ``username`` and ``registry_hostname`` default to an empty string.
+``username`` and ``registry_hostname`` default to an empty string.
 When ``registry_hostname`` is an empty string, then ``docker push`` will push to ``index.docker.io:80``.
 
 If you create a new repository which you want to share, you will need to set at least the 
