@@ -40,7 +40,7 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 
 	graph := &Graph{
 		Root:    abspath,
-		idIndex: utils.NewTruncIndex(),
+		idIndex: utils.NewTruncIndex([]string{}),
 		driver:  driver,
 	}
 	if err := graph.restore(); err != nil {
@@ -54,12 +54,14 @@ func (graph *Graph) restore() error {
 	if err != nil {
 		return err
 	}
+	var ids = []string{}
 	for _, v := range dir {
 		id := v.Name()
 		if graph.driver.Exists(id) {
-			graph.idIndex.Add(id)
+			ids = append(ids, id)
 		}
 	}
+	graph.idIndex = utils.NewTruncIndex(ids)
 	utils.Debugf("Restored %d elements", len(dir))
 	return nil
 }
