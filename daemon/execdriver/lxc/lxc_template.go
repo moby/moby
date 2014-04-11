@@ -88,7 +88,9 @@ lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noex
 
 # WARNING: sysfs is a known attack vector and should probably be disabled
 # if your userspace allows it. eg. see http://bit.ly/T9CkqJ
+{{if .Privileged}}
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
+{{end}}
 
 {{if .Tty}}
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
