@@ -1,10 +1,8 @@
-# Search
+## Search
 
 *Please activate JavaScript to enable the search functionality.*
 
-## How To Search
+<div style="float: left;"><input type="text" id="tipue_search_input"></div>
+<div style="float: left; margin-left: 13px;"><input type="button" id="tipue_search_button"></div>
+<div id="tipue_search_content"></div>
 
-From here you can search these documents. Enter your search words into
-the box below and click "search". Note that the search function will
-automatically search for all of the words. Pages containing fewer words
-won't appear in the result list.

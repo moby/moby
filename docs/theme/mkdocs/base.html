@@ -61,20 +61,19 @@
         <script src="{{ base_url }}/js/bootstrap-3.0.3.min.js"></script>
         <script src="{{ base_url }}/js/prettify-1.0.min.js"></script>
         <script src="{{ base_url }}/js/base.js"></script>
-        <script type="text/javascript">
-        var swiftypeConfig = {
-          disableAutocomplete: true
-        };
-        var Swiftype = window.Swiftype || {};
-        (function() {
-            Swiftype.key = 'LYsKveHxy41JKjfo1n7m';
-            var script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.async = true;
-            script.src = "//s.swiftypecdn.com/embed.js";
-            var entry = document.getElementsByTagName('script')[0];
-            entry.parentNode.insertBefore(script, entry);
-        }());
-        </script>
+	        {% if include_search %}
+		    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
+                    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
+	            <script src="/tipuesearch/tipuesearch_set.js"></script>
+	            <script src="/tipuesearch/tipuesearch.js"></script>
+	            <script>
+                        $(document).ready(function() {
+	                    $('.tipue_search_input').tipuesearch({
+		                                   'mode': 'json',
+		                                    'contentLocation': '/search_content.json'
+		              });
+		       });
+                     </script>
+	 {% endif %}
     </body>
 </html>

@@ -1,5 +1,7 @@
 <div id="toc_table" class="bs-sidebar hidden-print" role="complementary">
+{% if current_page.title != '**HIDDEN**' %}
   <h2>{{ current_page.title }}</h2>
+{% endif %}
   <h3>TABLE OF CONTENTS</h3>
   <ul id="toc_navigation" class="nav bs-sidenav">
   {% for toc_item in toc %}

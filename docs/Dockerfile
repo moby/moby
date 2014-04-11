@@ -22,13 +22,13 @@ ADD 	. /docs
 #build the sphinx html
 #RUN	make -C /docs clean docs
 
-WORKDIR	/docs
-
 # get my sitemap.xml branch of mkdocs and use that for now
 RUN	git clone https://github.com/SvenDowideit/mkdocs	;\
-	cd mkdocs						;\
+	cd mkdocs/						;\
 	git checkout docker-markdown-merge			;\
 	./setup.py install
+
+WORKDIR	/docs
 
 #convert to markdown
 RUN	./convert.sh
