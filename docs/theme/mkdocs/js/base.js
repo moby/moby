@@ -1,12 +1,11 @@
-$(document).ready(function()
+$(document).ready(function ()
 {
   prettyPrint();
 
   // Resizing
   resizeMenuDropdown();
   checkToScrollTOC();
-
-  $(window).on('resize', function()
+  $(window).on('resize', function ()
   {
     resizeMenuDropdown();
     checkToScrollTOC();
@@ -32,7 +31,8 @@ $(document).ready(function()
   });
 
   /* Prevent disabled link clicks */
-  $("li.disabled a").click(function() {
+  $("li.disabled a").click(function ()
+  {
     event.preventDefault();
   });
 
@@ -49,7 +49,7 @@ function resizeMenuDropdown ()
 // https://github.com/bigspotteddog/ScrollToFixed
 function checkToScrollTOC ()
 {
-  if ( $(window).width() > 999 )
+  if ( $(window).width() >= 768 )
   {
     if ( $('#toc_table').height() >= $(window).height() )
     {

@@ -281,7 +281,7 @@ body {
 .search_input::-webkit-input-placeholder {
   color: #71afc0;
 }
-#nav_menu > #docsnav > span {
+#nav_menu > #docsnav > #mobile_menu_button {
   display: none;
   float: left;
   height: 50px;
@@ -504,7 +504,7 @@ ol.breadcrumb {
 
 }
 
-@media (max-width: 991px) {
+@media (max-width: 767px) {
 
   /* TOC Table (Left) */
   #toc_table {
@@ -534,7 +534,20 @@ ol.breadcrumb {
 
 }
 
-@media (max-width: 800px) {
+/* Container responsiveness fixes to maximise realestate expenditure */
+.container {
+  width: 100% !important;
+}
+.container-better {
+  max-width: 1100px;
+}
+
+@media (max-width: 900px) {
+
+  #nav_menu {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+  }
 
   /* Dropdown Submenu adjust */
   .dd_menu .dd_submenu li {
@@ -557,16 +570,16 @@ ol.breadcrumb {
   #nav_menu > #docsnav > #main-nav > li.active:hover {
     background: #b1d5df;
   }
-  #nav_menu > #docsnav > span {
+  #nav_menu > #docsnav > #mobile_menu_button {
     display: block;
   }
-  #nav_menu > #docsnav > span:hover {
+  #nav_menu > #docsnav > #mobile_menu_button:hover {
     background: #b1d5df;
   }
-  #nav_menu > #docsnav > span > b {
+  #nav_menu > #docsnav > #mobile_menu_button > b {
     border-top-color: #b1d5df !important;
   }
-  #nav_menu > #docsnav > span:hover > b {
+  #nav_menu > #docsnav > #mobile_menu_button:hover > b {
     border-top-color: #71afc0 !important;
   }
   #nav_menu > #docsnav > .arrow {
@@ -643,7 +656,7 @@ ol.breadcrumb {
   }
 }
 
-@media (max-width: 999px) {
+@media (max-width: 1025px) {
 
   /* Search on mobile */
   #nav_menu > #docsnav > #nav_search {
@@ -652,6 +665,7 @@ ol.breadcrumb {
   #nav_menu > #docsnav > #nav_search_toggle {
     display: block;
     margin-top: 10px;
+    margin-right: 0.5em;
   }
 
   /* Show in-content search box for desktop */
