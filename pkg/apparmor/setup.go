@@ -99,11 +99,15 @@ func InstallDefaultProfile(backupPath string) error {
 		return err
 	}
 
-	// the current functionality of the load script is the exit 0 if the parser does not exist.
-	// we think we should fail loudly if you have apparmor enabled but not the parser to load
-	// the profile for use.
 	output, err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "docker").CombinedOutput()
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
+		if e, ok := err.(*exec.Error); ok {
+			// keeping with the current profile load code, if the parser does not exist then
+			// just return
+			if e.Err == exec.ErrNotFound || os.IsNotExist(e.Err) {
+				return nil
+			}
+		}
 		return fmt.Errorf("Error loading docker profile: %s (%s)", err, output)
 	}
 	return nil
