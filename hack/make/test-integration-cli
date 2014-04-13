@@ -29,8 +29,11 @@ bundle_test_integration_cli() {
 	
 	# pull the busybox image before running the tests
 	sleep 2
-	( set -x; docker pull busybox )
 	
+	if ! docker inspect busybox &> /dev/null; then
+		( set -x; docker pull busybox )
+	fi
+
 	bundle_test_integration_cli
 	
 	DOCKERD_PID=$(set -x; cat $DEST/docker.pid)
