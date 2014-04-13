@@ -14,8 +14,6 @@ const (
 )
 
 const DefaultProfile = `
-# AppArmor profile from lxc for containers.
-
 #include <tunables/global>
 profile docker-default flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
@@ -24,43 +22,28 @@ profile docker-default flags=(attach_disconnected,mediate_deleted) {
   file,
   umount,
 
-  # ignore DENIED message on / remount
-  deny mount options=(ro, remount) -> /,
-
-  # allow tmpfs mounts everywhere
   mount fstype=tmpfs,
-
-  # allow mqueue mounts everywhere
   mount fstype=mqueue,
-
-  # allow fuse mounts everywhere
   mount fstype=fuse.*,
-
-  # allow bind mount of /lib/init/fstab for lxcguest
-  mount options=(rw, bind) /lib/init/fstab.lxc/ -> /lib/init/fstab/,
-
-  # deny writes in /proc/sys/fs but allow binfmt_misc to be mounted
   mount fstype=binfmt_misc -> /proc/sys/fs/binfmt_misc/,
-  deny @{PROC}/sys/fs/** wklx,
-
-  # allow efivars to be mounted, writing to it will be blocked though
   mount fstype=efivarfs -> /sys/firmware/efi/efivars/,
+  mount fstype=fusectl -> /sys/fs/fuse/connections/,
+  mount fstype=securityfs -> /sys/kernel/security/,
+  mount fstype=debugfs -> /sys/kernel/debug/,
+  mount fstype=proc -> /proc/,
+  mount fstype=sysfs -> /sys/,
 
-  # block some other dangerous paths
+  deny @{PROC}/sys/fs/** wklx,
   deny @{PROC}/sysrq-trigger rwklx,
   deny @{PROC}/mem rwklx,
   deny @{PROC}/kmem rwklx,
   deny @{PROC}/sys/kernel/[^s][^h][^m]* wklx,
   deny @{PROC}/sys/kernel/*/** wklx,
 
-  # deny writes in /sys except for /sys/fs/cgroup, also allow
-  # fusectl, securityfs and debugfs to be mounted there (read-only)
-  mount fstype=fusectl -> /sys/fs/fuse/connections/,
-  mount fstype=securityfs -> /sys/kernel/security/,
-  mount fstype=debugfs -> /sys/kernel/debug/,
+  deny mount options=(ro, remount) -> /,
   deny mount fstype=debugfs -> /var/lib/ureadahead/debugfs/,
-  mount fstype=proc -> /proc/,
-  mount fstype=sysfs -> /sys/,
+  deny mount fstype=devpts,
+
   deny /sys/[^f]*/** wklx,
   deny /sys/f[^s]*/** wklx,
   deny /sys/fs/[^c]*/** wklx,
@@ -68,12 +51,6 @@ profile docker-default flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/cg[^r]*/** wklx,
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
-  mount options=(move) /sys/fs/cgroup/cgmanager/ -> /sys/fs/cgroup/cgmanager.lower/,
-
-  # the container may never be allowed to mount devpts.  If it does, it
-  # will remount the host's devpts.  We could allow it to do it with
-  # the newinstance option (but, right now, we don't).
-  deny mount fstype=devpts,
 }
 `
 
@@ -101,11 +78,13 @@ func InstallDefaultProfile(backupPath string) error {
 			return err
 		}
 		defer f.Close()
+
 		src, err := os.Open(DefaultProfilePath)
 		if err != nil {
 			return err
 		}
 		defer src.Close()
+
 		if _, err := io.Copy(f, src); err != nil {
 			return err
 		}
@@ -120,7 +99,10 @@ func InstallDefaultProfile(backupPath string) error {
 		return err
 	}
 
-	output, err := exec.Command("/lib/init/apparmor-profile-load", "docker").CombinedOutput()
+	// the current functionality of the load script is the exit 0 if the parser does not exist.
+	// we think we should fail loudly if you have apparmor enabled but not the parser to load
+	// the profile for use.
+	output, err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "docker").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Error loading docker profile: %s (%s)", err, output)
 	}
