@@ -1,7 +1,7 @@
 {% include "docker_io_nav.html" %}
 <nav id="nav_menu" class="navbar navbar-default navbar-static-top affix" role="navigation">
-  <div id="docsnav" class="container">
-    <span class="dd_menu">Sections <b class="caret"></b>
+  <div id="docsnav" class="container container-better">
+    <span id="mobile_menu_button" class="dd_menu">Sections <b class="caret"></b>
       <ul class="dd_submenu">
       {% for menu in nav %}
       {% if menu.title != '**HIDDEN**' %}
@@ -34,7 +34,7 @@
       {% endfor %}
     </ul>
     <a href="/jsearch" id="nav_search_toggle" type="button" class="btn btn-default btn-sm pull-right">
-      <span class="glyphicon glyphicon-search"></span> Docs
+      <span class="glyphicon glyphicon-search"></span>
     </a>
     <form id="nav_search" class="pull-right" action="/jsearch/">
       <span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span>
