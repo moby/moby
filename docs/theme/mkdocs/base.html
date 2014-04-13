@@ -61,19 +61,18 @@
         <script src="{{ base_url }}/js/bootstrap-3.0.3.min.js"></script>
         <script src="{{ base_url }}/js/prettify-1.0.min.js"></script>
         <script src="{{ base_url }}/js/base.js"></script>
-	        {% if include_search %}
-		    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
-                    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
-	            <script src="/tipuesearch/tipuesearch_set.js"></script>
-	            <script src="/tipuesearch/tipuesearch.js"></script>
-	            <script>
-                        $(document).ready(function() {
-	                    $('.tipue_search_input').tipuesearch({
-		                                   'mode': 'json',
-		                                    'contentLocation': '/search_content.json'
-		              });
-		       });
-                     </script>
+        {% if include_search %}
+	    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
+        <script src="/tipuesearch/tipuesearch_set.js"></script>
+        <script src="/tipuesearch/tipuesearch.js"></script>
+        <script>
+        $(document).ready(function() {
+            $('#tipue_search_input').tipuesearch({
+                'mode': 'json',
+                'contentLocation': '/search_content.json'
+            });
+        });
+        </script>
 	 {% endif %}
     </body>
 </html>
