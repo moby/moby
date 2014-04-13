@@ -127,6 +127,15 @@ You can use this to select certain tests to run, eg.
 
     TESTFLAGS='-run ^TestBuild$' make test
 
+If the output indicates "FAIL" and you see errors like this:
+
+.. code-block:: text
+
+  server.go:1302 Error: Insertion failed because database is full: database or disk is full
+
+  utils_test.go:179: Error copy: exit status 1 (cp: writing '/tmp/docker-testd5c9-[...]': No space left on device
+
+Then you likely don't have enough memory available the test suite. 2GB is recommended.
 
 Step 6: Use Docker
 -------------------
