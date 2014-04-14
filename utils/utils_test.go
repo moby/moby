@@ -219,6 +219,25 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 	}
 }
 
+func BenchmarkTruncIndexAdd(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range ids {
+			index.Add(id)
+		}
+	}
+}
+
+func BenchmarkTruncIndexNew(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewTruncIndex(ids)
+	}
+}
+
 func assertKernelVersion(t *testing.T, a, b *KernelVersionInfo, result int) {
 	if r := CompareKernelVersion(a, b); r != result {
 		t.Fatalf("Unexpected kernel version comparison result. Found %d, expected %d", r, result)
