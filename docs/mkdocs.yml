@@ -1,7 +1,7 @@
-site_name: Docker
+site_name: Docker Documentation
 #site_url: http://docs.docker.io/
 site_url: /
-site_description: Docker documentation.
+site_description: Documentation for fast and lightweight Docker container based virtualization framework.
 site_favicon: /img/favicon.png
 
 dev_addr: '0.0.0.0:8000'
@@ -12,20 +12,18 @@ docs_dir: sources
 
 include_search: true
 
-#theme: spacelab
+# theme: docker
 theme_dir: ./theme/mkdocs/
-#theme_center_lead: true
-#include_search: true
+theme_center_lead: false
+include_search: true
 
-copyright: Copyright &copy; 2014, Docker.
+copyright: Copyright &copy; 2014, Docker, Inc.
 google_analytics: ['UA-6096819-11', 'docker.io']
-
 
 pages:
 
 # Introduction:
 - ['index.md', 'About', 'Docker']
-- ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 - ['introduction/technology.md', 'About', 'The Technology']
 - ['introduction/working-with-docker.md', 'About', 'Working with Docker']
