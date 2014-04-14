@@ -2,13 +2,17 @@ package cgroups
 
 import (
 	"bufio"
-	"fmt"
+	"errors"
 	"github.com/dotcloud/docker/pkg/mount"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+var (
+	ErrNotFound = errors.New("mountpoint not found")
 )
 
 type Cgroup struct {
@@ -44,7 +48,7 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("cgroup mountpoint not found for %s", subsystem)
+	return "", ErrNotFound
 }
 
 // Returns the relative path to the cgroup docker is running in.
@@ -82,7 +86,7 @@ func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("cgroup '%s' not found in /proc/self/cgroup", subsystem)
+	return "", ErrNotFound
 }
 
 func writeFile(dir, file, data string) error {
