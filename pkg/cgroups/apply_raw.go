@@ -135,6 +135,7 @@ func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 
 func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
 	dir, err := raw.join("memory", pid)
+	// only return an error for memory if it was not specified
 	if err != nil && (c.Memory != 0 || c.MemorySwap != 0) {
 		return err
 	}
@@ -145,7 +146,6 @@ func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
 	}()
 
 	if c.Memory != 0 || c.MemorySwap != 0 {
-
 		if c.Memory != 0 {
 			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(c.Memory, 10)); err != nil {
 				return err
@@ -202,26 +202,34 @@ func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
 
 func (raw *rawCgroup) setupCpuacct(c *Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	_, err := raw.join("cpuacct", pid)
-	return err
+	if _, err := raw.join("cpuacct", pid); err != nil && err != ErrNotFound {
+		return err
+	}
+	return nil
 }
 
 func (raw *rawCgroup) setupBlkio(c *Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	_, err := raw.join("blkio", pid)
-	return err
+	if _, err := raw.join("blkio", pid); err != nil && err != ErrNotFound {
+		return err
+	}
+	return nil
 }
 
 func (raw *rawCgroup) setupPerfevent(c *Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	_, err := raw.join("perf_event", pid)
-	return err
+	if _, err := raw.join("perf_event", pid); err != nil && err != ErrNotFound {
+		return err
+	}
+	return nil
 }
 
 func (raw *rawCgroup) setupFreezer(c *Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	_, err := raw.join("freezer", pid)
-	return err
+	if _, err := raw.join("freezer", pid); err != nil && err != ErrNotFound {
+		return err
+	}
+	return nil
 }
 
 func (raw *rawCgroup) Cleanup() error {
