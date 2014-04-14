@@ -15,13 +15,18 @@ type Cgroup struct {
 	Name   string `json:"name,omitempty"`
 	Parent string `json:"parent,omitempty"`
 
+	MemoryAccounting bool `json:"memory_accounting,omitempty"` // Enable memory accounting
+	CpuAccounting    bool `json:"cpu_accounting,omitempty"`    // Enable CPU accounting
+
 	DeviceAccess bool   `json:"device_access,omitempty"` // name of parent cgroup or slice
 	Memory       int64  `json:"memory,omitempty"`        // Memory limit (in bytes)
 	MemorySwap   int64  `json:"memory_swap,omitempty"`   // Total memory usage (memory + swap); set `-1' to disable swap
 	CpuShares    int64  `json:"cpu_shares,omitempty"`    // CPU shares (relative weight vs. other containers)
+	CpuQuota     int64  `json:"cpu_quota,omitempty"`     // Max runtime in a period (in usec), 0 to disable
 	CpusetCpus   string `json:"cpuset_cpus,omitempty"`   // CPU to use
+	CpusetMems   string `json:"cpuset_mems,omitempty"`   // Memory to use
 
-	UnitProperties [][2]string `json:"unit_properties,omitempty"` // systemd unit properties
+	Slice string `json:"slice,omitempty"` // Parent slice to use for systemd
 }
 
 type ActiveCgroup interface {

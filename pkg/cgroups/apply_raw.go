@@ -2,14 +2,16 @@ package cgroups
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 )
 
 type rawCgroup struct {
-	root   string
-	cgroup string
+	root       string
+	cgroup     string
+	cgroupFlat string
 }
 
 func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
@@ -31,13 +33,17 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	}
 
 	cgroup := c.Name
+	cgroupFlat := c.Name
+
 	if c.Parent != "" {
 		cgroup = filepath.Join(c.Parent, cgroup)
+		cgroupFlat = c.Parent + "-" + cgroupFlat
 	}
 
 	raw := &rawCgroup{
-		root:   cgroupRoot,
-		cgroup: cgroup,
+		root:       cgroupRoot,
+		cgroup:     cgroup,
+		cgroupFlat: cgroupFlat,
 	}
 
 	if err := raw.setupDevices(c, pid); err != nil {
@@ -55,20 +61,33 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	return raw, nil
 }
 
-func (raw *rawCgroup) path(subsystem string) (string, error) {
+func (raw *rawCgroup) path(subsystem string, flat bool) (string, error) {
 	initPath, err := GetInitCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(raw.root, subsystem, initPath, raw.cgroup), nil
+	cgroup := raw.cgroup
+	if flat {
+		cgroup = raw.cgroupFlat
+	}
+
+	return filepath.Join(raw.root, subsystem, initPath, cgroup), nil
 }
 
-func (raw *rawCgroup) join(subsystem string, pid int) (string, error) {
-	path, err := raw.path(subsystem)
+func (raw *rawCgroup) ensure(subsystem string, flat bool) (string, error) {
+	path, err := raw.path(subsystem, flat)
 	if err != nil {
 		return "", err
 	}
 	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	return path, nil
+}
+
+func (raw *rawCgroup) join(subsystem string, flat bool, pid int) (string, error) {
+	path, err := raw.ensure(subsystem, flat)
+	if err != nil {
 		return "", err
 	}
 	if err := writeFile(path, "cgroup.procs", strconv.Itoa(pid)); err != nil {
@@ -79,9 +98,9 @@ func (raw *rawCgroup) join(subsystem string, pid int) (string, error) {
 
 func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 	if !c.DeviceAccess {
-		dir, err := raw.join("devices", pid)
-		if err != nil {
-			return err
+		dir, e0 := raw.join("devices", false, pid)
+		if e0 != nil {
+			return e0
 		}
 
 		defer func() {
@@ -132,10 +151,10 @@ func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 }
 
 func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
-	if c.Memory != 0 || c.MemorySwap != 0 {
-		dir, err := raw.join("memory", pid)
-		if err != nil {
-			return err
+	if c.MemoryAccounting || c.Memory != 0 || c.MemorySwap != 0 {
+		dir, e0 := raw.join("memory", false, pid)
+		if e0 != nil {
+			return e0
 		}
 		defer func() {
 			if err != nil {
@@ -153,8 +172,12 @@ func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
 		}
 		// By default, MemorySwap is set to twice the size of RAM.
 		// If you want to omit MemorySwap, set it to `-1'.
-		if c.MemorySwap != -1 {
+		if c.MemorySwap == 0 && c.Memory != 0 {
 			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.Memory*2, 10)); err != nil {
+				return err
+			}
+		} else if c.MemorySwap > 0 {
+			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.MemorySwap, 10)); err != nil {
 				return err
 			}
 		}
@@ -165,12 +188,22 @@ func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
 func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
 	// We always want to join the cpu group, to allow fair cpu scheduling
 	// on a container basis
-	dir, err := raw.join("cpu", pid)
-	if err != nil {
-		return err
+	dir, e0 := raw.join("cpu", false, pid)
+	if e0 != nil {
+		return e0
 	}
+	defer func() {
+		if err != nil {
+			os.RemoveAll(dir)
+		}
+	}()
 	if c.CpuShares != 0 {
 		if err := writeFile(dir, "cpu.shares", strconv.FormatInt(c.CpuShares, 10)); err != nil {
+			return err
+		}
+	}
+	if c.CpuQuota != 0 {
+		if err := writeFile(dir, "cpu.cfs_quota_us", strconv.FormatInt(c.CpuQuota, 10)); err != nil {
 			return err
 		}
 	}
@@ -178,10 +211,14 @@ func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
 }
 
 func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
-	if c.CpusetCpus != "" {
-		dir, err := raw.join("cpuset", pid)
-		if err != nil {
-			return err
+	if c.CpusetCpus != "" || c.CpusetMems != "" {
+		// The cpuset controller is very finicky where each level must have
+		// a full setup as the default for a new directory is "no cpus", so
+		// we avoid using any hierarchies here, creating a toplevel directory,
+		// so we pass flat == true
+		dir, e0 := raw.ensure("cpuset", true)
+		if e0 != nil {
+			return e0
 		}
 		defer func() {
 			if err != nil {
@@ -189,7 +226,38 @@ func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
 			}
 		}()
 
-		if err := writeFile(dir, "cpuset.cpus", c.CpusetCpus); err != nil {
+		if c.CpusetCpus != "" {
+			if err := writeFile(dir, "cpuset.cpus", c.CpusetCpus); err != nil {
+				return err
+			}
+		} else {
+			s, err := ioutil.ReadFile(filepath.Join(filepath.Dir(dir), "cpuset.cpus"))
+			if err != nil {
+				return err
+			}
+
+			if err := writeFile(dir, "cpuset.cpus", string(s)); err != nil {
+				return err
+			}
+		}
+
+		if c.CpusetMems != "" {
+			if err := writeFile(dir, "cpuset.mems", c.CpusetMems); err != nil {
+				return err
+			}
+		} else {
+			s, err := ioutil.ReadFile(filepath.Join(filepath.Dir(dir), "cpuset.mems"))
+			if err != nil {
+				return err
+			}
+
+			if err := writeFile(dir, "cpuset.mems", string(s)); err != nil {
+				return err
+			}
+		}
+
+		_, err = raw.join("cpuset", true, pid)
+		if err != nil {
 			return err
 		}
 	}
@@ -198,7 +266,7 @@ func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
 
 func (raw *rawCgroup) Cleanup() error {
 	get := func(subsystem string) string {
-		path, _ := raw.path(subsystem)
+		path, _ := raw.path(subsystem, subsystem == "cpuset")
 		return path
 	}
 
@@ -207,6 +275,7 @@ func (raw *rawCgroup) Cleanup() error {
 		get("devices"),
 		get("cpu"),
 		get("cpuset"),
+		get("blkio"),
 	} {
 		if path != "" {
 			os.RemoveAll(path)

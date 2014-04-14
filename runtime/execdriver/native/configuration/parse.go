@@ -21,14 +21,46 @@ var actions = map[string]Action{
 
 	"net.join": joinNetNamespace, // join another containers net namespace
 
-	"cgroups.cpu_shares":  cpuShares,  // set the cpu shares
-	"cgroups.memory":      memory,     // set the memory limit
-	"cgroups.memory_swap": memorySwap, // set the memory swap limit
-	"cgroups.cpuset.cpus": cpusetCpus, // set the cpus used
+	"cgroups.cpu_accounting":    accountingCpu,    // Enable memory accounting
+	"cgroups.cpu_shares":        cpuShares,        // set the cpu shares
+	"cgroups.cpu_quota":         cpuQuota,         // set the cpu quota
+	"cgroups.cpuset.cpus":       cpusetCpus,       // set the cpus used
+	"cgroups.cpuset.mems":       cpusetMems,       // set the memoy used
+	"cgroups.memory":            memory,           // set the memory limit
+	"cgroups.memory_accounting": accountingMemory, // Enable memory accounting
+	"cgroups.memory_swap":       memorySwap,       // set the memory swap limit
+
+	"systemd.slice": systemdSlice, // set the cpus used
 
 	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
 
 	"fs.readonly": readonlyFs, // make the rootfs of the container read only
+}
+
+func accountingCpu(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	v, err := strconv.ParseBool(value)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.CpuAccounting = v
+
+	return nil
+}
+
+func accountingMemory(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	v, err := strconv.ParseBool(value)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.MemoryAccounting = v
+
+	return nil
 }
 
 func cpusetCpus(container *libcontainer.Container, context interface{}, value string) error {
@@ -36,6 +68,24 @@ func cpusetCpus(container *libcontainer.Container, context interface{}, value st
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
 	container.Cgroups.CpusetCpus = value
+
+	return nil
+}
+
+func cpusetMems(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	container.Cgroups.CpusetMems = value
+
+	return nil
+}
+
+func systemdSlice(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set slice when cgroups are disabled")
+	}
+	container.Cgroups.Slice = value
 
 	return nil
 }
@@ -54,6 +104,18 @@ func cpuShares(container *libcontainer.Container, context interface{}, value str
 		return err
 	}
 	container.Cgroups.CpuShares = v
+	return nil
+}
+
+func cpuQuota(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+	v, err := strconv.ParseInt(value, 10, 0)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.CpuQuota = v
 	return nil
 }
 
