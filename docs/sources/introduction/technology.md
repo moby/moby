@@ -35,21 +35,7 @@ Let's take a look.
 - Users interact with the client to command the daemon, e.g. to create, run, and stop containers.
 - The daemon, receiving those commands, does the job, e.g. run a container, stop a container.
 
-
-                                              _________________
-                                              |     Host(s)     |
-                  The Client Sends Commands   |_________________|
-                  -------------------------   |                 |
-                  [docker] <= pull, run =>    | [docker daemon] |
-                           client             |                 |
-                                              | - container 1   |
-                                              | - container 2   |
-                                              | - ..            |
-                                              |_______~~________|
-                                                      ||
-                                            [The Docker Image Index]
-
-P.S. Do not be put off with this scary looking representation. It's just our ASCII drawing skills. ;-)
+    ![Docker Architecture Diagram](/images/architecture.png)
 
 ## The components of Docker
 
