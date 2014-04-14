@@ -62,6 +62,15 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 		prev = filepath.Clean(prev)
 
 		for {
+			if !strings.HasPrefix(prev, root) {
+				// Don't resolve symlinks outside of root. For example,
+				// we don't have to check /home in the below.
+				//
+				//   /home -> usr/home
+				//   FollowSymlinkInScope("/home/bob/foo/bar", "/home/bob/foo")
+				break
+			}
+
 			stat, err := os.Lstat(prev)
 			if err != nil {
 				if os.IsNotExist(err) {
