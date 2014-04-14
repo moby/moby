@@ -6,7 +6,7 @@
   <ul id="toc_navigation" class="nav bs-sidenav">
   {% for toc_item in toc %}
     {% for toc_item in toc_item.children %}
-      <li><a href="{{ toc_item.url }}">{{ toc_item.title }}</a></li>
+      <li><a href="{{ toc_item.url }}"><span class="active_icon glyphicon glyphicon-eye-open"></span><span class="passive_icon glyphicon glyphicon-unchecked"></span> {{ toc_item.title }}</a></li>
     {% endfor %}
   {% endfor %}
   </ul>
