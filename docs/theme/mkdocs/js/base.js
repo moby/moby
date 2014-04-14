@@ -1,14 +1,27 @@
 $(document).ready(function ()
 {
+
+  // Tipue Search activation
+  $('#tipue_search_input').tipuesearch({
+    'mode': 'json',
+    'contentLocation': '/search_content.json'
+  });
+
   prettyPrint();
 
   // Resizing
   resizeMenuDropdown();
   checkToScrollTOC();
-  $(window).on('resize', function ()
-  {
-    resizeMenuDropdown();
-    checkToScrollTOC();
+  $(window).resize(function() {
+    if(this.resizeTO)
+    {
+      clearTimeout(this.resizeTO);
+    }
+    this.resizeTO = setTimeout(function ()
+    {
+      resizeMenuDropdown();
+      checkToScrollTOC();
+    }, 500);
   });
 
   /* Auto scroll */
@@ -40,10 +53,7 @@ $(document).ready(function ()
 
 function resizeMenuDropdown ()
 {
-  if ( $(window).width() >= 768 )
-  {
-    $('#main-nav > li > .submenu').css("max-height", ($('body').height() - 160) + 'px');
-  }
+  $('.dd_menu > .dd_submenu').css("max-height", ($('body').height() - 160) + 'px');
 }
 
 // https://github.com/bigspotteddog/ScrollToFixed
@@ -51,18 +61,18 @@ function checkToScrollTOC ()
 {
   if ( $(window).width() >= 768 )
   {
-    if ( $('#toc_table').height() >= $(window).height() )
+    if ( ($('#toc_table').height() + 100) >= $(window).height() )
     {
       $('#toc_table').trigger('detach.ScrollToFixed');
+      $('#toc_navigation > li.active').removeClass('active');
     }
     else
     {
       $('#toc_table').scrollToFixed({
         marginTop: $('#nav_menu').height() + 14,
         limit: function () { return $('#footer').offset().top - 450; },
-        // bottom: 0,
         zIndex: 1,
-        minWidth: 769,
+        minWidth: 768,
         removeOffsets: true,
       });
     }
