@@ -1007,7 +1007,7 @@ func (container *Container) DisableLink(name string) {
 }
 
 func (container *Container) setupContainerDns() error {
-	if container.ResolvConfPath == "" {
+	if container.ResolvConfPath != "" {
 		return nil
 	}
 	var (
