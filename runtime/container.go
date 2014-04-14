@@ -365,18 +365,6 @@ func populateCommand(c *Container, env []string) {
 	c.command.Env = env
 }
 
-func (container *Container) ArgsAsString() string {
-	var args []string
-	for _, arg := range container.Args {
-		if strings.Contains(arg, " ") {
-			args = append(args, fmt.Sprintf("'%s'", arg))
-		} else {
-			args = append(args, arg)
-		}
-	}
-	return strings.Join(args, " ")
-}
-
 func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
