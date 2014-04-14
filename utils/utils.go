@@ -714,6 +714,35 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 	}
 }
 
+// hardly keeping with RFC3986, but the docker ns/name:tag layout with a
+// "image://" prefix, and :<path> suffix. Like:
+//    image://[registry[:port]]<name>[:tag]:<path>
+func ParseImageURI(str string) (map[string]string, error) {
+	values := make(map[string]string)
+
+	if !IsIMAGE(str) || strings.Count(str, ":") < 2 {
+		return values, ErrImageUriFormat
+	}
+
+	base_str := strings.TrimPrefix(str, "image://")
+	i := strings.LastIndex(base_str, ":")
+	values["name"] = base_str[:i]
+	if len(values["name"]) == 0 {
+		return values, ErrImageUriFormat
+	}
+	values["path"] = base_str[i+1:]
+	if len(values["path"]) == 0 {
+		values["path"] = "/"
+	}
+	return values, nil
+}
+
+var ErrImageUriFormat = errors.New("image:// URI not properly formatted (image://[registry[:port]]<name>[:tag]:<path>)")
+
+func IsIMAGE(str string) bool {
+	return strings.HasPrefix(str, "image://")
+}
+
 func IsURL(str string) bool {
 	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -75,30 +76,34 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	}
 }
 
+func (b *buildFile) pullImage(name string) (*image.Image, error) {
+	remote, tag := utils.ParseRepositoryTag(name)
+	pullRegistryAuth := b.authConfig
+	if len(b.configFile.Configs) > 0 {
+		// The request came with a full auth config file, we prefer to use that
+		endpoint, _, err := registry.ResolveRepositoryName(remote)
+		if err != nil {
+			return nil, err
+		}
+		resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+		pullRegistryAuth = &resolvedAuth
+	}
+	job := b.srv.Eng.Job("pull", remote, tag)
+	job.SetenvBool("json", b.sf.Json())
+	job.SetenvBool("parallel", true)
+	job.SetenvJson("authConfig", pullRegistryAuth)
+	job.Stdout.Add(b.outOld)
+	if err := job.Run(); err != nil {
+		return nil, err
+	}
+	return b.runtime.Repositories().LookupImage(name)
+}
+
 func (b *buildFile) CmdFrom(name string) error {
 	image, err := b.runtime.Repositories().LookupImage(name)
 	if err != nil {
 		if b.runtime.Graph().IsNotExist(err) {
-			remote, tag := utils.ParseRepositoryTag(name)
-			pullRegistryAuth := b.authConfig
-			if len(b.configFile.Configs) > 0 {
-				// The request came with a full auth config file, we prefer to use that
-				endpoint, _, err := registry.ResolveRepositoryName(remote)
-				if err != nil {
-					return err
-				}
-				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
-				pullRegistryAuth = &resolvedAuth
-			}
-			job := b.srv.Eng.Job("pull", remote, tag)
-			job.SetenvBool("json", b.sf.Json())
-			job.SetenvBool("parallel", true)
-			job.SetenvJson("authConfig", pullRegistryAuth)
-			job.Stdout.Add(b.outOld)
-			if err := job.Run(); err != nil {
-				return err
-			}
-			image, err = b.runtime.Repositories().LookupImage(name)
+			image, err = b.pullImage(name)
 			if err != nil {
 				return err
 			}
@@ -502,6 +507,78 @@ func (b *buildFile) CmdAdd(args string) error {
 		isRemote   bool
 	)
 
+	// ADD a path from an existing image, to the new build
+	if utils.IsIMAGE(orig) {
+		// 1) derive the host we are copying files from
+		// 2) does the image exist locally, if not maybe 'pull' it
+		// 3) mount up that image
+		// 4) tar up the src
+		// 4) copy files over to the new
+		srcInfo, err := utils.ParseImageURI(orig)
+		if err != nil {
+			return err
+		}
+		// Check if the image exists
+		if _, err = b.runtime.Repositories().LookupImage(srcInfo["name"]); err != nil {
+			// the error is something besides the image not being present
+			if !b.runtime.Graph().IsNotExist(err) {
+				return err
+			}
+			// otherwise, pull the image
+			_, err = b.pullImage(srcInfo["name"])
+			if err != nil {
+				return err
+			}
+		}
+
+		srcConfig := &runconfig.Config{
+			Image: srcInfo["name"],
+			Cmd:   []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)},
+		}
+		srcContainer, _, err := b.runtime.Create(srcConfig, "")
+		if err != nil {
+			return err
+		}
+		defer b.runtime.Destroy(srcContainer)
+
+		if err := srcContainer.Mount(); err != nil {
+			return err
+		}
+		defer srcContainer.Unmount()
+		srcPath := path.Join(srcContainer.RootfsPath(), srcInfo["path"])
+		srcTar, err := archive.Tar(srcPath, archive.Uncompressed)
+		if err != nil {
+			return err
+		}
+		tarSum := &utils.TarSum{Reader: srcTar, DisableCompression: true}
+
+		tmpDirName, err := ioutil.TempDir(b.contextPath, "docker-add")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmpDirName)
+
+		tmpFileName := path.Join(tmpDirName, "from.tar")
+		tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+		if err != nil {
+			return err
+		}
+		if _, err = io.Copy(tmpFile, tarSum); err != nil {
+			tmpFile.Close()
+			return err
+		}
+		remoteHash = tarSum.Sum(nil)
+		srcTar.Close()
+		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
+
+		// If the destination is a directory, figure out the filename.
+		if strings.HasSuffix(dest, "/") {
+			if destPath, err = b.determineDest(orig, dest); err != nil {
+				return err
+			}
+		}
+	}
+
 	if utils.IsURL(orig) {
 		// Initiate the download
 		isRemote = true
@@ -544,20 +621,9 @@ func (b *buildFile) CmdAdd(args string) error {
 
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(dest, "/") {
-			u, err := url.Parse(orig)
-			if err != nil {
+			if destPath, err = b.determineDest(orig, dest); err != nil {
 				return err
 			}
-			path := u.Path
-			if strings.HasSuffix(path, "/") {
-				path = path[:len(path)-1]
-			}
-			parts := strings.Split(path, "/")
-			filename := parts[len(parts)-1]
-			if filename == "" {
-				return fmt.Errorf("cannot determine filename from url: %s", u)
-			}
-			destPath = dest + filename
 		}
 	}
 
@@ -630,6 +696,23 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	b.config.Cmd = cmd
 	return nil
+}
+
+func (b *buildFile) determineDest(orig, dest string) (string, error) {
+	u, err := url.Parse(orig)
+	if err != nil {
+		return "", err
+	}
+	path := u.Path
+	if strings.HasSuffix(path, "/") {
+		path = path[:len(path)-1]
+	}
+	parts := strings.Split(path, "/")
+	filename := parts[len(parts)-1]
+	if filename == "" {
+		return "", fmt.Errorf("cannot determine filename from url: %s", u)
+	}
+	return dest + filename, nil
 }
 
 func (b *buildFile) create() (*runtime.Container, error) {
