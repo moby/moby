@@ -4,10 +4,9 @@
 FROM 		debian:testing
 MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-RUN 	apt-get update && apt-get install -yq make gcc python-sphinx python-pip python-setuptools
-RUN	pip install mkdocs
+RUN 	apt-get update && apt-get install -yq make gcc python-sphinx python-pip python-setuptools vim-tiny git pandoc awscli
 
-RUN	apt-get install -yq vim-tiny git pandoc s3cmd=1.1.0* awscli
+RUN	pip install mkdocs
 
 # pip installs from docs/requirements.txt, but here to increase cacheability
 RUN	pip install Sphinx==1.2.1
@@ -17,11 +16,8 @@ RUN	pip install sphinxcontrib-httpdomain==1.2.0
 RUN	easy_install -U setuptools
 RUN	pip install MarkdownTools2
 
-ADD 	. /docs
-ADD	MAINTAINERS /docs/sources/humans.txt
-
-#build the sphinx html
-#RUN	make -C /docs clean docs
+# this week I seem to need the latest dev release of awscli too
+RUN	pip install awscli
 
 # get my sitemap.xml branch of mkdocs and use that for now
 RUN	git clone https://github.com/SvenDowideit/mkdocs	;\
@@ -29,7 +25,12 @@ RUN	git clone https://github.com/SvenDowideit/mkdocs	;\
 	git checkout docker-markdown-merge			;\
 	./setup.py install
 
+ADD 	. /docs
+ADD	MAINTAINERS /docs/sources/humans.txt
 WORKDIR	/docs
+
+#build the sphinx html
+#RUN	make -C /docs clean docs
 
 #convert to markdown
 RUN	./convert.sh

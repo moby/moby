@@ -44,8 +44,8 @@ and see your changes.
 In the ``docker`` source directory, run:
     ```make docs```
 
-This is the equivalent to ``make clean server`` since each container
-starts clean.
+If you have any issues you need to debug, you can use ``make docs-shell`` and
+then run ``mkdocs serve``
 
 # Contributing
 
@@ -81,3 +81,23 @@ When you need to add images, try to make them as small as possible
 (e.g. as gif). Usually images should go in the same directory as the
 .md file which references them, or in a subdirectory if one already
 exists.
+
+Publishing Documentation
+------------------------
+
+To publish a copy of the documentation you need a ``docs/awsconfig``
+file containing AWS settings to deploy to. The release script will 
+create an s3 if needed, and will then push the files to it.
+
+```
+[profile dowideit-docs]
+aws_access_key_id = IHOIUAHSIDH234rwf....
+aws_secret_access_key = OIUYSADJHLKUHQWIUHE......
+region = ap-southeast-2
+```
+
+The ``profile`` name must be the same as the name of the bucket you are 
+deploying to - which you call from the docker directory:
+
+``make AWS_S3_BUCKET=dowideit-docs docs-release``
+
