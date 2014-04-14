@@ -829,8 +829,6 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
 	var (
-		authEncoded       = r.Header.Get("X-Registry-Auth")
-		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
 		job               = eng.Job("build")
@@ -840,12 +838,18 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	// Both headers will be parsed and sent along to the daemon, but if a non-empty
 	// ConfigFile is present, any value provided as an AuthConfig directly will
 	// be overridden. See BuildFile::CmdFrom for details.
+	var (
+		authEncoded = r.Header.Get("X-Registry-Auth")
+		authConfig  = &registry.AuthConfig{}
+	)
 	if version.LessThan("1.9") && authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
 			authConfig = &registry.AuthConfig{}
+		} else {
+			configFile.Configs[authConfig.ServerAddress] = *authConfig
 		}
 	}
 
@@ -870,8 +874,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
 	job.Setenv("rm", r.FormValue("rm"))
-	job.SetenvJson("authConfig", authConfig)
-	job.SetenvJson("configFile", configFile)
+	job.SetenvJson("auth", configFile)
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
