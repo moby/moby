@@ -1,12 +1,12 @@
 site_name: Docker
-site_url: http://docs.docker.io/
+#site_url: http://docs.docker.io/
 site_url: /
 site_description: Docker documentation.
 site_favicon: /img/favicon.png
 
 dev_addr: '0.0.0.0:8000'
 
-#repo_url: https://github.com/dotcloud/docker/
+repo_url: https://github.com/dotcloud/docker/
 
 docs_dir: sources
 

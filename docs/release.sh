@@ -38,7 +38,9 @@ setup_s3() {
 	$aws_cmd ls s3://$BUCKET
 	# Make the bucket accessible through website endpoints.
 	echo "make $BUCKET accessible as a website"
-	$aws_cmd website s3://$BUCKET --index-document index.html --error-document jsearch/index.html
+	#$aws_cmd website s3://$BUCKET --index-document index.html --error-document jsearch/index.html
+	s3conf=$(cat s3_website.json)
+	aws s3api put-bucket-website --bucket $BUCKET --website-configuration "$s3conf"
 }
 
 build_current_documentation() {
