@@ -1,4 +1,4 @@
-// +build !linux
+// +build !linux,!freebsd
 
 package system
 
