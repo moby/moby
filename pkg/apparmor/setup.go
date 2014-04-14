@@ -3,7 +3,6 @@ package apparmor
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -12,47 +11,6 @@ import (
 const (
 	DefaultProfilePath = "/etc/apparmor.d/docker"
 )
-
-const DefaultProfile = `
-#include <tunables/global>
-profile docker-default flags=(attach_disconnected,mediate_deleted) {
-  #include <abstractions/base>
-  network,
-  capability,
-  file,
-  umount,
-
-  mount fstype=tmpfs,
-  mount fstype=mqueue,
-  mount fstype=fuse.*,
-  mount fstype=binfmt_misc -> /proc/sys/fs/binfmt_misc/,
-  mount fstype=efivarfs -> /sys/firmware/efi/efivars/,
-  mount fstype=fusectl -> /sys/fs/fuse/connections/,
-  mount fstype=securityfs -> /sys/kernel/security/,
-  mount fstype=debugfs -> /sys/kernel/debug/,
-  mount fstype=proc -> /proc/,
-  mount fstype=sysfs -> /sys/,
-
-  deny @{PROC}/sys/fs/** wklx,
-  deny @{PROC}/sysrq-trigger rwklx,
-  deny @{PROC}/mem rwklx,
-  deny @{PROC}/kmem rwklx,
-  deny @{PROC}/sys/kernel/[^s][^h][^m]* wklx,
-  deny @{PROC}/sys/kernel/*/** wklx,
-
-  deny mount options=(ro, remount) -> /,
-  deny mount fstype=debugfs -> /var/lib/ureadahead/debugfs/,
-  deny mount fstype=devpts,
-
-  deny /sys/[^f]*/** wklx,
-  deny /sys/f[^s]*/** wklx,
-  deny /sys/fs/[^c]*/** wklx,
-  deny /sys/fs/c[^g]*/** wklx,
-  deny /sys/fs/cg[^r]*/** wklx,
-  deny /sys/firmware/efi/efivars/** rwklx,
-  deny /sys/kernel/security/** rwklx,
-}
-`
 
 func InstallDefaultProfile(backupPath string) error {
 	if !IsEnabled() {
@@ -95,15 +53,26 @@ func InstallDefaultProfile(backupPath string) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(DefaultProfilePath, []byte(DefaultProfile), 0644); err != nil {
+	f, err := os.OpenFile(DefaultProfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
 		return err
 	}
+	if err := generateProfile(f); err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
 
-	output, err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "docker").CombinedOutput()
+	cmd := exec.Command("/sbin/apparmor_parser", "-r", "-W", "docker")
+	// to use the parser directly we have to make sure we are in the correct
+	// dir with the profile
+	cmd.Dir = "/etc/apparmor.d"
+
+	output, err := cmd.CombinedOutput()
 	if err != nil && !os.IsNotExist(err) {
 		if e, ok := err.(*exec.Error); ok {
-			// keeping with the current profile load code, if the parser does not exist then
-			// just return
+			// keeping with the current profile load code, if the parser does not
+			// exist then just return
 			if e.Err == exec.ErrNotFound || os.IsNotExist(e.Err) {
 				return nil
 			}
