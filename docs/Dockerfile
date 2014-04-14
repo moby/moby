@@ -7,7 +7,7 @@ MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 RUN 	apt-get update && apt-get install -yq make gcc python-sphinx python-pip python-setuptools
 RUN	pip install mkdocs
 
-RUN	apt-get install -yq vim-tiny git pandoc s3cmd=1.1.0*
+RUN	apt-get install -yq vim-tiny git pandoc s3cmd=1.1.0* awscli
 
 # pip installs from docs/requirements.txt, but here to increase cacheability
 RUN	pip install Sphinx==1.2.1
@@ -18,6 +18,7 @@ RUN	easy_install -U setuptools
 RUN	pip install MarkdownTools2
 
 ADD 	. /docs
+ADD	MAINTAINERS /docs/sources/humans.txt
 
 #build the sphinx html
 #RUN	make -C /docs clean docs
