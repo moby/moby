@@ -112,10 +112,6 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	return nil
 }
 
-func (container *Container) When() time.Time {
-	return container.Created
-}
-
 func (container *Container) FromDisk() error {
 	data, err := ioutil.ReadFile(container.jsonPath())
 	if err != nil {

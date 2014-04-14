@@ -14,7 +14,7 @@ func (history *History) Len() int {
 
 func (history *History) Less(i, j int) bool {
 	containers := *history
-	return containers[j].When().Before(containers[i].When())
+	return containers[j].Created.Before(containers[i].Created)
 }
 
 func (history *History) Swap(i, j int) {
