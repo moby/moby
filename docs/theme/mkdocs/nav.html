@@ -3,6 +3,9 @@
   <div id="docsnav" class="container container-better">
     <span id="mobile_menu_button" class="dd_menu">Sections <b class="caret"></b>
       <ul class="dd_submenu">
+        <li>
+          <a href="/">Home</a>
+        </li>
       {% for menu in nav %}
       {% if menu.title != '**HIDDEN**' %}
         <li {% if menu.active %}class="active"{% endif %}>
@@ -18,6 +21,9 @@
     </span>
     <b class="arrow pull-left"><img src="/img/docs_nav_menu_arrow_1x.png"></b>
     <ul id="main-nav" class="pull-left">
+      <li class="dd_menu pull-left">
+        <a href="/"><i class="glyphicon glyphicon-home"></i></span></a>
+      </li>
       {% for menu in nav %}
       {% if menu.title != '**HIDDEN**' %}
       <li class="dd_menu pull-left{% if menu.active %} active{% endif %}">
