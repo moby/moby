@@ -7,6 +7,10 @@
     {% if page_description %}<meta name="description" content="{{ page_description }}">{% endif %}
     {% if site_author %}<meta name="author" content="{{ site_author }}">{% endif %}
     {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+    <link href="/css/bootstrap-custom.min.css" rel="stylesheet">
+    <link href="/css/prettify-1.0.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
     <link rel="shortcut icon" href="{{ site_favicon }}">
     <title>{% if page_title != '**HIDDEN** - Docker' %}{{ page_title }}{% else %}{{ site_name }}{% endif %}</title>
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -40,10 +44,6 @@
       </div>
     </div>
     {% include "prev_next.html" %}
-    <link href="/css/bootstrap-custom.min.css" rel="stylesheet">
-    <link href="/css/prettify-1.0.css" rel="stylesheet">
-    <link href="/css/base.css" rel="stylesheet">
-    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
     <script src="/js/jquery-scrolltofixed-min.js"></script>
     <script src="/js/bootstrap-3.0.3.min.js"></script>
