@@ -5,7 +5,8 @@ set -o pipefail
 
 usage() {
 	cat >&2 <<'EOF'
-To publish the Docker documentation you need to set your access_key and secret_key in the docs/s3cfg file
+To publish the Docker documentation you need to set your access_key and secret_key in the docs/awsconfig file 
+(with the keys in a [profile $AWS_S3_BUCKET] section - so you can have more than one set of keys in your file)
 and set the AWS_S3_BUCKET env var to the name of your bucket.
 
 make AWS_S3_BUCKET=beta-docs.docker.io docs-release
@@ -20,19 +21,24 @@ EOF
 #VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
 
-[ -e s3cfg ] || usage
-cp s3cfg ${HOME}/.s3cfg
+export AWS_CONFIG_FILE=$(pwd)/awsconfig
+[ -e "$AWS_CONFIG_FILE" ] || usage
+export AWS_DEFAULT_PROFILE=$AWS_S3_BUCKET
+
+aws_cmd="aws s3"
+
+echo "cfg file: $AWS_CONFIG_FILE ; profile: $AWS_DEFAULT_PROFILE"
 
 setup_s3() {
+	echo "Create $BUCKET"
 	# Try creating the bucket. Ignore errors (it might already exist).
-	s3cmd mb s3://$BUCKET 2>/dev/null || true
+	$aws_cmd mb s3://$BUCKET 2>/dev/null || true
 	# Check access to the bucket.
-	# s3cmd has no useful exit status, so we cannot check that.
-	# Instead, we check if it outputs anything on standard output.
-	# (When there are problems, it uses standard error instead.)
-	s3cmd info s3://$BUCKET | grep -q .
+	echo "test $BUCKET exists"
+	$aws_cmd ls s3://$BUCKET
 	# Make the bucket accessible through website endpoints.
-	s3cmd ws-create --ws-index index.html --ws-error jsearch.html s3://$BUCKET
+	echo "make $BUCKET accessible as a website"
+	$aws_cmd website s3://$BUCKET --index-document index.html --error-document jsearch/index.html
 }
 
 build_current_documentation() {
@@ -47,7 +53,8 @@ upload_current_documentation() {
 	echo "Uploading $src"
 	echo "  to $dst"
 	echo
-	s3cmd --recursive --follow-symlinks --preserve --acl-public sync "$src" "$dst"
+	#s3cmd --recursive --follow-symlinks --preserve --acl-public sync "$src" "$dst"
+	$aws_cmd sync --acl public-read --exclude "*.rej" --exclude "*.rst" --exclude "*.orig" --exclude "*.py" "$src" "$dst"
 }
 
 setup_s3
