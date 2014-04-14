@@ -33,7 +33,12 @@ func prepareVolumesForContainer(container *Container) error {
 	return nil
 }
 
-func setupMountsForContainer(container *Container, envPath string) error {
+func setupMountsForContainer(container *Container) error {
+	envPath, err := container.EnvConfigPath()
+	if err != nil {
+		return err
+	}
+
 	mounts := []execdriver.Mount{
 		{container.runtime.sysInitPath, "/.dockerinit", false, true},
 		{envPath, "/.dockerenv", false, true},

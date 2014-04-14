@@ -322,7 +322,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func populateCommand(c *Container) {
+func populateCommand(c *Container, env []string) {
 	var (
 		en           *execdriver.Network
 		driverConfig = make(map[string][]string)
@@ -366,6 +366,7 @@ func populateCommand(c *Container) {
 		Resources:  resources,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	c.command.Env = env
 }
 
 func (container *Container) ArgsAsString() string {
@@ -387,186 +388,50 @@ func (container *Container) Start() (err error) {
 	if container.State.IsRunning() {
 		return nil
 	}
-
+	// if we encounter and error during start we need to ensure that any other
+	// setup has been cleaned up properly
 	defer func() {
 		if err != nil {
 			container.cleanup()
 		}
 	}()
 
-	if container.ResolvConfPath == "" {
-		if err := container.setupContainerDns(); err != nil {
-			return err
-		}
+	if err := container.setupContainerDns(); err != nil {
+		return err
 	}
-
 	if err := container.Mount(); err != nil {
 		return err
 	}
-
-	if container.runtime.config.DisableNetwork {
-		container.Config.NetworkDisabled = true
-		container.buildHostnameAndHostsFiles("127.0.1.1")
-	} else {
-		if err := container.allocateNetwork(); err != nil {
-			return err
-		}
-		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+	if err := container.initializeNetworking(); err != nil {
+		return err
 	}
-
-	// Make sure the config is compatible with the current kernel
-	if container.Config.Memory > 0 && !container.runtime.sysInfo.MemoryLimit {
-		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		container.Config.Memory = 0
-	}
-	if container.Config.Memory > 0 && !container.runtime.sysInfo.SwapLimit {
-		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		container.Config.MemorySwap = -1
-	}
-
-	if container.runtime.sysInfo.IPv4ForwardingDisabled {
-		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
-	}
-
+	container.verifyRuntimeSettings()
 	if err := prepareVolumesForContainer(container); err != nil {
 		return err
 	}
-
-	// Setup environment
-	env := []string{
-		"HOME=/",
-		"PATH=" + DefaultPathEnv,
-		"HOSTNAME=" + container.Config.Hostname,
-	}
-
-	if container.Config.Tty {
-		env = append(env, "TERM=xterm")
-	}
-
-	// Init any links between the parent and children
-	runtime := container.runtime
-
-	children, err := runtime.Children(container.Name)
+	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
 	}
-
-	if len(children) > 0 {
-		container.activeLinks = make(map[string]*links.Link, len(children))
-
-		// If we encounter an error make sure that we rollback any network
-		// config and ip table changes
-		rollback := func() {
-			for _, link := range container.activeLinks {
-				link.Disable()
-			}
-			container.activeLinks = nil
-		}
-
-		for linkAlias, child := range children {
-			if !child.State.IsRunning() {
-				return fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
-			}
-
-			link, err := links.NewLink(
-				container.NetworkSettings.IPAddress,
-				child.NetworkSettings.IPAddress,
-				linkAlias,
-				child.Config.Env,
-				child.Config.ExposedPorts,
-				runtime.eng)
-
-			if err != nil {
-				rollback()
-				return err
-			}
-
-			container.activeLinks[link.Alias()] = link
-			if err := link.Enable(); err != nil {
-				rollback()
-				return err
-			}
-
-			for _, envVar := range link.ToEnv() {
-				env = append(env, envVar)
-			}
-		}
-	}
-
-	// because the env on the container can override certain default values
-	// we need to replace the 'env' keys where they match and append anything
-	// else.
-	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
+	env := container.createRuntimeEnvironment(linkedEnv)
+	// TODO: This is only needed for lxc so we should look for a way to
+	// remove this dep
 	if err := container.generateEnvConfig(env); err != nil {
 		return err
 	}
-
-	if container.Config.WorkingDir != "" {
-		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
-
-		pthInfo, err := os.Stat(path.Join(container.basefs, container.Config.WorkingDir))
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return err
-			}
-			if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
-				return err
-			}
-		}
-		if pthInfo != nil && !pthInfo.IsDir() {
-			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
-		}
-	}
-
-	envPath, err := container.EnvConfigPath()
-	if err != nil {
+	if err := container.setupWorkingDirectory(); err != nil {
 		return err
 	}
-
-	populateCommand(container)
-	container.command.Env = env
-
-	if err := setupMountsForContainer(container, envPath); err != nil {
+	populateCommand(container, env)
+	if err := setupMountsForContainer(container); err != nil {
 		return err
 	}
-
-	// Setup logging of stdout and stderr to disk
-	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
-		return err
-	}
-	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
+	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
 	container.waitLock = make(chan struct{})
 
-	callbackLock := make(chan struct{})
-	callback := func(command *execdriver.Command) {
-		container.State.SetRunning(command.Pid())
-		if command.Tty {
-			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
-			// which we close here.
-			if c, ok := command.Stdout.(io.Closer); ok {
-				c.Close()
-			}
-		}
-		if err := container.ToDisk(); err != nil {
-			utils.Debugf("%s", err)
-		}
-		close(callbackLock)
-	}
-
-	// We use a callback here instead of a goroutine and an chan for
-	// syncronization purposes
-	cErr := utils.Go(func() error { return container.monitor(callback) })
-
-	// Start should not return until the process is actually running
-	select {
-	case <-callbackLock:
-	case err := <-cErr:
-		return err
-	}
-	return nil
+	return container.waitForStart()
 }
 
 func (container *Container) Run() error {
@@ -1146,6 +1011,9 @@ func (container *Container) DisableLink(name string) {
 }
 
 func (container *Container) setupContainerDns() error {
+	if container.ResolvConfPath == "" {
+		return nil
+	}
 	var (
 		config  = container.hostConfig
 		runtime = container.runtime
@@ -1188,6 +1056,169 @@ func (container *Container) setupContainerDns() error {
 		}
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
+	}
+	return nil
+}
+
+func (container *Container) initializeNetworking() error {
+	if container.runtime.config.DisableNetwork {
+		container.Config.NetworkDisabled = true
+		container.buildHostnameAndHostsFiles("127.0.1.1")
+	} else {
+		if err := container.allocateNetwork(); err != nil {
+			return err
+		}
+		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+	}
+	return nil
+}
+
+// Make sure the config is compatible with the current kernel
+func (container *Container) verifyRuntimeSettings() {
+	if container.Config.Memory > 0 && !container.runtime.sysInfo.MemoryLimit {
+		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		container.Config.Memory = 0
+	}
+	if container.Config.Memory > 0 && !container.runtime.sysInfo.SwapLimit {
+		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		container.Config.MemorySwap = -1
+	}
+	if container.runtime.sysInfo.IPv4ForwardingDisabled {
+		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
+	}
+}
+
+func (container *Container) setupLinkedContainers() ([]string, error) {
+	var (
+		env     []string
+		runtime = container.runtime
+	)
+	children, err := runtime.Children(container.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(children) > 0 {
+		container.activeLinks = make(map[string]*links.Link, len(children))
+
+		// If we encounter an error make sure that we rollback any network
+		// config and ip table changes
+		rollback := func() {
+			for _, link := range container.activeLinks {
+				link.Disable()
+			}
+			container.activeLinks = nil
+		}
+
+		for linkAlias, child := range children {
+			if !child.State.IsRunning() {
+				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
+			}
+
+			link, err := links.NewLink(
+				container.NetworkSettings.IPAddress,
+				child.NetworkSettings.IPAddress,
+				linkAlias,
+				child.Config.Env,
+				child.Config.ExposedPorts,
+				runtime.eng)
+
+			if err != nil {
+				rollback()
+				return nil, err
+			}
+
+			container.activeLinks[link.Alias()] = link
+			if err := link.Enable(); err != nil {
+				rollback()
+				return nil, err
+			}
+
+			for _, envVar := range link.ToEnv() {
+				env = append(env, envVar)
+			}
+		}
+	}
+	return env, nil
+}
+
+func (container *Container) createRuntimeEnvironment(linkedEnv []string) []string {
+	// Setup environment
+	env := []string{
+		"HOME=/",
+		"PATH=" + DefaultPathEnv,
+		"HOSTNAME=" + container.Config.Hostname,
+	}
+	if container.Config.Tty {
+		env = append(env, "TERM=xterm")
+	}
+	env = append(env, linkedEnv...)
+	// because the env on the container can override certain default values
+	// we need to replace the 'env' keys where they match and append anything
+	// else.
+	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
+
+	return env
+}
+
+func (container *Container) setupWorkingDirectory() error {
+	if container.Config.WorkingDir != "" {
+		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
+
+		pthInfo, err := os.Stat(path.Join(container.basefs, container.Config.WorkingDir))
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
+				return err
+			}
+		}
+		if pthInfo != nil && !pthInfo.IsDir() {
+			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
+		}
+	}
+	return nil
+}
+
+func (container *Container) startLoggingToDisk() error {
+	// Setup logging of stdout and stderr to disk
+	if err := container.runtime.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
+		return err
+	}
+	if err := container.runtime.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (container *Container) waitForStart() error {
+	callbackLock := make(chan struct{})
+	callback := func(command *execdriver.Command) {
+		container.State.SetRunning(command.Pid())
+		if command.Tty {
+			// The callback is called after the process Start()
+			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
+			// which we close here.
+			if c, ok := command.Stdout.(io.Closer); ok {
+				c.Close()
+			}
+		}
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("%s", err)
+		}
+		close(callbackLock)
+	}
+
+	// We use a callback here instead of a goroutine and an chan for
+	// syncronization purposes
+	cErr := utils.Go(func() error { return container.monitor(callback) })
+
+	// Start should not return until the process is actually running
+	select {
+	case <-callbackLock:
+	case err := <-cErr:
+		return err
 	}
 	return nil
 }
