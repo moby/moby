@@ -39,19 +39,21 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 		root:   cgroupRoot,
 		cgroup: cgroup,
 	}
+	for _, g := range []func(*Cgroup, int) error{
+		raw.setupDevices,
+		raw.setupMemory,
+		raw.setupCpu,
+		raw.setupCpuset,
+		raw.setupCpuacct,
+		raw.setupBlkio,
+		raw.setupPerfevent,
+		raw.setupFreezer,
+	} {
+		if err := g(c, pid); err != nil {
+			return nil, err
+		}
+	}
 
-	if err := raw.setupDevices(c, pid); err != nil {
-		return nil, err
-	}
-	if err := raw.setupMemory(c, pid); err != nil {
-		return nil, err
-	}
-	if err := raw.setupCpu(c, pid); err != nil {
-		return nil, err
-	}
-	if err := raw.setupCpuset(c, pid); err != nil {
-		return nil, err
-	}
 	return raw, nil
 }
 
@@ -78,17 +80,17 @@ func (raw *rawCgroup) join(subsystem string, pid int) (string, error) {
 }
 
 func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
-	if !c.DeviceAccess {
-		dir, err := raw.join("devices", pid)
+	dir, err := raw.join("devices", pid)
+	if err != nil {
+		return err
+	}
+	defer func() {
 		if err != nil {
-			return err
+			os.RemoveAll(dir)
 		}
+	}()
 
-		defer func() {
-			if err != nil {
-				os.RemoveAll(dir)
-			}
-		}()
+	if !c.DeviceAccess {
 
 		if err := writeFile(dir, "devices.deny", "a"); err != nil {
 			return err
@@ -132,16 +134,17 @@ func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 }
 
 func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
-	if c.Memory != 0 || c.MemorySwap != 0 {
-		dir, err := raw.join("memory", pid)
+	dir, err := raw.join("memory", pid)
+	if err != nil && (c.Memory != 0 || c.MemorySwap != 0) {
+		return err
+	}
+	defer func() {
 		if err != nil {
-			return err
+			os.RemoveAll(dir)
 		}
-		defer func() {
-			if err != nil {
-				os.RemoveAll(dir)
-			}
-		}()
+	}()
+
+	if c.Memory != 0 || c.MemorySwap != 0 {
 
 		if c.Memory != 0 {
 			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(c.Memory, 10)); err != nil {
@@ -178,9 +181,10 @@ func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
 }
 
 func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
+	// we don't want to join this cgroup unless it is specified
 	if c.CpusetCpus != "" {
 		dir, err := raw.join("cpuset", pid)
-		if err != nil {
+		if err != nil && c.CpusetCpus != "" {
 			return err
 		}
 		defer func() {
@@ -196,6 +200,30 @@ func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
+func (raw *rawCgroup) setupCpuacct(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("cpuacct", pid)
+	return err
+}
+
+func (raw *rawCgroup) setupBlkio(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("blkio", pid)
+	return err
+}
+
+func (raw *rawCgroup) setupPerfevent(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("perf_event", pid)
+	return err
+}
+
+func (raw *rawCgroup) setupFreezer(c *Cgroup, pid int) error {
+	// we just want to join this group even though we don't set anything
+	_, err := raw.join("freezer", pid)
+	return err
+}
+
 func (raw *rawCgroup) Cleanup() error {
 	get := func(subsystem string) string {
 		path, _ := raw.path(subsystem)
@@ -207,6 +235,10 @@ func (raw *rawCgroup) Cleanup() error {
 		get("devices"),
 		get("cpu"),
 		get("cpuset"),
+		get("cpuacct"),
+		get("blkio"),
+		get("perf_event"),
+		get("freezer"),
 	} {
 		if path != "" {
 			os.RemoveAll(path)
