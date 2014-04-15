@@ -4,8 +4,8 @@
 
 .. _cli:
 
-Command Line Help
------------------
+Command Line
+============
 
 To list available commands, either run ``docker`` with no parameters or execute
 ``docker help``::
@@ -20,8 +20,8 @@ To list available commands, either run ``docker`` with no parameters or execute
 
 .. _cli_options:
 
-Options
--------
+Option types
+------------
 
 Single character commandline options can be combined, so rather than typing
 ``docker run -t -i --name test busybox sh``, you can write
@@ -55,11 +55,6 @@ Strings and Integers
 Options like ``--name=""`` expect a string, and they can only be
 specified once. Options like ``-c=0`` expect an integer, and they can
 only be specified once.
-
-----
-
-Commands
---------
 
 .. _cli_daemon:
 
