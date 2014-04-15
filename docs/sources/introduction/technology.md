@@ -35,7 +35,7 @@ Let's take a look.
 - Users interact with the client to command the daemon, e.g. to create, run, and stop containers.
 - The daemon, receiving those commands, does the job, e.g. run a container, stop a container.
 
-    ![Docker Architecture Diagram](/images/architecture.png)
+    ![Docker Architecture Diagram](/images/architecture.svg)
 
 ## The components of Docker
 
