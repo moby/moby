@@ -7,8 +7,6 @@
 docker.io Accounts API
 ======================
 
-.. contents:: Table of Contents
-
 
 1. Endpoints
 ============

@@ -8,8 +8,6 @@
 Docker Remote API v1.11
 =======================
 
-.. contents:: Table of Contents
-
 1. Brief introduction
 =====================
 
