@@ -2,7 +2,7 @@ site_name: Docker Documentation
 #site_url: http://docs.docker.io/
 site_url: /
 site_description: Documentation for fast and lightweight Docker container based virtualization framework.
-site_favicon: /img/favicon.png
+site_favicon: img/favicon.png
 
 dev_addr: '0.0.0.0:8000'
 
@@ -11,6 +11,8 @@ repo_url: https://github.com/dotcloud/docker/
 docs_dir: sources
 
 include_search: true
+
+use_absolute_urls: true
 
 # theme: docker
 theme_dir: ./theme/mkdocs/
