@@ -8,6 +8,25 @@ body {
   font-family: "Cabin", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6 {
+  font-family: "Cabin", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  line-height: 1.1;
+  color: inherit;
+}
+
+
 /* Content rendering styles */
 #content {
   font-size: 1.2em;
@@ -91,6 +110,11 @@ body {
 .row > [class^="col-"]:last-child,
 .row > [class*=" col-"]:last-child{
     padding-right: 0px;
+}
+
+
+.navbar {
+    border: none;
 }
 
 /* Previous & Next floating navigation */
@@ -177,9 +201,7 @@ body {
   color: #777777;
 }
 #header .navbar-nav {
-    right: 0px;
-    top: 0px;
-    position: absolute;
+    float: right;
 }
 #header .navbar-inner {
   padding-right: 0px;
@@ -201,7 +223,7 @@ body {
   text-align: right;
   padding: 5px 10px;
 }
-#horizontal_thin_menu > a {
+#horizontal_thin_menu a {
   display: inline-block;
   color: white;
   padding: 0px 10px;
@@ -534,7 +556,7 @@ ol.breadcrumb {
 *****************************/
 
 /* Horizontal nav. (menu & thin menu) convenience fix for Tablets */
-@media (min-width: 768px) and (max-width: 999px) {
+@media (min-width: 768px) and (max-width: 952px) {
 
   #docsnav, #horizontal_thin_menu {
     width: 100% !important;
@@ -582,8 +604,11 @@ ol.breadcrumb {
 .container {
   width: 100% !important;
 }
+.container-standard-sized {
+  max-width: 1050px;
+}
 .container-better {
-  max-width: 1100px;
+  max-width: 1050px;
 }
 
 @media (max-width: 900px) {
@@ -674,23 +699,12 @@ ol.breadcrumb {
   /* Thin menu (login - signup) */
   #horizontal_thin_menu { display: none; }
 
-}
-
-@media (max-width: 850px) {
-  /* Docker IO Navigation */
-  #header {
-    display: block;
-    height: 50px;
-  }
   #header #nav_docker_io {
     display: none;
   }
-  #header .brand {
+
+  #header #condensed_docker_io_nav {
     display: block;
-    text-align: center;
-  }
-  #header .brand > img {
-    height: 50px;
   }
 }
 
