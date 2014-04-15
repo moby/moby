@@ -1,0 +1,13 @@
+<div id="toc_table" class="bs-sidebar hidden-print" role="complementary">
+{% if current_page.title != '**HIDDEN**' %}
+  <h2>{{ current_page.title }}</h2>
+{% endif %}
+  <h3>TABLE OF CONTENTS</h3>
+  <ul id="toc_navigation" class="nav bs-sidenav">
+  {% for toc_item in toc %}
+    {% for toc_item in toc_item.children %}
+      <li><a href="{{ toc_item.url }}"><span class="active_icon glyphicon glyphicon-eye-open"></span><span class="passive_icon glyphicon glyphicon-unchecked"></span> {{ toc_item.title }}</a></li>
+    {% endfor %}
+  {% endfor %}
+  </ul>
+</div>

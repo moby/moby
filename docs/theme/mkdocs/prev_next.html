@@ -1,0 +1,22 @@
+<ul id="nav_prev_next" class="nav navbar-nav">
+    <li class="prev{% if not previous_page %} disabled{% endif %}">
+        <a rel="next" {% if previous_page %}href="{{ previous_page.url }}"{% endif %}>
+            <i class="glyphicon glyphicon-chevron-left"></i> Previous Doc
+            <span>{{ previous_page.title }}</span>
+        </a>
+    </li>
+    <li class="next{% if not next_page %} disabled{% endif %}">
+        <a rel="prev" {% if next_page %}href="{{ next_page.url }}"{% endif %}>
+            Next Doc <i class="glyphicon glyphicon-chevron-right"></i>
+            <span>{{ next_page.title }}</span>
+        </a>
+    </li>
+</ul>
+
+<ul id="scroll_to_top" class="nav navbar-nav">
+    <li>
+        <a href="#">
+            <i class="glyphicon glyphicon-chevron-up"></i> Up!
+        </a>
+    </li>
+</ul>
