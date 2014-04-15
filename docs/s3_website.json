@@ -5,7 +5,7 @@
   "IndexDocument": {
     "Suffix": "index.html"
   },
-"RoutingRules": [
+  "RoutingRules": [
     { "Condition": { "KeyPrefixEquals": "en/latest/" }, "Redirect": { "ReplaceKeyPrefixWith": "" } },
     { "Condition": { "KeyPrefixEquals": "en/master/" }, "Redirect": { "ReplaceKeyPrefixWith": "" } },
     { "Condition": { "KeyPrefixEquals": "en/v0.6.3/" }, "Redirect": { "ReplaceKeyPrefixWith": "" } },

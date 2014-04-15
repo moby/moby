@@ -17,12 +17,14 @@ RUN	easy_install -U setuptools
 RUN	pip install MarkdownTools2
 
 # this week I seem to need the latest dev release of awscli too
+# awscli 1.3.6 does --error-document correctly
+# https://github.com/aws/aws-cli/commit/edc2290e173dfaedc70b48cfa3624d58c533c6c3
 RUN	pip install awscli
 
 # get my sitemap.xml branch of mkdocs and use that for now
-RUN	git clone https://github.com/SvenDowideit/mkdocs	;\
-	cd mkdocs/						;\
-	git checkout docker-markdown-merge			;\
+RUN	git clone https://github.com/SvenDowideit/mkdocs	&&\
+	cd mkdocs/						&&\
+	git checkout docker-markdown-merge			&&\
 	./setup.py install
 
 ADD 	. /docs

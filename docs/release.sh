@@ -23,22 +23,20 @@ BUCKET=$AWS_S3_BUCKET
 
 export AWS_CONFIG_FILE=$(pwd)/awsconfig
 [ -e "$AWS_CONFIG_FILE" ] || usage
-export AWS_DEFAULT_PROFILE=$AWS_S3_BUCKET
-
-aws_cmd="aws s3"
+export AWS_DEFAULT_PROFILE=$BUCKET
 
 echo "cfg file: $AWS_CONFIG_FILE ; profile: $AWS_DEFAULT_PROFILE"
 
 setup_s3() {
 	echo "Create $BUCKET"
 	# Try creating the bucket. Ignore errors (it might already exist).
-	$aws_cmd mb s3://$BUCKET 2>/dev/null || true
+	aws s3 mb s3://$BUCKET 2>/dev/null || true
 	# Check access to the bucket.
 	echo "test $BUCKET exists"
-	$aws_cmd ls s3://$BUCKET
+	aws s3 ls s3://$BUCKET
 	# Make the bucket accessible through website endpoints.
 	echo "make $BUCKET accessible as a website"
-	#$aws_cmd website s3://$BUCKET --index-document index.html --error-document jsearch/index.html
+	#aws s3 website s3://$BUCKET --index-document index.html --error-document jsearch/index.html
 	s3conf=$(cat s3_website.json)
 	aws s3api put-bucket-website --bucket $BUCKET --website-configuration "$s3conf"
 }
@@ -48,7 +46,7 @@ build_current_documentation() {
 }
 
 upload_current_documentation() {
-	src=$(pwd)/site/
+	src=site/
 	dst=s3://$BUCKET
 
 	echo
@@ -56,7 +54,7 @@ upload_current_documentation() {
 	echo "  to $dst"
 	echo
 	#s3cmd --recursive --follow-symlinks --preserve --acl-public sync "$src" "$dst"
-	$aws_cmd sync --acl public-read --exclude "*.rej" --exclude "*.rst" --exclude "*.orig" --exclude "*.py" "$src" "$dst"
+	aws s3 sync --acl public-read --exclude "*.rej" --exclude "*.rst" --exclude "*.orig" --exclude "*.py" "$src" "$dst"
 }
 
 setup_s3
