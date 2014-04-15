@@ -24,7 +24,7 @@
 #
 
 docker-version	0.6.1
-FROM	ubuntu:13.10
+FROM	debian:jessie
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
@@ -34,6 +34,7 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	automake \
 	btrfs-tools \
 	build-essential \
+	ca-certificates \
 	curl \
 	dpkg-sig \
 	git \
@@ -42,10 +43,11 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	libcap-dev \
 	libsqlite3-dev \
 	mercurial \
+	procps \
 	reprepro \
-	ruby1.9.1 \
-	ruby1.9.1-dev \
-	s3cmd=1.1.0* \
+	ruby \
+	ruby-dev \
+	s3cmd \
 	--no-install-recommends
 
 # Get and compile LXC 0.8 (since it is the most stable)
