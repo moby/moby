@@ -31,7 +31,11 @@ bundle_test_integration_cli() {
 	sleep 2
 	
 	if ! docker inspect busybox &> /dev/null; then
-		( set -x; docker pull busybox )
+		if [ -d /docker-busybox ]; then
+			( set -x; docker build -t busybox /docker-busybox )
+		else
+			( set -x; docker pull busybox )
+		fi
 	fi
 
 	bundle_test_integration_cli
