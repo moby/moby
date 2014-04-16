@@ -1,9 +1,16 @@
 #!/bin/bash
-echo "md2man-all: about to mkdir ../man1"
-mkdir -p /pandoc/man1
-echo "md2man-all: changing to /pandoc/md"
-cd /pandoc/md
-echo "md2man-all: about to convert files"
-for FILE in docker*.md; do echo $FILE; pandoc -s -t man $FILE -o /pandoc/man1/"${FILE%.*}".1; done
-echo "md2man-all: List files:"
-ls -l /pandoc/man1
+set -e
+
+# get into this script's directory
+cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+
+[ "$1" = '-q' ] || {
+	set -x
+	pwd
+}
+
+mkdir -p ../man1
+
+for FILE in docker*.md; do
+	pandoc -s -t man "$FILE" -o "../man1/${FILE%.*}.1"
+done
