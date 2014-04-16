@@ -1063,7 +1063,17 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out.SetList("Names", names[container.ID])
 		out.Set("Image", srv.runtime.Repositories().ImageName(container.Image))
 		if len(container.Args) > 0 {
-			out.Set("Command", fmt.Sprintf("\"%s %s\"", container.Path, container.ArgsAsString()))
+			args := []string{}
+			for _, arg := range container.Args {
+				if strings.Contains(arg, " ") {
+					args = append(args, fmt.Sprintf("'%s'", arg))
+				} else {
+					args = append(args, arg)
+				}
+			}
+			argsAsString := strings.Join(args, " ")
+
+			out.Set("Command", fmt.Sprintf("\"%s %s\"", container.Path, argsAsString))
 		} else {
 			out.Set("Command", fmt.Sprintf("\"%s\"", container.Path))
 		}
