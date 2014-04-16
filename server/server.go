@@ -1287,7 +1287,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			for _, ep := range repoData.Endpoints {
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
 				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
-					// Its not ideal that only the last error  is returned, it would be better to concatenate the errors.
+					// It's not ideal that only the last error is returned, it would be better to concatenate the errors.
 					// As the error is also given to the output stream the user will see the error.
 					lastErr = err
 					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err), nil))
