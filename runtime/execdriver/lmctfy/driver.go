@@ -323,6 +323,10 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return nil
 }
 
+func (d *driver) Terminate(c *execdriver.Command) error {
+	return d.Kill(c, 9)
+}
+
 type info struct {
 	id string
 }
