@@ -71,7 +71,7 @@ pages:
 - ['use/working_with_volumes.md', 'Examples', 'Sharing Directories using volumes']
 - ['use/puppet.md', 'Examples', 'Using Puppet']
 - ['use/chef.md', 'Examples', 'Using Chef']
-# - ['use/workingwithrepository.md', 'Examples', 'Working with a Docker Repository']
+- ['use/workingwithrepository.md', 'Examples', 'Working with a Docker Repository']
 - ['use/port_redirection.md', 'Examples', 'Redirect ports']
 - ['use/ambassador_pattern_linking.md', 'Examples', 'Cross-Host linking using Ambassador Containers']
 - ['use/host_integration.md', 'Examples', 'Automatically starting Containers']
