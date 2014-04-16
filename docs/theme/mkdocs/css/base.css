@@ -37,6 +37,9 @@ h6,
 }
 #content h2 {
   padding: 0.5em 0em 0.3em 0em;
+  /* Desktop click-to-scroll margin/padding fixes */
+  padding-top: 2em !important;
+  margin-top: -2em !important;
 }
 #content h3 {
   padding: 0.7em 0em 0.3em 0em;
@@ -585,6 +588,13 @@ ol.breadcrumb > li:last-child > a {
   }
   #toc_table > #toc_navigation > li > a > .active_icon {
     display: none;
+  }
+
+  /* Mobile click-to-scroll margin/padding fixes */
+  #content h2 {
+    padding: 0.5em 0em 0.3em 0em;
+    padding-top: 13.5em !important;
+    margin-top: -13.5em !important;
   }
 
 }
