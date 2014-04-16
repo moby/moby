@@ -23,7 +23,7 @@ h6,
   font-family: "Cabin", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 500;
   line-height: 1.1;
-  color: inherit;
+  color: #0e6b8d;
 }
 
 
@@ -33,15 +33,12 @@ h6,
   line-height: 1.8em;
 }
 #content h1 {
-  color: #FF8100;
   padding: 0.5em 0em 0em 0em;
 }
 #content h2 {
-  color: #FFA242;
   padding: 0.5em 0em 0.3em 0em;
 }
 #content h3 {
-  color: #FFA242;
   padding: 0.7em 0em 0.3em 0em;
 }
 #content ul {
@@ -352,13 +349,11 @@ h6,
   margin: 0px;
   font-size: 1.7em;
   font-weight: bold;
-  color: #4291d1;
-  text-align: center;
+  color: #0e6b8d;
 }
 #toc_table > h3 {
   font-size: 1em;
-  color: #71afc0;
-  text-align: center;
+  color: #0e6b8d;
 }
 #toc_table > #toc_navigation {
   margin-top: 1.5em !important;
@@ -374,7 +369,7 @@ h6,
   padding-bottom: 0px;
   padding: 0.2em 0.5em;
   border-bottom: 1px solid #ddd;
-  text-align: justify;
+  text-align: left;
 }
 #toc_table > #toc_navigation > li > a {
   padding: 0.4em 0.5em 0.4em 0em;
@@ -405,7 +400,6 @@ h6,
 }
 
 #toc_table > #toc_navigation > li.active > a {
-  font-weight: bold;
   color: #FF8100;
 }
 #toc_table .bs-sidenav {
