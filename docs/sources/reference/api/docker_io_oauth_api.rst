@@ -7,8 +7,6 @@
 docker.io OAuth API
 ===================
 
-.. contents:: Table of Contents
-
 
 1. Brief introduction
 =====================

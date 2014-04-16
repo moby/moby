@@ -1,0 +1,86 @@
+diff --git a/docs/sources/examples/hello_world.md b/docs/sources/examples/hello_world.md
+index 6e072f6..5a4537d 100644
+--- a/docs/sources/examples/hello_world.md
++++ b/docs/sources/examples/hello_world.md
+@@ -59,6 +59,9 @@ standard out.
+ 
+ See the example in action
+ 
++<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/7658.js&quot;id=&quot;asciicast-7658&quot; async></script></body>"></iframe>
++
++
+ ## Hello World Daemon
+ 
+ Note
+@@ -142,6 +145,8 @@ Make sure it is really stopped.
+ 
+ See the example in action
+ 
++<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/2562.js&quot;id=&quot;asciicast-2562&quot; async></script></body>"></iframe>
++
+ The next example in the series is a [*Node.js Web
+ App*](../nodejs_web_app/#nodejs-web-app) example, or you could skip to
+ any of the other examples:
+diff --git a/docs/asciinema.patch b/docs/asciinema.patch
+index e240bf3..e69de29 100644
+--- a/docs/asciinema.patch
++++ b/docs/asciinema.patch
+@@ -1,23 +0,0 @@
+-diff --git a/docs/sources/examples/hello_world.md b/docs/sources/examples/hello_world.md
+-index 6e072f6..5a4537d 100644
+---- a/docs/sources/examples/hello_world.md
+-+++ b/docs/sources/examples/hello_world.md
+-@@ -59,6 +59,9 @@ standard out.
+- 
+- See the example in action
+- 
+-+<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/7658.js&quot;id=&quot;asciicast-7658&quot; async></script></body>"></iframe>
+-+
+-+
+- ## Hello World Daemon
+- 
+- Note
+-@@ -142,6 +145,8 @@ Make sure it is really stopped.
+- 
+- See the example in action
+- 
+-+<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/2562.js&quot;id=&quot;asciicast-2562&quot; async></script></body>"></iframe>
+-+
+- The next example in the series is a [*Node.js Web
+- App*](../nodejs_web_app/#nodejs-web-app) example, or you could skip to
+- any of the other examples:
+diff --git a/docs/sources/examples/hello_world.md b/docs/sources/examples/hello_world.md
+index 6e072f6..c277f38 100644
+--- a/docs/sources/examples/hello_world.md
++++ b/docs/sources/examples/hello_world.md
+@@ -59,6 +59,8 @@ standard out.
+ 
+ See the example in action
+ 
++<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/7658.js&quot;id=&quot;asciicast-7658&quot; async></script></body>"></iframe>
++
+ ## Hello World Daemon
+ 
+ Note
+@@ -142,6 +144,8 @@ Make sure it is really stopped.
+ 
+ See the example in action
+ 
++<iframe width="640" height="480" frameborder="0" sandbox="allow-same-origin allow-scripts" srcdoc="<body><script type=&quot;text/javascript&quot;src=&quot;https://asciinema.org/a/2562.js&quot;id=&quot;asciicast-2562&quot; async></script></body>"></iframe>
++
+ The next example in the series is a [*Node.js Web
+ App*](../nodejs_web_app/#nodejs-web-app) example, or you could skip to
+ any of the other examples:
+diff --git a/docs/sources/use/workingwithrepository.md b/docs/sources/use/workingwithrepository.md
+index 2122b8d..49edbc8 100644
+--- a/docs/sources/use/workingwithrepository.md
++++ b/docs/sources/use/workingwithrepository.md
+@@ -199,6 +199,8 @@ searchable (or indexed at all) in the Central Index, and there will be
+ no user name checking performed. Your registry will function completely
+ independently from the Central Index.
+ 
++<iframe width="640" height="360" src="//www.youtube.com/embed/CAewZCBT4PI?rel=0" frameborder="0" allowfullscreen></iframe>
++
+ See also
+ 
+ [Docker Blog: How to use your own
