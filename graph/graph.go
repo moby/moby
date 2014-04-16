@@ -251,17 +251,18 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 // the container from unwanted side-effects on the rw layer.
 func SetupInitLayer(initLayer string) error {
 	for pth, typ := range map[string]string{
-		"/dev/pts":         "dir",
-		"/dev/shm":         "dir",
-		"/proc":            "dir",
-		"/sys":             "dir",
-		"/.dockerinit":     "file",
-		"/.dockerenv":      "file",
-		"/etc/resolv.conf": "file",
-		"/etc/hosts":       "file",
-		"/etc/hostname":    "file",
-		"/dev/console":     "file",
-		"/etc/mtab":        "/proc/mounts",
+		"/dev/pts":             "dir",
+		"/dev/shm":             "dir",
+		"/proc":                "dir",
+		"/sys":                 "dir",
+		"/.dockerinit":         "file",
+		"/.dockerenv":          "file",
+		"/etc/resolv.conf":     "file",
+		"/etc/hosts":           "file",
+		"/etc/hostname":        "file",
+		"/dev/console":         "file",
+		"/etc/mtab":            "/proc/mounts",
+		"/var/run/docker.sock": "socket",
 		// "var/run": "dir",
 		// "var/lock": "dir",
 	} {
@@ -284,6 +285,15 @@ func SetupInitLayer(initLayer string) error {
 					}
 				case "file":
 					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
+					if err != nil {
+						return err
+					}
+					f.Close()
+				case "socket":
+					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+						return err
+					}
+					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0000)
 					if err != nil {
 						return err
 					}
