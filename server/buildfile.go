@@ -455,8 +455,10 @@ func (b *buildFile) addContext(container *runtime.Container, orig, dest string, 
 		return err
 	}
 
-	if err := chownR(destPath, 0, 0); err != nil {
-		return err
+	if !fi.Mode().IsRegular() {
+		if err := chownR(destPath, 0, 0); err != nil {
+			return err
+		}
 	}
 	return nil
 }
