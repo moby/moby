@@ -20,9 +20,6 @@ than any other ``docker`` command.
 Every one of the :ref:`example_list` shows running containers, and so
 here we try to give more in-depth guidance.
 
-.. contents:: Table of Contents
-   :depth: 2
-
 .. _run_running:
 
 General Form

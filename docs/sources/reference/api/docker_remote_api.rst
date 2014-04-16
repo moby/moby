@@ -83,8 +83,6 @@ v1.8
 Full Documentation
 ------------------
 
-:doc:`docker_remote_api_v1.8`
-
 What's new
 ----------
 
@@ -110,8 +108,6 @@ v1.7
 
 Full Documentation
 ------------------
-
-:doc:`docker_remote_api_v1.7`
 
 What's new
 ----------
@@ -215,8 +211,6 @@ v1.6
 Full Documentation
 ------------------
 
-:doc:`docker_remote_api_v1.6`
-
 What's new
 ----------
 
@@ -234,8 +228,6 @@ v1.5
 
 Full Documentation
 ------------------
-
-:doc:`docker_remote_api_v1.5`
 
 What's new
 ----------
@@ -262,8 +254,6 @@ v1.4
 Full Documentation
 ------------------
 
-:doc:`docker_remote_api_v1.4`
-
 What's new
 ----------
 
@@ -286,8 +276,6 @@ docker v0.5.0 51f6c4a_
 
 Full Documentation
 ------------------
-
-:doc:`docker_remote_api_v1.3`
 
 What's new
 ----------
@@ -329,8 +317,6 @@ docker v0.4.2 2e7649b_
 Full Documentation
 ------------------
 
-:doc:`docker_remote_api_v1.2`
-
 What's new
 ----------
 
@@ -364,8 +350,6 @@ docker v0.4.0 a8ae398_
 Full Documentation
 ------------------
 
-:doc:`docker_remote_api_v1.1`
-
 What's new
 ----------
 
@@ -392,8 +376,6 @@ docker v0.3.4 8d73740_
 
 Full Documentation
 ------------------
-
-:doc:`docker_remote_api_v1.0`
 
 What's new
 ----------
