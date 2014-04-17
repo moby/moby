@@ -854,7 +854,7 @@ to view a list of all containers.
 
 The `docker run` command can be used in combination
 with `docker commit` to [*change the command that a
-container runs*](#cli-commit-examples).
+container runs*](#commit-an-existing-container).
 
 See [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
 for more detailed information about the `--expose`,

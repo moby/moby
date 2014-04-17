@@ -40,7 +40,7 @@ There are two types of public repositories: *top-level* repositories
 which are controlled by the Docker team, and *user* repositories created
 by individual contributors. Anyone can read from these repositories –
 they really help people get started quickly! You could also use
-[*Trusted Builds*](#using-private-repositories) if you need to keep
+[*Trusted Builds*](#trusted-builds) if you need to keep
 control of who accesses your images, but we will only refer to public
 repositories in these examples.
 

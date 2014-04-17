@@ -27,7 +27,7 @@ managed by Docker for this purpose. When the Docker daemon starts it :
     docker0   Link encap:Ethernet  HWaddr xx:xx:xx:xx:xx:xx
          inet addr:172.17.42.1  Bcast:0.0.0.0  Mask:255.255.0.0
 
-At runtime, a [*specific kind of virtual interface*](#vethxxxx-device)
+At runtime, a [*specific kind of virtual interface*](#what-is-the-vethxxxx-device)
 is given to each container which is then bonded to the
 `docker0` bridge. Each container also receives a
 dedicated IP address from the same range as `docker0`

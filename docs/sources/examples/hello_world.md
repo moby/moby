@@ -15,7 +15,7 @@ like `/var/lib/docker/repositories: permission denied`
 you may have an incomplete Docker installation or insufficient
 privileges to access docker on your machine.
 
-Please refer to [*Installation*](../../installation/#installation-list)
+Please refer to [*Installation*](../../installation/)
 for installation instructions.
 
 ## Hello World
@@ -24,7 +24,7 @@ Note
 
 -   This example assumes you have Docker running in daemon mode. For
     more information please see [*Check your Docker
-    install*](#running-examples).
+    install*](#check-your-docker-installation).
 -   **If you don’t like sudo** then see [*Giving non-root
     access*](../../installation/binaries/#dockergroup)
 
@@ -70,7 +70,7 @@ Note
 
 -   This example assumes you have Docker running in daemon mode. For
     more information please see [*Check your Docker
-    install*](#running-examples).
+    install*](#check-your-docker-installation).
 -   **If you don’t like sudo** then see [*Giving non-root
     access*](../../installation/binaries/#dockergroup)
 
