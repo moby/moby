@@ -12,18 +12,18 @@ docker-search - Search the docker index for images
 
 Search an index for an image with that matches the term TERM. The table
 of images returned displays the name, description (truncated by default),
- number of stars awarded, whether the image is official, and
-whether it is trusted.
+number of stars awarded, whether the image is official, and whether it
+is trusted.
 
 # OPTIONS
-**--no-trunc**=*true*|*false*:
+**--no-trunc**=*true*|*false*
    When true display the complete description. The default is false.
 
 **-s**, **--stars**=NUM
    Only displays with at least NUM (integer) stars. I.e. only those images
 ranked >=NUM.
 
-**-t**, **--trusted**=*true*|*false*:
+**-t**, **--trusted**=*true*|*false*
    When true only show trusted builds. The default is false.
 
 # EXAMPLE
@@ -52,4 +52,4 @@ ranked 1 or higher:
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

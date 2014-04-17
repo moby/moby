@@ -9,64 +9,75 @@ docker-build - Build a container image from a Dockerfile source at PATH
  [**-rm**] [**-t**|**--tag**=*tag*] PATH | URL | -
 
 # DESCRIPTION
-This will read the Dockerfile from the directory specified in **PATH**. It also
- sends any other files and directories found in the current directory to the
-Docker daemon. The contents of this directory would be used by **ADD** commands
-found within the Dockerfile. Warning, this will send a lot of data to the Docker
-daemon if the current directory contains a lot of data.
+This will read the Dockerfile from the directory specified in **PATH**.
+It also sends any other files and directories found in the current
+directory to the Docker daemon. The contents of this directory would
+be used by **ADD** commands found within the Dockerfile.
 
-If the absolute path is provided instead of ‘.’, only the files and directories
-required by the **ADD** command from the Dockerfile will be added to the context
- and transferred to the Docker daemon.
+Warning, this will send a lot of data to the Docker daemon depending
+on the contents of the current directory.
 
-When a single Dockerfile is given as URL, then no context is set. When a Git
-repository is set as **URL**, the repository is used as context.
+If the absolute path is provided instead of ‘.’, only the files and
+directories required by the **ADD** command from the Dockerfile will
+be added to the context and transferred to the Docker daemon.
+
+When a single Dockerfile is given as the URL, then no context is set.
+When a Git repository is set as the **URL**, the repository is used
+as context.
 
 # OPTIONS
 
 **-q**, **--quiet**=*true*|*false*
-:  When set to true, suppress verbose build output. Default is *false*.
+   When set to true, suppress verbose build output. Default is *false*.
 
 **--rm**=*true*|*false*
-:  When true, remove intermediate containers that are created during the build process. The default is true.
+   When true, remove intermediate containers that are created during the
+build process. The default is true.
 
 **-t**, **--tag**=*tag*
-:  Tag to be applied to the resulting image on successful completion of the build.
+   Tag to be applied to the resulting image on successful completion of
+the build.
 
 **--no-cache**=*true*|*false*
-:  When set to true, do not use a cache when building the image. The default is *false*.
+   When set to true, do not use a cache when building the image. The
+default is *false*.
 
 # EXAMPLES
 
-## Building an image from current directory
+## Building an image using a Dockefile located inside the current directory
 
-Using a Dockerfile, Docker images are built using the build command:
+Docker images can be built using the build command and a Dockerfile:
 
     docker build .
 
-If, for some reason, you do not what to remove the intermediate containers created during the build you must set --rm=false:
+During the build process Docker creates intermediate images. In order to
+remove them, you must explicitly set `--rm=false`.
 
     docker build --rm=false .
 
-A good practice is to make a sub-directory with a related name and create the
-Dockerfile in that directory. E.g. a directory called mongo may contain a
-Dockerfile for a MongoDB image, or a directory called httpd may contain a
-Dockerfile for an Apache web server.
+A good practice is to make a sub-directory with a related name and create
+the Dockerfile in that directory. For example, a directory called mongo may
+contain a Dockerfile to create a Docker MongoDB image. Likewise, another
+directory called httpd may be used to store Dockerfiles for Apache web
+server images.
 
-It is also good practice to add the files required for the image to the
-sub-directory. These files will be then specified with the `ADD` instruction in
-the Dockerfile. Note: if you include a tar file, which is good practice, then
-Docker will automatically extract the contents of the tar file specified in the
-`ADD` instruction into the specified target.
+It is also a good practice to add the files required for the image to the
+sub-directory. These files will then be specified with the `ADD` instruction
+in the Dockerfile. Note: If you include a tar file (a good practice!), then
+Docker will automatically extract the contents of the tar file
+specified within the `ADD` instruction into the specified target.
 
 ## Building an image using a URL
 
-This will clone the Github repository and use it as context. The Dockerfile at the root of the repository is used as Dockerfile. This only works if the Github repository is a dedicated repository.
+This will clone the specified Github repository from the URL and use it
+as context. The Dockerfile at the root of the repository is used as
+Dockerfile. This only works if the Github repository is a dedicated
+repository.
 
     docker build github.com/scollier/Fedora-Dockerfiles/tree/master/apache
 
-Note that you can specify an arbitrary Git repository by using the `git://`
-schema.
+Note: You can set an arbitrary Git repository via the `git://` schema.
 
 # HISTORY
-March 2014, Originally compiled by William Henry (whenry at redhat dot com) based on docker.io source material and internal work.
+March 2014, Originally compiled by William Henry (whenry at redhat dot com)
+based on docker.io source material and internal work.

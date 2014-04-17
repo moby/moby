@@ -22,15 +22,15 @@ containers on a host use the **docker ps -a** command.
 # OPTIONS
 
 **-f**, **--force**=*true*|*false*
-:   When set to true, force the removal of the container. The default is
+   When set to true, force the removal of the container. The default is
 *false*.
 
 **-l**, **--link**=*true*|*false*
-:   When set to true, remove the specified link and not the underlying
+   When set to true, remove the specified link and not the underlying
 container. The default is *false*.
 
 **-v**, **--volumes**=*true*|*false*
-:   When set to true, remove the volumes associated to the container. The
+   When set to true, remove the volumes associated to the container. The
 default is *false*.
 
 # EXAMPLES
@@ -39,7 +39,7 @@ default is *false*.
 
 To remove a container using its ID, find either from a **docker ps -a**
 command, or use the ID returned from the **docker run** command, or retrieve
- it from a file used to store it using the **docker run --cidfile**:
+it from a file used to store it using the **docker run --cidfile**:
 
     docker rm abebf7571666
 
@@ -52,5 +52,5 @@ command. The use that name as follows:
 
 # HISTORY
 
-April 2014, Originally compiled by William Henry (whenry at redhat dot com) based
- on docker.io source material and internal work.
+April 2014, Originally compiled by William Henry (whenry at redhat dot com)
+based on docker.io source material and internal work.

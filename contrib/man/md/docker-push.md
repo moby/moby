@@ -9,7 +9,7 @@ docker-push - Push an image or a repository to the registry
 
 # DESCRIPTION
 Push and image or repository to a registry.  The registry may the default
- [index.docker.io](https://index.docker.io/v1/) or a another registry
+[index.docker.io](https://index.docker.io/v1/) or a another registry
 
 # EXAMPLE
 
@@ -22,9 +22,9 @@ and then committing it to a new image name:
 
 Now push the image to the registry using the image ID. In this example
 the registry is on host named registry-host and listening on port 5000.
- Default Docker commands will push to the default `index.docker.io`
- registry. Instead, push to the local registry, which is on a host called
- registry-host*. To do this, tag the image with the host name or IP
+Default Docker commands will push to the default `index.docker.io`
+registry. Instead, push to the local registry, which is on a host called
+registry-host*. To do this, tag the image with the host name or IP
 address, and the port of the registry:
 
     # docker tag rhel-httpd registry-host:5000/myadmin/rhel-httpd
@@ -35,8 +35,8 @@ Check that this worked by running:
     # docker images
 
 You should see both `rhel-httpd` and `registry-host:5000/myadmin/rhel-httpd`
- listed.
+listed.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

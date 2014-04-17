@@ -1,8 +1,9 @@
 Docker Documentation
 ====================
 
-This directory contains the docker user manual in Markdown format.
-DO NOT edit the man pages in the man1 directory. Instead make changes here.
+This directory contains the Docker user manual in the Markdown format.
+Do *not* edit the man pages in the man1 directory. Instead, amend the
+Markdown (*.md) files.
 
 # File List
 
@@ -41,32 +42,34 @@ DO NOT edit the man pages in the man1 directory. Instead make changes here.
     Dockerfile
     md2man-all.sh
 
-# Generating man pages from the Markdown
+# Generating man pages from the Markdown files
 
 There are three ways to generate the man pages:
-* Manually Individually
-* Using the Script
-* Using a the Pandoc Container (**Recommended**)
+* Each page manually
+* All pages manually
+* Via a *Pandoc* Docker container (**Recommended**)
 
-The first and second approach require you to install pandoc packages
- on your host using the host operating systems package installer. Check
-to see if pandoc is available if you choose that method.
+The first and second approach require you to install the Pandoc package
+ on your computer using the default package installer for the system.
+You should check if Pandoc is available before trying to do so.
 
-The Pandoc container approach is recommneded because the conversion process
-is isolated inside a fedora container and thereofre does not require you
-find and install pandoc on your host.
+The recommended approach is the Pandoc Docker container one.
+Using the supplied Dockerfile, Docker creates a Fedora based container
+and isolates the Pandoc installation.
+This is a seamless process, saving you from dealing with Pandoc and
+dependencies on your own computer.
 
-## Manually Individually
+## Each page manually
 
-You can generate the manpage by:
+You can generate the man pages with:
 
     pandoc -s -t man docker-<command>.md ../man1/docker-<command>.1
 
-The resulting man pages are stored in ../man1
+The results will be stored ../man1
 
-## Manually All
+## All pages manually
 
-Or regenerate all the manpages from this source using:
+You can generate *all* the man pages from the source using:
 
     for FILE in *.md
     do
@@ -77,14 +80,16 @@ Or regenerate all the manpages from this source using:
 
 There is a Dockerfile provided in the `docker/contrib/man/md` directory.
 
-Use this Dockerfile to create a `fedora/pandoc` container:
+Using this Dockerfile, create a Docker image tagged `fedora/pandoc`.
 
-    # docker build  -t fedora/pandoc .
+    docker build  -t fedora/pandoc .
 
-After the container is created run the following command from your
-`docker/contrib/man/md` directory:
+Once the image is built, create a container inside the
+`docker/contrib/man/md` directory using the it:
 
-    # docker run -v /<path-to-git-dir>/docker/contrib/man:/pandoc:rw \
+    docker run -v /<path-to-git-dir>/docker/contrib/man:/pandoc:rw \
     -w /pandoc -i fedora/pandoc /pandoc/md/md2man-all.sh
 
-This will generate all man files into `docker/contrib/man/man1`.
+The Pandoc Docker container will process the Markdown files and generate
+ the man pages inside the `docker/contrib/man/man1` directory using
+ Docker volumes.

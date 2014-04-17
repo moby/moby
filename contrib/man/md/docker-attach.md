@@ -12,8 +12,8 @@ If you **docker run** a container in detached mode (**-d**), you can reattach to
  the detached container with **docker attach** using the container's ID or name.
 
 You can detach from the container again (and leave it running) with `CTRL-c` (for
- a quiet exit) or `CTRL-\` to get a stacktrace of the Docker client when it quits
-. When you detach from a container the exit code will be returned to
+a quiet exit) or `CTRL-\` to get a stacktrace of the Docker client when it quits.
+When you detach from a container the exit code will be returned to
 the client.
 
 # OPTIONS
@@ -26,7 +26,7 @@ mode). The default is *true*.
 
 # EXAMPLES
 
-##Attaching to a container
+## Attaching to a container
 
 In this example the top command is run inside a container, from an image called
 fedora, in detached mode. The ID from the container is passed into the **docker
@@ -53,4 +53,5 @@ attach** command:
     1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
 
 # HISTORY
-April 2014, Originally compiled by William Henry (whenry at redhat dot com) based on docker.io source material and internal work.
+April 2014, Originally compiled by William Henry (whenry at redhat dot com)
+based on docker.io source material and internal work.

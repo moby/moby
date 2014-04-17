@@ -19,8 +19,8 @@ seconds since epoch, or date string.
 
 ## Listening for Docker events
 
-After running docker events a container 786d698004576 is started and stopped:
-(The container name has been shortened in the ouput below)
+After running docker events a container 786d698004576 is started and stopped
+(The container name has been shortened in the ouput below):
 
     # docker events
     [2014-04-12 18:23:04 -0400 EDT] 786d69800457: (from whenry/testimage:latest) start
@@ -43,4 +43,4 @@ Again the output container IDs have been shortened for the purposes of this docu
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

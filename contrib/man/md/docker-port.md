@@ -12,4 +12,4 @@ Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

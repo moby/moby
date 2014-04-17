@@ -19,19 +19,19 @@ the running containers.
 
 **-a**, **--all**=*true*|*false*
    When true show all containers. Only running containers are shown by
- default. Default is false.
+default. Default is false.
 
 **--before**=""
    Show only container created before Id or Name, include non-running
- ones.
+ones.
 
 **-l**, **--latest**=*true*|*false*
    When true show only the latest created container, include non-running
- ones. The default is false.
+ones. The default is false.
 
 **-n**=NUM
    Show NUM (integer) last created containers, include non-running ones.
- The default is -1 (none)
+The default is -1 (none)
 
 **--no-trunc**=*true*|*false*
    When true truncate output. Default is false.
@@ -65,4 +65,4 @@ the running containers.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

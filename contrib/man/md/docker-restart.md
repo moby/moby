@@ -13,8 +13,9 @@ Restart each container listed.
 # OPTIONS
 **-t**, **--time**=NUM
    Number of seconds to try to stop for before killing the container. Once
- killed it will then be restarted. Default=10
+killed it will then be restarted. Default=10
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.
+

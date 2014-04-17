@@ -12,21 +12,22 @@ IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 This will tag an image in the repository.
 
 # "OPTIONS"
-**-f**, **--force**=*true*|*false*:
-When set to true, force the tag name. The default is *false*.
+**-f**, **--force**=*true*|*false*
+   When set to true, force the tag name. The default is *false*.
 
 **REGISTRYHOST**
-: The hostname of the registry if required. This may also include the port
+   The hostname of the registry if required. This may also include the port
 separated by a ':'
 
 **USERNAME**
-: The username or other qualifying identifier for the image.
+   The username or other qualifying identifier for the image.
 
 **NAME**
-: The image name.
+   The image name.
 
 **TAG**
-: The tag you are assigning to the image.
+   The tag you are assigning to the image.
+
 # EXAMPLES
 
 ## Tagging an image
@@ -43,5 +44,5 @@ registry you must tag it with the registry hostname and port (if needed).
     docker tag 0e5574283393 myregistryhost:5000/fedora/httpd:version1.0
 
 # HISTORY
-April 2014, Originally compiled by William Henry (whenry at redhat dot com) based
- on docker.io source material and internal work.
+April 2014, Originally compiled by William Henry (whenry at redhat dot com)
+based on docker.io source material and internal work.

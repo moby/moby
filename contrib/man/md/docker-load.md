@@ -10,7 +10,7 @@ docker-load - Load an image from a tar archive on STDIN
 # DESCRIPTION
 
 Loads a tarred repository from a file or the standard input stream.
- Restores both images and tags.
+Restores both images and tags.
 
 # OPTIONS
 
@@ -33,4 +33,4 @@ Loads a tarred repository from a file or the standard input stream.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

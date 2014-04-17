@@ -10,9 +10,8 @@ docker-login - Register or Login to a docker registry server.
 
 # DESCRIPTION
 Register or Login to a docker registry server, if no server is
- specified "https://index.docker.io/v1/" is the default. If you want to
- login to a private registry you can specify this by adding the server
- name.
+specified "https://index.docker.io/v1/" is the default. If you want to
+login to a private registry you can specify this by adding the server name.
 
 # OPTIONS
 **-e**, **--email**=""
@@ -30,7 +29,7 @@ Register or Login to a docker registry server, if no server is
 
     # docker login localhost:8080
 
-
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.
+

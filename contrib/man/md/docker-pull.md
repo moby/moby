@@ -33,4 +33,5 @@ images for that repository name are pulled down including any tags.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.
+

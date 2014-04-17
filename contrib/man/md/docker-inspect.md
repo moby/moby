@@ -17,7 +17,7 @@ each result.
 
 # OPTIONS
 **-f**, **--format**=""
-:   The text/template package of Go describes all the details of the
+   The text/template package of Go describes all the details of the
 format. See examples section
 
 # EXAMPLES
@@ -28,11 +28,11 @@ To get information on a container use it's ID or instance name:
 
     #docker inspect 1eb5fabf5a03
     [{
-        "ID": "1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b",
-	"Created": "2014-04-04T21:33:52.02361335Z",
-	"Path": "/usr/sbin/nginx",
-	"Args": [],
-        "Config": {
+       "ID": "1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b",
+       "Created": "2014-04-04T21:33:52.02361335Z",
+       "Path": "/usr/sbin/nginx",
+       "Args": [],
+       "Config": {
             "Hostname": "1eb5fabf5a03",
             "Domainname": "",
             "User": "",
@@ -50,8 +50,8 @@ To get information on a container use it's ID or instance name:
             "OpenStdin": false,
             "StdinOnce": false,
             "Env": [
-                "HOME=/",
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+               "HOME=/",
+	       "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             ],
             "Cmd": [
                 "/usr/sbin/nginx"
@@ -66,8 +66,8 @@ To get information on a container use it's ID or instance name:
             "NetworkDisabled": false,
             "OnBuild": null,
             "Context": {
-                "mount_label": "system_u:object_r:svirt_sandbox_file_t:s0:c0,c650",
-		"process_label": "system_u:system_r:svirt_lxc_net_t:s0:c0,c650"
+               "mount_label": "system_u:object_r:svirt_sandbox_file_t:s0:c0,c650",
+	       "process_label": "system_u:system_r:svirt_lxc_net_t:s0:c0,c650"
 	    }
         },
         "State": {
@@ -135,7 +135,8 @@ To get the IP address of a container use:
 One can loop over arrays and maps in the results to produce simple text
 output:
 
-    # docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' 1eb5fabf5a03
+    # docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} \
+     {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' 1eb5fabf5a03
 
     80/tcp -> 80
 
@@ -224,5 +225,5 @@ Use an image's ID or name (e.g. repository/name[:tag]) to get information
 
 # HISTORY
 
-April 2014, Originally compiled by William Henry (whenry at redhat dot
-com) based on docker.io source material and internal work.
+April 2014, Originally compiled by William Henry (whenry at redhat dot com)
+based on docker.io source material and internal work.

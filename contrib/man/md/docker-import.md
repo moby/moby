@@ -2,15 +2,15 @@
 % William Henry
 % APRIL 2014
 # NAME
-docker-import - Create an empty filesystem image and import the contents of
- the tarball into it.
+docker-import - Create an empty filesystem image and import the contents
+of the tarball into it.
 
 # SYNOPSIS
 **docker import** URL|- [REPOSITORY[:TAG]]
 
 # DESCRIPTION
-Create a new filesystem image from the contents of a tarball (.tar, .tar.gz,
- .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
+Create a new filesystem image from the contents of a tarball (.tar,
+.tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 # EXAMPLES
 
@@ -36,4 +36,4 @@ Import to docker via pipe and stdin:
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.

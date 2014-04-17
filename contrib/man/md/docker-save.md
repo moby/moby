@@ -20,7 +20,7 @@ Stream to a file instead of STDOUT by using **-o**.
 # EXAMPLE
 
 Save all fedora repository images to a fedora-all.tar and save the latest
- fedora image to a fedora-latest.tar:
+fedora image to a fedora-latest.tar:
 
     $ sudo docker save fedora > fedora-all.tar
     $ sudo docker save --output=fedora-latest.tar fedora:latest
@@ -31,4 +31,5 @@ Save all fedora repository images to a fedora-all.tar and save the latest
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
- based on docker.io source material and internal work.
+based on docker.io source material and internal work.
+
