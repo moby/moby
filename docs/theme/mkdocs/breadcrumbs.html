@@ -1,0 +1,11 @@
+<ol class="breadcrumb">
+  <li><a href="{{ homepage_url }}"><span class="glyphicon glyphicon-home"></span></a></li>
+  {% for section in nav %}
+    {% if section.active %}
+      <li><a href="../">{{ section.title }}</a></li>
+      {% if section.children %}
+        <li class="active"><a href="{{ current_page.url }}">{{ current_page.title }}</a></li>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+</ol>

@@ -98,12 +98,16 @@ echo
 echo 'Generally Necessary:'
 
 echo -n '- '
-cgroupCpuDir="$(awk '/[, ]cpu([, ]|$)/ && $8 == "cgroup" { print $5 }' /proc/$$/mountinfo | head -n1)"
-cgroupDir="$(dirname "$cgroupCpuDir")"
-if [ -d "$cgroupDir/cpu" ]; then
+cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)([, ]|$)/ && $8 == "cgroup" { print $5 }' /proc/$$/mountinfo | head -n1)"
+cgroupDir="$(dirname "$cgroupSubsystemDir")"
+if [ -d "$cgroupDir/cpu" -o -d "$cgroupDir/cpuacct" -o -d "$cgroupDir/cpuset" -o -d "$cgroupDir/devices" -o -d "$cgroupDir/freezer" -o -d "$cgroupDir/memory" ]; then
 	echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
 else
-	echo "$(wrap_bad 'cgroup hierarchy' 'single mountpoint!') [$cgroupCpuDir]"
+	if [ "$cgroupSubsystemDir" ]; then
+		echo "$(wrap_bad 'cgroup hierarchy' 'single mountpoint!') [$cgroupSubsystemDir]"
+	else
+		echo "$(wrap_bad 'cgroup hierarchy' 'nonexistent??')"
+	fi
 	echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 fi
 
@@ -112,7 +116,8 @@ flags=(
 	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_DEVICE
 	MACVLAN VETH BRIDGE
-	IP_NF_TARGET_MASQUERADE NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
+	NF_NAT_IPV4 IP_NF_TARGET_MASQUERADE
+	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
 	NF_NAT NF_NAT_NEEDED
 )
 check_flags "${flags[@]}"

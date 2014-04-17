@@ -1,8 +1,7 @@
 #!/bin/bash
+set -e
 
 DEST=$1
-
-set -e
 
 bundle_test_integration() {
 	LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER" go_test_dir ./integration \

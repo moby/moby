@@ -1,0 +1,12 @@
+# Table of Contents
+
+{% for nav_item in nav %}
+  {% if nav_item.children %}
+## {{ nav_item.title }} {{ nav_item.url }}
+
+  {% for nav_item in nav_item.children %}
+- [{{ nav_item.title }}]({{ nav_item.url }})
+  {% endfor %}
+
+  {% endif %}
+{% endfor %}

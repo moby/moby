@@ -221,8 +221,10 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 	}
 
 	var (
-		from  = job.Args[0]
-		since = job.GetenvInt64("since")
+		from    = job.Args[0]
+		since   = job.GetenvInt64("since")
+		until   = job.GetenvInt64("until")
+		timeout = time.NewTimer(time.Unix(until, 0).Sub(time.Now()))
 	)
 	sendEvent := func(event *utils.JSONMessage) error {
 		b, err := json.Marshal(event)
@@ -251,9 +253,9 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 	srv.Unlock()
 	job.Stdout.Write(nil) // flush
 	if since != 0 {
-		// If since, send previous events that happened after the timestamp
+		// If since, send previous events that happened after the timestamp and until timestamp
 		for _, event := range srv.GetEvents() {
-			if event.Time >= since {
+			if event.Time >= since && (event.Time <= until || until == 0) {
 				err := sendEvent(&event)
 				if err != nil && err.Error() == "JSON error" {
 					continue
@@ -265,13 +267,23 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 			}
 		}
 	}
-	for event := range listener {
-		err := sendEvent(&event)
-		if err != nil && err.Error() == "JSON error" {
-			continue
-		}
-		if err != nil {
-			return job.Error(err)
+
+	// If no until, disable timeout
+	if until == 0 {
+		timeout.Stop()
+	}
+	for {
+		select {
+		case event := <-listener:
+			err := sendEvent(&event)
+			if err != nil && err.Error() == "JSON error" {
+				continue
+			}
+			if err != nil {
+				return job.Error(err)
+			}
+		case <-timeout.C:
+			return engine.StatusOK
 		}
 	}
 	return engine.StatusOK
@@ -340,7 +352,7 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		rootRepoMap[name] = rootRepo
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
-		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.ModeAppend); err != nil {
+		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.FileMode(0644)); err != nil {
 			return job.Error(err)
 		}
 	} else {
@@ -369,7 +381,7 @@ func (srv *Server) exportImage(img *image.Image, tempdir string) error {
 	for i := img; i != nil; {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, i.ID)
-		if err := os.Mkdir(tmpImageDir, os.ModeDir); err != nil {
+		if err := os.Mkdir(tmpImageDir, os.FileMode(0755)); err != nil {
 			if os.IsExist(err) {
 				return nil
 			}
@@ -379,7 +391,7 @@ func (srv *Server) exportImage(img *image.Image, tempdir string) error {
 		var version = "1.0"
 		var versionBuf = []byte(version)
 
-		if err := ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.ModeAppend); err != nil {
+		if err := ioutil.WriteFile(path.Join(tmpImageDir, "VERSION"), versionBuf, os.FileMode(0644)); err != nil {
 			return err
 		}
 
@@ -388,7 +400,7 @@ func (srv *Server) exportImage(img *image.Image, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.ModeAppend); err != nil {
+		if err := ioutil.WriteFile(path.Join(tmpImageDir, "json"), b, os.FileMode(0644)); err != nil {
 			return err
 		}
 
@@ -436,13 +448,11 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		suppressOutput = job.GetenvBool("q")
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
-		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
 		context        io.ReadCloser
 	)
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("configFile", configFile)
+	job.GetenvJson("auth", configFile)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
@@ -494,7 +504,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile)
+		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile)
 	id, err := b.Build(context)
 	if err != nil {
 		return job.Error(err)
@@ -1053,7 +1063,17 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out.SetList("Names", names[container.ID])
 		out.Set("Image", srv.runtime.Repositories().ImageName(container.Image))
 		if len(container.Args) > 0 {
-			out.Set("Command", fmt.Sprintf("\"%s %s\"", container.Path, container.ArgsAsString()))
+			args := []string{}
+			for _, arg := range container.Args {
+				if strings.Contains(arg, " ") {
+					args = append(args, fmt.Sprintf("'%s'", arg))
+				} else {
+					args = append(args, arg)
+				}
+			}
+			argsAsString := strings.Join(args, " ")
+
+			out.Set("Command", fmt.Sprintf("\"%s %s\"", container.Path, argsAsString))
 		} else {
 			out.Set("Command", fmt.Sprintf("\"%s\"", container.Path))
 		}
@@ -1267,7 +1287,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 			for _, ep := range repoData.Endpoints {
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
 				if err := srv.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
-					// Its not ideal that only the last error  is returned, it would be better to concatenate the errors.
+					// It's not ideal that only the last error is returned, it would be better to concatenate the errors.
 					// As the error is also given to the output stream the user will see the error.
 					lastErr = err
 					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err), nil))
@@ -1374,15 +1394,22 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName   = job.Args[0]
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
+		authConfig  registry.AuthConfig
+		configFile  = &registry.ConfigFile{}
 		metaHeaders map[string][]string
 	)
 	if len(job.Args) > 1 {
 		tag = job.Args[1]
 	}
 
-	job.GetenvJson("authConfig", authConfig)
+	job.GetenvJson("auth", configFile)
 	job.GetenvJson("metaHeaders", metaHeaders)
+
+	endpoint, _, err := registry.ResolveRepositoryName(localName)
+	if err != nil {
+		return job.Error(err)
+	}
+	authConfig = configFile.ResolveAuthConfig(endpoint)
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
 	if err != nil {
@@ -1402,12 +1429,12 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err = registry.ExpandAndVerifyRegistryUrl(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
 
-	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err := registry.NewRegistry(&authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1850,13 +1877,16 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 			for _, bind := range container.HostConfig().Binds {
 				source := strings.Split(bind, ":")[0]
 				// TODO: refactor all volume stuff, all of it
-				// this is very important that we eval the link
-				// or comparing the keys to container.Volumes will not work
+				// it is very important that we eval the link or comparing the keys to container.Volumes will not work
+				//
+				// eval symlink can fail, ref #5244 if we receive an is not exist error we can ignore it
 				p, err := filepath.EvalSymlinks(source)
-				if err != nil {
+				if err != nil && !os.IsNotExist(err) {
 					return job.Error(err)
 				}
-				source = p
+				if p != "" {
+					source = p
+				}
 				binds[source] = struct{}{}
 			}
 

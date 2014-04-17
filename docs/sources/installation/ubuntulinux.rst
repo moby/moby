@@ -234,7 +234,7 @@ To install the latest version of docker, use the standard ``apt-get`` method:
 Memory and Swap Accounting
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If want to enable memory and swap accounting, you must add the following
+If you want to enable memory and swap accounting, you must add the following
 command-line parameters to your kernel::
 
     cgroup_enable=memory swapaccount=1
@@ -249,7 +249,12 @@ And replace it by the following one::
 
     GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
-Then run ``update-grub``, and reboot.
+Then run ``sudo update-grub``, and reboot.
+
+These parameters will help you get rid of the following warnings::
+
+    WARNING: Your kernel does not support cgroup swap limit.
+    WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.
 
 Troubleshooting
 ^^^^^^^^^^^^^^^

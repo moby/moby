@@ -14,13 +14,13 @@ CONTAINER [CONTAINER...]
 This will remove one or more containers from the host node. The container name or ID can be used. This does not remove images. You cannot remove a running container unless you use the \fB-f\fR option. To see all containers on a host use the \fBdocker ps -a\fR command.
 .SH "OPTIONS"
 .TP
-.B -f, --force=\fItrue\fR|\fIfalse\fR: 
+.B -f, --force=\fItrue\fR|\fIfalse\fR
 When set to true, force the removal of the container. The default is \fIfalse\fR.
 .TP
-.B -l, --link=\fItrue\fR|\fIfalse\fR: 
+.B -l, --link=\fItrue\fR|\fIfalse\fR
 When set to true, remove the specified link and not the underlying container. The default is \fIfalse\fR.
 .TP
-.B -v, --volumes=\fItrue\fR|\fIfalse\fR: 
+.B -v, --volumes=\fItrue\fR|\fIfalse\fR
 When set to true, remove the volumes associated to the container. The default is \fIfalse\fR.
 .SH EXAMPLES
 .sp

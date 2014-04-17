@@ -1,8 +1,7 @@
 #!/bin/bash
+set -e
 
 DEST=$1
-
-set -e
 
 DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
@@ -30,8 +29,15 @@ bundle_test_integration_cli() {
 	
 	# pull the busybox image before running the tests
 	sleep 2
-	( set -x; docker pull busybox )
 	
+	if ! docker inspect busybox &> /dev/null; then
+		if [ -d /docker-busybox ]; then
+			( set -x; docker build -t busybox /docker-busybox )
+		else
+			( set -x; docker pull busybox )
+		fi
+	fi
+
 	bundle_test_integration_cli
 	
 	DOCKERD_PID=$(set -x; cat $DEST/docker.pid)

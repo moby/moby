@@ -49,7 +49,6 @@ type buildFile struct {
 	utilizeCache bool
 	rm           bool
 
-	authConfig *registry.AuthConfig
 	configFile *registry.ConfigFile
 
 	tmpContainers map[string]struct{}
@@ -69,6 +68,7 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 		if err := b.runtime.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.outStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 		} else {
+			delete(containers, c)
 			fmt.Fprintf(b.outStream, "Removing intermediate container %s\n", utils.TruncateID(c))
 		}
 	}
@@ -79,20 +79,10 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.runtime.Graph().IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
-			pullRegistryAuth := b.authConfig
-			if len(b.configFile.Configs) > 0 {
-				// The request came with a full auth config file, we prefer to use that
-				endpoint, _, err := registry.ResolveRepositoryName(remote)
-				if err != nil {
-					return err
-				}
-				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
-				pullRegistryAuth = &resolvedAuth
-			}
 			job := b.srv.Eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())
 			job.SetenvBool("parallel", true)
-			job.SetenvJson("authConfig", pullRegistryAuth)
+			job.SetenvJson("auth", b.configFile)
 			job.Stdout.Add(b.outOld)
 			if err := job.Run(); err != nil {
 				return err
@@ -780,14 +770,13 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
 			return "", err
+		} else if b.rm {
+			b.clearTmp(b.tmpContainers)
 		}
 		stepN += 1
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
-		if b.rm {
-			b.clearTmp(b.tmpContainers)
-		}
 		return b.image, nil
 	}
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
@@ -832,7 +821,7 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
 		runtime:       srv.runtime,
 		srv:           srv,
@@ -845,8 +834,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		utilizeCache:  utilizeCache,
 		rm:            rm,
 		sf:            sf,
-		authConfig:    auth,
-		configFile:    authConfigFile,
+		configFile:    configFile,
 		outOld:        outOld,
 	}
 }
