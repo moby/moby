@@ -4,58 +4,6 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 # [Docker Remote API v1.6](#id1)
 
-Table of Contents
-
--   [Docker Remote API v1.6](#docker-remote-api-v1-6)
-    -   [1. Brief introduction](#brief-introduction)
-    -   [2. Endpoints](#endpoints)
-        -   [2.1 Containers](#containers)
-            -   [List containers](#list-containers)
-            -   [Create a container](#create-a-container)
-            -   [Inspect a container](#inspect-a-container)
-            -   [List processes running inside a
-                container](#list-processes-running-inside-a-container)
-            -   [Inspect changes on a container’s
-                filesystem](#inspect-changes-on-a-container-s-filesystem)
-            -   [Export a container](#export-a-container)
-            -   [Start a container](#start-a-container)
-            -   [Stop a container](#stop-a-container)
-            -   [Restart a container](#restart-a-container)
-            -   [Kill a container](#kill-a-container)
-            -   [Attach to a container](#attach-to-a-container)
-            -   [Wait a container](#wait-a-container)
-            -   [Remove a container](#remove-a-container)
-            -   [Copy files or folders from a
-                container](#copy-files-or-folders-from-a-container)
-        -   [2.2 Images](#images)
-            -   [List Images](#list-images)
-            -   [Create an image](#create-an-image)
-            -   [Insert a file in an image](#insert-a-file-in-an-image)
-            -   [Inspect an image](#inspect-an-image)
-            -   [Get the history of an
-                image](#get-the-history-of-an-image)
-            -   [Push an image on the
-                registry](#push-an-image-on-the-registry)
-            -   [Tag an image into a
-                repository](#tag-an-image-into-a-repository)
-            -   [Remove an image](#remove-an-image)
-            -   [Search images](#search-images)
-        -   [2.3 Misc](#misc)
-            -   [Build an image from Dockerfile via
-                stdin](#build-an-image-from-dockerfile-via-stdin)
-            -   [Check auth configuration](#check-auth-configuration)
-            -   [Display system-wide
-                information](#display-system-wide-information)
-            -   [Show the docker version
-                information](#show-the-docker-version-information)
-            -   [Create a new image from a container’s
-                changes](#create-a-new-image-from-a-container-s-changes)
-            -   [Monitor Docker’s events](#monitor-docker-s-events)
-    -   [3. Going further](#going-further)
-        -   [3.1 Inside ‘docker run’](#inside-docker-run)
-        -   [3.2 Hijacking](#hijacking)
-        -   [3.3 CORS Requests](#cors-requests)
-
 ## [1. Brief introduction](#id2)
 
 -   The Remote API has replaced rcli
