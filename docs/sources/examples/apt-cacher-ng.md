@@ -71,8 +71,7 @@ a local version of a common base:
     # docker build -t my_ubuntu .
 
 **Option 2** is good for testing, but will break other HTTP clients
-which obey `http_proxy`, such as `curl`
-.literal}, `wget` and others:
+which obey `http_proxy`, such as `curl`, `wget` and others:
 
     $ sudo docker run --rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
 

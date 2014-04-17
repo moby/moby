@@ -39,8 +39,7 @@ characters of the full image ID - which can be found using
 `docker inspect` or
 `docker images --no-trunc=true`
 
-**If you’re using OS X** then you shouldn’t use `sudo`
-.literal}
+**If you’re using OS X** then you shouldn’t use `sudo`.
 
 ## Running an interactive shell
 

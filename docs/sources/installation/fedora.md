@@ -26,12 +26,11 @@ bit** architecture.
 
 The `docker-io` package provides Docker on Fedora.
 
-If you have the (unrelated) `docker` package
-installed already, it will conflict with `docker-io`
-.literal}. There’s a [bug
+If you have the (unrelated) `docker` package installed already, it will
+conflict with `docker-io`. There’s a [bug
 report](https://bugzilla.redhat.com/show_bug.cgi?id=1043676) filed for
-it. To proceed with `docker-io` installation on
-Fedora 19, please remove `docker` first.
+it. To proceed with `docker-io` installation on Fedora 19, please remove
+`docker` first.
 
     sudo yum -y remove docker
 

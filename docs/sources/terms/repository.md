@@ -23,7 +23,6 @@ an image name using one of three different commands:
 A Fully Qualified Image Name (FQIN) can be made up of 3 parts:
 
 `[registry_hostname[:port]/][user_name/](repository_name:version_tag)`
-.literal}
 
 `username` and `registry_hostname`
 default to an empty string. When `registry_hostname`
