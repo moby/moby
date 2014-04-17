@@ -85,9 +85,9 @@ pages:
 # Docker Index docs:
 - ['index/index.md', '**HIDDEN**']
 # - ['index/home.md', 'Docker Index', 'Help']
-- ['index/home.md', 'Docker Index', 'Accounts']
-- ['index/home.md', 'Docker Index', 'Repositories']
-- ['index/home.md', 'Docker Index', 'Trusted Builds']
+- ['index/accounts.md', 'Docker Index', 'Accounts']
+- ['index/repos.md', 'Docker Index', 'Repositories']
+- ['index/builds.md', 'Docker Index', 'Trusted Builds']
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']
