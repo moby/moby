@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -35,8 +35,8 @@ type BuildFile interface {
 }
 
 type buildFile struct {
-	runtime *runtime.Runtime
-	srv     *Server
+	daemon *daemon.Daemon
+	srv    *Server
 
 	image      string
 	maintainer string
@@ -64,8 +64,8 @@ type buildFile struct {
 
 func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
-		tmp := b.runtime.Get(c)
-		if err := b.runtime.Destroy(tmp); err != nil {
+		tmp := b.daemon.Get(c)
+		if err := b.daemon.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.outStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 		} else {
 			delete(containers, c)
@@ -75,9 +75,9 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 }
 
 func (b *buildFile) CmdFrom(name string) error {
-	image, err := b.runtime.Repositories().LookupImage(name)
+	image, err := b.daemon.Repositories().LookupImage(name)
 	if err != nil {
-		if b.runtime.Graph().IsNotExist(err) {
+		if b.daemon.Graph().IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
 			job := b.srv.Eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())
@@ -87,7 +87,7 @@ func (b *buildFile) CmdFrom(name string) error {
 			if err := job.Run(); err != nil {
 				return err
 			}
-			image, err = b.runtime.Repositories().LookupImage(name)
+			image, err = b.daemon.Repositories().LookupImage(name)
 			if err != nil {
 				return err
 			}
@@ -101,7 +101,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		b.config = image.Config
 	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+runtime.DefaultPathEnv)
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+daemon.DefaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
@@ -383,7 +383,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *runtime.Container, orig, dest string, remote bool) error {
+func (b *buildFile) addContext(container *daemon.Container, orig, dest string, remote bool) error {
 	var (
 		err      error
 		origPath = path.Join(b.contextPath, orig)
@@ -599,7 +599,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 
 	// Create the container and start it
-	container, _, err := b.runtime.Create(b.config, "")
+	container, _, err := b.daemon.Create(b.config, "")
 	if err != nil {
 		return err
 	}
@@ -621,14 +621,14 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
-func (b *buildFile) create() (*runtime.Container, error) {
+func (b *buildFile) create() (*daemon.Container, error) {
 	if b.image == "" {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.config.Image = b.image
 
 	// Create the container and start it
-	c, _, err := b.runtime.Create(b.config, "")
+	c, _, err := b.daemon.Create(b.config, "")
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +642,7 @@ func (b *buildFile) create() (*runtime.Container, error) {
 	return c, nil
 }
 
-func (b *buildFile) run(c *runtime.Container) error {
+func (b *buildFile) run(c *daemon.Container) error {
 	var errCh chan error
 
 	if b.verbose {
@@ -693,7 +693,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return nil
 		}
 
-		container, warnings, err := b.runtime.Create(b.config, "")
+		container, warnings, err := b.daemon.Create(b.config, "")
 		if err != nil {
 			return err
 		}
@@ -709,7 +709,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		}
 		defer container.Unmount()
 	}
-	container := b.runtime.Get(id)
+	container := b.daemon.Get(id)
 	if container == nil {
 		return fmt.Errorf("An error occured while creating the container")
 	}
@@ -718,7 +718,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.runtime.Commit(container, "", "", "", b.maintainer, &autoConfig)
+	image, err := b.daemon.Commit(container, "", "", "", b.maintainer, &autoConfig)
 	if err != nil {
 		return err
 	}
@@ -823,7 +823,7 @@ func stripComments(raw []byte) string {
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
-		runtime:       srv.runtime,
+		daemon:        srv.daemon,
 		srv:           srv,
 		config:        &runconfig.Config{},
 		outStream:     outStream,
