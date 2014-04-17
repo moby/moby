@@ -357,6 +357,39 @@ func TestRestartKillWait(t *testing.T) {
 	})
 }
 
+func TestCascadingContainerStart(t *testing.T) {
+	eng := NewTestEngine(t)
+	srv := mkServerFromEngine(eng, t)
+	runtime := mkRuntimeFromEngine(eng, t)
+	defer runtime.Nuke()
+
+	config, _, _, err := runconfig.Parse([]string{"-d", "--name", "test", unitTestImageID, "sleep 300"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createTestContainer(eng, config, t)
+
+	config2, _, _, err := runconfig.Parse([]string{"-d", "--link", "test:test", unitTestImageID, "sleep 300"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	test2ID := createTestContainer(eng, config2, t)
+
+	job := srv.Eng.Job("start", test2ID)
+	job.Setenv("cascade", "1")
+
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !runtime.Get(test2ID).State.IsRunning() || !runtime.Get(test2ID).State.IsRunning() {
+		t.Errorf("Expected linked container to be running")
+	}
+
+}
+
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)

@@ -28,3 +28,4 @@ to more substantial services like those which you might find in production.
    python_web_app
    apt-cacher-ng
    https
+   managing_service_dependencies

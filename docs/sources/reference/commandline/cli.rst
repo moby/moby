@@ -1340,6 +1340,7 @@ from the commandline.
 
       -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false: Attach container's stdin
+      -c, --cascade=true: Start all linked containers first
 
 .. _cli_stop:
 
