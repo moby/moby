@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runtime/execdriver"
+	"github.com/dotcloud/docker/runtime/execdriver/lmctfy"
 	"github.com/dotcloud/docker/runtime/execdriver/lxc"
 	"github.com/dotcloud/docker/runtime/execdriver/native"
 	"path"
@@ -18,6 +19,8 @@ func NewDriver(name, root, initPath string, sysInfo *sysinfo.SysInfo) (execdrive
 		return lxc.NewDriver(root, sysInfo.AppArmor)
 	case "native":
 		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath)
+	case "lmctfy":
+		return lmctfy.NewDriver()
 	}
 	return nil, fmt.Errorf("unknown exec driver %s", name)
 }
