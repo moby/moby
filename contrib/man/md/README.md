@@ -44,52 +44,26 @@ Markdown (*.md) files.
 
 # Generating man pages from the Markdown files
 
-There are three ways to generate the man pages:
-* Each page manually
-* All pages manually
-* Via a *Pandoc* Docker container (**Recommended**)
-
-The first and second approach require you to install the Pandoc package
- on your computer using the default package installer for the system.
-You should check if Pandoc is available before trying to do so.
-
-The recommended approach is the Pandoc Docker container one.
-Using the supplied Dockerfile, Docker creates a Fedora based container
-and isolates the Pandoc installation.
-This is a seamless process, saving you from dealing with Pandoc and
-dependencies on your own computer.
-
-## Each page manually
-
-You can generate the man pages with:
-
-    pandoc -s -t man docker-<command>.md ../man1/docker-<command>.1
-
-The results will be stored ../man1
-
-## All pages manually
-
-You can generate *all* the man pages from the source using:
-
-    for FILE in *.md
-    do
-    pandoc -s -t man $FILE -o ../man1/"${FILE%.*}".1
-    done
+The recommended approach for generating the man pages using a  Docker container
+one. Using the supplied Dockerfile, Docker creates a Fedora based container
+and isolates the Pandoc installation. This is a seamless process, saving you
+from dealing with Pandoc and dependencies on your own computer.
 
 ## Using the pandoc Container
 
 There is a Dockerfile provided in the `docker/contrib/man/md` directory.
 
-Using this Dockerfile, create a Docker image tagged `fedora/pandoc`.
+Using this Dockerfile, create a Docker image tagged `fedora/pandoc`:
 
     docker build  -t fedora/pandoc .
 
-Once the image is built, create a container inside the
-`docker/contrib/man/md` directory using the it:
+Once the image is built, run a container using it:
 
     docker run -v /<path-to-git-dir>/docker/contrib/man:/pandoc:rw \
     -w /pandoc -i fedora/pandoc /pandoc/md/md2man-all.sh
 
 The Pandoc Docker container will process the Markdown files and generate
- the man pages inside the `docker/contrib/man/man1` directory using
- Docker volumes.
+the man pages inside the `docker/contrib/man/man1` directory using
+Docker volumes. For more information on Docker volumes see the man page for
+`docker run` and also look at the article [Shared Directories via Volumes]
+(http://docs.docker.io/use/working_with_volumes/).
