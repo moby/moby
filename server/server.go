@@ -1877,13 +1877,16 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 			for _, bind := range container.HostConfig().Binds {
 				source := strings.Split(bind, ":")[0]
 				// TODO: refactor all volume stuff, all of it
-				// this is very important that we eval the link
-				// or comparing the keys to container.Volumes will not work
+				// it is very important that we eval the link or comparing the keys to container.Volumes will not work
+				//
+				// eval symlink can fail, ref #5244 if we receive an is not exist error we can ignore it
 				p, err := filepath.EvalSymlinks(source)
-				if err != nil {
+				if err != nil && !os.IsNotExist(err) {
 					return job.Error(err)
 				}
-				source = p
+				if p != "" {
+					source = p
+				}
 				binds[source] = struct{}{}
 			}
 
