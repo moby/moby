@@ -874,12 +874,12 @@ func TestDestroyWithInitLayer(t *testing.T) {
 	driver := daemon.Graph().Driver()
 
 	// Make sure that the container does not exist in the driver
-	if _, err := driver.Get(container.ID); err == nil {
+	if _, err := driver.Get(container.ID, ""); err == nil {
 		t.Fatal("Conttainer should not exist in the driver")
 	}
 
 	// Make sure that the init layer is removed from the driver
-	if _, err := driver.Get(fmt.Sprintf("%s-init", container.ID)); err == nil {
+	if _, err := driver.Get(fmt.Sprintf("%s-init", container.ID), ""); err == nil {
 		t.Fatal("Container's init layer should not exist in the driver")
 	}
 }

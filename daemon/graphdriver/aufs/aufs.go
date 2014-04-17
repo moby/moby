@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/pkg/label"
 	mountpk "github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 	"os"
@@ -134,7 +135,7 @@ func (a Driver) Exists(id string) bool {
 
 // Three folders are created for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent string, mountLabel string) error {
+func (a *Driver) Create(id, parent string) error {
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
@@ -218,7 +219,7 @@ func (a *Driver) Remove(id string) error {
 
 // Return the rootfs path for the id
 // This will mount the dir at it's given path
-func (a *Driver) Get(id string) (string, error) {
+func (a *Driver) Get(id, mountLabel string) (string, error) {
 	ids, err := getParentIds(a.rootPath(), id)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -240,7 +241,7 @@ func (a *Driver) Get(id string) (string, error) {
 		out = path.Join(a.rootPath(), "mnt", id)
 
 		if count == 0 {
-			if err := a.mount(id); err != nil {
+			if err := a.mount(id, mountLabel); err != nil {
 				return "", err
 			}
 		}
@@ -309,7 +310,7 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (a *Driver) mount(id string) error {
+func (a *Driver) mount(id, mountLabel string) error {
 	// If the id is mounted or we get an error return
 	if mounted, err := a.mounted(id); err != nil || mounted {
 		return err
@@ -325,7 +326,7 @@ func (a *Driver) mount(id string) error {
 		return err
 	}
 
-	if err := a.aufsMount(layers, rw, target); err != nil {
+	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
 		return err
 	}
 	return nil
@@ -358,21 +359,21 @@ func (a *Driver) Cleanup() error {
 	return nil
 }
 
-func (a *Driver) aufsMount(ro []string, rw, target string) (err error) {
+func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {
 	defer func() {
 		if err != nil {
 			Unmount(target)
 		}
 	}()
 
-	if err = a.tryMount(ro, rw, target); err != nil {
-		if err = a.mountRw(rw, target); err != nil {
+	if err = a.tryMount(ro, rw, target, mountLabel); err != nil {
+		if err = a.mountRw(rw, target, mountLabel); err != nil {
 			return
 		}
 
 		for _, layer := range ro {
-			branch := fmt.Sprintf("append:%s=ro+wh", layer)
-			if err = mount("none", target, "aufs", MsRemount, branch); err != nil {
+			data := label.FormatMountLabel(fmt.Sprintf("append:%s=ro+wh", layer), mountLabel)
+			if err = mount("none", target, "aufs", MsRemount, data); err != nil {
 				return
 			}
 		}
@@ -382,16 +383,18 @@ func (a *Driver) aufsMount(ro []string, rw, target string) (err error) {
 
 // Try to mount using the aufs fast path, if this fails then
 // append ro layers.
-func (a *Driver) tryMount(ro []string, rw, target string) (err error) {
+func (a *Driver) tryMount(ro []string, rw, target, mountLabel string) (err error) {
 	var (
 		rwBranch   = fmt.Sprintf("%s=rw", rw)
 		roBranches = fmt.Sprintf("%s=ro+wh:", strings.Join(ro, "=ro+wh:"))
+		data       = label.FormatMountLabel(fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches), mountLabel)
 	)
-	return mount("none", target, "aufs", 0, fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches))
+	return mount("none", target, "aufs", 0, data)
 }
 
-func (a *Driver) mountRw(rw, target string) error {
-	return mount("none", target, "aufs", 0, fmt.Sprintf("br:%s,xino=/dev/shm/aufs.xino", rw))
+func (a *Driver) mountRw(rw, target, mountLabel string) error {
+	data := label.FormatMountLabel(fmt.Sprintf("br:%s,xino=/dev/shm/aufs.xino", rw), mountLabel)
+	return mount("none", target, "aufs", 0, data)
 }
 
 func rollbackMount(target string, err error) {

@@ -543,10 +543,10 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Create(initID, img.ID, ""); err != nil {
+	if err := daemon.driver.Create(initID, img.ID); err != nil {
 		return err
 	}
-	initPath, err := daemon.driver.Get(initID)
+	initPath, err := daemon.driver.Get(initID, "")
 	if err != nil {
 		return err
 	}
@@ -556,7 +556,7 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 		return err
 	}
 
-	if err := daemon.driver.Create(container.ID, initID, ""); err != nil {
+	if err := daemon.driver.Create(container.ID, initID); err != nil {
 		return err
 	}
 	return nil
@@ -670,7 +670,6 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if !config.EnableSelinuxSupport {
 		selinux.SetDisabled()
 	}
-
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
 
@@ -840,7 +839,7 @@ func (daemon *Daemon) Close() error {
 }
 
 func (daemon *Daemon) Mount(container *Container) error {
-	dir, err := daemon.driver.Get(container.ID)
+	dir, err := daemon.driver.Get(container.ID, container.mountLabel)
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
 	}
@@ -862,12 +861,12 @@ func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	if differ, ok := daemon.driver.(graphdriver.Differ); ok {
 		return differ.Changes(container.ID)
 	}
-	cDir, err := daemon.driver.Get(container.ID)
+	cDir, err := daemon.driver.Get(container.ID, "")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
 	}
 	defer daemon.driver.Put(container.ID)
-	initDir, err := daemon.driver.Get(container.ID + "-init")
+	initDir, err := daemon.driver.Get(container.ID+"-init", "")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
 	}
@@ -885,7 +884,7 @@ func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
 		return nil, err
 	}
 
-	cDir, err := daemon.driver.Get(container.ID)
+	cDir, err := daemon.driver.Get(container.ID, "")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
 	}

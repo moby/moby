@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -64,7 +65,8 @@ type Container struct {
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 
-	daemon *Daemon
+	daemon                   *Daemon
+	mountLabel, processLabel string
 
 	waitLock chan struct{}
 	Volumes  map[string]string
@@ -320,9 +322,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 
 func populateCommand(c *Container, env []string) {
 	var (
-		en           *execdriver.Network
-		driverConfig = make(map[string][]string)
+		en      *execdriver.Network
+		context = make(map[string][]string)
 	)
+	context["process_label"] = []string{c.processLabel}
+	context["mount_label"] = []string{c.mountLabel}
 
 	en = &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
@@ -340,7 +344,7 @@ func populateCommand(c *Container, env []string) {
 	}
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
-	mergeLxcConfIntoOptions(c.hostConfig, driverConfig)
+	mergeLxcConfIntoOptions(c.hostConfig, context)
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
@@ -358,7 +362,7 @@ func populateCommand(c *Container, env []string) {
 		Network:    en,
 		Tty:        c.Config.Tty,
 		User:       c.Config.User,
-		Config:     driverConfig,
+		Config:     context,
 		Resources:  resources,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -383,6 +387,12 @@ func (container *Container) Start() (err error) {
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
+
+	process, mount := selinux.GetLxcContexts()
+
+	container.mountLabel = mount
+	container.processLabel = process
+
 	if err := container.Mount(); err != nil {
 		return err
 	}

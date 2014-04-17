@@ -204,7 +204,7 @@ func createVolumes(container *Container) error {
 			if err != nil {
 				return err
 			}
-			srcPath, err = volumesDriver.Get(c.ID)
+			srcPath, err = volumesDriver.Get(c.ID, "")
 			if err != nil {
 				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
 			}
