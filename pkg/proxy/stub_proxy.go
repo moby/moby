@@ -10,7 +10,7 @@ type StubProxy struct {
 }
 
 func (p *StubProxy) Run()                   {}
-func (p *StubProxy) Close()                 {}
+func (p *StubProxy) Close() error           { return nil }
 func (p *StubProxy) FrontendAddr() net.Addr { return p.frontendAddr }
 func (p *StubProxy) BackendAddr() net.Addr  { return p.backendAddr }
 
