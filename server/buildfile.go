@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
+	dockerimage "github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
@@ -75,9 +76,23 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 }
 
 func (b *buildFile) CmdFrom(name string) error {
-	image, err := b.daemon.Repositories().LookupImage(name)
+	internalName := name
+	if name == "scratch" {
+		internalName = scratchID
+	}
+	image, err := b.daemon.Repositories().LookupImage(internalName)
 	if err != nil {
-		if b.daemon.Graph().IsNotExist(err) {
+		if b.daemon.Graph().IsNotExist(err) && internalName == scratchID {
+			image = &dockerimage.Image{
+				ID:      scratchID,
+				Comment: "Imported from -",
+			}
+			err = b.daemon.Graph().Register(nil, nil, image)
+			if err != nil {
+				return err
+			}
+			utils.Debugf("[BUILDER] - created default `scratch` image")
+		} else if b.daemon.Graph().IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
 			job := b.srv.Eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())

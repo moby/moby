@@ -75,6 +75,9 @@ func validateRepositoryName(repositoryName string) error {
 		namespace string
 		name      string
 	)
+	if repositoryName == "scratch" {
+		return fmt.Errorf("scratch is a reserved repository name and it may not be used")
+	}
 	nameParts := strings.SplitN(repositoryName, "/", 2)
 	if len(nameParts) < 2 {
 		namespace = "library"

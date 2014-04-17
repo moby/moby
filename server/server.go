@@ -34,6 +34,9 @@ import (
 	"time"
 )
 
+// This is the hardcoded ID of the automatically instantiated image on pull / build.
+const scratchID = "511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158"
+
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
@@ -1158,8 +1161,17 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 			<-c
 		}
 		defer srv.poolRemove("pull", "layer:"+id)
-
-		if !srv.daemon.Graph().Exists(id) {
+		if !srv.daemon.Graph().Exists(id) && id == scratchID {
+			img := &image.Image{
+				ID:      scratchID,
+				Comment: "Imported from -",
+			}
+			err = srv.daemon.Graph().Register(nil, nil, img)
+			if err != nil {
+				return err
+			}
+			utils.Debugf("created default `scratch` image instead of pulling it")
+		} else if !srv.daemon.Graph().Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
 			var (
 				imgJSON []byte
