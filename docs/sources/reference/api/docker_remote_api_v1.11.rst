@@ -722,35 +722,6 @@ Create an image
 
 
 
-Insert a file in an image
-*************************
-
-.. http:post:: /images/(name)/insert
-
-        Insert a file from ``url`` in the image ``name`` at ``path``
-
-        **Example request**:
-
-        .. sourcecode:: http
-
-           POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
-
-        **Example response**:
-
-        .. sourcecode:: http
-
-           HTTP/1.1 200 OK
-           Content-Type: application/json
-
-           {"status":"Inserting..."}
-           {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
-           {"error":"Invalid..."}
-           ...
-
-        :statuscode 200: no error
-        :statuscode 500: server error
-
-
 Inspect an image
 ****************
 
