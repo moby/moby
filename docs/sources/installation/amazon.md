@@ -14,9 +14,9 @@ our blog post, ["Getting to Docker
 There are several ways to install Docker on AWS EC2:
 
 -   [*Amazon QuickStart (Release Candidate - March
-    2014)*](#amazonquickstart-new) or
--   [*Amazon QuickStart*](#amazonquickstart) or
--   [*Standard Ubuntu Installation*](#amazonstandard)
+    2014)*](#amazon-quickstart-release-candidate-march-2014) or
+-   [*Amazon QuickStart*](#amazon-quickstart) or
+-   [*Standard Ubuntu Installation*](#standard-ubuntu-installation)
 
 **You’ll need an** [AWS account](http://aws.amazon.com/) **first, of
 course.**
@@ -98,7 +98,7 @@ Repository.
 If you want a more hands-on installation, then you can follow the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions installing Docker
 on any EC2 instance running Ubuntu. Just follow Step 1 from [*Amazon
-QuickStart*](#amazonquickstart) to pick an image (or use one of your
+QuickStart*](#amazon-quickstart) to pick an image (or use one of your
 own) and skip the step with the *User Data*. Then continue with the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions.
 

@@ -190,7 +190,7 @@ strings in the array:
 If you would like your container to run the same executable every time,
 then you should consider using `ENTRYPOINT` in
 combination with `CMD`. See
-[*ENTRYPOINT*](#dockerfile-entrypoint).
+[*ENTRYPOINT*](#entrypoint).
 
 If the user specifies arguments to `docker run` then
 they will override the default specified in CMD.

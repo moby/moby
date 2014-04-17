@@ -18,11 +18,11 @@ our blog post, ["Getting to Docker
 
 Docker is supported on the following versions of Ubuntu:
 
--   [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise)
+-   [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise-1204-lts-64-bit)
 -   [*Ubuntu Raring 13.04 and Saucy 13.10 (64
-    bit)*](#ubuntu-raring-saucy)
+    bit)*](#ubuntu-raring-1304-and-saucy-1310-64-bit)
 
-Please read [*Docker and UFW*](#ufw), if you plan to use [UFW
+Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 (Uncomplicated Firewall)](https://help.ubuntu.com/community/UFW)
 
 ## Ubuntu Precise 12.04 (LTS) (64-bit)
@@ -56,7 +56,7 @@ These instructions have changed for 0.6. If you are upgrading from an
 earlier version, you will need to follow them again.
 
 Docker is available as a Debian package, which makes installation easy.
-**See the** [*Mirrors*](#installmirrors) **section below if you are not
+**See the** [*Mirrors*](#mirrors) **section below if you are not
 in the United States.** Other sources of the Debian packages may be
 faster for you to install.
 

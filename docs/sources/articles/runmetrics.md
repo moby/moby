@@ -360,7 +360,7 @@ container, we need to:
  to `/proc/<thepid>/ns/net`
 -   Execute `ip netns exec <somename> ....`
 
-Please review [*Enumerating Cgroups*](#run-findpid) to learn how to find
+Please review [*Enumerating Cgroups*](#enumerating-cgroups) to learn how to find
 the cgroup of a pprocess running in the container of which you want to
 measure network usage. From there, you can examine the pseudo-file named
 `tasks`, which containes the PIDs that are in the
