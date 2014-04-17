@@ -7,8 +7,10 @@ import (
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -63,6 +65,8 @@ func setupMountsForContainer(container *Container) error {
 	return nil
 }
 
+var volumesFromCopyLock = &sync.Mutex{}
+
 func applyVolumesFrom(container *Container) error {
 	volumesFrom := container.hostConfig.VolumesFrom
 	if len(volumesFrom) > 0 {
@@ -109,9 +113,15 @@ func applyVolumesFrom(container *Container) error {
 				container.Volumes[volPath] = id
 				if isRW, exists := c.VolumesRW[volPath]; exists {
 					container.VolumesRW[volPath] = isRW && mountRW
+					rootVolPath := path.Join(container.RootfsPath(), volPath)
+					srcVolpath := path.Join(c.RootfsPath(), volPath)
+					volumesFromCopyLock.Lock()
+					if err := container.populateEmptyVolume(rootVolPath, srcVolpath); err != nil {
+						return err
+					}
+					volumesFromCopyLock.Unlock()
 				}
 			}
-
 		}
 	}
 	return nil
@@ -232,36 +242,45 @@ func createVolumes(container *Container) error {
 
 		// Do not copy or change permissions if we are mounting from the host
 		if srcRW && !isBindMount {
-			volList, err := ioutil.ReadDir(rootVolPath)
-			if err != nil {
+			if err := container.populateEmptyVolume(rootVolPath, srcPath); err != nil {
 				return err
 			}
-			if len(volList) > 0 {
-				srcList, err := ioutil.ReadDir(srcPath)
-				if err != nil {
-					return err
-				}
-				if len(srcList) == 0 {
-					// If the source volume is empty copy files from the root into the volume
-					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
-						return err
-					}
+		}
+	}
+	return nil
+}
 
-					var stat syscall.Stat_t
-					if err := syscall.Stat(rootVolPath, &stat); err != nil {
-						return err
-					}
-					var srcStat syscall.Stat_t
-					if err := syscall.Stat(srcPath, &srcStat); err != nil {
-						return err
-					}
-					// Change the source volume's ownership if it differs from the root
-					// files that were just copied
-					if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-						if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-							return err
-						}
-					}
+func (container *Container) populateEmptyVolume(rootVolPath, srcPath string) error {
+	volList, err := ioutil.ReadDir(rootVolPath)
+	if err != nil {
+		return err
+	}
+	if len(volList) > 0 {
+
+		srcList, err := ioutil.ReadDir(srcPath)
+		if err != nil {
+			return err
+		}
+
+		if len(srcList) == 0 {
+			// If the source volume is empty copy files from the root into the volume
+			if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
+				return err
+			}
+
+			var stat syscall.Stat_t
+			if err := syscall.Stat(rootVolPath, &stat); err != nil {
+				return err
+			}
+			var srcStat syscall.Stat_t
+			if err := syscall.Stat(srcPath, &srcStat); err != nil {
+				return err
+			}
+			// Change the source volume's ownership if it differs from the root
+			// files that where just copied
+			if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+				if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+					return err
 				}
 			}
 		}

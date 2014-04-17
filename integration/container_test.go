@@ -1239,6 +1239,19 @@ func TestCopyVolumeContent(t *testing.T) {
 	if !(strings.Contains(stdout1, "/hello/local/world") && strings.Contains(stdout1, "/hello/local")) {
 		t.Fatal("Container failed to transfer content to volume")
 	}
+
+	// Test with volumes-from
+	container2, _, _ := mkContainer(r, []string{"-v", "/hello", "_", "/bin/sh", "-c", "/bin/echo", "foo"}, t)
+	defer r.Destroy(container2)
+	if err := container2.Run(); err != nil {
+		t.Fatal(err)
+	}
+	// Test that content is coped from image to volumes-from volume
+	stdout2, _ := runContainer(eng, r, []string{"-volumes-from", container2.ID, img.ID, "find", "/hello"}, t)
+	if !(strings.Contains(stdout2, "/hello/local/world") && strings.Contains(stdout2, "/hello/local")) {
+		t.Fatal(stdout2)
+	}
+
 }
 
 func TestBindMounts(t *testing.T) {
