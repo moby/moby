@@ -57,7 +57,7 @@ Using this Dockerfile, create a Docker image tagged `fedora/pandoc`:
 
     docker build  -t fedora/pandoc .
 
-Once the image is built, run a container using it:
+Once the image is built, run a container using the image with *volumes*:
 
     docker run -v /<path-to-git-dir>/docker/contrib/man:/pandoc:rw \
     -w /pandoc -i fedora/pandoc /pandoc/md/md2man-all.sh
