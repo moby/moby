@@ -224,12 +224,6 @@ func (runtime *Runtime) Register(container *Container) error {
 				}
 			}
 		}
-	} else {
-		// When the container is not running, we still initialize the waitLock
-		// chan and close it. Receiving on nil chan blocks whereas receiving on a
-		// closed chan does not. In this case we do not want to block.
-		container.waitLock = make(chan struct{})
-		close(container.waitLock)
 	}
 	return nil
 }
