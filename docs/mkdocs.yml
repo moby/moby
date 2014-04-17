@@ -82,6 +82,13 @@ pages:
 # - ['user-guide/configuration.md', 'User Guide', 'Configuration']
 # ./faq.md
 
+# Docker Index docs:
+- ['index/index.md', '**HIDDEN**']
+# - ['index/home.md', 'Docker Index', 'Help']
+- ['index/home.md', 'Docker Index', 'Accounts']
+- ['index/home.md', 'Docker Index', 'Repositories']
+- ['index/home.md', 'Docker Index', 'Trusted Builds']
+
 # Reference
 - ['reference/index.md', '**HIDDEN**']
 - ['reference/commandline/cli.md', 'Reference', 'Command line']
@@ -105,11 +112,6 @@ pages:
 - ['contributing/contributing.md', 'Contribute', 'Contributing']
 - ['contributing/devenvironment.md', 'Contribute', 'Development environment']
 # - ['about/license.md', 'About', 'License']
-
-# Docker Index docs:
-- ['index/index.md', '**HIDDEN**']
-- ['index/home.md', 'Docker Index', 'Help']
-- ['index/docs.md', 'Docker Index', 'Documentation']
 
 - ['jsearch.md', '**HIDDEN**']
 
