@@ -77,7 +77,6 @@ Repository.
         left side
     -   Search for ‘2014.03’ and select one of the Amazon provided AMI,
         for example `amzn-ami-pv-2014.03.rc-0.x86_64-ebs`
-        .literal}
     -   For testing you can use the default (possibly free)
         `t1.micro` instance (more info on
         [pricing](http://aws.amazon.com/en/ec2/pricing/)).

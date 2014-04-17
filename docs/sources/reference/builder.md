@@ -254,9 +254,9 @@ All new files and directories are created with mode 0755, uid and gid 0.
 
 Note
 
-if you build using STDIN (`docker build - < somefile`
-.literal}), there is no build context, so the Dockerfile can only
-contain an URL based ADD statement.
+if you build using STDIN (`docker build - < somefile`), there is no
+build context, so the Dockerfile can only contain an URL based ADD
+statement.
 
 Note
 
@@ -335,12 +335,11 @@ that you can run as an executable. That is, when you specify an
 `ENTRYPOINT`, then the whole container runs as if it
 was just that executable.
 
-The `ENTRYPOINT` instruction adds an entry command
-that will **not** be overwritten when arguments are passed to
-`docker run`, unlike the behavior of `CMD`
-.literal}. This allows arguments to be passed to the entrypoint. i.e.
-`docker run <image> -d` will pass the "-d" argument
-to the ENTRYPOINT.
+The `ENTRYPOINT` instruction adds an entry command that will **not** be
+overwritten when arguments are passed to `docker run`, unlike the
+behavior of `CMD`. This allows arguments to be passed to the entrypoint.
+i.e.  `docker run <image> -d` will pass the "-d" argument to the
+ENTRYPOINT.
 
 You can specify parameters either in the ENTRYPOINT JSON array (as in
 "like an exec" above), or by using a CMD statement. Parameters in the

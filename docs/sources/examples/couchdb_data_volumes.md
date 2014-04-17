@@ -25,9 +25,8 @@ volume.
 
 ## Add data to the first database
 
-We’re assuming your Docker host is reachable at `localhost`
-.literal}. If not, replace `localhost` with the
-public IP of your Docker host.
+We’re assuming your Docker host is reachable at `localhost`. If not,
+replace `localhost` with the public IP of your Docker host.
 
     HOST=localhost
     URL="http://$HOST:$(sudo docker port $COUCH1 5984 | grep -Po '\d+$')/_utils/"
@@ -35,8 +34,7 @@ public IP of your Docker host.
 
 ## Create second database
 
-This time, we’re requesting shared access to `$COUCH1`
-.literal}‘s volumes.
+This time, we’re requesting shared access to `$COUCH1`'s volumes.
 
     COUCH2=$(sudo docker run -d -p 5984 --volumes-from $COUCH1 shykes/couchdb:2013-05-03)
 

@@ -109,8 +109,7 @@ container. Similarly, some daemons (such as `sshd`)
 will scrub them when spawning shells for connection.
 
 You can work around this by storing the initial `env`
-in a file, or looking at `/proc/1/environ`
-.literal}.
+in a file, or looking at `/proc/1/environ`.
 
 Running `docker ps` shows the 2 containers, and the
 `webapp/db` alias name for the Redis container.

@@ -35,8 +35,8 @@ you will need to set the kernel manually.
     # install the new kernel
     apt-get install linux-generic-lts-raring
 
-Great, now you have the kernel installed in `/boot/`
-.literal}, next you need to make it boot next time.
+Great, now you have the kernel installed in `/boot/`, next you need to
+make it boot next time.
 
     # find the exact names
     find /boot/ -name '*3.8*'

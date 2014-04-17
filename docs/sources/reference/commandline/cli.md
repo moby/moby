@@ -19,8 +19,7 @@ no parameters or execute `docker help`:
 
 Single character commandline options can be combined, so rather than
 typing `docker run -t -i --name test busybox sh`,
-you can write `docker run -ti --name test busybox sh`
-.literal}.
+you can write `docker run -ti --name test busybox sh`.
 
 ### Boolean
 
@@ -92,11 +91,9 @@ To set the DNS server for all Docker containers, use
 To set the DNS search domain for all Docker containers, use
 `docker -d --dns-search example.com`.
 
-To run the daemon with debug output, use `docker -d -D`
-.literal}.
+To run the daemon with debug output, use `docker -d -D`.
 
-To use lxc as the execution driver, use `docker -d -e lxc`
-.literal}.
+To use lxc as the execution driver, use `docker -d -e lxc`.
 
 The docker client will also honor the `DOCKER_HOST`
 environment variable to set the `-H` flag for the
@@ -119,8 +116,7 @@ systemd in the [docker source
 tree](https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/tmp`
-.literal}. TMPDIR and the data directory can be set like this:
+(`/var/lib/docker`) and for `/tmp`. TMPDIR and the data directory can be set like this:
 
     TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
@@ -254,8 +250,7 @@ machine and that no parsing of the `Dockerfile`
 happens at the client side (where you’re running
 `docker build`). That means that *all* the files at
 `PATH` get sent, not just the ones listed to
-[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`
-.literal}.
+[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`.
 
 The transfer of context from the local machine to the Docker daemon is
 what the `docker` client means when you see the
@@ -658,9 +653,8 @@ Restores both images and tags.
 The `docker logs` command batch-retrieves all logs
 present at the time of execution.
 
-The `docker logs --follow` command combines
-`docker logs` and `docker attach`
-.literal}: it will first return all logs from the beginning and then
+The `docker logs --follow` command combines `docker logs` and `docker
+attach`: it will first return all logs from the beginning and then
 continue streaming new output from the container’s stdout and stderr.
 
 ## `port`
@@ -957,10 +951,8 @@ container). All three flags, `-e`, `--env`
 and `--env-file` can be repeated.
 
 Regardless of the order of these three flags, the `--env-file`
-are processed first, and then `-e`
-.literal}/`--env` flags. This way, the
-`-e` or `--env` will override
-variables as needed.
+are processed first, and then `-e`, `--env` flags. This way, the
+`-e` or `--env` will override variables as needed.
 
     $ cat ./env.list
     TEST_FOO=BAR

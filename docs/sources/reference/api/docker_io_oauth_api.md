@@ -72,10 +72,8 @@ following a link in your application to an OAuth Authorization endpoint.
         included, it must be one of the URIs which were submitted when
         registering your application.
     -   **scope** – The extent of access permissions you are requesting.
-        Currently, the scope options are `profile_read`
-        .literal}, `profile_write`,
-        `email_read`, and `email_write`
-        .literal}. Scopes must be separated by a space. If omitted, the
+        Currently, the scope options are `profile_read`, `profile_write`,
+        `email_read`, and `email_write`. Scopes must be separated by a space. If omitted, the
         default scopes `profile_read email_read` are
         used.
     -   **state** – (Recommended) Used by your application to maintain
@@ -140,7 +138,6 @@ to get an Access Token.
      
 
     -   **grant\_type** – MUST be set to `authorization_code`
-        .literal}
     -   **code** – The authorization code received from the user’s
         redirect request.
     -   **redirect\_uri** – The same `redirect_uri`
@@ -204,7 +201,6 @@ if the user has not revoked access from your application.
      
 
     -   **grant\_type** – MUST be set to `refresh_token`
-        .literal}
     -   **refresh\_token** – The `refresh_token`
         which was issued to your application.
     -   **scope** – (optional) The scope of the access token to be
