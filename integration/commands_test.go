@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/api/client"
+	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -36,7 +36,7 @@ func closeWrap(args ...io.Closer) error {
 	return nil
 }
 
-func setRaw(t *testing.T, c *runtime.Container) *term.State {
+func setRaw(t *testing.T, c *daemon.Container) *term.State {
 	pty, err := c.GetPtyMaster()
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func setRaw(t *testing.T, c *runtime.Container) *term.State {
 	return state
 }
 
-func unsetRaw(t *testing.T, c *runtime.Container, state *term.State) {
+func unsetRaw(t *testing.T, c *daemon.Container, state *term.State) {
 	pty, err := c.GetPtyMaster()
 	if err != nil {
 		t.Fatal(err)
@@ -56,12 +56,12 @@ func unsetRaw(t *testing.T, c *runtime.Container, state *term.State) {
 	term.RestoreTerminal(pty.Fd(), state)
 }
 
-func waitContainerStart(t *testing.T, timeout time.Duration) *runtime.Container {
-	var container *runtime.Container
+func waitContainerStart(t *testing.T, timeout time.Duration) *daemon.Container {
+	var container *daemon.Container
 
 	setTimeout(t, "Waiting for the container to be started timed out", timeout, func() {
 		for {
-			l := globalRuntime.List()
+			l := globalDaemon.List()
 			if len(l) == 1 && l[0].State.IsRunning() {
 				container = l[0]
 				break
@@ -142,7 +142,7 @@ func TestRunHostname(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := globalDaemon.List()[0]
 
 	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
@@ -187,7 +187,7 @@ func TestRunWorkdir(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := globalDaemon.List()[0]
 
 	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
@@ -232,7 +232,7 @@ func TestRunWorkdirExists(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := globalDaemon.List()[0]
 
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
@@ -290,7 +290,7 @@ func TestRunExit(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := globalDaemon.List()[0]
 
 	// Closing /bin/cat stdin, expect it to exit
 	if err := stdin.Close(); err != nil {
@@ -359,7 +359,7 @@ func TestRunDisconnect(t *testing.T) {
 	// Client disconnect after run -i should cause stdin to be closed, which should
 	// cause /bin/cat to exit.
 	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
-		container := globalRuntime.List()[0]
+		container := globalDaemon.List()[0]
 		container.Wait()
 		if container.State.IsRunning() {
 			t.Fatalf("/bin/cat is still running after closing stdin")
@@ -445,7 +445,7 @@ func TestRunAttachStdin(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := globalDaemon.List()[0]
 
 	// Check output
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
@@ -701,7 +701,7 @@ func TestAttachDisconnect(t *testing.T) {
 
 	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
 		for {
-			l := globalRuntime.List()
+			l := globalDaemon.List()
 			if len(l) == 1 && l[0].State.IsRunning() {
 				break
 			}
@@ -709,7 +709,7 @@ func TestAttachDisconnect(t *testing.T) {
 		}
 	})
 
-	container := globalRuntime.List()[0]
+	container := globalDaemon.List()[0]
 
 	// Attach to it
 	c1 := make(chan struct{})
@@ -781,7 +781,7 @@ func TestRunAutoRemove(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	if len(globalRuntime.List()) > 0 {
+	if len(globalDaemon.List()) > 0 {
 		t.Fatalf("failed to remove container automatically: container %s still exists", temporaryContainerID)
 	}
 }
@@ -798,7 +798,7 @@ func TestCmdLogs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := cli.CmdLogs(globalRuntime.List()[0].ID); err != nil {
+	if err := cli.CmdLogs(globalDaemon.List()[0].ID); err != nil {
 		t.Fatal(err)
 	}
 }

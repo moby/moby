@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/runtime"
+	"github.com/dotcloud/docker/daemon"
 	"net"
 	"os/exec"
 	"path/filepath"
@@ -47,7 +47,7 @@ func TestNetworkNat(t *testing.T) {
 	inspectOut, _, err := runCommandWithOutput(inspectCmd)
 	errorOut(err, t, fmt.Sprintf("out should've been a container id: %v %v", inspectOut, err))
 
-	containers := []*runtime.Container{}
+	containers := []*daemon.Container{}
 	if err := json.Unmarshal([]byte(inspectOut), &containers); err != nil {
 		t.Fatalf("Error inspecting the container: %s", err)
 	}

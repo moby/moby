@@ -1,8 +1,8 @@
 package daemonconfig
 
 import (
+	"github.com/dotcloud/docker/daemon/networkdriver"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runtime/networkdriver"
 	"net"
 )
 

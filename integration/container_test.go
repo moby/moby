@@ -17,11 +17,11 @@ import (
 )
 
 func TestIDFormat(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container1, _, err := runtime.Create(
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container1, _, err := daemon.Create(
 		&runconfig.Config{
-			Image: GetTestImage(runtime).ID,
+			Image: GetTestImage(daemon).ID,
 			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
 		},
 		"",
@@ -39,14 +39,14 @@ func TestIDFormat(t *testing.T) {
 }
 
 func TestMultipleAttachRestart(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 	container, _, _ := mkContainer(
-		runtime,
+		daemon,
 		[]string{"_", "/bin/sh", "-c", "i=1; while [ $i -le 5 ]; do i=`expr $i + 1`;  echo hello; done"},
 		t,
 	)
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	// Simulate 3 client attaching to the container and stop/restart
 
@@ -135,11 +135,11 @@ func TestMultipleAttachRestart(t *testing.T) {
 
 func TestDiff(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer nuke(runtime)
+	daemon := mkDaemonFromEngine(eng, t)
+	defer nuke(daemon)
 	// Create a container and remove a file
-	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/rm", "/etc/passwd"}, t)
-	defer runtime.Destroy(container1)
+	container1, _, _ := mkContainer(daemon, []string{"_", "/bin/rm", "/etc/passwd"}, t)
+	defer daemon.Destroy(container1)
 
 	// The changelog should be empty and not fail before run. See #1705
 	c, err := container1.Changes()
@@ -170,14 +170,14 @@ func TestDiff(t *testing.T) {
 	}
 
 	// Commit the container
-	img, err := runtime.Commit(container1, "", "", "unit test commited image - diff", "", nil)
+	img, err := daemon.Commit(container1, "", "", "unit test commited image - diff", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a new container from the commited image
-	container2, _, _ := mkContainer(runtime, []string{img.ID, "cat", "/etc/passwd"}, t)
-	defer runtime.Destroy(container2)
+	container2, _, _ := mkContainer(daemon, []string{img.ID, "cat", "/etc/passwd"}, t)
+	defer daemon.Destroy(container2)
 
 	if err := container2.Run(); err != nil {
 		t.Fatal(err)
@@ -195,8 +195,8 @@ func TestDiff(t *testing.T) {
 	}
 
 	// Create a new container
-	container3, _, _ := mkContainer(runtime, []string{"_", "rm", "/bin/httpd"}, t)
-	defer runtime.Destroy(container3)
+	container3, _, _ := mkContainer(daemon, []string{"_", "rm", "/bin/httpd"}, t)
+	defer daemon.Destroy(container3)
 
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
@@ -219,10 +219,10 @@ func TestDiff(t *testing.T) {
 }
 
 func TestCommitAutoRun(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
-	defer runtime.Destroy(container1)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container1, _, _ := mkContainer(daemon, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
+	defer daemon.Destroy(container1)
 
 	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
@@ -234,14 +234,14 @@ func TestCommitAutoRun(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := runtime.Commit(container1, "", "", "unit test commited image", "", &runconfig.Config{Cmd: []string{"cat", "/world"}})
+	img, err := daemon.Commit(container1, "", "", "unit test commited image", "", &runconfig.Config{Cmd: []string{"cat", "/world"}})
 	if err != nil {
 		t.Error(err)
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-	container2, _, _ := mkContainer(runtime, []string{img.ID}, t)
-	defer runtime.Destroy(container2)
+	container2, _, _ := mkContainer(daemon, []string{img.ID}, t)
+	defer daemon.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -274,11 +274,11 @@ func TestCommitAutoRun(t *testing.T) {
 }
 
 func TestCommitRun(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 
-	container1, _, _ := mkContainer(runtime, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
-	defer runtime.Destroy(container1)
+	container1, _, _ := mkContainer(daemon, []string{"_", "/bin/sh", "-c", "echo hello > /world"}, t)
+	defer daemon.Destroy(container1)
 
 	if container1.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
@@ -290,14 +290,14 @@ func TestCommitRun(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := runtime.Commit(container1, "", "", "unit test commited image", "", nil)
+	img, err := daemon.Commit(container1, "", "", "unit test commited image", "", nil)
 	if err != nil {
 		t.Error(err)
 	}
 
 	// FIXME: Make a TestCommit that stops here and check docker.root/layers/img.id/world
-	container2, _, _ := mkContainer(runtime, []string{img.ID, "cat", "/world"}, t)
-	defer runtime.Destroy(container2)
+	container2, _, _ := mkContainer(daemon, []string{img.ID, "cat", "/world"}, t)
+	defer daemon.Destroy(container2)
 	stdout, err := container2.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -330,10 +330,10 @@ func TestCommitRun(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, _ := mkContainer(runtime, []string{"-i", "_", "/bin/cat"}, t)
-	defer runtime.Destroy(container)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, _ := mkContainer(daemon, []string{"-i", "_", "/bin/cat"}, t)
+	defer daemon.Destroy(container)
 
 	cStdin, err := container.StdinPipe()
 	if err != nil {
@@ -365,10 +365,10 @@ func TestCpuShares(t *testing.T) {
 	if err1 == nil || err2 == nil {
 		t.Skip("Fixme. Setting cpu cgroup shares doesn't work in dind on a Fedora host.  The lxc utils are confused by the cpu,cpuacct mount.")
 	}
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, _ := mkContainer(runtime, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
-	defer runtime.Destroy(container)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, _ := mkContainer(daemon, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
+	defer daemon.Destroy(container)
 
 	cStdin, err := container.StdinPipe()
 	if err != nil {
@@ -395,10 +395,10 @@ func TestCpuShares(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, _ := mkContainer(runtime, []string{"_", "ls", "-al"}, t)
-	defer runtime.Destroy(container)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, _ := mkContainer(daemon, []string{"_", "ls", "-al"}, t)
+	defer daemon.Destroy(container)
 
 	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
@@ -412,11 +412,11 @@ func TestRun(t *testing.T) {
 }
 
 func TestOutput(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(
 		&runconfig.Config{
-			Image: GetTestImage(runtime).ID,
+			Image: GetTestImage(daemon).ID,
 			Cmd:   []string{"echo", "-n", "foobar"},
 		},
 		"",
@@ -424,7 +424,7 @@ func TestOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -435,11 +435,11 @@ func TestOutput(t *testing.T) {
 }
 
 func TestKillDifferentUser(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image:     GetTestImage(runtime).ID,
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image:     GetTestImage(daemon).ID,
 		Cmd:       []string{"cat"},
 		OpenStdin: true,
 		User:      "daemon",
@@ -449,7 +449,7 @@ func TestKillDifferentUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	// FIXME @shykes: this seems redundant, but is very old, I'm leaving it in case
 	// there is a side effect I'm not seeing.
 	// defer container.stdin.Close()
@@ -495,8 +495,8 @@ func TestKillDifferentUser(t *testing.T) {
 // Test that creating a container with a volume doesn't crash. Regression test for #995.
 func TestCreateVolume(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer nuke(runtime)
+	daemon := mkDaemonFromEngine(eng, t)
+	defer nuke(daemon)
 
 	config, hc, _, err := runconfig.Parse([]string{"-v", "/var/lib/data", unitTestImageID, "echo", "hello", "world"}, nil)
 	if err != nil {
@@ -519,19 +519,19 @@ func TestCreateVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	// FIXME: this hack can be removed once Wait is a job
-	c := runtime.Get(id)
+	c := daemon.Get(id)
 	if c == nil {
-		t.Fatalf("Couldn't retrieve container %s from runtime", id)
+		t.Fatalf("Couldn't retrieve container %s from daemon", id)
 	}
 	c.WaitTimeout(500 * time.Millisecond)
 	c.Wait()
 }
 
 func TestKill(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
 		"",
@@ -539,7 +539,7 @@ func TestKill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
@@ -571,17 +571,17 @@ func TestKill(t *testing.T) {
 }
 
 func TestExitCode(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 
-	trueContainer, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	trueContainer, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"/bin/true"},
 	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(trueContainer)
+	defer daemon.Destroy(trueContainer)
 	if err := trueContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -589,14 +589,14 @@ func TestExitCode(t *testing.T) {
 		t.Fatalf("Unexpected exit code %d (expected 0)", code)
 	}
 
-	falseContainer, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	falseContainer, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"/bin/false"},
 	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(falseContainer)
+	defer daemon.Destroy(falseContainer)
 	if err := falseContainer.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -606,10 +606,10 @@ func TestExitCode(t *testing.T) {
 }
 
 func TestRestart(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"echo", "-n", "foobar"},
 	},
 		"",
@@ -617,7 +617,7 @@ func TestRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -637,10 +637,10 @@ func TestRestart(t *testing.T) {
 }
 
 func TestRestartStdin(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"cat"},
 
 		OpenStdin: true,
@@ -650,7 +650,7 @@ func TestRestartStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	stdin, err := container.StdinPipe()
 	if err != nil {
@@ -713,12 +713,12 @@ func TestRestartStdin(t *testing.T) {
 }
 
 func TestUser(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 
 	// Default user must be root
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"id"},
 	},
 		"",
@@ -726,7 +726,7 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -736,8 +736,8 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a username
-	container, _, err = runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container, _, err = daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"id"},
 
 		User: "root",
@@ -747,7 +747,7 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err = container.Output()
 	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
@@ -757,8 +757,8 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a UID
-	container, _, err = runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container, _, err = daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"id"},
 
 		User: "0",
@@ -768,7 +768,7 @@ func TestUser(t *testing.T) {
 	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err = container.Output()
 	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
@@ -778,8 +778,8 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a different user by uid
-	container, _, err = runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container, _, err = daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"id"},
 
 		User: "1",
@@ -789,7 +789,7 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err = container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -801,8 +801,8 @@ func TestUser(t *testing.T) {
 	}
 
 	// Set a different user by username
-	container, _, err = runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container, _, err = daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"id"},
 
 		User: "daemon",
@@ -812,7 +812,7 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err = container.Output()
 	if code := container.State.GetExitCode(); err != nil || code != 0 {
 		t.Fatal(err)
@@ -822,8 +822,8 @@ func TestUser(t *testing.T) {
 	}
 
 	// Test an wrong username
-	container, _, err = runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container, _, err = daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"id"},
 
 		User: "unknownuser",
@@ -833,7 +833,7 @@ func TestUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err = container.Output()
 	if container.State.GetExitCode() == 0 {
 		t.Fatal("Starting container with wrong uid should fail but it passed.")
@@ -841,11 +841,11 @@ func TestUser(t *testing.T) {
 }
 
 func TestMultipleContainers(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 
-	container1, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container1, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
 		"",
@@ -853,10 +853,10 @@ func TestMultipleContainers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container1)
+	defer daemon.Destroy(container1)
 
-	container2, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	container2, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"sleep", "2"},
 	},
 		"",
@@ -864,7 +864,7 @@ func TestMultipleContainers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container2)
+	defer daemon.Destroy(container2)
 
 	// Start both containers
 	if err := container1.Start(); err != nil {
@@ -897,10 +897,10 @@ func TestMultipleContainers(t *testing.T) {
 }
 
 func TestStdin(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"cat"},
 
 		OpenStdin: true,
@@ -910,7 +910,7 @@ func TestStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	stdin, err := container.StdinPipe()
 	if err != nil {
@@ -942,10 +942,10 @@ func TestStdin(t *testing.T) {
 }
 
 func TestTty(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image: GetTestImage(runtime).ID,
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"cat"},
 
 		OpenStdin: true,
@@ -955,7 +955,7 @@ func TestTty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	stdin, err := container.StdinPipe()
 	if err != nil {
@@ -989,17 +989,17 @@ func TestTty(t *testing.T) {
 func TestEnv(t *testing.T) {
 	os.Setenv("TRUE", "false")
 	os.Setenv("TRICKY", "tri\ncky\n")
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	config, _, _, err := runconfig.Parse([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(runtime).ID, "env"}, nil)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	config, _, _, err := runconfig.Parse([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(daemon).ID, "env"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	container, _, err := runtime.Create(config, "")
+	container, _, err := daemon.Create(config, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	stdout, err := container.StdoutPipe()
 	if err != nil {
@@ -1041,11 +1041,11 @@ func TestEnv(t *testing.T) {
 }
 
 func TestEntrypoint(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(
 		&runconfig.Config{
-			Image:      GetTestImage(runtime).ID,
+			Image:      GetTestImage(daemon).ID,
 			Entrypoint: []string{"/bin/echo"},
 			Cmd:        []string{"-n", "foobar"},
 		},
@@ -1054,7 +1054,7 @@ func TestEntrypoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -1065,11 +1065,11 @@ func TestEntrypoint(t *testing.T) {
 }
 
 func TestEntrypointNoCmd(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(
 		&runconfig.Config{
-			Image:      GetTestImage(runtime).ID,
+			Image:      GetTestImage(daemon).ID,
 			Entrypoint: []string{"/bin/echo", "foobar"},
 		},
 		"",
@@ -1077,7 +1077,7 @@ func TestEntrypointNoCmd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	output, err := container.Output()
 	if err != nil {
 		t.Fatal(err)
@@ -1088,11 +1088,11 @@ func TestEntrypointNoCmd(t *testing.T) {
 }
 
 func BenchmarkRunSequential(b *testing.B) {
-	runtime := mkRuntime(b)
-	defer nuke(runtime)
+	daemon := mkDaemon(b)
+	defer nuke(daemon)
 	for i := 0; i < b.N; i++ {
-		container, _, err := runtime.Create(&runconfig.Config{
-			Image: GetTestImage(runtime).ID,
+		container, _, err := daemon.Create(&runconfig.Config{
+			Image: GetTestImage(daemon).ID,
 			Cmd:   []string{"echo", "-n", "foo"},
 		},
 			"",
@@ -1100,7 +1100,7 @@ func BenchmarkRunSequential(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		defer runtime.Destroy(container)
+		defer daemon.Destroy(container)
 		output, err := container.Output()
 		if err != nil {
 			b.Fatal(err)
@@ -1108,15 +1108,15 @@ func BenchmarkRunSequential(b *testing.B) {
 		if string(output) != "foo" {
 			b.Fatalf("Unexpected output: %s", output)
 		}
-		if err := runtime.Destroy(container); err != nil {
+		if err := daemon.Destroy(container); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
 func BenchmarkRunParallel(b *testing.B) {
-	runtime := mkRuntime(b)
-	defer nuke(runtime)
+	daemon := mkDaemon(b)
+	defer nuke(daemon)
 
 	var tasks []chan error
 
@@ -1124,8 +1124,8 @@ func BenchmarkRunParallel(b *testing.B) {
 		complete := make(chan error)
 		tasks = append(tasks, complete)
 		go func(i int, complete chan error) {
-			container, _, err := runtime.Create(&runconfig.Config{
-				Image: GetTestImage(runtime).ID,
+			container, _, err := daemon.Create(&runconfig.Config{
+				Image: GetTestImage(daemon).ID,
 				Cmd:   []string{"echo", "-n", "foo"},
 			},
 				"",
@@ -1134,7 +1134,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				complete <- err
 				return
 			}
-			defer runtime.Destroy(container)
+			defer daemon.Destroy(container)
 			if err := container.Start(); err != nil {
 				complete <- err
 				return
@@ -1146,7 +1146,7 @@ func BenchmarkRunParallel(b *testing.B) {
 			// if string(output) != "foo" {
 			// 	complete <- fmt.Errorf("Unexecpted output: %v", string(output))
 			// }
-			if err := runtime.Destroy(container); err != nil {
+			if err := daemon.Destroy(container); err != nil {
 				complete <- err
 				return
 			}
@@ -1176,7 +1176,7 @@ func tempDir(t *testing.T) string {
 // Test for #1737
 func TestCopyVolumeUidGid(t *testing.T) {
 	eng := NewTestEngine(t)
-	r := mkRuntimeFromEngine(eng, t)
+	r := mkDaemonFromEngine(eng, t)
 	defer r.Nuke()
 
 	// Add directory not owned by root
@@ -1210,7 +1210,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 // Test for #1582
 func TestCopyVolumeContent(t *testing.T) {
 	eng := NewTestEngine(t)
-	r := mkRuntimeFromEngine(eng, t)
+	r := mkDaemonFromEngine(eng, t)
 	defer r.Nuke()
 
 	// Put some content in a directory of a container and commit it
@@ -1243,7 +1243,7 @@ func TestCopyVolumeContent(t *testing.T) {
 
 func TestBindMounts(t *testing.T) {
 	eng := NewTestEngine(t)
-	r := mkRuntimeFromEngine(eng, t)
+	r := mkDaemonFromEngine(eng, t)
 	defer r.Nuke()
 
 	tmpDir := tempDir(t)
@@ -1275,11 +1275,11 @@ func TestBindMounts(t *testing.T) {
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func TestRestartWithVolumes(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
 
-	container, _, err := runtime.Create(&runconfig.Config{
-		Image:   GetTestImage(runtime).ID,
+	container, _, err := daemon.Create(&runconfig.Config{
+		Image:   GetTestImage(daemon).ID,
 		Cmd:     []string{"echo", "-n", "foobar"},
 		Volumes: map[string]struct{}{"/test": {}},
 	},
@@ -1288,7 +1288,7 @@ func TestRestartWithVolumes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 
 	for key := range container.Config.Volumes {
 		if key != "/test" {
@@ -1318,11 +1318,11 @@ func TestRestartWithVolumes(t *testing.T) {
 }
 
 func TestContainerNetwork(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(
 		&runconfig.Config{
-			Image: GetTestImage(runtime).ID,
+			Image: GetTestImage(daemon).ID,
 			// If I change this to ping 8.8.8.8 it fails.  Any idea why? - timthelion
 			Cmd: []string{"ping", "-c", "1", "127.0.0.1"},
 		},
@@ -1331,7 +1331,7 @@ func TestContainerNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	if err := container.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -1342,11 +1342,11 @@ func TestContainerNetwork(t *testing.T) {
 
 // Issue #4681
 func TestLoopbackFunctionsWhenNetworkingIsDissabled(t *testing.T) {
-	runtime := mkRuntime(t)
-	defer nuke(runtime)
-	container, _, err := runtime.Create(
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+	container, _, err := daemon.Create(
 		&runconfig.Config{
-			Image:           GetTestImage(runtime).ID,
+			Image:           GetTestImage(daemon).ID,
 			Cmd:             []string{"ping", "-c", "1", "127.0.0.1"},
 			NetworkDisabled: true,
 		},
@@ -1355,7 +1355,7 @@ func TestLoopbackFunctionsWhenNetworkingIsDissabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy(container)
+	defer daemon.Destroy(container)
 	if err := container.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -1366,10 +1366,10 @@ func TestLoopbackFunctionsWhenNetworkingIsDissabled(t *testing.T) {
 
 func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer nuke(runtime)
+	daemon := mkDaemonFromEngine(eng, t)
+	defer nuke(daemon)
 
-	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(runtime).ID, "ip", "addr", "show", "up"}, nil)
+	config, hc, _, err := runconfig.Parse([]string{"-n=false", GetTestImage(daemon).ID, "ip", "addr", "show", "up"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1384,9 +1384,9 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	// FIXME: this hack can be removed once Wait is a job
-	c := runtime.Get(id)
+	c := daemon.Get(id)
 	if c == nil {
-		t.Fatalf("Couldn't retrieve container %s from runtime", id)
+		t.Fatalf("Couldn't retrieve container %s from daemon", id)
 	}
 	stdout, err := c.StdoutPipe()
 	if err != nil {
@@ -1419,36 +1419,36 @@ func TestOnlyLoopbackExistsWhenUsingDisableNetworkOption(t *testing.T) {
 
 func TestPrivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer runtime.Nuke()
-	if output, err := runContainer(eng, runtime, []string{"--privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+	daemon := mkDaemonFromEngine(eng, t)
+	defer daemon.Nuke()
+	if output, err := runContainer(eng, daemon, []string{"--privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
 		t.Fatalf("Could not mknod into privileged container %s %v", output, err)
 	}
 }
 
 func TestPrivilegedCanMount(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"--privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
+	daemon := mkDaemonFromEngine(eng, t)
+	defer daemon.Nuke()
+	if output, _ := runContainer(eng, daemon, []string{"--privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could not mount into privileged container")
 	}
 }
 
 func TestUnprivilegedCanMknod(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
+	daemon := mkDaemonFromEngine(eng, t)
+	defer daemon.Nuke()
+	if output, _ := runContainer(eng, daemon, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
 		t.Fatal("Couldn't mknod into secure container")
 	}
 }
 
 func TestUnprivilegedCannotMount(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
-	defer runtime.Nuke()
-	if output, _ := runContainer(eng, runtime, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
+	daemon := mkDaemonFromEngine(eng, t)
+	defer daemon.Nuke()
+	if output, _ := runContainer(eng, daemon, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
 		t.Fatal("Could mount into secure container")
 	}
 }
