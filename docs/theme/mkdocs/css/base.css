@@ -40,6 +40,7 @@ h6,
   /* Desktop click-to-scroll margin/padding fixes */
   padding-top: 2em !important;
   margin-top: -2em !important;
+  pointer-events:none;
 }
 #content h3 {
   padding: 0.7em 0em 0.3em 0em;
@@ -354,11 +355,16 @@ h6,
   font-weight: bold;
   color: #0e6b8d;
 }
+#toc_table > h2 > a > b {
+  display: none;
+  border-top-color: #0e6b8d !important;
+}
 #toc_table > h3 {
   font-size: 1em;
   color: #0e6b8d;
 }
 #toc_table > #toc_navigation {
+  display: block;
   margin-top: 1.5em !important;
   background: #fff;
   border-bottom: 3px solid #ddd;
@@ -572,6 +578,9 @@ ol.breadcrumb > li:last-child > a {
     margin-bottom: 0.3em;
     font-size: 2em;
   }
+  #toc_table > h2 > a > b {
+    display: inline-block;
+  }
   #toc_table > h3 {
     display: block;
     margin: 0;
@@ -588,13 +597,6 @@ ol.breadcrumb > li:last-child > a {
   }
   #toc_table > #toc_navigation > li > a > .active_icon {
     display: none;
-  }
-
-  /* Mobile click-to-scroll margin/padding fixes */
-  #content h2 {
-    padding: 0.5em 0em 0.3em 0em;
-    padding-top: 13.5em !important;
-    margin-top: -13.5em !important;
   }
 
 }
