@@ -560,3 +560,46 @@ func TestEnvironment(t *testing.T) {
 
 	logDone("run - verify environment")
 }
+
+func TestContainerNetwork(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "ping", "-c", "1", "127.0.0.1")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test container network via ping")
+}
+
+// Issue #4681
+func TestLoopbackWhenNetworkDisabled(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ping", "-c", "1", "127.0.0.1")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test container loopback when networking disabled")
+}
+
+func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ip", "a", "show", "up")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(out, -1)
+	if len(interfaces) != 1 {
+		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
+	}
+	if !strings.HasSuffix(interfaces[0], ": lo") {
+		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test loopback only exists when networking disabled")
+}
