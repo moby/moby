@@ -4,19 +4,17 @@ page_keywords: gentoo linux, virtualization, docker, documentation, installation
 
 # Gentoo
 
-Note
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
-
-Note
-
-This is a community contributed installation path. The only ‘official’
-installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-installation path. This version may be out of date because it depends on
-some binaries to be updated and published
+> **Note**:
+> This is a community contributed installation path. The only ‘official’
+> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+> installation path. This version may be out of date because it depends on
+> some binaries to be updated and published
 
 Installing Docker on Gentoo Linux can be accomplished using one of two
 methods. The first and best way if you’re looking for a stable

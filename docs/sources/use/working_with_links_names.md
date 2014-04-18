@@ -102,11 +102,10 @@ Accessing the network information along with the environment of the
 child container allows us to easily connect to the Redis service on the
 specific IP and port in the environment.
 
-Note
-
-These Environment variables are only set for the first process in the
-container. Similarly, some daemons (such as `sshd`)
-will scrub them when spawning shells for connection.
+> **Note**:
+> These Environment variables are only set for the first process in the
+> container. Similarly, some daemons (such as `sshd`)
+> will scrub them when spawning shells for connection.
 
 You can work around this by storing the initial `env`
 in a file, or looking at `/proc/1/environ`.

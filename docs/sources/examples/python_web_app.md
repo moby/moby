@@ -4,13 +4,13 @@ page_keywords: docker, example, python, web app
 
 # Python Web App
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
+> **Note**: 
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup)
 
 While using Dockerfiles is the preferred way to create maintainable and
 repeatable images, its useful to know how you can try things out and
@@ -33,12 +33,11 @@ modules, and a `runapp` script that finds the
 
     $ sudo docker pull shykes/pybuilder
 
-Note
-
-This container was built with a very old version of docker (May 2013 -
-see [shykes/pybuilder](https://github.com/shykes/pybuilder) ), when the
-`Dockerfile` format was different, but the image can
-still be used now.
+> **Note**: 
+> This container was built with a very old version of docker (May 2013 -
+> see [shykes/pybuilder](https://github.com/shykes/pybuilder) ), when the
+> `Dockerfile` format was different, but the image can
+> still be used now.
 
 ## Interactively make some modifications
 

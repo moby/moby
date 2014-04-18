@@ -85,7 +85,8 @@ page.
 If you have a `README.md` file in your repository, we will use that as the
 repository's full description.
 
-> **Warning:** If you change the full description after a build, it will be
+> **Warning:**
+> If you change the full description after a build, it will be
 > rewritten the next time the Trusted Build has been built. To make changes,
 > modify the README.md from the Git repository. We will look for a README.md
 > in the same directory as your Dockerfile.
@@ -97,7 +98,8 @@ can setup a build trigger. When you turn on the build trigger for a Trusted
 Build, it will give you a URL to which you can send POST requests. This will
 trigger the Trusted Build process, which is similar to GitHub webhooks.
 
-> **Note:** You can only trigger one build at a time and no more than one
+> **Note:** 
+> You can only trigger one build at a time and no more than one
 > every five minutes. If you have a build already pending, or if you already
 > recently submitted a build request, those requests *will be ignored*.
 > You can find the logs of last 10 triggers on the settings page to verify
@@ -113,6 +115,7 @@ To add a link, go to the settings page of a Trusted Build and click on
 *Repository Links*. Then enter the name of the repository that you want have
 linked.
 
-> **Warning:** You can add more than one repository link, however, you should
+> **Warning:**
+> You can add more than one repository link, however, you should
 > be very careful. Creating a two way relationship between Trusted Builds will
 > cause a never ending build loop.

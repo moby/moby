@@ -4,15 +4,15 @@ page_keywords: docker, example, package installation, networking, debian, ubuntu
 
 # Apt-Cacher-ng Service
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
--   **If you’re using OS X or docker via TCP** then you shouldn’t use
-    sudo
+> **Note**: 
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup).
+> - **If you’re using OS X or docker via TCP** then you shouldn’t use
+>   sudo.
 
 When you have multiple Docker servers, or build unrelated Docker
 containers which can’t make use of the Docker build cache, it can be

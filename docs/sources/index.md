@@ -72,10 +72,11 @@ and see:
 
 > [Click here to go to Get Docker](introduction/get-docker.md).
 
-**Note**: We know how valuable your time is. Therefore, the
-documentation is prepared in a way to allow anyone to start from any
-section need.  Although we strongly recommend that you visit
-[Understanding Docker](introduction/understanding-docker.md) to see how Docker is
-different, if you already have some knowledge and want to quickly get
-started with Docker, don't hesitate to jump to [Working with
-Docker](introduction/working-with-docker.md).
+> **Note**:
+> We know how valuable your time is. Therefore, the documentation is prepared
+> in a way to allow anyone to start from any section need. Although we strongly
+> recommend that you visit [Understanding Docker](
+> introduction/understanding-docker.md) to see how Docker is different, if you
+> already have some knowledge and want to quickly get started with Docker,
+> don't hesitate to jump to [Working with Docker](
+> introduction/working-with-docker.md).
