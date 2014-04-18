@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -31,4 +32,33 @@ func TestCommitAfterContainerIsDone(t *testing.T) {
 	deleteImages(cleanedImageID)
 
 	logDone("commit - echo foo and commit the image")
+}
+
+func TestCommitNewFile(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit", "commiter")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+
+	cmd = exec.Command(dockerBinary, "run", imageId, "cat", "/foo")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if actual := strings.Trim(out, "\r\n"); actual != "koye" {
+		t.Fatalf("expected output koye received %s", actual)
+	}
+
+	deleteAllContainers()
+	deleteImages(imageId)
+
+	logDone("commit - commit file and read")
 }
