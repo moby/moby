@@ -306,60 +306,6 @@ func TestTty(t *testing.T) {
 	}
 }
 
-func TestEnv(t *testing.T) {
-	os.Setenv("TRUE", "false")
-	os.Setenv("TRICKY", "tri\ncky\n")
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	config, _, _, err := runconfig.Parse([]string{"-e=FALSE=true", "-e=TRUE", "-e=TRICKY", GetTestImage(daemon).ID, "env"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	container, _, err := daemon.Create(config, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-
-	stdout, err := container.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer stdout.Close()
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
-	container.Wait()
-	output, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actualEnv := strings.Split(string(output), "\n")
-	if actualEnv[len(actualEnv)-1] == "" {
-		actualEnv = actualEnv[:len(actualEnv)-1]
-	}
-	sort.Strings(actualEnv)
-	goodEnv := []string{
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME=/",
-		"HOSTNAME=" + utils.TruncateID(container.ID),
-		"FALSE=true",
-		"TRUE=false",
-		"TRICKY=tri",
-		"cky",
-		"",
-	}
-	sort.Strings(goodEnv)
-	if len(goodEnv) != len(actualEnv) {
-		t.Fatalf("Wrong environment: should be %d variables, not: '%s'\n", len(goodEnv), strings.Join(actualEnv, ", "))
-	}
-	for i := range goodEnv {
-		if actualEnv[i] != goodEnv[i] {
-			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
-		}
-	}
-}
-
 func TestEntrypoint(t *testing.T) {
 	daemon := mkDaemon(t)
 	defer nuke(daemon)

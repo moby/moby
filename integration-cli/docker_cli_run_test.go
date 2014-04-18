@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -514,4 +516,47 @@ func TestRunTwoConcurrentContainers(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - two concurrent containers")
+}
+
+func TestEnvironment(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "busybox", "env")
+	cmd.Env = append(os.Environ(),
+		"TRUE=false",
+		"TRICKY=tri\ncky\n",
+	)
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualEnv := strings.Split(out, "\n")
+	if actualEnv[len(actualEnv)-1] == "" {
+		actualEnv = actualEnv[:len(actualEnv)-1]
+	}
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/",
+		"HOSTNAME=testing",
+		"FALSE=true",
+		"TRUE=false",
+		"TRICKY=tri",
+		"cky",
+		"",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		t.Fatalf("Wrong environment: should be %d variables, not: '%s'\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+
+	deleteAllContainers()
+
+	logDone("run - verify environment")
 }
