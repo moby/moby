@@ -2297,10 +2297,6 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 
 	//stream
 	if stream {
-		if container.State.IsGhost() {
-			return job.Errorf("Impossible to attach to a ghost container")
-		}
-
 		var (
 			cStdin           io.ReadCloser
 			cStdout, cStderr io.Writer

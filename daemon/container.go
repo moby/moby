@@ -499,39 +499,15 @@ func (container *Container) allocateNetwork() error {
 		eng = container.daemon.eng
 	)
 
-	if container.State.IsGhost() {
-		if container.daemon.config.DisableNetwork {
-			env = &engine.Env{}
-		} else {
-			currentIP := container.NetworkSettings.IPAddress
-
-			job := eng.Job("allocate_interface", container.ID)
-			if currentIP != "" {
-				job.Setenv("RequestIP", currentIP)
-			}
-
-			env, err = job.Stdout.AddEnv()
-			if err != nil {
-				return err
-			}
-
-			if err := job.Run(); err != nil {
-				return err
-			}
-		}
-	} else {
-		job := eng.Job("allocate_interface", container.ID)
-		env, err = job.Stdout.AddEnv()
-		if err != nil {
-			return err
-		}
-		if err := job.Run(); err != nil {
-			return err
-		}
+	job := eng.Job("allocate_interface", container.ID)
+	if env, err = job.Stdout.AddEnv(); err != nil {
+		return err
+	}
+	if err := job.Run(); err != nil {
+		return err
 	}
 
 	if container.Config.PortSpecs != nil {
-		utils.Debugf("Migrating port mappings for container: %s", strings.Join(container.Config.PortSpecs, ", "))
 		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
 			return err
 		}
@@ -546,58 +522,23 @@ func (container *Container) allocateNetwork() error {
 		bindings  = make(nat.PortMap)
 	)
 
-	if !container.State.IsGhost() {
-		if container.Config.ExposedPorts != nil {
-			portSpecs = container.Config.ExposedPorts
-		}
-		if container.hostConfig.PortBindings != nil {
-			bindings = container.hostConfig.PortBindings
-		}
-	} else {
-		if container.NetworkSettings.Ports != nil {
-			for port, binding := range container.NetworkSettings.Ports {
-				portSpecs[port] = struct{}{}
-				bindings[port] = binding
-			}
-		}
+	if container.Config.ExposedPorts != nil {
+		portSpecs = container.Config.ExposedPorts
+	}
+	if container.hostConfig.PortBindings != nil {
+		bindings = container.hostConfig.PortBindings
 	}
 
 	container.NetworkSettings.PortMapping = nil
 
 	for port := range portSpecs {
-		binding := bindings[port]
-		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
-			binding = append(binding, nat.PortBinding{})
+		if err := container.allocatePort(eng, port, bindings); err != nil {
+			return err
 		}
-
-		for i := 0; i < len(binding); i++ {
-			b := binding[i]
-
-			portJob := eng.Job("allocate_port", container.ID)
-			portJob.Setenv("HostIP", b.HostIp)
-			portJob.Setenv("HostPort", b.HostPort)
-			portJob.Setenv("Proto", port.Proto())
-			portJob.Setenv("ContainerPort", port.Port())
-
-			portEnv, err := portJob.Stdout.AddEnv()
-			if err != nil {
-				return err
-			}
-			if err := portJob.Run(); err != nil {
-				eng.Job("release_interface", container.ID).Run()
-				return err
-			}
-			b.HostIp = portEnv.Get("HostIP")
-			b.HostPort = portEnv.Get("HostPort")
-
-			binding[i] = b
-		}
-		bindings[port] = binding
 	}
 	container.WriteHostConfig()
 
 	container.NetworkSettings.Ports = bindings
-
 	container.NetworkSettings.Bridge = env.Get("Bridge")
 	container.NetworkSettings.IPAddress = env.Get("IP")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
@@ -1204,5 +1145,37 @@ func (container *Container) waitForStart() error {
 	case err := <-cErr:
 		return err
 	}
+	return nil
+}
+
+func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bindings nat.PortMap) error {
+	binding := bindings[port]
+	if container.hostConfig.PublishAllPorts && len(binding) == 0 {
+		binding = append(binding, nat.PortBinding{})
+	}
+
+	for i := 0; i < len(binding); i++ {
+		b := binding[i]
+
+		job := eng.Job("allocate_port", container.ID)
+		job.Setenv("HostIP", b.HostIp)
+		job.Setenv("HostPort", b.HostPort)
+		job.Setenv("Proto", port.Proto())
+		job.Setenv("ContainerPort", port.Port())
+
+		portEnv, err := job.Stdout.AddEnv()
+		if err != nil {
+			return err
+		}
+		if err := job.Run(); err != nil {
+			eng.Job("release_interface", container.ID).Run()
+			return err
+		}
+		b.HostIp = portEnv.Get("HostIP")
+		b.HostPort = portEnv.Get("HostPort")
+
+		binding[i] = b
+	}
+	bindings[port] = binding
 	return nil
 }
