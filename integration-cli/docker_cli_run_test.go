@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -435,4 +436,82 @@ func TestExitCode(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - correct exit code")
+}
+
+func TestUserDefaultsToRoot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root)") {
+		t.Fatalf("expected root user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - default user")
+}
+
+func TestUserByName(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "root", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root)") {
+		t.Fatalf("expected root user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by name")
+}
+
+func TestUserByID(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "1", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=1(daemon) gid=1(daemon)") {
+		t.Fatalf("expected daemon user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id")
+}
+
+func TestUserNotFound(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "notme", "busybox", "id")
+
+	_, err := runCommand(cmd)
+	if err == nil {
+		t.Fatal("unknown user should cause container to fail")
+	}
+	deleteAllContainers()
+
+	logDone("run - user not found")
+}
+
+func TestRunTwoConcurrentContainers(t *testing.T) {
+	group := sync.WaitGroup{}
+	group.Add(2)
+
+	for i := 0; i < 2; i++ {
+		go func() {
+			defer group.Done()
+			cmd := exec.Command(dockerBinary, "run", "busybox", "sleep", "2")
+			if _, err := runCommand(cmd); err != nil {
+				t.Fatal(err)
+			}
+		}()
+	}
+
+	group.Wait()
+
+	deleteAllContainers()
+
+	logDone("run - two concurrent containers")
 }
