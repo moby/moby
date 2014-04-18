@@ -1,55 +1,16 @@
 package docker
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestCpuShares(t *testing.T) {
-	_, err1 := os.Stat("/sys/fs/cgroup/cpuacct,cpu")
-	_, err2 := os.Stat("/sys/fs/cgroup/cpu,cpuacct")
-	if err1 == nil || err2 == nil {
-		t.Skip("Fixme. Setting cpu cgroup shares doesn't work in dind on a Fedora host.  The lxc utils are confused by the cpu,cpuacct mount.")
-	}
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, _ := mkContainer(daemon, []string{"-m", "33554432", "-c", "1000", "-i", "_", "/bin/cat"}, t)
-	defer daemon.Destroy(container)
-
-	cStdin, err := container.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Give some time to the process to start
-	container.WaitTimeout(500 * time.Millisecond)
-
-	if !container.State.IsRunning() {
-		t.Errorf("Container should be running")
-	}
-	if err := container.Start(); err != nil {
-		t.Fatalf("A running container should be able to be started")
-	}
-
-	// Try to avoid the timeout in destroy. Best effort, don't check error
-	cStdin.Close()
-	container.WaitTimeout(2 * time.Second)
-}
 
 func TestKillDifferentUser(t *testing.T) {
 	daemon := mkDaemon(t)
@@ -580,41 +541,5 @@ func TestRestartWithVolumes(t *testing.T) {
 	actual := container.Volumes["/test"]
 	if expected != actual {
 		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
-	}
-}
-
-func TestPrivilegedCanMknod(t *testing.T) {
-	eng := NewTestEngine(t)
-	daemon := mkDaemonFromEngine(eng, t)
-	defer daemon.Nuke()
-	if output, err := runContainer(eng, daemon, []string{"--privileged", "_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
-		t.Fatalf("Could not mknod into privileged container %s %v", output, err)
-	}
-}
-
-func TestPrivilegedCanMount(t *testing.T) {
-	eng := NewTestEngine(t)
-	daemon := mkDaemonFromEngine(eng, t)
-	defer daemon.Nuke()
-	if output, _ := runContainer(eng, daemon, []string{"--privileged", "_", "sh", "-c", "mount -t tmpfs none /tmp && echo ok"}, t); output != "ok\n" {
-		t.Fatal("Could not mount into privileged container")
-	}
-}
-
-func TestUnprivilegedCanMknod(t *testing.T) {
-	eng := NewTestEngine(t)
-	daemon := mkDaemonFromEngine(eng, t)
-	defer daemon.Nuke()
-	if output, _ := runContainer(eng, daemon, []string{"_", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok"}, t); output != "ok\n" {
-		t.Fatal("Couldn't mknod into secure container")
-	}
-}
-
-func TestUnprivilegedCannotMount(t *testing.T) {
-	eng := NewTestEngine(t)
-	daemon := mkDaemonFromEngine(eng, t)
-	defer daemon.Nuke()
-	if output, _ := runContainer(eng, daemon, []string{"_", "sh", "-c", "mount -t tmpfs none /tmp || echo ok"}, t); output != "ok\n" {
-		t.Fatal("Could mount into secure container")
 	}
 }

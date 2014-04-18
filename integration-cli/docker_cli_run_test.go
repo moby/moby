@@ -603,3 +603,65 @@ func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
 
 	logDone("run - test loopback only exists when networking disabled")
 }
+
+func TestPrivilegedCanMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test privileged can mknod")
+}
+
+func TestUnPrivilegedCanMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test un-privileged can mknod")
+}
+
+func TestPrivilegedCanMount(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test privileged can mount")
+}
+
+func TestUnPrivilegedCannotMount(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test un-privileged cannot mount")
+}
