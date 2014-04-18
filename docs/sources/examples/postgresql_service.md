@@ -4,13 +4,13 @@ page_keywords: docker, example, package installation, postgresql
 
 # PostgreSQL Service
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
+> **Note**: 
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup)
 
 ## Installing PostgreSQL on Docker
 
@@ -19,11 +19,10 @@ index](http://index.docker.io), you can create one yourself.
 
 Start by creating a new Dockerfile:
 
-Note
-
-This PostgreSQL setup is for development only purposes. Refer to the
-PostgreSQL documentation to fine-tune these settings so that it is
-suitably secure.
+> **Note**: 
+> This PostgreSQL setup is for development only purposes. Refer to the
+> PostgreSQL documentation to fine-tune these settings so that it is
+> suitably secure.
 
     #
     # example Dockerfile for http://docs.docker.io/en/latest/examples/postgresql_service/
@@ -91,10 +90,9 @@ There are 2 ways to connect to the PostgreSQL server. We can use [*Link
 Containers*](../../use/working_with_links_names/#working-with-links-names),
 or we can access it from our host (or the network).
 
-Note
-
-The `-rm` removes the container and its image when
-the container exists successfully.
+> **Note**: 
+> The `-rm` removes the container and its image when
+> the container exists successfully.
 
 ### Using container linking
 

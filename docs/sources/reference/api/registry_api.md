@@ -48,19 +48,19 @@ grasp the context, here are some examples of registries:
     control. It can optionally delegate additional authorization to the
     Index, but it is not mandatory.
 
-Note
+> **Note**:
+> Mirror registries and private registries which do not use the Index
+> don’t even need to run the registry code. They can be implemented by any
+> kind of transport implementing HTTP GET and PUT. Read-only registries
+> can be powered by a simple static HTTP server.
 
-Mirror registries and private registries which do not use the Index
-don’t even need to run the registry code. They can be implemented by any
-kind of transport implementing HTTP GET and PUT. Read-only registries
-can be powered by a simple static HTTP server.
-
-Note
-
-The latter implies that while HTTP is the protocol of choice for a registry, multiple schemes are possible (and in some cases, trivial):
-:   - HTTP with GET (and PUT for read-write registries);
-    - local mount point;
-    - remote docker addressed through SSH.
+> **Note**:
+> The latter implies that while HTTP is the protocol of choice for a registry,
+> multiple schemes are possible (and in some cases, trivial):
+> 
+>  - HTTP with GET (and PUT for read-write registries);
+>  - local mount point;
+>  - remote docker addressed through SSH.
 
 The latter would only require two new commands in docker, e.g.
 `registryget` and `registryput`,

@@ -195,12 +195,10 @@ combination with `CMD`. See
 If the user specifies arguments to `docker run` then
 they will override the default specified in CMD.
 
-Note
-
-Don’t confuse `RUN` with `CMD`.
-`RUN` actually runs a command and commits the
-result; `CMD` does not execute anything at build
-time, but specifies the intended command for the image.
+> **Note**:
+> Don’t confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
+> the result; `CMD` does not execute anything at build time, but specifies
+> the intended command for the image.
 
 ## `EXPOSE`
 
@@ -228,12 +226,11 @@ persist when a container is run from the resulting image. You can view
 the values using `docker inspect`, and change them
 using `docker run --env <key>=<value>`.
 
-Note
-
-One example where this can cause unexpected consequenses, is setting
-`ENV DEBIAN_FRONTEND noninteractive`. Which will
-persist when the container is run interactively; for example:
-`docker run -t -i image bash`
+> **Note**:
+> One example where this can cause unexpected consequenses, is setting
+> `ENV DEBIAN_FRONTEND noninteractive`. Which will
+> persist when the container is run interactively; for example:
+> `docker run -t -i image bash`
 
 ## `ADD`
 
@@ -252,18 +249,16 @@ will be copied inside the destination container.
 
 All new files and directories are created with mode 0755, uid and gid 0.
 
-Note
+> **Note**:
+> If you build using STDIN (`docker build - < somefile`), there is no
+> build context, so the Dockerfile can only contain an URL based ADD
+> statement.
 
-if you build using STDIN (`docker build - < somefile`), there is no
-build context, so the Dockerfile can only contain an URL based ADD
-statement.
-
-Note
-
-if your URL files are protected using authentication, you will need to
-use an `RUN wget` , `RUN curl`
-or other tool from within the container as ADD does not support
-authentication.
+> **Note**:
+> If your URL files are protected using authentication, you will need to
+> use an `RUN wget` , `RUN curl`
+> or other tool from within the container as ADD does not support
+> authentication.
 
 The copy obeys the following rules:
 
@@ -450,13 +445,9 @@ For example you might add something like this:
     ONBUILD RUN /usr/local/bin/python-build --dir /app/src
     [...]
 
-Warning
+> **Warning**: Chaining ONBUILD instructions using ONBUILD ONBUILD isn’t allowed.
 
-Chaining ONBUILD instructions using ONBUILD ONBUILD isn’t allowed.
-
-Warning
-
-ONBUILD may not trigger FROM or MAINTAINER instructions.
+> **Warning**: ONBUILD may not trigger FROM or MAINTAINER instructions.
 
 ## Dockerfile Examples
 

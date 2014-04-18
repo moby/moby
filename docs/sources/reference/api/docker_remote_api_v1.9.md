@@ -928,10 +928,9 @@ page_keywords: API, Docker, rcli, REST, documentation
  `GET /images/search`
 :   Search for an image in the docker index.
 
-    Note
-
-    The response keys have changed from API v1.6 to reflect the JSON
-    sent by the registry server to the docker daemon’s request.
+> **Note**:
+> The response keys have changed from API v1.6 to reflect the JSON
+> sent by the registry server to the docker daemon’s request.
 
     **Example request**:
 

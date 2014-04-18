@@ -4,12 +4,11 @@ page_keywords: Rackspace Cloud, installation, docker, linux, ubuntu
 
 # Rackspace Cloud
 
-Note
-
-This is a community contributed installation path. The only ‘official’
-installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-installation path. This version may be out of date because it depends on
-some binaries to be updated and published
+> **Note**:
+> This is a community contributed installation path. The only ‘official’
+> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+> installation path. This version may be out of date because it depends on
+> some binaries to be updated and published
 
 Installing Docker on Ubuntu provided by Rackspace is pretty
 straightforward, and you should mostly be able to follow the
