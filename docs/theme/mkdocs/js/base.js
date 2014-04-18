@@ -30,13 +30,13 @@ $(document).ready(function ()
   });
 
   /* Toggle TOC view for Mobile */
-  $('#toc_table').on('click', function ()
+  $('#toc_table > h2').on('click', function ()
   {
     if ( $(window).width() <= 991 )
     {
       $('#toc_table > #toc_navigation').slideToggle();
     }
-  })
+  });
 
   /* Follow TOC links (ScrollSpy) */
   $('body').scrollspy({
@@ -61,6 +61,9 @@ function checkToScrollTOC ()
 {
   if ( $(window).width() >= 768 )
   {
+    // If TOC is hidden, expand.
+    $('#toc_table > #toc_navigation').css("display", "block");
+    // Then attach or detach fixed-scroll
     if ( ($('#toc_table').height() + 100) >= $(window).height() )
     {
       $('#toc_table').trigger('detach.ScrollToFixed');
