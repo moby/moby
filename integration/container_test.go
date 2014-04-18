@@ -16,28 +16,6 @@ import (
 	"time"
 )
 
-func TestIDFormat(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container1, _, err := daemon.Create(
-		&runconfig.Config{
-			Image: GetTestImage(daemon).ID,
-			Cmd:   []string{"/bin/sh", "-c", "echo hello world"},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	match, err := regexp.Match("^[0-9a-f]{64}$", []byte(container1.ID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !match {
-		t.Fatalf("Invalid container ID: %s", container1.ID)
-	}
-}
-
 func TestMultipleAttachRestart(t *testing.T) {
 	daemon := mkDaemon(t)
 	defer nuke(daemon)

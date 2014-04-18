@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -383,4 +384,27 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - multiple volumes from")
+}
+
+// this tests verifies the ID format for the container
+func TestVerifyContainerID(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, exit, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exit != 0 {
+		t.Fatalf("expected exit code 0 received %d", exit)
+	}
+	match, err := regexp.MatchString("^[0-9a-f]{64}$", strings.TrimSuffix(out, "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !match {
+		t.Fatalf("Invalid container ID: %s", out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - verify container ID")
 }
