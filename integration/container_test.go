@@ -16,36 +16,6 @@ import (
 	"time"
 )
 
-func TestStart(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, _ := mkContainer(daemon, []string{"-i", "_", "/bin/cat"}, t)
-	defer daemon.Destroy(container)
-
-	cStdin, err := container.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Give some time to the process to start
-	container.WaitTimeout(500 * time.Millisecond)
-
-	if !container.State.IsRunning() {
-		t.Errorf("Container should be running")
-	}
-	if err := container.Start(); err != nil {
-		t.Fatalf("A running container should be able to be started")
-	}
-
-	// Try to avoid the timeout in destroy. Best effort, don't check error
-	cStdin.Close()
-	container.WaitTimeout(2 * time.Second)
-}
-
 func TestCpuShares(t *testing.T) {
 	_, err1 := os.Stat("/sys/fs/cgroup/cpuacct,cpu")
 	_, err2 := os.Stat("/sys/fs/cgroup/cpu,cpuacct")
@@ -79,46 +49,6 @@ func TestCpuShares(t *testing.T) {
 	// Try to avoid the timeout in destroy. Best effort, don't check error
 	cStdin.Close()
 	container.WaitTimeout(2 * time.Second)
-}
-
-func TestRun(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, _ := mkContainer(daemon, []string{"_", "ls", "-al"}, t)
-	defer daemon.Destroy(container)
-
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-}
-
-func TestOutput(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, err := daemon.Create(
-		&runconfig.Config{
-			Image: GetTestImage(daemon).ID,
-			Cmd:   []string{"echo", "-n", "foobar"},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-	output, err := container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(output) != "foobar" {
-		t.Fatalf("%s != %s", string(output), "foobar")
-	}
 }
 
 func TestKillDifferentUser(t *testing.T) {
@@ -176,119 +106,6 @@ func TestKillDifferentUser(t *testing.T) {
 	// Try stopping twice
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
-	}
-}
-
-// Test that creating a container with a volume doesn't crash. Regression test for #995.
-func TestCreateVolume(t *testing.T) {
-	eng := NewTestEngine(t)
-	daemon := mkDaemonFromEngine(eng, t)
-	defer nuke(daemon)
-
-	config, hc, _, err := runconfig.Parse([]string{"-v", "/var/lib/data", unitTestImageID, "echo", "hello", "world"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	jobCreate := eng.Job("create")
-	if err := jobCreate.ImportEnv(config); err != nil {
-		t.Fatal(err)
-	}
-	var id string
-	jobCreate.Stdout.AddString(&id)
-	if err := jobCreate.Run(); err != nil {
-		t.Fatal(err)
-	}
-	jobStart := eng.Job("start", id)
-	if err := jobStart.ImportEnv(hc); err != nil {
-		t.Fatal(err)
-	}
-	if err := jobStart.Run(); err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: this hack can be removed once Wait is a job
-	c := daemon.Get(id)
-	if c == nil {
-		t.Fatalf("Couldn't retrieve container %s from daemon", id)
-	}
-	c.WaitTimeout(500 * time.Millisecond)
-	c.Wait()
-}
-
-func TestKill(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, err := daemon.Create(&runconfig.Config{
-		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"sleep", "2"},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Give some time to lxc to spawn the process
-	container.WaitTimeout(500 * time.Millisecond)
-
-	if !container.State.IsRunning() {
-		t.Errorf("Container should be running")
-	}
-	if err := container.Kill(); err != nil {
-		t.Fatal(err)
-	}
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	container.Wait()
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	// Try stopping twice
-	if err := container.Kill(); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestExitCode(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-
-	trueContainer, _, err := daemon.Create(&runconfig.Config{
-		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"/bin/true"},
-	}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(trueContainer)
-	if err := trueContainer.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if code := trueContainer.State.GetExitCode(); code != 0 {
-		t.Fatalf("Unexpected exit code %d (expected 0)", code)
-	}
-
-	falseContainer, _, err := daemon.Create(&runconfig.Config{
-		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"/bin/false"},
-	}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(falseContainer)
-	if err := falseContainer.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if code := falseContainer.State.GetExitCode(); code != 1 {
-		t.Fatalf("Unexpected exit code %d (expected 1)", code)
 	}
 }
 

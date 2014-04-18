@@ -408,3 +408,31 @@ func TestVerifyContainerID(t *testing.T) {
 
 	logDone("run - verify container ID")
 }
+
+// Test that creating a container with a volume doesn't crash. Regression test for #995.
+func TestCreateVolume(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/var/lib/data", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - create docker mangaed volume")
+}
+
+func TestExitCode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "/bin/sh", "-c", "exit 72")
+
+	exit, err := runCommand(cmd)
+	if err == nil {
+		t.Fatal("should not have a non nil error")
+	}
+	if exit != 72 {
+		t.Fatalf("expected exit code 72 received %d", exit)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - correct exit code")
+}
