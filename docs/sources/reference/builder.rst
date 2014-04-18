@@ -248,6 +248,12 @@ with ``<key>=<value>``
 The environment variables set using ``ENV`` will persist when a container is run
 from the resulting image. You can view the values using ``docker inspect``, and change them using ``docker run --env <key>=<value>``.
 
+    ``ENV {"<key1>": "<value1>", "<key2>": "<value2>"}``
+
+You can also use the JSON syntax to specify multiple environment variables at the
+same time. Environment variables set with the JSON syntax will be set in a single
+build layer.
+
 .. note::
     One example where this can cause unexpected consequenses, is setting 
     ``ENV DEBIAN_FRONTEND noninteractive``.

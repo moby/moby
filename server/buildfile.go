@@ -244,14 +244,7 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 	return value, nil
 }
 
-func (b *buildFile) CmdEnv(args string) error {
-	tmp := strings.SplitN(args, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ENV format")
-	}
-	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
-
+func (b *buildFile) buildCmdEnvVar(key, value string) error {
 	envKey := b.FindEnvKey(key)
 	replacedValue, err := b.ReplaceEnvMatches(value)
 	if err != nil {
@@ -264,7 +257,38 @@ func (b *buildFile) CmdEnv(args string) error {
 	} else {
 		b.config.Env = append(b.config.Env, replacedVar)
 	}
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
+	return nil
+}
+
+func (b *buildFile) CmdEnv(args string) error {
+	var (
+		env     map[string]string
+		commits []string
+	)
+	if err := json.Unmarshal([]byte(args), &env); err != nil {
+		tmp := strings.SplitN(args, " ", 2)
+		if len(tmp) != 2 {
+			return fmt.Errorf("Invalid ENV format")
+		}
+
+		var (
+			key   = strings.Trim(tmp[0], " \t")
+			value = strings.Trim(tmp[1], " \t")
+		)
+
+		if err := b.buildCmdEnvVar(key, value); err != nil {
+			return err
+		}
+		commits = append(commits, fmt.Sprintf("%s=%s", key, value))
+	} else {
+		for key, value := range env {
+			if err := b.buildCmdEnvVar(key, value); err != nil {
+				return err
+			}
+			commits = append(commits, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+	return b.commit("", b.config.Env, fmt.Sprintf("ENV %s", strings.Join(commits, ", ")))
 }
 
 func (b *buildFile) buildCmdFromJson(args string) []string {
