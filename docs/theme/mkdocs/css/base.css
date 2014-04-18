@@ -439,6 +439,15 @@ ol.breadcrumb > li + li:before {
 ol.breadcrumb > li:last-child > a {
   font-weight: bold;
 }
+ol.breadcrumb > li.edit-on-github:before {
+  content: none;
+}
+ol.breadcrumb > li.edit-on-github a {
+  color: #FF8100;
+}
+ol.breadcrumb > li.edit-on-github span {
+  margin-right: 0.25em;
+}
 #content h1 {
   margin-top: 0px;
 }
