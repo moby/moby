@@ -496,5 +496,5 @@ For example you might add something like this:
     RUN echo moo > oink
     # Will output something like ===> 695d7793cbe4
 
-    # You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+    # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.

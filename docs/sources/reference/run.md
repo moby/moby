@@ -287,7 +287,7 @@ services. The following options work with or override the
     --expose=[]: Expose a port from the container
                 without publishing it to your host
     -P=false   : Publish all exposed ports to the host interfaces
-    -p=[]      : Publish a container's port to the host (format:
+    -p=[]      : Publish a container᾿s port to the host (format:
                  ip:hostPort:containerPort | ip::containerPort |
                  hostPort:containerPort)
                  (use 'docker port' to see the actual mapping)
@@ -354,7 +354,7 @@ service container. Let’s imagine we have a container running Redis:
     CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
     4241164edf6f        dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
-    # Note that there are no public ports exposed since we didn't use -p or -P
+    # Note that there are no public ports exposed since we didn᾿t use -p or -P
     $ docker port 4241164edf6f 6379
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 

@@ -67,7 +67,7 @@ user name or description:
 
     Search the docker index for images
 
-      -notrunc=false: Don't truncate output
+      -notrunc=false: Don᾿t truncate output
     $ sudo docker search centos
     Found 25 results matching your query ("centos")
     NAME                             DESCRIPTION

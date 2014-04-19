@@ -154,7 +154,7 @@ elsewhere:
 
     # create a new data container
     $ sudo docker run -v /data -name DATA2 busybox true
-    # untar the backup files into the new container's data volume
+    # untar the backup files into the new container᾿s data volume
     $ sudo docker run -rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
     data/
     data/sven.txt

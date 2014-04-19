@@ -57,7 +57,7 @@ expect an integer, and they can only be specified once.
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
-      -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
+      -bip="": Use this CIDR notation address for the network bridge᾿s IP, not compatible with -b
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
       --dns-search=[]: Force Docker to use specific DNS search domains
@@ -65,7 +65,7 @@ expect an integer, and they can only be specified once.
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
       --ip-forward=true: Enable net.ipv4.ip_forward
-      --iptables=true: Enable Docker's addition of iptables rules
+      --iptables=true: Enable Docker᾿s addition of iptables rules
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
@@ -286,7 +286,7 @@ schema.
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
-    Create a new image from a container's changes
+    Create a new image from a container᾿s changes
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
@@ -323,7 +323,7 @@ maintainable way.
 
     Usage: docker diff CONTAINER
 
-    List the changed files and directories in a container's filesystem
+    List the changed files and directories in a container᾿s filesystem
 
 There are 3 events that are listed in the ‘diff’:
 
@@ -408,7 +408,7 @@ For example:
 
     Show the history of an image
 
-      --no-trunc=false: Don't truncate output
+      --no-trunc=false: Don᾿t truncate output
       -q, --quiet=false: Only show numeric IDs
 
 To see how the `docker:latest` image was built:
@@ -429,7 +429,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false: Show all images (by default filter out the intermediate image layers)
-      --no-trunc=false: Don't truncate output
+      --no-trunc=false: Don᾿t truncate output
       -q, --quiet=false: Only show numeric IDs
 
 The default `docker images` will show all top level
@@ -673,7 +673,7 @@ continue streaming new output from the container’s stdout and stderr.
       --before="": Show only container created before Id or Name, include non-running ones.
       -l, --latest=false: Show only the latest created container, include non-running ones.
       -n=-1: Show n last created containers, include non-running ones.
-      --no-trunc=false: Don't truncate output
+      --no-trunc=false: Don᾿t truncate output
       -q, --quiet=false: Only display numeric IDs
       -s, --size=false: Display sizes, not to be used with -q
       --since="": Show only containers created since Id or Name, include non-running ones.
@@ -1104,7 +1104,7 @@ It is used to create a backup that can then be used with
 
     Search the docker index for images
 
-     --no-trunc=false: Don't truncate output
+     --no-trunc=false: Don᾿t truncate output
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
@@ -1118,8 +1118,8 @@ more details on finding shared images from the commandline.
 
     Start a stopped container
 
-      -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
-      -i, --interactive=false: Attach container's stdin
+      -a, --attach=false: Attach container᾿s stdout/stderr and forward all signals to the process
+      -i, --interactive=false: Attach container᾿s stdin
 
 ## `stop`
 
