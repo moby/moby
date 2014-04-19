@@ -21,3 +21,7 @@ func (s *cpuGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *cpuGroup) Remove(d *data) error {
+	return removePath(d.path("cpu"))
+}

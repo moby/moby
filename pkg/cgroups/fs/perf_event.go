@@ -14,3 +14,7 @@ func (s *perfEventGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *perfEventGroup) Remove(d *data) error {
+	return removePath(d.path("perf_event"))
+}

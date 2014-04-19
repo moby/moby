@@ -14,3 +14,7 @@ func (s *blkioGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *blkioGroup) Remove(d *data) error {
+	return removePath(d.path("blkio"))
+}

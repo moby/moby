@@ -26,3 +26,7 @@ func (s *cpusetGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *cpusetGroup) Remove(d *data) error {
+	return removePath(d.path("cpuset"))
+}

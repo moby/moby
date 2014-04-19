@@ -39,3 +39,7 @@ func (s *memoryGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *memoryGroup) Remove(d *data) error {
+	return removePath(d.path("memory"))
+}

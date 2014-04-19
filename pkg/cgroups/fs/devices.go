@@ -59,3 +59,7 @@ func (s *devicesGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *devicesGroup) Remove(d *data) error {
+	return removePath(d.path("devices"))
+}

@@ -14,3 +14,7 @@ func (s *cpuacctGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *cpuacctGroup) Remove(d *data) error {
+	return removePath(d.path("cpuacct"))
+}

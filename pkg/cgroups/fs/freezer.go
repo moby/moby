@@ -14,3 +14,7 @@ func (s *freezerGroup) Set(d *data) error {
 	}
 	return nil
 }
+
+func (s *freezerGroup) Remove(d *data) error {
+	return removePath(d.path("freezer"))
+}

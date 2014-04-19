@@ -25,6 +25,7 @@ var (
 
 type subsystem interface {
 	Set(*data) error
+	Remove(*data) error
 }
 
 type data struct {
@@ -94,28 +95,22 @@ func (raw *data) join(subsystem string) (string, error) {
 }
 
 func (raw *data) Cleanup() error {
-	get := func(subsystem string) string {
-		path, _ := raw.path(subsystem)
-		return path
-	}
-
-	for _, path := range []string{
-		get("memory"),
-		get("devices"),
-		get("cpu"),
-		get("cpuset"),
-		get("cpuacct"),
-		get("blkio"),
-		get("perf_event"),
-		get("freezer"),
-	} {
-		if path != "" {
-			os.RemoveAll(path)
-		}
+	for _, sys := range subsystems {
+		sys.Remove(raw)
 	}
 	return nil
 }
 
 func writeFile(dir, file, data string) error {
 	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
+}
+
+func removePath(p string, err error) error {
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		return os.RemoveAll(p)
+	}
+	return nil
 }
