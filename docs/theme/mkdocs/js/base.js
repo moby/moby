@@ -10,8 +10,6 @@ $(document).ready(function ()
     'contentLocation': '/search_content.json'
   });
 
-  prettyPrint();
-
   // Resizing
   resizeMenuDropdown();
   checkToScrollTOC();
