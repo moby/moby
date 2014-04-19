@@ -1,18 +1,26 @@
 // +build linux
 
-package cgroups
+package systemd
 
 import (
 	"fmt"
-	systemd1 "github.com/coreos/go-systemd/dbus"
-	"github.com/dotcloud/docker/pkg/systemd"
-	"github.com/godbus/dbus"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	systemd1 "github.com/coreos/go-systemd/dbus"
+	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/systemd"
+	"github.com/godbus/dbus"
 )
 
 type systemdCgroup struct {
+}
+
+type DeviceAllow struct {
+	Node        string
+	Permissions string
 }
 
 var (
@@ -21,7 +29,7 @@ var (
 	hasStartTransientUnit bool
 )
 
-func useSystemd() bool {
+func UseSystemd() bool {
 	if !systemd.SdBooted() {
 		return false
 	}
@@ -48,13 +56,7 @@ func useSystemd() bool {
 			}
 		}
 	}
-
 	return hasStartTransientUnit
-}
-
-type DeviceAllow struct {
-	Node        string
-	Permissions string
 }
 
 func getIfaceForUnit(unitName string) string {
@@ -67,11 +69,12 @@ func getIfaceForUnit(unitName string) string {
 	return "Unit"
 }
 
-func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
-	unitName := c.Parent + "-" + c.Name + ".scope"
-	slice := "system.slice"
-
-	var properties []systemd1.Property
+func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
+	var (
+		unitName   = c.Parent + "-" + c.Name + ".scope"
+		slice      = "system.slice"
+		properties []systemd1.Property
+	)
 
 	for _, v := range c.UnitProperties {
 		switch v[0] {
@@ -85,7 +88,8 @@ func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	properties = append(properties,
 		systemd1.Property{"Slice", dbus.MakeVariant(slice)},
 		systemd1.Property{"Description", dbus.MakeVariant("docker container " + c.Name)},
-		systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})})
+		systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})},
+	)
 
 	if !c.DeviceAccess {
 		properties = append(properties,
@@ -138,7 +142,7 @@ func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	cgroup := props["ControlGroup"].(string)
 
 	if !c.DeviceAccess {
-		mountpoint, err := FindCgroupMountpoint("devices")
+		mountpoint, err := cgroups.FindCgroupMountpoint("devices")
 		if err != nil {
 			return nil, err
 		}
@@ -146,15 +150,14 @@ func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 		path := filepath.Join(mountpoint, cgroup)
 
 		// /dev/pts/*
-		if err := writeFile(path, "devices.allow", "c 136:* rwm"); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(path, "devices.allow"), []byte("c 136:* rwm"), 0700); err != nil {
 			return nil, err
 		}
 		// tuntap
-		if err := writeFile(path, "devices.allow", "c 10:200 rwm"); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(path, "devices.allow"), []byte("c 10:200 rwm"), 0700); err != nil {
 			return nil, err
 		}
 	}
-
 	return &systemdCgroup{}, nil
 }
 

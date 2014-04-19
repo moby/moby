@@ -24,16 +24,3 @@ type Cgroup struct {
 type ActiveCgroup interface {
 	Cleanup() error
 }
-
-func Apply(c *Cgroup, pid int) (ActiveCgroup, error) {
-	// We have two implementation of cgroups support, one is based on
-	// systemd and the dbus api, and one is based on raw cgroup fs operations
-	// following the pre-single-writer model docs at:
-	// http://www.freedesktop.org/wiki/Software/systemd/PaxControlGroups/
-
-	if useSystemd() {
-		return systemdApply(c, pid)
-	} else {
-		return rawApply(c, pid)
-	}
-}
