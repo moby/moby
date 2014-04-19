@@ -99,7 +99,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 
 func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
-		return container.Cgroups.Apply(nspid)
+		return cgroups.Apply(container.Cgroups, nspid)
 	}
 	return nil, nil
 }
