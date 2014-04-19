@@ -1,10 +1,13 @@
-package cgroups
+package fs
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/dotcloud/docker/pkg/cgroups"
 )
 
 type rawCgroup struct {
@@ -12,7 +15,7 @@ type rawCgroup struct {
 	cgroup string
 }
 
-func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
+func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	// We have two implementation of cgroups support, one is based on
 	// systemd and the dbus api, and one is based on raw cgroup fs operations
 	// following the pre-single-writer model docs at:
@@ -20,7 +23,7 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 	//
 	// we can pick any subsystem to find the root
 
-	cgroupRoot, err := FindCgroupMountpoint("cpu")
+	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +42,7 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 		root:   cgroupRoot,
 		cgroup: cgroup,
 	}
-	for _, g := range []func(*Cgroup, int) error{
+	for _, g := range []func(*cgroups.Cgroup, int) error{
 		raw.setupDevices,
 		raw.setupMemory,
 		raw.setupCpu,
@@ -58,7 +61,7 @@ func rawApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 }
 
 func (raw *rawCgroup) path(subsystem string) (string, error) {
-	initPath, err := GetInitCgroupDir(subsystem)
+	initPath, err := cgroups.GetInitCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +82,7 @@ func (raw *rawCgroup) join(subsystem string, pid int) (string, error) {
 	return path, nil
 }
 
-func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
+func (raw *rawCgroup) setupDevices(c *cgroups.Cgroup, pid int) (err error) {
 	dir, err := raw.join("devices", pid)
 	if err != nil {
 		return err
@@ -133,7 +136,7 @@ func (raw *rawCgroup) setupDevices(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
-func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
+func (raw *rawCgroup) setupMemory(c *cgroups.Cgroup, pid int) (err error) {
 	dir, err := raw.join("memory", pid)
 	// only return an error for memory if it was not specified
 	if err != nil && (c.Memory != 0 || c.MemorySwap != 0) {
@@ -165,7 +168,7 @@ func (raw *rawCgroup) setupMemory(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
-func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
+func (raw *rawCgroup) setupCpu(c *cgroups.Cgroup, pid int) (err error) {
 	// We always want to join the cpu group, to allow fair cpu scheduling
 	// on a container basis
 	dir, err := raw.join("cpu", pid)
@@ -180,7 +183,7 @@ func (raw *rawCgroup) setupCpu(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
-func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
+func (raw *rawCgroup) setupCpuset(c *cgroups.Cgroup, pid int) (err error) {
 	// we don't want to join this cgroup unless it is specified
 	if c.CpusetCpus != "" {
 		dir, err := raw.join("cpuset", pid)
@@ -200,33 +203,33 @@ func (raw *rawCgroup) setupCpuset(c *Cgroup, pid int) (err error) {
 	return nil
 }
 
-func (raw *rawCgroup) setupCpuacct(c *Cgroup, pid int) error {
+func (raw *rawCgroup) setupCpuacct(c *cgroups.Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	if _, err := raw.join("cpuacct", pid); err != nil && err != ErrNotFound {
+	if _, err := raw.join("cpuacct", pid); err != nil && err != cgroups.ErrNotFound {
 		return err
 	}
 	return nil
 }
 
-func (raw *rawCgroup) setupBlkio(c *Cgroup, pid int) error {
+func (raw *rawCgroup) setupBlkio(c *cgroups.Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	if _, err := raw.join("blkio", pid); err != nil && err != ErrNotFound {
+	if _, err := raw.join("blkio", pid); err != nil && err != cgroups.ErrNotFound {
 		return err
 	}
 	return nil
 }
 
-func (raw *rawCgroup) setupPerfevent(c *Cgroup, pid int) error {
+func (raw *rawCgroup) setupPerfevent(c *cgroups.Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	if _, err := raw.join("perf_event", pid); err != nil && err != ErrNotFound {
+	if _, err := raw.join("perf_event", pid); err != nil && err != cgroups.ErrNotFound {
 		return err
 	}
 	return nil
 }
 
-func (raw *rawCgroup) setupFreezer(c *Cgroup, pid int) error {
+func (raw *rawCgroup) setupFreezer(c *cgroups.Cgroup, pid int) error {
 	// we just want to join this group even though we don't set anything
-	if _, err := raw.join("freezer", pid); err != nil && err != ErrNotFound {
+	if _, err := raw.join("freezer", pid); err != nil && err != cgroups.ErrNotFound {
 		return err
 	}
 	return nil
@@ -253,4 +256,8 @@ func (raw *rawCgroup) Cleanup() error {
 		}
 	}
 	return nil
+}
+
+func writeFile(dir, file, data string) error {
+	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }

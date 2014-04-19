@@ -3,9 +3,7 @@ package cgroups
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/dotcloud/docker/pkg/mount"
@@ -66,8 +64,4 @@ func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 		}
 	}
 	return "", ErrNotFound
-}
-
-func writeFile(dir, file, data string) error {
-	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
