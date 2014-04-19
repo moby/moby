@@ -527,7 +527,10 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err != nil {
 			return err
 		}
-		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
+		tarSum := &utils.TarSum{Reader: r, DisableCompression: true}
+		// Consume the tar to process the checksum
+		io.Copy(ioutil.Discard, tarSum)
+		// Retrieve the processed checksum
 		remoteHash = tarSum.Sum(nil)
 		r.Close()
 
