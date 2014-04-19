@@ -1338,8 +1338,8 @@ from the commandline.
 
     Start a stopped container
 
-      -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
-      -i, --interactive=false: Attach container's stdin
+      -a, --attach=false: Attach container᾿s stdout/stderr and forward all signals to the process
+      -i, --interactive=false: Attach container᾿s stdin
 
 .. _cli_stop:
 

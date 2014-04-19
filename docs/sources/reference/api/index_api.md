@@ -415,7 +415,7 @@ page_keywords: API, Docker, index, REST, documentation
 
         {"email": "sam@dotcloud.com",
          "password": "toto42",
-         "username": "foobar"'}
+         "username": "foobar"}
 
     Json Parameters:
 
