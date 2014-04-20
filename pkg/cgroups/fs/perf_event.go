@@ -18,3 +18,7 @@ func (s *perfEventGroup) Set(d *data) error {
 func (s *perfEventGroup) Remove(d *data) error {
 	return removePath(d.path("perf_event"))
 }
+
+func (s *perfEventGroup) Stats(d *data) (map[string]float64, error) {
+	return nil, ErrNotSupportStat
+}

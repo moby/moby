@@ -63,3 +63,7 @@ func (s *devicesGroup) Set(d *data) error {
 func (s *devicesGroup) Remove(d *data) error {
 	return removePath(d.path("devices"))
 }
+
+func (s *devicesGroup) Stats(d *data) (map[string]float64, error) {
+	return nil, ErrNotSupportStat
+}

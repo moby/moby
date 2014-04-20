@@ -26,6 +26,7 @@ var (
 type subsystem interface {
 	Set(*data) error
 	Remove(*data) error
+	Stats(*data) (map[string]float64, error)
 }
 
 type data struct {

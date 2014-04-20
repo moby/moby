@@ -25,3 +25,7 @@ func (s *cpuGroup) Set(d *data) error {
 func (s *cpuGroup) Remove(d *data) error {
 	return removePath(d.path("cpu"))
 }
+
+func (s *cpuGroup) Stats(d *data) (map[string]float64, error) {
+	return nil, ErrNotSupportStat
+}

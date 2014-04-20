@@ -18,3 +18,7 @@ func (s *freezerGroup) Set(d *data) error {
 func (s *freezerGroup) Remove(d *data) error {
 	return removePath(d.path("freezer"))
 }
+
+func (s *freezerGroup) Stats(d *data) (map[string]float64, error) {
+	return nil, ErrNotSupportStat
+}
