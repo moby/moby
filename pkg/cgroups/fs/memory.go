@@ -1,7 +1,10 @@
 package fs
 
 import (
+	"bufio"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -42,4 +45,27 @@ func (s *memoryGroup) Set(d *data) error {
 
 func (s *memoryGroup) Remove(d *data) error {
 	return removePath(d.path("memory"))
+}
+
+func (s *memoryGroup) Stats(d *data) (map[string]float64, error) {
+	paramData := make(map[string]float64)
+	path, err := d.path("memory")
+	if err != nil {
+		fmt.Errorf("Unable to read %s cgroup param: %s", path, err)
+		return paramData, err
+	}
+	f, err := os.Open(filepath.Join(path, "memory.stat"))
+	if err != nil {
+		return paramData, err
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		t, v, err := getCgroupParamKeyValue(sc.Text())
+		if err != nil {
+			return paramData, fmt.Errorf("Error parsing param data: %s", err)
+		}
+		paramData[t] = v
+	}
+	return paramData, nil
 }
