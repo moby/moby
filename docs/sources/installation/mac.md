@@ -84,6 +84,7 @@ Run the following commands to get it downloaded and set up:
     export DOCKER_HOST=tcp://127.0.0.1:4243
 
     # Copy the executable file
+    sudo mkdir -p /usr/local/bin
     sudo cp docker /usr/local/bin/
 
 And that’s it! Let’s check out how to use it.
