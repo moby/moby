@@ -644,17 +644,20 @@ You have 3 options:
     >     - X-Docker-Token: Token
     >         signature=123abc,repository=”foo/bar”,access=read
     >
+
 2.  Provide user credentials only
 
     > **Header**:
     > :   Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
     >
+
 3.  Provide Token
 
     > **Header**:
     > :   Authorization: Token
     >     signature=123abc,repository=”foo/bar”,access=read
     >
+
 ### 6.2 On the Registry
 
 The Registry only supports the Token challenge:
