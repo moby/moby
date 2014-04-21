@@ -69,6 +69,8 @@ func generateProfile(out io.Writer) error {
 	}
 	if tuntablesExists() {
 		data.Imports = append(data.Imports, "#include <tunables/global>")
+	} else {
+		data.Imports = append(data.Imports, "@{PROC}=/proc/")
 	}
 	if abstrctionsEsists() {
 		data.InnerImports = append(data.InnerImports, "#include <abstractions/base>")
