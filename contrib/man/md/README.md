@@ -49,7 +49,7 @@ container. Using the supplied Dockerfile, Docker will create a Fedora based
 container and isolate the Pandoc installation. This is a seamless process, 
 saving you from dealing with Pandoc and dependencies on your own computer.
 
-## Building the Fedora / Pandoc Image
+## Building the Fedora / Pandoc image
 
 There is a Dockerfile provided in the `docker/contrib/man/md` directory.
 
