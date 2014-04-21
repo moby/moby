@@ -7,9 +7,9 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/native/configuration"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
+	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 )
 
 // createContainer populates and configures the container type with the

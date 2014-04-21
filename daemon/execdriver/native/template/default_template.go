@@ -1,9 +1,9 @@
 package template
 
 import (
+	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 )
 
 // New returns the docker default configuration for libcontainer
