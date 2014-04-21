@@ -15,7 +15,7 @@ directory to the Docker daemon. The contents of this directory would
 be used by **ADD** commands found within the Dockerfile.
 
 Warning, this will send a lot of data to the Docker daemon depending
-on the contents of the current directory. he build is run by the Docker 
+on the contents of the current directory. The build is run by the Docker 
 daemon, not by the CLI, so the whole context must be transferred to the daemon. 
 The Docker CLI reports "Uploading context" when the context is sent to 
 the daemon.

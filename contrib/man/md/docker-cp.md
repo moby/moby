@@ -9,8 +9,8 @@ docker-cp - Copy files/folders from the PATH to the HOSTPATH
 
 # DESCRIPTION
 Copy files/folders from the containers filesystem to the host
-path.  Paths are relative to the root of the filesystem. Files
- can be copied from a running or stopped containers
+path. Paths are relative to the root of the filesystem. Files
+can be copied from a running or stopped container.
 
 # EXAMPLE
 An important shell script file, created in a bash shell, is copied from

@@ -14,7 +14,7 @@ order when combined with a docker run (i.e. your run may not have generated
 any logs at the time you execute docker logs).
 
 The **docker logs --follow** command combines commands **docker logs** and
-**docker attach**.  It will first return all logs from the beginning and
+**docker attach**. It will first return all logs from the beginning and
 then continue streaming new output from the container’s stdout and stderr.
 
 # OPTIONS

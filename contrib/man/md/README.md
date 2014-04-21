@@ -44,18 +44,20 @@ Markdown (*.md) files.
 
 # Generating man pages from the Markdown files
 
-The recommended approach for generating the man pages using a  Docker container
-one. Using the supplied Dockerfile, Docker creates a Fedora based container
-and isolates the Pandoc installation. This is a seamless process, saving you
-from dealing with Pandoc and dependencies on your own computer.
+The recommended approach for generating the man pages is via a  Docker 
+container. Using the supplied Dockerfile, Docker will create a Fedora based 
+container and isolate the Pandoc installation. This is a seamless process, 
+saving you from dealing with Pandoc and dependencies on your own computer.
 
-## Using the pandoc Container
+## Building the Fedora / Pandoc Image
 
 There is a Dockerfile provided in the `docker/contrib/man/md` directory.
 
 Using this Dockerfile, create a Docker image tagged `fedora/pandoc`:
 
     docker build  -t fedora/pandoc .
+
+## Utilizing the Fedora / Pandoc image
 
 Once the image is built, run a container using the image with *volumes*:
 
@@ -65,5 +67,5 @@ Once the image is built, run a container using the image with *volumes*:
 The Pandoc Docker container will process the Markdown files and generate
 the man pages inside the `docker/contrib/man/man1` directory using
 Docker volumes. For more information on Docker volumes see the man page for
-`docker run` and also look at the article [Shared Directories via Volumes]
+`docker run` and also look at the article [Sharing Directories via Volumes]
 (http://docs.docker.io/use/working_with_volumes/).
