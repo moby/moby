@@ -14,6 +14,8 @@ import (
 	"github.com/dotcloud/docker/pkg/system"
 )
 
+var cpuCount = float64(runtime.NumCPU())
+
 type cpuacctGroup struct {
 }
 
@@ -32,8 +34,8 @@ func (s *cpuacctGroup) Remove(d *data) error {
 func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	var (
 		startCpu, lastCpu, startSystem, lastSystem float64
+		percentage                                 float64
 		paramData                                  = make(map[string]float64)
-		percentage                                 = 0.0
 	)
 	path, err := d.path("cpuacct")
 	if startCpu, err = s.getCpuUsage(d, path); err != nil {
@@ -50,13 +52,16 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
 		return nil, err
 	}
+
 	var (
 		deltaProc   = lastCpu - startCpu
 		deltaSystem = lastSystem - startSystem
 	)
 	if deltaSystem > 0.0 {
-		percentage = ((deltaProc / deltaSystem) * 100.0) * float64(runtime.NumCPU())
+		percentage = ((deltaProc / deltaSystem) * 100.0) * cpuCount
 	}
+	// NOTE: a percentage over 100% is valid for POSIX because that means the
+	// processes is using multiple cores
 	paramData["percentage"] = percentage
 	return paramData, nil
 }
@@ -70,7 +75,7 @@ func (s *cpuacctGroup) getProcStarttime(d *data) (float64, error) {
 }
 
 func (s *cpuacctGroup) getSystemCpuUsage(d *data) (float64, error) {
-	total := 0.0
+
 	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, err
@@ -79,24 +84,27 @@ func (s *cpuacctGroup) getSystemCpuUsage(d *data) (float64, error) {
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
-		txt := sc.Text()
-		if strings.Index(txt, "cpu") == 0 {
-			parts := strings.Fields(txt)
-			partsLength := len(parts)
-			if partsLength != 11 {
-				return 0.0, fmt.Errorf("Unable to parse cpu usage: expected 11 fields ; received %d", partsLength)
+		parts := strings.Fields(sc.Text())
+		switch parts[0] {
+		case "cpu":
+			if len(parts) < 8 {
+				return 0, fmt.Errorf("invalid number of cpu fields")
 			}
-			for _, i := range parts[1:10] {
-				val, err := strconv.ParseFloat(i, 64)
+
+			var total float64
+			for _, i := range parts[1:8] {
+				v, err := strconv.ParseFloat(i, 64)
 				if err != nil {
-					return 0.0, fmt.Errorf("Unable to convert value to float: %s", err)
+					return 0.0, fmt.Errorf("Unable to convert value %s to float: %s", i, err)
 				}
-				total += val
+				total += v
 			}
-			break
+			return total, nil
+		default:
+			continue
 		}
 	}
-	return total, nil
+	return 0, fmt.Errorf("invalid stat format")
 }
 
 func (s *cpuacctGroup) getCpuUsage(d *data, path string) (float64, error) {
