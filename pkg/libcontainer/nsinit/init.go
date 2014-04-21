@@ -14,7 +14,6 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/console"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
-	"github.com/dotcloud/docker/pkg/libcontainer/security/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
