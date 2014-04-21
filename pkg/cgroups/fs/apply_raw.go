@@ -11,15 +11,15 @@ import (
 )
 
 var (
-	subsystems = []subsystem{
-		&devicesGroup{},
-		&memoryGroup{},
-		&cpuGroup{},
-		&cpusetGroup{},
-		&cpuacctGroup{},
-		&blkioGroup{},
-		&perfEventGroup{},
-		&freezerGroup{},
+	subsystems = map[string]subsystem{
+		"devices":    &devicesGroup{},
+		"memory":     &memoryGroup{},
+		"cpu":        &cpuGroup{},
+		"cpuset":     &cpusetGroup{},
+		"cpuacct":    &cpuacctGroup{},
+		"blkio":      &blkioGroup{},
+		"perf_event": &perfEventGroup{},
+		"freezer":    &freezerGroup{},
 	}
 )
 
@@ -71,6 +71,35 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 		}
 	}
 	return d, nil
+}
+
+func GetStats(c *cgroups.Cgroup, subsystem string, pid int) (map[string]float64, error) {
+	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
+	if err != nil {
+		return nil, err
+	}
+	cgroupRoot = filepath.Dir(cgroupRoot)
+
+	if _, err := os.Stat(cgroupRoot); err != nil {
+		return nil, fmt.Errorf("cgroups fs not found")
+	}
+
+	cgroup := c.Name
+	if c.Parent != "" {
+		cgroup = filepath.Join(c.Parent, cgroup)
+	}
+
+	d := &data{
+		root:   cgroupRoot,
+		cgroup: cgroup,
+		c:      c,
+		pid:    pid,
+	}
+	sys, exists := subsystems[subsystem]
+	if !exists {
+		return nil, fmt.Errorf("subsystem %s does not exist", subsystem)
+	}
+	return sys.Stats(d)
 }
 
 func (raw *data) path(subsystem string) (string, error) {

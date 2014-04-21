@@ -61,7 +61,8 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	if startTime, err = s.getProcStarttime(d); err != nil {
 		return nil, err
 	}
-	paramData["percentage"] = 100.0 * ((cpuTotal/100.0)/uptime - (startTime / 100))
+	//paramData["percentage"] = 100.0 * ((cpuTotal/100.0)/uptime - (startTime / 100))
+	paramData["percentage"] = cpuTotal / (uptime - (startTime / 100))
 
 	return paramData, nil
 }
