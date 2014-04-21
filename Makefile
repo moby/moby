@@ -1,4 +1,4 @@
-.PHONY: all binary build cross default docs docs-build docs-shell shell test test-integration test-integration-cli
+.PHONY: all binary build cross default docs docs-build docs-shell shell test test-integration test-integration-cli validate
 
 # to allow `make BINDDIR=. shell` or `make BINDDIR= test`
 BINDDIR := bundles
@@ -11,7 +11,8 @@ DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_MOUNT := $(if $(BINDDIR),-v "$(CURDIR)/$(BINDDIR):/go/src/github.com/dotcloud/docker/$(BINDDIR)")
 
 DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TESTFLAGS -e DOCKER_GRAPHDRIVER -e DOCKER_EXECDRIVER $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
-DOCKER_RUN_DOCS := docker run --rm -it -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)"
+# to allow `make DOCSDIR=docs docs-shell`
+DOCKER_RUN_DOCS := docker run --rm -it -p $(if $(DOCSPORT),$(DOCSPORT):)8000 $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR)) -e AWS_S3_BUCKET 
 
 default: binary
 
@@ -25,10 +26,13 @@ cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
 docs: docs-build
-	$(DOCKER_RUN_DOCS)
+	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" mkdocs serve
 
 docs-shell: docs-build
-	$(DOCKER_RUN_DOCS) bash
+	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" bash
+
+docs-release: docs-build
+	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test test-integration test-integration-cli
@@ -38,6 +42,9 @@ test-integration: build
 
 test-integration-cli: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-cli
+
+validate: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh validate-gofmt validate-dco
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash

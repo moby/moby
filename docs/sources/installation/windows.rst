@@ -4,8 +4,8 @@
 
 .. _windows:
 
-Windows
-=======
+Microsoft Windows
+=================
 
 Docker can run on Windows using a virtualization platform like VirtualBox. A Linux
 distribution is run inside a virtual machine and that's where Docker will run. 
@@ -15,7 +15,7 @@ Installation
 
 .. include:: install_header.inc
 
-1. Install virtualbox from https://www.virtualbox.org - or follow this `tutorial <http://www.slideshare.net/julienbarbier42/install-virtualbox-on-windows-7>`_.
+1. Install VirtualBox from https://www.virtualbox.org - or follow this `tutorial <http://www.slideshare.net/julienbarbier42/install-virtualbox-on-windows-7>`_.
 
 2. Download the latest boot2docker.iso from https://github.com/boot2docker/boot2docker/releases.
 

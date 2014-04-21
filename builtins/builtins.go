@@ -2,8 +2,8 @@ package builtins
 
 import (
 	api "github.com/dotcloud/docker/api/server"
+	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runtime/networkdriver/bridge"
 	"github.com/dotcloud/docker/server"
 )
 

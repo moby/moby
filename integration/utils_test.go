@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/dotcloud/docker/builtins"
+	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/server"
 	"github.com/dotcloud/docker/utils"
 )
@@ -26,11 +26,11 @@ import (
 // It has to be named XXX_test.go, apparently, in other to access private functions
 // from other XXX_test.go functions.
 
-// Create a temporary runtime suitable for unit testing.
+// Create a temporary daemon suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkRuntime(f utils.Fataler) *runtime.Runtime {
+func mkDaemon(f utils.Fataler) *daemon.Daemon {
 	eng := newTestEngine(f, false, "")
-	return mkRuntimeFromEngine(eng, f)
+	return mkDaemonFromEngine(eng, f)
 	// FIXME:
 	// [...]
 	// Mtu:         docker.GetDefaultNetworkMtu(),
@@ -116,8 +116,8 @@ func containerAssertExists(eng *engine.Engine, id string, t utils.Fataler) {
 }
 
 func containerAssertNotExists(eng *engine.Engine, id string, t utils.Fataler) {
-	runtime := mkRuntimeFromEngine(eng, t)
-	if c := runtime.Get(id); c != nil {
+	daemon := mkDaemonFromEngine(eng, t)
+	if c := daemon.Get(id); c != nil {
 		t.Fatal(fmt.Errorf("Container %s should not exist", id))
 	}
 }
@@ -140,9 +140,9 @@ func assertHttpError(r *httptest.ResponseRecorder, t utils.Fataler) {
 	}
 }
 
-func getContainer(eng *engine.Engine, id string, t utils.Fataler) *runtime.Container {
-	runtime := mkRuntimeFromEngine(eng, t)
-	c := runtime.Get(id)
+func getContainer(eng *engine.Engine, id string, t utils.Fataler) *daemon.Container {
+	daemon := mkDaemonFromEngine(eng, t)
+	c := daemon.Get(id)
 	if c == nil {
 		t.Fatal(fmt.Errorf("No such container: %s", id))
 	}
@@ -161,16 +161,16 @@ func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *server.Server {
 	return srv
 }
 
-func mkRuntimeFromEngine(eng *engine.Engine, t utils.Fataler) *runtime.Runtime {
-	iRuntime := eng.Hack_GetGlobalVar("httpapi.runtime")
-	if iRuntime == nil {
-		panic("Legacy runtime field not set in engine")
+func mkDaemonFromEngine(eng *engine.Engine, t utils.Fataler) *daemon.Daemon {
+	iDaemon := eng.Hack_GetGlobalVar("httpapi.daemon")
+	if iDaemon == nil {
+		panic("Legacy daemon field not set in engine")
 	}
-	runtime, ok := iRuntime.(*runtime.Runtime)
+	daemon, ok := iDaemon.(*daemon.Daemon)
 	if !ok {
-		panic("Legacy runtime field in engine does not cast to *runtime.Runtime")
+		panic("Legacy daemon field in engine does not cast to *daemon.Daemon")
 	}
-	return runtime
+	return daemon
 }
 
 func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engine {
@@ -245,12 +245,12 @@ func readFile(src string, t *testing.T) (content string) {
 	return string(data)
 }
 
-// Create a test container from the given runtime `r` and run arguments `args`.
+// Create a test container from the given daemon `r` and run arguments `args`.
 // If the image name is "_", (eg. []string{"-i", "-t", "_", "bash"}, it is
 // dynamically replaced by the current test image.
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
-func mkContainer(r *runtime.Runtime, args []string, t *testing.T) (*runtime.Container, *runconfig.HostConfig, error) {
+func mkContainer(r *daemon.Daemon, args []string, t *testing.T) (*daemon.Container, *runconfig.HostConfig, error) {
 	config, hc, _, err := runconfig.Parse(args, nil)
 	defer func() {
 		if err != nil && t != nil {
@@ -281,7 +281,7 @@ func mkContainer(r *runtime.Runtime, args []string, t *testing.T) (*runtime.Cont
 // and return its standard output as a string.
 // The image name (eg. the XXX in []string{"-i", "-t", "XXX", "bash"}, is dynamically replaced by the current test image.
 // If t is not nil, call t.Fatal() at the first error. Otherwise return errors normally.
-func runContainer(eng *engine.Engine, r *runtime.Runtime, args []string, t *testing.T) (output string, err error) {
+func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testing.T) (output string, err error) {
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)

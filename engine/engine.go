@@ -44,6 +44,7 @@ type Engine struct {
 	Stdout   io.Writer
 	Stderr   io.Writer
 	Stdin    io.Reader
+	Logging  bool
 }
 
 func (eng *Engine) Root() string {
@@ -96,6 +97,7 @@ func New(root string) (*Engine, error) {
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,
 		Stdin:    os.Stdin,
+		Logging:  true,
 	}
 	eng.Register("commands", func(job *Job) Status {
 		for _, name := range eng.commands() {
@@ -137,7 +139,9 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Stderr: NewOutput(),
 		env:    &Env{},
 	}
-	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
+	if eng.Logging {
+		job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
+	}
 	handler, exists := eng.handlers[name]
 	if exists {
 		job.handler = handler
@@ -188,9 +192,9 @@ func (eng *Engine) ParseJob(input string) (*Job, error) {
 }
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
-	if os.Getenv("TEST") == "" {
-		prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-		return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
+	if !eng.Logging {
+		return 0, nil
 	}
-	return 0, nil
+	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
+	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
 }
