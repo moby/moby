@@ -289,6 +289,8 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
+	selinux.FreeLxcContexts(container.ProcessLabel)
+
 	return nil
 }
 
@@ -839,7 +841,7 @@ func (daemon *Daemon) Close() error {
 }
 
 func (daemon *Daemon) Mount(container *Container) error {
-	dir, err := daemon.driver.Get(container.ID, container.mountLabel)
+	dir, err := daemon.driver.Get(container.ID, container.MountLabel)
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
 	}

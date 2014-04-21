@@ -149,7 +149,7 @@ func main() {
 			job.Setenv("GraphDriver", *flGraphDriver)
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
-			job.SetenvBool("SelinuxEnabled", *flSelinuxEnabled)
+			job.SetenvBool("EnableSelinuxSupport", *flSelinuxEnabled)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
 			}

@@ -47,7 +47,7 @@ func ConfigFromJob(job *engine.Job) *Config {
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
 		ExecDriver:                  job.Getenv("ExecDriver"),
-		EnableSelinuxSupport:        job.GetenvBool("SelinuxEnabled"),
+		EnableSelinuxSupport:        job.GetenvBool("EnableSelinuxSupport"),
 	}
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns

@@ -75,3 +75,7 @@ func GetPidCon(pid int) (string, error) {
 func Init() {
 	selinux.SelinuxEnabled()
 }
+
+func ReserveLabel(label string) {
+	selinux.ReserveLabel(label)
+}

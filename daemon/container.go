@@ -11,7 +11,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/selinux"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -66,7 +66,7 @@ type Container struct {
 	stdinPipe io.WriteCloser
 
 	daemon                   *Daemon
-	mountLabel, processLabel string
+	MountLabel, ProcessLabel string
 
 	waitLock chan struct{}
 	Volumes  map[string]string
@@ -124,6 +124,7 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
+	label.ReserveLabel(container.ProcessLabel)
 	return container.readHostConfig()
 }
 
@@ -325,8 +326,8 @@ func populateCommand(c *Container, env []string) {
 		en      *execdriver.Network
 		context = make(map[string][]string)
 	)
-	context["process_label"] = []string{c.processLabel}
-	context["mount_label"] = []string{c.mountLabel}
+	context["process_label"] = []string{c.ProcessLabel}
+	context["mount_label"] = []string{c.MountLabel}
 
 	en = &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
@@ -388,10 +389,13 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	process, mount := selinux.GetLxcContexts()
+	process, mount, err := label.GenLabels("")
+	if err != nil {
+		return err
+	}
 
-	container.mountLabel = mount
-	container.processLabel = process
+	container.MountLabel = mount
+	container.ProcessLabel = process
 
 	if err := container.Mount(); err != nil {
 		return err
