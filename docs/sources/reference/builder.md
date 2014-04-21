@@ -32,6 +32,9 @@ the build succeeds:
 
 > `sudo docker build -t shykes/myapp .`
 
+"scratch" is the reserved name of a special empty image. This image is used when
+building new base images and it can't be used as a repository name.
+
 The Docker daemon will run your steps one-by-one, committing the result
 to a new image if necessary, before finally outputting the ID of your
 new image. The Docker daemon will automatically clean up the context you
@@ -112,6 +115,11 @@ command.
 If no `tag` is given to the `FROM`
 instruction, `latest` is assumed. If the
 used tag does not exist, an error will be returned.
+
+`FROM scratch` can be used to create new base images from scratch. "scratch"
+is a reserved name which makes Docker instantiate an embedded empty layer.
+This empty embedded layer is standard across registries and is never pulled by
+Docker.
 
 ## `MAINTAINER`
 

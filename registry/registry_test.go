@@ -217,4 +217,8 @@ func TestValidRepositoryName(t *testing.T) {
 		t.Log("Repository name should be invalid")
 		t.Fail()
 	}
+	if err := validateRepositoryName("scratch"); err == nil {
+		t.Log("Repository name `scratch` should be invalid")
+		t.Fail()
+	}
 }

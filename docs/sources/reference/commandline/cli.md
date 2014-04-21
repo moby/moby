@@ -209,6 +209,10 @@ temporary directory on your local host, and then this is sent to the
 Docker daemon as the context. This way, your local user credentials and
 vpn’s etc can be used to access private repositories
 
+> **Note:**
+> "scratch" is a special reserved empty image name to be used when building new base images and
+> using it as a repository name isn't allowed.
+
 See also
 
 [*Dockerfile Reference*](../../builder/#dockerbuilder).
@@ -296,6 +300,10 @@ new image. This allows you debug a container by running an interactive
 shell, or to export a working dataset to another server. Generally, it
 is better to use Dockerfiles to manage your images in a documented and
 maintainable way.
+
+> **Note:**
+> "scratch" is a special reserved empty image name to be used when building new base images and
+> using it as a repository name isn't allowed.
 
 ### Commit an existing container
 
@@ -480,6 +488,10 @@ file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a
 root filesystem. If you would like to import from a local directory or
 archive, you can use the `-` parameter to take the
 data from *stdin*.
+
+> **Note:**
+> "scratch" is a special reserved empty image name to be used when building new base images and
+> using it as a repository name isn't allowed.
 
 ### Examples
 
@@ -700,6 +712,10 @@ Most of your images will be created on top of a base image from the
 The Docker Index contains many pre-built images that you can
 `pull` and try without needing to define and
 configure your own.
+
+> **Note:**
+> "scratch" is a special reserved empty image name to be used when building new base images and
+> using it as a repository name isn't allowed.
 
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
@@ -1143,6 +1159,10 @@ grace period, SIGKILL
 You can group your images together using names and tags, and then upload
 them to [*Share Images via
 Repositories*](../../../use/workingwithrepository/#working-with-the-repository).
+
+> **Note:**
+> "scratch" is a special reserved empty image name to be used when building new base images and
+> using it as a repository name isn't allowed.
 
 ## `top`
 
