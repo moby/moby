@@ -675,6 +675,12 @@ func TestImageURI(t *testing.T) {
 		{"image://registry.com:5000/namespace/name:/build/file", map[string]string{"name": "registry.com:5000/namespace/name", "path": "/build/file"}, false},
 		{"image://registry.com:5000/namespace/name:/build/dir/", map[string]string{"name": "registry.com:5000/namespace/name", "path": "/build/dir/"}, false},
 		{"namespace/name:/build/file", map[string]string{}, true},
+    {"image://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:80/namespace/name:/build/dir/", map[string]string{"name": "[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:80/namespace/name", "path": "/build/dir/"}, false},
+    {"image://[::192.9.5.5]/namespace/name:/build/dir/", map[string]string{"name": "[::192.9.5.5]/namespace/name", "path": "/build/dir/"}, false},
+    {"image://[2060::1]/namespace/name:/build/dir/", map[string]string{"name": "[2060::1]/namespace/name", "path": "/build/dir/"}, false},
+    {"image://[2060::1]:5000/namespace/name:/build/dir/", map[string]string{"name": "[2060::1]:5000/namespace/name", "path": "/build/dir/"}, false},
+    {"[2060::1]/namespace/name:/build/dir/", map[string]string{"name": "[2060::1]/namespace/name", "path": "/build/dir/"}, true},
+    {"[2060::1]:5000/namespace/name:/build/dir/", map[string]string{"name": "[2060::1]:5000/namespace/name", "path": "/build/dir/"}, true},
 	}
 
 	for _, item := range set {
