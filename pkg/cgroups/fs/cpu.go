@@ -27,5 +27,7 @@ func (s *cpuGroup) Remove(d *data) error {
 }
 
 func (s *cpuGroup) Stats(d *data) (map[string]float64, error) {
-	return nil, ErrNotSupportStat
+	// we can reuse the cpuacct subsystem to get the cpu stats
+	sys := subsystems["cpuacct"]
+	return sys.Stats(d)
 }
