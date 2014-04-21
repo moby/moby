@@ -3,8 +3,11 @@ package fs
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/dotcloud/docker/pkg/cgroups"
 )
@@ -58,10 +61,9 @@ func (s *blkioGroup) Stats(d *data) (map[string]float64, error) {
 	var (
 		paramData = make(map[string]float64)
 		params    = []string{
-			"sectors",
-			"io_service_bytes",
-			"io_serviced",
-			"io_queued",
+			"io_service_bytes_recursive",
+			"io_serviced_recursive",
+			"io_queued_recursive",
 		}
 	)
 
@@ -69,6 +71,12 @@ func (s *blkioGroup) Stats(d *data) (map[string]float64, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	k, v, err := s.getSectors(path)
+	if err != nil {
+		return nil, err
+	}
+	paramData[fmt.Sprintf("blkio.sectors_recursive:%s", k)] = v
 
 	for _, param := range params {
 		f, err := os.Open(filepath.Join(path, fmt.Sprintf("blkio.%s", param)))
@@ -79,12 +87,35 @@ func (s *blkioGroup) Stats(d *data) (map[string]float64, error) {
 
 		sc := bufio.NewScanner(f)
 		for sc.Scan() {
-			_, v, err := getCgroupParamKeyValue(sc.Text())
-			if err != nil {
-				return nil, err
+			// format: dev type amount
+			fields := strings.Fields(sc.Text())
+			switch len(fields) {
+			case 3:
+				v, err := strconv.ParseFloat(fields[2], 64)
+				if err != nil {
+					return nil, err
+				}
+				paramData[fmt.Sprintf("%s:%s:%s", param, fields[0], fields[1])] = v
+			case 2:
+				// this is the total line, skip
+			default:
+				return nil, ErrNotValidFormat
 			}
-			paramData[param] = v
 		}
 	}
 	return paramData, nil
+}
+
+func (s *blkioGroup) getSectors(path string) (string, float64, error) {
+	f, err := os.Open(filepath.Join(path, "blkio.sectors_recursive"))
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", 0, err
+	}
+	return getCgroupParamKeyValue(string(data))
 }

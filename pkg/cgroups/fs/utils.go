@@ -7,7 +7,10 @@ import (
 	"strings"
 )
 
-var ErrNotSupportStat = errors.New("stats are not supported for subsystem")
+var (
+	ErrNotSupportStat = errors.New("stats are not supported for subsystem")
+	ErrNotValidFormat = errors.New("line is not a valid key value format")
+)
 
 // Parses a cgroup param and returns as name, value
 //  i.e. "io_service_bytes 1234" will return as io_service_bytes, 1234
@@ -21,6 +24,6 @@ func getCgroupParamKeyValue(t string) (string, float64, error) {
 		}
 		return parts[0], value, nil
 	default:
-		return "", 0.0, fmt.Errorf("Unable to parse cgroup param: not enough parts; expected 2")
+		return "", 0.0, ErrNotValidFormat
 	}
 }
