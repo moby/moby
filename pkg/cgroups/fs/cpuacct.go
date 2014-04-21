@@ -2,11 +2,13 @@ package fs
 
 import (
 	"bufio"
-	"io/ioutil"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/system"
@@ -29,56 +31,34 @@ func (s *cpuacctGroup) Remove(d *data) error {
 
 func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	var (
-		uptime, startTime float64
-		paramData         = make(map[string]float64)
-		cpuTotal          = 0.0
+		startCpu, lastCpu, startSystem, lastSystem float64
+		paramData                                  = make(map[string]float64)
+		percentage                                 = 0.0
 	)
-
 	path, err := d.path("cpuacct")
-	if err != nil {
-		return paramData, err
-	}
-	f, err := os.Open(filepath.Join(path, "cpuacct.stat"))
-	if err != nil {
+	if startCpu, err = s.getCpuUsage(d, path); err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		t, v, err := getCgroupParamKeyValue(sc.Text())
-		if err != nil {
-			return paramData, err
-		}
-		// set the raw data in map
-		paramData[t] = v
-		cpuTotal += v
-	}
-
-	if uptime, err = s.getUptime(); err != nil {
+	if startSystem, err = s.getSystemCpuUsage(d); err != nil {
 		return nil, err
 	}
-	if startTime, err = s.getProcStarttime(d); err != nil {
+	// sample for 100ms
+	time.Sleep(100 * time.Millisecond)
+	if lastCpu, err = s.getCpuUsage(d, path); err != nil {
 		return nil, err
 	}
-	//paramData["percentage"] = 100.0 * ((cpuTotal/100.0)/uptime - (startTime / 100))
-	paramData["percentage"] = cpuTotal / (uptime - (startTime / 100))
-
+	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
+		return nil, err
+	}
+	var (
+		deltaProc   = lastCpu - startCpu
+		deltaSystem = lastSystem - startSystem
+	)
+	if deltaSystem > 0.0 {
+		percentage = ((deltaProc / deltaSystem) * 100.0) * float64(runtime.NumCPU())
+	}
+	paramData["percentage"] = percentage
 	return paramData, nil
-}
-
-func (s *cpuacctGroup) getUptime() (float64, error) {
-	f, err := os.Open("/proc/uptime")
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseFloat(strings.Fields(string(data))[0], 64)
 }
 
 func (s *cpuacctGroup) getProcStarttime(d *data) (float64, error) {
@@ -87,4 +67,54 @@ func (s *cpuacctGroup) getProcStarttime(d *data) (float64, error) {
 		return 0, err
 	}
 	return strconv.ParseFloat(rawStart, 64)
+}
+
+func (s *cpuacctGroup) getSystemCpuUsage(d *data) (float64, error) {
+	total := 0.0
+	f, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		txt := sc.Text()
+		if strings.Index(txt, "cpu") == 0 {
+			parts := strings.Fields(txt)
+			partsLength := len(parts)
+			if partsLength != 11 {
+				return 0.0, fmt.Errorf("Unable to parse cpu usage: expected 11 fields ; received %d", partsLength)
+			}
+			for _, i := range parts[1:10] {
+				val, err := strconv.ParseFloat(i, 64)
+				if err != nil {
+					return 0.0, fmt.Errorf("Unable to convert value to float: %s", err)
+				}
+				total += val
+			}
+			break
+		}
+	}
+	return total, nil
+}
+
+func (s *cpuacctGroup) getCpuUsage(d *data, path string) (float64, error) {
+	cpuTotal := 0.0
+	f, err := os.Open(filepath.Join(path, "cpuacct.stat"))
+	if err != nil {
+		return 0.0, err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		_, v, err := getCgroupParamKeyValue(sc.Text())
+		if err != nil {
+			return 0.0, err
+		}
+		// set the raw data in map
+		cpuTotal += v
+	}
+	return cpuTotal, nil
 }
