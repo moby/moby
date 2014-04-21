@@ -22,7 +22,7 @@ Using an existing container's name or ID you can create a new image.
 # EXAMPLES
 
 ## Creating a new image from an existing container
-And existing Fedora based container has had Apache installed while running
+An existing Fedora based container has had Apache installed while running
 in interactive mode with the bash shell. Apache is also running. To
 create a new image run docker ps to find the container's ID and then run:
 

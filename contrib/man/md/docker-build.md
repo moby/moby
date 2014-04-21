@@ -15,11 +15,10 @@ directory to the Docker daemon. The contents of this directory would
 be used by **ADD** commands found within the Dockerfile.
 
 Warning, this will send a lot of data to the Docker daemon depending
-on the contents of the current directory.
-
-If the absolute path is provided instead of ‘.’, only the files and
-directories required by the **ADD** command from the Dockerfile will
-be added to the context and transferred to the Docker daemon.
+on the contents of the current directory. he build is run by the Docker 
+daemon, not by the CLI, so the whole context must be transferred to the daemon. 
+The Docker CLI reports "Uploading context" when the context is sent to 
+the daemon.
 
 When a single Dockerfile is given as the URL, then no context is set.
 When a Git repository is set as the **URL**, the repository is used
@@ -51,7 +50,7 @@ Docker images can be built using the build command and a Dockerfile:
     docker build .
 
 During the build process Docker creates intermediate images. In order to
-remove them, you must explicitly set `--rm=false`.
+keep them, you must explicitly set `--rm=false`.
 
     docker build --rm=false .
 
