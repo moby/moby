@@ -14,7 +14,10 @@ import (
 	"github.com/dotcloud/docker/pkg/system"
 )
 
-var cpuCount = float64(runtime.NumCPU())
+var (
+	cpuCount   = float64(runtime.NumCPU())
+	clockTicks = float64(system.GetClockTicks())
+)
 
 type cpuacctGroup struct {
 }
@@ -58,7 +61,7 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 		deltaSystem = lastSystem - startSystem
 	)
 	if deltaSystem > 0.0 {
-		percentage = ((deltaProc / deltaSystem) * 100.0) * cpuCount
+		percentage = ((deltaProc / deltaSystem) * clockTicks) * cpuCount
 	}
 	// NOTE: a percentage over 100% is valid for POSIX because that means the
 	// processes is using multiple cores
