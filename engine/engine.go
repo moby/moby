@@ -12,6 +12,13 @@ import (
 	"strings"
 )
 
+// Installer is a standard interface for objects which can "install" themselves
+// on an engine by registering handlers.
+// This can be used as an entrypoint for external plugins etc.
+type Installer interface {
+	Install(*Engine) error
+}
+
 type Handler func(*Job) Status
 
 var globalHandlers map[string]Handler
