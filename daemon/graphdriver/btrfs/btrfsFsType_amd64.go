@@ -2,4 +2,6 @@
 
 package btrfs
 
-const btrfsFsType = 0x9123683E
+const (
+        btrfsFsType = 0x9123683E
+)
