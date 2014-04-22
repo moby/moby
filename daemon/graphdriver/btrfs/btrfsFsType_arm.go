@@ -3,5 +3,5 @@
 package btrfs
 
 const (
-        btrfsFsType = -1859950530
+	btrfsFsType = -1859950530
 )
