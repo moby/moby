@@ -1,3 +1,3 @@
-// +build !linux !amd64 !arm
+// +build !linux !amd64,!arm
 
 package btrfs

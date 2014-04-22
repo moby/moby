@@ -1,5 +1,4 @@
-// +build !amd64 !arm
-// +build !linux
+// +build !linux !amd64,!arm
 
 package mount
 
