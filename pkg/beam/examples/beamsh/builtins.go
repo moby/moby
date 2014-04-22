@@ -1,23 +1,22 @@
 package main
 
 import (
-	"io"
-	"os/exec"
+	"bufio"
+	"fmt"
 	"github.com/dotcloud/docker/pkg/beam"
 	"github.com/dotcloud/docker/pkg/beam/data"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
-	"text/template"
-	"fmt"
-	"sync"
-	"os"
-	"strings"
-	"path"
-	"bufio"
+	"io"
 	"net"
 	"net/url"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"sync"
+	"text/template"
 )
-
 
 func CmdLogger(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {
 	if err := os.MkdirAll("logs", 0700); err != nil {
@@ -28,7 +27,7 @@ func CmdLogger(args []string, stdout, stderr io.Writer, in beam.Receiver, out be
 	defer tasks.Wait()
 	var n int = 1
 	r := beam.NewRouter(out)
-	r.NewRoute().HasAttachment().KeyStartsWith("cmd", "log").Handler(func (payload []byte, attachment *os.File) error {
+	r.NewRoute().HasAttachment().KeyStartsWith("cmd", "log").Handler(func(payload []byte, attachment *os.File) error {
 		tasks.Add(1)
 		go func(n int) {
 			defer tasks.Done()
@@ -398,7 +397,7 @@ func CmdConnect(args []string, stdout, stderr io.Writer, in beam.Receiver, out b
 		Logf("connecting to %s/%s\n", u.Scheme, u.Host)
 		conn, err := net.Dial(u.Scheme, u.Host)
 		if err != nil {
-			out.Send(data.Empty().Set("cmd", "msg", "connect error: " + err.Error()).Bytes(), nil)
+			out.Send(data.Empty().Set("cmd", "msg", "connect error: "+err.Error()).Bytes(), nil)
 			return
 		}
 		out.Send(data.Empty().Set("cmd", "msg", "connection established").Bytes(), nil)

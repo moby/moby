@@ -1,19 +1,19 @@
 package beam
 
 import (
-	"io"
 	"fmt"
-	"os"
 	"github.com/dotcloud/docker/pkg/beam/data"
+	"io"
+	"os"
 )
 
 type Router struct {
 	routes []*Route
-	sink Sender
+	sink   Sender
 }
 
 func NewRouter(sink Sender) *Router {
-	return &Router{sink:sink}
+	return &Router{sink: sink}
 }
 
 func (r *Router) Send(payload []byte, attachment *os.File) (err error) {
@@ -40,10 +40,8 @@ func (r *Router) NewRoute() *Route {
 	return route
 }
 
-
-
 type Route struct {
-	rules []func([]byte, *os.File) bool
+	rules   []func([]byte, *os.File) bool
 	handler func([]byte, *os.File) error
 }
 
@@ -69,7 +67,6 @@ func (r *Route) HasAttachment() *Route {
 	})
 	return r
 }
-
 
 func (route *Route) Tee(dst Sender) *Route {
 	inner := route.handler
@@ -125,8 +122,7 @@ func (r *Route) KeyStartsWith(k string, beginning ...string) *Route {
 	return r
 }
 
-
-func (r *Route) KeyEquals(k string, full...string) *Route {
+func (r *Route) KeyEquals(k string, full ...string) *Route {
 	r.rules = append(r.rules, func(payload []byte, attachment *os.File) bool {
 		values := data.Message(payload).Get(k)
 		if len(values) != len(full) {

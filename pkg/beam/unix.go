@@ -1,11 +1,11 @@
 package beam
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
 	"syscall"
-	"bufio"
 )
 
 func debugCheckpoint(msg string, args ...interface{}) {
@@ -13,7 +13,7 @@ func debugCheckpoint(msg string, args ...interface{}) {
 		return
 	}
 	os.Stdout.Sync()
-	tty,_ := os.OpenFile("/dev/tty", os.O_RDWR, 0700)
+	tty, _ := os.OpenFile("/dev/tty", os.O_RDWR, 0700)
 	fmt.Fprintf(tty, msg, args...)
 	bufio.NewScanner(tty).Scan()
 	tty.Close()
@@ -170,7 +170,7 @@ func SocketPair() (a *os.File, b *os.File, err error) {
 
 func USocketPair() (*UnixConn, *UnixConn, error) {
 	debugCheckpoint("===DEBUG=== USocketPair(). Hit enter to confirm: ")
-	defer debugCheckpoint ("===DEBUG=== USocketPair() returned. Hit enter to confirm ")
+	defer debugCheckpoint("===DEBUG=== USocketPair() returned. Hit enter to confirm ")
 	a, b, err := SocketPair()
 	if err != nil {
 		return nil, nil, err
@@ -193,7 +193,7 @@ func USocketPair() (*UnixConn, *UnixConn, error) {
 // returns an error if the file descriptor does not point to a unix socket.
 // This creates a duplicate file descriptor. It's the caller's responsibility
 // to close both.
-func FdConn(fd int) (n*net.UnixConn, err error) {
+func FdConn(fd int) (n *net.UnixConn, err error) {
 	{
 		debugCheckpoint("===DEBUG=== FdConn([%d]) = (unknown fd). Hit enter to confirm: ", fd)
 	}

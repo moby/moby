@@ -1,8 +1,8 @@
 package scanner
 
 import (
-	"unicode"
 	"strings"
+	"unicode"
 )
 
 // extra functions used to hijack the upstream text/scanner
@@ -19,4 +19,3 @@ func detectIdent(ch rune) bool {
 	}
 	return false
 }
-

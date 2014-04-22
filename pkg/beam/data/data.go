@@ -2,8 +2,8 @@ package data
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func Encode(obj map[string][]string) string {
@@ -93,10 +93,10 @@ func decodeString(msg string) (string, int, error) {
 	} else {
 		length = int(l)
 	}
-	if len(parts[1]) < length + 1 {
-		return "", 0, fmt.Errorf("message '%s' is %d bytes, expected at least %d", parts[1], len(parts[1]), length + 1)
+	if len(parts[1]) < length+1 {
+		return "", 0, fmt.Errorf("message '%s' is %d bytes, expected at least %d", parts[1], len(parts[1]), length+1)
 	}
-	payload := parts[1][:length + 1]
+	payload := parts[1][:length+1]
 	if payload[length] != ',' {
 		return "", 0, fmt.Errorf("message is not comma-terminated")
 	}

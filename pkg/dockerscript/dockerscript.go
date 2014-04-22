@@ -1,15 +1,15 @@
 package dockerscript
 
 import (
-	"github.com/dotcloud/docker/pkg/dockerscript/scanner"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/dockerscript/scanner"
 	"io"
 	"strings"
 )
 
 type Command struct {
-	Args []string
-	Children []*Command
+	Args       []string
+	Children   []*Command
 	Background bool
 }
 
@@ -32,7 +32,7 @@ func Parse(src io.Reader) ([]*Command, error) {
 
 func (cmd *Command) subString(depth int) string {
 	var prefix string
-	for i:=0; i<depth; i++ {
+	for i := 0; i < depth; i++ {
 		prefix += "  "
 	}
 	s := prefix + strings.Join(cmd.Args, ", ")
@@ -85,12 +85,12 @@ func parseArgs(s *Scanner) ([]string, rune, error) {
 
 func parse(s *Scanner, opener string) (expr []*Command, err error) {
 	/*
-	defer func() {
-		fmt.Printf("parse() returned %d commands:\n", len(expr))
-		for _, c := range expr {
-			fmt.Printf("\t----> %s\n", c)
-		}
-	}()
+		defer func() {
+			fmt.Printf("parse() returned %d commands:\n", len(expr))
+			for _, c := range expr {
+				fmt.Printf("\t----> %s\n", c)
+			}
+		}()
 	*/
 	for {
 		args, tok, err := parseArgs(s)

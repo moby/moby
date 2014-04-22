@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/beam"
 	"github.com/dotcloud/docker/pkg/beam/data"
@@ -14,7 +15,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"flag"
 )
 
 var rootPlugins = []string{
@@ -22,8 +22,8 @@ var rootPlugins = []string{
 }
 
 var (
-	flX bool
-	flPing bool
+	flX        bool
+	flPing     bool
 	introspect beam.ReceiveSender = beam.Devnull()
 )
 
@@ -38,7 +38,7 @@ func main() {
 	fd3.Close()
 	flag.BoolVar(&flX, "x", false, "print commands as they are being executed")
 	flag.Parse()
-	if flag.NArg() == 0{
+	if flag.NArg() == 0 {
 		if term.IsTerminal(0) {
 			// No arguments, stdin is terminal --> interactive mode
 			input := bufio.NewScanner(os.Stdin)
@@ -168,7 +168,6 @@ func executeScript(out beam.Sender, script []*dockerscript.Command) error {
 	return nil
 }
 
-
 //	1) Find a handler for the command (if no handler, fail)
 //	2) Attach new in & out pair to the handler
 //	3) [in the background] Copy handler output to our own output
@@ -217,9 +216,7 @@ func executeCommand(out beam.Sender, cmd *dockerscript.Command) error {
 	return nil
 }
 
-
 type Handler func([]string, io.Writer, io.Writer, beam.Receiver, beam.Sender)
-
 
 func Handlers(sink beam.Sender) (*beam.UnixConn, error) {
 	var tasks sync.WaitGroup
@@ -329,11 +326,12 @@ func GetHandler(name string) Handler {
 	return nil
 }
 
-
 // VARIOUS HELPER FUNCTIONS:
 
 func connToFile(conn net.Conn) (f *os.File, err error) {
-	if connWithFile, ok := conn.(interface { File() (*os.File, error) }); !ok {
+	if connWithFile, ok := conn.(interface {
+		File() (*os.File, error)
+	}); !ok {
 		return nil, fmt.Errorf("no file descriptor available")
 	} else {
 		f, err = connWithFile.File()
@@ -345,12 +343,12 @@ func connToFile(conn net.Conn) (f *os.File, err error) {
 }
 
 type Msg struct {
-	payload		[]byte
-	attachment	*os.File
+	payload    []byte
+	attachment *os.File
 }
 
 func Logf(msg string, args ...interface{}) (int, error) {
-	if len(msg) == 0 || msg[len(msg) - 1] != '\n' {
+	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		msg = msg + "\n"
 	}
 	msg = fmt.Sprintf("[%v] [%v] %s", os.Getpid(), path.Base(os.Args[0]), msg)
@@ -363,7 +361,7 @@ func Debugf(msg string, args ...interface{}) {
 	}
 }
 
-func Fatalf(msg string, args ...interface{})  {
+func Fatalf(msg string, args ...interface{}) {
 	Logf(msg, args...)
 	os.Exit(1)
 }
@@ -386,7 +384,6 @@ func scriptString(script []*dockerscript.Command) string {
 	return fmt.Sprintf("'%s'", strings.Join(lines, "; "))
 }
 
-
 func dialer(addr string) (chan net.Conn, error) {
 	u, err := url.Parse(addr)
 	if err != nil {
@@ -400,7 +397,7 @@ func dialer(addr string) (chan net.Conn, error) {
 			if err != nil {
 				return
 			}
-			connections <-conn
+			connections <- conn
 		}
 	}()
 	return connections, nil
@@ -424,13 +421,11 @@ func listener(addr string) (chan net.Conn, error) {
 				return
 			}
 			Logf("new connection\n")
-			connections<-conn
+			connections <- conn
 		}
 	}()
 	return connections, nil
 }
-
-
 
 func SendToConn(connections chan net.Conn, src beam.Receiver) error {
 	var tasks sync.WaitGroup
@@ -479,14 +474,13 @@ func SendToConn(connections chan net.Conn, src beam.Receiver) error {
 	return nil
 }
 
-
 func msgDesc(payload []byte, attachment *os.File) string {
 	return beam.MsgDesc(payload, attachment)
 }
 
 func ReceiveFromConn(connections chan net.Conn, dst beam.Sender) error {
 	for conn := range connections {
-		err := func () error {
+		err := func() error {
 			Logf("parsing message from network...\n")
 			defer Logf("done parsing message from network\n")
 			buf := make([]byte, 4098)
@@ -534,7 +528,6 @@ func ReceiveFromConn(connections chan net.Conn, dst beam.Sender) error {
 	return nil
 }
 
-
 func bicopy(a, b io.ReadWriteCloser) {
 	var iotasks sync.WaitGroup
 	oneCopy := func(dst io.WriteCloser, src io.Reader) {
@@ -547,4 +540,3 @@ func bicopy(a, b io.ReadWriteCloser) {
 	go oneCopy(b, a)
 	iotasks.Wait()
 }
-

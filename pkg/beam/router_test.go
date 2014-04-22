@@ -3,20 +3,19 @@ package beam
 import (
 	"fmt"
 	"io/ioutil"
-	"testing"
 	"os"
 	"sync"
+	"testing"
 )
 
 type msg struct {
-	payload []byte
+	payload    []byte
 	attachment *os.File
 }
 
 func (m msg) String() string {
 	return MsgDesc(m.payload, m.attachment)
 }
-
 
 type mockReceiver []msg
 

@@ -92,10 +92,10 @@ func TestEncodeBinaryValue(t *testing.T) {
 }
 
 func TestDecodeString(t *testing.T) {
-	validEncodedStrings := []struct{
-		input string
+	validEncodedStrings := []struct {
+		input  string
 		output string
-		skip int
+		skip   int
 	}{
 		{"3:foo,", "foo", 6},
 		{"5:hello,", "hello", 8},
