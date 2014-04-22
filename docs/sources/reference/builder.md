@@ -190,17 +190,15 @@ strings in the array:
 If you would like your container to run the same executable every time,
 then you should consider using `ENTRYPOINT` in
 combination with `CMD`. See
-[*ENTRYPOINT*](#dockerfile-entrypoint).
+[*ENTRYPOINT*](#entrypoint).
 
 If the user specifies arguments to `docker run` then
 they will override the default specified in CMD.
 
-Note
-
-Don’t confuse `RUN` with `CMD`.
-`RUN` actually runs a command and commits the
-result; `CMD` does not execute anything at build
-time, but specifies the intended command for the image.
+> **Note**:
+> Don’t confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
+> the result; `CMD` does not execute anything at build time, but specifies
+> the intended command for the image.
 
 ## `EXPOSE`
 
@@ -228,12 +226,11 @@ persist when a container is run from the resulting image. You can view
 the values using `docker inspect`, and change them
 using `docker run --env <key>=<value>`.
 
-Note
-
-One example where this can cause unexpected consequenses, is setting
-`ENV DEBIAN_FRONTEND noninteractive`. Which will
-persist when the container is run interactively; for example:
-`docker run -t -i image bash`
+> **Note**:
+> One example where this can cause unexpected consequenses, is setting
+> `ENV DEBIAN_FRONTEND noninteractive`. Which will
+> persist when the container is run interactively; for example:
+> `docker run -t -i image bash`
 
 ## `ADD`
 
@@ -252,18 +249,16 @@ will be copied inside the destination container.
 
 All new files and directories are created with mode 0755, uid and gid 0.
 
-Note
+> **Note**:
+> If you build using STDIN (`docker build - < somefile`), there is no
+> build context, so the Dockerfile can only contain an URL based ADD
+> statement.
 
-if you build using STDIN (`docker build - < somefile`
-.literal}), there is no build context, so the Dockerfile can only
-contain an URL based ADD statement.
-
-Note
-
-if your URL files are protected using authentication, you will need to
-use an `RUN wget` , `RUN curl`
-or other tool from within the container as ADD does not support
-authentication.
+> **Note**:
+> If your URL files are protected using authentication, you will need to
+> use an `RUN wget` , `RUN curl`
+> or other tool from within the container as ADD does not support
+> authentication.
 
 The copy obeys the following rules:
 
@@ -335,12 +330,11 @@ that you can run as an executable. That is, when you specify an
 `ENTRYPOINT`, then the whole container runs as if it
 was just that executable.
 
-The `ENTRYPOINT` instruction adds an entry command
-that will **not** be overwritten when arguments are passed to
-`docker run`, unlike the behavior of `CMD`
-.literal}. This allows arguments to be passed to the entrypoint. i.e.
-`docker run <image> -d` will pass the "-d" argument
-to the ENTRYPOINT.
+The `ENTRYPOINT` instruction adds an entry command that will **not** be
+overwritten when arguments are passed to `docker run`, unlike the
+behavior of `CMD`. This allows arguments to be passed to the entrypoint.
+i.e.  `docker run <image> -d` will pass the "-d" argument to the
+ENTRYPOINT.
 
 You can specify parameters either in the ENTRYPOINT JSON array (as in
 "like an exec" above), or by using a CMD statement. Parameters in the
@@ -451,13 +445,9 @@ For example you might add something like this:
     ONBUILD RUN /usr/local/bin/python-build --dir /app/src
     [...]
 
-Warning
+> **Warning**: Chaining ONBUILD instructions using ONBUILD ONBUILD isn’t allowed.
 
-Chaining ONBUILD instructions using ONBUILD ONBUILD isn’t allowed.
-
-Warning
-
-ONBUILD may not trigger FROM or MAINTAINER instructions.
+> **Warning**: ONBUILD may not trigger FROM or MAINTAINER instructions.
 
 ## Dockerfile Examples
 
@@ -506,5 +496,5 @@ ONBUILD may not trigger FROM or MAINTAINER instructions.
     RUN echo moo > oink
     # Will output something like ===> 695d7793cbe4
 
-    # You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+    # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.

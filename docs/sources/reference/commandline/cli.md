@@ -19,8 +19,7 @@ no parameters or execute `docker help`:
 
 Single character commandline options can be combined, so rather than
 typing `docker run -t -i --name test busybox sh`,
-you can write `docker run -ti --name test busybox sh`
-.literal}.
+you can write `docker run -ti --name test busybox sh`.
 
 ### Boolean
 
@@ -58,7 +57,7 @@ expect an integer, and they can only be specified once.
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
-      -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
+      -bip="": Use this CIDR notation address for the network bridge᾿s IP, not compatible with -b
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
       --dns-search=[]: Force Docker to use specific DNS search domains
@@ -66,7 +65,7 @@ expect an integer, and they can only be specified once.
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
       --ip-forward=true: Enable net.ipv4.ip_forward
-      --iptables=true: Enable Docker's addition of iptables rules
+      --iptables=true: Enable Docker᾿s addition of iptables rules
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
@@ -92,11 +91,9 @@ To set the DNS server for all Docker containers, use
 To set the DNS search domain for all Docker containers, use
 `docker -d --dns-search example.com`.
 
-To run the daemon with debug output, use `docker -d -D`
-.literal}.
+To run the daemon with debug output, use `docker -d -D`.
 
-To use lxc as the execution driver, use `docker -d -e lxc`
-.literal}.
+To use lxc as the execution driver, use `docker -d -e lxc`.
 
 The docker client will also honor the `DOCKER_HOST`
 environment variable to set the `-H` flag for the
@@ -119,8 +116,7 @@ systemd in the [docker source
 tree](https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/tmp`
-.literal}. TMPDIR and the data directory can be set like this:
+(`/var/lib/docker`) and for `/tmp`. TMPDIR and the data directory can be set like this:
 
     TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
@@ -254,8 +250,7 @@ machine and that no parsing of the `Dockerfile`
 happens at the client side (where you’re running
 `docker build`). That means that *all* the files at
 `PATH` get sent, not just the ones listed to
-[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`
-.literal}.
+[*ADD*](../../builder/#dockerfile-add) in the `Dockerfile`.
 
 The transfer of context from the local machine to the Docker daemon is
 what the `docker` client means when you see the
@@ -291,7 +286,7 @@ schema.
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
-    Create a new image from a container's changes
+    Create a new image from a container᾿s changes
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
@@ -328,7 +323,7 @@ maintainable way.
 
     Usage: docker diff CONTAINER
 
-    List the changed files and directories in a container's filesystem
+    List the changed files and directories in a container᾿s filesystem
 
 There are 3 events that are listed in the ‘diff’:
 
@@ -413,7 +408,7 @@ For example:
 
     Show the history of an image
 
-      --no-trunc=false: Don't truncate output
+      --no-trunc=false: Don᾿t truncate output
       -q, --quiet=false: Only show numeric IDs
 
 To see how the `docker:latest` image was built:
@@ -434,7 +429,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false: Show all images (by default filter out the intermediate image layers)
-      --no-trunc=false: Don't truncate output
+      --no-trunc=false: Don᾿t truncate output
       -q, --quiet=false: Only show numeric IDs
 
 The default `docker images` will show all top level
@@ -658,9 +653,8 @@ Restores both images and tags.
 The `docker logs` command batch-retrieves all logs
 present at the time of execution.
 
-The `docker logs --follow` command combines
-`docker logs` and `docker attach`
-.literal}: it will first return all logs from the beginning and then
+The `docker logs --follow` command combines `docker logs` and `docker
+attach`: it will first return all logs from the beginning and then
 continue streaming new output from the container’s stdout and stderr.
 
 ## `port`
@@ -679,7 +673,7 @@ continue streaming new output from the container’s stdout and stderr.
       --before="": Show only container created before Id or Name, include non-running ones.
       -l, --latest=false: Show only the latest created container, include non-running ones.
       -n=-1: Show n last created containers, include non-running ones.
-      --no-trunc=false: Don't truncate output
+      --no-trunc=false: Don᾿t truncate output
       -q, --quiet=false: Only display numeric IDs
       -s, --size=false: Display sizes, not to be used with -q
       --since="": Show only containers created since Id or Name, include non-running ones.
@@ -854,7 +848,7 @@ to view a list of all containers.
 
 The `docker run` command can be used in combination
 with `docker commit` to [*change the command that a
-container runs*](#cli-commit-examples).
+container runs*](#commit-an-existing-container).
 
 See [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
 for more detailed information about the `--expose`,
@@ -957,10 +951,8 @@ container). All three flags, `-e`, `--env`
 and `--env-file` can be repeated.
 
 Regardless of the order of these three flags, the `--env-file`
-are processed first, and then `-e`
-.literal}/`--env` flags. This way, the
-`-e` or `--env` will override
-variables as needed.
+are processed first, and then `-e`, `--env` flags. This way, the
+`-e` or `--env` will override variables as needed.
 
     $ cat ./env.list
     TEST_FOO=BAR
@@ -1112,7 +1104,7 @@ It is used to create a backup that can then be used with
 
     Search the docker index for images
 
-     --no-trunc=false: Don't truncate output
+     --no-trunc=false: Don᾿t truncate output
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
@@ -1126,8 +1118,8 @@ more details on finding shared images from the commandline.
 
     Start a stopped container
 
-      -a, --attach=false: Attach container's stdout/stderr and forward all signals to the process
-      -i, --interactive=false: Attach container's stdin
+      -a, --attach=false: Attach container᾿s stdout/stderr and forward all signals to the process
+      -i, --interactive=false: Attach container᾿s stdin
 
 ## `stop`
 

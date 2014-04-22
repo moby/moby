@@ -4,19 +4,18 @@ page_keywords: amazon ec2, virtualization, cloud, docker, documentation, install
 
 # Amazon EC2
 
-Note
-
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 There are several ways to install Docker on AWS EC2:
 
 -   [*Amazon QuickStart (Release Candidate - March
-    2014)*](#amazonquickstart-new) or
--   [*Amazon QuickStart*](#amazonquickstart) or
--   [*Standard Ubuntu Installation*](#amazonstandard)
+    2014)*](#amazon-quickstart-release-candidate-march-2014) or
+-   [*Amazon QuickStart*](#amazon-quickstart) or
+-   [*Standard Ubuntu Installation*](#standard-ubuntu-installation)
 
 **You’ll need an** [AWS account](http://aws.amazon.com/) **first, of
 course.**
@@ -77,7 +76,6 @@ Repository.
         left side
     -   Search for ‘2014.03’ and select one of the Amazon provided AMI,
         for example `amzn-ami-pv-2014.03.rc-0.x86_64-ebs`
-        .literal}
     -   For testing you can use the default (possibly free)
         `t1.micro` instance (more info on
         [pricing](http://aws.amazon.com/en/ec2/pricing/)).
@@ -98,7 +96,7 @@ Repository.
 If you want a more hands-on installation, then you can follow the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions installing Docker
 on any EC2 instance running Ubuntu. Just follow Step 1 from [*Amazon
-QuickStart*](#amazonquickstart) to pick an image (or use one of your
+QuickStart*](#amazon-quickstart) to pick an image (or use one of your
 own) and skip the step with the *User Data*. Then continue with the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions.
 

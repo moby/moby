@@ -4,13 +4,13 @@ page_keywords: docker, example, python, web app
 
 # Python Web App
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
+> **Note**: 
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup)
 
 While using Dockerfiles is the preferred way to create maintainable and
 repeatable images, its useful to know how you can try things out and
@@ -33,12 +33,11 @@ modules, and a `runapp` script that finds the
 
     $ sudo docker pull shykes/pybuilder
 
-Note
-
-This container was built with a very old version of docker (May 2013 -
-see [shykes/pybuilder](https://github.com/shykes/pybuilder) ), when the
-`Dockerfile` format was different, but the image can
-still be used now.
+> **Note**: 
+> This container was built with a very old version of docker (May 2013 -
+> see [shykes/pybuilder](https://github.com/shykes/pybuilder) ), when the
+> `Dockerfile` format was different, but the image can
+> still be used now.
 
 ## Interactively make some modifications
 
@@ -64,10 +63,8 @@ commands, try things out, and then exit when you’re done.
 Save the changes we just made in the container to a new image called
 `/builds/github.com/shykes/helloflask/master`. You
 now have 3 different ways to refer to the container: name
-`pybuilder_run`, short-id `c8b2e8228f11`
-.literal}, or long-id
-`c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9`
-.literal}.
+`pybuilder_run`, short-id `c8b2e8228f11`, or long-id
+`c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9`.
 
     $ sudo docker commit pybuilder_run /builds/github.com/shykes/helloflask/master
     c8b2e8228f11b8b3e492cbf9a49923ae66496230056d61e07880dc74c5f495f9

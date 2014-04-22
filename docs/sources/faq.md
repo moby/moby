@@ -42,7 +42,7 @@ page_keywords: faq, questions, documentation, docker
 > features, Docker offers a high-level tool with several powerful
 > functionalities:
 >
-> -   *Portable deployment across machines.*
+> - *Portable deployment across machines.*
 >     :   Docker defines a format for bundling an application and all
 >         its dependencies into a single object which can be transferred
 >         to any Docker-enabled machine, and executed there with the
@@ -59,7 +59,7 @@ page_keywords: faq, questions, documentation, docker
 >         exact same Docker container can run - unchanged - on many
 >         different machines, with many different configurations.
 >
-> -   *Application-centric.*
+> - *Application-centric.*
 >     :   Docker is optimized for the deployment of applications, as
 >         opposed to machines. This is reflected in its API, user
 >         interface, design philosophy and documentation. By contrast,
@@ -68,7 +68,7 @@ page_keywords: faq, questions, documentation, docker
 >         boot faster and need less RAM. We think there’s more to
 >         containers than just that.
 >
-> -   *Automatic build.*
+> - *Automatic build.*
 >     :   Docker includes [*a tool for developers to automatically
 >         assemble a container from their source
 >         code*](../reference/builder/#dockerbuilder), with full control
@@ -78,7 +78,7 @@ page_keywords: faq, questions, documentation, docker
 >         packages, RPMs, source tarballs, or any combination of the
 >         above, regardless of the configuration of the machines.
 >
-> -   *Versioning.*
+> - *Versioning.*
 >     :   Docker includes git-like capabilities for tracking successive
 >         versions of a container, inspecting the diff between versions,
 >         committing new versions, rolling back etc. The history also
@@ -86,10 +86,10 @@ page_keywords: faq, questions, documentation, docker
 >         full traceability from the production server all the way back
 >         to the upstream developer. Docker also implements incremental
 >         uploads and downloads, similar to `git pull`
->         .literal}, so new versions of a container can be transferred
+>         , so new versions of a container can be transferred
 >         by only sending diffs.
 >
-> -   *Component re-use.*
+> - *Component re-use.*
 >     :   Any container can be used as a [*"base
 >         image"*](../terms/image/#base-image-def) to create more
 >         specialized components. This can be done manually or as part
@@ -98,7 +98,7 @@ page_keywords: faq, questions, documentation, docker
 >         applications. Your ideal Postgresql setup can be re-used for
 >         all your future projects. And so on.
 >
-> -   *Sharing.*
+> - *Sharing.*
 >     :   Docker has access to a [public
 >         registry](http://index.docker.io) where thousands of people
 >         have uploaded useful containers: anything from Redis, CouchDB,
@@ -111,7 +111,7 @@ page_keywords: faq, questions, documentation, docker
 >         store and transfer private containers, for internal server
 >         deployments for example.
 >
-> -   *Tool ecosystem.*
+> - *Tool ecosystem.*
 >     :   Docker defines an API for automating and customizing the
 >         creation and deployment of containers. There are a huge number
 >         of tools integrating with Docker to extend its capabilities.
@@ -202,17 +202,17 @@ sources.
 
 ### Where can I find more answers?
 
-> You can find more answers on:
->
-> -   [Docker user
->     mailinglist](https://groups.google.com/d/forum/docker-user)
-> -   [Docker developer
->     mailinglist](https://groups.google.com/d/forum/docker-dev)
-> -   [IRC, docker on freenode](irc://chat.freenode.net#docker)
-> -   [GitHub](http://www.github.com/dotcloud/docker)
-> -   [Ask questions on
->     Stackoverflow](http://stackoverflow.com/search?q=docker)
-> -   [Join the conversation on Twitter](http://twitter.com/docker)
+You can find more answers on:
+
+- [Docker user
+  mailinglist](https://groups.google.com/d/forum/docker-user)
+- [Docker developer
+  mailinglist](https://groups.google.com/d/forum/docker-dev)
+- [IRC, docker on freenode](irc://chat.freenode.net#docker)
+- [GitHub](http://www.github.com/dotcloud/docker)
+- [Ask questions on
+  Stackoverflow](http://stackoverflow.com/search?q=docker)
+- [Join the conversation on Twitter](http://twitter.com/docker)
 
 Looking for something else to read? Checkout the [*Hello
 World*](../examples/hello_world/#hello-world) example.

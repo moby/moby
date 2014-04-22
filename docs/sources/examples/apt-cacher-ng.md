@@ -4,15 +4,15 @@ page_keywords: docker, example, package installation, networking, debian, ubuntu
 
 # Apt-Cacher-ng Service
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
--   **If you’re using OS X or docker via TCP** then you shouldn’t use
-    sudo
+> **Note**: 
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup).
+> - **If you’re using OS X or docker via TCP** then you shouldn’t use
+>   sudo.
 
 When you have multiple Docker servers, or build unrelated Docker
 containers which can’t make use of the Docker build cache, it can be
@@ -71,8 +71,7 @@ a local version of a common base:
     # docker build -t my_ubuntu .
 
 **Option 2** is good for testing, but will break other HTTP clients
-which obey `http_proxy`, such as `curl`
-.literal}, `wget` and others:
+which obey `http_proxy`, such as `curl`, `wget` and others:
 
     $ sudo docker run --rm -t -i -e http_proxy=http://dockerhost:3142/ debian bash
 

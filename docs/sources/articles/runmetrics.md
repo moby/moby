@@ -49,13 +49,11 @@ For each container, one cgroup will be created in each hierarchy. On
 older systems with older versions of the LXC userland tools, the name of
 the cgroup will be the name of the container. With more recent versions
 of the LXC tools, the cgroup will be `lxc/<container_name>.`
-.literal}
 
 For Docker containers using cgroups, the container name will be the full
 ID or long ID of the container. If a container shows up as ae836c95b4c3
 in `docker ps`, its long ID might be something like
-`ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`
-.literal}. You can look it up with `docker inspect`
+`ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`. You can look it up with `docker inspect`
 or `docker ps -notrunc`.
 
 Putting everything together to look at the memory metrics for a Docker
@@ -206,14 +204,13 @@ Now that we’ve covered memory metrics, everything else will look very
 simple in comparison. CPU metrics will be found in the
 `cpuacct` controller.
 
-For each container, you will find a pseudo-file `cpuacct.stat`
-.literal}, containing the CPU usage accumulated by the processes of the
-container, broken down between `user` and
-`system` time. If you’re not familiar with the
-distinction, `user` is the time during which the
-processes were in direct control of the CPU (i.e. executing process
-code), and `system` is the time during which the CPU
-was executing system calls on behalf of those processes.
+For each container, you will find a pseudo-file `cpuacct.stat`,
+containing the CPU usage accumulated by the processes of the container,
+broken down between `user` and `system` time. If you’re not familiar
+with the distinction, `user` is the time during which the processes were
+in direct control of the CPU (i.e. executing process code), and `system`
+is the time during which the CPU was executing system calls on behalf of
+those processes.
 
 Those times are expressed in ticks of 1/100th of a second. Actually,
 they are expressed in "user jiffies". There are `USER_HZ`
@@ -360,7 +357,7 @@ container, we need to:
  to `/proc/<thepid>/ns/net`
 -   Execute `ip netns exec <somename> ....`
 
-Please review [*Enumerating Cgroups*](#run-findpid) to learn how to find
+Please review [*Enumerating Cgroups*](#enumerating-cgroups) to learn how to find
 the cgroup of a pprocess running in the container of which you want to
 measure network usage. From there, you can examine the pseudo-file named
 `tasks`, which containes the PIDs that are in the
@@ -407,11 +404,10 @@ Sometimes, you do not care about real time metric collection, but when a
 container exits, you want to know how much CPU, memory, etc. it has
 used.
 
-Docker makes this difficult because it relies on `lxc-start`
-.literal}, which carefully cleans up after itself, but it is still
-possible. It is usually easier to collect metrics at regular intervals
-(e.g. every minute, with the collectd LXC plugin) and rely on that
-instead.
+Docker makes this difficult because it relies on `lxc-start`, which
+carefully cleans up after itself, but it is still possible. It is
+usually easier to collect metrics at regular intervals (e.g. every
+minute, with the collectd LXC plugin) and rely on that instead.
 
 But, if you’d still like to gather the stats when a container stops,
 here is how:

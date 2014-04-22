@@ -28,6 +28,7 @@ To run properly, docker needs the following software to be installed at runtime:
 
 - iptables version 1.4 or later
 - Git version 1.7 or later
+- procps (or similar provider of a "ps" executable)
 - XZ Utils 4.9 or later
 - a `properly mounted
   <https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount>`_

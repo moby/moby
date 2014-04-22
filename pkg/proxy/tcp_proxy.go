@@ -38,7 +38,7 @@ func (proxy *TCPProxy) Run() {
 			log.Printf("Stopping proxy on tcp/%v for tcp/%v (err: %s)", proxy.frontendAddr, proxy.backendAddr, err)
 			return
 		}
-		go func(client net.Conn) {
+		go func(client *net.TCPConn) {
 			defer client.Close()
 
 			backend, err := net.DialTCP("tcp", nil, proxy.backendAddr)
@@ -50,9 +50,7 @@ func (proxy *TCPProxy) Run() {
 			defer backend.Close()
 
 			c1 := goTransfert(backend, client)
-			defer close(c1)
 			c2 := goTransfert(client, backend)
-			defer close(c2)
 
 			select {
 			case <-proxy.quit:
@@ -67,7 +65,7 @@ func (proxy *TCPProxy) Run() {
 			case <-c2:
 			}
 
-		}(client)
+		}(client.(*net.TCPConn))
 	}
 }
 

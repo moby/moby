@@ -37,7 +37,7 @@ WORKDIR	/docs
 #RUN	make -C /docs clean docs
 
 #convert to markdown
-RUN	./convert.sh
+#RUN	./convert.sh
 
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000

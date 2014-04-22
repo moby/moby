@@ -4,25 +4,23 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, 
 
 # Ubuntu
 
-Warning
+> **Warning**: 
+> These instructions have changed for 0.6. If you are upgrading from an
+> earlier version, you will need to follow them again.
 
-These instructions have changed for 0.6. If you are upgrading from an
-earlier version, you will need to follow them again.
-
-Note
-
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Docker is supported on the following versions of Ubuntu:
 
--   [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise)
+-   [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise-1204-lts-64-bit)
 -   [*Ubuntu Raring 13.04 and Saucy 13.10 (64
-    bit)*](#ubuntu-raring-saucy)
+    bit)*](#ubuntu-raring-1304-and-saucy-1310-64-bit)
 
-Please read [*Docker and UFW*](#ufw), if you plan to use [UFW
+Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 (Uncomplicated Firewall)](https://help.ubuntu.com/community/UFW)
 
 ## Ubuntu Precise 12.04 (LTS) (64-bit)
@@ -50,13 +48,12 @@ kernel. But it is safer to include them if you’re not sure.
 
 ### Installation
 
-Warning
-
-These instructions have changed for 0.6. If you are upgrading from an
-earlier version, you will need to follow them again.
+> **Warning**: 
+> These instructions have changed for 0.6. If you are upgrading from an
+> earlier version, you will need to follow them again.
 
 Docker is available as a Debian package, which makes installation easy.
-**See the** [*Mirrors*](#installmirrors) **section below if you are not
+**See the** [*Mirrors*](#mirrors) **section below if you are not
 in the United States.** Other sources of the Debian packages may be
 faster for you to install.
 
@@ -85,12 +82,11 @@ continue installation.*
     sudo apt-get update
     sudo apt-get install lxc-docker
 
-Note
-
-There is also a simple `curl` script available to
-help with this process.
-
-    curl -s https://get.docker.io/ubuntu/ | sudo sh
+> **Note**:
+> 
+> There is also a simple `curl` script available to help with this process.
+> 
+>     curl -s https://get.docker.io/ubuntu/ | sudo sh
 
 Now verify that the installation has worked by downloading the
 `ubuntu` image and launching a container.
@@ -124,10 +120,9 @@ To make sure AUFS is installed, run the following commands:
 
 Docker is available as a Debian package, which makes installation easy.
 
-Warning
-
-Please note that these instructions have changed for 0.6. If you are
-upgrading from an earlier version, you will need to follow them again.
+> **Warning**: 
+> Please note that these instructions have changed for 0.6. If you are
+> upgrading from an earlier version, you will need to follow them again.
 
 First add the Docker repository key to your local keychain.
 
@@ -170,11 +165,10 @@ all the client commands. As of 0.9.0, you can specify that a group other
 than `docker` should own the Unix socket with the
 `-G` option.
 
-Warning
-
-The *docker* group (or the group specified with `-G`
-.literal}) is root-equivalent; see [*Docker Daemon Attack
-Surface*](../../articles/security/#dockersecurity-daemon) details.
+> **Warning**: 
+> The *docker* group (or the group specified with `-G`) is
+> root-equivalent; see [*Docker Daemon Attack Surface*](
+> ../../articles/security/#dockersecurity-daemon) details.
 
 **Example:**
 
@@ -286,10 +280,9 @@ The Docker daemon has to be restarted:
 
     sudo restart docker
 
-Warning
-
-If you’re doing this on a laptop which connects to various networks,
-make sure to choose a public DNS server.
+> **Warning**: 
+> If you’re doing this on a laptop which connects to various networks,
+> make sure to choose a public DNS server.
 
 An alternative solution involves disabling dnsmasq in NetworkManager by
 following these steps:
@@ -306,9 +299,7 @@ NetworkManager and Docker need to be restarted afterwards:
     sudo restart network-manager
     sudo restart docker
 
-Warning
-
-This might make DNS resolution slower on some networks.
+> **Warning**: This might make DNS resolution slower on some networks.
 
 ## Mirrors
 

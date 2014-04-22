@@ -30,17 +30,14 @@ This will find the `ubuntu` image by name in the
 download it from the top-level Central Repository to a local image
 cache.
 
-Note
+> **Note**:
+> When the image has successfully downloaded, you will see a 12 character
+> hash `539c0211cd76: Download complete` which is the
+> short form of the image ID. These short image IDs are the first 12
+> characters of the full image ID - which can be found using
+> `docker inspect` or `docker images --no-trunc=true`
 
-When the image has successfully downloaded, you will see a 12 character
-hash `539c0211cd76: Download complete` which is the
-short form of the image ID. These short image IDs are the first 12
-characters of the full image ID - which can be found using
-`docker inspect` or
-`docker images --no-trunc=true`
-
-**If you’re using OS X** then you shouldn’t use `sudo`
-.literal}
+**If you’re using OS X** then you shouldn’t use `sudo`.
 
 ## Running an interactive shell
 
@@ -53,14 +50,13 @@ characters of the full image ID - which can be found using
 
 ## Bind Docker to another host/port or a Unix socket
 
-Warning
-
-Changing the default `docker` daemon binding to a
-TCP port or Unix *docker* user group will increase your security risks
-by allowing non-root users to gain *root* access on the host. Make sure
-you control access to `docker`. If you are binding
-to a TCP port, anyone with access to that port has full Docker access;
-so it is not advisable on an open network.
+> **Warning**: 
+> Changing the default `docker` daemon binding to a
+> TCP port or Unix *docker* user group will increase your security risks
+> by allowing non-root users to gain *root* access on the host. Make sure
+> you control access to `docker`. If you are binding
+> to a TCP port, anyone with access to that port has full Docker access;
+> so it is not advisable on an open network.
 
 With `-H` it is possible to make the Docker daemon
 to listen on a specific IP and port. By default, it will listen on

@@ -42,6 +42,7 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	libcap-dev \
 	libsqlite3-dev \
 	mercurial \
+	pandoc \
 	reprepro \
 	ruby1.9.1 \
 	ruby1.9.1-dev \

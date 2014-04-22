@@ -4,13 +4,13 @@ page_keywords: docker, example, package installation, networking, redis
 
 # Redis Service
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
+> **Note**:
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup)
 
 Very simple, no frills, Redis service attached to a web application
 using a link.

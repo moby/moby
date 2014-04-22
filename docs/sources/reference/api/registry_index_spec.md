@@ -183,10 +183,9 @@ and for an active account.
         :   (for each image id returned in the registry, fetch /json +
             /layer)
 
-Note
-
-If someone makes a second request, then we will always give a new token,
-never reuse tokens.
+> **Note**:
+> If someone makes a second request, then we will always give a new token,
+> never reuse tokens.
 
 ### Push
 
@@ -333,11 +332,10 @@ nice clean way to do that. Here is the workflow.
 6.  docker contacts the index to let it know it was removed from the
     registry, the index removes all records from the database.
 
-Note
-
-The Docker client should present an "Are you sure?" prompt to confirm
-the deletion before starting the process. Once it starts it can’t be
-undone.
+> **Note**:
+> The Docker client should present an "Are you sure?" prompt to confirm
+> the deletion before starting the process. Once it starts it can’t be
+> undone.
 
 #### API (deleting repository foo/bar):
 
@@ -486,10 +484,9 @@ Errors: HTTP 400 (we should create error codes for possible errors) -
 invalid json - missing field - wrong format (username, password, email,
 etc) - forbidden name - name already exists
 
-Note
-
-A user account will be valid only if the email has been validated (a
-validation link is sent to the email address).
+> **Note**:
+> A user account will be valid only if the email has been validated (a
+> validation link is sent to the email address).
 
 ### Update a user (Index)
 
@@ -498,10 +495,9 @@ PUT /v1/users/\<username\>
 **Body**:
 :   {"password": "toto"}
 
-Note
-
-We can also update email address, if they do, they will need to reverify
-their new email address.
+> **Note**:
+> We can also update email address, if they do, they will need to reverify
+> their new email address.
 
 ### Login (Index)
 
@@ -648,17 +644,20 @@ You have 3 options:
     >     - X-Docker-Token: Token
     >         signature=123abc,repository=”foo/bar”,access=read
     >
+
 2.  Provide user credentials only
 
     > **Header**:
     > :   Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
     >
+
 3.  Provide Token
 
     > **Header**:
     > :   Authorization: Token
     >     signature=123abc,repository=”foo/bar”,access=read
     >
+
 ### 6.2 On the Registry
 
 The Registry only supports the Token challenge:

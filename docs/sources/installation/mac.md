@@ -4,17 +4,15 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linu
 
 # Mac OS X
 
-Note
+> **Note**:
+> These instructions are available with the new release of Docker (version
+> 0.8). However, they are subject to change.
 
-These instructions are available with the new release of Docker (version
-0.8). However, they are subject to change.
-
-Note
-
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Docker is supported on Mac OS X 10.6 "Snow Leopard" or newer.
 
@@ -86,6 +84,7 @@ Run the following commands to get it downloaded and set up:
     export DOCKER_HOST=tcp://127.0.0.1:4243
 
     # Copy the executable file
+    sudo mkdir -p /usr/local/bin
     sudo cp docker /usr/local/bin/
 
 And that’s it! Let’s check out how to use it.

@@ -4,19 +4,17 @@ page_keywords: frugalware linux, virtualization, docker, documentation, installa
 
 # FrugalWare
 
-Note
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
-
-Note
-
-This is a community contributed installation path. The only ‘official’
-installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-installation path. This version may be out of date because it depends on
-some binaries to be updated and published
+> **Note**:
+> This is a community contributed installation path. The only ‘official’
+> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+> installation path. This version may be out of date because it depends on
+> some binaries to be updated and published
 
 Installing on FrugalWare is handled via the official packages:
 

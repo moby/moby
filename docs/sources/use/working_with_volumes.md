@@ -94,24 +94,24 @@ upgrade, or effectively migrate data volumes between containers.
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
 
-You must specify an absolute path for `host-dir`. If
-`host-dir` is missing from the command, then docker
-creates a new volume. If `host-dir` is present but
-points to a non-existent directory on the host, Docker will
-automatically create this directory and use it as the source of the
-bind-mount.
+You must specify an absolute path for `host-dir`. If `host-dir` is missing from
+the command, then Docker creates a new volume. If `host-dir` is present but
+points to a non-existent directory on the host, Docker will automatically
+create this directory and use it as the source of the bind-mount.
 
-Note that this is not available from a Dockerfile due the portability
-and sharing purpose of it. The `host-dir` volumes
-are entirely host-dependent and might not work on any other machine.
+Note that this is not available from a Dockerfile due the portability and
+sharing purpose of it. The `host-dir` volumes are entirely host-dependent
+and might not work on any other machine.
 
 For example:
 
-    sudo docker run -t -i -v /var/logs:/var/host_logs:ro ubuntu bash
+    # Usage:
+    # sudo docker run [OPTIONS] -v /(dir. on host):/(dir. in container):(Read-Write or Read-Only) [ARG..]
+    # Example:
+    sudo docker run -i -t -v /var/log:/logs_from_host:ro ubuntu bash
 
-The command above mounts the host directory `/var/logs`
-into the container with read only permissions as
-`/var/host_logs`.
+The command above mounts the host directory `/var/log` into the container
+with *read only* permissions as `/logs_from_host`.
 
 New in version v0.5.0.
 
@@ -154,7 +154,7 @@ elsewhere:
 
     # create a new data container
     $ sudo docker run -v /data -name DATA2 busybox true
-    # untar the backup files into the new container's data volume
+    # untar the backup files into the new container᾿s data volume
     $ sudo docker run -rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
     data/
     data/sven.txt

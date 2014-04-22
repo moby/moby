@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -383,4 +387,281 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - multiple volumes from")
+}
+
+// this tests verifies the ID format for the container
+func TestVerifyContainerID(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, exit, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exit != 0 {
+		t.Fatalf("expected exit code 0 received %d", exit)
+	}
+	match, err := regexp.MatchString("^[0-9a-f]{64}$", strings.TrimSuffix(out, "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !match {
+		t.Fatalf("Invalid container ID: %s", out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - verify container ID")
+}
+
+// Test that creating a container with a volume doesn't crash. Regression test for #995.
+func TestCreateVolume(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/var/lib/data", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - create docker mangaed volume")
+}
+
+func TestExitCode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "/bin/sh", "-c", "exit 72")
+
+	exit, err := runCommand(cmd)
+	if err == nil {
+		t.Fatal("should not have a non nil error")
+	}
+	if exit != 72 {
+		t.Fatalf("expected exit code 72 received %d", exit)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - correct exit code")
+}
+
+func TestUserDefaultsToRoot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root)") {
+		t.Fatalf("expected root user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - default user")
+}
+
+func TestUserByName(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "root", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root)") {
+		t.Fatalf("expected root user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by name")
+}
+
+func TestUserByID(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "1", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=1(daemon) gid=1(daemon)") {
+		t.Fatalf("expected daemon user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id")
+}
+
+func TestUserNotFound(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "notme", "busybox", "id")
+
+	_, err := runCommand(cmd)
+	if err == nil {
+		t.Fatal("unknown user should cause container to fail")
+	}
+	deleteAllContainers()
+
+	logDone("run - user not found")
+}
+
+func TestRunTwoConcurrentContainers(t *testing.T) {
+	group := sync.WaitGroup{}
+	group.Add(2)
+
+	for i := 0; i < 2; i++ {
+		go func() {
+			defer group.Done()
+			cmd := exec.Command(dockerBinary, "run", "busybox", "sleep", "2")
+			if _, err := runCommand(cmd); err != nil {
+				t.Fatal(err)
+			}
+		}()
+	}
+
+	group.Wait()
+
+	deleteAllContainers()
+
+	logDone("run - two concurrent containers")
+}
+
+func TestEnvironment(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "busybox", "env")
+	cmd.Env = append(os.Environ(),
+		"TRUE=false",
+		"TRICKY=tri\ncky\n",
+	)
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualEnv := strings.Split(out, "\n")
+	if actualEnv[len(actualEnv)-1] == "" {
+		actualEnv = actualEnv[:len(actualEnv)-1]
+	}
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/",
+		"HOSTNAME=testing",
+		"FALSE=true",
+		"TRUE=false",
+		"TRICKY=tri",
+		"cky",
+		"",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		t.Fatalf("Wrong environment: should be %d variables, not: '%s'\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+
+	deleteAllContainers()
+
+	logDone("run - verify environment")
+}
+
+func TestContainerNetwork(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "ping", "-c", "1", "127.0.0.1")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test container network via ping")
+}
+
+// Issue #4681
+func TestLoopbackWhenNetworkDisabled(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ping", "-c", "1", "127.0.0.1")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test container loopback when networking disabled")
+}
+
+func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ip", "a", "show", "up")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(out, -1)
+	if len(interfaces) != 1 {
+		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
+	}
+	if !strings.HasSuffix(interfaces[0], ": lo") {
+		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test loopback only exists when networking disabled")
+}
+
+func TestPrivilegedCanMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test privileged can mknod")
+}
+
+func TestUnPrivilegedCanMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test un-privileged can mknod")
+}
+
+func TestPrivilegedCanMount(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test privileged can mount")
+}
+
+func TestUnPrivilegedCannotMount(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test un-privileged cannot mount")
 }

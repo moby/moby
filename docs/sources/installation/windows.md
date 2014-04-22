@@ -10,12 +10,11 @@ that’s where Docker will run.
 
 ## Installation
 
-Note
-
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 1.  Install virtualbox from
     [https://www.virtualbox.org](https://www.virtualbox.org) - or follow
@@ -26,11 +25,11 @@ our blog post, ["Getting to Docker
 3.  Start VirtualBox.
 4.  Create a new Virtual machine with the following settings:
 
-> -   Name: boot2docker
-> -   Type: Linux
-> -   Version: Linux 2.6 (64 bit)
-> -   Memory size: 1024 MB
-> -   Hard drive: Do not add a virtual hard drive
+> - Name: boot2docker
+> - Type: Linux
+> - Version: Linux 2.6 (64 bit)
+> - Memory size: 1024 MB
+> - Hard drive: Do not add a virtual hard drive
 
 5.  Open the settings of the virtual machine:
 

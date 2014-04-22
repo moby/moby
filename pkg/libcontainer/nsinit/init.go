@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"

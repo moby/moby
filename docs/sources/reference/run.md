@@ -46,8 +46,8 @@ and nearly all the defaults set by the Docker runtime itself.
 
 ## [Operator Exclusive Options](#id4)
 
-Only the operator (the person executing `docker run`
-.literal}) can set the following options.
+Only the operator (the person executing `docker run`) can set the
+following options.
 
 -   [Detached vs Foreground](#detached-vs-foreground)
     -   [Detached (-d)](#detached-d)
@@ -72,14 +72,12 @@ default foreground mode:
 
 #### [Detached (-d)](#id3)
 
-In detached mode (`-d=true` or just `-d`
-.literal}), all I/O should be done through network connections or shared
-volumes because the container is no longer listening to the commandline
-where you executed `docker run`. You can reattach to
-a detached container with `docker`
+In detached mode (`-d=true` or just `-d`), all I/O should be done
+through network connections or shared volumes because the container is
+no longer listening to the commandline where you executed `docker run`.
+You can reattach to a detached container with `docker`
 [*attach*](../commandline/cli/#cli-attach). If you choose to run a
-container in the detached mode, then you cannot use the `--rm`
-option.
+container in the detached mode, then you cannot use the `--rm` option.
 
 #### [Foreground](#id4)
 
@@ -196,12 +194,12 @@ by default a container is not allowed to access any devices, but a
 and documentation on [cgroups
 devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
-When the operator executes `docker run --privileged`
-.literal}, Docker will enable to access to all devices on the host as
-well as set some configuration in AppArmor to allow the container nearly
-all the same access to the host as processes running outside containers
-on the host. Additional information about running with
-`--privileged` is available on the [Docker
+When the operator executes `docker run --privileged`, Docker will enable
+to access to all devices on the host as well as set some configuration
+in AppArmor to allow the container nearly all the same access to the
+host as processes running outside containers on the host. Additional
+information about running with `--privileged` is available on the
+[Docker
 Blog](http://blog.docker.io/2013/09/docker-can-now-run-within-docker/).
 
 If the Docker daemon was started using the `lxc`
@@ -259,19 +257,17 @@ as arguments to the `ENTRYPOINT`.
 
     --entrypoint="": Overwrite the default entrypoint set by the image
 
-The ENTRYPOINT of an image is similar to a `COMMAND`
-because it specifies what executable to run when the container starts,
-but it is (purposely) more difficult to override. The
-`ENTRYPOINT` gives a container its default nature or
-behavior, so that when you set an `ENTRYPOINT` you
-can run the container *as if it were that binary*, complete with default
-options, and you can pass in more options via the `COMMAND`
-.literal}. But, sometimes an operator may want to run something else
-inside the container, so you can override the default
-`ENTRYPOINT` at runtime by using a string to specify
-the new `ENTRYPOINT`. Here is an example of how to
-run a shell in a container that has been set up to automatically run
-something else (like `/usr/bin/redis-server`):
+The ENTRYPOINT of an image is similar to a `COMMAND` because it
+specifies what executable to run when the container starts, but it is
+(purposely) more difficult to override. The `ENTRYPOINT` gives a
+container its default nature or behavior, so that when you set an
+`ENTRYPOINT` you can run the container *as if it were that binary*,
+complete with default options, and you can pass in more options via the
+`COMMAND`. But, sometimes an operator may want to run something else
+inside the container, so you can override the default `ENTRYPOINT` at
+runtime by using a string to specify the new `ENTRYPOINT`. Here is an
+example of how to run a shell in a container that has been set up to
+automatically run something else (like `/usr/bin/redis-server`):
 
     docker run -i -t --entrypoint /bin/bash example/redis
 
@@ -291,7 +287,7 @@ services. The following options work with or override the
     --expose=[]: Expose a port from the container
                 without publishing it to your host
     -P=false   : Publish all exposed ports to the host interfaces
-    -p=[]      : Publish a container's port to the host (format:
+    -p=[]      : Publish a container᾿s port to the host (format:
                  ip:hostPort:containerPort | ip::containerPort |
                  hostPort:containerPort)
                  (use 'docker port' to see the actual mapping)
@@ -330,8 +326,7 @@ port to use.
 
 The operator can **set any environment variable** in the container by
 using one or more `-e` flags, even overriding those
-already defined by the developer with a Dockefile `ENV`
-.literal}:
+already defined by the developer with a Dockefile `ENV`:
 
     $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
     declare -x HOME="/"
@@ -343,8 +338,7 @@ already defined by the developer with a Dockefile `ENV`
     declare -x container="lxc"
     declare -x deep="purple"
 
-Similarly the operator can set the **hostname** with `-h`
-.literal}.
+Similarly the operator can set the **hostname** with `-h`.
 
 `--link name:alias` also sets environment variables,
 using the *alias* string to define environment variables within the
@@ -360,7 +354,7 @@ service container. Let’s imagine we have a container running Redis:
     CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
     4241164edf6f        dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
-    # Note that there are no public ports exposed since we didn't use -p or -P
+    # Note that there are no public ports exposed since we didn᾿t use -p or -P
     $ docker port 4241164edf6f 6379
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 

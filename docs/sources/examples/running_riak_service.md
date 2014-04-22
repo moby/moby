@@ -4,13 +4,13 @@ page_keywords: docker, example, package installation, networking, riak
 
 # Riak Service
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
+> **Note**:
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup)
 
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.
@@ -101,8 +101,7 @@ are started:
 ## Create a `supervisord` configuration file
 
 Create an empty file called `supervisord.conf`. Make
-sure it’s at the same directory level as your `Dockerfile`
-.literal}:
+sure it’s at the same directory level as your `Dockerfile`:
 
     touch supervisord.conf
 

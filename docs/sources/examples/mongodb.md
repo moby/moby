@@ -4,13 +4,13 @@ page_keywords: docker, example, package installation, networking, mongodb
 
 # Building an Image with MongoDB
 
-Note
-
--   This example assumes you have Docker running in daemon mode. For
-    more information please see [*Check your Docker
-    install*](../hello_world/#running-examples).
--   **If you don’t like sudo** then see [*Giving non-root
-    access*](../../installation/binaries/#dockergroup)
+> **Note**: 
+> 
+> - This example assumes you have Docker running in daemon mode. For
+>   more information please see [*Check your Docker
+>   install*](../hello_world/#running-examples).
+> - **If you don’t like sudo** then see [*Giving non-root
+>   access*](../../installation/binaries/#dockergroup)
 
 The goal of this example is to show how you can build your own Docker
 images with MongoDB pre-installed. We will do that by constructing a

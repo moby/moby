@@ -7,6 +7,10 @@ import (
 )
 
 type (
+	writeCloseReader interface {
+		io.Writer
+		closeReader
+	}
 	closeReader interface {
 		CloseRead() error
 	}
@@ -37,11 +41,12 @@ func NewProxy(frontendAddr, backendAddr net.Addr) (Proxy, error) {
 	}
 }
 
-func goTransfert(dst io.Writer, src io.Reader) chan error {
-	c := make(chan error)
+func goTransfert(dst writeCloseReader, src io.Reader) <-chan error {
+	c := make(chan error, 1)
 	go func() {
+		defer close(c)
 		_, err := io.Copy(dst, src)
-		e1 := dst.(closeReader).CloseRead()
+		e1 := dst.CloseRead()
 		if err != nil {
 			c <- err
 		} else {

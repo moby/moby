@@ -4,12 +4,11 @@ page_keywords: binaries, installation, docker, documentation, linux
 
 # Binaries
 
-Note
-
-Docker is still under heavy development! We don’t recommend using it in
-production yet, but we’re getting closer with each release. Please see
-our blog post, ["Getting to Docker
-1.0"](http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+> **Note**:
+> Docker is still under heavy development! We don’t recommend using it in
+> production yet, but we’re getting closer with each release. Please see
+> our blog post, [Getting to Docker 1.0](
+> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 **This instruction set is meant for hackers who want to try out Docker
 on a variety of environments.**
@@ -25,6 +24,7 @@ runtime:
 
 -   iptables version 1.4 or later
 -   Git version 1.7 or later
+-   procps (or similar provider of a "ps" executable)
 -   XZ Utils 4.9 or later
 -   a [properly
     mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
@@ -49,11 +49,11 @@ Linux kernel (it even builds on OSX!).
     wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
     chmod +x docker
 
-Note
-
-If you have trouble downloading the binary, you can also get the smaller
-compressed release file:
-[https://get.docker.io/builds/Linux/x86\_64/docker-latest.tgz](https://get.docker.io/builds/Linux/x86_64/docker-latest.tgz)
+> **Note**:
+> If you have trouble downloading the binary, you can also get the smaller
+> compressed release file:
+> [https://get.docker.io/builds/Linux/x86\_64/docker-latest.tgz](
+> https://get.docker.io/builds/Linux/x86_64/docker-latest.tgz)
 
 ## Run the docker daemon
 
@@ -77,11 +77,10 @@ but if you run the `docker` client as a user in the
 *docker* group then you don’t need to add `sudo` to
 all the client commands.
 
-Warning
-
-The *docker* group (or the group specified with `-G`
-.literal}) is root-equivalent; see [*Docker Daemon Attack
-Surface*](../../articles/security/#dockersecurity-daemon) details.
+> **Warning**: 
+> The *docker* group (or the group specified with `-G`) is root-equivalent;
+> see [*Docker Daemon Attack Surface*](
+> ../../articles/security/#dockersecurity-daemon) details.
 
 ## Upgrades
 

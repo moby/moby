@@ -15,10 +15,9 @@ In daemon mode, it will only allow connections from clients
 authenticated by a certificate signed by that CA. In client mode, it
 will only connect to servers with a certificate signed by that CA.
 
-Warning
-
-Using TLS and managing a CA is an advanced topic. Please make you self
-familiar with openssl, x509 and tls before using it in production.
+> **Warning**: 
+> Using TLS and managing a CA is an advanced topic. Please make you self
+> familiar with openssl, x509 and tls before using it in production.
 
 ## Create a CA, server and client keys with OpenSSL
 
@@ -76,15 +75,14 @@ need to provide your client keys, certificates and trusted CA:
     $ docker --tlsverify --tlscacert=ca.pem --tlscert=client-cert.pem --tlskey=client-key.pem \
       -H=dns-name-of-docker-host:4243
 
-Warning
-
-As shown in the example above, you don’t have to run the
-`docker` client with `sudo` or
-the `docker` group when you use certificate
-authentication. That means anyone with the keys can give any
-instructions to your Docker daemon, giving them root access to the
-machine hosting the daemon. Guard these keys as you would a root
-password!
+> **Warning**: 
+> As shown in the example above, you don’t have to run the
+> `docker` client with `sudo` or
+> the `docker` group when you use certificate
+> authentication. That means anyone with the keys can give any
+> instructions to your Docker daemon, giving them root access to the
+> machine hosting the daemon. Guard these keys as you would a root
+> password!
 
 ## Other modes
 

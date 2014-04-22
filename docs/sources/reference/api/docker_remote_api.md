@@ -269,10 +269,9 @@ Builder (/build):
     intermediary buffers
 -   Simpler, less memory usage, less disk usage and faster
 
-Warning
-
-The /build improvements are not reverse-compatible. Pre 1.3 clients will
-break on /build.
+> **Warning**: 
+> The /build improvements are not reverse-compatible. Pre 1.3 clients will
+> break on /build.
 
 List containers (/containers/json):
 

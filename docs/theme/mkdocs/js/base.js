@@ -1,6 +1,9 @@
 $(document).ready(function ()
 {
 
+  // Detect if the device is "touch" capable
+  var isTouchDevice = (('ontouchstart' in window) || (navigator.msMaxTouchPoints > 0));
+
   // Tipue Search activation
   $('#tipue_search_input').tipuesearch({
     'mode': 'json',
@@ -30,13 +33,35 @@ $(document).ready(function ()
   });
 
   /* Toggle TOC view for Mobile */
-  $('#toc_table').on('click', function ()
+  $('#toc_table > h2').on('click', function ()
   {
     if ( $(window).width() <= 991 )
     {
       $('#toc_table > #toc_navigation').slideToggle();
     }
-  })
+  });
+
+  // Submenu ensured drop-down functionality for desktops & mobiles
+  $('.dd_menu').on({
+    click: function ()
+    {
+      if (isTouchDevice)
+      {
+        $(this).toggleClass('dd_on_hover');
+      }
+    },
+    mouseenter: function ()
+    {
+      if (!isTouchDevice)
+      {
+        $(this).addClass('dd_on_hover');
+      }
+    },
+    mouseleave: function ()
+    {
+      $(this).removeClass('dd_on_hover');
+    },
+  });
 
   /* Follow TOC links (ScrollSpy) */
   $('body').scrollspy({
@@ -61,6 +86,9 @@ function checkToScrollTOC ()
 {
   if ( $(window).width() >= 768 )
   {
+    // If TOC is hidden, expand.
+    $('#toc_table > #toc_navigation').css("display", "block");
+    // Then attach or detach fixed-scroll
     if ( ($('#toc_table').height() + 100) >= $(window).height() )
     {
       $('#toc_table').trigger('detach.ScrollToFixed');

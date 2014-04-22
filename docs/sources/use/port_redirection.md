@@ -62,9 +62,8 @@ combinations of options for TCP port are the following:
     # Bind TCP port 8080 of the container to a dynamically allocated TCP port on all available interfaces of the host machine.
     docker run -p 8080 <image> <cmd>
 
-UDP ports can also be bound by adding a trailing `/udp`
-.literal}. All the combinations described for TCP work. Here is only one
-example:
+UDP ports can also be bound by adding a trailing `/udp`. All the
+combinations described for TCP work. Here is only one example:
 
     # Bind UDP port 5353 of the container to UDP port 53 on 127.0.0.1 of the host machine.
     docker run -p 127.0.0.1:53:5353/udp <image> <cmd>
@@ -74,7 +73,7 @@ port on the host machine bound to a given container port. It is useful
 when using dynamically allocated ports:
 
     # Bind to a dynamically allocated port
-    docker run -p 127.0.0.1::8080 -name dyn-bound <image> <cmd>
+    docker run -p 127.0.0.1::8080 --name dyn-bound <image> <cmd>
 
     # Lookup the actual port
     docker port dyn-bound 8080
@@ -112,16 +111,14 @@ a Dockerfile:
     # Expose port 80
     docker run --expose 80 --name server <image> <cmd>
 
-The `client` then links to the `server`
-.literal}:
+The `client` then links to the `server`:
 
     # Link
     docker run --name client --link server:linked-server <image> <cmd>
 
 `client` locally refers to `server`
 as `linked-server`. The following
-environment variables, among others, are available on `client`
-.literal}:
+environment variables, among others, are available on `client`:
 
     # The default protocol, ip, and port of the service running in the container
     LINKED-SERVER_PORT=tcp://172.17.0.8:80

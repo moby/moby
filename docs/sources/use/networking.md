@@ -28,11 +28,10 @@ managed by Docker for this purpose. When the Docker daemon starts it :
          inet addr:172.17.42.1  Bcast:0.0.0.0  Mask:255.255.0.0
 
 At runtime, a [*specific kind of virtual interface*](#vethxxxx-device)
-is given to each container which is then bonded to the
-`docker0` bridge. Each container also receives a
-dedicated IP address from the same range as `docker0`
-.literal}. The `docker0` IP address is used as the
-default gateway for the container.
+is given to each container which is then bonded to the `docker0` bridge.
+Each container also receives a dedicated IP address from the same range
+as `docker0`. The `docker0` IP address is used as the default gateway
+for the container.
 
     # Run a container
     $ sudo docker run -t -i -d base /bin/bash
@@ -42,9 +41,8 @@ default gateway for the container.
     bridge      name    bridge id               STP enabled     interfaces
     docker0             8000.fef213db5a66       no              vethQCDY1N
 
-Above, `docker0` acts as a bridge for the
-`vethQCDY1N` interface which is dedicated to the
-52f811c5d3d6 container.
+Above, `docker0` acts as a bridge for the `vethQCDY1N` interface which
+is dedicated to the 52f811c5d3d6 container.
 
 ## How to use a specific IP address range
 

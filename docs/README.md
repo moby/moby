@@ -17,20 +17,21 @@ documentation.
 ## Branches
 
 **There are two branches related to editing docs**: ``master`` and a
-``doc*`` branch (currently ``doc0.8.1``). You should normally edit
-docs on a local branch of the ``master`` branch. That way your fixes 
+``docs`` branch. You should always edit
+docs on a local branch of the ``master`` branch, and send a PR against ``master``. 
+That way your fixes 
 will automatically get included in later releases, and docs maintainers 
-can easily cherry-pick your changes to bring over to the current docs 
-branch. In the rare case where your change is not forward-compatible, 
-then you could base your change on the appropriate ``doc*`` branch.
+can easily cherry-pick your changes into the ``docs`` release branch. 
+In the rare case where your change is not forward-compatible, 
+you may need to base your changes on the ``docs`` branch.
 
-Now that we have a ``doc*`` branch, we can keep the ``latest`` docs
+Now that we have a ``docs`` branch, we can keep the [http://docs.docker.io](http://docs.docker.io) docs
 up to date with any bugs found between ``docker`` code releases.
 
-**Warning**: When *reading* the docs, the ``master`` documentation may
+**Warning**: When *reading* the docs, the [http://beta-docs.docker.io](http://beta-docs.docker.io) documentation may
 include features not yet part of any official docker
-release. ``Master`` docs should be used only for understanding
-bleeding-edge development and ``latest`` (which points to the ``doc*``
+release. The ``beta-docs`` site should be used only for understanding
+bleeding-edge development and ``docs.docker.io`` (which points to the ``docs``
 branch``) should be used for the latest official release.
 
 Getting Started
@@ -38,7 +39,7 @@ Getting Started
 
 Docker documentation builds are done in a docker container, which installs all
 the required tools, adds the local ``docs/`` directory and builds the HTML
-docs. It then starts a simple HTTP server on port 8000 so that you can connect 
+docs. It then starts a HTTP server on port 8000 so that you can connect 
 and see your changes.
 
 In the ``docker`` source directory, run:

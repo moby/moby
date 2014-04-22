@@ -135,8 +135,7 @@ the `-e` command line option.
 
 `--expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379`
 will forward the local `1234` port to the
-remote IP and port - in this case `192.168.1.52:6379`
-.literal}.
+remote IP and port - in this case `192.168.1.52:6379`.
 
     #
     #
