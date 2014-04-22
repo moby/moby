@@ -4,7 +4,13 @@ set -e
 # bits of this were adapted from lxc-checkconfig
 # see also https://github.com/lxc/lxc/blob/lxc-1.0.2/src/lxc/lxc-checkconfig.in
 
-: ${CONFIG:=/proc/config.gz}
+possibleConfigs=(
+	'/proc/config.gz'
+	"/boot/config-$(uname -r)"
+	"/usr/src/linux-$(uname -r)/.config"
+	'/usr/src/linux/.config'
+)
+: ${CONFIG:="${possibleConfigs[0]}"}
 
 if ! command -v zgrep &> /dev/null; then
 	zgrep() {
@@ -74,11 +80,7 @@ check_flags() {
 
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config..."
-	for tryConfig in \
-		'/proc/config.gz' \
-		"/boot/config-$(uname -r)" \
-		'/usr/src/linux/.config' \
-	; do
+	for tryConfig in "${possibleConfigs[@]}"; do
 		if [ -e "$tryConfig" ]; then
 			CONFIG="$tryConfig"
 			break
