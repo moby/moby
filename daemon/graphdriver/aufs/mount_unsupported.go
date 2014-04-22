@@ -1,4 +1,5 @@
-// +build !linux !amd64
+// +build !amd64,!arm
+// +build !linux
 
 package aufs
 
