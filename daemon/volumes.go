@@ -61,28 +61,53 @@ func setupMountsForContainer(container *Container) error {
 	return nil
 }
 
+func parseVolumesFrom(volumeFrom string) (mountRW bool, volPath string, mountPath string, err error) {
+	volSpec := strings.SplitN(volumeFrom, ":", 4)
+	mountRW = true
+	switch len(volSpec) {
+	case 0:
+		err = fmt.Errorf("Malformed volumes-from specification: %s", volSpec)
+	case 2:
+		switch volSpec[1] {
+		case "ro":
+			mountRW = false
+		case "rw": // mountRW is already true
+		default:
+			volPath = volSpec[1]
+			mountPath = volPath
+		}
+	case 3:
+		switch volSpec[2] {
+		case "ro":
+			mountRW = false
+		case "rw": // mountRW is already true
+		default:
+			mountPath = volSpec[2]
+		}
+		volPath = volSpec[1]
+	case 4:
+		switch volSpec[3] {
+		case "ro":
+			mountRW = false
+		case "rw": // mountRW is already true
+		default:
+			err = fmt.Errorf("Malformed volumes-from specification: %s", volSpec)
+		}
+		volPath = volSpec[1]
+		mountPath = volSpec[2]
+	}
+	return mountRW, volPath, mountPath, err
+}
+
 func applyVolumesFrom(container *Container) error {
 	volumesFrom := container.hostConfig.VolumesFrom
 	if len(volumesFrom) > 0 {
 		for _, containerSpec := range volumesFrom {
-			var (
-				mountRW   = true
-				specParts = strings.SplitN(containerSpec, ":", 2)
-			)
-
-			switch len(specParts) {
-			case 0:
-				return fmt.Errorf("Malformed volumes-from specification: %s", containerSpec)
-			case 2:
-				switch specParts[1] {
-				case "ro":
-					mountRW = false
-				case "rw": // mountRW is already true
-				default:
-					return fmt.Errorf("Malformed volumes-from specification: %s", containerSpec)
-				}
+			mountRW, volPath, mountPath, err := parseVolumesFrom(containerSpec)
+			if err != nil {
+				return err
 			}
-
+			specParts := strings.SplitN(containerSpec, ":", 2)
 			c := container.daemon.Get(specParts[0])
 			if c == nil {
 				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", specParts[0])
@@ -93,6 +118,7 @@ func applyVolumesFrom(container *Container) error {
 			}
 			defer c.Unmount()
 
+<<<<<<< HEAD
 			for volPath, id := range c.Volumes {
 				if _, exists := container.Volumes[volPath]; exists {
 					continue
@@ -110,9 +136,40 @@ func applyVolumesFrom(container *Container) error {
 				container.Volumes[volPath] = id
 				if isRW, exists := c.VolumesRW[volPath]; exists {
 					container.VolumesRW[volPath] = isRW && mountRW
+=======
+			if volPath != "" {
+				if _, exists := container.Volumes[mountPath]; !exists {
+					stat, err := os.Stat(filepath.Join(c.basefs, volPath))
+					if err != nil {
+						return err
+					}
+					if err := createIfNotExists(filepath.Join(container.basefs, mountPath), stat.IsDir()); err != nil {
+						return err
+					}
+					container.Volumes[mountPath] = c.Volumes[volPath]
+					if isRW, exists := c.VolumesRW[volPath]; exists {
+						container.VolumesRW[mountPath] = isRW && mountRW
+					}
+				}
+			} else {
+				for volPath, mountPath := range c.Volumes {
+					if _, exists := container.Volumes[volPath]; exists {
+						continue
+					}
+					stat, err := os.Stat(filepath.Join(c.basefs, volPath))
+					if err := createIfNotExists(filepath.Join(container.basefs, volPath), stat.IsDir()); err != nil {
+						return err
+					}
+					if err != nil {
+						return err
+					}
+					container.Volumes[volPath] = mountPath
+					if isRW, exists := c.VolumesRW[volPath]; exists {
+						container.VolumesRW[volPath] = isRW && mountRW
+					}
+>>>>>>> Add ability to customize volumes-from that get pulled in.
 				}
 			}
-
 		}
 	}
 	return nil

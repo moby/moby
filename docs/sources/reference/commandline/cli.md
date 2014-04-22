@@ -1039,13 +1039,21 @@ optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
 or read-write mode, respectively. By default, the volumes are mounted in
 the same mode (read write or read only) as the reference container.
 
+To mount a single volume from a container instead of all volumes, suffix the
+container ID with the volume path desired. Optionally add a custom mount point in
+container. In the below example the `/foo` volume will be mounted into `/bar` in
+the new container. To mount multiple volumes but not all, use `--volumes-from`
+multiple times with the individual volumes needed.
+
+    $ sudo docker run --volumes-from 777f7dc92da7:/foo:/bar -i -t ubuntu pwd
+
 The `-a` flag tells `docker run` to bind to the container's stdin, stdout or
 stderr. This makes it possible to manipulate the output and input as needed.
 
     $ echo "test" | sudo docker run -i -a stdin ubuntu cat -
 
 This pipes data into a container and prints the container's ID by attaching
-only to the container'sstdin.
+only to the container's stdin.
 
     $ sudo docker run -a stderr ubuntu echo test
 

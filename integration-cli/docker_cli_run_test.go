@@ -407,6 +407,43 @@ func TestMultipleVolumesFrom(t *testing.T) {
 	logDone("run - multiple volumes from")
 }
 
+func TestCustomVolumesFromSelectIndividualVolume(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent1", "-v", "/test", "-v", "/foo", "busybox", "touch", "/test/stuff")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent1:/test", "busybox", "cat", "/test/stuff")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent1:/test", "busybox", "touch", "/foo/foo")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatal("Expected /foo to not exist, but it does")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - mount volumes from individually")
+}
+
+func TestCustomVolumesFromCustomMountPoint(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent1", "-v", "/test", "busybox", "touch", "/test/stuff")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent1:/test:/foo", "busybox", "cat", "/foo/stuff")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - mount volumes from to custom mount point")
+}
+
 // this tests verifies the ID format for the container
 func TestVerifyContainerID(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
