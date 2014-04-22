@@ -1,11 +1,11 @@
-// +build amd64
+// +build amd64 arm
+// +build linux
 
 package netlink
 
 import (
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"syscall"
 	"unsafe"
@@ -878,7 +878,7 @@ func setBridgeMacAddress(s int, name string) error {
 	copy(ifr.IfrnName[:], name)
 
 	for i := 0; i < 6; i++ {
-		ifr.IfruHwaddr.Data[i] = int8(rand.Intn(255))
+		ifr.IfruHwaddr.Data[i] = randHwaddrByte()
 	}
 
 	ifr.IfruHwaddr.Data[0] &^= 0x1 // clear multicast bit

@@ -1,4 +1,5 @@
-// +build linux,amd64
+// +build amd64 arm
+// +build linux
 
 package btrfs
 
@@ -30,7 +31,7 @@ func Init(home string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if buf.Type != 0x9123683E {
+	if buf.Type != btrfsFsType {
 		return nil, fmt.Errorf("%s is not a btrfs filesystem", rootdir)
 	}
 
