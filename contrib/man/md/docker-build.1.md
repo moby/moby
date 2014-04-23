@@ -5,8 +5,8 @@
 docker-build - Build a container image from a Dockerfile source at PATH
 
 # SYNOPSIS
-**docker build** [**--no-cache**[=*false*] [**-q**|**--quiet**[=*false*]
- [**--rm**] [**-t**|**--tag**=*tag*] PATH | URL | -
+**docker build** [**--no-cache**[=*false*]] [**-q**|**--quiet**[=*false*]]
+ [**--rm**] [**-t**|**--tag**=TAG] PATH | URL | -
 
 # DESCRIPTION
 This will read the Dockerfile from the directory specified in **PATH**.
