@@ -12,18 +12,18 @@ binaries, go environment, go dependencies, etc.
 
 ## Install Docker
 
-Docker’s build environment itself is a Docker container, so the first
+Docker's build environment itself is a Docker container, so the first
 step is to install Docker on your system.
 
 You can follow the [install instructions most relevant to your
-system](https://docs.docker.io/en/latest/installation/). Make sure you
+system](https://docs.docker.io/installation/). Make sure you
 have a working, up-to-date docker installation, then continue to the
 next step.
 
 ## Install tools used for this tutorial
 
-Install `git`; honest, it’s very good. You can use
-other ways to get the Docker source, but they’re not anywhere near as
+Install `git`; honest, it's very good. You can use
+other ways to get the Docker source, but they're not anywhere near as
 easy.
 
 Install `make`. This tutorial uses our base Makefile
@@ -56,8 +56,7 @@ To create the Docker binary, run this command:
 
     sudo make binary
 
-This will create the Docker binary in
-`./bundles/<version>-dev/binary/`
+This will create the Docker binary in `./bundles/<version>-dev/binary/`
 
 ### Using your built Docker binary
 
@@ -107,10 +106,10 @@ something like this
     ok      github.com/dotcloud/docker/utils        0.017s
 
 If $TESTFLAGS is set in the environment, it is passed as extra
-arguments to ‘go test’. You can use this to select certain tests to run,
+arguments to `go test`. You can use this to select certain tests to run,
 eg.
 
-> TESTFLAGS=’-run \^TestBuild\$’ make test
+    TESTFLAGS=`-run \^TestBuild\$` make test
 
 If the output indicates "FAIL" and you see errors like this:
 
@@ -118,7 +117,7 @@ If the output indicates "FAIL" and you see errors like this:
 
     utils_test.go:179: Error copy: exit status 1 (cp: writing '/tmp/docker-testd5c9-[...]': No space left on device
 
-Then you likely don’t have enough memory available the test suite. 2GB
+Then you likely don't have enough memory available the test suite. 2GB
 is recommended.
 
 ## Use Docker
@@ -135,13 +134,14 @@ If you want to read the documentation from a local website, or are
 making changes to it, you can build the documentation and then serve it
 by:
 
-        sudo make docs
+    sudo make docs
+    
     # when its done, you can point your browser to http://yourdockerhost:8000
-        # type Ctrl-C to exit
+    # type Ctrl-C to exit
 
 **Need More Help?**
 
-If you need more help then hop on to the [\#docker-dev IRC
+If you need more help then hop on to the [#docker-dev IRC
 channel](irc://chat.freenode.net#docker-dev) or post a message on the
 [Docker developer mailing
 list](https://groups.google.com/d/forum/docker-dev).

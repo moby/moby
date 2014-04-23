@@ -6,13 +6,13 @@ page_keywords: chef, installation, usage, docker, documentation
 
 > **Note**:
 > Please note this is a community contributed installation path. The only
-> ‘official’ installation is using the
+> `official` installation is using the
 > [*Ubuntu*](../../installation/ubuntulinux/#ubuntu-linux) installation
 > path. This version may sometimes be out of date.
 
 ## Requirements
 
-To use this guide you’ll need a working installation of
+To use this guide you'll need a working installation of
 [Chef](http://www.getchef.com/). This cookbook supports a variety of
 operating systems.
 

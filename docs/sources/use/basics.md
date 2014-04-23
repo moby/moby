@@ -37,7 +37,7 @@ cache.
 > characters of the full image ID - which can be found using
 > `docker inspect` or `docker images --no-trunc=true`
 
-**If you’re using OS X** then you shouldn’t use `sudo`.
+**If you're using OS X** then you shouldn't use `sudo`.
 
 ## Running an interactive shell
 
@@ -75,9 +75,9 @@ following format: `tcp://[host][:port]` or
 
 For example:
 
--   `tcp://host:4243` -\> tcp connection on
+-   `tcp://host:4243` -> tcp connection on
     host:4243
--   `unix://path/to/socket` -\> unix socket located
+-   `unix://path/to/socket` -> unix socket located
     at `path/to/socket`
 
 `-H`, when empty, will default to the same value as
@@ -170,7 +170,6 @@ will be stored (as a diff). See which images you already have using the
 
 You now have a image state from which you can create new instances.
 
-Read more about [*Share Images via
-Repositories*](../workingwithrepository/#working-with-the-repository) or
-continue to the complete [*Command
-Line*](../../reference/commandline/cli/#cli)
+Read more about [*Share Images via Repositories*](
+../workingwithrepository/#working-with-the-repository) or
+continue to the complete [*Command Line*](../../reference/commandline/cli/#cli)

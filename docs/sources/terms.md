@@ -4,10 +4,10 @@
 
 ## Contents:
 
-- [File System](filesystem/)
-- [Layers](layer/)
-- [Image](image/)
-- [Container](container/)
-- [Registry](registry/)
-- [Repository](repository/)
+ - [File System](filesystem/)
+ - [Layers](layer/)
+ - [Image](image/)
+ - [Container](container/)
+ - [Registry](registry/)
+ - [Repository](repository/)
 

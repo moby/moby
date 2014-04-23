@@ -9,13 +9,13 @@ page_keywords: docker, example, package installation, postgresql
 > - This example assumes you have Docker running in daemon mode. For
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
-> - **If you don’t like sudo** then see [*Giving non-root
+> - **If you don't like sudo** then see [*Giving non-root
 >   access*](../../installation/binaries/#dockergroup)
 
 ## Installing PostgreSQL on Docker
 
-Assuming there is no Docker image that suits your needs in [the
-index](http://index.docker.io), you can create one yourself.
+Assuming there is no Docker image that suits your needs in [the index](
+http://index.docker.io), you can create one yourself.
 
 Start by creating a new Dockerfile:
 
@@ -25,7 +25,7 @@ Start by creating a new Dockerfile:
 > suitably secure.
 
     #
-    # example Dockerfile for http://docs.docker.io/en/latest/examples/postgresql_service/
+    # example Dockerfile for http://docs.docker.io/examples/postgresql_service/
     #
 
     FROM ubuntu
@@ -96,8 +96,8 @@ or we can access it from our host (or the network).
 
 ### Using container linking
 
-Containers can be linked to another container’s ports directly using
-`-link remote_name:local_alias` in the client’s
+Containers can be linked to another container's ports directly using
+`-link remote_name:local_alias` in the client's
 `docker run`. This will set a number of environment
 variables that can then be used to connect:
 

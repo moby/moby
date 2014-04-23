@@ -9,7 +9,7 @@ page_keywords: docker, example, package installation, networking, redis
 > - This example assumes you have Docker running in daemon mode. For
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
-> - **If you don’t like sudo** then see [*Giving non-root
+> - **If you don't like sudo** then see [*Giving non-root
 >   access*](../../installation/binaries/#dockergroup)
 
 Very simple, no frills, Redis service attached to a web application
@@ -33,26 +33,24 @@ Replace `<your username>` with your own user name.
 
 ## Run the service
 
-Use the image we’ve just created and name your container
-`redis`.
+Use the image we've just created and name your container `redis`.
 
-Running the service with `-d` runs the container in
-detached mode, leaving the container running in the background.
+Running the service with `-d` runs the container in detached mode, leaving
+the container running in the background.
 
-Importantly, we’re not exposing any ports on our container. Instead
-we’re going to use a container link to provide access to our Redis
+Importantly, we're not exposing any ports on our container. Instead
+we're going to use a container link to provide access to our Redis
 database.
 
     sudo docker run --name redis -d <your username>/redis
 
 ## Create your web application container
 
-Next we can create a container for our application. We’re going to use
-the `-link` flag to create a link to the
-`redis` container we’ve just created with an alias
-of `db`. This will create a secure tunnel to the
-`redis` container and expose the Redis instance
-running inside that container to only this container.
+Next we can create a container for our application. We're going to use
+the `-link` flag to create a link to the `redis` container we've just
+created with an alias of `db`. This will create a secure tunnel to the
+`redis` container and expose the Redis instance running inside that
+container to only this container.
 
     sudo docker run --link redis:db -i -t ubuntu:12.10 /bin/bash
 
@@ -63,7 +61,7 @@ get the `redis-cli` binary to test our connection.
     apt-get -y install redis-server
     service redis-server stop
 
-As we’ve used the `--link redis:db` option, Docker
+As we've used the `--link redis:db` option, Docker
 has created some environment variables in our web application container.
 
     env | grep DB_
@@ -76,11 +74,10 @@ has created some environment variables in our web application container.
     DB_PORT_6379_TCP_ADDR=172.17.0.33
     DB_PORT_6379_TCP_PROTO=tcp
 
-We can see that we’ve got a small list of environment variables prefixed
-with `DB`. The `DB` comes from
-the link alias specified when we launched the container. Let’s use the
-`DB_PORT_6379_TCP_ADDR` variable to connect to our
-Redis container.
+We can see that we've got a small list of environment variables prefixed
+with `DB`. The `DB` comes from the link alias specified when we launched
+the container. Let's use the `DB_PORT_6379_TCP_ADDR` variable to connect to
+our Redis container.
 
     redis-cli -h $DB_PORT_6379_TCP_ADDR
     redis 172.17.0.33:6379>

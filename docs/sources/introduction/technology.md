@@ -80,7 +80,7 @@ servers.
 
 > **Note:** To learn more about the [*Docker Image Index*](
 > http://index.docker.io) (public *and* private), check out the [Registry &
-> Index Spec](http://docs.docker.io/en/latest/api/registry_index_spec/).
+> Index Spec](http://docs.docker.io/api/registry_index_spec/).
 
 ### Summary
 
@@ -246,7 +246,7 @@ results and only you and your users can pull them down and use them to
 build containers. You can [sign up for a plan here](https://index.docker.io/plans).
 
 To learn more, check out the [Working With Repositories](
-http://docs.docker.io/en/latest/use/workingwithrepository) section of our
+http://docs.docker.io/use/workingwithrepository) section of our
 [User's Manual](http://docs.docker.io).
 
 ## Where to go from here
