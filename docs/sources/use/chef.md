@@ -19,7 +19,7 @@ operating systems.
 ## Installation
 
 The cookbook is available on the [Chef Community
-Site](community.opscode.com/cookbooks/docker) and can be installed using
+Site](http://community.opscode.com/cookbooks/docker) and can be installed using
 your favorite cookbook dependency manager.
 
 The source can be found on
