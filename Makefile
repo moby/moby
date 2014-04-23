@@ -53,6 +53,9 @@ build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
 
 docs-build:
+	cp ./VERSION docs/VERSION
+	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
+	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
 	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
