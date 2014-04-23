@@ -51,11 +51,6 @@ the Docker daemon installed and running.
 The client provides you a command-line interface to Docker. It is
 accessed by running the `docker` binary.
 
-> **Tip:** The below instructions can be considered a summary of our
-> *interactive tutorial*. If you prefer a more hands-on approach without
-> installing anything, why not give that a shot and check out the
-> [Docker Interactive Tutorial](http://www.docker.io/interactivetutorial).
-
 The `docker` client usage consists of passing a chain of arguments:
 
     # Usage:  [sudo] docker [option] [command] [arguments] ..
