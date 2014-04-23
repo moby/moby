@@ -39,6 +39,11 @@ WORKDIR	/docs
 #convert to markdown
 #RUN	./convert.sh
 
+RUN	VERSION=$(cat /docs/VERSION)								&&\
+	GIT_BRANCH=$(cat /docs/GIT_BRANCH)							&&\
+	AWS_S3_BUCKET=$(cat /docs/AWS_S3_BUCKET)						&&\
+	echo "{% set docker_version = \"${VERSION}\" %}{% set docker_branch = \"${GIT_BRANCH}\" %}{% set aws_bucket = \"${AWS_S3_BUCKET}\" %}{% include \"beta_warning.html\" %}" > /docs/theme/mkdocs/version.html
+
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000
 
