@@ -38,6 +38,10 @@ func (env *Env) Exists(key string) bool {
 
 func (env *Env) Init(src *Env) {
 	(*env) = make([]string, 0, len(*src))
+	env.Append(src)
+}
+
+func (env *Env) Append(src *Env) {
 	for _, val := range *src {
 		(*env) = append((*env), val)
 	}
