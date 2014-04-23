@@ -4,12 +4,15 @@ import (
 	api "github.com/dotcloud/docker/api/server"
 	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/events"
 	"github.com/dotcloud/docker/server"
 )
 
 func Register(eng *engine.Engine) {
 	daemon(eng)
 	remote(eng)
+	// Install 'events*' and 'logevent'
+	events.NewLogger().Install(eng)
 }
 
 // remote: a RESTful api for cross-docker communication

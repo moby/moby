@@ -134,7 +134,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"import":           srv.ImageImport,
 		"image_delete":     srv.ImageDelete,
 		"inspect":          srv.JobInspect,
-		"events":           srv.Events,
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
 		"auth":             srv.Auth,
@@ -199,7 +198,8 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 			if err := container.Kill(); err != nil {
 				return job.Errorf("Cannot kill container %s: %s", name, err)
 			}
-			srv.LogEvent("kill", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+			// FIXME: do we really want to append the image name in addition to the container ID in the event?
+			job.Eng.Job("logevent", "kill", container.ID, srv.daemon.Repositories().ImageName(container.Image))
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.KillSig(int(sig)); err != nil {
@@ -211,6 +211,14 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 		return job.Errorf("No such container: %s", name)
 	}
 	return engine.StatusOK
+}
+
+// FIXME: LogEvent is deprecated in favor of the 'logevent' command.
+// We are keeping it in place temporarily as a facade for daemon, which
+// still depends on it. Once daemon is converted to 'logevent', this
+// should be removed.
+func (srv *Server) LogEvent(action, id, from string) error {
+	return srv.Eng.Job("logevent", action, id, from).Run()
 }
 
 func (srv *Server) Auth(job *engine.Job) engine.Status {
@@ -236,82 +244,6 @@ func (srv *Server) Auth(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) Events(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s FROM", job.Name)
-	}
-
-	var (
-		from    = job.Args[0]
-		since   = job.GetenvInt64("since")
-		until   = job.GetenvInt64("until")
-		timeout = make(chan time.Time)
-	    )
-	// If 'until' is set, create a timer.
-	if until != 0 {
-		time.AfterFunc(time.Unix(until, 0).Sub(time.Now()), func() { close(timeout) })
-	} else {
-		defer close(timeout)
-	}
-	sendEvent := func(event *utils.JSONMessage) error {
-		b, err := json.Marshal(event)
-		if err != nil {
-			return fmt.Errorf("JSON error")
-		}
-		_, err = job.Stdout.Write(b)
-		if err != nil {
-			// On error, evict the listener
-			utils.Errorf("%s", err)
-			srv.Lock()
-			delete(srv.listeners, from)
-			srv.Unlock()
-			return err
-		}
-		return nil
-	}
-
-	listener := make(chan utils.JSONMessage)
-	srv.Lock()
-	if old, ok := srv.listeners[from]; ok {
-		delete(srv.listeners, from)
-		close(old)
-	}
-	srv.listeners[from] = listener
-	srv.Unlock()
-	job.Stdout.Write(nil) // flush
-	if since != 0 {
-		// If since, send previous events that happened after the timestamp and until timestamp
-		for _, event := range srv.GetEvents() {
-			if event.Time >= since && (event.Time <= until || until == 0) {
-				err := sendEvent(&event)
-				if err != nil && err.Error() == "JSON error" {
-					continue
-				}
-				if err != nil {
-					job.Error(err)
-					return engine.StatusErr
-				}
-			}
-		}
-	}
-
-	for {
-		select {
-		case event := <-listener:
-			err := sendEvent(&event)
-			if err != nil && err.Error() == "JSON error" {
-				continue
-			}
-			if err != nil {
-				return job.Error(err)
-			}
-		case <-timeout:
-			return engine.StatusOK
-		}
-	}
-	return engine.StatusOK
-}
-
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		return job.Errorf("Usage: %s container_id", job.Name)
@@ -329,7 +261,7 @@ func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 			return job.Errorf("%s: %s", name, err)
 		}
 		// FIXME: factor job-specific LogEvent to engine.Job.Run()
-		srv.LogEvent("export", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+		job.Eng.Job("logevent", "export", container.ID, srv.daemon.Repositories().ImageName(container.Image)).Run()
 		return engine.StatusOK
 	}
 	return job.Errorf("No such container: %s", name)
@@ -865,11 +797,19 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", goruntime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.daemon.ExecutionDriver().Name())
-	v.SetInt("NEventsListener", len(srv.listeners))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
+	// Fetch info from 'events' and append it to global info.
+	{
+		eventsInfo := job.Eng.Job("events_info")
+		result, _ := job.Stdout.AddEnv()
+		if err := eventsInfo.Run(); err != nil {
+			return job.Error(err)
+		}
+		v.Append(result)
+	}
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
@@ -1795,7 +1735,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	if !container.Config.NetworkDisabled && srv.daemon.SystemConfig().IPv4ForwardingDisabled {
 		job.Errorf("IPv4 forwarding is disabled.\n")
 	}
-	srv.LogEvent("create", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+	job.Eng.Job("logevent", "create", container.ID, srv.daemon.Repositories().ImageName(container.Image)).Run()
 	// FIXME: this is necessary because daemon.Create might return a nil container
 	// with a non-nil error. This should not happen! Once it's fixed we
 	// can remove this workaround.
@@ -1823,7 +1763,7 @@ func (srv *Server) ContainerRestart(job *engine.Job) engine.Status {
 		if err := container.Restart(int(t)); err != nil {
 			return job.Errorf("Cannot restart container %s: %s\n", name, err)
 		}
-		srv.LogEvent("restart", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+		job.Eng.Job("logevent", "restart", container.ID, srv.daemon.Repositories().ImageName(container.Image)).Run()
 	} else {
 		return job.Errorf("No such container: %s\n", name)
 	}
@@ -1882,7 +1822,7 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 		if err := srv.daemon.Destroy(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
-		srv.LogEvent("destroy", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+		job.Eng.Job("logevent", "destroy", container.ID, srv.daemon.Repositories().ImageName(container.Image)).Run()
 
 		if removeVolume {
 			var (
@@ -2012,7 +1952,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 			out := &engine.Env{}
 			out.Set("Untagged", repoName+":"+tag)
 			imgs.Add(out)
-			srv.LogEvent("untag", img.ID, "")
+			srv.Eng.Job("logevent", "untag", img.ID, "").Run()
 		}
 	}
 	tags = srv.daemon.Repositories().ByID()[img.ID]
@@ -2030,7 +1970,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 			out := &engine.Env{}
 			out.Set("Deleted", img.ID)
 			imgs.Add(out)
-			srv.LogEvent("delete", img.ID, "")
+			srv.Eng.Job("logevent", "delete", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
 				err := srv.DeleteImage(img.Parent, imgs, false, force, noprune)
 				if first {
@@ -2192,7 +2132,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if err := container.Start(); err != nil {
 		return job.Errorf("Cannot start container %s: %s", name, err)
 	}
-	srv.LogEvent("start", container.ID, daemon.Repositories().ImageName(container.Image))
+	job.Eng.Job("logevent", "start", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
 
 	return engine.StatusOK
 }
@@ -2212,7 +2152,7 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 		if err := container.Stop(int(t)); err != nil {
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
-		srv.LogEvent("stop", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+		job.Eng.Job("logevent", "stop", container.ID, srv.daemon.Repositories().ImageName(container.Image)).Run()
 	} else {
 		return job.Errorf("No such container: %s\n", name)
 	}
@@ -2448,8 +2388,6 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		daemon:      daemon,
 		pullingPool: make(map[string]chan struct{}),
 		pushingPool: make(map[string]chan struct{}),
-		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		listeners:   make(map[string]chan utils.JSONMessage),
 		running:     true,
 	}
 	daemon.SetServer(srv)
@@ -2472,31 +2410,6 @@ func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HT
 	}
 	factory := utils.NewHTTPRequestFactory(ud, md)
 	return factory
-}
-
-func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
-	now := time.Now().UTC().Unix()
-	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
-	srv.AddEvent(jm)
-	for _, c := range srv.listeners {
-		select { // non blocking channel
-		case c <- jm:
-		default:
-		}
-	}
-	return &jm
-}
-
-func (srv *Server) AddEvent(jm utils.JSONMessage) {
-	srv.Lock()
-	defer srv.Unlock()
-	srv.events = append(srv.events, jm)
-}
-
-func (srv *Server) GetEvents() []utils.JSONMessage {
-	srv.RLock()
-	defer srv.RUnlock()
-	return srv.events
 }
 
 func (srv *Server) SetRunning(status bool) {
@@ -2528,8 +2441,6 @@ type Server struct {
 	daemon      *daemon.Daemon
 	pullingPool map[string]chan struct{}
 	pushingPool map[string]chan struct{}
-	events      []utils.JSONMessage
-	listeners   map[string]chan utils.JSONMessage
 	Eng         *engine.Engine
 	running     bool
 }
