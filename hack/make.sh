@@ -117,6 +117,14 @@ if [ "$(uname -s)" = 'FreeBSD' ]; then
 	LDFLAGS="$LDFLAGS -extld clang"
 fi
 
+# If sqlite3.h doesn't exist under /usr/include,
+# check /usr/local/include also just in case
+# (e.g. FreeBSD Ports installs it under the directory)
+if [ ! -e /usr/include/sqlite3.h ] && [ -e /usr/local/include/sqlite3.h ]; then
+	export CGO_CFLAGS='-I/usr/local/include'
+	export CGO_LDFLAGS='-L/usr/local/lib'
+fi
+
 HAVE_GO_TEST_COVER=
 if \
 	go help testflag | grep -- -cover > /dev/null \

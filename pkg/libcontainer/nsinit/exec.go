@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/cgroups/fs"
+	"github.com/dotcloud/docker/pkg/cgroups/systemd"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
@@ -99,7 +101,11 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 
 func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
-		return container.Cgroups.Apply(nspid)
+		c := container.Cgroups
+		if systemd.UseSystemd() {
+			return systemd.Apply(c, nspid)
+		}
+		return fs.Apply(c, nspid)
 	}
 	return nil, nil
 }
