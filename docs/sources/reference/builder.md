@@ -312,6 +312,25 @@ The copy obeys the following rules:
 -   If `<dest>` doesn’t exist, it is created along
     with all missing directories in its path.
 
+## `BINDCONTEXT`
+
+> `BINDCONTEXT <mountpoint>`
+
+The `BINDCONTEXT` instruction will arrange for the context to be mounted at the
+location `<mountpoint>` inside the container during the subsequent `RUN`
+commands.
+
+Contrary to the `ADD` instruction, files accessed thanks to `BINDCONTEXT` are
+not copied into the container and will not be committed in the resulting image.
+
+The context is mounted in read-write mode, any writes will affect the next
+Dockerfile commands (note that *only* the server copy of the context is
+concerned here, the original (client-side) context will never be affected).
+
+`BINDCONTEXT` may appear multiple times in a Dockerfile. However only the last
+one will have an effect for the next `RUN` commands.
+
+
 ## `ENTRYPOINT`
 
 ENTRYPOINT has two forms:

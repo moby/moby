@@ -321,6 +321,48 @@ RUN touch /testing/other
 		nil,
 		nil,
 	},
+	// BINDCONTEXT
+	{
+		`
+FROM {IMAGE}
+BINDCONTEXT /context
+RUN [ -f /context/test ]
+RUN [ "$(sh /context/test)" = 'test!' ]
+`,
+		[][2]string{
+			{"test", "echo 'test!'"},
+		},
+		nil,
+	},
+	// BINDCONTEXT w/ updates
+	{
+		`
+FROM {IMAGE}
+BINDCONTEXT /context
+RUN [ "$(cat /context/test)" = 1111 ]
+RUN echo "2222" > /context/test
+RUN [ "$(cat /context/test)" = 2222 ]
+`,
+		[][2]string{
+			{"test", "1111"},
+		},
+		nil,
+	},
+	// BINDCONTEXT multiple occurences
+	{
+		`
+FROM {IMAGE}
+BINDCONTEXT /context-first
+RUN [ "$(cat /context-first/test)" = 1111 ]
+BINDCONTEXT /context-second
+RUN [ ! -f /context-first/test ]
+RUN [ "$(cat /context-second/test)" = 1111 ]
+`,
+		[][2]string{
+			{"test", "1111"},
+		},
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands

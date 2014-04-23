@@ -44,6 +44,7 @@ type buildFile struct {
 
 	contextPath string
 	context     *utils.TarSum
+	contextMountPoint string
 
 	verbose      bool
 	utilizeCache bool
@@ -621,6 +622,58 @@ func (b *buildFile) CmdAdd(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdBindcontext(mountPoint string) error {
+	b.contextMountPoint = mountPoint
+	if b.config.Volumes == nil {
+		b.config.Volumes = make(map[string]struct{})
+	}
+	b.config.Volumes[mountPoint] = struct{}{}
+
+	cmd := b.config.Cmd
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) BINDCONTEXT %s", mountPoint)}
+	b.config.Image = b.image
+
+	// Hash the context and check the cache
+	if b.utilizeCache {
+		var subfiles []string
+		for _, sum := range b.context.GetSums() {
+			subfiles = append(subfiles, sum)
+		}
+		sort.Strings(subfiles)
+		hasher := sha256.New()
+		hasher.Write([]byte(strings.Join(subfiles, ",")))
+		hash := hex.EncodeToString(hasher.Sum(nil))
+
+		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) BINDCONTEXT %s to %s", hash, mountPoint)}
+
+		hit, err := b.probeCache()
+		if err != nil {
+			return err
+		}
+		if hit {
+			return nil
+		}
+	}
+
+	// Create the container and start it
+	container, _, err := b.daemon.Create(b.config, "")
+	if err != nil {
+		return err
+	}
+	b.tmpContainers[container.ID] = struct{}{}
+
+	if err := container.Mount(); err != nil {
+		return err
+	}
+	defer container.Unmount()
+
+	if err := b.commit(container.ID, cmd, fmt.Sprintf("BINDCONTEXT %s", mountPoint)); err != nil {
+		return err
+	}
+	b.config.Cmd = cmd
+	return nil
+}
+
 func (b *buildFile) create() (*daemon.Container, error) {
 	if b.image == "" {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
@@ -649,6 +702,11 @@ func (b *buildFile) run(c *daemon.Container) error {
 		errCh = utils.Go(func() error {
 			return <-c.Attach(nil, nil, b.outStream, b.errStream)
 		})
+	}
+
+	if b.contextMountPoint != "" {
+		hc := c.HostConfig()
+		hc.Binds = append(hc.Binds, fmt.Sprintf("%s:%s", b.contextPath, b.contextMountPoint))
 	}
 
 	//start the container
