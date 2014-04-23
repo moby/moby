@@ -5,7 +5,7 @@ page_keywords: Rackspace Cloud, installation, docker, linux, ubuntu
 # Rackspace Cloud
 
 > **Note**:
-> This is a community contributed installation path. The only ‘official’
+> This is a community contributed installation path. The only `official`
 > installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
 > installation path. This version may be out of date because it depends on
 > some binaries to be updated and published
@@ -20,8 +20,8 @@ If you are using any Linux not already shipping with the 3.8 kernel you
 will need to install it. And this is a little more difficult on
 Rackspace.
 
-Rackspace boots their servers using grub’s `menu.lst`
-and does not like non ‘virtual’ packages (e.g. Xen compatible)
+Rackspace boots their servers using grub's `menu.lst`
+and does not like non `virtual` packages (e.g. Xen compatible)
 kernels there, although they do work. This results in
 `update-grub` not having the expected result, and
 you will need to set the kernel manually.

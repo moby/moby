@@ -14,11 +14,11 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Repositories
 
-### User Repo
+#### User Repo
 
- `PUT /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/`
-:   Create a user repository with the given `namespace`
- and `repo_name`.
+`PUT /v1/repositories/(namespace)/(repo_name)/`
+
+Create a user repository with the given `namespace` and `repo_name`.
 
     **Example Request**:
 
@@ -34,7 +34,7 @@ page_keywords: API, Docker, index, REST, documentation
     Parameters:
 
     - **namespace** – the namespace for the repo
-    - **repo\_name** – the name for the repo
+    - **repo_name** – the name for the repo
 
     **Example Response**:
 
@@ -54,9 +54,9 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active
 
- `DELETE /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/`
-:   Delete a user repository with the given `namespace`
- and `repo_name`.
+`DELETE /v1/repositories/(namespace)/(repo_name)/`
+
+Delete a user repository with the given `namespace` and `repo_name`.
 
     **Example Request**:
 
@@ -72,7 +72,7 @@ page_keywords: API, Docker, index, REST, documentation
     Parameters:
 
     - **namespace** – the namespace for the repo
-    - **repo\_name** – the name for the repo
+    - **repo_name** – the name for the repo
 
     **Example Response**:
 
@@ -93,12 +93,12 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active
 
-### Library Repo
+#### Library Repo
 
- `PUT /v1/repositories/`(*repo\_name*)`/`
-:   Create a library repository with the given `repo_name`
-. This is a restricted feature only available to docker
-    admins.
+`PUT /v1/repositories/(repo_name)/`
+
+Create a library repository with the given `repo_name`.
+This is a restricted feature only available to docker admins.
 
     When namespace is missing, it is assumed to be `library`
 
@@ -116,7 +116,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    - **repo\_name** – the library name for the repo
+    - **repo_name** – the library name for the repo
 
     **Example Response**:
 
@@ -136,10 +136,10 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active
 
- `DELETE /v1/repositories/`(*repo\_name*)`/`
-:   Delete a library repository with the given `repo_name`
-. This is a restricted feature only available to docker
-    admins.
+`DELETE /v1/repositories/(repo_name)/`
+
+Delete a library repository with the given `repo_name`. 
+This is a restricted feature only available to docker admins.
 
     When namespace is missing, it is assumed to be `library`
 
@@ -157,7 +157,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    - **repo\_name** – the library name for the repo
+    - **repo_name** – the library name for the repo
 
     **Example Response**:
 
@@ -180,10 +180,11 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Repository Images
 
-### User Repo Images
+#### User Repo Images
 
- `PUT /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/images`
-:   Update the images for a user repo.
+`PUT /v1/repositories/(namespace)/(repo_name)/images`
+
+Update the images for a user repo.
 
     **Example Request**:
 
@@ -199,7 +200,7 @@ page_keywords: API, Docker, index, REST, documentation
     Parameters:
 
     - **namespace** – the namespace for the repo
-    - **repo\_name** – the name for the repo
+    - **repo_name** – the name for the repo
 
     **Example Response**:
 
@@ -216,8 +217,9 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active or permission denied
 
- `GET /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/images`
-:   get the images for a user repo.
+`GET /v1/repositories/(namespace)/(repo_name)/images`
+
+Get the images for a user repo.
 
     **Example Request**:
 
@@ -228,7 +230,7 @@ page_keywords: API, Docker, index, REST, documentation
     Parameters:
 
     - **namespace** – the namespace for the repo
-    - **repo\_name** – the name for the repo
+    - **repo_name** – the name for the repo
 
     **Example Response**:
 
@@ -246,10 +248,11 @@ page_keywords: API, Docker, index, REST, documentation
     - **200** – OK
     - **404** – Not found
 
-### Library Repo Images
+#### Library Repo Images
 
- `PUT /v1/repositories/`(*repo\_name*)`/images`
-:   Update the images for a library repo.
+`PUT /v1/repositories/(repo_name)/images`
+
+Update the images for a library repo.
 
     **Example Request**:
 
@@ -264,7 +267,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    - **repo\_name** – the library name for the repo
+    - **repo_name** – the library name for the repo
 
     **Example Response**:
 
@@ -281,8 +284,9 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active or permission denied
 
- `GET /v1/repositories/`(*repo\_name*)`/images`
-:   get the images for a library repo.
+`GET /v1/repositories/(repo_name)/images`
+
+Get the images for a library repo.
 
     **Example Request**:
 
@@ -292,7 +296,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    - **repo\_name** – the library name for the repo
+    - **repo_name** – the library name for the repo
 
     **Example Response**:
 
@@ -312,10 +316,11 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Repository Authorization
 
-### Library Repo
+#### Library Repo
 
- `PUT /v1/repositories/`(*repo\_name*)`/auth`
-:   authorize a token for a library repo
+`PUT /v1/repositories/(repo_name)/auth`
+
+Authorize a token for a library repo
 
     **Example Request**:
 
@@ -326,7 +331,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     Parameters:
 
-    - **repo\_name** – the library name for the repo
+    - **repo_name** – the library name for the repo
 
     **Example Response**:
 
@@ -342,10 +347,11 @@ page_keywords: API, Docker, index, REST, documentation
     - **403** – Permission denied
     - **404** – Not found
 
-### User Repo
+#### User Repo
 
- `PUT /v1/repositories/`(*namespace*)`/`(*repo\_name*)`/auth`
-:   authorize a token for a user repo
+`PUT /v1/repositories/(namespace)/(repo_name)/auth`
+
+Authorize a token for a user repo
 
     **Example Request**:
 
@@ -357,7 +363,7 @@ page_keywords: API, Docker, index, REST, documentation
     Parameters:
 
     - **namespace** – the namespace for the repo
-    - **repo\_name** – the name for the repo
+    - **repo_name** – the name for the repo
 
     **Example Response**:
 
@@ -375,10 +381,11 @@ page_keywords: API, Docker, index, REST, documentation
 
 ### Users
 
-### User Login
+#### User Login
 
- `GET /v1/users`
-:   If you want to check your login, you can try this endpoint
+`GET /v1/users`
+
+If you want to check your login, you can try this endpoint
 
     **Example Request**:
 
@@ -401,10 +408,11 @@ page_keywords: API, Docker, index, REST, documentation
     - **401** – Unauthorized
     - **403** – Account is not Active
 
-### User Register
+#### User Register
 
- `POST /v1/users`
-:   Registering a new account.
+`POST /v1/users`
+
+Registering a new account.
 
     **Example request**:
 
@@ -423,7 +431,7 @@ page_keywords: API, Docker, index, REST, documentation
 
     - **email** – valid email address, that needs to be confirmed
     - **username** – min 4 character, max 30 characters, must match
-        the regular expression [a-z0-9\_].
+        the regular expression [a-z0-9_].
     - **password** – min 5 characters
 
     **Example Response**:
@@ -439,10 +447,12 @@ page_keywords: API, Docker, index, REST, documentation
     - **201** – User Created
     - **400** – Errors (invalid json, missing or invalid fields, etc)
 
-### Update User
+#### Update User
 
- `PUT /v1/users/`(*username*)`/`
-:   Change a password or email address for given user. If you pass in an
+`PUT /v1/users/(username)/`
+
+Change a password or email address for given user. If you pass in an
+
     email, it will add it to your account, it will not remove the old
     one. Passwords will be updated.
 
@@ -487,8 +497,10 @@ If you need to search the index, this is the endpoint you would use.
 
 ### Search
 
- `GET /v1/search`
-:   Search the Index given a search term. It accepts
+`GET /v1/search`
+
+Search the Index given a search term. It accepts
+
     [GET](http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3)
     only.
 
@@ -521,5 +533,3 @@ If you need to search the index, this is the endpoint you would use.
 
     - **200** – no error
     - **500** – server error
-
-
