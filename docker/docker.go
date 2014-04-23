@@ -121,14 +121,11 @@ func main() {
 				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
 			}
 		}
-
 		if err := checkKernelAndArch(); err != nil {
 			log.Fatal(err)
 		}
-		eng, err := engine.New()
-		if err != nil {
-			log.Fatal(err)
-		}
+
+		eng := engine.New()
 		// Load builtins
 		builtins.Register(eng)
 		// load the daemon in the background so we can immediately start

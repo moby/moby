@@ -17,7 +17,7 @@ func TestRegister(t *testing.T) {
 	// Register is global so let's cleanup to avoid conflicts
 	defer unregister("dummy1")
 
-	eng := newTestEngine(t)
+	eng := New()
 
 	//Should fail because global handlers are copied
 	//at the engine creation
@@ -36,7 +36,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestJob(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	job1 := eng.Job("dummy1", "--level=awesome")
 
 	if job1.handler != nil {
@@ -62,7 +62,7 @@ func TestJob(t *testing.T) {
 }
 
 func TestEngineCommands(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	handler := func(job *Job) Status { return StatusOK }
 	eng.Register("foo", handler)
 	eng.Register("bar", handler)
@@ -79,8 +79,8 @@ func TestEngineCommands(t *testing.T) {
 }
 
 func TestEngineString(t *testing.T) {
-	eng1 := newTestEngine(t)
-	eng2 := newTestEngine(t)
+	eng1 := New()
+	eng2 := New()
 	s1 := eng1.String()
 	s2 := eng2.String()
 	if eng1 == eng2 {
@@ -89,7 +89,7 @@ func TestEngineString(t *testing.T) {
 }
 
 func TestEngineLogf(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	input := "Test log line"
 	if n, err := eng.Logf("%s\n", input); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestEngineLogf(t *testing.T) {
 }
 
 func TestParseJob(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	// Verify that the resulting job calls to the right place
 	var called bool
 	eng.Register("echo", func(job *Job) Status {

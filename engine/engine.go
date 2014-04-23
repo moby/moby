@@ -54,7 +54,7 @@ func (eng *Engine) Register(name string, handler Handler) error {
 }
 
 // New initializes a new engine.
-func New() (*Engine, error) {
+func New() *Engine {
 	eng := &Engine{
 		handlers: make(map[string]Handler),
 		id:       utils.RandomString(),
@@ -73,7 +73,7 @@ func New() (*Engine, error) {
 	for k, v := range globalHandlers {
 		eng.handlers[k] = v
 	}
-	return eng, nil
+	return eng
 }
 
 func (eng *Engine) String() string {

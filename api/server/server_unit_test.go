@@ -57,7 +57,7 @@ func TesthttpError(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	eng := tmpEngine(t)
+	eng := engine.New()
 	var called bool
 	eng.Register("version", func(job *engine.Job) engine.Status {
 		called = true
@@ -86,7 +86,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	eng := tmpEngine(t)
+	eng := engine.New()
 	var called bool
 	eng.Register("info", func(job *engine.Job) engine.Status {
 		called = true
@@ -124,14 +124,6 @@ func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *
 		t.Fatal(err)
 	}
 	return r
-}
-
-func tmpEngine(t *testing.T) *engine.Engine {
-	eng, err := engine.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return eng
 }
 
 func readEnv(src io.Reader, t *testing.T) *engine.Env {

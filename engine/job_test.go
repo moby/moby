@@ -5,7 +5,7 @@ import (
 )
 
 func TestJobStatusOK(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	eng.Register("return_ok", func(job *Job) Status { return StatusOK })
 	err := eng.Job("return_ok").Run()
 	if err != nil {
@@ -14,7 +14,7 @@ func TestJobStatusOK(t *testing.T) {
 }
 
 func TestJobStatusErr(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	eng.Register("return_err", func(job *Job) Status { return StatusErr })
 	err := eng.Job("return_err").Run()
 	if err == nil {
@@ -23,7 +23,7 @@ func TestJobStatusErr(t *testing.T) {
 }
 
 func TestJobStatusNotFound(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	eng.Register("return_not_found", func(job *Job) Status { return StatusNotFound })
 	err := eng.Job("return_not_found").Run()
 	if err == nil {
@@ -32,7 +32,7 @@ func TestJobStatusNotFound(t *testing.T) {
 }
 
 func TestJobStdoutString(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	// FIXME: test multiple combinations of output and status
 	eng.Register("say_something_in_stdout", func(job *Job) Status {
 		job.Printf("Hello world\n")
@@ -53,7 +53,7 @@ func TestJobStdoutString(t *testing.T) {
 }
 
 func TestJobStderrString(t *testing.T) {
-	eng := newTestEngine(t)
+	eng := New()
 	// FIXME: test multiple combinations of output and status
 	eng.Register("say_something_in_stderr", func(job *Job) Status {
 		job.Errorf("Warning, something might happen\nHere it comes!\nOh no...\nSomething happened\n")

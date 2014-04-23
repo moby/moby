@@ -182,10 +182,8 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 		}
 	}
 	os.MkdirAll(root, 0700)
-	eng, err := engine.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	eng := engine.New()
 	// Load default plugins
 	builtins.Register(eng)
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
