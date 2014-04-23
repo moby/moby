@@ -245,8 +245,14 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 		from    = job.Args[0]
 		since   = job.GetenvInt64("since")
 		until   = job.GetenvInt64("until")
-		timeout = time.NewTimer(time.Unix(until, 0).Sub(time.Now()))
-	)
+		timeout = make(chan time.Time)
+	    )
+	// If 'until' is set, create a timer.
+	if until != 0 {
+		time.AfterFunc(time.Unix(until, 0).Sub(time.Now()), func() { close(timeout) })
+	} else {
+		defer close(timeout)
+	}
 	sendEvent := func(event *utils.JSONMessage) error {
 		b, err := json.Marshal(event)
 		if err != nil {
@@ -289,10 +295,6 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 		}
 	}
 
-	// If no until, disable timeout
-	if until == 0 {
-		timeout.Stop()
-	}
 	for {
 		select {
 		case event := <-listener:
@@ -303,7 +305,7 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 			if err != nil {
 				return job.Error(err)
 			}
-		case <-timeout.C:
+		case <-timeout:
 			return engine.StatusOK
 		}
 	}
