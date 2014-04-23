@@ -181,6 +181,7 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 			root = dir
 		}
 	}
+	os.MkdirAll(root, 0700)
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)

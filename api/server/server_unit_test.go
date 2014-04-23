@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -60,7 +58,6 @@ func TesthttpError(t *testing.T) {
 
 func TestGetVersion(t *testing.T) {
 	eng := tmpEngine(t)
-	defer rmEngine(eng)
 	var called bool
 	eng.Register("version", func(job *engine.Job) engine.Status {
 		called = true
@@ -90,7 +87,6 @@ func TestGetVersion(t *testing.T) {
 
 func TestGetInfo(t *testing.T) {
 	eng := tmpEngine(t)
-	defer rmEngine(eng)
 	var called bool
 	eng.Register("info", func(job *engine.Job) engine.Status {
 		called = true
@@ -131,19 +127,11 @@ func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *
 }
 
 func tmpEngine(t *testing.T) *engine.Engine {
-	tmp, err := utils.TestDirectory("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	eng, err := engine.New(tmp)
+	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
 	}
 	return eng
-}
-
-func rmEngine(eng *engine.Engine) {
-	os.RemoveAll(eng.Root())
 }
 
 func readEnv(src io.Reader, t *testing.T) *engine.Env {
