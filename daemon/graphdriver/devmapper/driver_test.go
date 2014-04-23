@@ -500,15 +500,10 @@ func TestDriverCreate(t *testing.T) {
 		calls.Assert(t,
 			"DmTaskCreate",
 			"DmTaskGetInfo",
-			"sysMount",
 			"DmTaskRun",
-			"DmTaskSetTarget",
 			"DmTaskSetSector",
-			"DmTaskSetCookie",
-			"DmUdevWait",
 			"DmTaskSetName",
 			"DmTaskSetMessage",
-			"DmTaskSetAddNode",
 		)
 
 	}()
@@ -619,15 +614,10 @@ func TestDriverRemove(t *testing.T) {
 		calls.Assert(t,
 			"DmTaskCreate",
 			"DmTaskGetInfo",
-			"sysMount",
 			"DmTaskRun",
-			"DmTaskSetTarget",
 			"DmTaskSetSector",
-			"DmTaskSetCookie",
-			"DmUdevWait",
 			"DmTaskSetName",
 			"DmTaskSetMessage",
-			"DmTaskSetAddNode",
 		)
 
 		Mounted = func(mnt string) (bool, error) {
@@ -650,7 +640,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetTarget",
 			"DmTaskSetAddNode",
 			"DmUdevWait",
-			"sysUnmount",
 		)
 	}()
 	runtime.GC()

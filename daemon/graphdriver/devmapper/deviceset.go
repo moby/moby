@@ -35,12 +35,6 @@ type DevInfo struct {
 
 	mountCount int    `json:"-"`
 	mountPath  string `json:"-"`
-	// A floating mount means one reference is not owned and
-	// will be stolen by the next mount. This allows us to
-	// avoid unmounting directly after creation before the
-	// first get (since we need to mount to set up the device
-	// a bit first).
-	floating bool `json:"-"`
 
 	// The global DeviceSet lock guarantees that we serialize all
 	// the calls to libdevmapper (which is not threadsafe), but we
@@ -93,14 +87,6 @@ type DevStatus struct {
 	MappedSectors       uint64
 	HighestMappedSector uint64
 }
-
-type UnmountMode int
-
-const (
-	UnmountRegular UnmountMode = iota
-	UnmountFloat
-	UnmountSink
-)
 
 func getDevName(name string) string {
 	return "/dev/mapper/" + name
@@ -876,12 +862,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 			return fmt.Errorf("Trying to mount devmapper device in multple places (%s, %s)", info.mountPath, path)
 		}
 
-		if info.floating {
-			// Steal floating ref
-			info.floating = false
-		} else {
-			info.mountCount++
-		}
+		info.mountCount++
 		return nil
 	}
 
@@ -903,13 +884,12 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 
 	info.mountCount = 1
 	info.mountPath = path
-	info.floating = false
 
 	return devices.setInitialized(info)
 }
 
-func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
-	utils.Debugf("[devmapper] UnmountDevice(hash=%s, mode=%d)", hash, mode)
+func (devices *DeviceSet) UnmountDevice(hash string) error {
+	utils.Debugf("[devmapper] UnmountDevice(hash=%s)", hash)
 	defer utils.Debugf("[devmapper] UnmountDevice END")
 
 	info, err := devices.lookupDevice(hash)
@@ -922,24 +902,6 @@ func (devices *DeviceSet) UnmountDevice(hash string, mode UnmountMode) error {
 
 	devices.Lock()
 	defer devices.Unlock()
-
-	if mode == UnmountFloat {
-		if info.floating {
-			return fmt.Errorf("UnmountDevice: can't float floating reference %s\n", hash)
-		}
-
-		// Leave this reference floating
-		info.floating = true
-		return nil
-	}
-
-	if mode == UnmountSink {
-		if !info.floating {
-			// Someone already sunk this
-			return nil
-		}
-		// Otherwise, treat this as a regular unmount
-	}
 
 	if info.mountCount == 0 {
 		return fmt.Errorf("UnmountDevice: device not-mounted id %s\n", hash)
