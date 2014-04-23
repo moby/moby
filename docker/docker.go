@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/dotcloud/docker/api"
@@ -120,11 +121,11 @@ func main() {
 				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
 			}
 		}
-
-		eng, err := engine.New(realRoot)
-		if err != nil {
+		if err := checkKernelAndArch(); err != nil {
 			log.Fatal(err)
 		}
+
+		eng := engine.New()
 		// Load builtins
 		builtins.Register(eng)
 		// load the daemon in the background so we can immediately start
@@ -238,4 +239,28 @@ func main() {
 
 func showVersion() {
 	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
+}
+
+func checkKernelAndArch() error {
+	// Check for unsupported architectures
+	if runtime.GOARCH != "amd64" {
+		return fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+	}
+	// Check for unsupported kernel versions
+	// FIXME: it would be cleaner to not test for specific versions, but rather
+	// test for specific functionalities.
+	// Unfortunately we can't test for the feature "does not cause a kernel panic"
+	// without actually causing a kernel panic, so we need this workaround until
+	// the circumstances of pre-3.8 crashes are clearer.
+	// For details see http://github.com/dotcloud/docker/issues/407
+	if k, err := utils.GetKernelVersion(); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			}
+		}
+	}
+	return nil
 }
