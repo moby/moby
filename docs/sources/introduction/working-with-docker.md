@@ -54,7 +54,7 @@ accessed by running the `docker` binary.
 > **Tip:** The below instructions can be considered a summary of our
 > *interactive tutorial*. If you prefer a more hands-on approach without
 > installing anything, why not give that a shot and check out the
-> [Docker Interactive Tutorial](https://www.docker.io/gettingstarted/#h_tutorial).
+> [Docker Interactive Tutorial](https://www.docker.io/gettingstarted).
 
 The `docker` client usage consists of passing a chain of arguments:
 
