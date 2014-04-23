@@ -1,3 +1,4 @@
+{% if aws_bucket != "docs.docker.io" %}
 <style>
 .bs-callout {
   padding: 20px;
@@ -22,6 +23,10 @@
 }
 </style>
 <div class="bs-callout bs-callout-danger">
-<h4>You are looking at the <span>beta</span> docs for the development version of Docker.</h4>
-There is a chance of them being different from the prior versions.
+	<h4>This is the
+		<span>{% if docker_version != docker_version|replace("-dev", "bingo") %}{{ docker_branch }} development branch{% else %}beta{% endif %}</span>
+		documentation for Docker version {{ docker_version }}.</h4>
+	Please go to <a href="http://docs.docker.io">http://docs.docker.io</a> for the current Docker release documentation.
+	{{ aws_bucket }}
 </div>
+{% endif %}
