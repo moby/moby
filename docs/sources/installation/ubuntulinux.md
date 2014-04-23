@@ -4,10 +4,6 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, 
 
 # Ubuntu
 
-> **Warning**: 
-> These instructions have changed for 0.6. If you are upgrading from an
-> earlier version, you will need to follow them again.
-
 > **Note**:
 > Docker is still under heavy development! We don't recommend using it in
 > production yet, but we're getting closer with each release. Please see
@@ -16,12 +12,37 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, 
 
 Docker is supported on the following versions of Ubuntu:
 
+ - [*Ubuntu Trusty 14.04 (LTS) (64-bit)*](#ubuntu-trusty-1404-lts-64-bit)
  - [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise-1204-lts-64-bit)
  - [*Ubuntu Raring 13.04 and Saucy 13.10 (64
    bit)*](#ubuntu-raring-1304-and-saucy-1310-64-bit)
 
 Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 (Uncomplicated Firewall)](https://help.ubuntu.com/community/UFW)
+
+## Ubuntu Trusty 14.04 (LTS) (64-bit)
+
+Ubuntu Trusty comes with a 3.13.0 Linux kernel, and a `docker.io` package which
+installs all its prerequisites from Ubuntu's repository.
+
+> **Note**:
+> Ubuntu (and Debian) contain a much older KDE3/GNOME2 package called ``docker``, so the
+> package and the executable are called ``docker.io``.
+
+### Installation
+
+To install the latest Ubuntu package (may not be the latest Docker release):
+
+    sudo apt-get update
+    sudo apt-get install docker.io
+    sudo ln -sf /usr/bin/docker.io /usr/local/bin/docker
+
+To verify that everything has worked as expected:
+
+    sudo docker run -i -t ubuntu /bin/bash
+
+Which should download the `ubuntu` image, and then start `bash` in a container.
+
 
 ## Ubuntu Precise 12.04 (LTS) (64-bit)
 
