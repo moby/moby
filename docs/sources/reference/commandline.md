@@ -3,5 +3,5 @@
 
 ## Contents:
 
--   [Command Line](cli/)
+- [Command Line](cli/)
 

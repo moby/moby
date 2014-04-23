@@ -6,22 +6,20 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 ## Introduction
 
-![](../../_images/docker-filesystems-busyboxrw.png)
+![](../../static_files/docker-filesystems-busyboxrw.png)
 
-Once you start a process in Docker from an
-[*Image*](../image/#image-def), Docker fetches the image and its
-[*Parent Image*](../image/#parent-image-def), and repeats the process
-until it reaches the [*Base Image*](../image/#base-image-def). Then the
-[*Union File System*](../layer/#ufs-def) adds a read-write layer on top.
-That read-write layer, plus the information about its [*Parent
-Image*](../image/#parent-image-def) and some additional information like
-its unique id, networking configuration, and resource limits is called a
-**container**.
+Once you start a process in Docker from an [*Image*](image.md), Docker fetches
+the image and its [*Parent Image*](image.md), and repeats the process until it
+reaches the [*Base Image*](image.md/#base-image-def). Then the
+[*Union File System*](layer.md) adds a read-write layer on top. That read-write
+layer, plus the information about its [*Parent Image*](image.md) and some
+additional information like its unique id, networking configuration, and
+resource limits is called a **container**.
 
 ## Container State
 
-Containers can change, and so they have state. A container may be
-**running** or **exited**.
+Containers can change, and so they have state. A container may be **running** or
+**exited**.
 
 When a container is running, the idea of a "container" also includes a
 tree of processes running on the CPU, isolated from the other processes
@@ -33,9 +31,8 @@ processes restart from scratch (their memory state is **not** preserved
 in a container), but the file system is just as it was when the
 container was stopped.
 
-You can promote a container to an [*Image*](../image/#image-def) with
-`docker commit`. Once a container is an image, you
-can use it as a parent for new containers.
+You can promote a container to an [*Image*](image.md) with `docker commit`.
+Once a container is an image, you can use it as a parent for new containers.
 
 ## Container IDs
 

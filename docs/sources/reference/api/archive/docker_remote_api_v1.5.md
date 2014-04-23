@@ -2,24 +2,25 @@ page_title: Remote API v1.5
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
-# [Docker Remote API v1.5](#id1)
+# Docker Remote API v1.5
 
-## [1. Brief introduction](#id2)
+# 1. Brief introduction
 
--   The Remote API is replacing rcli
--   Default port in the docker daemon is 4243
--   The API tends to be REST, but for some complex commands, like attach
-    or pull, the HTTP connection is hijacked to transport stdout stdin
-    and stderr
+- The Remote API is replacing rcli
+- Default port in the docker daemon is 4243
+- The API tends to be REST, but for some complex commands, like attach
+  or pull, the HTTP connection is hijacked to transport stdout stdin
+  and stderr
 
-## [2. Endpoints](#id3)
+# 2. Endpoints
 
-### [2.1 Containers](#id4)
+## 2.1 Containers
 
-#### [List containers](#id5)
+### List containers
 
- `GET /containers/json`
-:   List containers
+`GET /containers/json`
+
+List containers
 
     **Example request**:
 
@@ -94,10 +95,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **400** – bad parameter
     -   **500** – server error
 
-#### [Create a container](#id6)
+### Create a container
 
- `POST /containers/create`
-:   Create a container
+`POST /containers/create`
+
+Create a container
 
     **Example request**:
 
@@ -142,7 +144,7 @@ page_keywords: API, Docker, rcli, REST, documentation
 
      
 
-    -   **config** – the container’s configuration
+    -   **config** – the container's configuration
 
     Status Codes:
 
@@ -151,10 +153,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **406** – impossible to attach (container not running)
     -   **500** – server error
 
-#### [Inspect a container](#id7)
+### Inspect a container
 
- `GET /containers/`(*id*)`/json`
-:   Return low-level information on the container `id`
+`GET /containers/(id)/json`
+
+Return low-level information on the container `id`
 
 
     **Example request**:
@@ -219,10 +222,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [List processes running inside a container](#id8)
+### List processes running inside a container
 
- `GET /containers/`(*id*)`/top`
-:   List processes running inside the container `id`
+`GET /containers/(id)/top`
+
+List processes running inside the container `id`
 
     **Example request**:
 
@@ -257,7 +261,7 @@ page_keywords: API, Docker, rcli, REST, documentation
 
      
 
-    -   **ps\_args** – ps arguments to use (eg. aux)
+    -   **ps_args** – ps arguments to use (eg. aux)
 
     Status Codes:
 
@@ -265,10 +269,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Inspect changes on a container’s filesystem](#id9)
+### Inspect changes on a container's filesystem
 
- `GET /containers/`(*id*)`/changes`
-:   Inspect changes on container `id` ‘s filesystem
+`GET /containers/(id)/changes`
+
+Inspect changes on container `id`'s filesystem
 
     **Example request**:
 
@@ -300,10 +305,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Export a container](#id10)
+### Export a container
 
- `GET /containers/`(*id*)`/export`
-:   Export the contents of container `id`
+`GET /containers/(id)/export`
+
+Export the contents of container `id`
 
     **Example request**:
 
@@ -322,10 +328,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Start a container](#id11)
+### Start a container
 
- `POST /containers/`(*id*)`/start`
-:   Start the container `id`
+`POST /containers/(id)/start`
+
+Start the container `id`
 
     **Example request**:
 
@@ -346,7 +353,7 @@ page_keywords: API, Docker, rcli, REST, documentation
 
      
 
-    -   **hostConfig** – the container’s host configuration (optional)
+    -   **hostConfig** – the container's host configuration (optional)
 
     Status Codes:
 
@@ -354,10 +361,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Stop a container](#id12)
+### Stop a container
 
- `POST /containers/`(*id*)`/stop`
-:   Stop the container `id`
+`POST /containers/(id)/stop`
+
+Stop the container `id`
 
     **Example request**:
 
@@ -379,10 +387,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Restart a container](#id13)
+### Restart a container
 
- `POST /containers/`(*id*)`/restart`
-:   Restart the container `id`
+`POST /containers/(id)/restart`
+
+Restart the container `id`
 
     **Example request**:
 
@@ -404,10 +413,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Kill a container](#id14)
+### Kill a container
 
- `POST /containers/`(*id*)`/kill`
-:   Kill the container `id`
+`POST /containers/(id)/kill`
+
+Kill the container `id`
 
     **Example request**:
 
@@ -423,10 +433,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Attach to a container](#id15)
+### Attach to a container
 
- `POST /containers/`(*id*)`/attach`
-:   Attach to the container `id`
+`POST /containers/(id)/attach`
+
+Attach to the container `id`
 
     **Example request**:
 
@@ -461,11 +472,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Wait a container](#id16)
+### Wait a container
 
- `POST /containers/`(*id*)`/wait`
-:   Block until container `id` stops, then returns
-    the exit code
+`POST /containers/(id)/wait`
+
+Block until container `id` stops, then returns the exit code
 
     **Example request**:
 
@@ -484,10 +495,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Remove a container](#id17)
+### Remove a container
 
- `DELETE /containers/`(*id*)
-:   Remove the container `id` from the filesystem
+`DELETE /containers/(id)`
+
+Remove the container `id` from the filesystem
 
     **Example request**:
 
@@ -511,10 +523,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Copy files or folders from a container](#id18)
+### Copy files or folders from a container
 
- `POST /containers/`(*id*)`/copy`
-:   Copy files or folders of container `id`
+`POST /containers/(id)/copy`
+
+Copy files or folders of container `id`
 
     **Example request**:
 
@@ -538,13 +551,13 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-### [2.2 Images](#id19)
+## 2.2 Images
 
-#### [List Images](#id20)
+### List Images
 
- `GET /images/`(*format*)
-:   List images `format` could be json or viz (json
-    default)
+`GET /images/(format)`
+
+List images `format` could be json or viz (json default)
 
     **Example request**:
 
@@ -614,11 +627,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **400** – bad parameter
     -   **500** – server error
 
-#### [Create an image](#id21)
+### Create an image
 
- `POST /images/create`
-:   Create an image, either by pull it from the registry or by importing
-    it
+`POST /images/create`
+
+Create an image, either by pull it from the registry or by importing it
 
     **Example request**:
 
@@ -653,11 +666,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-#### [Insert a file in an image](#id22)
+### Insert a file in an image
 
- `POST /images/`(*name*)`/insert`
-:   Insert a file from `url` in the image
-    `name` at `path`
+`POST /images/(name)/insert`
+
+Insert a file from `url` in the image `name` at `path`
 
     **Example request**:
 
@@ -678,10 +691,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-#### [Inspect an image](#id23)
+### Inspect an image
 
- `GET /images/`(*name*)`/json`
-:   Return low-level information on the image `name`
+`GET /images/(name)/json`
+
+Return low-level information on the image `name`
 
     **Example request**:
 
@@ -727,10 +741,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such image
     -   **500** – server error
 
-#### [Get the history of an image](#id24)
+### Get the history of an image
 
- `GET /images/`(*name*)`/history`
-:   Return the history of the image `name`
+`GET /images/(name)/history`
+
+Return the history of the image `name`
 
     **Example request**:
 
@@ -760,10 +775,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such image
     -   **500** – server error
 
-#### [Push an image on the registry](#id25)
+### Push an image on the registry
 
- `POST /images/`(*name*)`/push`
-:   Push the image `name` on the registry
+`POST /images/(name)/push`
+
+Push the image `name` on the registry
 
     **Example request**:
 
@@ -794,10 +810,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such image
     -   **500** – server error
 
-#### [Tag an image into a repository](#id26)
+### Tag an image into a repository
 
- `POST /images/`(*name*)`/tag`
-:   Tag the image `name` into a repository
+`POST /images/(name)/tag`
+
+Tag the image `name` into a repository
 
     **Example request**:
 
@@ -822,10 +839,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **409** – conflict
     -   **500** – server error
 
-#### [Remove an image](#id27)
+### Remove an image
 
- `DELETE /images/`(*name*)
-:   Remove the image `name` from the filesystem
+`DELETE /images/(name)`
+
+Remove the image `name` from the filesystem
 
     **Example request**:
 
@@ -849,10 +867,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **409** – conflict
     -   **500** – server error
 
-#### [Search images](#id28)
+### Search images
 
- `GET /images/search`
-:   Search for an image in the docker index
+`GET /images/search`
+
+Search for an image in the docker index
 
     **Example request**:
 
@@ -889,12 +908,13 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-### [2.3 Misc](#id29)
+## 2.3 Misc
 
-#### [Build an image from Dockerfile via stdin](#id30)
+### Build an image from Dockerfile via stdin
 
- `POST /build`
-:   Build an image from Dockerfile via stdin
+`POST /build`
+
+Build an image from Dockerfile via stdin
 
     **Example request**:
 
@@ -931,10 +951,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-#### [Check auth configuration](#id31)
+### Check auth configuration
 
- `POST /auth`
-:   Get the default username and email
+`POST /auth`
+
+Get the default username and email
 
     **Example request**:
 
@@ -958,10 +979,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **204** – no error
     -   **500** – server error
 
-#### [Display system-wide information](#id32)
+### Display system-wide information
 
- `GET /info`
-:   Display system-wide information
+`GET /info`
+
+Display system-wide information
 
     **Example request**:
 
@@ -988,10 +1010,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-#### [Show the docker version information](#id33)
+### Show the docker version information
 
- `GET /version`
-:   Show the docker version information
+`GET /version`
+
+Show the docker version information
 
     **Example request**:
 
@@ -1013,10 +1036,11 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-#### [Create a new image from a container’s changes](#id34)
+### Create a new image from a container's changes
 
- `POST /commit`
-:   Create a new image from a container’s changes
+`POST /commit`
+
+Create a new image from a container's changes
 
     **Example request**:
 
@@ -1044,7 +1068,7 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **tag** – tag
     -   **m** – commit message
     -   **author** – author (eg. "John Hannibal Smith
-        \<[hannibal@a-team.com](mailto:hannibal%40a-team.com)\>")
+        <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
     Status Codes:
 
@@ -1052,11 +1076,12 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **404** – no such container
     -   **500** – server error
 
-#### [Monitor Docker’s events](#id35)
+### Monitor Docker's events
 
- `GET /events`
-:   Get events from docker, either in real time via streaming, or via
-    polling (using since)
+`GET /events`
+
+Get events from docker, either in real time via streaming, or via
+polling (using since)
 
     **Example request**:
 
@@ -1083,28 +1108,28 @@ page_keywords: API, Docker, rcli, REST, documentation
     -   **200** – no error
     -   **500** – server error
 
-## [3. Going further](#id36)
+# 3. Going further
 
-### [3.1 Inside ‘docker run’](#id37)
+## 3.1 Inside `docker run`
 
-Here are the steps of ‘docker run’ :
+Here are the steps of `docker run`:
 
--   Create the container
--   If the status code is 404, it means the image doesn’t exists: \* Try
-    to pull it \* Then retry to create the container
--   Start the container
--   If you are not in detached mode: \* Attach to the container, using
-    logs=1 (to have stdout and stderr from the container’s start) and
-    stream=1
--   If in detached mode or only stdin is attached: \* Display the
-    container’s id
+ - Create the container
+ - If the status code is 404, it means the image doesn't exists:
+   Try to pull it - Then retry to create the container
+ - Start the container
+ - If you are not in detached mode:
+   Attach to the container, using logs=1 (to have stdout and stderr
+   from the container's start) and stream=1
+ - If in detached mode or only stdin is attached:
+   Display the container's id
 
-### [3.2 Hijacking](#id38)
+## 3.2 Hijacking
 
 In this version of the API, /attach, uses hijacking to transport stdin,
 stdout and stderr on the same socket. This might change in the future.
 
-### [3.3 CORS Requests](#id39)
+## 3.3 CORS Requests
 
 To enable cross origin requests to the remote api add the flag
 "–api-enable-cors" when running docker in daemon mode.
