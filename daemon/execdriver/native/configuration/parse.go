@@ -27,6 +27,8 @@ var actions = map[string]Action{
 	"cgroups.memory_swap":        memorySwap,        // set the memory swap limit
 	"cgroups.cpuset.cpus":        cpusetCpus,        // set the cpus used
 
+	"systemd.slice": systemdSlice, // set parent Slice used for systemd unit
+
 	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
 
 	"fs.readonly": readonlyFs, // make the rootfs of the container read only
@@ -37,6 +39,15 @@ func cpusetCpus(container *libcontainer.Container, context interface{}, value st
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
 	container.Cgroups.CpusetCpus = value
+
+	return nil
+}
+
+func systemdSlice(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set slice when cgroups are disabled")
+	}
+	container.Cgroups.Slice = value
 
 	return nil
 }
