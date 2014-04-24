@@ -9,7 +9,7 @@ or execute `docker help`:
 
     $ sudo docker
       Usage: docker [OPTIONS] COMMAND [arg...]
-        -H=[unix:///var/run/docker.sock]: tcp://[host]:port to bind/connect to or unix://[/path/to/socket] to use. When host=[127.0.0.1] is omitted for tcp or path=[/var/run/docker.sock] is omitted for unix sockets, default values are used.
+        -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
       A self-sufficient runtime for linux containers.
 
@@ -52,7 +52,7 @@ expect an integer, and they can only be specified once.
     Usage of docker:
 
       -D, --debug=false: Enable debug mode
-      -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
+      -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
@@ -76,6 +76,8 @@ expect an integer, and they can only be specified once.
       --tlskey="~/.docker/key.pem": Path to TLS key file
       --tlsverify=false: Use TLS and verify the remote (daemon: verify client, client: verify daemon)
       --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
+
+    Options with [] may be specified multiple times.
 
 The Docker daemon is the persistent process that manages containers.
 Docker uses the same binary for both the daemon and client. To run the
