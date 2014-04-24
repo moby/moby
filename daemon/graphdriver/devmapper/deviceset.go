@@ -588,7 +588,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 
 	deviceId := devices.allocateDeviceId()
 
-	if err := devices.createSnapDevice(devices.getPoolDevName(), deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
+	if err := createSnapDevice(devices.getPoolDevName(), deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 		utils.Debugf("Error creating snap device: %s\n", err)
 		return err
 	}
