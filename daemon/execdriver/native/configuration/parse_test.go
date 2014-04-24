@@ -93,7 +93,7 @@ func TestCpuShares(t *testing.T) {
 	}
 }
 
-func TestCgroupMemory(t *testing.T) {
+func TestMemory(t *testing.T) {
 	var (
 		container = template.New()
 		opts      = []string{
@@ -106,6 +106,22 @@ func TestCgroupMemory(t *testing.T) {
 
 	if expected := int64(500 * 1024 * 1024); container.Cgroups.Memory != expected {
 		t.Fatalf("expected memory %d got %d", expected, container.Cgroups.Memory)
+	}
+}
+
+func TestMemoryReservation(t *testing.T) {
+	var (
+		container = template.New()
+		opts      = []string{
+			"cgroups.memory_reservation=500m",
+		}
+	)
+	if err := ParseConfiguration(container, nil, opts); err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := int64(500 * 1024 * 1024); container.Cgroups.MemoryReservation != expected {
+		t.Fatalf("expected memory reservation %d got %d", expected, container.Cgroups.MemoryReservation)
 	}
 }
 

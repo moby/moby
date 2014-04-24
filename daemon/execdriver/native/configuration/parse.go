@@ -21,10 +21,11 @@ var actions = map[string]Action{
 
 	"net.join": joinNetNamespace, // join another containers net namespace
 
-	"cgroups.cpu_shares":  cpuShares,  // set the cpu shares
-	"cgroups.memory":      memory,     // set the memory limit
-	"cgroups.memory_swap": memorySwap, // set the memory swap limit
-	"cgroups.cpuset.cpus": cpusetCpus, // set the cpus used
+	"cgroups.cpu_shares":         cpuShares,         // set the cpu shares
+	"cgroups.memory":             memory,            // set the memory limit
+	"cgroups.memory_reservation": memoryReservation, // set the memory reservation
+	"cgroups.memory_swap":        memorySwap,        // set the memory swap limit
+	"cgroups.cpuset.cpus":        cpusetCpus,        // set the cpus used
 
 	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
 
@@ -67,6 +68,19 @@ func memory(container *libcontainer.Container, context interface{}, value string
 		return err
 	}
 	container.Cgroups.Memory = v
+	return nil
+}
+
+func memoryReservation(container *libcontainer.Container, context interface{}, value string) error {
+	if container.Cgroups == nil {
+		return fmt.Errorf("cannot set cgroups when they are disabled")
+	}
+
+	v, err := utils.RAMInBytes(value)
+	if err != nil {
+		return err
+	}
+	container.Cgroups.MemoryReservation = v
 	return nil
 }
 
