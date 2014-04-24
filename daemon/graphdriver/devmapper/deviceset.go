@@ -13,7 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -62,7 +61,6 @@ type DeviceSet struct {
 	TransactionId    uint64
 	NewTransactionId uint64
 	nextFreeDevice   int
-	sawBusy          bool
 }
 
 type DiskUsage struct {
@@ -387,10 +385,6 @@ func (devices *DeviceSet) log(level int, file string, line int, dmError int, mes
 		return // Ignore _LOG_DEBUG
 	}
 
-	if strings.Contains(message, "busy") {
-		devices.sawBusy = true
-	}
-
 	utils.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 }
 
@@ -710,12 +704,11 @@ func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 	var err error
 
 	for i := 0; i < 1000; i++ {
-		devices.sawBusy = false
 		err = removeDevice(devname)
 		if err == nil {
 			break
 		}
-		if !devices.sawBusy {
+		if err != ErrBusy {
 			return err
 		}
 

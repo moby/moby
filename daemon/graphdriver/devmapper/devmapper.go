@@ -62,6 +62,9 @@ var (
 	ErrInvalidAddNode         = errors.New("Invalide AddNoce type")
 	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
+	ErrBusy                   = errors.New("Device is Busy")
+
+	dmSawBusy bool
 )
 
 type (
@@ -512,7 +515,11 @@ func removeDevice(name string) error {
 	if task == nil {
 		return err
 	}
+	dmSawBusy = false
 	if err = task.Run(); err != nil {
+		if dmSawBusy {
+			return ErrBusy
+		}
 		return fmt.Errorf("Error running removeDevice")
 	}
 	return nil
