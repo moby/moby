@@ -10,7 +10,7 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 > If you prefer a summary and would like to see how a specific command
 > works, check out the glossary of all available client
 > commands on our [User's Manual: Commands Reference](
-> http://docs.docker.io/en/latest/reference/commandline/cli).
+> http://docs.docker.io/reference/commandline/cli).
 
 ## Introduction
 
@@ -164,8 +164,8 @@ image is constructed.
     dockerfiles/django-uwsgi-nginx           Dockerfile and configuration files to buil...   2                    [OK]
     . . .
 
-> **Note:** To learn more about trusted builds, check out [this]
-(http://blog.docker.io/2013/11/introducing-trusted-builds) blog post.
+> **Note:** To learn more about trusted builds, check out [this](
+http://blog.docker.io/2013/11/introducing-trusted-builds) blog post.
 
 ### Downloading an image
 
@@ -279,7 +279,7 @@ The `Dockerfile` holds the set of instructions Docker uses to build a Docker ima
 > **Tip:** Below is a short summary of our full Dockerfile tutorial.  In
 > order to get a better-grasp of how to work with these automation
 > scripts, check out the [Dockerfile step-by-step
-> tutorial](http://www.docker.io/learn/dockerfile).
+> tutorial](https://www.docker.io/learn/dockerfile).
 
 A `Dockerfile` contains instructions written in the following format:
 
@@ -294,7 +294,7 @@ A `#` sign is used to provide a comment:
 > **Tip:** The `Dockerfile` is very flexible and provides a powerful set
 > of instructions for building applications. To learn more about the
 > `Dockerfile` and it's instructions see the [Dockerfile
-> Reference](http://docs.docker.io/en/latest/reference/builder).
+> Reference](http://docs.docker.io/reference/builder/).
 
 ### First steps with the Dockerfile
 

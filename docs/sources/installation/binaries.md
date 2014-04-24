@@ -5,8 +5,8 @@ page_keywords: binaries, installation, docker, documentation, linux
 # Binaries
 
 > **Note**:
-> Docker is still under heavy development! We don’t recommend using it in
-> production yet, but we’re getting closer with each release. Please see
+> Docker is still under heavy development! We don't recommend using it in
+> production yet, but we're getting closer with each release. Please see
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
@@ -22,16 +22,16 @@ packages for many distributions, and more keep showing up all the time!
 To run properly, docker needs the following software to be installed at
 runtime:
 
--   iptables version 1.4 or later
--   Git version 1.7 or later
--   procps (or similar provider of a "ps" executable)
--   XZ Utils 4.9 or later
--   a [properly
-    mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
-    cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount
-    point [is](https://github.com/dotcloud/docker/issues/2683)
-    [not](https://github.com/dotcloud/docker/issues/3485)
-    [sufficient](https://github.com/dotcloud/docker/issues/4568))
+ - iptables version 1.4 or later
+ - Git version 1.7 or later
+ - procps (or similar provider of a "ps" executable)
+ - XZ Utils 4.9 or later
+ - a [properly mounted](
+   https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
+   cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount
+   point [is](https://github.com/dotcloud/docker/issues/2683)
+   [not](https://github.com/dotcloud/docker/issues/3485)
+   [sufficient](https://github.com/dotcloud/docker/issues/4568))
 
 ## Check kernel dependencies
 
@@ -52,7 +52,7 @@ Linux kernel (it even builds on OSX!).
 > **Note**:
 > If you have trouble downloading the binary, you can also get the smaller
 > compressed release file:
-> [https://get.docker.io/builds/Linux/x86\_64/docker-latest.tgz](
+> [https://get.docker.io/builds/Linux/x86_64/docker-latest.tgz](
 > https://get.docker.io/builds/Linux/x86_64/docker-latest.tgz)
 
 ## Run the docker daemon
@@ -74,13 +74,13 @@ Unix group called *docker* and add users to it, then the
 socket read/writable by the *docker* group when the daemon starts. The
 `docker` daemon must always run as the root user,
 but if you run the `docker` client as a user in the
-*docker* group then you don’t need to add `sudo` to
+*docker* group then you don't need to add `sudo` to
 all the client commands.
 
 > **Warning**: 
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
 > see [*Docker Daemon Attack Surface*](
-> ../../articles/security/#dockersecurity-daemon) details.
+> /articles/security/#dockersecurity-daemon) details.
 
 ## Upgrades
 
@@ -99,5 +99,4 @@ Then follow the regular installation steps.
     # run a container and open an interactive shell in the container
     sudo ./docker run -i -t ubuntu /bin/bash
 
-Continue with the [*Hello
-World*](../../examples/hello_world/#hello-world) example.
+Continue with the [*Hello World*](/examples/hello_world/#hello-world) example.

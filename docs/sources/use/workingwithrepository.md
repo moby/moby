@@ -7,8 +7,8 @@ page_keywords: repo, repositories, usage, pull image, push image, image, documen
 ## Introduction
 
 A *repository* is a shareable collection of tagged
-[*images*](../../terms/image/#image-def) that together create the file
-systems for containers. The repository’s name is a label that indicates
+[*images*](/terms/image/#image-def) that together create the file
+systems for containers. The repository's name is a label that indicates
 the provenance of the repository, i.e. who created it and where the
 original copy is located.
 
@@ -19,7 +19,7 @@ the home of "top-level" repositories and the Central Index. This
 registry may also include public "user" repositories.
 
 Docker is not only a tool for creating and managing your own
-[*containers*](../../terms/container/#container-def) – **Docker is also
+[*containers*](/terms/container/#container-def) – **Docker is also
 a tool for sharing**. The Docker project provides a Central Registry to
 host public repositories, namespaced by user, and a Central Index which
 provides user authentication and search over all the public
@@ -44,17 +44,15 @@ they really help people get started quickly! You could also use
 control of who accesses your images, but we will only refer to public
 repositories in these examples.
 
--   Top-level repositories can easily be recognized by **not** having a
-    `/` (slash) in their name. These repositories
-    can generally be trusted.
--   User repositories always come in the form of
-    `<username>/<repo_name>`. This is what your
-    published images will look like if you push to the public Central
-    Registry.
--   Only the authenticated user can push to their *username* namespace
-    on the Central Registry.
--   User images are not checked, it is therefore up to you whether or
-    not you trust the creator of this image.
+- Top-level repositories can easily be recognized by **not** having a
+  `/` (slash) in their name. These repositories can generally be trusted.
+- User repositories always come in the form of `<username>/<repo_name>`.
+  This is what your published images will look like if you push to the public
+  Central Registry.
+- Only the authenticated user can push to their *username* namespace
+  on the Central Registry.
+- User images are not checked, it is therefore up to you whether or not you
+  trust the creator of this image.
 
 ## Find Public Images on the Central Index
 
@@ -79,9 +77,9 @@ There you can see two example results: `centos` and
 `slantview/centos-chef-solo`. The second result
 shows that it comes from the public repository of a user,
 `slantview/`, while the first result
-(`centos`) doesn’t explicitly list a repository so
+(`centos`) doesn't explicitly list a repository so
 it comes from the trusted Central Repository. The `/`
-character separates a user’s repository and the image name.
+character separates a user's repository and the image name.
 
 Once you have found the image name, you can download it:
 
@@ -91,7 +89,7 @@ Once you have found the image name, you can download it:
     539c0211cd76: Download complete
 
 What can you do with that image? Check out the
-[*Examples*](../../examples/#example-list) and, when you’re ready with
+[*Examples*](/examples/#example-list) and, when you're ready with
 your own image, come back here to learn how to share it.
 
 ## Contributing to the Central Registry
@@ -109,13 +107,13 @@ namespace for your public repositories.
 
 If your username is available then `docker` will
 also prompt you to enter a password and your e-mail address. It will
-then automatically log you in. Now you’re ready to commit and push your
+then automatically log you in. Now you're ready to commit and push your
 own images!
 
 ## Committing a Container to a Named Image
 
 When you make changes to an existing image, those changes get saved to a
-container’s file system. You can then promote that container to become
+container's file system. You can then promote that container to become
 an image by making a `commit`. In addition to
 converting the container to an image, this is also your opportunity to
 name the image, specifically a name that includes your user name from
@@ -146,17 +144,13 @@ when you push a commit.
 ### To setup a trusted build
 
 1.  Create a [Docker Index account](https://index.docker.io/) and login.
-2.  Link your GitHub account through the `Link Accounts`
- menu.
+2.  Link your GitHub account through the `Link Accounts` menu.
 3.  [Configure a Trusted build](https://index.docker.io/builds/).
-4.  Pick a GitHub project that has a `Dockerfile`
-    that you want to build.
-5.  Pick the branch you want to build (the default is the
-    `master` branch).
+4.  Pick a GitHub project that has a `Dockerfile` that you want to build.
+5.  Pick the branch you want to build (the default is the `master` branch).
 6.  Give the Trusted Build a name.
 7.  Assign an optional Docker tag to the Build.
-8.  Specify where the `Dockerfile` is located. The
-    default is `/`.
+8.  Specify where the `Dockerfile` is located. The default is `/`.
 
 Once the Trusted Build is configured it will automatically trigger a
 build, and in a few minutes, if there are no errors, you will see your
@@ -168,22 +162,20 @@ If you want to see the status of your Trusted Builds you can go to your
 index, and it will show you the status of your builds, and the build
 history.
 
-Once you’ve created a Trusted Build you can deactivate or delete it. You
-cannot however push to a Trusted Build with the `docker push`
-command. You can only manage it by committing code to your
-GitHub repository.
+Once you`ve created a Trusted Build you can deactivate or delete it. You
+cannot however push to a Trusted Build with the `docker push` command.
+You can only manage it by committing code to your GitHub repository.
 
 You can create multiple Trusted Builds per repository and configure them
-to point to specific `Dockerfile`‘s or Git branches.
+to point to specific Dockerfile's or Git branches.
 
 ## Private Registry
 
 Private registries and private shared repositories are only possible by
-hosting [your own
-registry](https://github.com/dotcloud/docker-registry). To push or pull
-to a repository on your own registry, you must prefix the tag with the
-address of the registry’s host (a `.` or
-`:` is used to identify a host), like this:
+hosting [your own registry](https://github.com/dotcloud/docker-registry).
+To push or pull to a repository on your own registry, you must prefix the
+tag with the address of the registry's host (a `.` or `:` is used to identify
+a host), like this:
 
     # Tag to create a repository with the full registry location.
     # The location (e.g. localhost.localdomain:5000) becomes
@@ -193,7 +185,7 @@ address of the registry’s host (a `.` or
     # Push the new repository to its home location on localhost
     sudo docker push localhost.localdomain:5000/repo_name
 
-Once a repository has your registry’s host name as part of the tag, you
+Once a repository has your registry's host name as part of the tag, you
 can push and pull it like any other repository, but it will **not** be
 searchable (or indexed at all) in the Central Index, and there will be
 no user name checking performed. Your registry will function completely
@@ -203,8 +195,8 @@ independently from the Central Index.
 
 See also
 
-[Docker Blog: How to use your own
-registry](http://blog.docker.io/2013/07/how-to-use-your-own-registry/)
+[Docker Blog: How to use your own registry](
+http://blog.docker.io/2013/07/how-to-use-your-own-registry/)
 
 ## Authentication File
 
@@ -212,11 +204,11 @@ The authentication is stored in a json file, `.dockercfg`
 located in your home directory. It supports multiple registry
 urls.
 
-`docker login` will create the
-"[https://index.docker.io/v1/](https://index.docker.io/v1/)" key.
+`docker login` will create the "[https://index.docker.io/v1/](
+https://index.docker.io/v1/)" key.
 
-`docker login https://my-registry.com` will create
-the "[https://my-registry.com](https://my-registry.com)" key.
+`docker login https://my-registry.com` will create the
+"[https://my-registry.com](https://my-registry.com)" key.
 
 For example:
 

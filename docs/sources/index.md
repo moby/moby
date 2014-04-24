@@ -8,7 +8,7 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 ## Introduction
 
-[**Docker**](http://www.docker.io) is a container based virtualization
+[**Docker**](https://www.docker.io) is a container based virtualization
 framework. Unlike traditional virtualization Docker is fast, lightweight
 and easy to use. Docker allows you to create containers holding
 all the dependencies for an application. Each container is kept isolated

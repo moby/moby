@@ -9,16 +9,16 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, 
 > earlier version, you will need to follow them again.
 
 > **Note**:
-> Docker is still under heavy development! We don’t recommend using it in
-> production yet, but we’re getting closer with each release. Please see
+> Docker is still under heavy development! We don't recommend using it in
+> production yet, but we're getting closer with each release. Please see
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Docker is supported on the following versions of Ubuntu:
 
--   [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise-1204-lts-64-bit)
--   [*Ubuntu Raring 13.04 and Saucy 13.10 (64
-    bit)*](#ubuntu-raring-1304-and-saucy-1310-64-bit)
+ - [*Ubuntu Precise 12.04 (LTS) (64-bit)*](#ubuntu-precise-1204-lts-64-bit)
+ - [*Ubuntu Raring 13.04 and Saucy 13.10 (64
+   bit)*](#ubuntu-raring-1304-and-saucy-1310-64-bit)
 
 Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 (Uncomplicated Firewall)](https://help.ubuntu.com/community/UFW)
@@ -32,12 +32,12 @@ This installation path should work at all times.
 **Linux kernel 3.8**
 
 Due to a bug in LXC, Docker works best on the 3.8 kernel. Precise comes
-with a 3.2 kernel, so we need to upgrade it. The kernel you’ll install
+with a 3.2 kernel, so we need to upgrade it. The kernel you'll install
 when following these steps comes with AUFS built in. We also include the
 generic headers to enable packages that depend on them, like ZFS and the
-VirtualBox guest additions. If you didn’t install the headers for your
+VirtualBox guest additions. If you didn't install the headers for your
 "precise" kernel, then you can skip these headers for the "raring"
-kernel. But it is safer to include them if you’re not sure.
+kernel. But it is safer to include them if you're not sure.
 
     # install the backported kernel
     sudo apt-get update
@@ -59,7 +59,7 @@ faster for you to install.
 
 First, check that your APT system can deal with `https`
 URLs: the file `/usr/lib/apt/methods/https`
-should exist. If it doesn’t, you need to install the package
+should exist. If it doesn't, you need to install the package
 `apt-transport-https`.
 
     [ -e /usr/lib/apt/methods/https ] || {
@@ -74,7 +74,7 @@ Then, add the Docker repository key to your local keychain.
 Add the Docker repository to your apt sources list, update and install
 the `lxc-docker` package.
 
-*You may receive a warning that the package isn’t trusted. Answer yes to
+*You may receive a warning that the package isn't trusted. Answer yes to
 continue installation.*
 
     sudo sh -c "echo deb https://get.docker.io/ubuntu docker main\
@@ -96,7 +96,7 @@ Now verify that the installation has worked by downloading the
 Type `exit` to exit
 
 **Done!**, now continue with the [*Hello
-World*](../../examples/hello_world/#hello-world) example.
+World*](/examples/hello_world/#hello-world) example.
 
 ## Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
 
@@ -106,9 +106,9 @@ These instructions cover both Ubuntu Raring 13.04 and Saucy 13.10.
 
 **Optional AUFS filesystem support**
 
-Ubuntu Raring already comes with the 3.8 kernel, so we don’t need to
+Ubuntu Raring already comes with the 3.8 kernel, so we don't need to
 install it. However, not all systems have AUFS filesystem support
-enabled. AUFS support is optional as of version 0.7, but it’s still
+enabled. AUFS support is optional as of version 0.7, but it's still
 available as a driver and we recommend using it if you can.
 
 To make sure AUFS is installed, run the following commands:
@@ -144,7 +144,7 @@ Now verify that the installation has worked by downloading the
 Type `exit` to exit
 
 **Done!**, now continue with the [*Hello
-World*](../../examples/hello_world/#hello-world) example.
+World*](/examples/hello_world/#hello-world) example.
 
 ### Giving non-root access
 
@@ -160,7 +160,7 @@ Unix group called *docker* and add users to it, then the
 socket read/writable by the *docker* group when the daemon starts. The
 `docker` daemon must always run as the root user,
 but if you run the `docker` client as a user in the
-*docker* group then you don’t need to add `sudo` to
+*docker* group then you don't need to add `sudo` to
 all the client commands. As of 0.9.0, you can specify that a group other
 than `docker` should own the Unix socket with the
 `-G` option.
@@ -168,7 +168,7 @@ than `docker` should own the Unix socket with the
 > **Warning**: 
 > The *docker* group (or the group specified with `-G`) is
 > root-equivalent; see [*Docker Daemon Attack Surface*](
-> ../../articles/security/#dockersecurity-daemon) details.
+> /articles/security/#dockersecurity-daemon) details.
 
 **Example:**
 
@@ -245,7 +245,7 @@ Then reload UFW:
 
     sudo ufw reload
 
-UFW’s default set of rules denies all incoming traffic. If you want to
+UFW's default set of rules denies all incoming traffic. If you want to
 be able to reach your containers from another host then you should allow
 incoming connections on the Docker port (default 4243):
 
@@ -263,7 +263,7 @@ warning:
 
     WARNING: Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : [8.8.8.8 8.8.4.4]
 
-This warning is shown because the containers can’t use the local DNS
+This warning is shown because the containers can't use the local DNS
 nameserver and Docker will default to using an external nameserver.
 
 This can be worked around by specifying a DNS server to be used by the
@@ -281,7 +281,7 @@ The Docker daemon has to be restarted:
     sudo restart docker
 
 > **Warning**: 
-> If you’re doing this on a laptop which connects to various networks,
+> If you're doing this on a laptop which connects to various networks,
 > make sure to choose a public DNS server.
 
 An alternative solution involves disabling dnsmasq in NetworkManager by
@@ -310,10 +310,10 @@ you.
 ### Yandex
 
 [Yandex](http://yandex.ru/) in Russia is mirroring the Docker Debian
-packages, updating every 6 hours. Substitute
-`http://mirror.yandex.ru/mirrors/docker/` for
-`http://get.docker.io/ubuntu` in the instructions
-above. For example:
+packages, updating every 6 hours.
+Substitute `http://mirror.yandex.ru/mirrors/docker/` for
+`http://get.docker.io/ubuntu` in the instructions above.
+For example:
 
     sudo sh -c "echo deb http://mirror.yandex.ru/mirrors/docker/ docker main\
     > /etc/apt/sources.list.d/docker.list"
