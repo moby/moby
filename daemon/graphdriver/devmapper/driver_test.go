@@ -820,10 +820,6 @@ func TestGetReturnsValidDevice(t *testing.T) {
 	if !d.HasActivatedDevice("1") {
 		t.Fatalf("Expected id 1 to be activated")
 	}
-
-	if !d.HasInitializedDevice("1") {
-		t.Fatalf("Expected id 1 to be initialized")
-	}
 }
 
 func TestDriverGetSize(t *testing.T) {
