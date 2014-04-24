@@ -43,6 +43,7 @@ func unregister(name string) {
 // containers by executing *jobs*.
 type Engine struct {
 	handlers map[string]Handler
+	catchall Handler
 	hack     Hack // data for temporary hackery (see hack.go)
 	id       string
 	Stdout   io.Writer
@@ -58,6 +59,10 @@ func (eng *Engine) Register(name string, handler Handler) error {
 	}
 	eng.handlers[name] = handler
 	return nil
+}
+
+func (eng *Engine) RegisterCatchall(catchall Handler) {
+	eng.catchall = catchall
 }
 
 // New initializes a new engine.
@@ -113,9 +118,13 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	if eng.Logging {
 		job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
 	}
-	handler, exists := eng.handlers[name]
-	if exists {
-		job.handler = handler
+	if eng.catchall != nil {
+		job.handler = eng.catchall
+	} else {
+		handler, exists := eng.handlers[name]
+		if exists {
+			job.handler = handler
+		}
 	}
 	return job
 }
