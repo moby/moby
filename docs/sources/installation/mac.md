@@ -143,7 +143,7 @@ If you feel the need to connect to the VM, you can simply run:
     # Pwd:  tcuser
 
 You can now continue with the [*Hello
-World*](../../examples/hello_world/#hello-world) example.
+World*](/examples/hello_world/#hello-world) example.
 
 ## Learn More
 

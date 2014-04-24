@@ -6,7 +6,7 @@ page_keywords: containers, files, linux
 
 ## Introduction
 
-![](../../static_files/docker-filesystems-generic.png)
+![](/terms/images/docker-filesystems-generic.png)
 
 In order for a Linux system to run, it typically needs two [file
 systems](http://en.wikipedia.org/wiki/Filesystem):
@@ -32,4 +32,4 @@ usually what make your software packages dependent on one distribution
 versus another. Docker can help solve this problem by running multiple
 distributions at the same time.
 
-![](../../static_files/docker-filesystems-multiroot.png)
+![](/terms/images/docker-filesystems-multiroot.png)

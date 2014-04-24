@@ -10,7 +10,7 @@ page_keywords: docker, example, package installation, postgresql
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 ## Installing PostgreSQL on Docker
 
@@ -87,7 +87,7 @@ And run the PostgreSQL server container (in the foreground):
     $ sudo docker run -rm -P -name pg_test eg_postgresql
 
 There are 2 ways to connect to the PostgreSQL server. We can use [*Link
-Containers*](../../use/working_with_links_names/#working-with-links-names),
+Containers*](/use/working_with_links_names/#working-with-links-names),
 or we can access it from our host (or the network).
 
 > **Note**: 

@@ -10,7 +10,7 @@ page_keywords: docker, example, python, web app
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 While using Dockerfiles is the preferred way to create maintainable and
 repeatable images, its useful to know how you can try things out and

@@ -80,7 +80,7 @@ all the client commands.
 > **Warning**: 
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
 > see [*Docker Daemon Attack Surface*](
-> ../../articles/security/#dockersecurity-daemon) details.
+> /articles/security/#dockersecurity-daemon) details.
 
 ## Upgrades
 
@@ -99,4 +99,4 @@ Then follow the regular installation steps.
     # run a container and open an interactive shell in the container
     sudo ./docker run -i -t ubuntu /bin/bash
 
-Continue with the [*Hello World*](../../examples/hello_world/#hello-world) example.
+Continue with the [*Hello World*](/examples/hello_world/#hello-world) example.

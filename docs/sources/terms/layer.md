@@ -20,7 +20,7 @@ file system *over* the read-only file system. In fact there may be
 multiple read-only file systems stacked on top of each other. We think
 of each one of these file systems as a **layer**.
 
-![](../../static_files/docker-filesystems-multilayer.png)
+![](/terms/images/docker-filesystems-multilayer.png)
 
 At first, the top read-write layer has nothing in it, but any time a
 process creates a file, this happens in the top layer. And if something

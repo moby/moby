@@ -10,7 +10,7 @@ page_keywords: docker, supervisor, process management
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 Traditionally a Docker container runs a single process when it is
 launched, for example an Apache daemon or a SSH server daemon. Often

@@ -33,4 +33,4 @@ page_keywords: IBM SoftLayer, virtualization, cloud, docker, documentation, inst
    instructions.
 
 Continue with the [*Hello World*](
-../../examples/hello_world/#hello-world) example.
+/examples/hello_world/#hello-world) example.

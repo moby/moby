@@ -15,7 +15,7 @@ like `/var/lib/docker/repositories: permission denied`
 you may have an incomplete Docker installation or insufficient
 privileges to access docker on your machine.
 
-Please refer to [*Installation*](../../installation/)
+Please refer to [*Installation*](/installation/)
 for installation instructions.
 
 ## Hello World
@@ -26,7 +26,7 @@ for installation instructions.
 >   more information please see [*Check your Docker
 >   install*](#check-your-docker-installation).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 This is the most basic example available for using Docker.
 
@@ -71,7 +71,7 @@ See the example in action
 >   more information please see [*Check your Docker
 >   install*](#check-your-docker-installation).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 And now for the most boring daemon ever written!
 

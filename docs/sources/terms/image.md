@@ -6,7 +6,7 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 ## Introduction
 
-![](../../static_files/docker-filesystems-debian.png)
+![](/terms/images/docker-filesystems-debian.png)
 
 In Docker terminology, a read-only [*Layer*](../layer/#layer-def) is
 called an **image**. An image never changes.
@@ -17,11 +17,11 @@ changes go to the top-most writeable layer, and underneath, the original
 file in the read-only image is unchanged. Since images don't change,
 images do not have state.
 
-![](../../static_files/docker-filesystems-debianrw.png)
+![](/terms/images/docker-filesystems-debianrw.png)
 
 ## Parent Image
 
-![](../../static_files/docker-filesystems-multilayer.png)
+![](/terms/images/docker-filesystems-multilayer.png)
 
 Each image may depend on one more image which forms the layer beneath
 it. We sometimes say that the lower image is the **parent** of the upper

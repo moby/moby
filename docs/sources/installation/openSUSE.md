@@ -61,4 +61,4 @@ Docker daemon.
 
 **Done!**
 Now continue with the [*Hello World*](
-../../examples/hello_world/#hello-world) example.
+/examples/hello_world/#hello-world) example.

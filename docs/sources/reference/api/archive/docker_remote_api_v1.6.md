@@ -9,7 +9,7 @@ page_keywords: API, Docker, rcli, REST, documentation
  - The Remote API has replaced rcli
  - The daemon listens on `unix:///var/run/docker.sock` but you can
    [*Bind Docker to another host/port or a Unix socket*](
-   ../../../use/basics/#bind-docker).
+   /use/basics/#bind-docker).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout, stdin`
    and `stderr`
@@ -540,7 +540,7 @@ Attach to the container `id`
 
     When using the TTY setting is enabled in
     [`POST /containers/create`
-    ](../../docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
+    ](/api/docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
     the stream is the raw data from the process PTY and client's stdin.
     When the TTY is disabled, then the stream is multiplexed to separate
     stdout and stderr.
