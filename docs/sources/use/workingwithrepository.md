@@ -7,7 +7,7 @@ page_keywords: repo, repositories, usage, pull image, push image, image, documen
 ## Introduction
 
 A *repository* is a shareable collection of tagged
-[*images*](../../terms/image/#image-def) that together create the file
+[*images*](/terms/image/#image-def) that together create the file
 systems for containers. The repository's name is a label that indicates
 the provenance of the repository, i.e. who created it and where the
 original copy is located.
@@ -19,7 +19,7 @@ the home of "top-level" repositories and the Central Index. This
 registry may also include public "user" repositories.
 
 Docker is not only a tool for creating and managing your own
-[*containers*](../../terms/container/#container-def) – **Docker is also
+[*containers*](/terms/container/#container-def) – **Docker is also
 a tool for sharing**. The Docker project provides a Central Registry to
 host public repositories, namespaced by user, and a Central Index which
 provides user authentication and search over all the public
@@ -89,7 +89,7 @@ Once you have found the image name, you can download it:
     539c0211cd76: Download complete
 
 What can you do with that image? Check out the
-[*Examples*](../../examples/#example-list) and, when you're ready with
+[*Examples*](/examples/#example-list) and, when you're ready with
 your own image, come back here to learn how to share it.
 
 ## Contributing to the Central Registry

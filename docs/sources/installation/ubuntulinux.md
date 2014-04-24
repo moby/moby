@@ -96,7 +96,7 @@ Now verify that the installation has worked by downloading the
 Type `exit` to exit
 
 **Done!**, now continue with the [*Hello
-World*](../../examples/hello_world/#hello-world) example.
+World*](/examples/hello_world/#hello-world) example.
 
 ## Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
 
@@ -144,7 +144,7 @@ Now verify that the installation has worked by downloading the
 Type `exit` to exit
 
 **Done!**, now continue with the [*Hello
-World*](../../examples/hello_world/#hello-world) example.
+World*](/examples/hello_world/#hello-world) example.
 
 ### Giving non-root access
 
@@ -168,7 +168,7 @@ than `docker` should own the Unix socket with the
 > **Warning**: 
 > The *docker* group (or the group specified with `-G`) is
 > root-equivalent; see [*Docker Daemon Attack Surface*](
-> ../../articles/security/#dockersecurity-daemon) details.
+> /articles/security/#dockersecurity-daemon) details.
 
 **Example:**
 

@@ -197,7 +197,7 @@ and a "context".
 
 The files at `PATH` or `URL` are called the "context" of the build. The build
 process may refer to any of the files in the context, for example when using an
-[*ADD*](../../builder/#dockerfile-add) instruction. When a single Dockerfile is
+[*ADD*](/reference/builder/#dockerfile-add) instruction. When a single Dockerfile is
 given as `URL`, then no context is set.
 
 When a Git repository is set as `URL`, then the
@@ -209,7 +209,7 @@ vpn's etc can be used to access private repositories
 
 See also:
 
-[*Dockerfile Reference*](../../builder/#dockerbuilder).
+[*Dockerfile Reference*](/reference/builder/#dockerbuilder).
 
 ### Examples:
 
@@ -248,7 +248,7 @@ machine and that no parsing of the Dockerfile
 happens at the client side (where you're running
 `docker build`). That means that *all* the files at
 `PATH` get sent, not just the ones listed to
-[*ADD*](../../builder/#dockerfile-add) in the Dockerfile.
+[*ADD*](/reference/builder/#dockerfile-add) in the Dockerfile.
 
 The transfer of context from the local machine to the Docker daemon is
 what the `docker` client means when you see the
@@ -843,10 +843,10 @@ of all containers.
 The `docker run` command can be used in combination with `docker commit` to
 [*change the command that a container runs*](#commit-an-existing-container).
 
-See [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
+See [*Redirect Ports*](/use/port_redirection/#port-redirection)
 for more detailed information about the `--expose`, `-p`, `-P` and `--link`
 parameters, and [*Link Containers*](
-../../../use/working_with_links_names/#working-with-links-names) for specific
+/use/working_with_links_names/#working-with-links-names) for specific
 examples using `--link`.
 
 ### Known Issues (run –volumes-from)
@@ -914,14 +914,14 @@ manipulate the host's docker daemon.
     $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
 This binds port `8080` of the container to port `80` on `127.0.0.1` of the host
-machine. [*Redirect Ports*](../../../use/port_redirection/#port-redirection)
+machine. [*Redirect Ports*](/use/port_redirection/#port-redirection)
 explains in detail how to manipulate ports in Docker.
 
     $ sudo docker run --expose 80 ubuntu bash
 
 This exposes port `80` of the container for use within a link without publishing
 the port to the host system's interfaces. [*Redirect Ports*](
-../../../use/port_redirection/#port-redirection) explains in detail how to
+/use/port_redirection/#port-redirection) explains in detail how to
 manipulate ports in Docker.
 
     $ sudo docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
@@ -1074,7 +1074,7 @@ Search the docker index for images
      -t, --trusted=false: Only show trusted builds
 
 See [*Find Public Images on the Central Index*](
-../../../use/workingwithrepository/#searching-central-index) for
+/use/workingwithrepository/#searching-central-index) for
 more details on finding shared images from the commandline.
 
 ## start
@@ -1107,7 +1107,7 @@ Tag an image into a repository
 
 You can group your images together using names and tags, and then upload
 them to [*Share Images via Repositories*](
-../../../use/workingwithrepository/#working-with-the-repository).
+/use/workingwithrepository/#working-with-the-repository).
 
 ## top
 

@@ -6,7 +6,7 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 ## Introduction
 
-![](../../static_files/docker-filesystems-busyboxrw.png)
+![](/terms/images/docker-filesystems-busyboxrw.png)
 
 Once you start a process in Docker from an [*Image*](image.md), Docker fetches
 the image and its [*Parent Image*](image.md), and repeats the process until it

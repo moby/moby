@@ -57,7 +57,7 @@ accelerating `docker build` significantly (indicated by `Using cache`):
 
 When you're done with your build, you're ready to look into
 [*Pushing a repository to its registry*](
-../../use/workingwithrepository/#image-push).
+/use/workingwithrepository/#image-push).
 
 ## Format
 
@@ -71,7 +71,7 @@ be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker evaluates the instructions in a Dockerfile in order. **The first
 instruction must be \`FROM\`** in order to specify the [*Base
-Image*](../../terms/image/#base-image-def) from which you are building.
+Image*](/terms/image/#base-image-def) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
 comment. A `#` marker anywhere else in the line will
@@ -91,11 +91,11 @@ Or
 
     FROM <image>:<tag>
 
-The `FROM` instruction sets the [*Base Image*](../../terms/image/#base-image-def)
+The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
 for subsequent instructions. As such, a valid Dockerfile must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
-../../use/workingwithrepository/#using-public-repositories).
+/use/workingwithrepository/#using-public-repositories).
 
 `FROM` must be the first non-comment instruction in the Dockerfile.
 
@@ -191,9 +191,9 @@ default specified in CMD.
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see
-[*links*](../../use/working_with_links_names/#working-with-links-names)),
+[*links*](/use/working_with_links_names/#working-with-links-names)),
 and to setup port redirection on the host system (see [*Redirect Ports*](
-../../use/port_redirection/#port-redirection)).
+/use/port_redirection/#port-redirection)).
 
 ## ENV
 
@@ -327,7 +327,7 @@ The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
 containers. For more information/examples and mounting instructions via docker
 client, refer to [*Share Directories via Volumes*](
-../../use/working_with_volumes/#volume-def) documentation.
+/use/working_with_volumes/#volume-def) documentation.
 
 ## USER
 

@@ -68,7 +68,7 @@ Now let's verify that Docker is working.
     sudo docker run -i -t fedora /bin/bash
 
 **Done!**
-Now continue with the [*Hello World*](../../examples/hello_world/#hello-world) example.
+Now continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
 
 ## Issues?
 

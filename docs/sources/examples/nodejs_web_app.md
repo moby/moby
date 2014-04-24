@@ -10,7 +10,7 @@ page_keywords: docker, example, package installation, node, centos
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 The goal of this example is to show you how you can build your own
 Docker images from a parent image using a `Dockerfile`

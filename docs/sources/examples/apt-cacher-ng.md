@@ -10,7 +10,7 @@ page_keywords: docker, example, package installation, networking, debian, ubuntu
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup).
+>   access*](/installation/binaries/#dockergroup).
 > - **If you're using OS X or docker via TCP** then you shouldn't use
 >   sudo.
 

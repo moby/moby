@@ -95,7 +95,7 @@ supports:
 
 ### Pull
 
-![](../../../static_files/docker_pull_chart.png)
+![](/static_files/docker_pull_chart.png)
 
 1.  Contact the Index to know where I should download “samalba/busybox”
 2.  Index replies: a. `samalba/busybox` is on Registry A b. here are the
@@ -187,7 +187,7 @@ and for an active account.
 
 ### Push
 
-![](../../../static_files/docker_push_chart.png)
+![](/static_files/docker_push_chart.png)
 
 1.  Contact the index to allocate the repository name “samalba/busybox”
     (authentication required with user credentials)

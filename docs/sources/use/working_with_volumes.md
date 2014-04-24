@@ -8,7 +8,7 @@ page_keywords: Examples, Usage, volume, docker, documentation, examples
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](../../terms/layer/#ufs-def) to provide several useful features
+System*](/terms/layer/#ufs-def) to provide several useful features
 for persistent or shared data:
 
  - **Data volumes can be shared and reused between containers:**  
@@ -20,7 +20,7 @@ for persistent or shared data:
    very large files.
  - **Changes to a data volume will not be included at the next commit:**  
    Because they are not recorded as regular filesystem changes in the
-   top layer of the [*Union File System*](../../terms/layer/#ufs-def)
+   top layer of the [*Union File System*](/terms/layer/#ufs-def)
  - **Volumes persist until no containers use them:**  
    As they are a reference counted resource. The container does not need to be
    running to share its volumes, but running it can help protect it

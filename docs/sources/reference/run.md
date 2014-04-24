@@ -7,25 +7,25 @@ page_keywords: docker, run, configure, runtime
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its
 own file system, its own networking, and its own isolated process tree.
-The [*Image*](../../terms/image/#image-def) which starts the process may
+The [*Image*](/terms/image/#image-def) which starts the process may
 define defaults related to the binary to run, the networking to expose,
 and more, but `docker run` gives final control to
 the operator who starts the container from the image. That's the main
-reason [*run*](../../commandline/cli/#cli-run) has more options than any
+reason [*run*](/commandline/cli/#cli-run) has more options than any
 other `docker` command.
 
-Every one of the [*Examples*](../../examples/#example-list) shows
+Every one of the [*Examples*](/examples/#example-list) shows
 running containers, and so here we try to give more in-depth guidance.
 
 ## General Form
 
-As you`ve seen in the [*Examples*](../../examples/#example-list), the
+As you`ve seen in the [*Examples*](/examples/#example-list), the
 basic run command takes this form:
 
     docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
-see [*Option types*](../../commandline/cli/#cli-options).
+see [*Option types*](/commandline/cli/#cli-options).
 
 The list of `[OPTIONS]` breaks down into two groups:
 
@@ -121,7 +121,7 @@ assign a name to the container with `--name` then
 the daemon will also generate a random string name too. The name can
 become a handy way to add meaning to a container since you can use this
 name when defining
-[*links*](../../use/working_with_links_names/#working-with-links-names)
+[*links*](/use/working_with_links_names/#working-with-links-names)
 (or any other place you need to identify a container). This works for
 both background and foreground Docker containers.
 
@@ -372,7 +372,7 @@ And we can use that information to connect from another container as a client:
     --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own documentation in
-section [*Share Directories via Volumes*](../../use/working_with_volumes/#volume-def).
+section [*Share Directories via Volumes*](/use/working_with_volumes/#volume-def).
 A developer can define one or more `VOLUME's associated with an image, but only the
 operator can give access from one container to another (or from a container to a
 volume mounted on the host).

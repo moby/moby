@@ -17,7 +17,7 @@ like `/var/lib/docker/repositories: permission denied`
 you may have an incomplete docker installation or insufficient
 privileges to access Docker on your machine.
 
-Please refer to [*Installation*](../../installation/#installation-list)
+Please refer to [*Installation*](/installation/#installation-list)
 for installation instructions.
 
 ## Download a pre-built image
@@ -172,4 +172,4 @@ You now have a image state from which you can create new instances.
 
 Read more about [*Share Images via Repositories*](
 ../workingwithrepository/#working-with-the-repository) or
-continue to the complete [*Command Line*](../../reference/commandline/cli/#cli)
+continue to the complete [*Command Line*](/reference/commandline/cli/#cli)

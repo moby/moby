@@ -9,7 +9,7 @@ page_keywords: docker, example, package installation, networking
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#dockergroup)
 
 The following Dockerfile sets up an sshd service in a container that you
 can use to connect to and inspect other container's volumes, or to get

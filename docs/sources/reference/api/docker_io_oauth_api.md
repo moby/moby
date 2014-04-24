@@ -96,7 +96,7 @@ an Authorization Code.
     prompt which asks the user to authorize your application with a
     description of the requested scopes.
 
-    ![](../../../static_files/io_oauth_authorization_page.png)
+    ![](/reference/api/_static/io_oauth_authorization_page.png)
 
     Once the user allows or denies your Authorization Request the user
     will be redirected back to your application. Included in that
