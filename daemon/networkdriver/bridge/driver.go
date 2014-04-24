@@ -188,6 +188,21 @@ func setupIPTables(addr net.Addr, icc bool) error {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
 			}
 		}
+		var (
+			args       = []string{"POSTROUTING", "-t", "nat", "-o", bridgeIface, "-j"}
+			acceptArgs = append(args, "MASQUERADE")
+			dropArgs   = append(args, "DROP")
+                )
+		if !iptables.Exists(acceptArgs...) {
+			utils.Debugf("Enable inter-container communication failsafe")
+			if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
+				return fmt.Errorf("Unable to allow intercontainer communication failsafe: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error enabling intercontainer communication failsafe: %s", output)
+			}
+		}
+	)
+
 	}
 
 	// Accept all non-intercontainer outgoing packets
