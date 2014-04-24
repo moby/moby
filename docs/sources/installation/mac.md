@@ -9,8 +9,8 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linu
 > 0.8). However, they are subject to change.
 
 > **Note**:
-> Docker is still under heavy development! We don’t recommend using it in
-> production yet, but we’re getting closer with each release. Please see
+> Docker is still under heavy development! We don't recommend using it in
+> production yet, but we're getting closer with each release. Please see
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
@@ -87,7 +87,7 @@ Run the following commands to get it downloaded and set up:
     sudo mkdir -p /usr/local/bin
     sudo cp docker /usr/local/bin/
 
-And that’s it! Let’s check out how to use it.
+And that's it! Let's check out how to use it.
 
 ## How To Use Docker On Mac OS X
 
@@ -124,7 +124,7 @@ application.
 ### Forwarding VM Port Range to Host
 
 If we take the port range that docker uses by default with the -P option
-(49000-49900), and forward same range from host to vm, we’ll be able to
+(49000-49900), and forward same range from host to vm, we'll be able to
 interact with our containers as if they were running locally:
 
     # vm must be powered off
@@ -159,7 +159,7 @@ See the GitHub page for
 ### Upgrading to a newer release of boot2docker
 
 To upgrade an initialised VM, you can use the following 3 commands. Your
-persistence disk will not be changed, so you won’t lose your images and
+persistence disk will not be changed, so you won't lose your images and
 containers:
 
     ./boot2docker stop
@@ -168,12 +168,11 @@ containers:
 
 ### About the way Docker works on Mac OS X:
 
-Docker has two key components: the `docker` daemon
-and the `docker` client. The tool works by client
-commanding the daemon. In order to work and do its magic, the daemon
-makes use of some Linux Kernel features (e.g. LXC, name spaces etc.),
-which are not supported by OS X. Therefore, the solution of getting
-Docker to run on OS X consists of running it inside a lightweight
+Docker has two key components: the `docker` daemon and the `docker` client.
+The tool works by client commanding the daemon. In order to work and do its
+magic, the daemon makes use of some Linux Kernel features (e.g. LXC, name
+spaces etc.), which are not supported by OS X. Therefore, the solution of
+getting Docker to run on OS X consists of running it inside a lightweight
 virtual machine. In order to simplify things, Docker comes with a bash
 script to make this whole process as easy as possible (i.e.
 boot2docker).

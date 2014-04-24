@@ -9,81 +9,124 @@ compatibility. Please file issues with the library owners. If you find
 more library implementations, please list them in Docker doc bugs and we
 will add the libraries here.
 
-  -------------------------------------------------------------------------
-  Language/Framewor Name         Repository                         Status
-  k                                                                 
-  ----------------- ------------ ---------------------------------- -------
-  Python            docker-py    [https://github.com/dotcloud/docke Active
-                                 r-py](https://github.com/dotcloud/ 
-                                 docker-py)                         
-
-  Ruby              docker-clien [https://github.com/geku/docker-cl Outdate
-                    t            ient](https://github.com/geku/dock d
-                                 er-client)                         
-
-  Ruby              docker-api   [https://github.com/swipely/docker Active
-                                 -api](https://github.com/swipely/d 
-                                 ocker-api)                         
-
-  JavaScript        dockerode    [https://github.com/apocas/dockero Active
-  (NodeJS)                       de](https://github.com/apocas/dock 
-                                 erode)                             
-                                 Install via NPM: npm install       
-                                 dockerode                          
-
-  JavaScript        docker.io    [https://github.com/appersonlabs/d Active
-  (NodeJS)                       ocker.io](https://github.com/apper 
-                                 sonlabs/docker.io)                 
-                                 Install via NPM: npm install       
-                                 docker.io                          
-
-  JavaScript        docker-js    [https://github.com/dgoujard/docke Outdate
-                                 r-js](https://github.com/dgoujard/ d
-                                 docker-js)                         
-
-  JavaScript        docker-cp    [https://github.com/13W/docker-cp] Active
-  (Angular)                      (https://github.com/13W/docker-cp) 
-  **WebUI**                                                         
-
-  JavaScript        dockerui     [https://github.com/crosbymichael/ Active
-  (Angular)                      dockerui](https://github.com/crosb 
-  **WebUI**                      ymichael/dockerui)                 
-
-  Java              docker-java  [https://github.com/kpelykh/docker Active
-                                 -java](https://github.com/kpelykh/ 
-                                 docker-java)                       
-
-  Erlang            erldocker    [https://github.com/proger/erldock Active
-                                 er](https://github.com/proger/erld 
-                                 ocker)                             
-
-  Go                go-dockercli [https://github.com/fsouza/go-dock Active
-                    ent          erclient](https://github.com/fsouz 
-                                 a/go-dockerclient)                 
-
-  Go                dockerclient [https://github.com/samalba/docker Active
-                                 client](https://github.com/samalba 
-                                 /dockerclient)                     
-
-  PHP               Alvine       [http://pear.alvine.io/](http://pe Active
-                                 ar.alvine.io/)                     
-                                 (alpha)                            
-
-  PHP               Docker-PHP   [http://stage1.github.io/docker-ph Active
-                                 p/](http://stage1.github.io/docker 
-                                 -php/)                             
-
-  Perl              Net::Docker  [https://metacpan.org/pod/Net::Doc Active
-                                 ker](https://metacpan.org/pod/Net: 
-                                 :Docker)                           
-
-  Perl              Eixo::Docker [https://github.com/alambike/eixo- Active
-                                 docker](https://github.com/alambik 
-                                 e/eixo-docker)                     
-
-  Scala             reactive-doc [https://github.com/almoehi/reacti Active
-                    ker          ve-docker](https://github.com/almo 
-                                 ehi/reactive-docker)               
-  -------------------------------------------------------------------------
-
-
+<table border="1" class="docutils">
+  <colgroup>
+    <col width="24%">
+    <col width="17%">
+    <col width="48%">
+    <col width="11%">
+  </colgroup>
+  <thead valign="bottom">
+    <tr class="row-odd"><th class="head">Language/Framework</th>
+      <th class="head">Name</th>
+      <th class="head">Repository</th>
+      <th class="head">Status</th>
+    </tr>
+  </thead>
+  <tbody valign = "top">
+    <tr class="row-even">
+      <td>Python</td>
+      <td>docker-py</td>
+      <td><a class="reference external" href="https://github.com/dotcloud/docker-py">https://github.com/dotcloud/docker-py</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Ruby</td>
+      <td>docker-client</td>
+      <td><a class="reference external" href="https://github.com/geku/docker-client">https://github.com/geku/docker-client</a></td>
+      <td>Outdated</td>
+    </tr>
+    <tr class="row-even">
+      <td>Ruby</td>
+      <td>docker-api</td>
+      <td><a class="reference external" href="https://github.com/swipely/docker-api">https://github.com/swipely/docker-api</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>JavaScript (NodeJS)</td>
+      <td>dockerode</td>
+      <td><a class="reference external" href="https://github.com/apocas/dockerode">https://github.com/apocas/dockerode</a>
+  Install via NPM: <cite>npm install dockerode</cite></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>JavaScript (NodeJS)</td>
+      <td>docker.io</td>
+      <td><a class="reference external" href="https://github.com/appersonlabs/docker.io">https://github.com/appersonlabs/docker.io</a>
+  Install via NPM: <cite>npm install docker.io</cite></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>JavaScript</td>
+      <td>docker-js</td>
+      <td><a class="reference external" href="https://github.com/dgoujard/docker-js">https://github.com/dgoujard/docker-js</a></td>
+      <td>Outdated</td>
+    </tr>
+    <tr class="row-even">
+      <td>JavaScript (Angular) <strong>WebUI</strong></td>
+      <td>docker-cp</td>
+      <td><a class="reference external" href="https://github.com/13W/docker-cp">https://github.com/13W/docker-cp</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>JavaScript (Angular) <strong>WebUI</strong></td>
+      <td>dockerui</td>
+      <td><a class="reference external" href="https://github.com/crosbymichael/dockerui">https://github.com/crosbymichael/dockerui</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>Java</td>
+      <td>docker-java</td>
+      <td><a class="reference external" href="https://github.com/kpelykh/docker-java">https://github.com/kpelykh/docker-java</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Erlang</td>
+      <td>erldocker</td>
+      <td><a class="reference external" href="https://github.com/proger/erldocker">https://github.com/proger/erldocker</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>Go</td>
+      <td>go-dockerclient</td>
+      <td><a class="reference external" href="https://github.com/fsouza/go-dockerclient">https://github.com/fsouza/go-dockerclient</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Go</td>
+      <td>dockerclient</td>
+      <td><a class="reference external" href="https://github.com/samalba/dockerclient">https://github.com/samalba/dockerclient</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>PHP</td>
+      <td>Alvine</td>
+      <td><a class="reference external" href="http://pear.alvine.io/">http://pear.alvine.io/</a> (alpha)</td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>PHP</td>
+      <td>Docker-PHP</td>
+      <td><a class="reference external" href="http://stage1.github.io/docker-php/">http://stage1.github.io/docker-php/</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>Perl</td>
+      <td>Net::Docker</td>
+      <td><a class="reference external" href="https://metacpan.org/pod/Net::Docker">https://metacpan.org/pod/Net::Docker</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Perl</td>
+      <td>Eixo::Docker</td>
+      <td><a class="reference external" href="https://github.com/alambike/eixo-docker">https://github.com/alambike/eixo-docker</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Scala</td>
+      <td>reactive-docker</td>
+      <td><a class="reference external" href="https://github.com/almoehi/reactive-docker">https://github.com/almoehi/reactive-docker</a></td>
+      <td>Active</td>
+    </tr>
+  </tbody>
+</table>

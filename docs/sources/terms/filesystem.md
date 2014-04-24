@@ -6,13 +6,13 @@ page_keywords: containers, files, linux
 
 ## Introduction
 
-![](../../_images/docker-filesystems-generic.png)
+![](../../static_files/docker-filesystems-generic.png)
 
 In order for a Linux system to run, it typically needs two [file
 systems](http://en.wikipedia.org/wiki/Filesystem):
 
-1.  boot file system (bootfs)
-2.  root file system (rootfs)
+1. boot file system (bootfs)
+2. root file system (rootfs)
 
 The **boot file system** contains the bootloader and the kernel. The
 user never makes any changes to the boot file system. In fact, soon
@@ -22,10 +22,9 @@ initrd disk image.
 
 The **root file system** includes the typical directory structure we
 associate with Unix-like operating systems:
-`/dev, /proc, /bin, /etc, /lib, /usr,` and
-`/tmp` plus all the configuration files, binaries
-and libraries required to run user applications (like bash, ls, and so
-forth).
+`/dev, /proc, /bin, /etc, /lib, /usr,` and `/tmp` plus all the configuration
+files, binaries and libraries required to run user applications (like bash,
+ls, and so forth).
 
 While there can be important kernel differences between different Linux
 distributions, the contents and organization of the root file system are
@@ -33,4 +32,4 @@ usually what make your software packages dependent on one distribution
 versus another. Docker can help solve this problem by running multiple
 distributions at the same time.
 
-![](../../_images/docker-filesystems-multiroot.png)
+![](../../static_files/docker-filesystems-multiroot.png)

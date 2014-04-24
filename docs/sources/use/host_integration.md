@@ -5,8 +5,7 @@ page_keywords: systemd, upstart, supervisor, docker, documentation, host integra
 # Automatically Start Containers
 
 You can use your Docker containers with process managers like
-`upstart`, `systemd` and
-`supervisor`.
+`upstart`, `systemd` and `supervisor`.
 
 ## Introduction
 
@@ -27,7 +26,7 @@ docker.
 
 ## Sample Upstart Script
 
-In this example we’ve already created a container to run Redis with
+In this example We've already created a container to run Redis with
 `--name redis_server`. To create an upstart script
 for our container, we create a file named
 `/etc/init/redis.conf` and place the following into
@@ -42,7 +41,7 @@ it:
       /usr/bin/docker start -a redis_server
     end script
 
-Next, we have to configure docker so that it’s run with the option
+Next, we have to configure docker so that it's run with the option
 `-r=false`. Run the following command:
 
     $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' > /etc/default/docker"
