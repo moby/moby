@@ -13,7 +13,7 @@ type memoryGroup struct {
 func (s *memoryGroup) Set(d *data) error {
 	dir, err := d.join("memory")
 	// only return an error for memory if it was not specified
-	if err != nil && (d.c.Memory != 0 || d.c.MemorySwap != 0) {
+	if err != nil && (d.c.Memory != 0 || d.c.MemoryReservation != 0 || d.c.MemorySwap != 0) {
 		return err
 	}
 	defer func() {
@@ -22,12 +22,15 @@ func (s *memoryGroup) Set(d *data) error {
 		}
 	}()
 
-	if d.c.Memory != 0 || d.c.MemorySwap != 0 {
+	// Only set values if some config was specified.
+	if d.c.Memory != 0 || d.c.MemoryReservation != 0 || d.c.MemorySwap != 0 {
 		if d.c.Memory != 0 {
 			if err := writeFile(dir, "memory.limit_in_bytes", strconv.FormatInt(d.c.Memory, 10)); err != nil {
 				return err
 			}
-			if err := writeFile(dir, "memory.soft_limit_in_bytes", strconv.FormatInt(d.c.Memory, 10)); err != nil {
+		}
+		if d.c.MemoryReservation != 0 {
+			if err := writeFile(dir, "memory.soft_limit_in_bytes", strconv.FormatInt(d.c.MemoryReservation, 10)); err != nil {
 				return err
 			}
 		}
