@@ -2,9 +2,11 @@ package restrict
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
+	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 const flags = syscall.MS_BIND | syscall.MS_REC | syscall.MS_RDONLY
@@ -36,6 +38,9 @@ func Restrict(rootfs, empty string) error {
 			source = filepath.Join(rootfs, source)
 		}
 		if err := system.Mount(source, dest, "bind", flags, ""); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			return fmt.Errorf("unable to mount %s over %s %s", source, dest, err)
 		}
 		if err := system.Mount("", dest, "bind", flags|syscall.MS_REMOUNT, ""); err != nil {
