@@ -60,7 +60,7 @@ type DeviceSet struct {
 	devicePrefix     string
 	TransactionId    uint64
 	NewTransactionId uint64
-	nextFreeDevice   int
+	nextDeviceId     int
 }
 
 type DiskUsage struct {
@@ -154,13 +154,6 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 		}
 	}
 	return filename, nil
-}
-
-func (devices *DeviceSet) allocateDeviceId() int {
-	// TODO: Add smarter reuse of deleted devices
-	id := devices.nextFreeDevice
-	devices.nextFreeDevice = devices.nextFreeDevice + 1
-	return id
 }
 
 func (devices *DeviceSet) allocateTransactionId() uint64 {
@@ -299,10 +292,6 @@ func (devices *DeviceSet) loadMetaData() error {
 		d.Hash = hash
 		d.devices = devices
 
-		if d.DeviceId >= devices.nextFreeDevice {
-			devices.nextFreeDevice = d.DeviceId + 1
-		}
-
 		// If the transaction id is larger than the actual one we lost the device due to some crash
 		if d.TransactionId > devices.TransactionId {
 			utils.Debugf("Removing lost device %s with id %d", hash, d.TransactionId)
@@ -328,13 +317,16 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	utils.Debugf("Initializing base device-manager snapshot")
 
-	id := devices.allocateDeviceId()
+	id := devices.nextDeviceId
 
 	// Create initial device
-	if err := createDevice(devices.getPoolDevName(), id); err != nil {
+	if err := createDevice(devices.getPoolDevName(), &id); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
+
+	// Ids are 24bit, so wrap around
+	devices.nextDeviceId = (id + 1) & 0xffffff
 
 	utils.Debugf("Registering base device (id %v) with FS size %v", id, DefaultBaseFsSize)
 	info, err := devices.registerDevice(id, "", DefaultBaseFsSize)
@@ -580,12 +572,15 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 		return fmt.Errorf("device %s already exists", hash)
 	}
 
-	deviceId := devices.allocateDeviceId()
+	deviceId := devices.nextDeviceId
 
-	if err := createSnapDevice(devices.getPoolDevName(), deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
+	if err := createSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 		utils.Debugf("Error creating snap device: %s\n", err)
 		return err
 	}
+
+	// Ids are 24bit, so wrap around
+	devices.nextDeviceId = (deviceId + 1) & 0xffffff
 
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
 		deleteDevice(devices.getPoolDevName(), deviceId)

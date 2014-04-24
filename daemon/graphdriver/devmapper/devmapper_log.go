@@ -18,6 +18,10 @@ func DevmapperLogCallback(level C.int, file *C.char, line C.int, dm_errno_or_cla
 		if strings.Contains(msg, "busy") {
 			dmSawBusy = true
 		}
+
+		if strings.Contains(msg, "File exists") {
+			dmSawExist = true
+		}
 	}
 
 	if dmLogger != nil {
