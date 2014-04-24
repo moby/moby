@@ -12,7 +12,7 @@ To list available commands, either run ``docker`` with no parameters or execute
 
   $ sudo docker
     Usage: docker [OPTIONS] COMMAND [arg...]
-      -H=[unix:///var/run/docker.sock]: tcp://[host]:port to bind/connect to or unix://[/path/to/socket] to use. When host=[127.0.0.1] is omitted for tcp or path=[/var/run/docker.sock] is omitted for unix sockets, default values are used.
+      -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
     A self-sufficient runtime for linux containers.
 
@@ -63,10 +63,10 @@ only be specified once.
 
 ::
 
-    Usage:
+    Usage of docker:
       -D, --debug=false: Enable debug mode
       -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
-      -H, --host=[]: The socket to bind to in daemon mode, specified using tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
+      -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       -bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
