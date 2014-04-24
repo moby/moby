@@ -648,7 +648,16 @@ Fetch the logs of a container
     -f, --follow=false: Follow log output
 
 The `docker logs` command batch-retrieves all logs
-present at the time of execution.
+present at the time of execution. The logs for each container created are
+stored at `/var/lib/docker/containers/`, in subdirectories. Each set of 
+container logs has the following files:
+
+    *.log
+    config.env
+    config.json
+    hostconfig.json
+    hostname
+    hosts
 
 The `docker logs --follow` command combines `docker logs` and `docker
 attach`: it will first return all logs from the beginning and then
