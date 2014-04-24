@@ -52,7 +52,7 @@ This following command will build a development environment using the Dockerfile
 
 .. code-block:: bash
 
-    sudo make build
+    make build
 
 If the build is successful, congratulations! You have produced a clean build of 
 docker, neatly encapsulated in a standard build environment. 
@@ -65,7 +65,7 @@ To create the Docker binary, run this command:
 
 .. code-block:: bash
 
-	sudo make binary
+	make binary
 
 This will create the Docker binary in ``./bundles/<version>-dev/binary/``
 
@@ -90,7 +90,7 @@ To execute the test cases, run this command:
 
 .. code-block:: bash
 
-	sudo make test
+	make test
 
 If the test are successful then the tail of the output should look something like this
 
