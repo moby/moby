@@ -64,26 +64,6 @@ func (d *Driver) Create(id, parent string, mountLabel string) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}
-	mp := path.Join(d.home, "mnt", id)
-	if err := d.mount(id, mp); err != nil {
-		return err
-	}
-
-	if err := osMkdirAll(path.Join(mp, "rootfs"), 0755); err != nil && !osIsExist(err) {
-		return err
-	}
-
-	// Create an "id" file with the container/image id in it to help reconscruct this in case
-	// of later problems
-	if err := ioutil.WriteFile(path.Join(mp, "id"), []byte(id), 0600); err != nil {
-		return err
-	}
-
-	// We float this reference so that the next Get call can
-	// steal it, so we don't have to unmount
-	if err := d.DeviceSet.UnmountDevice(id, UnmountFloat); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -96,10 +76,6 @@ func (d *Driver) Remove(id string) error {
 		return nil
 	}
 
-	// Sink the float from create in case no Get() call was made
-	if err := d.DeviceSet.UnmountDevice(id, UnmountSink); err != nil {
-		return err
-	}
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
 	if err := d.DeviceSet.DeleteDevice(id); err != nil {
 		return err
@@ -115,28 +91,42 @@ func (d *Driver) Remove(id string) error {
 
 func (d *Driver) Get(id string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
-	if err := d.mount(id, mp); err != nil {
+
+	// Create the target directories if they don't exist
+	if err := osMkdirAll(mp, 0755); err != nil && !osIsExist(err) {
 		return "", err
 	}
 
-	return path.Join(mp, "rootfs"), nil
+	// Mount the device
+	if err := d.DeviceSet.MountDevice(id, mp, ""); err != nil {
+		return "", err
+	}
+
+	rootFs := path.Join(mp, "rootfs")
+	if err := osMkdirAll(rootFs, 0755); err != nil && !osIsExist(err) {
+		d.DeviceSet.UnmountDevice(id)
+		return "", err
+	}
+
+	idFile := path.Join(mp, "id")
+	if _, err := osStat(idFile); err != nil && osIsNotExist(err) {
+		// Create an "id" file with the container/image id in it to help reconscruct this in case
+		// of later problems
+		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
+			d.DeviceSet.UnmountDevice(id)
+			return "", err
+		}
+	}
+
+	return rootFs, nil
 }
 
 func (d *Driver) Put(id string) {
-	if err := d.DeviceSet.UnmountDevice(id, UnmountRegular); err != nil {
+	if err := d.DeviceSet.UnmountDevice(id); err != nil {
 		utils.Errorf("Warning: error unmounting device %s: %s\n", id, err)
 	}
 }
 
-func (d *Driver) mount(id, mountPoint string) error {
-	// Create the target directories if they don't exist
-	if err := osMkdirAll(mountPoint, 0755); err != nil && !osIsExist(err) {
-		return err
-	}
-	// Mount the device
-	return d.DeviceSet.MountDevice(id, mountPoint, "")
-}
-
 func (d *Driver) Exists(id string) bool {
-	return d.Devices[id] != nil
+	return d.DeviceSet.HasDevice(id)
 }
