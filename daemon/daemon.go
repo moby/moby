@@ -134,9 +134,6 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 	if container.ID != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
-	if container.State.IsRunning() {
-		container.State.SetGhost(true)
-	}
 	return container, nil
 }
 
@@ -171,35 +168,32 @@ func (daemon *Daemon) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		if container.State.IsGhost() {
-			utils.Debugf("killing ghost %s", container.ID)
+		utils.Debugf("killing old running container %s", container.ID)
 
-			existingPid := container.State.Pid
-			container.State.SetGhost(false)
-			container.State.SetStopped(0)
+		existingPid := container.State.Pid
+		container.State.SetStopped(0)
 
-			// We only have to handle this for lxc because the other drivers will ensure that
-			// no ghost processes are left when docker dies
-			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
-				lxc.KillLxc(container.ID, 9)
-			} else {
-				// use the current driver and ensure that the container is dead x.x
-				cmd := &execdriver.Command{
-					ID: container.ID,
-				}
-				var err error
-				cmd.Process, err = os.FindProcess(existingPid)
-				if err != nil {
-					utils.Debugf("cannot find existing process for %d", existingPid)
-				}
-				daemon.execDriver.Terminate(cmd)
+		// We only have to handle this for lxc because the other drivers will ensure that
+		// no processes are left when docker dies
+		if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
+			lxc.KillLxc(container.ID, 9)
+		} else {
+			// use the current driver and ensure that the container is dead x.x
+			cmd := &execdriver.Command{
+				ID: container.ID,
 			}
-			if err := container.Unmount(); err != nil {
-				utils.Debugf("ghost unmount error %s", err)
+			var err error
+			cmd.Process, err = os.FindProcess(existingPid)
+			if err != nil {
+				utils.Debugf("cannot find existing process for %d", existingPid)
 			}
-			if err := container.ToDisk(); err != nil {
-				utils.Debugf("saving ghost state to disk %s", err)
-			}
+			daemon.execDriver.Terminate(cmd)
+		}
+		if err := container.Unmount(); err != nil {
+			utils.Debugf("unmount error %s", err)
+		}
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("saving stopped state to disk %s", err)
 		}
 
 		info := daemon.execDriver.Info(container.ID)
@@ -211,8 +205,6 @@ func (daemon *Daemon) Register(container *Container) error {
 					utils.Debugf("restart unmount error %s", err)
 				}
 
-				container.State.SetGhost(false)
-				container.State.SetStopped(0)
 				if err := container.Start(); err != nil {
 					return err
 				}
