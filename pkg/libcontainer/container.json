@@ -9,24 +9,34 @@
     ],
     "namespaces": [
     	{
-	    "key": "NEWIPC",
-       	    "enabled": true
+            "file": "ipc",
+            "value": 134217728,
+       	    "enabled": true,
+	    "key": "NEWIPC"
 	},
     	{
-	    "key": "NEWNS",
-      	    "enabled": true
+            "file": "mnt",
+            "value": 131072,
+      	    "enabled": true,
+	    "key": "NEWNS"
 	},
     	{
-	    "key": "NEWPID",
-       	    "enabled": true
+            "file": "pid",
+            "value": 536870912,
+       	    "enabled": true,
+	    "key": "NEWPID"
 	},
     	{
-	    "key": "NEWUTS",
-            "enabled": true
+            "file": "uts",
+            "value": 67108864,
+            "enabled": true,
+	    "key": "NEWUTS"
 	},
     	{
-	    "key": "NEWNET",
-       	    "enabled": true
+            "file": "net",
+            "value": 1073741824,
+       	    "enabled": true,
+	    "key": "NEWNET"
 	}
     ],
     "capabilities_mask": [
@@ -91,14 +101,21 @@
 	    "enabled": false
        	}
     ],
-    "networks": [{
+    "networks": [
+    	{
+	    "type": "loopback",
+	    "gateway": "localhost",
+	    "address": "127.0.0.1/0",
+	    "mtu": 1500
+	},
+    	{
             "type": "veth",
+	    "gateway": "172.17.42.1",
+	    "address": "172.17.0.4/16",
             "context": {
-                "bridge": "docker0",
-                "prefix": "dock"
+                "prefix": "dock",
+                "bridge": "docker0"
             },
-            "address": "172.17.0.100/16",
-            "gateway": "172.17.42.1",
             "mtu": 1500
         }
     ],
@@ -106,6 +123,7 @@
         "name": "docker-koye",
         "parent": "docker",
         "memory": 5248000,
+	"memory_swap": -1,
 	"cpu_shares": 1024
     }
 }
