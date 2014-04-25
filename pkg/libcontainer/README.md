@@ -42,50 +42,64 @@ Sample `container.json` file:
    ],
    "capabilities_mask" : [
       {
-	"key": "SETPCAP",
-	"enabled": true
+        "key": "SETPCAP",
+        "enabled": true
       },
-      { "key": "SYS_MODULE",
-	"enabled": true
+      {
+        "key": "SYS_MODULE",
+        "enabled": true
       },
-      { "key": "SYS_RAWIO",
-	"enabled": true
+      {
+        "key": "SYS_RAWIO",
+        "enabled": false
       },
-      { "key": "SYS_PACCT",
-	"enabled": true
+      {
+        "key": "SYS_PACCT",
+        "enabled": true
       },
-      { "key": "SYS_ADMIN",
-	"enabled": true
+      {
+        "key": "SYS_ADMIN",
+        "enabled": true
       },
-      { "key": "SYS_NICE",
-	"enabled": true
+      {
+        "key": "SYS_NICE",
+        "enabled": true
       },
-      { "key": "SYS_RESOURCE",
-	"enabled": true
+      {
+        "key": "SYS_RESOURCE",
+        "enabled": true
       },
-      { "key": "SYS_TIME",
-	"enabled": true
+      {
+        "key": "SYS_TIME",
+        "enabled": true
       },
-      { "key": "SYS_TTY_CONFIG",
-	"enabled": true
+      {
+        "key": "SYS_TTY_CONFIG",
+        "enabled": true
       },
-      { "key": "MKNOD",
-	"enabled": true
+      {
+        "key": "MKNOD",
+        "enabled": true
       },
-      { "key": "AUDIT_WRITE",
-	"enabled": true
+      {
+        "key": "AUDIT_WRITE",
+        "enabled": true
       },
-      { "key": "AUDIT_CONTROL",
-	"enabled": true
+      {
+        "key": "AUDIT_CONTROL",
+        "enabled": true
       },
-      { "key": "MAC_OVERRIDE",
-	"enabled": true
+      {
+        "key": "MAC_OVERRIDE",
+        "enabled": true
       },
-      { "key": "MAC_ADMIN",
-	"enabled": true
+      {
+        "key": "MAC_ADMIN",
+        "enabled": true
       },
-      { "key": "NET_ADMIN",
-	"enabled": true
+      {
+        "key": "NET_ADMIN",
+        "enabled": true
       }
    ],
    "context" : {
@@ -112,20 +126,25 @@ Sample `container.json` file:
       }
    ],
    "namespaces" : [
-      { "key": "NEWNS",
-	"enabled": true
+      {
+        "key": "NEWNS",
+        "enabled": true
       },
-      { "key": "NEWUTS",
-	"enabled": true
+      {
+        "key": "NEWUTS",
+        "enabled": true
       },
-      { "key": "NEWIPC",
-	"enabled": true
+      {
+        "key": "NEWIPC",
+        "enabled": true
       },
-      { "key": "NEWPID",
-	"enabled": true
+      {
+        "key": "NEWPID",
+        "enabled": true
       },
-      { "key": "NEWNET",
-	"enabled": true
+      {
+        "key": "NEWNET",
+        "enabled": true
       }
    ]
 }
