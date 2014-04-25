@@ -32,7 +32,7 @@ func main() {
 	registerFlags()
 
 	if flag.NArg() < 1 {
-		log.Fatalf("wrong number of argments %d", flag.NArg())
+		log.Fatalf("wrong number of arguments %d", flag.NArg())
 	}
 	container, err := loadContainer()
 	if err != nil {
@@ -73,7 +73,7 @@ func main() {
 			l.Fatal(err)
 		}
 		if flag.NArg() < 2 {
-			l.Fatalf("wrong number of argments %d", flag.NArg())
+			l.Fatalf("wrong number of arguments %d", flag.NArg())
 		}
 		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {

@@ -57,7 +57,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("writting pid %d to file\n", command.Process.Pid)
+	ns.logger.Printf("writing pid %d to file\n", command.Process.Pid)
 	if err := ns.stateWriter.WritePid(command.Process.Pid, started); err != nil {
 		command.Process.Kill()
 		return -1, err
