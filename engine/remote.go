@@ -46,6 +46,12 @@ func (s *Sender) Handle(job *Job) Status {
 		tasks.Done()
 		return nil
 	})
+	r.NewRoute().KeyStartsWith("cmd", "log", "stdin").HasAttachment().Handler(func(p []byte, stdin *os.File) error {
+		tasks.Add(1)
+		io.Copy(stdin, job.Stdin)
+		tasks.Done()
+		return nil
+	})
 	var status int
 	r.NewRoute().KeyStartsWith("cmd", "status").Handler(func(p []byte, f *os.File) error {
 		cmd := data.Message(p).Get("cmd")
@@ -96,6 +102,11 @@ func (rcv *Receiver) Run() error {
 			return err
 		}
 		job.Stderr.Add(stderr)
+		stdin, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stdin").Bytes())
+		if err != nil {
+			return err
+		}
+		job.Stdin.Add(stdin)
 		// ignore error because we pass the raw status
 		job.Run()
 		err = peer.Send(data.Empty().Set("cmd", "status", fmt.Sprintf("%d", job.status)).Bytes(), nil)
