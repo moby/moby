@@ -1,32 +1,43 @@
-:title: Share Images via Repositories
+:title: Working With Images And Repositories
 :description: Repositories allow users to share images.
 :keywords: repo, repositories, usage, pull image, push image, image, documentation
 
 .. _working_with_the_repository:
 
-Share Images via Repositories
-=============================
+Working With Images And Repositories
+====================================
 
-A *repository* is a shareable collection of tagged :ref:`images<image_def>` 
-that together create the file systems for containers. The
-repository's name is a label that indicates the provenance of the
-repository, i.e. who created it and where the original copy is
-located.
+Introduction
+------------
 
-You can find one or more repositories hosted on a *registry*. There
-can be an implicit or explicit host name as part of the repository
-tag. The implicit registry is located at ``index.docker.io``, the home
-of "top-level" repositories and the Central Index. This registry may
-also include public "user" repositories.
+Docker :ref:`images<image_def>` can be tagged (e.g. ``ubuntu:latest``)
+like a commit in Git and they can also be collected in *Docker repositories*
+together as a shareable set. Each repository's name is a label that indicates 
+lineage, showing who created it (e.g. ``crosbymichael/sentry``) and possibly 
+original copy's location.
 
-Docker is not only a tool for creating and managing your own
-:ref:`containers <container_def>` -- **Docker is also a tool for
-sharing**. The Docker project provides a Central Registry to host
-public repositories, namespaced by user, and a Central Index which
-provides user authentication and search over all the public
-repositories. You can host your own Registry too! Docker acts as a
-client for these services via ``docker search, pull, login`` and
-``push``.
+Repositories are hosted on *Docker Registries*. When declaring a repository
+name, you can explicitly set a registry location, or use the default one.
+
+The central (i.e., default) Docker registry is the *Docker Index*, located at
+`index.docker.io <https://index.docker.io/>`_ where base images and those
+that are shared by the Docker community exist, grouped by username. This
+service, as a registry, also serves as a hub for authentication.
+
+By joining free of charge, you can use the Docker Index to share your 
+repositories *publicly*.  ``docker`` works as a client to talk with the registry 
+services via ``search``, ``pull``, ``login`` and ``push``.
+
+For private usage, you can always sign up for a plan at Docker Index. And if
+you prefer, you can host your own `Docker Registry <https://github.com/dotcloud
+/docker-registry>`_ as well. 
+
+**In this article, we are going to learn:**
+
+ - Local, public and private repositories;
+ - Working with repositories;
+ - Trusted builds, and;
+ - Authentication files.
 
 Local Repositories
 ------------------
@@ -196,10 +207,16 @@ point to specific ``Dockerfile``'s or Git branches.
 Private Registry
 ----------------
 
-Private registries and private shared repositories are 
-only possible by hosting `your own registry
-<https://github.com/dotcloud/docker-registry>`_.  To push or pull to a
-repository on your own registry, you must prefix the tag with the
+Docker registries allow you - and those you choose - to exclusively create
+and host nonpublic Docker images in private Docker repositories.
+
+There are two ways you can start working privately:
+
+ - By `signing up <https://index.docker.io/plans/>`_ for the **Docker Index**
+   managed by `Docker IO <https://www.docker.io/>`_, or; 
+ - By hosting your own `Docker registry <https://github.com/dotcloud/docker-registry>`_. 
+
+To push or pull to a repository on your own registry, you must prefix the tag with the
 address of the registry's host (a ``.`` or ``:`` is used to identify a host), 
 like this:
 
