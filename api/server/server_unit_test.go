@@ -7,8 +7,10 @@ import (
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -111,6 +113,33 @@ func TestGetInfo(t *testing.T) {
 	}
 	if r.HeaderMap.Get("Content-Type") != "application/json" {
 		t.Fatalf("%#v\n", r)
+	}
+}
+
+func TestGetEvents(t *testing.T) {
+	eng := engine.New()
+	evts := []string{
+		`{"Status": "fakeaction", "ID": "fakeid", "From": "fakeimage"`,
+		`{"Status": "fakeaction2", "ID": "fakeid", "From": "fakeimage"`,
+	}
+	var called bool
+	eng.Register("events", func(job *engine.Job) engine.Status {
+		called = true
+		for _, evt := range evts {
+			fmt.Fprintln(job.Stdout, evt)
+		}
+		return engine.StatusOK
+	})
+	r := serveRequest("GET", "/events?since=1", nil, eng, t)
+	if !called {
+		t.Fatalf("handler was not called")
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != strings.Join(evts, "\n")+"\n" {
+		t.Fatalf("%v", string(body))
 	}
 }
 
