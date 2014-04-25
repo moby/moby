@@ -8,6 +8,8 @@ import (
 	"syscall"
 )
 
+const MaxLoopCounter = 100
+
 // TreeSize walks a directory tree and returns its total size in bytes.
 func TreeSize(dir string) (size int64, err error) {
 	data := make(map[uint64]struct{})
@@ -61,7 +63,17 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 		prev = filepath.Join(prev, p)
 		prev = filepath.Clean(prev)
 
+		loopCounter := 0
 		for {
+			loopCounter++
+
+			if loopCounter >= MaxLoopCounter {
+				Debugf("[SYMLINK] loopCounter reached MaxLoopCounter: %s its "+
+					"either a bug or you have a very deep directory stucture ", loopCounter)
+				err := fmt.Errorf("loopCounter reached MAX: %v", loopCounter)
+				return "", err
+			}
+
 			if !strings.HasPrefix(prev, root) {
 				// Don't resolve symlinks outside of root. For example,
 				// we don't have to check /home in the below.
@@ -87,7 +99,7 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 				switch dest[0] {
 				case '/':
 					prev = filepath.Join(root, dest)
-				case '.':
+				default:
 					prev, _ = filepath.Abs(prev)
 
 					if prev = filepath.Clean(filepath.Join(filepath.Dir(prev), dest)); len(prev) < len(root) {
