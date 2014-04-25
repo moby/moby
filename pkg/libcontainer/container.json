@@ -8,28 +8,88 @@
         "TERM=xterm-256color"
     ],
     "namespaces": [
-    	{ "key": "NEWIPC" },
-    	{ "key": "NEWNS"  },
-    	{ "key": "NEWPID" },
-    	{ "key": "NEWUTS" },
-    	{ "key": "NEWNET" }
+    	{
+	    "key": "NEWIPC",
+       	    "enabled": true
+	},
+    	{
+	    "key": "NEWNS",
+      	    "enabled": true
+	},
+    	{
+	    "key": "NEWPID",
+       	    "enabled": true
+	},
+    	{
+	    "key": "NEWUTS",
+            "enabled": true
+	},
+    	{
+	    "key": "NEWNET",
+       	    "enabled": true
+	}
     ],
     "capabilities_mask": [
-    	{ "key": "SETPCAP" },
-    	{ "key": "SYS_MODULE" },
-	{ "key": "SYS_RAWIO" },
-	{ "key": "SYS_PACCT" },
-	{ "key": "SYS_ADMIN" },
-	{ "key": "SYS_NICE" },
-	{ "key": "SYS_RESOURCE" },
-	{ "key": "SYS_TIME" },
-	{ "key": "SYS_TTY_CONFIG" },
-	{ "key": "MKNOD" },
-	{ "key": "AUDIT_WRITE" },
-	{ "key": "AUDIT_CONTROL" },
-	{ "key": "MAC_OVERRIDE" },
-	{ "key": "MAC_ADMIN" },
-	{ "key": "NET_ADMIN" }
+    	{
+	    "key": "SETPCAP",
+       	    "enabled": true
+	},
+    	{ 
+	    "key": "SYS_MODULE",
+            "enabled": true
+	},
+	{ 
+	    "key": "SYS_RAWIO",
+            "enabled": false
+	},
+	{ 
+	    "key": "SYS_PACCT",
+            "enabled": true
+	},
+	{ 
+	    "key": "SYS_ADMIN",
+            "enabled": true
+	},
+	{ 
+	    "key": "SYS_NICE",
+            "enabled": true
+	},
+	{ 
+	    "key": "SYS_RESOURCE",
+            "enabled": true
+	},
+	{ 
+	    "key": "SYS_TIME",
+            "enabled": true
+	},
+	{ 
+	    "key": "SYS_TTY_CONFIG",
+            "enabled": true
+	},
+	{ 
+	    "key": "MKNOD",
+            "enabled": true
+	},
+	{ 
+	    "key": "AUDIT_WRITE",
+            "enabled": true
+	},
+	{ 
+	    "key": "AUDIT_CONTROL",
+            "enabled": true
+	},
+	{ 
+	    "key": "MAC_OVERRIDE",
+            "enabled": true
+	},
+	{ 
+	    "key": "MAC_ADMIN",
+            "enabled": true
+	},
+	{ 
+	    "key": "NET_ADMIN",
+	    "enabled": true
+       	}
     ],
     "networks": [{
             "type": "veth",

@@ -41,21 +41,52 @@ Sample `container.json` file:
       "TERM=xterm"
    ],
    "capabilities_mask" : [
-      { "key": "SETPCAP" },
-      { "key": "SYS_MODULE" },
-      { "key": "SYS_RAWIO" },
-      { "key": "SYS_PACCT" },
-      { "key": "SYS_ADMIN" },
-      { "key": "SYS_NICE" },
-      { "key": "SYS_RESOURCE" },
-      { "key": "SYS_TIME" },
-      { "key": "SYS_TTY_CONFIG" },
-      { "key": "MKNOD" },
-      { "key": "AUDIT_WRITE" },
-      { "key": "AUDIT_CONTROL" },
-      { "key": "MAC_OVERRIDE" },
-      { "key": "MAC_ADMIN" },
-      { "key": "NET_ADMIN" }
+      {
+	"key": "SETPCAP",
+	"enabled": true
+      },
+      { "key": "SYS_MODULE",
+	"enabled": true
+      },
+      { "key": "SYS_RAWIO",
+	"enabled": true
+      },
+      { "key": "SYS_PACCT",
+	"enabled": true
+      },
+      { "key": "SYS_ADMIN",
+	"enabled": true
+      },
+      { "key": "SYS_NICE",
+	"enabled": true
+      },
+      { "key": "SYS_RESOURCE",
+	"enabled": true
+      },
+      { "key": "SYS_TIME",
+	"enabled": true
+      },
+      { "key": "SYS_TTY_CONFIG",
+	"enabled": true
+      },
+      { "key": "MKNOD",
+	"enabled": true
+      },
+      { "key": "AUDIT_WRITE",
+	"enabled": true
+      },
+      { "key": "AUDIT_CONTROL",
+	"enabled": true
+      },
+      { "key": "MAC_OVERRIDE",
+	"enabled": true
+      },
+      { "key": "MAC_ADMIN",
+	"enabled": true
+      },
+      { "key": "NET_ADMIN",
+	"enabled": true
+      }
    ],
    "context" : {
       "apparmor_profile" : "docker-default"
@@ -81,11 +112,21 @@ Sample `container.json` file:
       }
    ],
    "namespaces" : [
-      { "key": "NEWNS" },
-      { "key": "NEWUTS" },
-      { "key": "NEWIPC" },
-      { "key": "NEWPID" },
-      { "key": "NEWNET" }
+      { "key": "NEWNS",
+	"enabled": true
+      },
+      { "key": "NEWUTS",
+	"enabled": true
+      },
+      { "key": "NEWIPC",
+	"enabled": true
+      },
+      { "key": "NEWPID",
+	"enabled": true
+      },
+      { "key": "NEWNET",
+	"enabled": true
+      }
    ]
 }
 ```
