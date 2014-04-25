@@ -15,8 +15,7 @@ func TestContainerJsonFormat(t *testing.T) {
 
 	var container *Container
 	if err := json.NewDecoder(f).Decode(&container); err != nil {
-		t.Log("failed to decode container config")
-		t.FailNow()
+		t.Fatal("failed to decode container config")
 	}
 	if container.Hostname != "koye" {
 		t.Log("hostname is not set")
@@ -39,12 +38,22 @@ func TestContainerJsonFormat(t *testing.T) {
 	}
 
 	if !container.CapabilitiesMask.Contains("SYS_ADMIN") {
-		t.Log("capabilities should contain SYS_ADMIN")
+		t.Log("capabilities mask should contain SYS_ADMIN")
+		t.Fail()
+	}
+
+	if container.CapabilitiesMask.Get("SYS_ADMIN").Enabled {
+		t.Log("SYS_ADMIN should not be enabled in capabilities mask")
+		t.Fail()
+	}
+
+	if !container.CapabilitiesMask.Get("MKNOD").Enabled {
+		t.Log("MKNOD should be enabled in capabilities mask")
 		t.Fail()
 	}
 
 	if container.CapabilitiesMask.Contains("SYS_CHROOT") {
-		t.Log("capabitlies should not contain SYS_CHROOT")
+		t.Log("capabilities mask should not contain SYS_CHROOT")
 		t.Fail()
 	}
 

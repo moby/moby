@@ -43,11 +43,11 @@ Sample `container.json` file:
    "capabilities_mask" : [
       {
         "key": "SETPCAP",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_MODULE",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_RAWIO",
@@ -55,27 +55,27 @@ Sample `container.json` file:
       },
       {
         "key": "SYS_PACCT",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_ADMIN",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_NICE",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_RESOURCE",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_TIME",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "SYS_TTY_CONFIG",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "MKNOD",
@@ -83,23 +83,23 @@ Sample `container.json` file:
       },
       {
         "key": "AUDIT_WRITE",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "AUDIT_CONTROL",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "MAC_OVERRIDE",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "MAC_ADMIN",
-        "enabled": true
+        "enabled": false
       },
       {
         "key": "NET_ADMIN",
-        "enabled": true
+        "enabled": false
       }
    ],
    "context" : {
