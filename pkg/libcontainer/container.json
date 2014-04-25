@@ -8,28 +8,28 @@
         "TERM=xterm-256color"
     ],
     "namespaces": [
-        "NEWIPC",
-        "NEWNS",
-        "NEWPID",
-        "NEWUTS",
-        "NEWNET"
+    	{ "key": "NEWIPC" },
+    	{ "key": "NEWNS"  },
+    	{ "key": "NEWPID" },
+    	{ "key": "NEWUTS" },
+    	{ "key": "NEWNET" }
     ],
     "capabilities_mask": [
-        "SETPCAP",
-        "SYS_MODULE",
-        "SYS_RAWIO",
-        "SYS_PACCT",
-        "SYS_ADMIN",
-        "SYS_NICE",
-        "SYS_RESOURCE",
-        "SYS_TIME",
-        "SYS_TTY_CONFIG",
-        "MKNOD",
-        "AUDIT_WRITE",
-        "AUDIT_CONTROL",
-        "MAC_OVERRIDE",
-        "MAC_ADMIN",
-        "NET_ADMIN"
+    	{ "key": "SETPCAP" },
+    	{ "key": "SYS_MODULE" },
+	{ "key": "SYS_RAWIO" },
+	{ "key": "SYS_PACCT" },
+	{ "key": "SYS_ADMIN" },
+	{ "key": "SYS_NICE" },
+	{ "key": "SYS_RESOURCE" },
+	{ "key": "SYS_TIME" },
+	{ "key": "SYS_TTY_CONFIG" },
+	{ "key": "MKNOD" },
+	{ "key": "AUDIT_WRITE" },
+	{ "key": "AUDIT_CONTROL" },
+	{ "key": "MAC_OVERRIDE" },
+	{ "key": "MAC_ADMIN" },
+	{ "key": "NET_ADMIN" }
     ],
     "networks": [{
             "type": "veth",
@@ -45,6 +45,7 @@
     "cgroups": {
         "name": "docker-koye",
         "parent": "docker",
-        "memory": 5248000
+        "memory": 5248000,
+	"cpu_shares": 1024
     }
 }

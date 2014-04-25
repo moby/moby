@@ -41,21 +41,21 @@ Sample `container.json` file:
       "TERM=xterm"
    ],
    "capabilities_mask" : [
-      "SETPCAP",
-      "SYS_MODULE",
-      "SYS_RAWIO",
-      "SYS_PACCT",
-      "SYS_ADMIN",
-      "SYS_NICE",
-      "SYS_RESOURCE",
-      "SYS_TIME",
-      "SYS_TTY_CONFIG",
-      "MKNOD",
-      "AUDIT_WRITE",
-      "AUDIT_CONTROL",
-      "MAC_OVERRIDE",
-      "MAC_ADMIN",
-      "NET_ADMIN"
+      { "key": "SETPCAP" },
+      { "key": "SYS_MODULE" },
+      { "key": "SYS_RAWIO" },
+      { "key": "SYS_PACCT" },
+      { "key": "SYS_ADMIN" },
+      { "key": "SYS_NICE" },
+      { "key": "SYS_RESOURCE" },
+      { "key": "SYS_TIME" },
+      { "key": "SYS_TTY_CONFIG" },
+      { "key": "MKNOD" },
+      { "key": "AUDIT_WRITE" },
+      { "key": "AUDIT_CONTROL" },
+      { "key": "MAC_OVERRIDE" },
+      { "key": "MAC_ADMIN" },
+      { "key": "NET_ADMIN" }
    ],
    "context" : {
       "apparmor_profile" : "docker-default"
@@ -81,11 +81,11 @@ Sample `container.json` file:
       }
    ],
    "namespaces" : [
-      "NEWNS",
-      "NEWUTS",
-      "NEWIPC",
-      "NEWPID",
-      "NEWNET"
+      { "key": "NEWNS" },
+      { "key": "NEWUTS" },
+      { "key": "NEWIPC" },
+      { "key": "NEWPID" },
+      { "key": "NEWNET" }
    ]
 }
 ```
