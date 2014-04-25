@@ -1,4 +1,4 @@
-// +build linux,amd64 freebsd,cgo
+// +build cgo
 
 package graphdb
 
