@@ -146,15 +146,15 @@ func Setfilecon(path string, scon string) error {
 }
 
 func Setfscreatecon(scon string) error {
-	return writeCon("/proc/self/attr/fscreate", scon)
+	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()), scon)
 }
 
 func Getfscreatecon() (string, error) {
-	return readCon("/proc/self/attr/fscreate")
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()))
 }
 
 func getcon() (string, error) {
-	return readCon("/proc/self/attr/current")
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/current", system.Gettid()))
 }
 
 func Getpidcon(pid int) (string, error) {
