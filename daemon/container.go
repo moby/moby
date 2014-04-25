@@ -654,9 +654,12 @@ func (container *Container) Kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
-		if err := syscall.Kill(container.State.Pid, 9); err != nil {
-			return err
+		// Ensure that we don't kill ourselves
+		if pid := container.State.Pid; pid != 0 {
+			log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
+			if err := syscall.Kill(pid, 9); err != nil {
+				return err
+			}
 		}
 	}
 
