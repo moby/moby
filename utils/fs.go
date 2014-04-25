@@ -99,7 +99,7 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 				switch dest[0] {
 				case '/':
 					prev = filepath.Join(root, dest)
-				case '.':
+				default:
 					prev, _ = filepath.Abs(prev)
 
 					if prev = filepath.Clean(filepath.Join(filepath.Dir(prev), dest)); len(prev) < len(root) {
