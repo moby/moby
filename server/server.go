@@ -77,7 +77,7 @@ func InitServer(job *engine.Job) engine.Status {
 	go func() {
 		interruptCount := 0
 		for sig := range c {
-			go func() {
+			go func(sig os.Signal) {
 				log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
 				switch sig {
 				case os.Interrupt, syscall.SIGTERM:
@@ -97,7 +97,7 @@ func InitServer(job *engine.Job) engine.Status {
 				case syscall.SIGQUIT:
 				}
 				os.Exit(128 + int(sig.(syscall.Signal)))
-			}()
+			}(sig)
 		}
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
@@ -307,7 +307,6 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 			return engine.StatusOK
 		}
 	}
-	return engine.StatusOK
 }
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {

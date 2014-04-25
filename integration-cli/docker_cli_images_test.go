@@ -27,14 +27,14 @@ func TestCLIImageTagRemove(t *testing.T) {
 	{
 		imagesAfter, _, _ := cmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+3 {
-			t.Fatalf("before: %#s\n\nafter: %#s\n", imagesBefore, imagesAfter)
+			t.Fatalf("before: %#v\n\nafter: %#v\n", imagesBefore, imagesAfter)
 		}
 	}
 	cmd(t, "rmi", "utest/docker:tag2")
 	{
 		imagesAfter, _, _ := cmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+2 {
-			t.Fatalf("before: %#s\n\nafter: %#s\n", imagesBefore, imagesAfter)
+			t.Fatalf("before: %#v\n\nafter: %#v\n", imagesBefore, imagesAfter)
 		}
 
 	}
@@ -42,7 +42,7 @@ func TestCLIImageTagRemove(t *testing.T) {
 	{
 		imagesAfter, _, _ := cmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+1 {
-			t.Fatalf("before: %#s\n\nafter: %#s\n", imagesBefore, imagesAfter)
+			t.Fatalf("before: %#v\n\nafter: %#v\n", imagesBefore, imagesAfter)
 		}
 
 	}
@@ -50,7 +50,7 @@ func TestCLIImageTagRemove(t *testing.T) {
 	{
 		imagesAfter, _, _ := cmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+0 {
-			t.Fatalf("before: %#s\n\nafter: %#s\n", imagesBefore, imagesAfter)
+			t.Fatalf("before: %#v\n\nafter: %#v\n", imagesBefore, imagesAfter)
 		}
 
 	}

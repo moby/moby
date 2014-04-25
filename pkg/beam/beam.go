@@ -82,8 +82,6 @@ func ReceiveConn(src Receiver) ([]byte, *UnixConn, error) {
 		}
 		return data, conn, nil
 	}
-	panic("impossibru!")
-	return nil, nil, nil
 }
 
 func Copy(dst Sender, src Receiver) (int, error) {
@@ -103,8 +101,6 @@ func Copy(dst Sender, src Receiver) (int, error) {
 		}
 		n++
 	}
-	panic("impossibru!")
-	return n, nil
 }
 
 // MsgDesc returns a human readable description of a beam message, usually

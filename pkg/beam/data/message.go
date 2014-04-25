@@ -44,7 +44,6 @@ func (m Message) Set(k string, v ...string) Message {
 	data, err := Decode(string(m))
 	if err != nil {
 		panic(err)
-		return m
 	}
 	data[k] = v
 	return Message(Encode(data))
@@ -54,7 +53,6 @@ func (m Message) Del(k string) Message {
 	data, err := Decode(string(m))
 	if err != nil {
 		panic(err)
-		return m
 	}
 	delete(data, k)
 	return Message(Encode(data))

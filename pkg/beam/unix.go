@@ -92,8 +92,6 @@ func (conn *UnixConn) Receive() (rdata []byte, rf *os.File, rerr error) {
 		}
 		return data, f, nil
 	}
-	panic("impossibru")
-	return nil, nil, nil
 }
 
 func receiveUnix(conn *net.UnixConn) ([]byte, []int, error) {

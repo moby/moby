@@ -62,8 +62,6 @@ func (l *listener) Accept() (net.Conn, error) {
 		}
 		return conn, nil
 	}
-	panic("impossibru!")
-	return nil, nil
 }
 
 func (l *listener) Close() error {
