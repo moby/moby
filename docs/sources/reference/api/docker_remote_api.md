@@ -127,83 +127,83 @@ entry for each repo/tag on an image, each image is only represented
 once, with a nested attribute indicating the repo/tags that apply to
 that image.
 
-    Instead of:
+Instead of:
 
-        HTTP/1.1 200 OK
-        Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-        [
-          {
-            "VirtualSize": 131506275,
-            "Size": 131506275,
-            "Created": 1365714795,
-            "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
-            "Tag": "12.04",
-            "Repository": "ubuntu"
-          },
-          {
-            "VirtualSize": 131506275,
-            "Size": 131506275,
-            "Created": 1365714795,
-            "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
-            "Tag": "latest",
-            "Repository": "ubuntu"
-          },
-          {
-            "VirtualSize": 131506275,
-            "Size": 131506275,
-            "Created": 1365714795,
-            "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
-            "Tag": "precise",
-            "Repository": "ubuntu"
-          },
-          {
-            "VirtualSize": 180116135,
-            "Size": 24653,
-            "Created": 1364102658,
-            "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-            "Tag": "12.10",
-            "Repository": "ubuntu"
-          },
-          {
-            "VirtualSize": 180116135,
-            "Size": 24653,
-            "Created": 1364102658,
-            "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-            "Tag": "quantal",
-            "Repository": "ubuntu"
-          }
-        ]
+    [
+      {
+        "VirtualSize": 131506275,
+        "Size": 131506275,
+        "Created": 1365714795,
+        "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+        "Tag": "12.04",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 131506275,
+        "Size": 131506275,
+        "Created": 1365714795,
+        "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+        "Tag": "latest",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 131506275,
+        "Size": 131506275,
+        "Created": 1365714795,
+        "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+        "Tag": "precise",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 180116135,
+        "Size": 24653,
+        "Created": 1364102658,
+        "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+        "Tag": "12.10",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 180116135,
+        "Size": 24653,
+        "Created": 1364102658,
+        "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+        "Tag": "quantal",
+        "Repository": "ubuntu"
+      }
+    ]
 
-    The returned json looks like this:
+The returned json looks like this:
 
-        HTTP/1.1 200 OK
-        Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-        [
-          {
-             "RepoTags": [
-               "ubuntu:12.04",
-               "ubuntu:precise",
-               "ubuntu:latest"
-             ],
-             "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
-             "Created": 1365714795,
-             "Size": 131506275,
-             "VirtualSize": 131506275
-          },
-          {
-             "RepoTags": [
-               "ubuntu:12.10",
-               "ubuntu:quantal"
-             ],
-             "ParentId": "27cf784147099545",
-             "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-             "Created": 1364102658,
-             "Size": 24653,
-             "VirtualSize": 180116135
-          }
-        ]
+    [
+      {
+         "RepoTags": [
+           "ubuntu:12.04",
+           "ubuntu:precise",
+           "ubuntu:latest"
+         ],
+         "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+         "Created": 1365714795,
+         "Size": 131506275,
+         "VirtualSize": 131506275
+      },
+      {
+         "RepoTags": [
+           "ubuntu:12.10",
+           "ubuntu:quantal"
+         ],
+         "ParentId": "27cf784147099545",
+         "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+         "Created": 1364102658,
+         "Size": 24653,
+         "VirtualSize": 180116135
+      }
+    ]
 
 `GET /images/viz`
 
