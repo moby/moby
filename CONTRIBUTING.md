@@ -104,10 +104,8 @@ same commit so that a revert would remove all traces of the feature or fix.
 Commits that fix or close an issue should include a reference like `Closes #XXX`
 or `Fixes #XXX`, which will automatically close the issue when merged.
 
-Add your name to the AUTHORS file, but make sure the list is sorted and your
-name and email address match your git configuration. The AUTHORS file is
-regenerated occasionally from the git commit history, so a mismatch may result
-in your changes being overwritten.
+Please do not add yourself to the AUTHORS file, as it is regenerated
+regularly from the Git history.
 
 ### Merge approval
 
