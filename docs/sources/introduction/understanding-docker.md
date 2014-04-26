@@ -87,14 +87,14 @@ to you.
 *Docker is made for humans.*
 
 It's easy to get started and easy to build and deploy applications with
-Docker: or as we say "*dockerise*" them! As much of Docker as possible
+Docker: or as we say "*dockerize*" them! As much of Docker as possible
 uses plain English for commands and tries to be as lightweight and
 transparent as possible. We want to get out of the way so you can build
 and deploy your applications.
 
 ### Docker is Portable
 
-*Dockerise And Go!*
+*Dockerize And Go!*
 
 Docker containers are highly portable. Docker provides a standard
 container format to hold your applications:
