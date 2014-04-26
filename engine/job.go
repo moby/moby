@@ -208,3 +208,7 @@ func (job *Job) Error(err error) Status {
 	fmt.Fprintf(job.Stderr, "%s\n", err)
 	return StatusErr
 }
+
+func (job *Job) StatusCode() int {
+	return int(job.status)
+}
