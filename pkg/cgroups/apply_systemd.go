@@ -107,6 +107,12 @@ func systemdApply(c *Cgroup, pid int) (ActiveCgroup, error) {
 			})})
 	}
 
+	// Always enable accounting, this gets us the same behaviour as the raw implementation,
+	// plus the kernel has some problems with joining the memory cgroup at a later time.
+	properties = append(properties,
+		systemd1.Property{"MemoryAccounting", dbus.MakeVariant(true)},
+		systemd1.Property{"CPUAccounting", dbus.MakeVariant(true)})
+
 	if c.Memory != 0 {
 		properties = append(properties,
 			systemd1.Property{"MemoryLimit", dbus.MakeVariant(uint64(c.Memory))})

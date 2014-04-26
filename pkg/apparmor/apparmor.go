@@ -8,12 +8,16 @@ package apparmor
 import "C"
 import (
 	"io/ioutil"
+	"os"
 	"unsafe"
 )
 
 func IsEnabled() bool {
-	buf, err := ioutil.ReadFile("/sys/module/apparmor/parameters/enabled")
-	return err == nil && len(buf) > 1 && buf[0] == 'Y'
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); err == nil {
+		buf, err := ioutil.ReadFile("/sys/module/apparmor/parameters/enabled")
+		return err == nil && len(buf) > 1 && buf[0] == 'Y'
+	}
+	return false
 }
 
 func ApplyProfile(pid int, name string) error {

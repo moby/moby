@@ -426,12 +426,17 @@ type TruncIndex struct {
 	bytes []byte
 }
 
-func NewTruncIndex() *TruncIndex {
-	return &TruncIndex{
-		index: suffixarray.New([]byte{' '}),
+func NewTruncIndex(ids []string) (idx *TruncIndex) {
+	idx = &TruncIndex{
 		ids:   make(map[string]bool),
 		bytes: []byte{' '},
 	}
+	for _, id := range ids {
+		idx.ids[id] = true
+		idx.bytes = append(idx.bytes, []byte(id+" ")...)
+	}
+	idx.index = suffixarray.New(idx.bytes)
+	return
 }
 
 func (idx *TruncIndex) Add(id string) error {

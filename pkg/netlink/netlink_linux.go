@@ -19,6 +19,7 @@ const (
 	VETH_INFO_PEER = 1
 	IFLA_NET_NS_FD = 28
 	SIOC_BRADDBR   = 0x89a0
+	SIOC_BRADDIF   = 0x89a2
 )
 
 var nextSeqNr int
@@ -26,6 +27,11 @@ var nextSeqNr int
 type ifreqHwaddr struct {
 	IfrnName   [16]byte
 	IfruHwaddr syscall.RawSockaddr
+}
+
+type ifreqIndex struct {
+	IfrnName  [16]byte
+	IfruIndex int32
 }
 
 func nativeEndian() binary.ByteOrder {
@@ -839,6 +845,30 @@ func CreateBridge(name string, setMacAddr bool) error {
 	if setMacAddr {
 		return setBridgeMacAddress(s, name)
 	}
+	return nil
+}
+
+// Add a slave to abridge device.  This is more backward-compatible than
+// netlink.NetworkSetMaster and works on RHEL 6.
+func AddToBridge(iface, master *net.Interface) error {
+	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+	if err != nil {
+		// ipv6 issue, creating with ipv4
+		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+		if err != nil {
+			return err
+		}
+	}
+	defer syscall.Close(s)
+
+	ifr := ifreqIndex{}
+	copy(ifr.IfrnName[:], master.Name)
+	ifr.IfruIndex = int32(iface.Index)
+
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), SIOC_BRADDIF, uintptr(unsafe.Pointer(&ifr))); err != 0 {
+		return err
+	}
+
 	return nil
 }
 

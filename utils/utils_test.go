@@ -138,7 +138,8 @@ func TestRaceWriteBroadcaster(t *testing.T) {
 
 // Test the behavior of TruncIndex, an index for querying IDs from a non-conflicting prefix.
 func TestTruncIndex(t *testing.T) {
-	index := NewTruncIndex()
+	ids := []string{}
+	index := NewTruncIndex(ids)
 	// Get on an empty index
 	if _, err := index.Get("foobar"); err == nil {
 		t.Fatal("Get on an empty index should return an error")
@@ -215,6 +216,25 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 		t.Fatalf("Getting '%s' should return an error", input)
 	} else if result != expectedResult {
 		t.Fatalf("Getting '%s' returned '%s' instead of '%s'", input, result, expectedResult)
+	}
+}
+
+func BenchmarkTruncIndexAdd(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range ids {
+			index.Add(id)
+		}
+	}
+}
+
+func BenchmarkTruncIndexNew(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewTruncIndex(ids)
 	}
 }
 

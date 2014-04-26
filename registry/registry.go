@@ -101,16 +101,11 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		return "", "", ErrInvalidRepositoryName
 	}
 	nameParts := strings.SplitN(reposName, "/", 2)
-	if !strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
-		nameParts[0] != "localhost" {
+	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
+		nameParts[0] != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
 		return IndexServerAddress(), reposName, err
-	}
-	if len(nameParts) < 2 {
-		// There is a dot in repos name (and no registry address)
-		// Is it a Registry address without repos name?
-		return "", "", ErrInvalidRepositoryName
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
