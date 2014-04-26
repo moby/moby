@@ -1,15 +1,15 @@
-page_title: Trusted Builds in the Docker Index
-page_description: Docker Index Trusted Builds
-page_keywords: Docker, docker, index, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds
+page_title: Trusted Builds on Docker.io
+page_description: Docker.io Trusted Builds
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds
 
-# Trusted Builds in the Docker Index
+# Trusted Builds on Docker.io
 
 ## Trusted Builds
 
 *Trusted Builds* is a special feature allowing you to specify a source
 repository with a *Dockerfile* to be built by the Docker build clusters. The
 system will clone your repository and build the Dockerfile using the repository
-as the context. The resulting image will then be uploaded to the index and
+as the context. The resulting image will then be uploaded to the registry and
 marked as a `Trusted Build`.
 
 Trusted Builds have a number of advantages. For example, users of *your* Trusted
@@ -17,18 +17,18 @@ Build can be certain that the resulting image was built exactly how it claims
 to be.
 
 Furthermore, the Dockerfile will be available to anyone browsing your repository
-on the Index. Another advantage of the Trusted Builds feature is the automated
+on the registry. Another advantage of the Trusted Builds feature is the automated
 builds. This makes sure that your repository is always up to date.
 
 ### Linking with a GitHub account
 
-In order to setup a Trusted Build, you need to first link your Docker Index
-account with a GitHub one. This will allow the Docker Index to see your
-repositories.
+In order to setup a Trusted Build, you need to first link your [Docker.io](
+https://index.docker.io) account with a GitHub one. This will allow the registry
+to see your repositories.
 
-> *Note:* We currently request access for *read* and *write* since the Index
-> needs to setup a GitHub service hook. Although nothing else is done with
-> your account, this is how GitHub manages permissions, sorry!
+> *Note:* We currently request access for *read* and *write* since [Docker.io](
+> https://index.docker.io) needs to setup a GitHub service hook. Although nothing
+> else is done with your account, this is how GitHub manages permissions, sorry!
 
 ### Creating a Trusted Build
 
@@ -77,8 +77,8 @@ Trusted Build:
 ### The Dockerfile and Trusted Builds
 
 During the build process, we copy the contents of your Dockerfile. We also
-add it to the Docker Index for the Docker community to see on the repository
-page.
+add it to the [Docker.io](https://index.docker.io) for the Docker community
+to see on the repository page.
 
 ### README.md
 

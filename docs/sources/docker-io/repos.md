@@ -1,15 +1,16 @@
-page_title: Repositories and Images in the Docker Index
-page_description: Docker Index repositories
-page_keywords: Docker, docker, index, accounts, plans, Dockerfile, Docker.io, docs, documentation
+page_title: Repositories and Images on Docker.io
+page_description: Repositories and Images on Docker.io
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation
 
-# Repositories and Images in the Docker Index
+# Repositories and Images on Docker.io
 
 ## Searching for repositories and images
 
 You can `search` for all the publicly available repositories and images using
 Docker. If a repository is not public (i.e., private), it won't be listed on
-the Index search results. To see repository statuses, you can look at your
-[profile page](https://index.docker.io/account/).
+the repository search results. To see repository statuses, you can look at your
+[profile page](https://index.docker.io/account/) on [Docker.io](
+https://index.docker.io).
 
 ## Repositories
 
@@ -22,20 +23,20 @@ of bookmark your favorites.
 
 You can interact with other members of the Docker community and maintainers by
 leaving comments on repositories. If you find any comments that are not
-appropriate, you can flag them for the Index admins' review.
+appropriate, you can flag them for the admins' review.
 
 ### Private Docker Repositories
 
-To work with a private repository on the Docker Index, you will need to add one
-via the [Add Repository](https://index.docker.io/account/repositories/add) link.
-Once the private repository is created, you can `push` and `pull` images to and
-from it using Docker.
+To work with a private repository on [Docker.io](https://index.docker.io), you
+will need to add one via the [Add Repository](https://index.docker.io/account/repositories/add)
+link. Once the private repository is created, you can `push` and `pull` images
+to and from it using Docker.
 
 > *Note:* You need to be signed in and have access to work with a private
 > repository.
 
 Private repositories are just like public ones. However, it isn't possible to
-browse them or search their content on the public index. They do not get cached
+browse them or search their content on the public registry. They do not get cached
 the same way as a public repository either.
 
 It is possible to give access to a private repository to those whom you 
@@ -44,7 +45,7 @@ designate (i.e., collaborators) from its settings page.
 From there, you can also switch repository status (*public* to *private*, or
 viceversa). You will need to have an available private repository slot open
 before you can do such a switch. If you don't have any, you can always upgrade
-your [Docker Index plan](https://index.docker.io/plans/).
+your [Docker.io](https://index.docker.io/plans/) plan.
 
 ### Collaborators and their role
 

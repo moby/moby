@@ -43,7 +43,7 @@ Docker's main components are:
 
  - Docker *daemon*;
  - Docker *client*, and;
- - The Docker Index.
+ - [Docker.io](https://index.docker.io) registry.
 
 ### The Docker daemon
 
@@ -57,9 +57,9 @@ The Docker client is the primary user interface to Docker. It is tasked
 with accepting commands from the user and communicating back and forth
 with a Docker daemon to manage the container lifecycle on any host.
 
-### Docker Index, the central Docker registry
+### Docker.io registry
 
-The [Docker Index](http://index.docker.io) is the global archive (and
+[Docker.io](https://index.docker.io) is the global archive (and
 directory) of user supplied Docker container images. It currently hosts
 a large – in fact, rapidly growing – number of projects where you
 can find almost any popular application or deployment stack readily
@@ -70,28 +70,29 @@ tools for everyone to grow with other *Dockers*. By issuing a single
 command through the Docker client you can start sharing your own
 creations with the rest of the world.
 
-However, knowing that not everything can be shared the Docker Index also
-offers private repositories. In order to see the available plans, you
-can click [here](https://index.docker.io/plans).
+However, knowing that not everything can be shared the [Docker.io](
+https://index.docker.io) also offers private repositories. In order to see
+the available plans, you can click [here](https://index.docker.io/plans).
 
-Using the [Docker Registry](https://github.com/dotcloud/docker-registry), it is
+Using [*docker-registry*](https://github.com/dotcloud/docker-registry), it is
 also possible to run your own private Docker image registry service on your own
 servers.
 
-> **Note:** To learn more about the [*Docker Image Index*](
-> http://index.docker.io) (public *and* private), check out the [Registry &
+> **Note:** To learn more about the [*Docker.io*](http://index.docker.io)
+> registry (for public *and* private repositories), check out the [Registry &
 > Index Spec](http://docs.docker.io/api/registry_index_spec/).
 
 ### Summary
 
  - **When you install Docker, you get all the components:**  
- The daemon, the client and access to the public image registry: the [Docker Index](http://index.docker.io).
+ The daemon, the client and access to the [Docker.io](http://index.docker.io) registry.
  - **You can run these components together or distributed:**  
  Servers with the Docker daemon running, controlled by the Docker client.
  - **You can benefit form the public registry:**  
  Download and build upon images created by the community.
  - **You can start a private repository for proprietary use.**  
- Sign up for a [plan](https://index.docker.io/plans) or host your own [Docker registry](https://github.com/dotcloud/docker-registry).
+ Sign up for a [plan](https://index.docker.io/plans) or host your own [docker-registry](
+https://github.com/dotcloud/docker-registry).
 
 ## Elements of Docker
 
@@ -198,7 +199,7 @@ Docker begins with:
 
  - **Pulling the `ubuntu` image:**  
  Docker checks for the presence of the `ubuntu` image and if it doesn't
- exist locally on the host, then Docker downloads it from the [Docker Index](https://index.docker.io)
+ exist locally on the host, then Docker downloads it from [Docker.io](https://index.docker.io)
  - **Creates a new container:**  
  Once Docker has the image it creates a container from it.
  - **Allocates a filesystem and mounts a read-write _layer_:**  
@@ -226,28 +227,27 @@ UnionFS technology we saw earlier.
 
 Every image starts from a base image, for example `ubuntu` a base Ubuntu
 image or `fedora` a base Fedora image. Docker builds and provides these
-base images via the [Docker Index](http://index.docker.io).
+base images via [Docker.io](http://index.docker.io).
 
 ### How does a Docker registry work?
 
 The Docker registry is a store for your Docker images. Once you build a
-Docker image you can *push* it to the [Docker
-Index](http://index.docker.io) or to a private registry you run behind
-your firewall.
+Docker image you can *push* it to a public or private repository on [Docker.io](
+http://index.docker.io) or to your own registry running behind your firewall.
 
 Using the Docker client, you can search for already published images and
 then pull them down to your Docker host to build containers from them
 (or even build on these images).
 
-The [Docker Index](http://index.docker.io) provides both public and
+[Docker.io](http://index.docker.io) provides both public and
 private storage for images. Public storage is searchable and can be
 downloaded by anyone. Private repositories are excluded from search
 results and only you and your users can pull them down and use them to
 build containers. You can [sign up for a plan here](https://index.docker.io/plans).
 
-To learn more, check out the [Working With Repositories](
-http://docs.docker.io/use/workingwithrepository) section of our
-[User's Manual](http://docs.docker.io).
+To learn more, check out the [Working with Repositories](
+http://docs.docker.io/use/workingwithrepository) section from the
+[Docker documentation](http://docs.docker.io).
 
 ## Where to go from here
 
