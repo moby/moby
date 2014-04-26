@@ -563,25 +563,30 @@ tar, then the ownerships might not get preserved.
 
 ## info
 
-    Usage: docker info
 
-    Display system-wide information
+    Usage: docker info
 
 For example:
 
-    $ sudo docker info
-    Containers: 292
-    Images: 194
+    $ sudo docker -D info
+    Containers: 16
+    Images: 2138
+    Storage Driver: btrfs
+    Execution Driver: native-0.1
+    Kernel Version: 3.12.0-1-amd64
     Debug mode (server): false
-    Debug mode (client): false
-    Fds: 22
-    Goroutines: 67
-    LXC Version: 0.9.0
-    EventsListeners: 115
-    Kernel Version: 3.8.0-33-generic
-    WARNING: No swap limit support
+    Debug mode (client): true
+    Fds: 16
+    Goroutines: 104
+    EventsListeners: 0
+    Init Path: /usr/bin/docker
+    Sockets: [unix:///var/run/docker.sock tcp://0.0.0.0:4243]
+    Username: svendowideit
+    Registry: [https://index.docker.io/v1/]
 
-When sending issue reports, please use `docker version` and `docker info` to
+The global `-D` option tells all `docker` comands to output debug information.
+
+When sending issue reports, please use `docker version` and `docker -D info` to
 ensure we know how your setup is configured.
 
 ## inspect

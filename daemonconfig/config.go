@@ -31,6 +31,7 @@ type Config struct {
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
 	Context                     map[string][]string
+	Sockets                     []string
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -66,6 +67,9 @@ func ConfigFromJob(job *engine.Job) *Config {
 		config.Mtu = GetDefaultNetworkMtu()
 	}
 	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
+	if sockets := job.GetenvList("Sockets"); sockets != nil {
+		config.Sockets = sockets
+	}
 
 	return config
 }

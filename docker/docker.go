@@ -162,6 +162,7 @@ func main() {
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
 			job.SetenvBool("EnableSelinuxSupport", *flSelinuxEnabled)
+			job.SetenvList("Sockets", flHosts.GetAll())
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
 			}

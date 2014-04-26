@@ -1099,9 +1099,16 @@ Display system-wide information
         {
              "Containers":11,
              "Images":16,
+             "Driver":"btrfs",
+             "ExecutionDriver":"native-0.1",
+             "KernelVersion":"3.12.0-1-amd64"
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
+             "NEventsListener":0,
+             "InitPath":"/usr/bin/docker",
+             "Sockets":["unix:///var/run/docker.sock"],
+             "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
              "IPv4Forwarding":true
