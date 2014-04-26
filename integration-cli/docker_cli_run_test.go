@@ -665,3 +665,25 @@ func TestUnPrivilegedCannotMount(t *testing.T) {
 
 	logDone("run - test un-privileged cannot mount")
 }
+
+func TestSysNotAvaliableInNonPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "ls", "/sys/kernel")
+	if code, err := runCommand(cmd); err == nil || code == 0 {
+		t.Fatal("sys should not be available in a non privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - sys not avaliable in non privileged container")
+}
+
+func TestSysAvaliableInPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "ls", "/sys/kernel")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("sys should be available in privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - sys avaliable in privileged container")
+}

@@ -23,7 +23,7 @@ import (
 
 const (
 	DriverName                = "native"
-	Version                   = "0.1"
+	Version                   = "0.2"
 	BackupApparmorProfilePath = "apparmor/docker.back" // relative to docker root
 )
 
@@ -62,6 +62,7 @@ type driver struct {
 	root             string
 	initPath         string
 	activeContainers map[string]*exec.Cmd
+	restrictionPath  string
 }
 
 func NewDriver(root, initPath string) (*driver, error) {
@@ -72,8 +73,14 @@ func NewDriver(root, initPath string) (*driver, error) {
 	if err := apparmor.InstallDefaultProfile(filepath.Join(root, "../..", BackupApparmorProfilePath)); err != nil {
 		return nil, err
 	}
+	restrictionPath := filepath.Join(root, "empty")
+	if err := os.MkdirAll(restrictionPath, 0700); err != nil {
+		return nil, err
+	}
+
 	return &driver{
 		root:             root,
+		restrictionPath:  restrictionPath,
 		initPath:         initPath,
 		activeContainers: make(map[string]*exec.Cmd),
 	}, nil
