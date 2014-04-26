@@ -694,10 +694,10 @@ Pull an image or a repository from the registry
     Usage: docker pull NAME[:TAG]
 
 Most of your images will be created on top of a base image from the
-Docker Index ([https://index.docker.io](https://index.docker.io)).
+[Docker.io](https://index.docker.io) registry.
 
-The Docker Index contains many pre-built images that you can
-`pull` and try without needing to define and configure your own.
+[Docker.io](https://index.docker.io) contains many pre-built images that you
+can `pull` and try without needing to define and configure your own.
 
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
@@ -1067,7 +1067,7 @@ It is used to create a backup that can then be used with
 
 ## search
 
-Search the docker index for images
+Search [Docker.io](https://index.docker.io) for images
 
     Usage: docker search TERM
 
@@ -1075,8 +1075,8 @@ Search the docker index for images
      -s, --stars=0: Only displays with at least xxx stars
      -t, --trusted=false: Only show trusted builds
 
-See [*Find Public Images on the Central Index*](
-/use/workingwithrepository/#searching-central-index) for
+See [*Find Public Images on Docker.io*](
+/use/workingwithrepository/#find-public-images-on-dockerio) for
 more details on finding shared images from the commandline.
 
 ## start

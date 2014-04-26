@@ -947,7 +947,7 @@ Tag the image `name` into a repository
 
 `GET /images/search`
 
-Search for an image in the docker index.
+Search for an image on [Docker.io](https://index.docker.io).
 
 > **Note**:
 > The response keys have changed from API v1.6 to reflect the JSON
