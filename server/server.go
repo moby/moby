@@ -126,7 +126,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"insert":           srv.ImageInsert,
 		"attach":           srv.ContainerAttach,
 		"logs":             srv.ContainerLogs,
-		"search":           srv.ImagesSearch,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
 		"version":          srv.DockerVersion,
@@ -598,39 +597,6 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 	utils.Debugf("Completed processing %s", address)
 
 	return nil
-}
-
-func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s TERM", job.Name)
-	}
-	var (
-		term        = job.Args[0]
-		metaHeaders = map[string][]string{}
-		authConfig  = &registry.AuthConfig{}
-	)
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", metaHeaders)
-
-	r, err := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), registry.IndexServerAddress())
-	if err != nil {
-		return job.Error(err)
-	}
-	results, err := r.SearchRepositories(term)
-	if err != nil {
-		return job.Error(err)
-	}
-	outs := engine.NewTable("star_count", 0)
-	for _, result := range results.Results {
-		out := &engine.Env{}
-		out.Import(result)
-		outs.Add(out)
-	}
-	outs.ReverseSort()
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
 }
 
 // FIXME: 'insert' is deprecated and should be removed in a future version.
