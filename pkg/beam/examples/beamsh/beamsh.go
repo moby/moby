@@ -68,7 +68,7 @@ func main() {
 			// No arguments, stdin not terminal --> batch mode
 			script, err := dockerscript.Parse(os.Stdin)
 			if err != nil {
-				Fatal("parse error: %v\n", err)
+				Fatalf("parse error: %v\n", err)
 			}
 			if err := executeRootScript(script); err != nil {
 				Fatal(err)
@@ -83,7 +83,7 @@ func main() {
 			}
 			script, err := dockerscript.Parse(f)
 			if err != nil {
-				Fatal("parse error: %v\n", err)
+				Fatalf("parse error: %v\n", err)
 			}
 			if err := executeRootScript(script); err != nil {
 				Fatal(err)

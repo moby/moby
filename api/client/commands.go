@@ -86,7 +86,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 
 // FIXME: 'insert' is deprecated.
 func (cli *DockerCli) CmdInsert(args ...string) error {
-	fmt.Fprintf(os.Stderr, "Warning: '%s' is deprecated and will be removed in a future version. Please use 'docker build' and 'ADD' instead.\n")
+	fmt.Fprintf(os.Stderr, "Warning: 'insert' is deprecated and will be removed in a future version. Please use 'docker build' and 'ADD' instead.\n")
 	cmd := cli.Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -543,7 +543,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				utils.Errorf("Unsupported signal: %d. Discarding.", s)
+				utils.Errorf("Unsupported signal: %s. Discarding.", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
 				utils.Debugf("Error sending signal: %s", err)

@@ -245,7 +245,7 @@ func GetTestImage(daemon *daemon.Daemon) *image.Image {
 			return image
 		}
 	}
-	log.Fatalf("Test image %v not found in %s: %s", unitTestImageID, daemon.Graph().Root, imgs)
+	log.Fatalf("Test image %v not found in %s: %v", unitTestImageID, daemon.Graph().Root, imgs)
 	return nil
 }
 

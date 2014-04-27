@@ -389,7 +389,7 @@ func TestChanges(t *testing.T) {
 	}
 
 	if change.Kind != archive.ChangeAdd {
-		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
+		t.Fatalf("Change kind should be ChangeAdd got %d", change.Kind)
 	}
 
 	if err := d.Create("3", "2", ""); err != nil {
@@ -429,7 +429,7 @@ func TestChanges(t *testing.T) {
 	}
 
 	if change.Kind != archive.ChangeAdd {
-		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
+		t.Fatalf("Change kind should be ChangeAdd got %d", change.Kind)
 	}
 }
 

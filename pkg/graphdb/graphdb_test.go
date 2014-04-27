@@ -535,6 +535,6 @@ func TestConcurrentWrites(t *testing.T) {
 		}
 	}
 	if any {
-		t.Fatal()
+		t.Fatal("at least one error occurred during concurrent writes")
 	}
 }

@@ -947,7 +947,7 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	_, err := buildImage(testContextTemplate{``, nil, nil}, t, nil, true)
 
 	if err != server.ErrDockerfileEmpty {
-		t.Fatal("Expected: %v, got: %v", server.ErrDockerfileEmpty, err)
+		t.Fatalf("Expected: %v, got: %v", server.ErrDockerfileEmpty, err)
 	}
 }
 

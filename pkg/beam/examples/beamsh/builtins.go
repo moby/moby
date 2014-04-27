@@ -77,7 +77,7 @@ func CmdRender(args []string, stdout, stderr io.Writer, in beam.Receiver, out be
 		}
 		msg, err := data.Decode(string(payload))
 		if err != nil {
-			fmt.Fprintf(stderr, "decode error: %v\n")
+			fmt.Fprintf(stderr, "decode error: %v\n", err)
 		}
 		if err := t.Execute(stdout, msg); err != nil {
 			fmt.Fprintf(stderr, "rendering error: %v\n", err)
