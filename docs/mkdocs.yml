@@ -106,6 +106,8 @@ pages:
 - ['reference/api/docker_remote_api_v1.10.md', 'Reference', 'Docker Remote API v1.10']
 - ['reference/api/docker_remote_api_v1.9.md', 'Reference', 'Docker Remote API v1.9']
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
+- ['reference/api/docker_io_oauth_api.md', 'Reference', 'Docker IO OAuth API']
+- ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker IO Accounts API']
 
 # Contribute:
 - ['contributing/index.md', '**HIDDEN**']
