@@ -237,78 +237,7 @@ automatically sent.
             "primary": false
         }
 
-### 1.5 Update an email address for a user
-
-`PATCH /api/v1.1/users/:username/emails/`
-
-Update an email address for the specified user to either verify an
-email address or set it as the primary email for the user. You
-cannot use this endpoint to un-verify an email address. You cannot
-use this endpoint to unset the primary email, only set another as
-the primary.
-
-    Parameters:
-
-    -   **username** – username of the user whose email info is being
-        updated.
-
-    Json Parameters:
-
-     
-
-    -   **email** (*string*) – the email address to be updated.
-    -   **verified** (*boolean*) – (optional) whether the email address
-        is verified, must be `true` or absent.
-    -   **primary** (*boolean*) – (optional) whether to set the email
-        address as the primary email, must be `true`
-        or absent.
-
-    Request Headers:
-
-     
-
-    -   **Authorization** – required authentication credentials of
-        either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
-        form data, etc.
-
-    Status Codes:
-
-    -   **200** – success, user's email updated.
-    -   **400** – data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
-        whose data is being updated, OAuth access tokens must have
-        `email_write` scope.
-    -   **404** – the specified username or email address does not
-        exist.
-
-    **Example request**:
-
-    Once you have independently verified an email address.
-
-        PATCH /api/v1.1/users/janedoe/emails/ HTTP/1.1
-        Host: www.docker.io
-        Accept: application/json
-        Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
-
-        {
-            "email": "jane.doe+other@example.com",
-            "verified": true,
-        }
-
-    **Example response**:
-
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {
-            "email": "jane.doe+other@example.com",
-            "verified": true,
-            "primary": false
-        }
-
-### 1.6 Delete email address for a user
+### 1.5 Delete email address for a user
 
 `DELETE /api/v1.1/users/:username/emails/`
 
