@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("mountpoint not found")
+	ErrNotFound      = errors.New("mountpoint not found")
+	ErrStatsNotFound = errors.New("stats not found")
 )
 
 type Cgroup struct {

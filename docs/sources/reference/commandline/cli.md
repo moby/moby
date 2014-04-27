@@ -369,6 +369,13 @@ For example:
       --since=""         Show all events created since timestamp
       --until=""         Stream events until this timestamp
 
+## stats
+
+Get stats of a container
+
+    Usage: docker stats CONTAINER
+
+
 ### Examples
 
 You'll need two shells for this example.

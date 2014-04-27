@@ -291,6 +291,21 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 	return job.Run()
 }
 
+func getContainersStats(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version.LessThan("1.11") {
+		return fmt.Errorf("Stats were introduced in 1.11, Please upgrade your docker client.")
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("stats", vars["name"])
+	streamJSON(job, w, false)
+	return job.Run()
+}
+
 func getContainersJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1066,6 +1081,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
+			"/containers/{name:.*}/stats":     getContainersStats,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
 		},
 		"POST": {

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"container/list"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,6 +27,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/mount"
@@ -725,6 +727,8 @@ func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error)
 	if err != nil {
 		return nil, err
 	}
+	// register plugins
+	eng.Register("stats", daemon.Stats)
 	return daemon, nil
 }
 
@@ -1049,4 +1053,28 @@ func (daemon *Daemon) checkLocaldns() error {
 		daemon.config.Dns = DefaultDns
 	}
 	return nil
+}
+
+func (daemon *Daemon) Stats(job *engine.Job) engine.Status {
+	name := job.Args[0]
+	if container := daemon.Get(name); container != nil {
+		stats, err := container.Stats()
+		if err == cgroups.ErrStatsNotFound {
+			return job.Errorf("container %s does not appear to be running", name)
+		}
+		if err != nil {
+			return job.Error(err)
+		}
+		b, err := json.Marshal(stats)
+		if err != nil {
+			utils.Errorf("stats %s", err)
+			return engine.StatusErr
+		}
+		if _, err = job.Stdout.Write(b); err != nil {
+			utils.Errorf("stats %s", err)
+			return engine.StatusErr
+		}
+		return engine.StatusOK
+	}
+	return job.Errorf("No such container: %s", name)
 }
