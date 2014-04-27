@@ -276,19 +276,7 @@ Docker uses a bridge to manage container networking. By default, UFW drops all
 
 .. code-block:: bash
 
-   sudo nano /etc/default/ufw
-   ----
-   # Change:
-   # DEFAULT_FORWARD_POLICY="DROP"
-   # to
-   DEFAULT_FORWARD_POLICY="ACCEPT"
-
-Then reload UFW:
-
-.. code-block:: bash
-
-   sudo ufw reload
-
+    sudo ufw default allow routed
 
 UFW's default set of rules denies all `incoming` traffic. If you want to be
 able to reach your containers from another host then you should allow

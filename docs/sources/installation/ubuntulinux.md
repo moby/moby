@@ -255,16 +255,7 @@ Docker uses a bridge to manage container networking. By default, UFW
 drops all forwarding traffic. As a result you will need to enable UFW
 forwarding:
 
-    sudo nano /etc/default/ufw
-    ----
-    # Change:
-    # DEFAULT_FORWARD_POLICY="DROP"
-    # to
-    DEFAULT_FORWARD_POLICY="ACCEPT"
-
-Then reload UFW:
-
-    sudo ufw reload
+    sudo ufw default allow routed
 
 UFW's default set of rules denies all incoming traffic. If you want to
 be able to reach your containers from another host then you should allow
