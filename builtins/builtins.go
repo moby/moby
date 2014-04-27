@@ -4,12 +4,16 @@ import (
 	api "github.com/dotcloud/docker/api/server"
 	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/server"
 )
 
 func Register(eng *engine.Engine) {
 	daemon(eng)
 	remote(eng)
+	// FIXME: engine.Installer.Install can fail. These errors
+	// should be passed up.
+	registry.NewService().Install(eng)
 }
 
 // remote: a RESTful api for cross-docker communication

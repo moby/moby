@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -709,4 +711,41 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 
 	r.reqFactory = factory
 	return r, nil
+}
+
+func HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
+	// FIXME: this replicates the 'info' job.
+	httpVersion := make([]utils.VersionInfo, 0, 4)
+	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", dockerversion.VERSION})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"go", goruntime.Version()})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", dockerversion.GITCOMMIT})
+	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
+		httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", kernelVersion.String()})
+	}
+	httpVersion = append(httpVersion, &simpleVersionInfo{"os", goruntime.GOOS})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", goruntime.GOARCH})
+	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
+	md := &utils.HTTPMetaHeadersDecorator{
+		Headers: metaHeaders,
+	}
+	factory := utils.NewHTTPRequestFactory(ud, md)
+	return factory
+}
+
+// simpleVersionInfo is a simple implementation of
+// the interface VersionInfo, which is used
+// to provide version information for some product,
+// component, etc. It stores the product name and the version
+// in string and returns them on calls to Name() and Version().
+type simpleVersionInfo struct {
+	name    string
+	version string
+}
+
+func (v *simpleVersionInfo) Name() string {
+	return v.name
+}
+
+func (v *simpleVersionInfo) Version() string {
+	return v.version
 }
