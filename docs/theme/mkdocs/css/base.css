@@ -622,12 +622,6 @@ ol.breadcrumb > li.edit-on-github span {
 .container {
   width: 100% !important;
 }
-.container-standard-sized {
-  max-width: 1050px;
-}
-.container-better {
-  max-width: 1050px;
-}
 
 @media (max-width: 900px) {
 
