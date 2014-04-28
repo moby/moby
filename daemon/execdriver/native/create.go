@@ -25,6 +25,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	container.Cgroups.Name = c.ID
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
+	container.Context["restriction_path"] = d.restrictionPath
 
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
@@ -33,6 +34,8 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
+	} else {
+		container.Mounts = append(container.Mounts, libcontainer.Mount{Type: "devtmpfs"})
 	}
 	if err := d.setupCgroups(container, c); err != nil {
 		return nil, err
@@ -81,6 +84,11 @@ func (d *driver) setPrivileged(container *libcontainer.Container) error {
 		c.Enabled = true
 	}
 	container.Cgroups.DeviceAccess = true
+
+	// add sysfs as a mount for privileged containers
+	container.Mounts = append(container.Mounts, libcontainer.Mount{Type: "sysfs"})
+	delete(container.Context, "restriction_path")
+
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "unconfined"
 	}
@@ -99,7 +107,13 @@ func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.C
 
 func (d *driver) setupMounts(container *libcontainer.Container, c *execdriver.Command) error {
 	for _, m := range c.Mounts {
-		container.Mounts = append(container.Mounts, libcontainer.Mount{m.Source, m.Destination, m.Writable, m.Private})
+		container.Mounts = append(container.Mounts, libcontainer.Mount{
+			Type:        "bind",
+			Source:      m.Source,
+			Destination: m.Destination,
+			Writable:    m.Writable,
+			Private:     m.Private,
+		})
 	}
 	return nil
 }

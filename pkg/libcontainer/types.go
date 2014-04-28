@@ -11,6 +11,26 @@ var (
 	ErrUnsupported      = errors.New("Unsupported method")
 )
 
+type Mounts []Mount
+
+func (s Mounts) OfType(t string) Mounts {
+	out := Mounts{}
+	for _, m := range s {
+		if m.Type == t {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+type Mount struct {
+	Type        string `json:"type,omitempty"`
+	Source      string `json:"source,omitempty"`      // Source path, in the host namespace
+	Destination string `json:"destination,omitempty"` // Destination path, in the container
+	Writable    bool   `json:"writable,omitempty"`
+	Private     bool   `json:"private,omitempty"`
+}
+
 // namespaceList is used to convert the libcontainer types
 // into the names of the files located in /proc/<pid>/ns/* for
 // each namespace

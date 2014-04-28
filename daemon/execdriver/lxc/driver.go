@@ -59,9 +59,10 @@ func init() {
 }
 
 type driver struct {
-	root       string // root path for the driver to use
-	apparmor   bool
-	sharedRoot bool
+	root            string // root path for the driver to use
+	apparmor        bool
+	sharedRoot      bool
+	restrictionPath string
 }
 
 func NewDriver(root string, apparmor bool) (*driver, error) {
@@ -69,10 +70,15 @@ func NewDriver(root string, apparmor bool) (*driver, error) {
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
 	}
+	restrictionPath := filepath.Join(root, "empty")
+	if err := os.MkdirAll(restrictionPath, 0700); err != nil {
+		return nil, err
+	}
 	return &driver{
-		apparmor:   apparmor,
-		root:       root,
-		sharedRoot: rootIsShared(),
+		apparmor:        apparmor,
+		root:            root,
+		sharedRoot:      rootIsShared(),
+		restrictionPath: restrictionPath,
 	}, nil
 }
 
@@ -403,14 +409,16 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 
 	if err := LxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
-		AppArmor     bool
-		ProcessLabel string
-		MountLabel   string
+		AppArmor          bool
+		ProcessLabel      string
+		MountLabel        string
+		RestrictionSource string
 	}{
-		Command:      c,
-		AppArmor:     d.apparmor,
-		ProcessLabel: process,
-		MountLabel:   mount,
+		Command:           c,
+		AppArmor:          d.apparmor,
+		ProcessLabel:      process,
+		MountLabel:        mount,
+		RestrictionSource: d.restrictionPath,
 	}); err != nil {
 		return "", err
 	}

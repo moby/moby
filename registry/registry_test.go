@@ -1,7 +1,9 @@
 package registry
 
 import (
+	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -99,12 +101,23 @@ func TestGetRemoteTags(t *testing.T) {
 
 func TestGetRepositoryData(t *testing.T) {
 	r := spawnTestRegistry(t)
+	parsedUrl, err := url.Parse(makeURL("/v1/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := "http://" + parsedUrl.Host + "/v1/"
 	data, err := r.GetRepositoryData("foo42/bar")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(data.ImgList), 2, "Expected 2 images in ImgList")
-	assertEqual(t, len(data.Endpoints), 1, "Expected one endpoint in Endpoints")
+	assertEqual(t, len(data.Endpoints), 2,
+		fmt.Sprintf("Expected 2 endpoints in Endpoints, found %d instead", len(data.Endpoints)))
+	assertEqual(t, data.Endpoints[0], host,
+		fmt.Sprintf("Expected first endpoint to be %s but found %s instead", host, data.Endpoints[0]))
+	assertEqual(t, data.Endpoints[1], "http://test.example.com/v1/",
+		fmt.Sprintf("Expected first endpoint to be http://test.example.com/v1/ but found %s instead", data.Endpoints[1]))
+
 }
 
 func TestPushImageJSONRegistry(t *testing.T) {

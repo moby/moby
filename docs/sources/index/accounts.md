@@ -14,7 +14,7 @@ to need a [Docker IO](https://www.docker.io) account.
 ### Registration for a Docker IO Account
 
 You can get a Docker IO account by [signing up for one here](
-https://index.docker.io/account/signup/). A valid email address is required to
+https://www.docker.io/account/signup/). A valid email address is required to
 register, which you will need to verify for account activation.
 
 ### Email activation process
@@ -22,7 +22,7 @@ register, which you will need to verify for account activation.
 You need to have at least one verified email address to be able to use your
 Docker IO account. If you can't find the validation email, you can request
 another by visiting the [Resend Email Confirmation](
-https://index.docker.io/account/resend-email-confirmation/) page.
+https://www.docker.io/account/resend-email-confirmation/) page.
 
 ### Password reset process
 

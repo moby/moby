@@ -23,7 +23,7 @@ type Container struct {
 	Networks         []*Network      `json:"networks,omitempty"`          // nil for host's network stack
 	Cgroups          *cgroups.Cgroup `json:"cgroups,omitempty"`           // cgroups
 	Context          Context         `json:"context,omitempty"`           // generic context for specific options (apparmor, selinux)
-	Mounts           []Mount         `json:"mounts,omitempty"`
+	Mounts           Mounts          `json:"mounts,omitempty"`
 }
 
 // Network defines configuration for a container's networking stack
@@ -36,13 +36,4 @@ type Network struct {
 	Address string  `json:"address,omitempty"`
 	Gateway string  `json:"gateway,omitempty"`
 	Mtu     int     `json:"mtu,omitempty"`
-}
-
-// Bind mounts from the host system to the container
-//
-type Mount struct {
-	Source      string `json:"source"`      // Source path, in the host namespace
-	Destination string `json:"destination"` // Destination path, in the container
-	Writable    bool   `json:"writable"`
-	Private     bool   `json:"private"`
 }

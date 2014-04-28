@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount"
 	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"path/filepath"
@@ -63,10 +64,10 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 			if err := system.Unshare(syscall.CLONE_NEWNS); err != nil {
 				return -1, err
 			}
-			if err := remountProc(); err != nil {
+			if err := mount.RemountProc(); err != nil {
 				return -1, fmt.Errorf("remount proc %s", err)
 			}
-			if err := remountSys(); err != nil {
+			if err := mount.RemountSys(); err != nil {
 				return -1, fmt.Errorf("remount sys %s", err)
 			}
 			goto dropAndExec

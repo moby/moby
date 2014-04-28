@@ -56,14 +56,4 @@ func TestContainerJsonFormat(t *testing.T) {
 		t.Log("capabilities mask should not contain SYS_CHROOT")
 		t.Fail()
 	}
-
-	if container.Cgroups.CpuShares != 1024 {
-		t.Log("cpu shares not set correctly")
-		t.Fail()
-	}
-
-	if container.Cgroups.Memory != 5248000 {
-		t.Log("memory limit not set correctly")
-		t.Fail()
-	}
 }

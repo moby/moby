@@ -88,7 +88,9 @@ lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noex
 
 # WARNING: sysfs is a known attack vector and should probably be disabled
 # if your userspace allows it. eg. see http://bit.ly/T9CkqJ
+{{if .Privileged}}
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
+{{end}}
 
 {{if .Tty}}
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
@@ -109,8 +111,15 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
-#lxc.aa_profile = unconfined
+# not unconfined
 {{end}}
+{{else}}
+# restrict access to proc
+lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/sys none bind,ro 0 0
+lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/irq none bind,ro 0 0
+lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/acpi none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/sysrq-trigger none bind,ro 0 0
+lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/kcore none bind,ro 0 0
 {{end}}
 
 # limits

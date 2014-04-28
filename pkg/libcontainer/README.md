@@ -16,135 +16,148 @@ process are specified in this file.  The configuration is used for each process 
 Sample `container.json` file:
 ```json
 {
+   "mounts" : [
+      {
+         "type" : "devtmpfs"
+      }
+   ],
+   "tty" : true,
+   "environment" : [
+      "HOME=/",
+      "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
+      "container=docker",
+      "TERM=xterm-256color"
+   ],
    "hostname" : "koye",
+   "cgroups" : {
+      "parent" : "docker",
+      "name" : "docker-koye"
+   },
+   "capabilities_mask" : [
+      {
+         "value" : 8,
+         "key" : "SETPCAP",
+         "enabled" : false
+      },
+      {
+         "enabled" : false,
+         "value" : 16,
+         "key" : "SYS_MODULE"
+      },
+      {
+         "value" : 17,
+         "key" : "SYS_RAWIO",
+         "enabled" : false
+      },
+      {
+         "key" : "SYS_PACCT",
+         "value" : 20,
+         "enabled" : false
+      },
+      {
+         "value" : 21,
+         "key" : "SYS_ADMIN",
+         "enabled" : false
+      },
+      {
+         "value" : 23,
+         "key" : "SYS_NICE",
+         "enabled" : false
+      },
+      {
+         "value" : 24,
+         "key" : "SYS_RESOURCE",
+         "enabled" : false
+      },
+      {
+         "key" : "SYS_TIME",
+         "value" : 25,
+         "enabled" : false
+      },
+      {
+         "enabled" : false,
+         "value" : 26,
+         "key" : "SYS_TTY_CONFIG"
+      },
+      {
+         "key" : "AUDIT_WRITE",
+         "value" : 29,
+         "enabled" : false
+      },
+      {
+         "value" : 30,
+         "key" : "AUDIT_CONTROL",
+         "enabled" : false
+      },
+      {
+         "enabled" : false,
+         "key" : "MAC_OVERRIDE",
+         "value" : 32
+      },
+      {
+         "enabled" : false,
+         "key" : "MAC_ADMIN",
+         "value" : 33
+      },
+      {
+         "key" : "NET_ADMIN",
+         "value" : 12,
+         "enabled" : false
+      },
+      {
+         "value" : 27,
+         "key" : "MKNOD",
+         "enabled" : true
+      }
+   ],
    "networks" : [
       {
-         "gateway" : "172.17.42.1",
+         "mtu" : 1500,
+         "address" : "127.0.0.1/0",
+         "type" : "loopback",
+         "gateway" : "localhost"
+      },
+      {
+         "mtu" : 1500,
+         "address" : "172.17.42.2/16",
+         "type" : "veth",
          "context" : {
             "bridge" : "docker0",
             "prefix" : "veth"
          },
-         "address" : "172.17.0.2/16",
-         "type" : "veth",
-         "mtu" : 1500
-      }
-   ],
-   "cgroups" : {
-      "parent" : "docker",
-      "name" : "11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620"
-   },
-   "tty" : true,
-   "environment" : [
-      "HOME=/",
-      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-      "HOSTNAME=11bb30683fb0",
-      "TERM=xterm"
-   ],
-   "capabilities_mask" : [
-      {
-        "key": "SETPCAP",
-        "enabled": false
-      },
-      {
-        "key": "SYS_MODULE",
-        "enabled": false
-      },
-      {
-        "key": "SYS_RAWIO",
-        "enabled": false
-      },
-      {
-        "key": "SYS_PACCT",
-        "enabled": false
-      },
-      {
-        "key": "SYS_ADMIN",
-        "enabled": false
-      },
-      {
-        "key": "SYS_NICE",
-        "enabled": false
-      },
-      {
-        "key": "SYS_RESOURCE",
-        "enabled": false
-      },
-      {
-        "key": "SYS_TIME",
-        "enabled": false
-      },
-      {
-        "key": "SYS_TTY_CONFIG",
-        "enabled": false
-      },
-      {
-        "key": "MKNOD",
-        "enabled": true
-      },
-      {
-        "key": "AUDIT_WRITE",
-        "enabled": false
-      },
-      {
-        "key": "AUDIT_CONTROL",
-        "enabled": false
-      },
-      {
-        "key": "MAC_OVERRIDE",
-        "enabled": false
-      },
-      {
-        "key": "MAC_ADMIN",
-        "enabled": false
-      },
-      {
-        "key": "NET_ADMIN",
-        "enabled": false
-      }
-   ],
-   "context" : {
-      "apparmor_profile" : "docker-default"
-   },
-   "mounts" : [
-      {
-         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/resolv.conf",
-         "writable" : false,
-         "destination" : "/etc/resolv.conf",
-         "private" : true
-      },
-      {
-         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/hostname",
-         "writable" : false,
-         "destination" : "/etc/hostname",
-         "private" : true
-      },
-      {
-         "source" : "/var/lib/docker/containers/11bb30683fb0bdd57fab4d3a8238877f1e4395a2cfc7320ea359f7a02c1a5620/hosts",
-         "writable" : false,
-         "destination" : "/etc/hosts",
-         "private" : true
+         "gateway" : "172.17.42.1"
       }
    ],
    "namespaces" : [
       {
-        "key": "NEWNS",
-        "enabled": true
+         "key" : "NEWNS",
+         "value" : 131072,
+         "enabled" : true,
+         "file" : "mnt"
       },
       {
-        "key": "NEWUTS",
-        "enabled": true
+         "key" : "NEWUTS",
+         "value" : 67108864,
+         "enabled" : true,
+         "file" : "uts"
       },
       {
-        "key": "NEWIPC",
-        "enabled": true
+         "enabled" : true,
+         "file" : "ipc",
+         "key" : "NEWIPC",
+         "value" : 134217728
       },
       {
-        "key": "NEWPID",
-        "enabled": true
+         "file" : "pid",
+         "enabled" : true,
+         "value" : 536870912,
+         "key" : "NEWPID"
       },
       {
-        "key": "NEWNET",
-        "enabled": true
+         "enabled" : true,
+         "file" : "net",
+         "key" : "NEWNET",
+         "value" : 1073741824
       }
    ]
 }
