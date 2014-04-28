@@ -135,7 +135,7 @@ EOF
 			--deb-recommends ca-certificates \
 			--deb-recommends git \
 			--deb-recommends xz-utils \
-			--deb-suggests cgroup-lite \
+			--deb-recommends 'cgroupfs-mount | cgroup-lite' \
 			--description "$PACKAGE_DESCRIPTION" \
 			--maintainer "$PACKAGE_MAINTAINER" \
 			--conflicts docker \
