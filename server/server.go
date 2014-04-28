@@ -113,7 +113,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"start":            srv.ContainerStart,
 		"kill":             srv.ContainerKill,
 		"wait":             srv.ContainerWait,
-		"tag":              srv.ImageTag,
+		"tag":              srv.ImageTag, // FIXME merge with "image_tag"
 		"resize":           srv.ContainerResize,
 		"commit":           srv.ContainerCommit,
 		"info":             srv.DockerInfo,
@@ -142,6 +142,11 @@ func InitServer(job *engine.Job) engine.Status {
 		if err := job.Eng.Register(name, handler); err != nil {
 			return job.Error(err)
 		}
+	}
+	// Install image-related commands from the image subsystem.
+	// See `graph/service.go`
+	if err := srv.daemon.Repositories().Install(job.Eng); err != nil {
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
