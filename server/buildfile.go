@@ -482,6 +482,7 @@ func (b *buildFile) CmdAdd(args string) error {
 
 	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
+	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 	b.config.Image = b.image
 
 	var (
@@ -617,7 +618,6 @@ func (b *buildFile) CmdAdd(args string) error {
 	if err := b.commit(container.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
 	return nil
 }
 
