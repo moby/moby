@@ -4,11 +4,12 @@ package devmapper
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/utils"
 )
 
 func init() {
@@ -98,7 +99,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	// Mount the device
-	if err := d.DeviceSet.MountDevice(id, mp, ""); err != nil {
+	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
 		return "", err
 	}
 
