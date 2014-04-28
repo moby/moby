@@ -36,6 +36,13 @@ func (env *Env) Exists(key string) bool {
 	return exists
 }
 
+// Len returns the number of keys in the environment.
+// Note that len(env) might be different from env.Len(),
+// because the same key might be set multiple times.
+func (env *Env) Len() int {
+	return len(env.Map())
+}
+
 func (env *Env) Init(src *Env) {
 	(*env) = make([]string, 0, len(*src))
 	for _, val := range *src {
