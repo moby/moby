@@ -24,19 +24,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/daemonconfig"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/graph"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/signal"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -53,6 +40,20 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon"
+	"github.com/dotcloud/docker/daemonconfig"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/graph"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 // jobInitApi runs the remote api server `srv` as a daemon,
@@ -2063,7 +2064,7 @@ func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 func (srv *Server) canDeleteImage(imgID string, force, untagged bool) error {
 	var message string
 	if untagged {
-		message = " (but image was untagged)"
+		message = " (docker untagged the image)"
 	}
 	for _, container := range srv.daemon.List() {
 		parent, err := srv.daemon.Repositories().LookupImage(container.Image)
