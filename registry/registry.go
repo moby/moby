@@ -292,6 +292,25 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
 
+func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
+	var endpoints []string
+	parsedUrl, err := url.Parse(indexEp)
+	if err != nil {
+		return nil, err
+	}
+	var urlScheme = parsedUrl.Scheme
+	// The Registry's URL scheme has to match the Index'
+	for _, ep := range headers {
+		epList := strings.Split(ep, ",")
+		for _, epListElement := range epList {
+			endpoints = append(
+				endpoints,
+				fmt.Sprintf("%s://%s/v1/", urlScheme, strings.TrimSpace(epListElement)))
+		}
+	}
+	return endpoints, nil
+}
+
 func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	indexEp := r.indexEndpoint
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", indexEp, remote)
@@ -327,11 +346,10 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 
 	var endpoints []string
-	var urlScheme = indexEp[:strings.Index(indexEp, ":")]
 	if res.Header.Get("X-Docker-Endpoints") != "" {
-		// The Registry's URL scheme has to match the Index'
-		for _, ep := range res.Header["X-Docker-Endpoints"] {
-			endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, ep))
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], indexEp)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		return nil, fmt.Errorf("Index response didn't contain any endpoints")
@@ -560,7 +578,6 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 	}
 
 	var tokens, endpoints []string
-	var urlScheme = indexEp[:strings.Index(indexEp, ":")]
 	if !validate {
 		if res.StatusCode != 200 && res.StatusCode != 201 {
 			errBody, err := ioutil.ReadAll(res.Body)
@@ -577,9 +594,9 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 		}
 
 		if res.Header.Get("X-Docker-Endpoints") != "" {
-			// The Registry's URL scheme has to match the Index'
-			for _, ep := range res.Header["X-Docker-Endpoints"] {
-				endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, ep))
+			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], indexEp)
+			if err != nil {
+				return nil, err
 			}
 		} else {
 			return nil, fmt.Errorf("Index response didn't contain any endpoints")
