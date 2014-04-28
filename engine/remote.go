@@ -55,10 +55,10 @@ func (s *Sender) Handle(job *Job) Status {
 	var status int
 	r.NewRoute().KeyStartsWith("cmd", "status").Handler(func(p []byte, f *os.File) error {
 		cmd := data.Message(p).Get("cmd")
-		if len(cmd) != 3 {
+		if len(cmd) != 2 {
 			return fmt.Errorf("usage: %s <0-127>", cmd[0])
 		}
-		s, err := strconv.ParseUint(cmd[2], 10, 8)
+		s, err := strconv.ParseUint(cmd[1], 10, 8)
 		if err != nil {
 			return fmt.Errorf("usage: %s <0-127>", cmd[0])
 		}
