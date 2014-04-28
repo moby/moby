@@ -4,6 +4,34 @@ import (
 	"testing"
 )
 
+func TestEnvLenZero(t *testing.T) {
+	env := &Env{}
+	if env.Len() != 0 {
+		t.Fatalf("%d", env.Len())
+	}
+}
+
+func TestEnvLenNotZero(t *testing.T) {
+	env := &Env{}
+	env.Set("foo", "bar")
+	env.Set("ga", "bu")
+	if env.Len() != 2 {
+		t.Fatalf("%d", env.Len())
+	}
+}
+
+func TestEnvLenDup(t *testing.T) {
+	env := &Env{
+		"foo=bar",
+		"foo=baz",
+		"a=b",
+	}
+	// len(env) != env.Len()
+	if env.Len() != 2 {
+		t.Fatalf("%d", env.Len())
+	}
+}
+
 func TestNewJob(t *testing.T) {
 	job := mkJob(t, "dummy", "--level=awesome")
 	if job.Name != "dummy" {
