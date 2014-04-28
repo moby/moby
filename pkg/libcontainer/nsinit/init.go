@@ -83,31 +83,18 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 }
 
 func setupUser(container *libcontainer.Container) error {
-	switch container.User {
-	case "root", "":
-		if err := system.Setgroups(nil); err != nil {
-			return err
-		}
-		if err := system.Setresgid(0, 0, 0); err != nil {
-			return err
-		}
-		if err := system.Setresuid(0, 0, 0); err != nil {
-			return err
-		}
-	default:
-		uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
-		if err != nil {
-			return err
-		}
-		if err := system.Setgroups(suppGids); err != nil {
-			return err
-		}
-		if err := system.Setgid(gid); err != nil {
-			return err
-		}
-		if err := system.Setuid(uid); err != nil {
-			return err
-		}
+	uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
+	if err != nil {
+		return fmt.Errorf("GetUserGroupSupplementary %s", err)
+	}
+	if err := system.Setgroups(suppGids); err != nil {
+		return fmt.Errorf("setgroups %s", err)
+	}
+	if err := system.Setgid(gid); err != nil {
+		return fmt.Errorf("setgid %s", err)
+	}
+	if err := system.Setuid(uid); err != nil {
+		return fmt.Errorf("setuid %s", err)
 	}
 	return nil
 }
