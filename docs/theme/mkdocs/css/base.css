@@ -55,10 +55,10 @@ h6,
   margin-bottom: 1.2em;
 }
 #content pre {
-  margin: 2em 0em;
-  padding: 1em 2em !important;
+  margin: 1em 0em;
+  padding: 0.5em 0.75em !important;
   line-height: 1.8em;
-  font-size: 1em;
+  background: #fff;
 }
 #content blockquote {
   background: #fff;
