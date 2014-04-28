@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 )
 
 // Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
@@ -17,15 +16,6 @@ import (
 // then the top 12 bits of the minor
 func mkdev(major int64, minor int64) uint32 {
 	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
-}
-func timeToTimespec(time time.Time) (ts syscall.Timespec) {
-	if time.IsZero() {
-		// Return UTIME_OMIT special value
-		ts.Sec = 0
-		ts.Nsec = ((1 << 30) - 2)
-		return
-	}
-	return syscall.NsecToTimespec(time.UnixNano())
 }
 
 // ApplyLayer parses a diff in the standard layer format from `layer`, and
