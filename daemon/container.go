@@ -4,6 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/graphdriver"
@@ -14,15 +24,6 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
-	"strings"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -124,7 +125,10 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
-	label.ReserveLabel(container.ProcessLabel)
+
+	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
+		return err
+	}
 	return container.readHostConfig()
 }
 
@@ -388,14 +392,6 @@ func (container *Container) Start() (err error) {
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
-
-	process, mount, err := label.GenLabels("")
-	if err != nil {
-		return err
-	}
-
-	container.MountLabel = mount
-	container.ProcessLabel = process
 
 	if err := container.Mount(); err != nil {
 		return err

@@ -3,6 +3,16 @@ package daemon
 import (
 	"container/list"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/execdrivers"
@@ -17,20 +27,12 @@ import (
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
 )
 
 // Set the max depth to the aufs default that most
@@ -535,6 +537,11 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		ExecDriver:      daemon.execDriver.Name(),
 	}
 	container.root = daemon.containerRoot(container.ID)
+
+	if container.MountLabel, container.ProcessLabel, err = label.GenLabels(""); err != nil {
+		return nil, err
+	}
+
 	return container, nil
 }
 

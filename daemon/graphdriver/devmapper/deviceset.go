@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"path"
@@ -17,6 +15,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -858,7 +859,6 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	defer devices.Unlock()
 
 	if info.mountCount > 0 {
-		fmt.Printf("---> already mounted\n")
 		if path != info.mountPath {
 			return fmt.Errorf("Trying to mount devmapper device in multple places (%s, %s)", info.mountPath, path)
 		}
@@ -874,12 +874,9 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	var flags uintptr = sysMsMgcVal
 
 	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	fmt.Printf("-----> setting mount label %s\n", mountOptions)
-
 	err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	if err != nil && err == sysEInval {
 		mountOptions = label.FormatMountLabel("", mountLabel)
-		fmt.Printf("-----> setting mount label after error %s\n", mountOptions)
 		err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	}
 	if err != nil {

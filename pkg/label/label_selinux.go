@@ -4,8 +4,9 @@ package label
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/selinux"
 	"strings"
+
+	"github.com/dotcloud/docker/pkg/selinux"
 )
 
 func GenLabels(options string) (string, string, error) {
@@ -76,6 +77,7 @@ func Init() {
 	selinux.SelinuxEnabled()
 }
 
-func ReserveLabel(label string) {
+func ReserveLabel(label string) error {
 	selinux.ReserveLabel(label)
+	return nil
 }
