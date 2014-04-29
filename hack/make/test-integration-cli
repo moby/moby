@@ -19,6 +19,9 @@ bundle_test_integration_cli() {
 		false
 	fi
 
+	# intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
+	exec 41>&1 42>&2
+
 	( set -x; exec \
 		docker --daemon --debug \
 		--storage-driver "$DOCKER_GRAPHDRIVER" \

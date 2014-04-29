@@ -130,11 +130,15 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 	return nil
 }
 
-// finalizeNamespace drops the caps and sets the correct user
-// and working dir before execing the command inside the namespace
+// finalizeNamespace drops the caps, sets the correct user
+// and working dir, and closes any leaky file descriptors
+// before execing the command inside the namespace
 func finalizeNamespace(container *libcontainer.Container) error {
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return fmt.Errorf("drop capabilities %s", err)
+	}
+	if err := system.CloseFdsFrom(3); err != nil {
+		return fmt.Errorf("close open file descriptors %s", err)
 	}
 	if err := setupUser(container); err != nil {
 		return fmt.Errorf("setup user %s", err)
