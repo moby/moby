@@ -111,10 +111,17 @@ func setupMountsForContainer(container *Container, envPath string) error {
 		return err
 	}
 
-	if err := xlateUids(container, container.RootfsPath()); err != nil {
-		return err
+	// Even if -x flag is not set, container rootfs directory needs to be chowned to container root to be able to setup pivot root
+	if !container.Config.XlateUids {
+		if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
+			return err
+		}
 	}
-
+	if container.Config.XlateUids {
+		if err := xlateUids(container, container.RootfsPath()); err != nil {
+			return err
+		}
+	}
 	if container.HostnamePath != "" && container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
