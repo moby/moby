@@ -10,7 +10,7 @@
 # Usage: dind CMD [ARG...]
 
 # First, make sure that cgroups are mounted correctly.
-CGROUP=/sys/fs/cgroup
+CGROUP=/cgroup
 
 [ -d $CGROUP ] || 
 	mkdir $CGROUP
