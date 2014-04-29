@@ -131,7 +131,6 @@ Create a container
              "WorkingDir":"",
              "DisableNetwork": false,
              "ExposedPorts":{
-             "DisableNetwork": false,
                      "22/tcp": {}
              }
         }
@@ -1132,6 +1131,33 @@ Create a new image from a container's changes
     **Example request**:
 
         POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        Content-Type: application/json
+
+        {
+             "Hostname":"",
+             "User":"",
+             "Memory":0,
+             "MemorySwap":0,
+             "AttachStdin":false,
+             "AttachStdout":true,
+             "AttachStderr":true,
+             "PortSpecs":null,
+             "Tty":false,
+             "OpenStdin":false,
+             "StdinOnce":false,
+             "Env":null,
+             "Cmd":[
+                     "date"
+             ],
+             "Volumes":{
+                     "/tmp": {}
+             },
+             "WorkingDir":"",
+             "DisableNetwork": false,
+             "ExposedPorts":{
+                     "22/tcp": {}
+             }
+        }
 
     **Example response**:
 
@@ -1139,6 +1165,13 @@ Create a new image from a container's changes
             Content-Type: application/vnd.docker.raw-stream
 
         {"Id":"596069db4bf5"}
+
+
+    Json Parameters:
+
+
+
+    -  **config** - the container's configuration
 
     Query Parameters:
 
@@ -1150,8 +1183,6 @@ Create a new image from a container's changes
     -   **m** – commit message
     -   **author** – author (eg. "John Hannibal Smith
         <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
-    -   **run** – config automatically applied when the image is run.
-        (ex: {"Cmd": ["cat", "/world"], "PortSpecs":["22"]})
 
     Status Codes:
 
