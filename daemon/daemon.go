@@ -538,10 +538,9 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 	}
 	container.root = daemon.containerRoot(container.ID)
 
-	if container.MountLabel, container.ProcessLabel, err = label.GenLabels(""); err != nil {
+	if container.ProcessLabel, container.MountLabel, err = label.GenLabels(""); err != nil {
 		return nil, err
 	}
-
 	return container, nil
 }
 
@@ -848,7 +847,7 @@ func (daemon *Daemon) Close() error {
 }
 
 func (daemon *Daemon) Mount(container *Container) error {
-	dir, err := daemon.driver.Get(container.ID, container.MountLabel)
+	dir, err := daemon.driver.Get(container.ID, container.GetMountLabel())
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
 	}

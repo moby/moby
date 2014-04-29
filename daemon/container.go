@@ -330,8 +330,8 @@ func populateCommand(c *Container, env []string) {
 		en      *execdriver.Network
 		context = make(map[string][]string)
 	)
-	context["process_label"] = []string{c.ProcessLabel}
-	context["mount_label"] = []string{c.MountLabel}
+	context["process_label"] = []string{c.GetProcessLabel()}
+	context["mount_label"] = []string{c.GetMountLabel()}
 
 	en = &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
@@ -392,7 +392,6 @@ func (container *Container) Start() (err error) {
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
-
 	if err := container.Mount(); err != nil {
 		return err
 	}
@@ -1191,4 +1190,20 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 	}
 	bindings[port] = binding
 	return nil
+}
+
+func (container *Container) GetProcessLabel() string {
+	// even if we have a process label return "" if we are running
+	// in privileged mode
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.ProcessLabel
+}
+
+func (container *Container) GetMountLabel() string {
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.MountLabel
 }
