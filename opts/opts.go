@@ -98,20 +98,6 @@ func ValidateLink(val string) (string, error) {
 	return val, nil
 }
 
-func ValidateUidBank(val string) (string, error) {
-	if _, _, err := utils.ParseUidBank(val); err != nil {
-		return val, err
-	}
-	return val, nil
-}
-
-func ValidateUidMap(val string) (string, error) {
-	if _, _, _, err := utils.ParseUidMap(val); err != nil {
-		return val, err
-	}
-	return val, nil
-}
-
 func ValidatePath(val string) (string, error) {
 	var containerPath string
 

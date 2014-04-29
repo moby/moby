@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
@@ -2049,86 +2050,6 @@ func (srv *Server) RegisterLinks(container *runtime.Container, hostConfig *runco
 	return nil
 }
 
-// Following checks are done
-// * There is a mapping for the root user in container
-// * The container user is specified as a UID rather than name
-// * There is a mapping for the container user that runs the command
-// * Translate option is used only if some mappings exist
-//
-// Following are checked by LXC / libcontainer
-// * Mappings are non overlapping
-// * Mappings are within the allowed range in current namespace
-// * There are a maximum of 5 mappings (kernel limit)
-func (srv *Server) validateUidMaps(container *runtime.Container, hostConfig *runconfig.HostConfig) (int64, error) {
-	if len(hostConfig.UidMaps) == 0 {
-		if container.Config.XlateUids {
-			return -1, fmt.Errorf("Asking to translate UIDs without mappings")
-		}
-		return -1, nil
-	}
-
-	containerRoot := int64(-1)
-	containerUser := int64(-1)
-
-	userid := container.Config.User
-	if userid != "" {
-		cUser, err := strconv.ParseInt(userid, 10, 64)
-		if err != nil {
-			return -1, fmt.Errorf("Invalid user: %s (user has to be specified as a valid container UID rather than username when private UID space is used)", userid)
-		}
-		containerUser = cUser
-	}
-
-	cRootFound := false
-	cUserFound := false
-	if containerUser == -1 {
-		cUserFound = true
-	}
-	for _, uMap := range hostConfig.UidMaps {
-		hUid, cUid, size, _ := utils.ParseUidMap(uMap)
-		if cRootFound == false && cUid <= 0 && 0 < cUid+size {
-			cRootFound = true
-			containerRoot = hUid - cUid
-		}
-		if cUserFound == false && cUid <= containerUser && containerUser < cUid+size {
-			cUserFound = true
-		}
-	}
-	if !cRootFound {
-		return containerRoot, fmt.Errorf("Container UID 0 must be a part of the UID map")
-	}
-	if !cUserFound {
-		return containerRoot, fmt.Errorf("User '%s' must be a part of the UID map", userid)
-	}
-	return containerRoot, nil
-}
-
-func (srv *Server) pullInBanksFromVolumes(container *runtime.Container) error {
-	if container.Config.VolumesFrom != "" {
-		for _, containerSpec := range strings.Split(container.Config.VolumesFrom, ",") {
-			specParts := strings.SplitN(containerSpec, ":", 2)
-
-			if len(specParts) == 0 {
-				return fmt.Errorf("Malformed volumes-from specification: %s", container.Config.VolumesFrom)
-			}
-
-			runtime := srv.runtime
-			c := runtime.Get(specParts[0])
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Cannot pull its UID banks.", specParts[0])
-			}
-
-			if uidBanks := c.Config.PrivateUids; uidBanks != nil {
-				for _, uBank := range uidBanks {
-					container.Config.PrivateUids = append(container.Config.PrivateUids, uBank)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s container_id", job.Name)
@@ -2170,23 +2091,37 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 		if err := srv.RegisterLinks(container, hostConfig); err != nil {
 			return job.Error(err)
 		}
-		// Inherit banks from containers sharing volumes
-		if err := srv.pullInBanksFromVolumes(container); err != nil {
-			return job.Error(err)
-		}
-		// Convert host-independent UID bank numbers to host-dependent UID maps and add to hostConfig
-		if uidBanks := container.Config.PrivateUids; uidBanks != nil {
-			mapEquivalents, err := utils.ConvertBanksToMaps(uidBanks)
-			if err != nil {
-				return job.Errorf("")
-			}
-			hostConfig.UidMaps = append(hostConfig.UidMaps, mapEquivalents...)
-		}
-		cRootUid, err := srv.validateUidMaps(container, hostConfig)
+
+		// Get the uid of docker-root user
+		uid, _, _, err := user.GetUserGroupSupplementary("docker-root", syscall.Getuid(), syscall.Getgid())
 		if err != nil {
 			return job.Error(err)
 		}
-		hostConfig.ContainerRoot = cRootUid
+		dockerRootUid := int64(uid)
+
+		// Get the highest uid on the host from /proc
+		file, err := os.Open("/proc/self/uid_map")
+		if err != nil {
+			return job.Error(err)
+		}
+		uidMapString := make([]byte, 100)
+		if err != nil {
+			return job.Error(err)
+		}
+		_, err = file.Read(uidMapString)
+
+		var tmp, maxUid int64
+		fmt.Sscanf(string(uidMapString), "%d %d %d", &tmp, &tmp, &maxUid)
+
+		// Add 3 uid mappings: one to map docker-root on host to root in
+		// container and the other two to map all other UIDs one-to-one
+		hostConfig.UidMaps = [3]runconfig.UidMap {
+			{1, 1, dockerRootUid - 1},
+			{dockerRootUid + 1, dockerRootUid + 1, maxUid - dockerRootUid - 1},
+			{dockerRootUid, 0, 1},
+		}
+		hostConfig.ContainerRoot = dockerRootUid
+
 		container.SetHostConfig(hostConfig)
 		container.ToDisk()
 	}

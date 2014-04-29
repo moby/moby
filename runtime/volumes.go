@@ -42,11 +42,11 @@ func xlateOneFile(path string, finfo os.FileInfo, hUid, cUid, size int64) error 
 		newUid := (uid - cUid) + hUid
 		newGid := (gid - cUid) + hUid
 		if err := os.Lchown(path, int(newUid), int(newGid)); err != nil {
-			fmt.Errorf("Cannot chown %s: %s", path, err)
+			return fmt.Errorf("Cannot chown %s: %s", path, err)
 			// Let's keep going
 		}
 		if err := os.Chmod(path, mode); err != nil {
-			fmt.Errorf("Cannot chmod %s: %s", path, err)
+			return fmt.Errorf("Cannot chmod %s: %s", path, err)
 			// Let's keep going
 		}
 	}
@@ -82,19 +82,17 @@ func xlateUidsRecursive(base string, hUid, cUid, size int64) error {
 // Translate UIDs and GIDs of the files under root to what should
 // be their 'real' values on the host
 func xlateUids(container *Container, root string) error {
-	if uidMaps := container.hostConfig.UidMaps; uidMaps != nil {
-		for _, uidMap := range uidMaps {
-			hUid, cUid, size, _ := utils.ParseUidMap(uidMap)
-			if err := xlateUidsRecursive(root, hUid, cUid, size); err != nil {
-				return err
-			}
-			finfo, err := os.Stat(root)
-			if (err != nil) {
-				return err
-			}
-			if err := xlateOneFile(root, finfo, hUid, cUid, size); err != nil {
-				return err
-			}
+	// TO DO: Skip translation if using a pre-translated image
+	for _, uidMap := range container.hostConfig.UidMaps {
+		if err := xlateUidsRecursive(root, uidMap.HostUid, uidMap.ContainerUid, uidMap.Size); err != nil {
+			return err
+		}
+		finfo, err := os.Stat(root)
+		if (err != nil) {
+			return err
+		}
+		if err := xlateOneFile(root, finfo, uidMap.HostUid, uidMap.ContainerUid, uidMap.Size); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -109,21 +107,12 @@ func setupMountsForContainer(container *Container, envPath string) error {
 
 	// Let root in the container own container.root and container.basefs
 	cRootUid := container.hostConfig.ContainerRoot
-	if cRootUid != -1 {
-		if err := os.Chown(container.root, int(cRootUid), int(cRootUid)); err != nil {
-			return err
-		}
-		// Even if -x flag is not set, container rootfs directory needs to be chowned to container root to be able to setup pivot root
-		if !container.Config.XlateUids {
-			if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
-				return err
-			}
-		}
+	if err := os.Chown(container.root, int(cRootUid), int(cRootUid)); err != nil {
+		return err
 	}
-	if container.Config.XlateUids {
-		if err := xlateUids(container, container.RootfsPath()); err != nil {
-			return err
-		}
+
+	if err := xlateUids(container, container.RootfsPath()); err != nil {
+		return err
 	}
 
 	if container.HostnamePath != "" && container.HostsPath != "" {

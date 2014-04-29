@@ -34,12 +34,10 @@ func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo)
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach      = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes     = opts.NewListOpts(opts.ValidatePath)
-		flLinks       = opts.NewListOpts(opts.ValidateLink)
-		flEnv         = opts.NewListOpts(opts.ValidateEnv)
-		flUidMaps     = opts.NewListOpts(opts.ValidateUidMap)
-		flPrivateUids = opts.NewListOpts(opts.ValidateUidBank)
+		flAttach  = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes = opts.NewListOpts(opts.ValidatePath)
+		flLinks   = opts.NewListOpts(opts.ValidateLink)
+		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
@@ -61,7 +59,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flXlateUids       = cmd.Bool([]string{"x", "-xlate-uids"}, false, "Translate the UIDs of the container image and new volumes before running the container")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -78,8 +75,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-	cmd.Var(&flUidMaps, []string{"#uidmap", "-uidmap"}, "Map host UID range into the container: <host UID>:<container UID>:<size> (e.g.  --uidmap=\"100000:0:10000\")")
-	cmd.Var(&flPrivateUids, []string{"#private-uids", "-private-uids"}, "Create a private UID space for the container using UIDs from the specified bank")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -153,8 +148,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint = []string{*flEntrypoint}
 	}
 
-	uidMaps  := flUidMaps.GetAll()
-
 	lxcConf, err := parseLxcConfOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
@@ -208,8 +201,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		PrivateUids:     flPrivateUids.GetAll(),
-		XlateUids:       *flXlateUids,
 	}
 
 	hostConfig := &HostConfig{
@@ -220,7 +211,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
-		UidMaps:         uidMaps,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
