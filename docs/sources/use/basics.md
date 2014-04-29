@@ -25,9 +25,9 @@ for installation instructions.
     # Download an ubuntu image
     sudo docker pull ubuntu
 
-This will find the `ubuntu` image by name in the
-[*Central Index*](../workingwithrepository/#searching-central-index) and
-download it from the top-level Central Repository to a local image
+This will find the `ubuntu` image by name on
+[*Docker.io*](../workingwithrepository/#find-public-images-on-dockerio) and
+download it from [Docker.io](https://index.docker.io) to a local image
 cache.
 
 > **Note**:

@@ -179,10 +179,10 @@ Without dealing with complicated commands or third party applications.
 Docker allows you to share the images you've built with the world. And
 lots of people have already shared their own images.
 
-To facilitate this sharing Docker comes with a public registry and index
-called the [Docker Index](http://index.docker.io). If you don't want
-your images to be public you can also use private images on the Index or
-even run your own registry behind your firewall.
+To facilitate this sharing Docker comes with a public registry called 
+[Docker.io](http://index.docker.io). If you don't want your images to be
+public you can also use private images on [Docker.io](https://index.docker.io)
+or even run your own registry behind your firewall.
 
 **This translates to:**
 

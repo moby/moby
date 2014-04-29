@@ -1,6 +1,6 @@
 page_title: Repository
 page_description: Definition of an Repository
-page_keywords: containers, lxc, concepts, explanation, image, repository, container
+page_keywords: containers, concepts, explanation, image, repository, container
 
 # Repository
 

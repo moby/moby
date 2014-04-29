@@ -35,11 +35,10 @@ Download the small base image named `busybox`:
     # Download a busybox image
     $ sudo docker pull busybox
 
-The `busybox` image is a minimal Linux system. You
-can do the same with any number of other images, such as
-`debian`, `ubuntu` or
-`centos`. The images can be found and retrieved
-using the [Docker index](http://index.docker.io).
+The `busybox` image is a minimal Linux system. You can do the same with
+any number of other images, such as `debian`, `ubuntu` or `centos`. The
+images can be found and retrieved using the
+[Docker.io](http://index.docker.io) registry.
 
     $ sudo docker run busybox /bin/echo hello world
 

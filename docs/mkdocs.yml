@@ -82,12 +82,12 @@ pages:
 # - ['user-guide/configuration.md', 'User Guide', 'Configuration']
 # ./faq.md
 
-# Docker Index docs:
-- ['index/index.md', '**HIDDEN**']
+# Docker.io docs:
+- ['docker-io/index.md', '**HIDDEN**']
 # - ['index/home.md', 'Docker Index', 'Help']
-- ['index/accounts.md', 'Docker Index', 'Accounts']
-- ['index/repos.md', 'Docker Index', 'Repositories']
-- ['index/builds.md', 'Docker Index', 'Trusted Builds']
+- ['docker-io/accounts.md', 'Docker.io', 'Accounts']
+- ['docker-io/repos.md', 'Docker.io', 'Repositories']
+- ['docker-io/builds.md', 'Docker.io', 'Trusted Builds']
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']
@@ -99,7 +99,7 @@ pages:
 - ['articles/security.md', 'Reference', 'Security']
 - ['articles/baseimages.md', 'Reference', 'Creating a Base Image']
 - ['use/networking.md', 'Reference', 'Advanced networking']
-- ['reference/api/index_api.md', 'Reference', 'Docker Index API']
+- ['reference/api/docker-io_api.md', 'Reference', 'Docker.io API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/registry_index_spec.md', 'Reference', 'Registry & Index Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
@@ -126,4 +126,3 @@ pages:
 - ['terms/repository.md', '**HIDDEN**', 'repository']
 - ['terms/filesystem.md', '**HIDDEN**', 'filesystem']
 - ['terms/image.md', '**HIDDEN**', 'image']
-

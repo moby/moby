@@ -1,12 +1,12 @@
-page_title: Index API
-page_description: API Documentation for Docker Index
-page_keywords: API, Docker, index, REST, documentation
+page_title: Docker.io API
+page_description: API Documentation for the Docker.io API
+page_keywords: API, Docker, index, REST, documentation, Docker.io, registry
 
-# Docker Index API
+# Docker.io API
 
 ## Introduction
 
-- This is the REST API for the Docker index
+- This is the REST API for [Docker.io](http://index.docker.io).
 - Authorization is done with basic auth over SSL
 - Not all commands require authentication, only those noted as such.
 
