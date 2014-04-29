@@ -1,4 +1,4 @@
-.PHONY: all binary build cross default docs docs-build docs-shell shell test test-integration test-integration-cli validate
+.PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration test-integration-cli validate
 
 # to allow `make BINDDIR=. shell` or `make BINDDIR= test`
 BINDDIR := bundles
@@ -35,7 +35,10 @@ docs-release: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
 test: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary test test-integration test-integration-cli
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-unit test-integration test-integration-cli
+
+test-unit: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
 test-integration: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-integration
