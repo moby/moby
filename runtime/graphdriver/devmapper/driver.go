@@ -34,7 +34,25 @@ var Init = func(home string) (graphdriver.Driver, error) {
 		DeviceSet: deviceSet,
 		home:      home,
 	}
+	d.fixPermissions()
 	return d, nil
+}
+
+// Fix the permissions of home and dir in case they were  already created 0700 by an earlier Docker version
+func (d *Driver) fixPermissions() error {
+        dir := d.dir("id")
+        if err := os.Chmod(path.Dir(dir), 0711); err != nil && !os.IsNotExist(err) {
+                return err 
+        }   
+        if err := os.Chmod(d.home, 0711); err != nil && !os.IsNotExist(err) {
+                return err 
+        }   
+
+        return nil 
+}
+
+func (d *Driver) dir(id string) string {
+	return path.Join(d.home, "dir", path.Base(id))
 }
 
 func (d *Driver) String() string {
