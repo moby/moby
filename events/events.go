@@ -3,21 +3,22 @@ package events
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/utils"
 	"sync"
 	"time"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/utils"
 )
 
 type Logger struct {
 	sync.RWMutex
-	listeners map[string]chan utils.JSONMessage
+	listeners map[int64]chan utils.JSONMessage
 	events    []utils.JSONMessage
 }
 
 func NewLogger() *Logger {
 	return &Logger{
-		listeners: make(map[string]chan utils.JSONMessage),
+		listeners: make(map[int64]chan utils.JSONMessage),
 	}
 }
 
@@ -66,12 +67,12 @@ func (l *Logger) addEvent(jm utils.JSONMessage) {
 }
 
 func (l *Logger) Events(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s FROM", job.Name)
+	if len(job.Args) != 0 {
+		return job.Errorf("Usage: %s", job.Name)
 	}
 
 	var (
-		from    = job.Args[0]
+		from    = time.Now().UTC().UnixNano()
 		since   = job.GetenvInt64("since")
 		until   = job.GetenvInt64("until")
 		timeout = make(chan time.Time)

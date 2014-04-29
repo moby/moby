@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go.net/websocket"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"code.google.com/p/go.net/websocket"
 
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
@@ -243,7 +244,7 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		return err
 	}
 
-	var job = eng.Job("events", r.RemoteAddr)
+	var job = eng.Job("events")
 	streamJSON(job, w, true)
 	job.Setenv("since", r.Form.Get("since"))
 	job.Setenv("until", r.Form.Get("until"))

@@ -2,10 +2,11 @@ package events
 
 import (
 	"encoding/json"
-	"github.com/dotcloud/docker/engine"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/engine"
 )
 
 func TestLogEvent(t *testing.T) {
@@ -14,7 +15,7 @@ func TestLogEvent(t *testing.T) {
 	if err := NewLogger().Install(eng); err != nil {
 		t.Fatal(err)
 	}
-	events := eng.Job("events", "TestLogEvent")
+	events := eng.Job("events")
 	streams, err := events.Stdout.AddPipe()
 	if err != nil {
 		t.Fatal(err)
