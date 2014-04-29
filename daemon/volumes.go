@@ -217,15 +217,26 @@ func createVolumes(container *Container) error {
 			srcPath = p
 		}
 
-		container.Volumes[volPath] = srcPath
-		container.VolumesRW[volPath] = srcRW
-
 		// Create the mountpoint
-		volPath = filepath.Join(container.basefs, volPath)
-		rootVolPath, err := utils.FollowSymlinkInScope(volPath, container.basefs)
+		rootVolPath, err := utils.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
 		if err != nil {
 			return err
 		}
+
+		newVolPath, err := filepath.Rel(container.basefs, rootVolPath)
+		if err != nil {
+			return err
+		}
+		newVolPath = "/" + newVolPath
+
+		if volPath != newVolPath {
+			delete(container.Volumes, volPath)
+			delete(container.VolumesRW, volPath)
+		}
+
+		container.Volumes[newVolPath] = srcPath
+		container.VolumesRW[newVolPath] = srcRW
+
 		if err := createIfNotExists(rootVolPath, volIsDir); err != nil {
 			return err
 		}
