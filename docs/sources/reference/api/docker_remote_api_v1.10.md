@@ -129,7 +129,7 @@ Create a container
                      "/tmp": {}
              },
              "WorkingDir":"",
-             "DisableNetwork": false,
+             "NetworkDisabled": false,
              "ExposedPorts":{
                      "22/tcp": {}
              }
@@ -1153,7 +1153,7 @@ Create a new image from a container's changes
                      "/tmp": {}
              },
              "WorkingDir":"",
-             "DisableNetwork": false,
+             "NetworkDisabled": false,
              "ExposedPorts":{
                      "22/tcp": {}
              }
