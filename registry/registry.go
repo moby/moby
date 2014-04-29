@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net"
@@ -17,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -372,7 +373,11 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 		}
 	} else {
 		// Assume the endpoint is on the same host
-		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, req.URL.Host))
+		u, err := url.Parse(indexEp)
+		if err != nil {
+			return nil, err
+		}
+		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", u.Scheme, req.URL.Host))
 	}
 
 	checksumsJSON, err := ioutil.ReadAll(res.Body)
