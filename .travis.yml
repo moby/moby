@@ -10,11 +10,9 @@ install: true
 
 before_script:
   - env | sort
-  - sudo pip install -r docs/requirements.txt
 
 script:
   - hack/make.sh validate-dco
   - hack/make.sh validate-gofmt
-  - make -sC docs SPHINXOPTS=-qW docs man
 
 # vim:set sw=2 ts=2:
