@@ -4,14 +4,15 @@ package mount
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"syscall"
+
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/system"
-	"os"
-	"path/filepath"
-	"syscall"
 )
 
 // default mount point flags
@@ -130,11 +131,12 @@ func newSystemMounts(rootfs, mountLabel string, mounts libcontainer.Mounts) []mo
 	}
 
 	if len(mounts.OfType("devtmpfs")) == 1 {
-		systemMounts = append(systemMounts, mount{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: "mode=755"})
+		systemMounts = append(systemMounts, mount{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: label.FormatMountLabel("mode=755", mountLabel)})
 	}
 	systemMounts = append(systemMounts,
 		mount{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaultMountFlags, data: label.FormatMountLabel("mode=1777,size=65536k", mountLabel)},
-		mount{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: label.FormatMountLabel("newinstance,ptmxmode=0666,mode=620,gid=5", mountLabel)})
+		mount{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: label.FormatMountLabel("newinstance,ptmxmode=0666,mode=620,gid=5", mountLabel)},
+	)
 
 	if len(mounts.OfType("sysfs")) == 1 {
 		systemMounts = append(systemMounts, mount{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags})
