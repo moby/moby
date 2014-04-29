@@ -23,7 +23,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 
     $ curl https://dl.google.com/dl/cloudsdk/release/install_google_cloud_sdk.bash | bash
     $ gcloud auth login
-    Enter a cloud project id (or leave blank to not set): <--! enter your project id here, *not* your project name -->
+    Enter a cloud project id (or leave blank to not set): <*enter your project id here, NOT your project name*>
 
 3.  Start a new instance, select a zone close to you and the desired
     instance size:
@@ -44,7 +44,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 
 <!-- -->
 
-    $ gcutil --service_version="v1" --project="<--! project name from step 2 -->" ssh --zone="<--! zone selected from step 3 -->" "docker-playground"
+    $ gcutil --service_version="v1" --project="<*project name from step 2*>" ssh --zone="<*zone selected from step 3*>" "docker-playground"
     docker-playground:~$
     
 > **Note**;
