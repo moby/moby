@@ -46,10 +46,11 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 
     $ gcutil --service_version="v1" --project="<--! project name from step 2 -->" ssh --zone="<--! zone selected from step 3 -->" "docker-playground"
     docker-playground:~$
+    
 > **Note**;
 > Google discourages logging into GCE instances as root,
 > but you can override this/subdue the warning by setting 
-> the --permit_root_ssh flag in the above command.
+> the `--permit_root_ssh` flag in the above command.
 
 5.  Install the latest Docker release and configure it to start when the
     instance boots:
