@@ -166,6 +166,23 @@ func (info *FileInfo) isDir() bool {
 	return info.parent == nil || info.stat.Mode&syscall.S_IFDIR == syscall.S_IFDIR
 }
 
+func sameStat(a, b *syscall.Stat_t) bool {
+	if a.Mode != b.Mode || a.Uid != b.Uid || a.Gid != b.Gid {
+		return false
+	}
+
+	if a.Rdev != b.Rdev && (a.Mode&syscall.S_IFCHR == syscall.S_IFCHR || a.Mode&syscall.S_IFBLK == syscall.S_IFBLK) {
+		return false
+	}
+
+	// Don't look at size for dirs, its not a good measure of change
+	if a.Size != b.Size && a.Mode&syscall.S_IFDIR != syscall.S_IFDIR {
+		return false
+	}
+
+	return true
+}
+
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 	if oldInfo == nil {
 		// add
@@ -198,12 +215,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// be visible when actually comparing the stat fields. The only time this
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
-			if oldStat.Mode != newStat.Mode ||
-				oldStat.Uid != newStat.Uid ||
-				oldStat.Gid != newStat.Gid ||
-				oldStat.Rdev != newStat.Rdev ||
-				// Don't look at size for dirs, its not a good measure of change
-				(oldStat.Size != newStat.Size && oldStat.Mode&syscall.S_IFDIR != syscall.S_IFDIR) ||
+			if !sameStat(oldStat, newStat) ||
 				!sameFsTimeSpec(system.GetLastModification(oldStat), system.GetLastModification(newStat)) ||
 				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
