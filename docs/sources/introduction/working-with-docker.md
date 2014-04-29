@@ -236,7 +236,7 @@ the container will also stop.
 ### Listing containers
 
 We can see a list of all the containers on our host using the `docker
-ps` command. By default the `docker ps` commands only shows running
+ps` command. By default the `docker ps` command only shows running
 containers. But we can also add the `-a` flag to show *all* containers -
 both running and stopped.
 
