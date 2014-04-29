@@ -250,10 +250,13 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 		}
 	}
 
-	// There is no LChmod, so ignore mode for symlink. Also, this
-	// must happen after chown, as that can modify the file mode
+	// This must happen after chown, as that can modify the file mode
 	if hdr.Typeflag != tar.TypeSymlink {
 		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+			return err
+		}
+	} else {
+		if err := system.LChmod(path, hdrInfo.Mode()); err != nil {
 			return err
 		}
 	}
