@@ -25,11 +25,11 @@ var (
 	errLoginRequired         = errors.New("Authentication is required.")
 )
 
-func pingRegistryEndpoint(endpoint string) (bool, error) {
+func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
 	if endpoint == IndexServerAddress() {
 		// Skip the check, we now this one is valid
 		// (and we never want to fallback to http in case of error)
-		return false, nil
+		return RegistryInfo{Standalone: false}, nil
 	}
 	httpDial := func(proto string, addr string) (net.Conn, error) {
 		// Set the connect timeout to 5 seconds
@@ -48,26 +48,41 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
-		return false, err
+		return RegistryInfo{Standalone: false}, err
 	}
 	defer resp.Body.Close()
 
-	if resp.Header.Get("X-Docker-Registry-Version") == "" {
-		return false, errors.New("This does not look like a Registry server (\"X-Docker-Registry-Version\" header not found in the response)")
+	jsonString, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return RegistryInfo{Standalone: false}, fmt.Errorf("Error while reading the http response: %s", err)
 	}
+
+	// If the header is absent, we assume true for compatibility with earlier
+	// versions of the registry. default to true
+	info := RegistryInfo{
+		Standalone: true,
+	}
+	if err := json.Unmarshal(jsonString, &info); err != nil {
+		utils.Debugf("Error unmarshalling the _ping RegistryInfo: %s", err)
+		// don't stop here. Just assume sane defaults
+	}
+	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
+		utils.Debugf("Registry version header: '%s'", hdr)
+		info.Version = hdr
+	}
+	utils.Debugf("RegistryInfo.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
 	utils.Debugf("Registry standalone header: '%s'", standalone)
-	// If the header is absent, we assume true for compatibility with earlier
-	// versions of the registry
-	if standalone == "" {
-		return true, nil
-		// Accepted values are "true" (case-insensitive) and "1".
-	} else if strings.EqualFold(standalone, "true") || standalone == "1" {
-		return true, nil
+	// Accepted values are "true" (case-insensitive) and "1".
+	if strings.EqualFold(standalone, "true") || standalone == "1" {
+		info.Standalone = true
+	} else if len(standalone) > 0 {
+		// there is a header set, and it is not "true" or "1", so assume fails
+		info.Standalone = false
 	}
-	// Otherwise, not standalone
-	return false, nil
+	utils.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
+	return info, nil
 }
 
 func validateRepositoryName(repositoryName string) error {
@@ -221,9 +236,13 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 
-	imageSize, err := strconv.Atoi(res.Header.Get("X-Docker-Size"))
-	if err != nil {
-		return nil, -1, err
+	// if the size header is not present, then set it to '-1'
+	imageSize := -1
+	if hdr := res.Header.Get("X-Docker-Size"); hdr != "" {
+		imageSize, err = strconv.Atoi(hdr)
+		if err != nil {
+			return nil, -1, err
+		}
 	}
 
 	jsonString, err := ioutil.ReadAll(res.Body)
@@ -352,7 +371,8 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 			return nil, err
 		}
 	} else {
-		return nil, fmt.Errorf("Index response didn't contain any endpoints")
+		// Assume the endpoint is on the same host
+		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, req.URL.Host))
 	}
 
 	checksumsJSON, err := ioutil.ReadAll(res.Body)
@@ -685,6 +705,11 @@ type ImgData struct {
 	Tag             string `json:",omitempty"`
 }
 
+type RegistryInfo struct {
+	Version    string `json:"version"`
+	Standalone bool   `json:"standalone"`
+}
+
 type Registry struct {
 	client        *http.Client
 	authConfig    *AuthConfig
@@ -713,11 +738,11 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
 	if indexEndpoint != IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
-		standalone, err := pingRegistryEndpoint(indexEndpoint)
+		info, err := pingRegistryEndpoint(indexEndpoint)
 		if err != nil {
 			return nil, err
 		}
-		if standalone {
+		if info.Standalone {
 			utils.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)

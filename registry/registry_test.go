@@ -24,11 +24,11 @@ func spawnTestRegistry(t *testing.T) *Registry {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
-	standalone, err := pingRegistryEndpoint(makeURL("/v1/"))
+	regInfo, err := pingRegistryEndpoint(makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, standalone, true, "Expected standalone to be true (default)")
+	assertEqual(t, regInfo.Standalone, true, "Expected standalone to be true (default)")
 }
 
 func TestGetRemoteHistory(t *testing.T) {
