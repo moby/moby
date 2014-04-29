@@ -38,3 +38,20 @@ func TestNoCpuStatFile(t *testing.T) {
 		t.Fatal("Expected to fail, but did not.")
 	}
 }
+
+func TestInvalidCpuStat(t *testing.T) {
+	helper := NewCgroupTestUtil("cpu", t)
+	defer helper.cleanup()
+	cpuStatContent := `nr_periods 2000
+	nr_throttled 200
+	throttled_time fortytwo`
+	helper.writeFileContents(map[string]string{
+		"cpu.stat": cpuStatContent,
+	})
+
+	cpu := &cpuGroup{}
+	_, err := cpu.Stats(helper.CgroupData)
+	if err == nil {
+		t.Fatal("Expected failed stat parsing.")
+	}
+}
