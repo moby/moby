@@ -30,10 +30,8 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("created sync pipe parent fd %d child fd %d\n", syncPipe.parent.Fd(), syncPipe.child.Fd())
 
 	if container.Tty {
-		ns.logger.Println("creating master and console")
 		master, console, err = system.CreateMasterAndConsole()
 		if err != nil {
 			return -1, err
@@ -42,13 +40,11 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	}
 
 	command := ns.commandFactory.Create(container, console, syncPipe.child, args)
-	ns.logger.Println("attach terminal to command")
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}
 	defer term.Close()
 
-	ns.logger.Println("starting command")
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
@@ -57,19 +53,14 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("writing pid %d to file\n", command.Process.Pid)
 	if err := ns.stateWriter.WritePid(command.Process.Pid, started); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	defer func() {
-		ns.logger.Println("removing pid file")
-		ns.stateWriter.DeletePid()
-	}()
+	defer ns.stateWriter.DeletePid()
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	ns.logger.Println("setting cgroups")
 	activeCgroup, err := ns.SetupCgroups(container, command.Process.Pid)
 	if err != nil {
 		command.Process.Kill()
@@ -79,13 +70,11 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		defer activeCgroup.Cleanup()
 	}
 
-	ns.logger.Println("setting up network")
 	if err := ns.InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
 
-	ns.logger.Println("closing sync pipe with child")
 	// Sync with child
 	syncPipe.Close()
 
@@ -95,7 +84,6 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		}
 	}
 	status := command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-	ns.logger.Printf("process exited with status %d\n", status)
 	return status, err
 }
 

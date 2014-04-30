@@ -3,9 +3,7 @@ package native
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +29,7 @@ func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		var (
 			container *libcontainer.Container
-			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{args.Root}, createLogger(""))
+			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{args.Root})
 		)
 		f, err := os.Open(filepath.Join(args.Root, "container.json"))
 		if err != nil {
@@ -102,7 +100,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			c:        c,
 			dsw:      &nsinit.DefaultStateWriter{filepath.Join(d.root, c.ID)},
 		}
-		ns   = nsinit.NewNsInit(factory, stateWriter, createLogger(os.Getenv("DEBUG")))
+		ns   = nsinit.NewNsInit(factory, stateWriter)
 		args = append([]string{c.Entrypoint}, c.Arguments...)
 	)
 	if err := d.createContainerRoot(c.ID); err != nil {
@@ -286,15 +284,4 @@ func (d *dockerStateWriter) WritePid(pid int, started string) error {
 
 func (d *dockerStateWriter) DeletePid() error {
 	return d.dsw.DeletePid()
-}
-
-func createLogger(debug string) *log.Logger {
-	var w io.Writer
-	// if we are in debug mode set the logger to stderr
-	if debug != "" {
-		w = os.Stderr
-	} else {
-		w = ioutil.Discard
-	}
-	return log.New(w, "[libcontainer] ", log.LstdFlags)
 }
