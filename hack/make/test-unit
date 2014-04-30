@@ -11,9 +11,9 @@ TEXTRESET=$'\033[0m' # reset the foreground colour
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
-#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
+#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test-unit
 #
-bundle_test() {
+bundle_test_unit() {
 	{
 		date
 
@@ -52,4 +52,4 @@ bundle_test() {
 	} 2>&1 | tee $DEST/test.log
 }
 
-bundle_test
+bundle_test_unit
