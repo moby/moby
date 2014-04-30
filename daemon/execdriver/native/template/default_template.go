@@ -25,6 +25,7 @@ func New() *libcontainer.Container {
 			libcontainer.GetCapability("MAC_ADMIN"),
 			libcontainer.GetCapability("NET_ADMIN"),
 			libcontainer.GetCapability("MKNOD"),
+			libcontainer.GetCapability("SYSLOG"),
 		},
 		Namespaces: libcontainer.Namespaces{
 			libcontainer.GetNamespace("NEWNS"),

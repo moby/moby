@@ -149,6 +149,7 @@ func setupCapabilities(args *execdriver.InitArgs) error {
 		capability.CAP_MAC_OVERRIDE,
 		capability.CAP_MAC_ADMIN,
 		capability.CAP_NET_ADMIN,
+		capability.CAP_SYSLOG,
 	}
 
 	c, err := capability.NewPid(os.Getpid())
