@@ -7,16 +7,17 @@ import (
 )
 
 type HostConfig struct {
-	Binds           []string
-	ContainerIDFile string
-	LxcConf         []utils.KeyValuePair
-	Privileged      bool
-	PortBindings    nat.PortMap
-	Links           []string
-	PublishAllPorts bool
-	Dns             []string
-	DnsSearch       []string
-	VolumesFrom     []string
+	Binds               []string
+	ContainerIDFile     string
+	LxcConf             []utils.KeyValuePair
+	Privileged          bool
+	PortBindings        nat.PortMap
+	Links               []string
+	PublishAllPorts     bool
+	Dns                 []string
+	DnsSearch           []string
+	VolumesFrom         []string
+	UseContainerNetwork string
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -41,6 +42,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
 		hostConfig.VolumesFrom = VolumesFrom
+	}
+	if UseContainerNetwork := job.Getenv("UseContainerNetwork"); UseContainerNetwork != "" {
+		hostConfig.UseContainerNetwork = UseContainerNetwork
 	}
 	return hostConfig
 }
