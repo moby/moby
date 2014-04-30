@@ -3,8 +3,11 @@
 package nsinit
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/cgroups"
@@ -17,7 +20,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args []string) (int, error) {
+func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, pidRoot string, args []string, startCallback func()) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -30,10 +33,8 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("created sync pipe parent fd %d child fd %d\n", syncPipe.parent.Fd(), syncPipe.child.Fd())
 
 	if container.Tty {
-		ns.logger.Println("creating master and console")
 		master, console, err = system.CreateMasterAndConsole()
 		if err != nil {
 			return -1, err
@@ -42,13 +43,11 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	}
 
 	command := ns.commandFactory.Create(container, console, syncPipe.child, args)
-	ns.logger.Println("attach terminal to command")
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}
 	defer term.Close()
 
-	ns.logger.Println("starting command")
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
@@ -57,37 +56,34 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("writing pid %d to file\n", command.Process.Pid)
-	if err := ns.stateWriter.WritePid(command.Process.Pid, started); err != nil {
+	if err := WritePid(pidRoot, command.Process.Pid, started); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	defer func() {
-		ns.logger.Println("removing pid file")
-		ns.stateWriter.DeletePid()
-	}()
+	defer DeletePid(pidRoot)
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	ns.logger.Println("setting cgroups")
-	activeCgroup, err := ns.SetupCgroups(container, command.Process.Pid)
+	cleaner, err := SetupCgroups(container, command.Process.Pid)
 	if err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	if activeCgroup != nil {
-		defer activeCgroup.Cleanup()
+	if cleaner != nil {
+		defer cleaner.Cleanup()
 	}
 
-	ns.logger.Println("setting up network")
-	if err := ns.InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
+	if err := InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
 
-	ns.logger.Println("closing sync pipe with child")
 	// Sync with child
 	syncPipe.Close()
+
+	if startCallback != nil {
+		startCallback()
+	}
 
 	if err := command.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
@@ -95,11 +91,12 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		}
 	}
 	status := command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-	ns.logger.Printf("process exited with status %d\n", status)
 	return status, err
 }
 
-func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
+// SetupCgroups applies the cgroup restrictions to the process running in the contaienr based
+// on the container's configuration
+func SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
 		c := container.Cgroups
 		if systemd.UseSystemd() {
@@ -110,7 +107,9 @@ func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) (c
 	return nil, nil
 }
 
-func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
+// InitializeNetworking creates the container's network stack outside of the namespace and moves
+// interfaces into the container's net namespaces if necessary
+func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
 	context := libcontainer.Context{}
 	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
@@ -122,4 +121,24 @@ func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid
 		}
 	}
 	return pipe.SendToChild(context)
+}
+
+// WritePid writes the namespaced processes pid to pid and it's start time
+// to the path specified
+func WritePid(path string, pid int, startTime string) error {
+	err := ioutil.WriteFile(filepath.Join(path, "pid"), []byte(fmt.Sprint(pid)), 0655)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filepath.Join(path, "start"), []byte(startTime), 0655)
+}
+
+// DeletePid removes the pid and started file from disk when the container's process
+// dies and the container is cleanly removed
+func DeletePid(path string) error {
+	err := os.Remove(filepath.Join(path, "pid"))
+	if serr := os.Remove(filepath.Join(path, "start")); err == nil {
+		err = serr
+	}
+	return err
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -38,12 +37,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to load container: %s", err)
 	}
-	l, err := getLogger("[exec] ")
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	ns, err := newNsInit(l)
+	ns, err := newNsInit()
 	if err != nil {
 		log.Fatalf("Unable to initialize nsinit: %s", err)
 	}
@@ -54,36 +49,36 @@ func main() {
 		nspid, err := readPid()
 		if err != nil {
 			if !os.IsNotExist(err) {
-				l.Fatalf("Unable to read pid: %s", err)
+				log.Fatalf("Unable to read pid: %s", err)
 			}
 		}
 		if nspid > 0 {
 			exitCode, err = ns.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
 			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-			exitCode, err = ns.Exec(container, term, flag.Args()[1:])
+			exitCode, err = ns.Exec(container, term, root, flag.Args()[1:], nil)
 		}
 		if err != nil {
-			l.Fatalf("Failed to exec: %s", err)
+			log.Fatalf("Failed to exec: %s", err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
 		cwd, err := os.Getwd()
 		if err != nil {
-			l.Fatal(err)
+			log.Fatal(err)
 		}
 		if flag.NArg() < 2 {
-			l.Fatalf("wrong number of arguments %d", flag.NArg())
+			log.Fatalf("wrong number of arguments %d", flag.NArg())
 		}
 		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {
-			l.Fatalf("Unable to create sync pipe: %s", err)
+			log.Fatalf("Unable to create sync pipe: %s", err)
 		}
 		if err := ns.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
-			l.Fatalf("Unable to initialize for container: %s", err)
+			log.Fatalf("Unable to initialize for container: %s", err)
 		}
 	default:
-		l.Fatalf("command not supported for nsinit %s", flag.Arg(0))
+		log.Fatalf("command not supported for nsinit %s", flag.Arg(0))
 	}
 }
 
@@ -113,23 +108,6 @@ func readPid() (int, error) {
 	return pid, nil
 }
 
-func newNsInit(l *log.Logger) (nsinit.NsInit, error) {
-	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}, &nsinit.DefaultStateWriter{root}, l), nil
-}
-
-func getLogger(prefix string) (*log.Logger, error) {
-	var w io.Writer
-	switch logs {
-	case "", "none":
-		w = ioutil.Discard
-	case "stderr":
-		w = os.Stderr
-	default: // we have a filepath
-		f, err := os.OpenFile(logs, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0755)
-		if err != nil {
-			return nil, err
-		}
-		w = f
-	}
-	return log.New(w, prefix, log.LstdFlags), nil
+func newNsInit() (nsinit.NsInit, error) {
+	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}), nil
 }

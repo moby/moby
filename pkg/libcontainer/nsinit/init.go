@@ -29,17 +29,14 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	// We always read this as it is a way to sync with the parent as well
-	ns.logger.Printf("reading from sync pipe fd %d\n", syncPipe.child.Fd())
 	context, err := syncPipe.ReadFromParent()
 	if err != nil {
 		syncPipe.Close()
 		return err
 	}
-	ns.logger.Println("received context from parent")
 	syncPipe.Close()
 
 	if consolePath != "" {
-		ns.logger.Printf("setting up %s as console\n", consolePath)
 		if err := console.OpenAndDup(consolePath); err != nil {
 			return err
 		}
@@ -57,7 +54,6 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	label.Init()
-	ns.logger.Println("setup mount namespace")
 	if err := mount.InitializeMountNamespace(rootfs, consolePath, container); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
@@ -69,7 +65,6 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	if profile := container.Context["apparmor_profile"]; profile != "" {
-		ns.logger.Printf("setting apparmor profile %s\n", profile)
 		if err := apparmor.ApplyProfile(os.Getpid(), profile); err != nil {
 			return err
 		}
@@ -79,14 +74,14 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
 		return fmt.Errorf("set process label %s", err)
 	}
-	ns.logger.Printf("execing %s\n", args[0])
 	return system.Execv(args[0], args[0:], container.Env)
 }
 
-func setupUser(container *libcontainer.Container) error {
-	uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
+// SetupUser changes the groups, gid, and uid for the user inside the container
+func SetupUser(u string) error {
+	uid, gid, suppGids, err := user.GetUserGroupSupplementary(u, syscall.Getuid(), syscall.Getgid())
 	if err != nil {
-		return fmt.Errorf("GetUserGroupSupplementary %s", err)
+		return fmt.Errorf("get supplementary groups %s", err)
 	}
 	if err := system.Setgroups(suppGids); err != nil {
 		return fmt.Errorf("setgroups %s", err)
@@ -128,7 +123,7 @@ func finalizeNamespace(container *libcontainer.Container) error {
 	if err := system.CloseFdsFrom(3); err != nil {
 		return fmt.Errorf("close open file descriptors %s", err)
 	}
-	if err := setupUser(container); err != nil {
+	if err := SetupUser(container.User); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
 	if container.WorkingDir != "" {
