@@ -325,7 +325,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func populateCommand(c *Container, env []string) {
+func populateCommand(c *Container, env []string) error {
 	var (
 		en      *execdriver.Network
 		context = make(map[string][]string)
@@ -351,6 +351,14 @@ func populateCommand(c *Container, env []string) {
 	// TODO: this can be removed after lxc-conf is fully deprecated
 	mergeLxcConfIntoOptions(c.hostConfig, context)
 
+	if netContainer := c.hostConfig.UseContainerNetwork; netContainer != "" {
+		nc := c.daemon.Get(netContainer)
+		if nc == nil {
+			return fmt.Errorf("no such container to join network: %q", netContainer)
+		}
+		en.ContainerID = nc.ID
+	}
+
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
@@ -372,6 +380,7 @@ func populateCommand(c *Container, env []string) {
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env
+	return nil
 }
 
 func (container *Container) Start() (err error) {
@@ -415,7 +424,9 @@ func (container *Container) Start() (err error) {
 	if err := container.setupWorkingDirectory(); err != nil {
 		return err
 	}
-	populateCommand(container, env)
+	if err := populateCommand(container, env); err != nil {
+		return err
+	}
 	if err := setupMountsForContainer(container); err != nil {
 		return err
 	}
