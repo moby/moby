@@ -69,15 +69,8 @@ func InstallDefaultProfile(backupPath string) error {
 	cmd.Dir = "/etc/apparmor.d"
 
 	output, err := cmd.CombinedOutput()
-	if err != nil && !os.IsNotExist(err) {
-		if e, ok := err.(*exec.Error); ok {
-			// keeping with the current profile load code, if the parser does not
-			// exist then just return
-			if e.Err == exec.ErrNotFound || os.IsNotExist(e.Err) {
-				return nil
-			}
-		}
-		return fmt.Errorf("Error loading docker profile: %s (%s)", err, output)
+	if err != nil {
+		return fmt.Errorf("Error loading docker apparmor profile: %s (%s)", err, output)
 	}
 	return nil
 }
