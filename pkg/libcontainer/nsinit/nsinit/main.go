@@ -56,7 +56,7 @@ func main() {
 			exitCode, err = ns.ExecIn(container, nspid, flag.Args()[1:])
 		} else {
 			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-			exitCode, err = ns.Exec(container, term, flag.Args()[1:])
+			exitCode, err = ns.Exec(container, term, root, flag.Args()[1:], nil)
 		}
 		if err != nil {
 			log.Fatalf("Failed to exec: %s", err)
@@ -109,5 +109,5 @@ func readPid() (int, error) {
 }
 
 func newNsInit() (nsinit.NsInit, error) {
-	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}, &nsinit.DefaultStateWriter{root}), nil
+	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}), nil
 }

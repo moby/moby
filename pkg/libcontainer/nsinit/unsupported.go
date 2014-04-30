@@ -6,7 +6,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
-func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args []string) (int, error) {
+func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, pidRoot string, args []string, startCallback func()) (int, error) {
 	return -1, libcontainer.ErrUnsupported
 }
 

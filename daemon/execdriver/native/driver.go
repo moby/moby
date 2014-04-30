@@ -29,7 +29,7 @@ func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
 		var (
 			container *libcontainer.Container
-			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{}, &nsinit.DefaultStateWriter{args.Root})
+			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{})
 		)
 		f, err := os.Open(filepath.Join(args.Root, "container.json"))
 		if err != nil {
@@ -93,15 +93,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	d.activeContainers[c.ID] = &c.Cmd
 
 	var (
-		term        nsinit.Terminal
-		factory     = &dockerCommandFactory{c: c, driver: d}
-		stateWriter = &dockerStateWriter{
-			callback: startCallback,
-			c:        c,
-			dsw:      &nsinit.DefaultStateWriter{filepath.Join(d.root, c.ID)},
-		}
-		ns   = nsinit.NewNsInit(factory, stateWriter)
-		args = append([]string{c.Entrypoint}, c.Arguments...)
+		term    nsinit.Terminal
+		factory = &dockerCommandFactory{c: c, driver: d}
+		pidRoot = filepath.Join(d.root, c.ID)
+		ns      = nsinit.NewNsInit(factory)
+		args    = append([]string{c.Entrypoint}, c.Arguments...)
 	)
 	if err := d.createContainerRoot(c.ID); err != nil {
 		return -1, err
@@ -121,7 +117,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err := d.writeContainerFile(container, c.ID); err != nil {
 		return -1, err
 	}
-	return ns.Exec(container, term, args)
+	return ns.Exec(container, term, pidRoot, args, func() {
+		if startCallback != nil {
+			startCallback(c)
+		}
+	})
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
@@ -265,23 +265,4 @@ func (d *dockerCommandFactory) Create(container *libcontainer.Container, console
 	d.c.Dir = d.c.Rootfs
 
 	return &d.c.Cmd
-}
-
-type dockerStateWriter struct {
-	dsw      nsinit.StateWriter
-	c        *execdriver.Command
-	callback execdriver.StartCallback
-}
-
-func (d *dockerStateWriter) WritePid(pid int, started string) error {
-	d.c.ContainerPid = pid
-	err := d.dsw.WritePid(pid, started)
-	if d.callback != nil {
-		d.callback(d.c)
-	}
-	return err
-}
-
-func (d *dockerStateWriter) DeletePid() error {
-	return d.dsw.DeletePid()
 }
