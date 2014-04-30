@@ -77,10 +77,11 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	return system.Execv(args[0], args[0:], container.Env)
 }
 
-func setupUser(container *libcontainer.Container) error {
-	uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
+// SetupUser changes the groups, gid, and uid for the user inside the container
+func SetupUser(u string) error {
+	uid, gid, suppGids, err := user.GetUserGroupSupplementary(u, syscall.Getuid(), syscall.Getgid())
 	if err != nil {
-		return fmt.Errorf("GetUserGroupSupplementary %s", err)
+		return fmt.Errorf("get supplementary groups %s", err)
 	}
 	if err := system.Setgroups(suppGids); err != nil {
 		return fmt.Errorf("setgroups %s", err)
@@ -122,7 +123,7 @@ func finalizeNamespace(container *libcontainer.Container) error {
 	if err := system.CloseFdsFrom(3); err != nil {
 		return fmt.Errorf("close open file descriptors %s", err)
 	}
-	if err := setupUser(container); err != nil {
+	if err := SetupUser(container.User); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
 	if container.WorkingDir != "" {
