@@ -20,8 +20,16 @@ func init() {
 	DefaultBaseFsSize = 300 * 1024 * 1024
 }
 
+// We use assignment here to get the right type
+var (
+	oldMounted = Mounted
+	oldExecRun = execRun
+)
+
 // denyAllDevmapper mocks all calls to libdevmapper in the unit tests, and denies them by default
 func denyAllDevmapper() {
+	oldExecRun = execRun
+
 	// Hijack all calls to libdevmapper with default panics.
 	// Authorized calls are selectively hijacked in each tests.
 	DmTaskCreate = func(t int) *CDmTask {
@@ -77,7 +85,29 @@ func denyAllDevmapper() {
 	}
 }
 
+func restoreAllDevmapper() {
+	DmGetLibraryVersion = dmGetLibraryVersionFct
+	DmGetNextTarget = dmGetNextTargetFct
+	DmLogInitVerbose = dmLogInitVerboseFct
+	DmSetDevDir = dmSetDevDirFct
+	DmTaskAddTarget = dmTaskAddTargetFct
+	DmTaskCreate = dmTaskCreateFct
+	DmTaskDestroy = dmTaskDestroyFct
+	DmTaskGetInfo = dmTaskGetInfoFct
+	DmTaskRun = dmTaskRunFct
+	DmTaskSetAddNode = dmTaskSetAddNodeFct
+	DmTaskSetCookie = dmTaskSetCookieFct
+	DmTaskSetMessage = dmTaskSetMessageFct
+	DmTaskSetName = dmTaskSetNameFct
+	DmTaskSetRo = dmTaskSetRoFct
+	DmTaskSetSector = dmTaskSetSectorFct
+	DmUdevWait = dmUdevWaitFct
+	LogWithErrnoInit = logWithErrnoInitFct
+	execRun = oldExecRun
+}
+
 func denyAllSyscall() {
+	oldMounted = Mounted
 	sysMount = func(source, target, fstype string, flags uintptr, data string) (err error) {
 		panic("sysMount: this method should not be called here")
 	}
@@ -108,6 +138,14 @@ func denyAllSyscall() {
 	// execRun = func(name string, args ...string) error {
 	// 	return exec.Command(name, args...).Run()
 	// }
+}
+
+func restoreAllSyscall() {
+	sysMount = syscall.Mount
+	sysUnmount = syscall.Unmount
+	sysCloseOnExec = syscall.CloseOnExec
+	sysSyscall = syscall.Syscall
+	Mounted = oldMounted
 }
 
 func mkTestDirectory(t *testing.T) string {
@@ -160,8 +198,10 @@ func TestInit(t *testing.T) {
 	)
 	defer osRemoveAll(home)
 
+	denyAllDevmapper()
+	defer restoreAllDevmapper()
+
 	func() {
-		denyAllDevmapper()
 		DmSetDevDir = func(dir string) int {
 			calls["DmSetDevDir"] = true
 			expectedDir := "/dev"
@@ -398,7 +438,7 @@ func mockAllDevmapper(calls Set) {
 
 func TestDriverName(t *testing.T) {
 	denyAllDevmapper()
-	defer denyAllDevmapper()
+	defer restoreAllDevmapper()
 
 	oldInit := fakeInit()
 	defer restoreInit(oldInit)
@@ -412,8 +452,8 @@ func TestDriverName(t *testing.T) {
 func TestDriverCreate(t *testing.T) {
 	denyAllDevmapper()
 	denyAllSyscall()
-	defer denyAllSyscall()
-	defer denyAllDevmapper()
+	defer restoreAllSyscall()
+	defer restoreAllDevmapper()
 
 	calls := make(Set)
 	mockAllDevmapper(calls)
@@ -524,8 +564,8 @@ func TestDriverCreate(t *testing.T) {
 func TestDriverRemove(t *testing.T) {
 	denyAllDevmapper()
 	denyAllSyscall()
-	defer denyAllSyscall()
-	defer denyAllDevmapper()
+	defer restoreAllSyscall()
+	defer restoreAllDevmapper()
 
 	calls := make(Set)
 	mockAllDevmapper(calls)
