@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
@@ -39,6 +40,10 @@ func init() {
 		}
 
 		if err := setupWorkingDirectory(args); err != nil {
+			return err
+		}
+
+		if err := system.CloseFdsFrom(3); err != nil {
 			return err
 		}
 

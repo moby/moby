@@ -70,22 +70,6 @@ grep -q :devices: /proc/1/cgroup ||
 grep -qw devices /proc/1/cgroup ||
 	echo "WARNING: it looks like the 'devices' cgroup is not mounted."
 
-# Now, close extraneous file descriptors.
-pushd /proc/self/fd >/dev/null
-for FD in *
-do
-	case "$FD" in
-	# Keep stdin/stdout/stderr
-	[012])
-		;;
-	# Nuke everything else
-	*)
-		eval exec "$FD>&-"
-		;;
-	esac
-done
-popd >/dev/null
-
 # Mount /tmp
 mount -t tmpfs none /tmp
 

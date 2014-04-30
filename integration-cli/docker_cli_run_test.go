@@ -92,6 +92,22 @@ func TestDockerRunEchoNamedContainer(t *testing.T) {
 	logDone("run - echo with named container")
 }
 
+// docker run should not leak file descriptors
+func TestDockerRunLeakyFileDescriptors(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "ls", "-C", "/proc/self/fd")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, out)
+
+	// normally, we should only get 0, 1, and 2, but 3 gets created by "ls" when it does "opendir" on the "fd" directory
+	if out != "0  1  2  3\n" {
+		t.Errorf("container should've printed '0  1  2  3', not: %s", out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - check file descriptor leakage")
+}
+
 // it should be possible to ping Google DNS resolver
 // this will fail when Internet access is unavailable
 func TestDockerRunPingGoogle(t *testing.T) {
