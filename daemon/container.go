@@ -4,15 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/links"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,6 +13,17 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/links"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -64,7 +66,8 @@ type Container struct {
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 
-	daemon *Daemon
+	daemon                   *Daemon
+	MountLabel, ProcessLabel string
 
 	waitLock chan struct{}
 	Volumes  map[string]string
@@ -120,6 +123,10 @@ func (container *Container) FromDisk() error {
 	// Load container settings
 	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
+		return err
+	}
+
+	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
 		return err
 	}
 	return container.readHostConfig()
@@ -320,9 +327,11 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 
 func populateCommand(c *Container, env []string) {
 	var (
-		en           *execdriver.Network
-		driverConfig = make(map[string][]string)
+		en      *execdriver.Network
+		context = make(map[string][]string)
 	)
+	context["process_label"] = []string{c.GetProcessLabel()}
+	context["mount_label"] = []string{c.GetMountLabel()}
 
 	en = &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
@@ -340,7 +349,7 @@ func populateCommand(c *Container, env []string) {
 	}
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
-	mergeLxcConfIntoOptions(c.hostConfig, driverConfig)
+	mergeLxcConfIntoOptions(c.hostConfig, context)
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
@@ -358,7 +367,7 @@ func populateCommand(c *Container, env []string) {
 		Network:    en,
 		Tty:        c.Config.Tty,
 		User:       c.Config.User,
-		Config:     driverConfig,
+		Config:     context,
 		Resources:  resources,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -1181,4 +1190,20 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 	}
 	bindings[port] = binding
 	return nil
+}
+
+func (container *Container) GetProcessLabel() string {
+	// even if we have a process label return "" if we are running
+	// in privileged mode
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.ProcessLabel
+}
+
+func (container *Container) GetMountLabel() string {
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.MountLabel
 }

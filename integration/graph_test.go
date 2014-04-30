@@ -43,7 +43,7 @@ func TestMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := driver.Get(image.ID); err != nil {
+	if _, err := driver.Get(image.ID, ""); err != nil {
 		t.Fatal(err)
 	}
 }

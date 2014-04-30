@@ -8,7 +8,6 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver/native/configuration"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"github.com/dotcloud/docker/pkg/apparmor"
-	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
@@ -119,14 +118,7 @@ func (d *driver) setupMounts(container *libcontainer.Container, c *execdriver.Co
 }
 
 func (d *driver) setupLabels(container *libcontainer.Container, c *execdriver.Command) error {
-	labels := c.Config["label"]
-	if len(labels) > 0 {
-		process, mount, err := label.GenLabels(labels[0])
-		if err != nil {
-			return err
-		}
-		container.Context["mount_label"] = mount
-		container.Context["process_label"] = process
-	}
+	container.Context["process_label"] = c.Config["process_label"][0]
+	container.Context["mount_label"] = c.Config["mount_label"][0]
 	return nil
 }

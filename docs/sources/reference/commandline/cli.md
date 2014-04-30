@@ -60,6 +60,7 @@ expect an integer, and they can only be specified once.
       -d, --daemon=false: Enable daemon mode
       --dns=[]: Force docker to use specific DNS servers
       --dns-search=[]: Force Docker to use specific DNS search domains
+      --enable-selinux=false: Enable selinux support for running containers
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports

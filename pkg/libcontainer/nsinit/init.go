@@ -75,8 +75,9 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 		}
 	}
 	runtime.LockOSThread()
+
 	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
-		return fmt.Errorf("SetProcessLabel label %s", err)
+		return fmt.Errorf("set process label %s", err)
 	}
 	ns.logger.Printf("execing %s\n", args[0])
 	return system.Execv(args[0], args[0:], container.Env)

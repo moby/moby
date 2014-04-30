@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"path"
@@ -17,6 +15,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -845,7 +846,7 @@ func (devices *DeviceSet) Shutdown() error {
 	return nil
 }
 
-func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) error {
+func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	info, err := devices.lookupDevice(hash)
 	if err != nil {
 		return err
@@ -875,7 +876,7 @@ func (devices *DeviceSet) MountDevice(hash, path string, mountLabel string) erro
 	mountOptions := label.FormatMountLabel("discard", mountLabel)
 	err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	if err != nil && err == sysEInval {
-		mountOptions = label.FormatMountLabel(mountLabel, "")
+		mountOptions = label.FormatMountLabel("", mountLabel)
 		err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
 	}
 	if err != nil {

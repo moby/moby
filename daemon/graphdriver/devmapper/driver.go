@@ -4,11 +4,12 @@ package devmapper
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/utils"
 )
 
 func init() {
@@ -60,7 +61,7 @@ func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }
 
-func (d *Driver) Create(id, parent string, mountLabel string) error {
+func (d *Driver) Create(id, parent string) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}
@@ -89,7 +90,7 @@ func (d *Driver) Remove(id string) error {
 	return nil
 }
 
-func (d *Driver) Get(id string) (string, error) {
+func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
 
 	// Create the target directories if they don't exist
@@ -98,7 +99,7 @@ func (d *Driver) Get(id string) (string, error) {
 	}
 
 	// Mount the device
-	if err := d.DeviceSet.MountDevice(id, mp, ""); err != nil {
+	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
 		return "", err
 	}
 

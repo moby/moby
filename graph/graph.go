@@ -98,7 +98,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	img.SetGraph(graph)
 
 	if img.Size < 0 {
-		rootfs, err := graph.driver.Get(img.ID)
+		rootfs, err := graph.driver.Get(img.ID, "")
 		if err != nil {
 			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 		}
@@ -110,7 +110,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 				return nil, err
 			}
 		} else {
-			parentFs, err := graph.driver.Get(img.Parent)
+			parentFs, err := graph.driver.Get(img.Parent, "")
 			if err != nil {
 				return nil, err
 			}
@@ -191,11 +191,11 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, i
 	}
 
 	// Create root filesystem in the driver
-	if err := graph.driver.Create(img.ID, img.Parent, ""); err != nil {
+	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
 	// Mount the root filesystem so we can apply the diff/layer
-	rootfs, err := graph.driver.Get(img.ID)
+	rootfs, err := graph.driver.Get(img.ID, "")
 	if err != nil {
 		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 	}
