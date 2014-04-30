@@ -5,6 +5,7 @@ package devmapper
 import (
 	"fmt"
 	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/daemon/graphdriver/graphtest"
 	"io/ioutil"
 	"path"
 	"runtime"
@@ -913,4 +914,26 @@ func assertMap(t *testing.T, m map[string]bool, keys ...string) {
 	if len(m) != 0 {
 		t.Fatalf("Unexpected keys: %v", m)
 	}
+}
+
+// This avoids creating a new driver for each test if all tests are run
+// Make sure to put new tests between TestDevmapperSetup and TestDevmapperTeardown
+func TestDevmapperSetup(t *testing.T) {
+	graphtest.GetDriver(t, "devicemapper")
+}
+
+func TestDevmapperCreateEmpty(t *testing.T) {
+	graphtest.DriverTestCreateEmpty(t, "devicemapper")
+}
+
+func TestDevmapperCreateBase(t *testing.T) {
+	graphtest.DriverTestCreateBase(t, "devicemapper")
+}
+
+func TestDevmapperCreateSnap(t *testing.T) {
+	graphtest.DriverTestCreateSnap(t, "devicemapper")
+}
+
+func TestDevmapperTeardown(t *testing.T) {
+	graphtest.PutDriver(t)
 }
