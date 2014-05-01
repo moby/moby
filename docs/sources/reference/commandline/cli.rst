@@ -1287,15 +1287,17 @@ This example shows 5 containers that might be set up to test a web application c
 
 ::
 
-    Usage: docker save IMAGE
+    Usage: docker save [OPTIONS] IMAGE|IMAGEID > repository.tar
 
     Save an image to a tar archive (streamed to stdout by default)
 
       -o, --output="": Write to an file, instead of STDOUT
 
-
 Produces a tarred repository to the standard output stream.
-Contains all parent layers, and all tags + versions, or specified repo:tag.
+
+When called with ``IMAGE``: Repository contains all parent layers, and all tags + versions, or specified ``REPOSITORY:TAG``.
+
+When called with ``IMAGEID``: Repository does not contain tags or versions.
 
 It is used to create a backup that can then be used with ``docker load``
 
