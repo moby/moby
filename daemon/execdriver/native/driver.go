@@ -27,10 +27,7 @@ const (
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		var (
-			container *libcontainer.Container
-			ns        = nsinit.NewNsInit(&nsinit.DefaultCommandFactory{})
-		)
+		var container *libcontainer.Container
 		f, err := os.Open(filepath.Join(args.Root, "container.json"))
 		if err != nil {
 			return err
@@ -41,7 +38,7 @@ func init() {
 		}
 		f.Close()
 
-		cwd, err := os.Getwd()
+		rootfs, err := os.Getwd()
 		if err != nil {
 			return err
 		}
@@ -49,7 +46,7 @@ func init() {
 		if err != nil {
 			return err
 		}
-		if err := ns.Init(container, cwd, args.Console, syncPipe, args.Args); err != nil {
+		if err := nsinit.Init(container, rootfs, args.Console, syncPipe, args.Args); err != nil {
 			return err
 		}
 		return nil
@@ -93,35 +90,87 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	d.activeContainers[c.ID] = &c.Cmd
 
 	var (
-		term    nsinit.Terminal
-		factory = &dockerCommandFactory{c: c, driver: d}
-		pidRoot = filepath.Join(d.root, c.ID)
-		ns      = nsinit.NewNsInit(factory)
-		args    = append([]string{c.Entrypoint}, c.Arguments...)
+		master  *os.File
+		console string
+
+		dataPath = filepath.Join(d.root, c.ID)
+		args     = append([]string{c.Entrypoint}, c.Arguments...)
 	)
 	if err := d.createContainerRoot(c.ID); err != nil {
 		return -1, err
 	}
 	defer d.removeContainerRoot(c.ID)
 
-	if c.Tty {
-		term = &dockerTtyTerm{
-			pipes: pipes,
-		}
-	} else {
-		term = &dockerStdTerm{
-			pipes: pipes,
-		}
-	}
-	c.Terminal = term
 	if err := d.writeContainerFile(container, c.ID); err != nil {
 		return -1, err
 	}
-	return ns.Exec(container, term, pidRoot, args, func() {
-		if startCallback != nil {
-			startCallback(c)
+
+	// create a pipe so that we can syncronize with the namespaced process and
+	// pass the veth name to the child
+	syncPipe, err := nsinit.NewSyncPipe()
+	if err != nil {
+		return -1, err
+	}
+	term := getTerminal(c, pipes)
+
+	if container.Tty {
+		master, console, err = system.CreateMasterAndConsole()
+		if err != nil {
+			return -1, err
 		}
-	})
+		term.SetMaster(master)
+	}
+
+	setupCommand(d, c, container, console, syncPipe.Child(), args)
+	if err := term.Attach(&c.Cmd); err != nil {
+		return -1, err
+	}
+	defer term.Close()
+
+	if err := c.Start(); err != nil {
+		return -1, err
+	}
+
+	started, err := system.GetProcessStartTime(c.Process.Pid)
+	if err != nil {
+		return -1, err
+	}
+	if err := nsinit.WritePid(dataPath, c.Process.Pid, started); err != nil {
+		c.Process.Kill()
+		return -1, err
+	}
+	defer nsinit.DeletePid(dataPath)
+
+	// Do this before syncing with child so that no children
+	// can escape the cgroup
+	cleaner, err := nsinit.SetupCgroups(container, c.Process.Pid)
+	if err != nil {
+		c.Process.Kill()
+		return -1, err
+	}
+	if cleaner != nil {
+		defer cleaner.Cleanup()
+	}
+
+	if err := nsinit.InitializeNetworking(container, c.Process.Pid, syncPipe); err != nil {
+		c.Process.Kill()
+		return -1, err
+	}
+
+	// Sync with child
+	syncPipe.Close()
+
+	if startCallback != nil {
+		startCallback(c)
+	}
+
+	if err := c.Wait(); err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			return -1, err
+		}
+	}
+	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
@@ -234,35 +283,40 @@ func getEnv(key string, env []string) string {
 	return ""
 }
 
-type dockerCommandFactory struct {
-	c      *execdriver.Command
-	driver *driver
+func getTerminal(c *execdriver.Command, pipes *execdriver.Pipes) nsinit.Terminal {
+	var term nsinit.Terminal
+	if c.Tty {
+		term = &dockerTtyTerm{
+			pipes: pipes,
+		}
+	} else {
+		term = &dockerStdTerm{
+			pipes: pipes,
+		}
+	}
+	c.Terminal = term
+	return term
 }
 
-// createCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
-// defined on the container's configuration and use the current binary as the init with the
-// args provided
-func (d *dockerCommandFactory) Create(container *libcontainer.Container, console string, syncFile *os.File, args []string) *exec.Cmd {
+func setupCommand(d *driver, c *execdriver.Command, container *libcontainer.Container, console string, syncFile *os.File, args []string) {
 	// we need to join the rootfs because nsinit will setup the rootfs and chroot
-	initPath := filepath.Join(d.c.Rootfs, d.c.InitPath)
+	initPath := filepath.Join(c.Rootfs, c.InitPath)
 
-	d.c.Path = d.driver.initPath
-	d.c.Args = append([]string{
+	c.Path = d.initPath
+	c.Args = append([]string{
 		initPath,
 		"-driver", DriverName,
 		"-console", console,
 		"-pipe", "3",
-		"-root", filepath.Join(d.driver.root, d.c.ID),
+		"-root", filepath.Join(d.root, c.ID),
 		"--",
 	}, args...)
 
 	// set this to nil so that when we set the clone flags anything else is reset
-	d.c.SysProcAttr = nil
-	system.SetCloneFlags(&d.c.Cmd, uintptr(nsinit.GetNamespaceFlags(container.Namespaces)))
-	d.c.ExtraFiles = []*os.File{syncFile}
+	c.SysProcAttr = nil
+	system.SetCloneFlags(&c.Cmd, uintptr(nsinit.GetNamespaceFlags(container.Namespaces)))
+	c.ExtraFiles = []*os.File{syncFile}
 
-	d.c.Env = container.Env
-	d.c.Dir = d.c.Rootfs
-
-	return &d.c.Cmd
+	c.Env = container.Env
+	c.Dir = c.Rootfs
 }
