@@ -340,7 +340,7 @@ func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 // out is the writer where the images are written to.
 func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return job.Errorf("Usage: %s IMAGE\n", job.Name)
 	}
 	name := job.Args[0]
 	// get image json
