@@ -23,27 +23,13 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 ## 2. Versions
 
-The current version of the API is 1.11
+The current version of the API is 1.10
 
 Calling /images/<name>/insert is the same as calling
-/v1.11/images/<name>/insert
+/v1.10/images/<name>/insert
 
 You can still call an old version of the api using
-/v1.11/images/<name>/insert
-
-### v1.11
-
-#### Full Documentation
-
-[*Docker Remote API v1.11*](../docker_remote_api_v1.11/)
-
-#### What's new
-
-`GET /events`
-
-**New!**
-You can now use the `-until` parameter to close connection
-after timestamp.
+/v1.10/images/<name>/insert
 
 ### v1.10
 

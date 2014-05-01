@@ -52,7 +52,6 @@ interfaces:
  - [Docker Remote API](docker_remote_api/)
     - [1. Brief introduction](docker_remote_api/#brief-introduction)
     - [2. Versions](docker_remote_api/#versions)
-        - [v1.11](docker_remote_api/#v1-11)
         - [v1.10](docker_remote_api/#v1-10)
         - [v1.9](docker_remote_api/#v1-9)
         - [v1.8](docker_remote_api/#v1-8)
