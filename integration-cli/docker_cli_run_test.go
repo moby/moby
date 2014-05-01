@@ -725,24 +725,46 @@ func TestUnPrivilegedCannotMount(t *testing.T) {
 	logDone("run - test un-privileged cannot mount")
 }
 
-func TestSysNotAvaliableInNonPrivilegedContainers(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "busybox", "ls", "/sys/kernel")
+func TestSysNotWritableInNonPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", "/sys/kernel/profiling")
 	if code, err := runCommand(cmd); err == nil || code == 0 {
-		t.Fatal("sys should not be available in a non privileged container")
+		t.Fatal("sys should not be writable in a non privileged container")
 	}
 
 	deleteAllContainers()
 
-	logDone("run - sys not avaliable in non privileged container")
+	logDone("run - sys not writable in non privileged container")
 }
 
-func TestSysAvaliableInPrivilegedContainers(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "ls", "/sys/kernel")
+func TestSysWritableInPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "touch", "/sys/kernel/profiling")
 	if code, err := runCommand(cmd); err != nil || code != 0 {
-		t.Fatalf("sys should be available in privileged container")
+		t.Fatalf("sys should be writable in privileged container")
 	}
 
 	deleteAllContainers()
 
-	logDone("run - sys avaliable in privileged container")
+	logDone("run - sys writable in privileged container")
+}
+
+func TestProcNotWritableInNonPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", "/proc/sysrq-trigger")
+	if code, err := runCommand(cmd); err == nil || code == 0 {
+		t.Fatal("proc should not be writable in a non privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - proc not writable in non privileged container")
+}
+
+func TestProcWritableInPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "touch", "/proc/sysrq-trigger")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("proc should be writable in privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - proc writable in privileged container")
 }

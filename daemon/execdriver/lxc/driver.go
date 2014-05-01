@@ -5,6 +5,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
@@ -32,6 +33,10 @@ func init() {
 		}
 
 		if err := setupNetworking(args); err != nil {
+			return err
+		}
+
+		if err := restrict.Restrict("/", "/empty"); err != nil {
 			return err
 		}
 
