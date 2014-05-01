@@ -136,7 +136,6 @@ func ValidateExtraHost(val string) (string, error) {
 	return val, fmt.Errorf("bad format for add-host: %s", val)
 }
 
-
 func ValidateIp4Address(val string) (string, error) {
 	re := regexp.MustCompile(`^(([0-9]+\.){3}([0-9]+))\s*$`)
 	var ns = re.FindSubmatch([]byte(val))

@@ -34,11 +34,11 @@ func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo)
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach      = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes     = opts.NewListOpts(opts.ValidatePath)
-		flLinks       = opts.NewListOpts(opts.ValidateLink)
-		flEnv         = opts.NewListOpts(opts.ValidateEnv)
-		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
+		flAttach     = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes    = opts.NewListOpts(opts.ValidatePath)
+		flLinks      = opts.NewListOpts(opts.ValidateLink)
+		flEnv        = opts.NewListOpts(opts.ValidateEnv)
+		flExtraHosts = opts.NewListOpts(opts.ValidateExtraHost)
 
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
