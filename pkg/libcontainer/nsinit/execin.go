@@ -82,7 +82,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 		os.Exit(state.Sys().(syscall.WaitStatus).ExitStatus())
 	}
 dropAndExec:
-	if err := finalizeNamespace(container); err != nil {
+	if err := FinalizeNamespace(container); err != nil {
 		return -1, err
 	}
 	err = label.SetProcessLabel(processLabel)

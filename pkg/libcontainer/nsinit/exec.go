@@ -142,3 +142,14 @@ func DeletePid(path string) error {
 	}
 	return err
 }
+
+// GetNamespaceFlags parses the container's Namespaces options to set the correct
+// flags on clone, unshare, and setns
+func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
+	for _, ns := range namespaces {
+		if ns.Enabled {
+			flag |= ns.Value
+		}
+	}
+	return flag
+}

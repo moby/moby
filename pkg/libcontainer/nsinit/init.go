@@ -54,23 +54,22 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	label.Init()
+
 	if err := mount.InitializeMountNamespace(rootfs, consolePath, container); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
 	}
-	if err := finalizeNamespace(container); err != nil {
+	if err := FinalizeNamespace(container); err != nil {
 		return fmt.Errorf("finalize namespace %s", err)
 	}
 
-	if profile := container.Context["apparmor_profile"]; profile != "" {
-		if err := apparmor.ApplyProfile(os.Getpid(), profile); err != nil {
-			return err
-		}
-	}
 	runtime.LockOSThread()
 
+	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
+		return err
+	}
 	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
 		return fmt.Errorf("set process label %s", err)
 	}
@@ -113,10 +112,10 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 	return nil
 }
 
-// finalizeNamespace drops the caps, sets the correct user
+// FinalizeNamespace drops the caps, sets the correct user
 // and working dir, and closes any leaky file descriptors
 // before execing the command inside the namespace
-func finalizeNamespace(container *libcontainer.Container) error {
+func FinalizeNamespace(container *libcontainer.Container) error {
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return fmt.Errorf("drop capabilities %s", err)
 	}

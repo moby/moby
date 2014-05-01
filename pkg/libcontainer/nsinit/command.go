@@ -1,10 +1,11 @@
 package nsinit
 
 import (
-	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"os/exec"
+
+	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 // CommandFactory takes the container's configuration and options passed by the
@@ -33,15 +34,4 @@ func (c *DefaultCommandFactory) Create(container *libcontainer.Container, consol
 	command.Env = container.Env
 	command.ExtraFiles = []*os.File{pipe}
 	return command
-}
-
-// GetNamespaceFlags parses the container's Namespaces options to set the correct
-// flags on clone, unshare, and setns
-func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
-	for _, ns := range namespaces {
-		if ns.Enabled {
-			flag |= ns.Value
-		}
-	}
-	return flag
 }
