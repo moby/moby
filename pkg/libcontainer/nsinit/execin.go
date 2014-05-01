@@ -16,16 +16,22 @@ import (
 )
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
-func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
+func ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
+	// clear the current processes env and replace it with the environment
+	// defined on the container
+	if err := LoadContainerEnvironment(container); err != nil {
+		return -1, err
+	}
+
 	for _, nsv := range container.Namespaces {
 		// skip the PID namespace on unshare because it it not supported
-		if nsv.Key != "NEWPID" {
+		if nsv.Enabled && nsv.Key != "NEWPID" {
 			if err := system.Unshare(nsv.Value); err != nil {
 				return -1, err
 			}
 		}
 	}
-	fds, err := ns.getNsFds(nspid, container)
+	fds, err := getNsFds(nspid, container)
 	closeFds := func() {
 		for _, f := range fds {
 			system.Closefd(f)
@@ -82,7 +88,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 		os.Exit(state.Sys().(syscall.WaitStatus).ExitStatus())
 	}
 dropAndExec:
-	if err := finalizeNamespace(container); err != nil {
+	if err := FinalizeNamespace(container); err != nil {
 		return -1, err
 	}
 	err = label.SetProcessLabel(processLabel)
@@ -95,7 +101,7 @@ dropAndExec:
 	panic("unreachable")
 }
 
-func (ns *linuxNs) getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
+func getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
 	fds := make([]uintptr, len(container.Namespaces))
 	for i, ns := range container.Namespaces {
 		f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", ns.File), os.O_RDONLY, 0)
