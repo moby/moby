@@ -108,6 +108,11 @@ Sample `container.json` file:
          "value" : 27,
          "key" : "MKNOD",
          "enabled" : true
+      },
+      {
+         "value" : 34,
+         "key" : "SYSLOG",
+         "enabled" : false
       }
    ],
    "networks" : [
