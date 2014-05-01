@@ -136,8 +136,9 @@ PID files):
 
 ## Network Settings
 
-    -n=true   : Enable networking for this container
-    --dns=[]  : Set custom dns servers for the container
+    -n=true        : Enable networking for this container
+    --dns=[]       : Set custom dns servers for the container
+    --add-host=""  : Add a line to /etc/hosts (host:IP)
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
