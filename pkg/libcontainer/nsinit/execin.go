@@ -17,9 +17,15 @@ import (
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
 func ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
+	// clear the current processes env and replace it with the environment
+	// defined on the container
+	if err := LoadContainerEnvironment(container); err != nil {
+		return -1, err
+	}
+
 	for _, nsv := range container.Namespaces {
 		// skip the PID namespace on unshare because it it not supported
-		if nsv.Key != "NEWPID" {
+		if nsv.Enabled && nsv.Key != "NEWPID" {
 			if err := system.Unshare(nsv.Value); err != nil {
 				return -1, err
 			}
