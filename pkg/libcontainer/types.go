@@ -53,6 +53,7 @@ var (
 		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE, Enabled: false},
 		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN, Enabled: false},
 		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN, Enabled: false},
+		{Key: "SYSLOG", Value: capability.CAP_SYSLOG, Enabled: false},
 	}
 )
 
