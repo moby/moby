@@ -8,11 +8,6 @@ RUN 	apt-get update && apt-get install -yq make python-pip python-setuptools vim
 
 RUN	pip install mkdocs
 
-# installing sphinx for the rst->md conversion only - will be removed after May release
-# pip installs from docs/requirements.txt, but here to increase cacheability
-RUN	pip install Sphinx==1.2.1
-RUN	pip install sphinxcontrib-httpdomain==1.2.0
-
 # add MarkdownTools to get transclusion
 # (future development)
 #RUN	easy_install -U setuptools
@@ -32,12 +27,6 @@ RUN	git clone https://github.com/SvenDowideit/mkdocs	&&\
 ADD 	. /docs
 ADD	MAINTAINERS /docs/sources/humans.txt
 WORKDIR	/docs
-
-#build the sphinx html
-#RUN	make -C /docs clean docs
-
-#convert to markdown
-#RUN	./convert.sh
 
 RUN	VERSION=$(cat /docs/VERSION)								&&\
 	GIT_BRANCH=$(cat /docs/GIT_BRANCH)							&&\
