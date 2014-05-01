@@ -20,8 +20,7 @@ func Restrict() error {
 			return fmt.Errorf("unable to remount %s readonly: %s", dest, err)
 		}
 	}
-
-	if err := system.Mount("/proc/kcore", "/dev/null", "", syscall.MS_BIND, ""); err != nil {
+	if err := system.Mount("/dev/null", "/proc/kcore", "", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("unable to bind-mount /dev/null over /proc/kcore")
 	}
 
