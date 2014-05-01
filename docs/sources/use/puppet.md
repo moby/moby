@@ -23,7 +23,7 @@ The module is available on the [Puppet
 Forge](https://forge.puppetlabs.com/garethr/docker/) and can be
 installed using the built-in module tool.
 
-    puppet module install garethr/docker
+    $ puppet module install garethr/docker
 
 It can also be found on
 [GitHub](https://github.com/garethr/garethr-docker) if you would
@@ -47,7 +47,7 @@ defined type which can be used like so:
 
 This is equivalent to running:
 
-    docker pull ubuntu
+    $ docker pull ubuntu
 
 Note that it will only be downloaded if an image of that name does not
 already exist. This is downloading a large binary so on first run can
@@ -71,7 +71,7 @@ managed by Docker.
 
 This is equivalent to running the following command, but under upstart:
 
-    docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
 
 Run also contains a number of optional parameters:
 

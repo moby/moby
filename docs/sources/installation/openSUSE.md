@@ -30,14 +30,14 @@ To proceed with Docker installation please add the right Virtualization
 repository.
 
     # openSUSE 12.3
-    sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_12.3/ Virtualization
+    $ sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_12.3/ Virtualization
 
     # openSUSE 13.1
-    sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_13.1/ Virtualization
+    $ sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_13.1/ Virtualization
 
 Install the Docker package.
 
-    sudo zypper in docker
+    $ sudo zypper in docker
 
 It's also possible to install Docker using openSUSE's1-click install.
 Just visit [this](http://software.opensuse.org/package/docker) page,
@@ -47,17 +47,17 @@ the docker package.
 
 Now that it's installed, let's start the Docker daemon.
 
-    sudo systemctl start docker
+    $ sudo systemctl start docker
 
 If we want Docker to start at boot, we should also:
 
-    sudo systemctl enable docker
+    $ sudo systemctl enable docker
 
 The docker package creates a new group named docker. Users, other than
 root user, need to be part of this group in order to interact with the
 Docker daemon.
 
-    sudo usermod -G docker <username>
+    $ sudo usermod -G docker <username>
 
 **Done!**
 Now continue with the [*Hello World*](

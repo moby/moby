@@ -26,7 +26,7 @@ corresponding to existing containers.
 
 To figure out where your control groups are mounted, you can run:
 
-    grep cgroup /proc/mounts
+    $ grep cgroup /proc/mounts
 
 ## Enumerating Cgroups
 
@@ -287,7 +287,7 @@ an interface) can do some serious accounting.
 For instance, you can setup a rule to account for the outbound HTTP
 traffic on a web server:
 
-    iptables -I OUTPUT -p tcp --sport 80
+    $ iptables -I OUTPUT -p tcp --sport 80
 
 There is no `-j` or `-g` flag,
 so the rule will just count matched packets and go to the following
@@ -295,7 +295,7 @@ rule.
 
 Later, you can check the values of the counters, with:
 
-    iptables -nxvL OUTPUT
+    $ iptables -nxvL OUTPUT
 
 Technically, `-n` is not required, but it will
 prevent iptables from doing DNS reverse lookups, which are probably
@@ -337,11 +337,11 @@ though.
 
 The exact format of the command is:
 
-    ip netns exec <nsname> <command...>
+    $ ip netns exec <nsname> <command...>
 
 For example:
 
-    ip netns exec mycontainer netstat -i
+    $ ip netns exec mycontainer netstat -i
 
 `ip netns` finds the "mycontainer" container by
 using namespaces pseudo-files. Each process belongs to one network
@@ -369,14 +369,13 @@ measure network usage. From there, you can examine the pseudo-file named
 control group (i.e. in the container). Pick any one of them.
 
 Putting everything together, if the "short ID" of a container is held in
-the environment variable `$CID`, then you can do
-this:
+the environment variable `$CID`, then you can do this:
 
-    TASKS=/sys/fs/cgroup/devices/$CID*/tasks
-    PID=$(head -n 1 $TASKS)
-    mkdir -p /var/run/netns
-    ln -sf /proc/$PID/ns/net /var/run/netns/$CID
-    ip netns exec $CID netstat -i
+    $ TASKS=/sys/fs/cgroup/devices/$CID*/tasks
+    $ PID=$(head -n 1 $TASKS)
+    $ mkdir -p /var/run/netns
+    $ ln -sf /proc/$PID/ns/net /var/run/netns/$CID
+    $ ip netns exec $CID netstat -i
 
 ## Tips for high-performance metric collection
 

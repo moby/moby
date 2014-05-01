@@ -39,24 +39,24 @@ do so via:
 Download the `httpup` file to
 `/etc/ports/`:
 
-    curl -q -o - http://crux.nu/portdb/?a=getup&q=prologic > /etc/ports/prologic.httpup
+    $ curl -q -o - http://crux.nu/portdb/?a=getup&q=prologic > /etc/ports/prologic.httpup
 
 Add `prtdir /usr/ports/prologic` to
 `/etc/prt-get.conf`:
 
-    vim /etc/prt-get.conf
+    $ vim /etc/prt-get.conf
 
     # or:
-    echo "prtdir /usr/ports/prologic" >> /etc/prt-get.conf
+    $ echo "prtdir /usr/ports/prologic" >> /etc/prt-get.conf
 
 Update ports and prt-get cache:
 
-    ports -u
-    prt-get cache
+    $ ports -u
+    $ prt-get cache
 
 To install (*and its dependencies*):
 
-    prt-get depinst docker
+    $ prt-get depinst docker
 
 Use `docker-bin` for the upstream binary or
 `docker-git` to build and install from the master
@@ -70,20 +70,20 @@ and Docker Daemon to work properly.
 
 Please read the `README.rst`:
 
-    prt-get readme docker
+    $ prt-get readme docker
 
 There is a `test_kernel_config.sh` script in the
 above ports which you can use to test your Kernel configuration:
 
-    cd /usr/ports/prologic/docker
-    ./test_kernel_config.sh /usr/src/linux/.config
+    $ cd /usr/ports/prologic/docker
+    $ ./test_kernel_config.sh /usr/src/linux/.config
 
 ## Starting Docker
 
 There is a rc script created for Docker. To start the Docker service:
 
-    sudo su -
-    /etc/rc.d/docker start
+    $ sudo su -
+    $ /etc/rc.d/docker start
 
 To start on system boot:
 

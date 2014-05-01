@@ -55,7 +55,7 @@ right away.
 
 Let's try the “hello world” example. Run
 
-    docker run busybox echo hello world
+    $ docker run busybox echo hello world
 
 This will download the small busybox image and print hello world.
 

@@ -50,8 +50,8 @@ not.
 Or, you can use the VOLUME instruction in a Dockerfile to add one or
 more new volumes to any container created from that image:
 
-    # BUILD-USING:        docker build -t data .
-    # RUN-USING:          docker run -name DATA data
+    # BUILD-USING:        $ docker build -t data .
+    # RUN-USING:          $ docker run -name DATA data
     FROM          busybox
     VOLUME        ["/var/volume1", "/var/volume2"]
     CMD           ["/bin/true"]
@@ -108,7 +108,7 @@ For example:
     # Usage:
     # sudo docker run [OPTIONS] -v /(dir. on host):/(dir. in container):(Read-Write or Read-Only) [ARG..]
     # Example:
-    sudo docker run -i -t -v /var/log:/logs_from_host:ro ubuntu bash
+    $ sudo docker run -i -t -v /var/log:/logs_from_host:ro ubuntu bash
 
 The command above mounts the host directory `/var/log` into the container
 with *read only* permissions as `/logs_from_host`.

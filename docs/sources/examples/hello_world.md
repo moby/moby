@@ -80,7 +80,7 @@ continue to do this until we stop it.
 
 **Steps:**
 
-    CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    $ CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container made
 from the `ubuntu` image.
@@ -98,7 +98,7 @@ from the `ubuntu` image.
 
 <!-- -->
 
-    sudo docker logs $container_id
+    $ sudo docker logs $container_id
 
 Check the logs make sure it is working correctly.
 
@@ -107,7 +107,7 @@ Check the logs make sure it is working correctly.
 
 <!-- -->
 
-    sudo docker attach --sig-proxy=false $container_id
+    $ sudo docker attach --sig-proxy=false $container_id
 
 Attach to the container to see the results in real-time.
 
@@ -120,7 +120,7 @@ Attach to the container to see the results in real-time.
 
 Exit from the container attachment by pressing Control-C.
 
-    sudo docker ps
+    $ sudo docker ps
 
 Check the process list to make sure it is running.
 
@@ -128,7 +128,7 @@ Check the process list to make sure it is running.
 
 <!-- -->
 
-    sudo docker stop $container_id
+    $ sudo docker stop $container_id
 
 Stop the container, since we don't need it anymore.
 
@@ -137,7 +137,7 @@ Stop the container, since we don't need it anymore.
 
 <!-- -->
 
-    sudo docker ps
+    $ sudo docker ps
 
 Make sure it is really stopped.
 

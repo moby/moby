@@ -18,7 +18,7 @@ This file will describe the steps to assemble the image.
 Then call `docker build` with the path of you source repository as argument
 (for example, `.`):
 
-    sudo docker build .
+    $ sudo docker build .
 
 The path to the source repository defines where to find the *context* of
 the build. The build is run by the Docker daemon, not by the CLI, so the
@@ -28,7 +28,7 @@ whole context must be transferred to the daemon. The Docker CLI reports
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
-    sudo docker build -t shykes/myapp .
+    $ sudo docker build -t shykes/myapp .
 
 The Docker daemon will run your steps one-by-one, committing the result
 to a new image if necessary, before finally outputting the ID of your

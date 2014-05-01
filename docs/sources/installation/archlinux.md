@@ -60,8 +60,8 @@ have not done so before.
 There is a systemd service unit created for docker. To start the docker
 service:
 
-    sudo systemctl start docker
+    $ sudo systemctl start docker
 
 To start on system boot:
 
-    sudo systemctl enable docker
+    $ sudo systemctl enable docker

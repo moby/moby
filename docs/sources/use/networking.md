@@ -84,7 +84,7 @@ In this scenario:
               inet addr:192.168.227.1  Bcast:192.168.227.255  Mask:255.255.255.0
 
     # Run a container
-    $ docker run -i -t base /bin/bash
+    docker run -i -t base /bin/bash
 
     # Container IP in the 192.168.227/24 range
     root@261c272cd7d5:/# ifconfig eth0

@@ -43,7 +43,7 @@ use flags to pull in the proper dependencies of the major storage
 drivers, with the "device-mapper" use flag being enabled by default,
 since that is the simplest installation path.
 
-    sudo emerge -av app-emulation/docker
+    $ sudo emerge -av app-emulation/docker
 
 If any issues arise from this ebuild or the resulting binary, including
 and especially missing kernel configuration flags and/or dependencies,
@@ -61,18 +61,18 @@ and/or AUFS, depending on the storage driver you`ve decided to use).
 
 To start the docker daemon:
 
-    sudo /etc/init.d/docker start
+    $ sudo /etc/init.d/docker start
 
 To start on system boot:
 
-    sudo rc-update add docker default
+    $ sudo rc-update add docker default
 
 ### systemd
 
 To start the docker daemon:
 
-    sudo systemctl start docker.service
+    $ sudo systemctl start docker.service
 
 To start on system boot:
 
-    sudo systemctl enable docker.service
+    $ sudo systemctl enable docker.service

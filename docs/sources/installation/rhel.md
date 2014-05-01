@@ -49,23 +49,23 @@ To proceed with `docker-io` installation, please remove `docker` first.
 Next, let's install the `docker-io` package which
 will install Docker on our host.
 
-    sudo yum -y install docker-io
+    $ sudo yum -y install docker-io
 
 To update the `docker-io` package
 
-    sudo yum -y update docker-io
+    $ sudo yum -y update docker-io
 
 Now that it's installed, let's start the Docker daemon.
 
-    sudo service docker start
+    $ sudo service docker start
 
 If we want Docker to start at boot, we should also:
 
-    sudo chkconfig docker on
+    $ sudo chkconfig docker on
 
 Now let's verify that Docker is working.
 
-    sudo docker run -i -t fedora /bin/bash
+    $ sudo docker run -i -t fedora /bin/bash
 
 **Done!**
 Now continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
