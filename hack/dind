@@ -9,6 +9,9 @@
 
 # Usage: dind CMD [ARG...]
 
+# apparmor sucks and Docker needs to know that it's in a container (c) @tianon
+export container=docker
+
 # First, make sure that cgroups are mounted correctly.
 CGROUP=/sys/fs/cgroup
 
