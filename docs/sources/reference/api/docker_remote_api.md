@@ -4,8 +4,6 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 # Docker Remote API
 
-## 1. Brief introduction
-
  - The Remote API is replacing rcli
  - By default the Docker daemon listens on unix:///var/run/docker.sock
    and the client must have root access to interact with the daemon
@@ -21,9 +19,8 @@ page_keywords: API, Docker, rcli, REST, documentation
    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`
 
 
-## 2. Versions
 
-The current version of the API is 1.11
+The current version of the API is v1.11
 
 Calling /images/<name>/insert is the same as calling
 /v1.11/images/<name>/insert
@@ -31,13 +28,13 @@ Calling /images/<name>/insert is the same as calling
 You can still call an old version of the api using
 /v1.11/images/<name>/insert
 
-### v1.11
+## v1.11
 
-#### Full Documentation
+### Full Documentation
 
-[*Docker Remote API v1.11*](../docker_remote_api_v1.11/)
+[*Docker Remote API v1.11*](/reference/api/docker_remote_api_v1.11/)
 
-#### What's new
+### What's new
 
 `GET /events`
 
@@ -49,13 +46,13 @@ after timestamp.
 
 This url is prefered method for getting container logs now.
 
-### v1.10
+## v1.10
 
-#### Full Documentation
+### Full Documentation
 
-[*Docker Remote API v1.10*](../docker_remote_api_v1.10/)
+[*Docker Remote API v1.10*](/reference/api/docker_remote_api_v1.10/)
 
-#### What's new
+### What's new
 
 `DELETE /images/(name)`
 
@@ -72,13 +69,13 @@ You can now use the force parameter to force delete of an
 You can now use the force paramter to force delete a
     container, even if it is currently running
 
-### v1.9
+## v1.9
 
-#### Full Documentation
+### Full Documentation
 
-[*Docker Remote API v1.9*](../docker_remote_api_v1.9/)
+[*Docker Remote API v1.9*](/reference/api/docker_remote_api_v1.9/)
 
-#### What's new
+### What's new
 
 `POST /build`
 
@@ -88,11 +85,13 @@ uses to resolve the proper registry auth credentials for pulling the
 base image. Clients which previously implemented the version
 accepting an AuthConfig object must be updated.
 
-### v1.8
+## v1.8
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.8*](/reference/api/docker_remote_api_v1.8/)
+
+### What's new
 
 `POST /build`
 
@@ -118,11 +117,13 @@ progressDetail object was added in the JSON. It's now
 possible to get the current value and the total of the progress
 without having to parse the string.
 
-### v1.7
+## v1.7
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.7*](/reference/api/docker_remote_api_v1.7/)
+
+### What's new
 
 `GET /images/json`
 
@@ -215,11 +216,13 @@ This URI no longer exists. The `images --viz`
 output is now generated in the client, using the
 `/images/json` data.
 
-### v1.6
+## v1.6
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.6*](/reference/api/docker_remote_api_v1.6/)
+
+### What's new
 
 `POST /containers/(id)/attach`
 
@@ -227,15 +230,17 @@ output is now generated in the client, using the
 You can now split stderr from stdout. This is done by
 prefixing a header to each transmition. See
 [`POST /containers/(id)/attach`](
-../docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
+/reference/api/docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
 The WebSocket attach is unchanged. Note that attach calls on the
 previous API version didn't change. Stdout and stderr are merged.
 
-### v1.5
+## v1.5
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.5*](/reference/api/docker_remote_api_v1.5/)
+
+### What's new
 
 `POST /images/create`
 
@@ -256,11 +261,13 @@ The format of the Ports entry has been changed to a list of
 dicts each containing PublicPort, PrivatePort and Type describing a
 port mapping.
 
-### v1.4
+## v1.4
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.4*](/reference/api/docker_remote_api_v1.4/)
+
+### What's new
 
 `POST /images/create`
 
@@ -278,14 +285,16 @@ You can now use ps args with docker top, like docker top
 **New!**
 Image's name added in the events
 
-### v1.3
+## v1.3
 
 docker v0.5.0
 [51f6c4a](https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.3*](/reference/api/docker_remote_api_v1.3/)
+
+### What's new
 
 `GET /containers/(id)/top`
 
@@ -316,14 +325,16 @@ Start containers (/containers/<id>/start):
  - You can now pass host-specific configuration (e.g. bind mounts) in
    the POST body for start calls
 
-### v1.2
+## v1.2
 
 docker v0.4.2
 [2e7649b](https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.2*](/reference/api/docker_remote_api_v1.2/)
+
+### What's new
 
 The auth configuration is now handled by the client.
 
@@ -346,14 +357,16 @@ Only checks the configuration but doesn't store it on the server
 Now returns a JSON structure with the list of images
 deleted/untagged.
 
-### v1.1
+## v1.1
 
 docker v0.4.0
 [a8ae398](https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.1*](/reference/api/docker_remote_api_v1.1/)
+
+### What's new
 
 `POST /images/create`
 
@@ -371,13 +384,15 @@ Uses json stream instead of HTML hijack, it looks like this:
         {"error":"Invalid..."}
         ...
 
-### v1.0
+## v1.0
 
 docker v0.3.4
 [8d73740](https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
 
-#### Full Documentation
+### Full Documentation
 
-#### What's new
+[*Docker Remote API v1.0*](/reference/api/docker_remote_api_v1.0/)
+
+### What's new
 
 Initial version
