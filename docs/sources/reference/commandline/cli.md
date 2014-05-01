@@ -649,13 +649,14 @@ Fetch the logs of a container
     Usage: docker logs [OPTIONS] CONTAINER
 
     -f, --follow=false: Follow log output
+    -t, --timestamps=false: Show timestamps
 
 The `docker logs` command batch-retrieves all logs
 present at the time of execution.
 
-The `docker logs --follow` command combines `docker logs` and `docker
-attach`: it will first return all logs from the beginning and then
-continue streaming new output from the container'sstdout and stderr.
+The ``docker logs --follow`` command will first return all logs from the
+beginning and then continue streaming new output from the container's stdout
+and stderr.
 
 ## port
 

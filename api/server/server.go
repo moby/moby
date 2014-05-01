@@ -328,6 +328,48 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	return nil
 }
 
+func getContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var (
+		job    = eng.Job("inspect", vars["name"], "container")
+		c, err = job.Stdout.AddEnv()
+	)
+	if err != nil {
+		return err
+	}
+	if err = job.Run(); err != nil {
+		return err
+	}
+
+	var outStream, errStream io.Writer
+	outStream = utils.NewWriteFlusher(w)
+
+	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
+		errStream = utils.NewStdWriter(outStream, utils.Stderr)
+		outStream = utils.NewStdWriter(outStream, utils.Stdout)
+	} else {
+		errStream = outStream
+	}
+
+	job = eng.Job("logs", vars["name"])
+	job.Setenv("follow", r.Form.Get("follow"))
+	job.Setenv("stdout", r.Form.Get("stdout"))
+	job.Setenv("stderr", r.Form.Get("stderr"))
+	job.Setenv("timestamps", r.Form.Get("timestamps"))
+	job.Stdout.Add(outStream)
+	job.Stderr.Set(errStream)
+	if err := job.Run(); err != nil {
+		fmt.Fprintf(outStream, "Error: %s\n", err)
+	}
+	return nil
+}
+
 func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1017,6 +1059,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/changes":   getContainersChanges,
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
+			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
 		},
 		"POST": {

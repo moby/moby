@@ -473,6 +473,18 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	return utils.NewBufReader(reader), nil
 }
 
+func (container *Container) StdoutLogPipe() io.ReadCloser {
+	reader, writer := io.Pipe()
+	container.stdout.AddWriter(writer, "stdout")
+	return utils.NewBufReader(reader)
+}
+
+func (container *Container) StderrLogPipe() io.ReadCloser {
+	reader, writer := io.Pipe()
+	container.stderr.AddWriter(writer, "stderr")
+	return utils.NewBufReader(reader)
+}
+
 func (container *Container) buildHostnameAndHostsFiles(IP string) {
 	container.HostnamePath = path.Join(container.root, "hostname")
 	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)

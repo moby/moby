@@ -130,6 +130,10 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 }
 
 func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, headers map[string][]string) error {
+	return cli.streamHelper(method, path, true, in, out, nil, headers)
+}
+
+func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in io.Reader, stdout, stderr io.Writer, headers map[string][]string) error {
 	if (method == "POST" || method == "PUT") && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
@@ -184,9 +188,16 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 	}
 
 	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
-		return utils.DisplayJSONMessagesStream(resp.Body, out, cli.terminalFd, cli.isTerminal)
+		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.terminalFd, cli.isTerminal)
 	}
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	if stdout != nil || stderr != nil {
+		// When TTY is ON, use regular copy
+		if setRawTerminal {
+			_, err = io.Copy(stdout, resp.Body)
+		} else {
+			_, err = utils.StdCopy(stdout, stderr, resp.Body)
+		}
+		utils.Debugf("[stream] End of stdout")
 		return err
 	}
 	return nil
