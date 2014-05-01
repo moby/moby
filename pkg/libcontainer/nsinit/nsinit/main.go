@@ -39,7 +39,7 @@ func main() {
 			exitCode, err = nsinit.ExecIn(container, nspid, os.Args[2:])
 		} else {
 			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-			exitCode, err = nsinit.Exec(container, term, "", dataPath, os.Args[2:], nil)
+			exitCode, err = nsinit.Exec(container, term, "", dataPath, os.Args[2:], nsinit.DefaultCreateCommand, nil)
 		}
 
 		if err != nil {

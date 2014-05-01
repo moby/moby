@@ -17,7 +17,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath string, args []string, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -39,7 +39,7 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		term.SetMaster(master)
 	}
 
-	command := CreateCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
+	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}
@@ -90,7 +90,7 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
-// CreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
+// DefaultCreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
 // defined on the container's configuration and use the current binary as the init with the
 // args provided
 //
@@ -99,7 +99,7 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 // root: the path to the container json file and information
 // pipe: sync pipe to syncronize the parent and child processes
 // args: the arguemnts to pass to the container to run as the user's program
-func CreateCommand(container *libcontainer.Container, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
+func DefaultCreateCommand(container *libcontainer.Container, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
 	// get our binary name from arg0 so we can always reexec ourself
 	env := []string{
 		"console=" + console,
