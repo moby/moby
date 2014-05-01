@@ -95,6 +95,6 @@ the local port!
     sudo docker logs $MONGO_ID
 
     # Connect and play around
-    mongo --port <port you get from `docker ps`>
+    mongo --host <host you get from `docker inspect CONTAINER_ID`> --port <port you get from `docker ps`>
 
 Sweet!
