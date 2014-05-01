@@ -97,8 +97,12 @@ func InitDriver(job *engine.Job) engine.Status {
 		network = addr.(*net.IPNet)
 		// validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
-			if !network.IP.Equal(net.ParseIP(bridgeIP)) {
-				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", network.IP, bridgeIP)
+			bip, _, err := net.ParseCIDR(bridgeIP)
+			if err != nil {
+				return job.Error(err)
+			}
+			if !network.IP.Equal(bip) {
+				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", network.IP, bip)
 			}
 		}
 	}
