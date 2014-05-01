@@ -1267,6 +1267,9 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 // ServeApi loops through all of the protocols sent in to docker and spawns
 // off a go routine to setup a serving http.Server for each.
 func ServeApi(job *engine.Job) engine.Status {
+	if len(job.Args) == 0 {
+		return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+	}
 	var (
 		protoAddrs = job.Args
 		chErrors   = make(chan error, len(protoAddrs))
@@ -1279,6 +1282,9 @@ func ServeApi(job *engine.Job) engine.Status {
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if len(protoAddrParts) != 2 {
+			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+		}
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
