@@ -84,7 +84,6 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
 		return fmt.Errorf("set process label %s", err)
 	}
-
 	if err := FinalizeNamespace(container); err != nil {
 		return fmt.Errorf("finalize namespace %s", err)
 	}
