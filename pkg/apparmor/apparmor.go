@@ -13,7 +13,7 @@ import (
 )
 
 func IsEnabled() bool {
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); err == nil {
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); err == nil && os.Getenv("container") == "" {
 		buf, err := ioutil.ReadFile("/sys/module/apparmor/parameters/enabled")
 		return err == nil && len(buf) > 1 && buf[0] == 'Y'
 	}

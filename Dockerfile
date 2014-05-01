@@ -47,7 +47,6 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
 	s3cmd=1.1.0* \
-	apparmor \
 	--no-install-recommends
 
 # Get and compile LXC 0.8 (since it is the most stable)
