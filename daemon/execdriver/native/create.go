@@ -84,8 +84,6 @@ func (d *driver) setPrivileged(container *libcontainer.Container) error {
 	}
 	container.Cgroups.DeviceAccess = true
 
-	// add sysfs as a mount for privileged containers
-	container.Mounts = append(container.Mounts, libcontainer.Mount{Type: "sysfs"})
 	delete(container.Context, "restriction_path")
 
 	if apparmor.IsEnabled() {
