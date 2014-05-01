@@ -19,7 +19,7 @@ Riak pre-installed.
 
 Create an empty file called Dockerfile:
 
-    touch Dockerfile
+    $ touch Dockerfile
 
 Next, define the parent image you want to use to build your image on top
 of. We'll use [Ubuntu](https://index.docker.io/_/ubuntu/) (tag:
@@ -126,7 +126,7 @@ Populate it with the following program definitions:
 
 Now you should be able to build a Docker image for Riak:
 
-    docker build -t "<yourname>/riak" .
+    $ docker build -t "<yourname>/riak" .
 
 ## Next steps
 

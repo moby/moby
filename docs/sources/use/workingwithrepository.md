@@ -109,7 +109,7 @@ share one of your own images, then you must register a unique user name
 first. You can create your username and login on
 [Docker.io](https://index.docker.io/account/signup/), or by running
 
-    sudo docker login
+    $ sudo docker login
 
 This will prompt you for a username, which will become a public
 namespace for your public repositories.
@@ -199,10 +199,10 @@ identify a host), like this:
     # Tag to create a repository with the full registry location.
     # The location (e.g. localhost.localdomain:5000) becomes
     # a permanent part of the repository name
-    sudo docker tag 0u812deadbeef localhost.localdomain:5000/repo_name
+    $ sudo docker tag 0u812deadbeef localhost.localdomain:5000/repo_name
 
     # Push the new repository to its home location on localhost
-    sudo docker push localhost.localdomain:5000/repo_name
+    $ sudo docker push localhost.localdomain:5000/repo_name
 
 Once a repository has your registry's host name as part of the tag, you
 can push and pull it like any other repository, but it will **not** be

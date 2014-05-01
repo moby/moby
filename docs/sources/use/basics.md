@@ -10,7 +10,7 @@ This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
 
     # Check that you have a working install
-    docker info
+    $ docker info
 
 If you get `docker: command not found` or something
 like `/var/lib/docker/repositories: permission denied`
@@ -23,7 +23,7 @@ for installation instructions.
 ## Download a pre-built image
 
     # Download an ubuntu image
-    sudo docker pull ubuntu
+    $ sudo docker pull ubuntu
 
 This will find the `ubuntu` image by name on
 [*Docker.io*](../workingwithrepository/#find-public-images-on-dockerio) and
@@ -46,7 +46,7 @@ cache.
     # To detach the tty without exiting the shell,
     # use the escape sequence Ctrl-p + Ctrl-q
     # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
-    sudo docker run -i -t ubuntu /bin/bash
+    $ sudo docker run -i -t ubuntu /bin/bash
 
 ## Bind Docker to another host/port or a Unix socket
 
@@ -87,70 +87,70 @@ when no `-H` was passed in.
 `host[:port]` or `:port`
 
     # Run docker in daemon mode
-    sudo <path to>/docker -H 0.0.0.0:5555 -d &
+    $ sudo <path to>/docker -H 0.0.0.0:5555 -d &
     # Download an ubuntu image
-    sudo docker -H :5555 pull ubuntu
+    $ sudo docker -H :5555 pull ubuntu
 
 You can use multiple `-H`, for example, if you want
 to listen on both TCP and a Unix socket
 
     # Run docker in daemon mode
-    sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock -d &
+    $ sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock -d &
     # Download an ubuntu image, use default Unix socket
-    sudo docker pull ubuntu
+    $ sudo docker pull ubuntu
     # OR use the TCP port
-    sudo docker -H tcp://127.0.0.1:4243 pull ubuntu
+    $ sudo docker -H tcp://127.0.0.1:4243 pull ubuntu
 
 ## Starting a long-running worker process
 
     # Start a very useful long-running process
-    JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+    $ JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
     # Collect the output of the job so far
-    sudo docker logs $JOB
+    $ sudo docker logs $JOB
 
     # Kill the job
-    sudo docker kill $JOB
+    $ sudo docker kill $JOB
 
 ## Listing containers
 
-    sudo docker ps # Lists only running containers
-    sudo docker ps -a # Lists all containers
+    $ sudo docker ps # Lists only running containers
+    $ sudo docker ps -a # Lists all containers
 
 ## Controlling containers
 
     # Start a new container
-    JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+    $ JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
     # Stop the container
-    docker stop $JOB
+    $ docker stop $JOB
 
     # Start the container
-    docker start $JOB
+    $ docker start $JOB
 
     # Restart the container
-    docker restart $JOB
+    $ docker restart $JOB
 
     # SIGKILL a container
-    docker kill $JOB
+    $ docker kill $JOB
 
     # Remove a container
-    docker stop $JOB # Container must be stopped to remove it
-    docker rm $JOB
+    $ docker stop $JOB # Container must be stopped to remove it
+    $ docker rm $JOB
 
 ## Bind a service on a TCP port
 
     # Bind port 4444 of this container, and tell netcat to listen on it
-    JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
+    $ JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
 
     # Which public port is NATed to my container?
-    PORT=$(sudo docker port $JOB 4444 | awk -F: '{ print $2 }')
+    $ PORT=$(sudo docker port $JOB 4444 | awk -F: '{ print $2 }')
 
     # Connect to the public port
-    echo hello world | nc 127.0.0.1 $PORT
+    $ echo hello world | nc 127.0.0.1 $PORT
 
     # Verify that the network connection worked
-    echo "Daemon received: $(sudo docker logs $JOB)"
+    $ echo "Daemon received: $(sudo docker logs $JOB)"
 
 ## Committing (saving) a container state
 
@@ -163,10 +163,10 @@ will be stored (as a diff). See which images you already have using the
 `docker images` command.
 
     # Commit your container to a new named image
-    sudo docker commit <container_id> <some_name>
+    $ sudo docker commit <container_id> <some_name>
 
     # List your containers
-    sudo docker images
+    $ sudo docker images
 
 You now have a image state from which you can create new instances.
 

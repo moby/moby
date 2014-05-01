@@ -45,19 +45,19 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 <!-- -->
 
     $ gcutil ssh docker-playground
-    docker-playground:~$
+    $ docker-playground:~$
 
 5.  Install the latest Docker release and configure it to start when the
     instance boots:
 
 <!-- -->
 
-    docker-playground:~$ curl get.docker.io | bash
-    docker-playground:~$ sudo update-rc.d docker defaults
+    $ docker-playground:~$ curl get.docker.io | bash
+    $ docker-playground:~$ sudo update-rc.d docker defaults
 
 6.  Start a new container:
 
 <!-- -->
 
-    docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
-    docker on GCE \o/
+    $ docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
+    $ docker on GCE \o/

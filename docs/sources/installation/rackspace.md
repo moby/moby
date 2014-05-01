@@ -29,16 +29,16 @@ you will need to set the kernel manually.
 **Do not attempt this on a production machine!**
 
     # update apt
-    apt-get update
+    $ apt-get update
 
     # install the new kernel
-    apt-get install linux-generic-lts-raring
+    $ apt-get install linux-generic-lts-raring
 
 Great, now you have the kernel installed in `/boot/`, next you need to
 make it boot next time.
 
     # find the exact names
-    find /boot/ -name '*3.8*'
+    $ find /boot/ -name '*3.8*'
 
     # this should return some results
 
@@ -51,7 +51,7 @@ the right files.
 Take special care to double check the kernel and initrd entries.
 
     # now edit /boot/grub/menu.lst
-    vi /boot/grub/menu.lst
+    $ vi /boot/grub/menu.lst
 
 It will probably look something like this:
 
@@ -78,7 +78,7 @@ Reboot the server (either via command line or console)
 
 Verify the kernel was updated
 
-    uname -a
+    $ uname -a
     # Linux docker-12-04 3.8.0-19-generic #30~precise1-Ubuntu SMP Wed May 1 22:26:36 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
 
     # nice! 3.8.

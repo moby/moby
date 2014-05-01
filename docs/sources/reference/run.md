@@ -22,7 +22,7 @@ running containers, and so here we try to give more in-depth guidance.
 As you`ve seen in the [*Examples*](/examples/#example-list), the
 basic run command takes this form:
 
-    docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
 see [*Option types*](/commandline/cli/#cli-options).
@@ -99,7 +99,7 @@ https://github.com/dotcloud/docker/blob/
 of the three standard streams (`stdin`, `stdout`, `stderr`) you'd like to connect
 instead, as in:
 
-    docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 For interactive processes (like a shell) you will typically want a tty as well as
 persistent standard input (`stdin`), so you'll use `-i -t` together in most
@@ -233,7 +233,7 @@ Dockerfile instruction and how the operator can override that setting.
 Recall the optional `COMMAND` in the Docker
 commandline:
 
-    docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 This command is optional because the person who created the `IMAGE` may have
 already provided a default `COMMAND` using the Dockerfile `CMD`. As the
@@ -259,12 +259,12 @@ runtime by using a string to specify the new `ENTRYPOINT`. Here is an
 example of how to run a shell in a container that has been set up to
 automatically run something else (like `/usr/bin/redis-server`):
 
-    docker run -i -t --entrypoint /bin/bash example/redis
+    $ docker run -i -t --entrypoint /bin/bash example/redis
 
 or two examples of how to pass more parameters to that ENTRYPOINT:
 
-    docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
-    docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
+    $ docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
+    $ docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
 ## EXPOSE (Incoming Ports)
 
@@ -335,7 +335,7 @@ container running Redis:
     # The redis-name container exposed port 6379
     $ docker ps
     CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
-    4241164edf6f        dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
+    4241164edf6f        $ dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
     # Note that there are no public ports exposed since we didn᾿t use -p or -P
     $ docker port 4241164edf6f 6379
