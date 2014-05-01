@@ -28,11 +28,6 @@ func Restrict() error {
 	// This weird trick will allow us to mount /proc read-only, while being able to use AppArmor.
 	// This is because apparently, loading an AppArmor profile requires write access to /proc/1/attr.
 	// So we do another mount of procfs, ensure it's write-able, and bind-mount a subset of it.
-	var (
-		rwAttrPath = filepath.Join(".proc", "1", "attr")
-		roAttrPath = filepath.Join("proc", "1", "attr")
-	)
-
 	if err := os.Mkdir(".proc", 0700); err != nil {
 		return fmt.Errorf("unable to create temporary proc mountpoint .proc: %s", err)
 	}
@@ -42,8 +37,10 @@ func Restrict() error {
 	if err := system.Mount("proc", ".proc", "", syscall.MS_REMOUNT, ""); err != nil {
 		return fmt.Errorf("unable to remount proc read-write: %s", err)
 	}
-	if err := system.Mount(rwAttrPath, roAttrPath, "", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("unable to bind-mount %s on %s: %s", rwAttrPath, roAttrPath, err)
+	for _, path := range []string{"attr", "task"} {
+		if err := system.Mount(filepath.Join(".proc", "1", path), filepath.Join("proc", "1", path), "", syscall.MS_BIND, ""); err != nil {
+			return fmt.Errorf("unable to bind-mount %s: %s", path, err)
+		}
 	}
 	if err := system.Unmount(".proc", 0); err != nil {
 		return fmt.Errorf("unable to unmount temporary proc filesystem: %s", err)
