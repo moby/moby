@@ -46,8 +46,8 @@ Linux kernel (it even builds on OSX!).
 
 ## Get the docker binary:
 
-    wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
-    chmod +x docker
+    $ wget https://get.docker.io/builds/Linux/x86_64/docker-latest -O docker
+    $ chmod +x docker
 
 > **Note**:
 > If you have trouble downloading the binary, you can also get the smaller
@@ -58,7 +58,7 @@ Linux kernel (it even builds on OSX!).
 ## Run the docker daemon
 
     # start the docker in daemon mode from the directory you unpacked
-    sudo ./docker -d &
+    $ sudo ./docker -d &
 
 ## Giving non-root access
 
@@ -87,16 +87,16 @@ all the client commands.
 To upgrade your manual installation of Docker, first kill the docker
 daemon:
 
-    killall docker
+    $ killall docker
 
 Then follow the regular installation steps.
 
 ## Run your first container!
 
     # check your docker version
-    sudo ./docker version
+    $ sudo ./docker version
 
     # run a container and open an interactive shell in the container
-    sudo ./docker run -i -t ubuntu /bin/bash
+    $ sudo ./docker run -i -t ubuntu /bin/bash
 
 Continue with the [*Hello World*](/examples/hello_world/#hello-world) example.

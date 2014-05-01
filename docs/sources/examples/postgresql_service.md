@@ -125,14 +125,14 @@ prompt, you can create a table and populate it.
     psql (9.3.1)
     Type "help" for help.
 
-    docker=# CREATE TABLE cities (
+    $ docker=# CREATE TABLE cities (
     docker(#     name            varchar(80),
     docker(#     location        point
     docker(# );
     CREATE TABLE
-    docker=# INSERT INTO cities VALUES ('San Francisco', '(-194.0, 53.0)');
+    $ docker=# INSERT INTO cities VALUES ('San Francisco', '(-194.0, 53.0)');
     INSERT 0 1
-    docker=# select * from cities;
+    $ docker=# select * from cities;
          name      | location
     ---------------+-----------
      San Francisco | (-194,53)
@@ -143,7 +143,7 @@ prompt, you can create a table and populate it.
 You can use the defined volumes to inspect the PostgreSQL log files and
 to backup your configuration and data:
 
-    docker run -rm --volumes-from pg_test -t -i busybox sh
+    $ docker run -rm --volumes-from pg_test -t -i busybox sh
 
     / # ls
     bin      etc      lib      linuxrc  mnt      proc     run      sys      usr

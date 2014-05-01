@@ -40,7 +40,7 @@ image that is used for the job.
 If you are using Homebrew on your machine, simply run the following
 command to install `boot2docker`:
 
-    brew install boot2docker
+    $ brew install boot2docker
 
 #### Manual installation
 
@@ -49,13 +49,13 @@ Open up a new terminal window, if you have not already.
 Run the following commands to get boot2docker:
 
     # Enter the installation directory
-    cd ~/bin
+    $ cd ~/bin
 
     # Get the file
-    curl https://raw.github.com/boot2docker/boot2docker/master/boot2docker > boot2docker
+    $ curl https://raw.github.com/boot2docker/boot2docker/master/boot2docker > boot2docker
 
     # Mark it executable
-    chmod +x boot2docker
+    $ chmod +x boot2docker
 
 ### Docker OS X Client
 
@@ -67,25 +67,25 @@ The `docker` daemon is accessed using the
 Run the following command to install the `docker`
 client:
 
-    brew install docker
+    $ brew install docker
 
 #### Manual installation
 
 Run the following commands to get it downloaded and set up:
 
     # Get the docker client file
-    DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
-    curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
-    gunzip $DIR/ld.tgz && \
-    tar xvf $DIR/ld.tar -C $DIR/ && \
-    cp $DIR/usr/local/bin/docker ./docker
+    $ DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
+    $ curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
+    $ gunzip $DIR/ld.tgz && \
+    $ tar xvf $DIR/ld.tar -C $DIR/ && \
+    $ cp $DIR/usr/local/bin/docker ./docker
 
     # Set the environment variable for the docker daemon
-    export DOCKER_HOST=tcp://127.0.0.1:4243
+    $ export DOCKER_HOST=tcp://127.0.0.1:4243
 
     # Copy the executable file
-    sudo mkdir -p /usr/local/bin
-    sudo cp docker /usr/local/bin/
+    $ sudo mkdir -p /usr/local/bin
+    $ sudo cp docker /usr/local/bin/
 
 And that's it! Let's check out how to use it.
 
@@ -97,13 +97,13 @@ Inside the `~/bin` directory, run the following
 commands:
 
     # Initiate the VM
-    ./boot2docker init
+    $ ./boot2docker init
 
     # Run the VM (the docker daemon)
-    ./boot2docker up
+    $ ./boot2docker up
 
     # To see all available commands:
-    ./boot2docker
+    $ ./boot2docker
 
     # Usage ./boot2docker {init|start|up|pause|stop|restart|status|info|delete|ssh|download}
 
@@ -113,7 +113,7 @@ Once the VM with the `docker` daemon is up, you can
 use the `docker` client just like any other
 application.
 
-    docker version
+    $ docker version
     # Client version: 0.7.6
     # Go version (client): go1.2
     # Git commit (client): bc3b2ec
@@ -137,7 +137,7 @@ interact with our containers as if they were running locally:
 
 If you feel the need to connect to the VM, you can simply run:
 
-    ./boot2docker ssh
+    $ ./boot2docker ssh
 
     # User: docker
     # Pwd:  tcuser
@@ -154,7 +154,7 @@ See the GitHub page for
 
 ### If SSH complains about keys:
 
-    ssh-keygen -R '[localhost]:2022'
+    $ ssh-keygen -R '[localhost]:2022'
 
 ### Upgrading to a newer release of boot2docker
 
@@ -162,9 +162,9 @@ To upgrade an initialised VM, you can use the following 3 commands. Your
 persistence disk will not be changed, so you won't lose your images and
 containers:
 
-    ./boot2docker stop
-    ./boot2docker download
-    ./boot2docker start
+    $ ./boot2docker stop
+    $ ./boot2docker download
+    $ ./boot2docker start
 
 ### About the way Docker works on Mac OS X:
 

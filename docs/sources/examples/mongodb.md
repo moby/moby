@@ -21,7 +21,7 @@ apt source and installs the database software on Ubuntu.
 
 Create an empty file called Dockerfile:
 
-    touch Dockerfile
+    $ touch Dockerfile
 
 Next, define the parent image you want to use to build your own image on
 top of. Here, we'll use [Ubuntu](https://index.docker.io/_/ubuntu/)
@@ -69,21 +69,21 @@ container.
 Now, lets build the image which will go through the
 Dockerfile we made and run all of the commands.
 
-    sudo docker build -t <yourname>/mongodb .
+    $ sudo docker build -t <yourname>/mongodb .
 
 Now you should be able to run `mongod` as a daemon
 and be able to connect on the local port!
 
     # Regular style
-    MONGO_ID=$(sudo docker run -d <yourname>/mongodb)
+    $ MONGO_ID=$(sudo docker run -d <yourname>/mongodb)
 
     # Lean and mean
-    MONGO_ID=$(sudo docker run -d <yourname>/mongodb --noprealloc --smallfiles)
+    $ MONGO_ID=$(sudo docker run -d <yourname>/mongodb --noprealloc --smallfiles)
 
     # Check the logs out
-    sudo docker logs $MONGO_ID
+    $ sudo docker logs $MONGO_ID
 
     # Connect and play around
-    mongo --port <port you get from `docker ps`>
+    $ mongo --port <port you get from `docker ps`>
 
 Sweet!

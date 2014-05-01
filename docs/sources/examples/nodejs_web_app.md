@@ -134,16 +134,16 @@ Go to the directory that has your `Dockerfile` and run the following command
 to build a Docker image. The `-t` flag let's you tag your image so it's easier
 to find later using the `docker images` command:
 
-    sudo docker build -t <your username>/centos-node-hello .
+    $ sudo docker build -t <your username>/centos-node-hello .
 
 Your image will now be listed by Docker:
 
-    sudo docker images
+    $ sudo docker images
 
-    > # Example
-    > REPOSITORY                 TAG       ID              CREATED
-    > centos                     6.4       539c0211cd76    8 weeks ago
-    > gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
+    # Example
+    REPOSITORY                 TAG       ID              CREATED
+    centos                     6.4       539c0211cd76    8 weeks ago
+    gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
 
 ## Run the image
 
@@ -151,44 +151,44 @@ Running your image with `-d` runs the container in detached mode, leaving the
 container running in the background. The `-p` flag redirects a public port to
 a private port in the container. Run the image you previously built:
 
-    sudo docker run -p 49160:8080 -d <your username>/centos-node-hello
+    $ sudo docker run -p 49160:8080 -d <your username>/centos-node-hello
 
 Print the output of your app:
 
     # Get container ID
-    sudo docker ps
+    $ sudo docker ps
 
     # Print app output
-    sudo docker logs <container id>
+    $ sudo docker logs <container id>
 
-    > # Example
-    > Running on http://localhost:8080
+    # Example
+    Running on http://localhost:8080
 
 ## Test
 
 To test your app, get the the port of your app that Docker mapped:
 
-    sudo docker ps
+    $ sudo docker ps
 
-    > # Example
-    > ID            IMAGE                          COMMAND              ...   PORTS
-    > ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
+    # Example
+    ID            IMAGE                          COMMAND              ...   PORTS
+    ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
 
 In the example above, Docker mapped the `8080` port of the container to `49160`.
 
 Now you can call your app using `curl` (install if needed via:
 `sudo apt-get install curl`):
 
-    curl -i localhost:49160
+    $ curl -i localhost:49160
 
-    > HTTP/1.1 200 OK
-    > X-Powered-By: Express
-    > Content-Type: text/html; charset=utf-8
-    > Content-Length: 12
-    > Date: Sun, 02 Jun 2013 03:53:22 GMT
-    > Connection: keep-alive
-    >
-    > Hello World
+    HTTP/1.1 200 OK
+    X-Powered-By: Express
+    Content-Type: text/html; charset=utf-8
+    Content-Length: 12
+    Date: Sun, 02 Jun 2013 03:53:22 GMT
+    Connection: keep-alive
+    
+    Hello World
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at

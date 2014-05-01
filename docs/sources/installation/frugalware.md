@@ -49,8 +49,8 @@ is all that is needed.
 There is a systemd service unit created for Docker. To start Docker as
 service:
 
-    sudo systemctl start lxc-docker
+    $ sudo systemctl start lxc-docker
 
 To start on system boot:
 
-    sudo systemctl enable lxc-docker
+    $ sudo systemctl enable lxc-docker
