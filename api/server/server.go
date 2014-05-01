@@ -1193,6 +1193,7 @@ func changeGroup(addr string, nameOrGid string) error {
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
 func ListenAndServe(proto, addr string, job *engine.Job) error {
+	var l net.Listener
 	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 	if err != nil {
 		return err
@@ -1208,7 +1209,11 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 		}
 	}
 
-	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock)
+	if job.GetenvBool("BufferRequests") {
+		l, err = listenbuffer.NewListenBuffer(proto, addr, activationLock)
+	} else {
+		l, err = net.Listen(proto, addr)
+	}
 	if err != nil {
 		return err
 	}
