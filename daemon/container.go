@@ -494,6 +494,11 @@ ff02::2		ip6-allrouters
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
 	}
 
+	for _,extraHost := range container.Config.ExtraHosts {
+		parts := strings.Split(extraHost, ":")
+		hostsContent = append(hostsContent, []byte(fmt.Sprintf("%s\t%s\n", parts[1], parts[0]))...)
+	}
+
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 

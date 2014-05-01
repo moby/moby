@@ -34,10 +34,11 @@ func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo)
 func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(opts.ValidatePath)
-		flLinks   = opts.NewListOpts(opts.ValidateLink)
-		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flAttach      = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes     = opts.NewListOpts(opts.ValidatePath)
+		flLinks       = opts.NewListOpts(opts.ValidateLink)
+		flEnv         = opts.NewListOpts(opts.ValidateEnv)
+		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
@@ -72,6 +73,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of ENV variables")
+	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
@@ -197,6 +199,11 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// boo, there's no debug output for docker run
 	//utils.Debugf("Environment variables for the container: %#v", envVariables)
 
+	// parse the '--add-host' flag
+	extraHosts := []string{}
+	extraHosts = append(extraHosts, flExtraHosts.GetAll()...)
+	//utils.Debugf("Extra hosts for the container: %#v", extraHosts)
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -212,6 +219,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),
 		Env:             envVariables,
+		ExtraHosts:      extraHosts,
 		Cmd:             runCmd,
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
