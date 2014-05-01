@@ -104,7 +104,7 @@ continue installation.*
 
     .. code-block:: bash
 
-        curl -s https://get.docker.io/ubuntu/ | sudo sh
+        curl -s -S -o /tmp/installdocker.sh https://get.docker.io/ubuntu/ && sudo sh /tmp/installdocker.sh
 
 Now verify that the installation has worked by downloading the ``ubuntu`` image
 and launching a container.

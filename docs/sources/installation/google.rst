@@ -47,7 +47,7 @@
 
 .. code-block:: bash
 
-    docker-playground:~$ curl get.docker.io | bash
+    docker-playground:~$ curl -s -S -o /tmp/installdocker.sh https://get.docker.io/ && bash /tmp/installdocker.sh
     docker-playground:~$ sudo update-rc.d docker defaults
 
 6. Start a new container:
