@@ -11,7 +11,6 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
-	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/system"
 )
 
@@ -50,11 +49,6 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 	}
 	if err := nodes.CopyN(rootfs, nodes.DefaultNodes); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
-	}
-	if restrictionPath := container.Context["restriction_path"]; restrictionPath != "" {
-		if err := restrict.Restrict(rootfs, restrictionPath); err != nil {
-			return fmt.Errorf("restrict %s", err)
-		}
 	}
 	if err := SetupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
 		return err
@@ -124,10 +118,11 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 }
 
 // TODO: this is crappy right now and should be cleaned up with a better way of handling system and
-// standard bind mounts allowing them to be more dymanic
+// standard bind mounts allowing them to be more dynamic
 func newSystemMounts(rootfs, mountLabel string, mounts libcontainer.Mounts) []mount {
 	systemMounts := []mount{
 		{source: "proc", path: filepath.Join(rootfs, "proc"), device: "proc", flags: defaultMountFlags},
+		{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags},
 	}
 
 	if len(mounts.OfType("devtmpfs")) == 1 {
@@ -138,8 +133,5 @@ func newSystemMounts(rootfs, mountLabel string, mounts libcontainer.Mounts) []mo
 		mount{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: label.FormatMountLabel("newinstance,ptmxmode=0666,mode=620,gid=5", mountLabel)},
 	)
 
-	if len(mounts.OfType("sysfs")) == 1 {
-		systemMounts = append(systemMounts, mount{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags})
-	}
 	return systemMounts
 }

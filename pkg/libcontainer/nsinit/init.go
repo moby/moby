@@ -15,6 +15,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/mount"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/capabilities"
+	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
@@ -54,14 +55,20 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	label.Init()
+
+	ns.logger.Println("setup mount namespace")
 	if err := mount.InitializeMountNamespace(rootfs, consolePath, container); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if err := system.Sethostname(container.Hostname); err != nil {
 		return fmt.Errorf("sethostname %s", err)
 	}
-	if err := finalizeNamespace(container); err != nil {
-		return fmt.Errorf("finalize namespace %s", err)
+
+	if restrictionPath := container.Context["restriction_path"]; restrictionPath != "" {
+		ns.logger.Printf("applying security restrictions with restrict path %s\n", restrictionPath)
+		if err := restrict.Restrict("/", restrictionPath); err != nil {
+			return err
+		}
 	}
 
 	if profile := container.Context["apparmor_profile"]; profile != "" {
@@ -69,11 +76,18 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return err
 		}
 	}
+
 	runtime.LockOSThread()
 
 	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
 		return fmt.Errorf("set process label %s", err)
 	}
+
+	if err := finalizeNamespace(container); err != nil {
+		return fmt.Errorf("finalize namespace %s", err)
+	}
+
+	ns.logger.Printf("execing %s\n", args[0])
 	return system.Execv(args[0], args[0:], container.Env)
 }
 
