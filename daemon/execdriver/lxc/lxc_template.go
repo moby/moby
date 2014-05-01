@@ -1,10 +1,11 @@
 package lxc
 
 import (
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/label"
 	"strings"
 	"text/template"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/label"
 )
 
 const LxcTemplate = `
@@ -110,13 +111,6 @@ lxc.aa_profile = unconfined
 {{else}}
 # Let AppArmor normal confinement take place (i.e., not unconfined)
 {{end}}
-{{else}}
-# Restrict access to some stuff in /proc. Note that /proc is already mounted
-# read-only, so we don't need to bother about things that are just dangerous
-# to write to (like sysrq-trigger). Also, recent kernels won't let a container
-# peek into /proc/kcore, but let's cater for people who might run Docker on
-# older kernels. Just in case.
-lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/kcore none bind,ro 0 0
 {{end}}
 
 # limits

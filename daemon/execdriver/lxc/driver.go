@@ -2,12 +2,6 @@ package lxc
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
 	"os"
@@ -18,6 +12,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DriverName = "lxc"
@@ -27,31 +28,26 @@ func init() {
 		if err := setupEnv(args); err != nil {
 			return err
 		}
-
 		if err := setupHostname(args); err != nil {
 			return err
 		}
-
 		if err := setupNetworking(args); err != nil {
 			return err
 		}
-
-		if err := restrict.Restrict("/", "/empty"); err != nil {
-			return err
+		if !args.Privileged {
+			if err := restrict.Restrict(); err != nil {
+				return err
+			}
 		}
-
 		if err := setupCapabilities(args); err != nil {
 			return err
 		}
-
 		if err := setupWorkingDirectory(args); err != nil {
 			return err
 		}
-
 		if err := system.CloseFdsFrom(3); err != nil {
 			return err
 		}
-
 		if err := changeUser(args); err != nil {
 			return err
 		}
@@ -69,10 +65,9 @@ func init() {
 }
 
 type driver struct {
-	root            string // root path for the driver to use
-	apparmor        bool
-	sharedRoot      bool
-	restrictionPath string
+	root       string // root path for the driver to use
+	apparmor   bool
+	sharedRoot bool
 }
 
 func NewDriver(root string, apparmor bool) (*driver, error) {
@@ -80,15 +75,10 @@ func NewDriver(root string, apparmor bool) (*driver, error) {
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
 	}
-	restrictionPath := filepath.Join(root, "empty")
-	if err := os.MkdirAll(restrictionPath, 0700); err != nil {
-		return nil, err
-	}
 	return &driver{
-		apparmor:        apparmor,
-		root:            root,
-		sharedRoot:      rootIsShared(),
-		restrictionPath: restrictionPath,
+		apparmor:   apparmor,
+		root:       root,
+		sharedRoot: rootIsShared(),
 	}, nil
 }
 
@@ -419,16 +409,14 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 
 	if err := LxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
-		AppArmor          bool
-		ProcessLabel      string
-		MountLabel        string
-		RestrictionSource string
+		AppArmor     bool
+		ProcessLabel string
+		MountLabel   string
 	}{
-		Command:           c,
-		AppArmor:          d.apparmor,
-		ProcessLabel:      process,
-		MountLabel:        mount,
-		RestrictionSource: d.restrictionPath,
+		Command:      c,
+		AppArmor:     d.apparmor,
+		ProcessLabel: process,
+		MountLabel:   mount,
 	}); err != nil {
 		return "", err
 	}

@@ -4,6 +4,6 @@ package restrict
 
 import "fmt"
 
-func Restrict(rootfs, empty string) error {
+func Restrict() error {
 	return fmt.Errorf("not supported")
 }

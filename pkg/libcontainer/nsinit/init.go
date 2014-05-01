@@ -72,8 +72,8 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 
 	runtime.LockOSThread()
 
-	if restrictionPath := container.Context["restriction_path"]; restrictionPath != "" {
-		if err := restrict.Restrict("/", restrictionPath); err != nil {
+	if container.Context["restrictions"] != "" {
+		if err := restrict.Restrict(); err != nil {
 			return err
 		}
 	}

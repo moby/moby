@@ -24,7 +24,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	container.Cgroups.Name = c.ID
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
-	container.Context["restriction_path"] = d.restrictionPath
+	container.Context["restrictions"] = "true"
 
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (d *driver) setPrivileged(container *libcontainer.Container) error {
 	}
 	container.Cgroups.DeviceAccess = true
 
-	delete(container.Context, "restriction_path")
+	delete(container.Context, "restrictions")
 
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "unconfined"
