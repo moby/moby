@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    {% if page_description %}<meta name="description" content="{{ page_description }}">{% endif %}
+    {% if meta.page_description %}<meta name="description" content="{{ meta.page_description[0] }}">{% endif %}
+    {% if meta.page_keywords %}<meta name="keywords" content="{{ meta.page_keywords[0] }}">{% endif %}
     {% if site_author %}<meta name="author" content="{{ site_author }}">{% endif %}
     {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
     <link href="/css/bootstrap-custom.min.css" rel="stylesheet">
@@ -14,7 +15,6 @@
     <link rel="shortcut icon" href="{{ site_favicon }}">
     <link href='http://fonts.googleapis.com/css?family=Cabin:400,700,400italic' rel='stylesheet' type='text/css'>
     <title>{% if page_title != '**HIDDEN** - '+site_name %}{{ page_title }}{% else %}{{ site_name }}{% endif %}</title>
-    <title>{% if page_title != '**HIDDEN** - Docker' %}{{ page_title }}{% else %}{{ site_name }}{% endif %}</title>
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
