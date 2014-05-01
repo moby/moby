@@ -1333,16 +1333,49 @@ via polling (using since)
     -   **200** – no error
     -   **500** – server error
 
-### Get a tarball containing all images and tags in a repository
+### Get a tarball containing all images in a repository
 
 `GET /images/(name)/get`
 
-Get a tarball containing all images and metadata for the repository
-specified by `name`.
+Get a tarball containing all images and metadata for the repository specified
+by `name`.
+
+If `name` is a specific name and tag (e.g. ubuntu:latest), then only that image
+(and its parents) are returned. If `name` is an image ID, similarly only that
+image (and its parents) are returned, but with the exclusion of the
+'repositories' file in the tarball, as there were no image names referenced.
 
     **Example request**
 
         GET /images/ubuntu/get
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/x-tar
+
+        Binary data stream
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
+### Get a tarball containing of images.
+
+`GET /images/get`
+
+Get a tarball containing all images and metadata for one or more repositories.
+
+For each value of the `names` parameter: if it is a specific name and tag (e.g.
+ubuntu:latest), then only that image (and its parents) are returned; if it is
+an image ID, similarly only that image (and its parents) are returned and there
+would be no names referenced in the 'repositories' file for this image ID.
+
+
+    **Example request**
+
+        GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
     **Example response**:
 

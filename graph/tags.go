@@ -30,6 +30,24 @@ type TagStore struct {
 
 type Repository map[string]string
 
+// update Repository mapping with content of u
+func (r Repository) Update(u Repository) {
+	for k, v := range u {
+		r[k] = v
+	}
+}
+
+// return true if the contents of u Repository, are wholly contained in r Repository
+func (r Repository) Contains(u Repository) bool {
+	for k, v := range u {
+		// if u's key is not present in r OR u's key is present, but not the same value
+		if rv, ok := r[k]; !ok || (ok && rv != v) {
+			return false
+		}
+	}
+	return true
+}
+
 func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {

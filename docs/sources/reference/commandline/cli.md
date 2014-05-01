@@ -1249,17 +1249,17 @@ Providing a maximum restart limit is only valid for the ** on-failure ** policy.
 
 ## save
 
-    Usage: docker save [OPTIONS] IMAGE
+    Usage: docker save [OPTIONS] IMAGE [IMAGE...]
 
-    Save an image to a tar archive (streamed to STDOUT by default)
+    Save an image(s) to a tar archive (streamed to STDOUT by default)
 
       -o, --output=""    Write to an file, instead of STDOUT
 
-Produces a tarred repository to the standard output stream. Contains all
-parent layers, and all tags + versions, or specified repo:tag.
+Produces a tarred repository to the standard output stream.
+Contains all parent layers, and all tags + versions, or specified repo:tag, for
+each argument provided.
 
-It is used to create a backup that can then be used with
-`docker load`
+It is used to create a backup that can then be used with ``docker load``
 
     $ sudo docker save busybox > busybox.tar
     $ ls -sh busybox.tar
@@ -1269,6 +1269,11 @@ It is used to create a backup that can then be used with
     2.7M busybox.tar
     $ sudo docker save -o fedora-all.tar fedora
     $ sudo docker save -o fedora-latest.tar fedora:latest
+
+It is even useful to cherry-pick particular tags of an image repository
+
+   $ sudo docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
+
 
 ## search
 
