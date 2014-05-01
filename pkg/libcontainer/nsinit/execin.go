@@ -16,7 +16,7 @@ import (
 )
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
-func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
+func ExecIn(container *libcontainer.Container, nspid int, args []string) (int, error) {
 	for _, nsv := range container.Namespaces {
 		// skip the PID namespace on unshare because it it not supported
 		if nsv.Key != "NEWPID" {
@@ -25,7 +25,7 @@ func (ns *linuxNs) ExecIn(container *libcontainer.Container, nspid int, args []s
 			}
 		}
 	}
-	fds, err := ns.getNsFds(nspid, container)
+	fds, err := getNsFds(nspid, container)
 	closeFds := func() {
 		for _, f := range fds {
 			system.Closefd(f)
@@ -95,7 +95,7 @@ dropAndExec:
 	panic("unreachable")
 }
 
-func (ns *linuxNs) getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
+func getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
 	fds := make([]uintptr, len(container.Namespaces))
 	for i, ns := range container.Namespaces {
 		f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", ns.File), os.O_RDONLY, 0)

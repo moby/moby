@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/apparmor"
@@ -22,9 +23,15 @@ import (
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consolePath string, syncPipe *SyncPipe, args []string) error {
+func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, syncPipe *SyncPipe, args []string) error {
 	rootfs, err := utils.ResolveRootfs(uncleanRootfs)
 	if err != nil {
+		return err
+	}
+
+	// clear the current processes env and replace it with the environment
+	// defined on the container
+	if err := LoadContainerEnvironment(container); err != nil {
 		return err
 	}
 
@@ -128,6 +135,17 @@ func FinalizeNamespace(container *libcontainer.Container) error {
 	if container.WorkingDir != "" {
 		if err := system.Chdir(container.WorkingDir); err != nil {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
+		}
+	}
+	return nil
+}
+
+func LoadContainerEnvironment(container *libcontainer.Container) error {
+	os.Clearenv()
+	for _, pair := range container.Env {
+		p := strings.SplitN(pair, "=", 2)
+		if err := os.Setenv(p[0], p[1]); err != nil {
+			return err
 		}
 	}
 	return nil

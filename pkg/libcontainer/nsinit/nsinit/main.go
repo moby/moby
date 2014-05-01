@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,76 +13,65 @@ import (
 )
 
 var (
-	root, console, logs string
-	pipeFd              int
+	dataPath  = os.Getenv("data_path")
+	console   = os.Getenv("console")
+	rawPipeFd = os.Getenv("pipe")
 )
 
-func registerFlags() {
-	flag.StringVar(&console, "console", "", "console (pty slave) path")
-	flag.IntVar(&pipeFd, "pipe", 0, "sync pipe fd")
-	flag.StringVar(&root, "root", ".", "root for storing configuration data")
-	flag.StringVar(&logs, "log", "none", "set stderr or a filepath to enable logging")
-
-	flag.Parse()
-}
-
 func main() {
-	registerFlags()
-
-	if flag.NArg() < 1 {
-		log.Fatalf("wrong number of arguments %d", flag.NArg())
+	if len(os.Args) < 2 {
+		log.Fatalf("invalid number of arguments %d", len(os.Args))
 	}
+
 	container, err := loadContainer()
 	if err != nil {
-		log.Fatalf("Unable to load container: %s", err)
+		log.Fatalf("unable to load container: %s", err)
 	}
 
-	ns, err := newNsInit()
-	if err != nil {
-		log.Fatalf("Unable to initialize nsinit: %s", err)
-	}
-
-	switch flag.Arg(0) {
+	switch os.Args[1] {
 	case "exec": // this is executed outside of the namespace in the cwd
-		var exitCode int
-		nspid, err := readPid()
-		if err != nil {
-			if !os.IsNotExist(err) {
-				log.Fatalf("Unable to read pid: %s", err)
-			}
+		var nspid, exitCode int
+		if nspid, err = readPid(); err != nil && !os.IsNotExist(err) {
+			log.Fatalf("unable to read pid: %s", err)
 		}
+
 		if nspid > 0 {
-			exitCode, err = ns.ExecIn(container, nspid, flag.Args()[1:])
+			exitCode, err = nsinit.ExecIn(container, nspid, os.Args[2:])
 		} else {
 			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-			exitCode, err = ns.Exec(container, term, root, flag.Args()[1:], nil)
+			exitCode, err = nsinit.Exec(container, term, "", dataPath, os.Args[2:], nil)
 		}
+
 		if err != nil {
-			log.Fatalf("Failed to exec: %s", err)
+			log.Fatalf("failed to exec: %s", err)
 		}
 		os.Exit(exitCode)
 	case "init": // this is executed inside of the namespace to setup the container
-		cwd, err := os.Getwd()
+		// by default our current dir is always our rootfs
+		rootfs, err := os.Getwd()
 		if err != nil {
 			log.Fatal(err)
 		}
-		if flag.NArg() < 2 {
-			log.Fatalf("wrong number of arguments %d", flag.NArg())
+
+		pipeFd, err := strconv.Atoi(rawPipeFd)
+		if err != nil {
+			log.Fatal(err)
 		}
 		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {
-			log.Fatalf("Unable to create sync pipe: %s", err)
+			log.Fatalf("unable to create sync pipe: %s", err)
 		}
-		if err := ns.Init(container, cwd, console, syncPipe, flag.Args()[1:]); err != nil {
-			log.Fatalf("Unable to initialize for container: %s", err)
+
+		if err := nsinit.Init(container, rootfs, console, syncPipe, os.Args[2:]); err != nil {
+			log.Fatalf("unable to initialize for container: %s", err)
 		}
 	default:
-		log.Fatalf("command not supported for nsinit %s", flag.Arg(0))
+		log.Fatalf("command not supported for nsinit %s", os.Args[0])
 	}
 }
 
 func loadContainer() (*libcontainer.Container, error) {
-	f, err := os.Open(filepath.Join(root, "container.json"))
+	f, err := os.Open(filepath.Join(dataPath, "container.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +85,7 @@ func loadContainer() (*libcontainer.Container, error) {
 }
 
 func readPid() (int, error) {
-	data, err := ioutil.ReadFile(filepath.Join(root, "pid"))
+	data, err := ioutil.ReadFile(filepath.Join(dataPath, "pid"))
 	if err != nil {
 		return -1, err
 	}
@@ -106,8 +94,4 @@ func readPid() (int, error) {
 		return -1, err
 	}
 	return pid, nil
-}
-
-func newNsInit() (nsinit.NsInit, error) {
-	return nsinit.NewNsInit(&nsinit.DefaultCommandFactory{root}), nil
 }

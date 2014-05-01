@@ -20,7 +20,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, pidRoot string, args []string, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath string, args []string, startCallback func()) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -42,7 +42,7 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, pidRoo
 		term.SetMaster(master)
 	}
 
-	command := ns.commandFactory.Create(container, console, syncPipe.child, args)
+	command := CreateCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}
@@ -56,11 +56,11 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, pidRoo
 	if err != nil {
 		return -1, err
 	}
-	if err := WritePid(pidRoot, command.Process.Pid, started); err != nil {
+	if err := WritePid(dataPath, command.Process.Pid, started); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	defer DeletePid(pidRoot)
+	defer DeletePid(dataPath)
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
@@ -90,8 +90,45 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, pidRoo
 			return -1, err
 		}
 	}
-	status := command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-	return status, err
+	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+}
+
+// CreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
+// defined on the container's configuration and use the current binary as the init with the
+// args provided
+//
+// console: the /dev/console to setup inside the container
+// init: the progam executed inside the namespaces
+// root: the path to the container json file and information
+// pipe: sync pipe to syncronize the parent and child processes
+// args: the arguemnts to pass to the container to run as the user's program
+func CreateCommand(container *libcontainer.Container, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
+	// get our binary name from arg0 so we can always reexec ourself
+	env := []string{
+		"console=" + console,
+		"pipe=3",
+		"data_path=" + dataPath,
+	}
+
+	/*
+	   TODO: move user and wd into env
+	   if user != "" {
+	       env = append(env, "user="+user)
+	   }
+	   if workingDir != "" {
+	       env = append(env, "wd="+workingDir)
+	   }
+	*/
+
+	command := exec.Command(init, append([]string{"init"}, args...)...)
+	// make sure the process is executed inside the context of the rootfs
+	command.Dir = rootfs
+	command.Env = append(os.Environ(), env...)
+
+	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
+	command.ExtraFiles = []*os.File{pipe}
+
+	return command
 }
 
 // SetupCgroups applies the cgroup restrictions to the process running in the contaienr based
