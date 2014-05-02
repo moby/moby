@@ -23,7 +23,7 @@ its own man page which explain usage and arguements.
 To see the man page for a command run **man docker <command>**.
 
 # OPTIONS
-**-D**=*ture*|*false*
+**-D**=*true*|*false*
    Enable debug mode. Default is false.
 
 **-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind or
@@ -72,6 +72,9 @@ port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
 
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
+
+**--selinux-enabled=*true*|*false*
+  Enable selinux support. Default is false.
 
 # COMMANDS
 **docker-attach(1)**
