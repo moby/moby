@@ -200,8 +200,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	//utils.Debugf("Environment variables for the container: %#v", envVariables)
 
 	// parse the '--add-host' flag
-	extraHosts := []string{}
-	extraHosts = append(extraHosts, flExtraHosts.GetAll()...)
+	extraHosts = append([]string{}, flExtraHosts.GetAll()...)
 	//utils.Debugf("Extra hosts for the container: %#v", extraHosts)
 
 	config := &Config{

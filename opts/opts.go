@@ -130,10 +130,10 @@ func ValidateEnv(val string) (string, error) {
 
 func ValidateExtraHost(val string) (string, error) {
 	arr := strings.Split(val, ":")
-	if len(arr) == 2 {
-		return val, nil
+	if len(arr) != 2 {
+		return val, fmt.Errorf("bad format for add-host: %s", val)
 	}
-	return val, fmt.Errorf("bad format for add-host: %s", val)
+	return val, nil
 }
 
 func ValidateIp4Address(val string) (string, error) {
