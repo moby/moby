@@ -991,7 +991,7 @@ optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
 or read-write mode, respectively. By default, the volumes are mounted in
 the same mode (read write or read only) as the reference container.
 
-The `-a` flag tells `docker run` to bind to the container'sstdin, stdout or
+The `-a` flag tells `docker run` to bind to the container's stdin, stdout or
 stderr. This makes it possible to manipulate the output and input as needed.
 
     $ sudo echo "test" | docker run -i -a stdin ubuntu cat -
