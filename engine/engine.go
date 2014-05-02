@@ -122,7 +122,8 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	// Catchall is shadowed by specific Register.
 	if handler, exists := eng.handlers[name]; exists {
 		job.handler = handler
-	} else if eng.catchall != nil {
+	} else if eng.catchall != nil && name != "" {
+		// empty job names are illegal, catchall or not.
 		job.handler = eng.catchall
 	}
 	return job
