@@ -36,6 +36,11 @@ You can still call an old version of the api using
 
 ### What's new
 
+`GET /_ping`
+
+**New!**
+You can now ping the server via the `_ping` endpoint.
+
 `GET /events`
 
 **New!**
