@@ -1,10 +1,11 @@
 package lxc
 
 import (
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/label"
 	"strings"
 	"text/template"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/label"
 )
 
 const LxcTemplate = `
@@ -82,15 +83,12 @@ lxc.pivotdir = lxc_putold
 
 # NOTICE: These mounts must be applied within the namespace
 
-#  WARNING: procfs is a known attack vector and should probably be disabled
-#           if your userspace allows it. eg. see http://blog.zx2c4.com/749
+# WARNING: mounting procfs and/or sysfs read-write is a known attack vector.
+# See e.g. http://blog.zx2c4.com/749 and http://bit.ly/T9CkqJ
+# We mount them read-write here, but later, dockerinit will call the Restrict() function to remount them read-only.
+# We cannot mount them directly read-only, because that would prevent loading AppArmor profiles.
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
-
-# WARNING: sysfs is a known attack vector and should probably be disabled
-# if your userspace allows it. eg. see http://bit.ly/T9CkqJ
-{{if .Privileged}}
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
-{{end}}
 
 {{if .Tty}}
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
@@ -111,15 +109,8 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
-# not unconfined
+# Let AppArmor normal confinement take place (i.e., not unconfined)
 {{end}}
-{{else}}
-# restrict access to proc
-lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/sys none bind,ro 0 0
-lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/irq none bind,ro 0 0
-lxc.mount.entry = {{.RestrictionSource}} {{escapeFstabSpaces $ROOTFS}}/proc/acpi none bind,ro 0 0
-lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/sysrq-trigger none bind,ro 0 0
-lxc.mount.entry = {{escapeFstabSpaces $ROOTFS}}/dev/null {{escapeFstabSpaces $ROOTFS}}/proc/kcore none bind,ro 0 0
 {{end}}
 
 # limits

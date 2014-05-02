@@ -1,51 +1,25 @@
+// +build linux
+
 package restrict
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/system"
 )
 
-const flags = syscall.MS_BIND | syscall.MS_REC | syscall.MS_RDONLY
-
-var restrictions = map[string]string{
-	// dirs
-	"/proc/sys":  "",
-	"/proc/irq":  "",
-	"/proc/acpi": "",
-
-	// files
-	"/proc/sysrq-trigger": "/dev/null",
-	"/proc/kcore":         "/dev/null",
-}
-
-// Restrict locks down access to many areas of proc
-// by using the asumption that the user does not have mount caps to
-// revert the changes made here
-func Restrict(rootfs, empty string) error {
-	for dest, source := range restrictions {
-		dest = filepath.Join(rootfs, dest)
-
-		// we don't have a "/dev/null" for dirs so have the requester pass a dir
-		// for us to bind mount
-		switch source {
-		case "":
-			source = empty
-		default:
-			source = filepath.Join(rootfs, source)
+// This has to be called while the container still has CAP_SYS_ADMIN (to be able to perform mounts).
+// However, afterwards, CAP_SYS_ADMIN should be dropped (otherwise the user will be able to revert those changes).
+func Restrict() error {
+	// remount proc and sys as readonly
+	for _, dest := range []string{"proc", "sys"} {
+		if err := system.Mount("", dest, "", syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
+			return fmt.Errorf("unable to remount %s readonly: %s", dest, err)
 		}
-		if err := system.Mount(source, dest, "bind", flags, ""); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return fmt.Errorf("unable to mount %s over %s %s", source, dest, err)
-		}
-		if err := system.Mount("", dest, "bind", flags|syscall.MS_REMOUNT, ""); err != nil {
-			return fmt.Errorf("unable to mount %s over %s %s", source, dest, err)
-		}
+	}
+	if err := system.Mount("/dev/null", "/proc/kcore", "", syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("unable to bind-mount /dev/null over /proc/kcore")
 	}
 	return nil
 }
