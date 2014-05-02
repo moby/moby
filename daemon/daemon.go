@@ -272,6 +272,10 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return err
 	}
 
+	// Deregister the container before removing its directory, to avoid race conditions
+	daemon.idIndex.Delete(container.ID)
+	daemon.containers.Remove(element)
+
 	if err := daemon.driver.Remove(container.ID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
 	}
@@ -285,9 +289,6 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		utils.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
-	// Deregister the container before removing its directory, to avoid race conditions
-	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Remove(element)
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
