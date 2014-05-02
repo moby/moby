@@ -343,7 +343,7 @@ func populateCommand(c *Container, env []string) error {
 	case "none":
 	case "host":
 		en.HostNetworking = true
-	case "bridge":
+	case "bridge", "": // empty string to support existing containers
 		if !c.Config.NetworkDisabled {
 			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
@@ -503,9 +503,18 @@ func (container *Container) StderrLogPipe() io.ReadCloser {
 	return utils.NewBufReader(reader)
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) {
+func (container *Container) buildHostname() {
 	container.HostnamePath = path.Join(container.root, "hostname")
-	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+
+	if container.Config.Domainname != "" {
+		ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
+	} else {
+		ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+	}
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) {
+	container.buildHostname()
 
 	hostsContent := []byte(`
 127.0.0.1	localhost
@@ -523,12 +532,11 @@ ff02::2		ip6-allrouters
 	} else if !container.Config.NetworkDisabled {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
 	}
-
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 
 func (container *Container) allocateNetwork() error {
-	if container.Config.NetworkDisabled {
+	if container.Config.NetworkDisabled || container.hostConfig.NetworkMode == "host" {
 		return nil
 	}
 
@@ -981,14 +989,22 @@ func (container *Container) setupContainerDns() error {
 	if container.ResolvConfPath != "" {
 		return nil
 	}
+
 	var (
 		config = container.hostConfig
 		daemon = container.daemon
 	)
+
+	if config.NetworkMode == "host" {
+		container.ResolvConfPath = "/etc/resolv.conf"
+		return nil
+	}
+
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
 		return err
 	}
+
 	// If custom dns exists, then create a resolv.conf for the container
 	if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
 		var (
@@ -1028,7 +1044,22 @@ func (container *Container) setupContainerDns() error {
 }
 
 func (container *Container) initializeNetworking() error {
-	if container.daemon.config.DisableNetwork {
+	var err error
+	if container.hostConfig.NetworkMode == "host" {
+		container.Config.Hostname, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+
+		parts := strings.SplitN(container.Config.Hostname, ".", 2)
+		if len(parts) > 1 {
+			container.Config.Hostname = parts[0]
+			container.Config.Domainname = parts[1]
+		}
+		container.HostsPath = "/etc/hosts"
+
+		container.buildHostname()
+	} else if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
 		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
