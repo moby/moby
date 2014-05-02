@@ -33,6 +33,18 @@ var (
 	ErrConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 )
 
+func (cli *DockerCli) HTTPClient() *http.Client {
+	tr := &http.Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			return net.Dial(cli.proto, cli.addr)
+		},
+	}
+	if cli.proto != "unix" {
+		tr.TLSClientConfig = cli.tlsConfig
+	}
+	return &http.Client{Transport: tr}
+}
+
 func (cli *DockerCli) dial() (net.Conn, error) {
 	if cli.tlsConfig != nil && cli.proto != "unix" {
 		return tls.Dial(cli.proto, cli.addr, cli.tlsConfig)
@@ -61,7 +73,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://v%s%s", api.APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -92,17 +104,8 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	} else if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
-	dial, err := cli.dial()
+	resp, err := cli.HTTPClient().Do(req)
 	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
-			return nil, -1, ErrConnectionRefused
-		}
-		return nil, -1, err
-	}
-	clientconn := httputil.NewClientConn(dial, nil)
-	resp, err := clientconn.Do(req)
-	if err != nil {
-		clientconn.Close()
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, -1, ErrConnectionRefused
 		}
@@ -119,14 +122,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 		return nil, resp.StatusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
-
-	wrapper := utils.NewReadCloserWrapper(resp.Body, func() error {
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
-		return clientconn.Close()
-	})
-	return wrapper, resp.StatusCode, nil
+	return resp.Body, resp.StatusCode, nil
 }
 
 func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, headers map[string][]string) error {
@@ -142,7 +138,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	re := regexp.MustCompile("/+")
 	path = re.ReplaceAllString(path, "/")
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("http://v%s%s", api.APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -157,17 +153,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 			req.Header[k] = v
 		}
 	}
-
-	dial, err := cli.dial()
-	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
-		}
-		return err
-	}
-	clientconn := httputil.NewClientConn(dial, nil)
-	resp, err := clientconn.Do(req)
-	defer clientconn.Close()
+	resp, err := cli.HTTPClient().Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
