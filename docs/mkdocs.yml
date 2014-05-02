@@ -91,6 +91,7 @@ pages:
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']
+- ['reference/commandline/index.md', '**HIDDEN**']
 - ['reference/commandline/cli.md', 'Reference', 'Command line']
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['reference/run.md', 'Reference', 'Run Reference']
@@ -99,6 +100,7 @@ pages:
 - ['articles/security.md', 'Reference', 'Security']
 - ['articles/baseimages.md', 'Reference', 'Creating a Base Image']
 - ['use/networking.md', 'Reference', 'Advanced networking']
+- ['reference/api/index.md', '**HIDDEN**']
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker.io API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/registry_index_spec.md', 'Reference', 'Registry & Index Spec']
@@ -108,24 +110,6 @@ pages:
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
 - ['reference/api/docker_io_oauth_api.md', 'Reference', 'Docker IO OAuth API']
 - ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker IO Accounts API']
-
-#archived API references
-- ['reference/api/docker_remote_api_v1.9.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.8.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.7.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.6.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.5.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.4.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.3.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.2.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.1.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
-
-# Contribute:
-- ['contributing/index.md', '**HIDDEN**']
-- ['contributing/contributing.md', 'Contribute', 'Contributing']
-- ['contributing/devenvironment.md', 'Contribute', 'Development environment']
-# - ['about/license.md', 'About', 'License']
 
 - ['jsearch.md', '**HIDDEN**']
 
@@ -138,3 +122,11 @@ pages:
 - ['terms/repository.md', '**HIDDEN**']
 - ['terms/filesystem.md', '**HIDDEN**']
 - ['terms/image.md', '**HIDDEN**']
+
+# TODO: our theme adds a dropdown even for sections that have no subsections.
+  #- ['faq.md', 'FAQ']
+
+# Contribute:
+- ['contributing/index.md', '**HIDDEN**']
+- ['contributing/contributing.md', 'Contribute', 'Contributing']
+- ['contributing/devenvironment.md', 'Contribute', 'Development environment']
