@@ -53,6 +53,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 }
 
 func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.Command) error {
+	if c.Network.HostNetworking {
+		container.Namespaces.Get("NEWNET").Enabled = false
+		return nil
+	}
 	container.Networks = []*libcontainer.Network{
 		{
 			Mtu:     c.Network.Mtu,
@@ -90,7 +94,6 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 			},
 		})
 	}
-
 	return nil
 }
 

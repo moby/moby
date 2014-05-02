@@ -341,6 +341,8 @@ func populateCommand(c *Container, env []string) error {
 	parts := strings.SplitN(c.hostConfig.NetworkMode, ":", 2)
 	switch parts[0] {
 	case "none":
+	case "host":
+		en.HostNetworking = true
 	case "bridge":
 		if !c.Config.NetworkDisabled {
 			network := c.NetworkSettings

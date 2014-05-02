@@ -292,6 +292,8 @@ func parseNetMode(netMode string) (string, error) {
 			return "", fmt.Errorf("'container:' netmode requires a container id or name", netMode)
 		}
 		return netMode, nil
+	case "host":
+		return netMode, nil
 	default:
 		return "", fmt.Errorf("invalid netmode: %q", netMode)
 	}
