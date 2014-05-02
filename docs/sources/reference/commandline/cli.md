@@ -498,7 +498,7 @@ Import to docker via pipe and *stdin*.
 
 **Import from a local directory:**
 
-    $ sudo tar -c . | docker import - exampleimagedir
+    $ sudo tar -c . | sudo docker import - exampleimagedir
 
 Note the `sudo` in this example – you must preserve
 the ownership of the files (especially root ownership) during the
