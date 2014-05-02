@@ -57,7 +57,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://v%s%s", api.APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -82,7 +82,8 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
-	req.Host = cli.addr
+	req.URL.Host = cli.addr
+	req.URL.Scheme = cli.scheme
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
@@ -123,7 +124,8 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 		return err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
-	req.Host = cli.addr
+	req.URL.Host = cli.addr
+	req.URL.Scheme = cli.scheme
 	if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
