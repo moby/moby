@@ -338,7 +338,7 @@ func populateCommand(c *Container, env []string) error {
 		Interface: nil,
 	}
 
-	parts := strings.SplitN(c.hostConfig.NetworkMode, ":", 2)
+	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
 	case "none":
 	case "host":
@@ -354,9 +354,9 @@ func populateCommand(c *Container, env []string) error {
 			}
 		}
 	case "container":
-		nc := c.daemon.Get(parts[1])
-		if nc == nil {
-			return fmt.Errorf("no such container to join network: %q", parts[1])
+		nc, err := c.getNetworkedContainer()
+		if err != nil {
+			return err
 		}
 		en.ContainerID = nc.ID
 	default:
@@ -536,7 +536,8 @@ ff02::2		ip6-allrouters
 }
 
 func (container *Container) allocateNetwork() error {
-	if container.Config.NetworkDisabled || container.hostConfig.NetworkMode == "host" {
+	mode := container.hostConfig.NetworkMode
+	if container.Config.NetworkDisabled || mode.IsContainer() || mode.IsHost() {
 		return nil
 	}
 
@@ -1045,7 +1046,7 @@ func (container *Container) setupContainerDns() error {
 
 func (container *Container) initializeNetworking() error {
 	var err error
-	if container.hostConfig.NetworkMode == "host" {
+	if container.hostConfig.NetworkMode.IsHost() {
 		container.Config.Hostname, err = os.Hostname()
 		if err != nil {
 			return err
@@ -1059,6 +1060,16 @@ func (container *Container) initializeNetworking() error {
 		container.HostsPath = "/etc/hosts"
 
 		container.buildHostname()
+	} else if container.hostConfig.NetworkMode.IsContainer() {
+		// we need to get the hosts files from the container to join
+		nc, err := container.getNetworkedContainer()
+		if err != nil {
+			return err
+		}
+		container.HostsPath = nc.HostsPath
+		container.ResolvConfPath = nc.ResolvConfPath
+		container.Config.Hostname = nc.Config.Hostname
+		container.Config.Domainname = nc.Config.Domainname
 	} else if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
 		container.buildHostnameAndHostsFiles("127.0.1.1")
@@ -1267,4 +1278,21 @@ func (container *Container) GetMountLabel() string {
 		return ""
 	}
 	return container.MountLabel
+}
+
+func (container *Container) getNetworkedContainer() (*Container, error) {
+	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
+	switch parts[0] {
+	case "container":
+		nc := container.daemon.Get(parts[1])
+		if nc == nil {
+			return nil, fmt.Errorf("no such container to join network: %s", parts[1])
+		}
+		if !nc.State.IsRunning() {
+			return nil, fmt.Errorf("cannot join network of a non running container: %s", parts[1])
+		}
+		return nc, nil
+	default:
+		return nil, fmt.Errorf("network mode not set to container")
+	}
 }

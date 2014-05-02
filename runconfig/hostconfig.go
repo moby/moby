@@ -1,10 +1,23 @@
 package runconfig
 
 import (
+	"strings"
+
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/utils"
 )
+
+type NetworkMode string
+
+func (n NetworkMode) IsHost() bool {
+	return n == "host"
+}
+
+func (n NetworkMode) IsContainer() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
 
 type HostConfig struct {
 	Binds           []string
@@ -17,7 +30,7 @@ type HostConfig struct {
 	Dns             []string
 	DnsSearch       []string
 	VolumesFrom     []string
-	NetworkMode     string
+	NetworkMode     NetworkMode
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -25,7 +38,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
-		NetworkMode:     job.Getenv("NetworkMode"),
+		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)

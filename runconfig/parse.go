@@ -62,7 +62,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'none': no networking for this container, 'container:name_or_id': reuses another container network stack)")
+		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'none': no networking for this container, 'container:<name|id>': reuses another container network stack)")
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
@@ -200,7 +200,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	netMode, err := parseNetMode(*flNetMode)
 	if err != nil {
-		return nil, nil, cmd, fmt.Errorf("-net: invalid net mode: %v", err)
+		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
 	}
 
 	config := &Config{
@@ -282,19 +282,16 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
 	return out, nil
 }
 
-func parseNetMode(netMode string) (string, error) {
+func parseNetMode(netMode string) (NetworkMode, error) {
 	parts := strings.Split(netMode, ":")
 	switch mode := parts[0]; mode {
-	case "bridge", "none":
-		return mode, nil
+	case "bridge", "none", "host":
 	case "container":
 		if len(parts) < 2 || parts[1] == "" {
-			return "", fmt.Errorf("'container:' netmode requires a container id or name", netMode)
+			return "", fmt.Errorf("invalid container format container:<name|id>")
 		}
-		return netMode, nil
-	case "host":
-		return netMode, nil
 	default:
-		return "", fmt.Errorf("invalid netmode: %q", netMode)
+		return "", fmt.Errorf("invalid --net: %s", netMode)
 	}
+	return NetworkMode(netMode), nil
 }
