@@ -79,7 +79,7 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 		return fmt.Errorf("set process label %s", err)
 	}
 	if container.Context["restrictions"] != "" {
-		if err := restrict.Restrict(); err != nil {
+		if err := restrict.Restrict("proc", "sys"); err != nil {
 			return err
 		}
 	}
