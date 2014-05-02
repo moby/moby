@@ -10,10 +10,10 @@ Docker uses Linux bridge capabilities to provide network connectivity to
 containers. The `docker0` bridge interface is
 managed by Docker for this purpose. When the Docker daemon starts it :
 
-- creates the `docker0` bridge if not present
-- searches for an IP address range which doesn’t overlap with an existing route
-- picks an IP in the selected range
-- assigns this IP to the `docker0` bridge
+ - creates the `docker0` bridge if not present
+ - searches for an IP address range which doesn't overlap with an existing route
+ - picks an IP in the selected range
+ - assigns this IP to the `docker0` bridge
 
 <!-- -->
 
@@ -47,7 +47,7 @@ is dedicated to the 52f811c5d3d6 container.
 ## How to use a specific IP address range
 
 Docker will try hard to find an IP range that is not used by the host.
-Even though it works for most cases, it’s not bullet-proof and sometimes
+Even though it works for most cases, it's not bullet-proof and sometimes
 you need to have more control over the IP addressing scheme.
 
 For this purpose, Docker allows you to manage the `docker0`
@@ -56,10 +56,10 @@ parameter.
 
 In this scenario:
 
--   ensure Docker is stopped
--   create your own bridge (`bridge0` for example)
--   assign a specific IP to this bridge
--   start Docker with the `-b=bridge0` parameter
+ - ensure Docker is stopped
+ - create your own bridge (`bridge0` for example)
+ - assign a specific IP to this bridge
+ - start Docker with the `-b=bridge0` parameter
 
 <!-- -->
 
@@ -84,7 +84,7 @@ In this scenario:
               inet addr:192.168.227.1  Bcast:192.168.227.255  Mask:255.255.255.0
 
     # Run a container
-    $ docker run -i -t base /bin/bash
+    docker run -i -t base /bin/bash
 
     # Container IP in the 192.168.227/24 range
     root@261c272cd7d5:/# ifconfig eth0
@@ -107,14 +107,12 @@ In this scenario:
 
 ## Container intercommunication
 
-The value of the Docker daemon’s `icc` parameter
+The value of the Docker daemon's `icc` parameter
 determines whether containers can communicate with each other over the
 bridge network.
 
--   The default, `-icc=true` allows containers to
-    communicate with each other.
--   `-icc=false` means containers are isolated from
-    each other.
+ - The default, `-icc=true` allows containers to communicate with each other.
+ - `-icc=false` means containers are isolated from each other.
 
 Docker uses `iptables` under the hood to either
 accept or drop communication between containers.
@@ -125,7 +123,7 @@ Well. Things get complicated here.
 
 The `vethXXXX` interface is the host side of a
 point-to-point link between the host and the corresponding container;
-the other side of the link is the container’s `eth0`
+the other side of the link is the container's `eth0`
 interface. This pair (host `vethXXX` and container
 `eth0`) are connected like a tube. Everything that
 comes in one side will come out the other side.
@@ -135,6 +133,6 @@ ip link command) and the namespaces infrastructure.
 
 ## I want more
 
-Jérôme Petazzoni has create `pipework` to connect
-together containers in arbitrarily complex scenarios :
+Jérôme Petazzoni has create `pipework` to connect together containers in
+arbitrarily complex scenarios:
 [https://github.com/jpetazzo/pipework](https://github.com/jpetazzo/pipework)

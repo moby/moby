@@ -6,12 +6,12 @@ page_keywords: todo, docker, documentation, installation, usage, examples, contr
 
 This documentation has the following resources:
 
--   [Installation](../installation/)
--   [Use](../use/)
--   [Examples](../examples/)
--   [Reference Manual](../reference/)
--   [Contributing](../contributing/)
--   [Glossary](../terms/)
--   [Articles](../articles/)
--   [FAQ](../faq/)
+ - [Installation](../installation/)
+ - [Use](../use/)
+ - [Examples](../examples/)
+ - [Reference Manual](../reference/)
+ - [Contributing](../contributing/)
+ - [Glossary](../terms/)
+ - [Articles](../articles/)
+ - [FAQ](../faq/)
 

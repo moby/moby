@@ -12,7 +12,7 @@ DOCKER_MOUNT := $(if $(BINDDIR),-v "$(CURDIR)/$(BINDDIR):/go/src/github.com/dotc
 
 DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TESTFLAGS -e DOCKER_GRAPHDRIVER -e DOCKER_EXECDRIVER $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
 # to allow `make DOCSDIR=docs docs-shell`
-DOCKER_RUN_DOCS := docker run --rm -it -p $(if $(DOCSPORT),$(DOCSPORT):)8000 $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR)) -e AWS_S3_BUCKET 
+DOCKER_RUN_DOCS := docker run --rm -it $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR)) -e AWS_S3_BUCKET
 
 default: binary
 
@@ -26,10 +26,10 @@ cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
 docs: docs-build
-	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" mkdocs serve
+	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" mkdocs serve
 
 docs-shell: docs-build
-	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" bash
+	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" bash
 
 docs-release: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./release.sh
@@ -53,6 +53,9 @@ build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
 
 docs-build:
+	cp ./VERSION docs/VERSION
+	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
+	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
 	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
