@@ -50,7 +50,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
-		flNetwork         = cmd.Bool([]string{"n", "-networking"}, true, "Enable networking for this container")
+		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to the host interfaces")
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep stdin open even if not attached")
@@ -62,7 +62,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flNetMode         = cmd.String([]string{"#net", "-net"}, "bridge", "Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'disable': disable networking for this container, 'container:name_or_id': reuses another container network stack)")
+		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'none': no networking for this container, 'container:name_or_id': reuses another container network stack)")
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
@@ -198,7 +198,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// boo, there's no debug output for docker run
 	//utils.Debugf("Environment variables for the container: %#v", envVariables)
 
-	netMode, useContainerNetwork, err := parseNetMode(*flNetMode)
+	netMode, err := parseNetMode(*flNetMode)
 	if err != nil {
 		return nil, nil, cmd, fmt.Errorf("-net: invalid net mode: %v", err)
 	}
@@ -210,7 +210,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		ExposedPorts:    ports,
 		User:            *flUser,
 		Tty:             *flTty,
-		NetworkDisabled: !*flNetwork || netMode == "disable",
+		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
@@ -226,17 +226,17 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 
 	hostConfig := &HostConfig{
-		Binds:               binds,
-		ContainerIDFile:     *flContainerIDFile,
-		LxcConf:             lxcConf,
-		Privileged:          *flPrivileged,
-		PortBindings:        portBindings,
-		Links:               flLinks.GetAll(),
-		PublishAllPorts:     *flPublishAll,
-		Dns:                 flDns.GetAll(),
-		DnsSearch:           flDnsSearch.GetAll(),
-		VolumesFrom:         flVolumesFrom.GetAll(),
-		UseContainerNetwork: useContainerNetwork,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
+		LxcConf:         lxcConf,
+		Privileged:      *flPrivileged,
+		PortBindings:    portBindings,
+		Links:           flLinks.GetAll(),
+		PublishAllPorts: *flPublishAll,
+		Dns:             flDns.GetAll(),
+		DnsSearch:       flDnsSearch.GetAll(),
+		VolumesFrom:     flVolumesFrom.GetAll(),
+		NetworkMode:     netMode,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -282,19 +282,17 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
 	return out, nil
 }
 
-func parseNetMode(netMode string) (string, string, error) {
+func parseNetMode(netMode string) (string, error) {
 	parts := strings.Split(netMode, ":")
 	switch mode := parts[0]; mode {
-	case "bridge", "disable":
-		return mode, "", nil
+	case "bridge", "none":
+		return mode, nil
 	case "container":
-		var container string
 		if len(parts) < 2 || parts[1] == "" {
-			return "", "", fmt.Errorf("'container:' netmode requires a container id or name", netMode)
+			return "", fmt.Errorf("'container:' netmode requires a container id or name", netMode)
 		}
-		container = parts[1]
-		return mode, container, nil
+		return netMode, nil
 	default:
-		return "", "", fmt.Errorf("invalid netmode: %q", netMode)
+		return "", fmt.Errorf("invalid netmode: %q", netMode)
 	}
 }

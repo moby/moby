@@ -40,7 +40,7 @@ func TestParseNetMode(t *testing.T) {
 	}
 
 	for _, to := range testFlags {
-		mode, container, err := parseNetMode(to.flag)
+		mode, err := parseNetMode(to.flag)
 		if mode != to.mode {
 			t.Fatalf("-net %s: expected net mode: %q, got: %q", to.flag, to.mode, mode)
 		}

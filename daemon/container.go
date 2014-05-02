@@ -338,26 +338,31 @@ func populateCommand(c *Container, env []string) error {
 		Interface: nil,
 	}
 
-	if !c.Config.NetworkDisabled {
-		network := c.NetworkSettings
-		en.Interface = &execdriver.NetworkInterface{
-			Gateway:     network.Gateway,
-			Bridge:      network.Bridge,
-			IPAddress:   network.IPAddress,
-			IPPrefixLen: network.IPPrefixLen,
+	parts := strings.SplitN(c.hostConfig.NetworkMode, ":", 2)
+	switch parts[0] {
+	case "none":
+	case "bridge":
+		if !c.Config.NetworkDisabled {
+			network := c.NetworkSettings
+			en.Interface = &execdriver.NetworkInterface{
+				Gateway:     network.Gateway,
+				Bridge:      network.Bridge,
+				IPAddress:   network.IPAddress,
+				IPPrefixLen: network.IPPrefixLen,
+			}
 		}
+	case "container":
+		nc := c.daemon.Get(parts[1])
+		if nc == nil {
+			return fmt.Errorf("no such container to join network: %q", parts[1])
+		}
+		en.ContainerID = nc.ID
+	default:
+		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
 	mergeLxcConfIntoOptions(c.hostConfig, context)
-
-	if netContainer := c.hostConfig.UseContainerNetwork; netContainer != "" {
-		nc := c.daemon.Get(netContainer)
-		if nc == nil {
-			return fmt.Errorf("no such container to join network: %q", netContainer)
-		}
-		en.ContainerID = nc.ID
-	}
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
