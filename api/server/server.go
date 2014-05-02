@@ -978,8 +978,8 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 }
 
 func ping(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	w.Write([]byte{'O', 'K'})
-	return nil
+	_, err := w.Write([]byte{'O', 'K'})
+	return err
 }
 
 func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, enableCors bool, dockerVersion version.Version) http.HandlerFunc {

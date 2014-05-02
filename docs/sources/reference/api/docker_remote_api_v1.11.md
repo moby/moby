@@ -1181,6 +1181,7 @@ Ping the docker server
     Status Codes:
 
     -   **200** - no error
+    -   **500** - server error
 
 ### Create a new image from a container's changes
 
