@@ -4,11 +4,12 @@ package console
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 // Setup initializes the proper /dev/console inside the rootfs path

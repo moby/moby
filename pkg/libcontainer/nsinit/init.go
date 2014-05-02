@@ -72,17 +72,16 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 
 	runtime.LockOSThread()
 
+	if err := apparmor.ApplyProfile(container.Context["apparmor_profile"]); err != nil {
+		return fmt.Errorf("set apparmor profile %s: %s", container.Context["apparmor_profile"], err)
+	}
+	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
+		return fmt.Errorf("set process label %s", err)
+	}
 	if container.Context["restrictions"] != "" {
 		if err := restrict.Restrict(); err != nil {
 			return err
 		}
-	}
-
-	if err := apparmor.ApplyProfile(os.Getpid(), container.Context["apparmor_profile"]); err != nil {
-		return err
-	}
-	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
-		return fmt.Errorf("set process label %s", err)
 	}
 	if err := FinalizeNamespace(container); err != nil {
 		return fmt.Errorf("finalize namespace %s", err)
