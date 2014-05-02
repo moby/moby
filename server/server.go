@@ -24,19 +24,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/daemonconfig"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/graph"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/signal"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -53,6 +40,20 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon"
+	"github.com/dotcloud/docker/daemonconfig"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/graph"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 // jobInitApi runs the remote api server `srv` as a daemon,
@@ -1953,6 +1954,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 	var (
 		repoName, tag string
 		tags          = []string{}
+		tagDeleted    bool
 	)
 
 	repoName, tag = utils.ParseRepositoryTag(name)
@@ -2003,7 +2005,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 
 	//Untag the current image
 	for _, tag := range tags {
-		tagDeleted, err := srv.daemon.Repositories().Delete(repoName, tag)
+		tagDeleted, err = srv.daemon.Repositories().Delete(repoName, tag)
 		if err != nil {
 			return err
 		}
@@ -2017,7 +2019,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 	tags = srv.daemon.Repositories().ByID()[img.ID]
 	if (len(tags) <= 1 && repoName == "") || len(tags) == 0 {
 		if len(byParents[img.ID]) == 0 {
-			if err := srv.canDeleteImage(img.ID); err != nil {
+			if err := srv.canDeleteImage(img.ID, force, tagDeleted); err != nil {
 				return err
 			}
 			if err := srv.daemon.Repositories().DeleteAll(img.ID); err != nil {
@@ -2060,7 +2062,11 @@ func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) canDeleteImage(imgID string) error {
+func (srv *Server) canDeleteImage(imgID string, force, untagged bool) error {
+	var message string
+	if untagged {
+		message = " (docker untagged the image)"
+	}
 	for _, container := range srv.daemon.List() {
 		parent, err := srv.daemon.Repositories().LookupImage(container.Image)
 		if err != nil {
@@ -2069,7 +2075,14 @@ func (srv *Server) canDeleteImage(imgID string) error {
 
 		if err := parent.WalkHistory(func(p *image.Image) error {
 			if imgID == p.ID {
-				return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+				if container.State.IsRunning() {
+					if force {
+						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it%s, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+					}
+					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it%s, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+				} else if !force {
+					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it%s, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+				}
 			}
 			return nil
 		}); err != nil {
