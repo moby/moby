@@ -128,7 +128,7 @@ func newSystemMounts(rootfs, mountLabel string, mounts libcontainer.Mounts) []mo
 	}
 
 	if len(mounts.OfType("devtmpfs")) == 1 {
-		systemMounts = append(systemMounts, mount{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: label.FormatMountLabel("mode=755", mountLabel)})
+		systemMounts = append([]mount{{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: label.FormatMountLabel("mode=755", mountLabel)}}, systemMounts...)
 	}
 	return systemMounts
 }
