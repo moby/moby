@@ -136,8 +136,8 @@ PID files):
 
 ## Network Settings
 
-    -n=true   : Enable networking for this container
-    --dns=[]  : Set custom dns servers for the container
+    --dns=[]     : Set custom dns servers for the container
+    --net=bridge : Set the network mode
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -147,6 +147,48 @@ files or STDIN/STDOUT only.
 
 Your container will use the same DNS servers as the host by default, but
 you can override this with `--dns`.
+
+Supported networking modes are: 
+
+* none - no networking in the container
+* bridge - (default) connect the container to the bridge via veth interfaces
+* host - use the host's network stack inside the container
+* container - use another container's network stack
+
+#### Mode: none
+With the networking mode set to `none` a container will not have a access to 
+any external routes.  The container will still have a `loopback` interface 
+enabled in the container but it does not have any routes to external traffic.
+
+#### Mode: bridge
+With the networking mode set to `bridge` a container will use docker's default
+networking setup.  A bridge is setup on the host, commonly named `docker0`, 
+and a pair of veth interfaces will be created for the container.  One side of 
+the veth pair will remain on the host attached to the bridge while the other 
+side of the pair will be placed inside the container's namespaces in addition 
+to the `loopback` interface.  An IP address will be allocated for containers 
+on the bridge's network and trafic will be routed though this bridge to the
+container.
+
+#### Mode: host
+With the networking mode set to `host` a container will share the host's
+network stack and all interfaces from the host will be available to the 
+container.  The container's hostname will match the hostname on the host 
+system.  Publishing ports and linking to other containers will not work 
+when sharing the host's network stack.  
+
+#### Mode: container
+With the networking mode set to `container` a container will share the 
+network stack of another container.  The other container's name must be 
+provided in the format of `--net container:<name|id>`.
+
+Example running a redis container with redis binding to localhost then 
+running the redis-cli and connecting to the redis server over the 
+localhost interface.
+
+    $ docker run -d --name redis example/redis --bind 127.0.0.1
+    $ # use the redis container's network stack to access localhost
+    $ docker run --rm -ti --net container:redis example/redis-cli -h 127.0.0.1
 
 ## Clean Up (–rm)
 
