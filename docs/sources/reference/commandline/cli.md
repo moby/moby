@@ -244,7 +244,7 @@ See also:
 
 This example specifies that the `PATH` is
 `.`, and so all the files in the local directory get
-tar`d and sent to the Docker daemon. The `PATH`
+`tar`d and sent to the Docker daemon. The `PATH`
 specifies where to find the files for the "context" of the build on the
 Docker daemon. Remember that the daemon could be running on a remote
 machine and that no parsing of the Dockerfile
