@@ -284,16 +284,17 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
 
 func parseNetMode(netMode string) (string, string, error) {
 	parts := strings.Split(netMode, ":")
-	if len(parts) < 1 {
-		return "", "", fmt.Errorf("'netmode' cannot be empty", netMode)
-	}
-	mode := parts[0]
-	var container string
-	if mode == "container" {
-		if len(parts) < 2 {
+	switch mode := parts[0]; mode {
+	case "bridge", "disable":
+		return mode, "", nil
+	case "container":
+		var container string
+		if len(parts) < 2 || parts[1] == "" {
 			return "", "", fmt.Errorf("'container:' netmode requires a container id or name", netMode)
 		}
 		container = parts[1]
+		return mode, container, nil
+	default:
+		return "", "", fmt.Errorf("invalid netmode: %q", netMode)
 	}
-	return mode, container, nil
 }
