@@ -291,7 +291,7 @@ the container you might have an HTTP service listening on port 80 (and so you
 42800.
 
 To help a new client container reach the server container's internal port
-operator `--expose``d by the operator or `EXPOSE``d by the developer, the
+operator `--expose`'d by the operator or `EXPOSE`'d by the developer, the
 operator has three choices: start the server container with `-P` or `-p,` or
 start the client container with `--link`.
 
