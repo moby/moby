@@ -994,7 +994,7 @@ the same mode (read write or read only) as the reference container.
 The `-a` flag tells `docker run` to bind to the container's stdin, stdout or
 stderr. This makes it possible to manipulate the output and input as needed.
 
-    $ sudo echo "test" | docker run -i -a stdin ubuntu cat -
+    $ echo "test" | sudo docker run -i -a stdin ubuntu cat -
 
 This pipes data into a container and prints the container's ID by attaching
 only to the container'sstdin.
@@ -1005,7 +1005,7 @@ This isn't going to print anything unless there's an error because We've
 only attached to the stderr of the container. The container's logs still
    store what's been written to stderr and stdout.
 
-    $ sudo cat somefile | docker run -i -a stdin mybuilder dobuild
+    $ cat somefile | sudo docker run -i -a stdin mybuilder dobuild
 
 This is how piping a file into a container could be done for a build.
 The container's ID will be printed after the build is done and the build
