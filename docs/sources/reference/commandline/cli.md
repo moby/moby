@@ -537,7 +537,7 @@ Return low-level information on a container/image
 By default, this will render all results in a JSON array. If a format is
 specified, the given template will be executed for each result.
 
-Go's[text/template](http://golang.org/pkg/text/template/) package
+Go's [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
 
 ### Examples
@@ -798,7 +798,7 @@ removed before the image is removed.
 
     $ sudo docker images
     REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
-    test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test                      latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
     $ sudo docker rmi test
     Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
