@@ -80,7 +80,7 @@ continue to do this until we stop it.
 
 **Steps:**
 
-    $ CONTAINER_ID=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
+    $ container_id=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done")
 
 We are going to run a simple hello world daemon in a new container made
 from the `ubuntu` image.
