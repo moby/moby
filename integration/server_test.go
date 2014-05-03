@@ -1,7 +1,10 @@
 package docker
 
 import (
+	"encoding/json"
+	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/server"
 	"strings"
@@ -587,4 +590,80 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 	if untag := imgs.Data[0].Get("Untagged"); untag != "utest:tag1" {
 		t.Fatalf("Expected %s got %s", unitTestImageID, untag)
 	}
+}
+
+func TestLinkAndUnlinkContainers(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkDaemonFromEngine(eng, t).Nuke()
+
+	childConfig, childHostConfig, _, err := runconfig.Parse([]string{"-i", "--publish=8080:80", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	childId := createNamedTestContainer(eng, childConfig, t, "child")
+
+	parentConfig, parentHostConfig, _, err := runconfig.Parse([]string{"-i", "--link=child:http", unitTestImageID, "/bin/cat"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentId := createNamedTestContainer(eng, parentConfig, t, "parent")
+
+	job := eng.Job("start", childId)
+	if err := job.ImportEnv(childHostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	job = eng.Job("start", parentId)
+	if err := job.ImportEnv(parentHostConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	childIp := findContainerIp(t, eng, "child")
+	parentIp := findContainerIp(t, eng, "parent")
+
+	sourceRule := []string{"FORWARD", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIp, "--sport", "80", "-d", parentIp, "-j", "ACCEPT"}
+	destinationRule := []string{"FORWARD", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIp, "--dport", "80", "-d", childIp, "-j", "ACCEPT"}
+	if !iptables.Exists(sourceRule...) {
+		t.Fatal("Iptables rule not found:", sourceRule)
+	}
+	if !iptables.Exists(destinationRule...) {
+		t.Fatal("Iptables rule not found:", destinationRule)
+	}
+
+	job = eng.Job("container_delete", "/parent/http")
+	job.Setenv("removeLink", "1")
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	if iptables.Exists(sourceRule...) {
+		t.Fatal("Iptables rule should be removed when unlink:", sourceRule)
+	}
+	if iptables.Exists(destinationRule...) {
+		t.Fatal("Iptables rule should be removed when unlink:", destinationRule)
+	}
+}
+
+func findContainerIp(t *testing.T, eng *engine.Engine, id string) string {
+	job := eng.Job("inspect", id, "container")
+	var output string
+	if err := job.Stdout.AddString(&output); err != nil {
+		t.Fatal(err)
+	}
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	container := &daemon.Container{}
+	if err := json.Unmarshal([]byte(output), &container); err != nil {
+		t.Fatal(err)
+	}
+
+	return container.NetworkSettings.IPAddress
 }
