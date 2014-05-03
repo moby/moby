@@ -128,7 +128,9 @@ func main() {
 
 		eng := engine.New()
 		// Load builtins
-		builtins.Register(eng)
+		if err := builtins.Register(eng); err != nil {
+			log.Fatal(err)
+		}
 		// load the daemon in the background so we can immediately start
 		// the http api so that connections don't fail while the daemon
 		// is booting
