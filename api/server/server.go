@@ -1285,10 +1285,6 @@ func ServeApi(job *engine.Job) engine.Status {
 	)
 	activationLock = make(chan struct{})
 
-	if err := job.Eng.Register("acceptconnections", AcceptConnections); err != nil {
-		return job.Error(err)
-	}
-
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
@@ -1315,7 +1311,9 @@ func AcceptConnections(job *engine.Job) engine.Status {
 	go systemd.SdNotify("READY=1")
 
 	// close the lock so the listeners start accepting connections
-	close(activationLock)
+	if activationLock != nil {
+		close(activationLock)
+	}
 
 	return engine.StatusOK
 }

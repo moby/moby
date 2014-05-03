@@ -185,7 +185,7 @@ func main() {
 		job.Setenv("TlsCa", *flCa)
 		job.Setenv("TlsCert", *flCert)
 		job.Setenv("TlsKey", *flKey)
-		job.SetenvBool("BuffferRequests", true)
+		job.SetenvBool("BufferRequests", true)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}
