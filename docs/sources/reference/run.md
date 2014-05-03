@@ -220,7 +220,7 @@ in `docker run`. We'll go through what the developer might have set in each
 Dockerfile instruction and how the operator can override that setting.
 
  - [CMD (Default Command or Options)](#cmd-default-command-or-options)
- - [ENTRYPOINT (Default Command to Execute at Runtime](
+ - [ENTRYPOINT (Default Command to Execute at Runtime)](
     #entrypoint-default-command-to-execute-at-runtime)
  - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
  - [ENV (Environment Variables)](#env-environment-variables)
@@ -243,7 +243,7 @@ operator (the person running a container from the image), you can override that
 If the image also specifies an `ENTRYPOINT` then the `CMD` or `COMMAND` get
 appended as arguments to the `ENTRYPOINT`.
 
-## ENTRYPOINT (Default Command to Execute at Runtime
+## ENTRYPOINT (Default Command to Execute at Runtime)
 
     --entrypoint="": Overwrite the default entrypoint set by the image
 
