@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/beam"
@@ -10,31 +11,50 @@ import (
 )
 
 func TestHelloWorld(t *testing.T) {
-	testRemote(t,
+	for i := 0; i < 10; i++ {
+		testRemote(t,
 
-		// Sender side
-		func(eng *Engine) {
-			job := eng.Job("echo", "hello", "world")
-			out := &bytes.Buffer{}
-			job.Stdout.Add(out)
-			job.Run()
-			if job.status != StatusOK {
-				t.Fatalf("#%v", job.StatusCode())
-			}
-			if out.String() != "hello world\n" {
-				t.Fatalf("%#v", out.String())
-			}
-		},
+			// Sender side
+			func(eng *Engine) {
+				job := eng.Job("echo", "hello", "world")
+				out := &bytes.Buffer{}
+				job.Stdout.Add(out)
+				job.Run()
+				if job.status != StatusOK {
+					t.Fatalf("#%v", job.StatusCode())
+				}
+				lines := bufio.NewScanner(out)
+				var i int
+				for lines.Scan() {
+					if lines.Text() != "hello world" {
+						t.Fatalf("%#v", lines.Text())
+					}
+					i++
+				}
+				if i != 1000 {
+					t.Fatalf("%#v", i)
+				}
+			},
 
-		// Receiver side
-		func(eng *Engine) {
-			eng.Register("echo", func(job *Job) Status {
-				fmt.Fprintf(job.Stdout, "%s\n", strings.Join(job.Args, " "))
-				return StatusOK
-			})
-		},
-	)
+			// Receiver side
+			func(eng *Engine) {
+				eng.Register("echo", func(job *Job) Status {
+					// Simulate more output with a delay in the middle
+					for i := 0; i < 500; i++ {
+						fmt.Fprintf(job.Stdout, "%s\n", strings.Join(job.Args, " "))
+					}
+					time.Sleep(5 * time.Millisecond)
+					for i := 0; i < 500; i++ {
+						fmt.Fprintf(job.Stdout, "%s\n", strings.Join(job.Args, " "))
+					}
+					return StatusOK
+				})
+			},
+		)
+	}
 }
+
+// Helpers
 
 func testRemote(t *testing.T, senderSide, receiverSide func(*Engine)) {
 	sndConn, rcvConn, err := beam.USocketPair()
