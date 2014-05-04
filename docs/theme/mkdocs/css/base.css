@@ -59,6 +59,11 @@ h6,
   padding: 0.5em 0.75em !important;
   line-height: 1.8em;
   background: #fff;
+  overflow-x: auto;
+}
+#content pre code {
+  word-wrap: normal;
+  white-space: pre;
 }
 #content blockquote {
   background: #fff;
