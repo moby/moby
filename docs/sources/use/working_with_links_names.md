@@ -50,7 +50,7 @@ For example, there is an image called `crosbymichael/redis` that exposes the
 port 6379 and starts the Redis server. Let's name the container as `redis`
 based on that image and run it as daemon.
 
-    $ sudo docker run -d -name redis crosbymichael/redis
+    $ sudo docker run -d --name redis crosbymichael/redis
 
 We can issue all the commands that you would expect using the name `redis`;
 start, stop, attach, using the name for our container. The name also allows
@@ -61,9 +61,9 @@ apply a link to connect both containers. If you noticed when running our Redis
 server we did not use the `-p` flag to publish the Redis port to the host
 system. Redis exposed port 6379 and this is all we need to establish a link.
 
-    $ sudo docker run -t -i -link redis:db -name webapp ubuntu bash
+    $ sudo docker run -t -i --link redis:db --name webapp ubuntu bash
 
-When you specified `-link redis:db` you are telling Docker to link the
+When you specified `--link redis:db` you are telling Docker to link the
 container named `redis` into this new container with the alias `db`.
 Environment variables are prefixed with the alias so that the parent container
 can access network and environment information from the containers that are
