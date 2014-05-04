@@ -90,6 +90,8 @@ func (rcv *Receiver) Run() error {
 			f.Close()
 			return err
 		}
+		f.Close()
+		defer peer.Close()
 		cmd := data.Message(p).Get("cmd")
 		job := rcv.Engine.Job(cmd[0], cmd[1:]...)
 		stdout, err := beam.SendRPipe(peer, data.Empty().Set("cmd", "log", "stdout").Bytes())
