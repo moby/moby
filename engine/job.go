@@ -72,6 +72,9 @@ func (job *Job) Run() error {
 	if err := job.Stderr.Close(); err != nil {
 		return err
 	}
+	if err := job.Stdin.Close(); err != nil {
+		return err
+	}
 	if job.status != 0 {
 		return fmt.Errorf("%s", errorMessage)
 	}

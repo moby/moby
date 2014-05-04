@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/pkg/beam"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +53,33 @@ func TestHelloWorld(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestStdin(t *testing.T) {
+	testRemote(t,
+
+		func(eng *Engine) {
+			job := eng.Job("mirror")
+			job.Stdin.Add(strings.NewReader("hello world!\n"))
+			out := &bytes.Buffer{}
+			job.Stdout.Add(out)
+			if err := job.Run(); err != nil {
+				t.Fatal(err)
+			}
+			if out.String() != "hello world!\n" {
+				t.Fatalf("%#v", out.String())
+			}
+		},
+
+		func(eng *Engine) {
+			eng.Register("mirror", func(job *Job) Status {
+				if _, err := io.Copy(job.Stdout, job.Stdin); err != nil {
+					t.Fatal(err)
+				}
+				return StatusOK
+			})
+		},
+	)
 }
 
 // Helpers
