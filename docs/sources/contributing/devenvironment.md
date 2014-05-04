@@ -32,7 +32,7 @@ Again, you can do it in other ways but you need to do more work.
 
 ## Check out the Source
 
-    $ git clone http://git@github.com/dotcloud/docker
+    $ git clone https://git@github.com/dotcloud/docker
     $ cd docker
 
 To checkout a different revision just use `git checkout`
