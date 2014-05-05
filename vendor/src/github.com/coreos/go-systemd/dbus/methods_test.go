@@ -18,12 +18,13 @@ package dbus
 
 import (
 	"fmt"
-	"github.com/guelfey/go.dbus"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/godbus/dbus"
 )
 
 func setupConn(t *testing.T) *Conn {

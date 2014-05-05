@@ -59,5 +59,5 @@ rm -rf src/code.google.com/p/go
 mkdir -p src/code.google.com/p/go/src/pkg/archive
 mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 
-clone git github.com/godbus/dbus cb98efbb933d8389ab549a060e880ea3c375d213
-clone git github.com/coreos/go-systemd 4c14ed39b8a643ac44b4f95b5a53c00e94261475
+clone git github.com/godbus/dbus v1
+clone git github.com/coreos/go-systemd v1
