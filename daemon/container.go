@@ -23,6 +23,7 @@ import (
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
+	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
@@ -987,7 +988,7 @@ func (container *Container) setupContainerDns() error {
 		return nil
 	}
 
-	resolvConf, err := utils.GetResolvConf()
+	resolvConf, err := resolvconf.Get()
 	if err != nil {
 		return err
 	}
@@ -995,8 +996,8 @@ func (container *Container) setupContainerDns() error {
 	// If custom dns exists, then create a resolv.conf for the container
 	if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
 		var (
-			dns       = utils.GetNameservers(resolvConf)
-			dnsSearch = utils.GetSearchDomains(resolvConf)
+			dns       = resolvconf.GetNameservers(resolvConf)
+			dnsSearch = resolvconf.GetSearchDomains(resolvConf)
 		)
 		if len(config.Dns) > 0 {
 			dns = config.Dns
@@ -1009,21 +1010,7 @@ func (container *Container) setupContainerDns() error {
 			dnsSearch = daemon.config.DnsSearch
 		}
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
-		f, err := os.Create(container.ResolvConfPath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		for _, dns := range dns {
-			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return err
-			}
-		}
-		if len(dnsSearch) > 0 {
-			if _, err := f.Write([]byte("search " + strings.Join(dnsSearch, " ") + "\n")); err != nil {
-				return err
-			}
-		}
+		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
 	}

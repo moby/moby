@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/dockerversion"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
@@ -23,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dotcloud/docker/dockerversion"
 )
 
 type KeyValuePair struct {
@@ -779,17 +780,6 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
-// GetResolvConf opens and read the content of /etc/resolv.conf.
-// It returns it as byte slice.
-func GetResolvConf() ([]byte, error) {
-	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		Errorf("Error openning resolv.conf: %s", err)
-		return nil, err
-	}
-	return resolv, nil
-}
-
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {
@@ -823,46 +813,6 @@ func GetLines(input []byte, commentMarker []byte) [][]byte {
 		}
 	}
 	return output
-}
-
-// GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
-func GetNameservers(resolvConf []byte) []string {
-	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
-	for _, line := range GetLines(resolvConf, []byte("#")) {
-		var ns = re.FindSubmatch(line)
-		if len(ns) > 0 {
-			nameservers = append(nameservers, string(ns[1]))
-		}
-	}
-	return nameservers
-}
-
-// GetNameserversAsCIDR returns nameservers (if any) listed in
-// /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
-// This function's output is intended for net.ParseCIDR
-func GetNameserversAsCIDR(resolvConf []byte) []string {
-	nameservers := []string{}
-	for _, nameserver := range GetNameservers(resolvConf) {
-		nameservers = append(nameservers, nameserver+"/32")
-	}
-	return nameservers
-}
-
-// GetSearchDomains returns search domains (if any) listed in /etc/resolv.conf
-// If more than one search line is encountered, only the contents of the last
-// one is returned.
-func GetSearchDomains(resolvConf []byte) []string {
-	re := regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
-	domains := []string{}
-	for _, line := range GetLines(resolvConf, []byte("#")) {
-		match := re.FindSubmatch(line)
-		if match == nil {
-			continue
-		}
-		domains = strings.Fields(string(match[1]))
-	}
-	return domains
 }
 
 // FIXME: Change this not to receive default value as parameter
