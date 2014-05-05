@@ -3,6 +3,7 @@ package registry
 import (
 	"bytes"
 	"crypto/sha256"
+	_ "crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
