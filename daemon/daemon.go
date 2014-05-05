@@ -29,6 +29,7 @@ import (
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runconfig"
@@ -981,7 +982,7 @@ func (daemon *Daemon) SetServer(server Server) {
 }
 
 func (daemon *Daemon) checkLocaldns() error {
-	resolvConf, err := utils.GetResolvConf()
+	resolvConf, err := resolvconf.Get()
 	if err != nil {
 		return err
 	}
