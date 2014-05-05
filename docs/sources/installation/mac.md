@@ -1,12 +1,8 @@
-page_title: Installation on Mac OS X 10.6 Snow Leopard
-page_description: Please note this project is currently under heavy development. It should not be used in production.
-page_keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linux, os x, osx, mac
+page_title: Installation on Mac OS X
+page_description: Instructions for installing Docker on OS X using boot2docker.
+page_keywords: Docker, Docker documentation, requirements, boot2docker, VirtualBox, SSH, Linux, OSX, OS X, Mac
 
-# Mac OS X
-
-> **Note**:
-> These instructions are available with the new release of Docker (version
-> 0.8). However, they are subject to change.
+# Installing Docker on Mac OS X
 
 > **Note**:
 > Docker is still under heavy development! We don't recommend using it in
@@ -14,33 +10,50 @@ page_keywords: Docker, Docker documentation, requirements, virtualbox, ssh, linu
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-Docker is supported on Mac OS X 10.6 "Snow Leopard" or newer.
+> **Note:**
+> Docker is supported on Mac OS X 10.6 "Snow Leopard" or newer.
 
-## How To Install Docker On Mac OS X
+Docker has two key components: the Docker daemon and the `docker` binary
+which acts as a client. The client passes instructions to the daemon
+which builds, runs and manages your Docker containers. As Docker uses
+some Linux-specific kernel features you can't use it directly on OS X.
+Instead we run the Docker daemon inside a lightweight virtual machine on your local
+OS X host. We can then use a native client `docker` binary to communicate
+with the Docker daemon inside our virtual machine. To make this process
+easier we've designed a helper application called
+[boot2docker](https://github.com/boot2docker/boot2docker) to install
+that virtual machine and run our Docker daemon.
 
-### VirtualBox
+[boot2docker](https://github.com/boot2docker/boot2docker) uses
+VirtualBox to create the virtual machine so we'll need to install that
+first.
+
+## Installing VirtualBox
 
 Docker on OS X needs VirtualBox to run. To begin with, head over to
 [VirtualBox Download Page](https://www.virtualbox.org/wiki/Downloads)
 and get the tool for `OS X hosts x86/amd64`.
 
-Once the download is complete, open the disk image, run the set up file
-(i.e. `VirtualBox.pkg`) and install VirtualBox. Do
-not simply copy the package without running the installer.
+Once the download is complete, open the disk image, run `VirtualBox.pkg`
+and install VirtualBox.
 
-### Manual Installation
-#### boot2docker
+> **Note**:
+> Do not simply copy the package without running the
+> installer.
+
+## Installing boot2docker
+
+### Installing manually
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
-handy script to manage the VM running the `docker`
-daemon. It also takes care of the installation for the OS
-image that is used for the job.
+handy script to manage the VM running the Docker daemon. It also takes
+care of the installation of that VM.
 
-Open up a new terminal window, if you have not already.
-
-Run the following commands to get boot2docker:
+Open up a new terminal window and run the following commands to get
+boot2docker:
 
     # Enter the installation directory
+    $ mkdir -p ~/bin
     $ cd ~/bin
 
     # Get the file
@@ -49,62 +62,69 @@ Run the following commands to get boot2docker:
     # Mark it executable
     $ chmod +x boot2docker
 
-#### Docker OS X Client
+### Installing the Docker OS X Client
 
-The `docker` daemon is accessed using the `docker` client.
+The Docker daemon is accessed using the `docker` binary.
 
 Run the following commands to get it downloaded and set up:
 
-    # Get the docker client file
+    # Get the docker binary
     $ DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
       curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
       gunzip $DIR/ld.tgz && \
       tar xvf $DIR/ld.tar -C $DIR/ && \
       cp $DIR/usr/local/bin/docker ./docker
 
-    # Set the environment variable for the docker daemon
-    $ export DOCKER_HOST=tcp://127.0.0.1:4243
-
     # Copy the executable file
     $ sudo mkdir -p /usr/local/bin
     $ sudo cp docker /usr/local/bin/
 
-### (OR) With Homebrew
+### Configure the Docker OS X Client
+
+The Docker client, `docker`, uses an environment variable `DOCKER_HOST`
+to specify the location of the Docker daemon to connect to. Specify your
+local boot2docker virtual machine as the value of that variable.
+
+    $ export DOCKER_HOST=tcp://127.0.0.1:4243
+
+## Installing boot2docker with Homebrew
 
 If you are using Homebrew on your machine, simply run the following
 command to install `boot2docker`:
 
     $ brew install boot2docker
 
-Run the following command to install the `docker`
-client:
+Run the following command to install the Docker client:
 
     $ brew install docker
 
 And that's it! Let's check out how to use it.
 
-## How To Use Docker On Mac OS X
+# How To Use Docker On Mac OS X
 
-### The `docker` daemon (via boot2docker)
+## Running the Docker daemon via boot2docker
 
-Inside the `~/bin` directory, run the following
-commands:
+Firstly we need to initialize our boot2docker virtual machine. Run the
+`boot2docker` command.
 
-    # Initiate the VM
-    $ ./boot2docker init
+    $ boot2docker init
 
-    # Run the VM (the docker daemon)
-    $ ./boot2docker up
+This will setup our initial virtual machine.
 
-    # To see all available commands:
-    $ ./boot2docker
+Next we need to start the Docker daemon.
+
+    $ boot2docker up
+
+There are a variety of others commands available using the `boot2docker`
+script. You can see these like so:
+
+    $ boot2docker
     Usage ./boot2docker {init|start|up|pause|stop|restart|status|info|delete|ssh|download}
 
-### The `docker` client
+## The Docker client
 
-Once the VM with the `docker` daemon is up, you can
-use the `docker` client just like any other
-application.
+Once the virtual machine with the Docker daemon is up, you can use the `docker`
+binary just like any other application.
 
     $ docker version
     Client version: 0.10.0
@@ -113,20 +133,23 @@ application.
     Server API version: 1.10
     Last stable version: 0.10.0
 
+## Using Docker port forwarding with boot2docker
 
-### Forwarding VM Port Range to Host
+In order to forward network ports from Docker with boot2docker we need to
+manually forward the port range Docker uses inside VirtualBox. To do
+this we take the port range that Docker uses by default with the `-P`
+option, ports 49000-49900, and run the following command.
 
-If we take the port range that docker uses by default with the -P option
-(49000-49900), and forward same range from host to vm, we'll be able to
-interact with our containers as if they were running locally:
+> **Note:**
+> The boot2docker virtual machine must be powered off for this
+> to work.
 
-    # vm must be powered off
     for i in {49000..49900}; do
      VBoxManage modifyvm "boot2docker-vm" --natpf1 "tcp-port$i,tcp,,$i,,$i";
      VBoxManage modifyvm "boot2docker-vm" --natpf1 "udp-port$i,udp,,$i,,$i";
     done
 
-### SSH-ing The VM
+## Connecting to the VM via SSH
 
 If you feel the need to connect to the VM, you can simply run:
 
@@ -135,37 +158,29 @@ If you feel the need to connect to the VM, you can simply run:
     # User: docker
     # Pwd:  tcuser
 
-You can now continue with the [*Hello
-World*](/examples/hello_world/#hello-world) example.
+If SSH complains about keys then run:
 
-## Learn More
+    $ ssh-keygen -R '[localhost]:2022'
 
-### boot2docker:
+## Upgrading to a newer release of boot2docker
+
+To upgrade an initialized boot2docker virtual machine, you can use the
+following 3 commands. Your virtual machine's disk will not be changed,
+so you won't lose your images and containers:
+
+    $ boot2docker stop
+    $ boot2docker download
+    $ boot2docker start
+
+# Learn More
+
+## boot2docker
 
 See the GitHub page for
 [boot2docker](https://github.com/boot2docker/boot2docker).
 
-### If SSH complains about keys:
+# Next steps
 
-    $ ssh-keygen -R '[localhost]:2022'
+You can now continue with the [*Hello
+World*](/examples/hello_world/#hello-world) example.
 
-### Upgrading to a newer release of boot2docker
-
-To upgrade an initialised VM, you can use the following 3 commands. Your
-persistence disk will not be changed, so you won't lose your images and
-containers:
-
-    $ ./boot2docker stop
-    $ ./boot2docker download
-    $ ./boot2docker start
-
-### About the way Docker works on Mac OS X:
-
-Docker has two key components: the `docker` daemon and the `docker` client.
-The tool works by client commanding the daemon. In order to work and do its
-magic, the daemon makes use of some Linux Kernel features (e.g. LXC, name
-spaces etc.), which are not supported by OS X. Therefore, the solution of
-getting Docker to run on OS X consists of running it inside a lightweight
-virtual machine. In order to simplify things, Docker comes with a bash
-script to make this whole process as easy as possible (i.e.
-boot2docker).
