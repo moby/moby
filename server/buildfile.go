@@ -929,12 +929,12 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile, macros map[string]string) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
 		config:        &runconfig.Config{},
-		macros:        make(map[string]string),
+		macros:        macros,
 		outStream:     outStream,
 		errStream:     errStream,
 		tmpContainers: make(map[string]struct{}),
