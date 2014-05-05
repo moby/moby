@@ -133,3 +133,19 @@ func TestParseJob(t *testing.T) {
 		t.Fatalf("Job was not called")
 	}
 }
+
+func TestCatchallEmptyName(t *testing.T) {
+	eng := New()
+	var called bool
+	eng.RegisterCatchall(func(job *Job) Status {
+		called = true
+		return StatusOK
+	})
+	err := eng.Job("").Run()
+	if err == nil {
+		t.Fatalf("Engine.Job(\"\").Run() should return an error")
+	}
+	if called {
+		t.Fatalf("Engine.Job(\"\").Run() should return an error")
+	}
+}

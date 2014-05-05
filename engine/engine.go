@@ -118,13 +118,13 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 	if eng.Logging {
 		job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
 	}
-	if eng.catchall != nil {
+
+	// Catchall is shadowed by specific Register.
+	if handler, exists := eng.handlers[name]; exists {
+		job.handler = handler
+	} else if eng.catchall != nil && name != "" {
+		// empty job names are illegal, catchall or not.
 		job.handler = eng.catchall
-	} else {
-		handler, exists := eng.handlers[name]
-		if exists {
-			job.handler = handler
-		}
 	}
 	return job
 }
