@@ -9,11 +9,11 @@ page_keywords: Docker, Docker documentation, security
 
 There are three major areas to consider when reviewing Docker security:
 
--   the intrinsic security of containers, as implemented by kernel
-    namespaces and cgroups;
--   the attack surface of the Docker daemon itself;
--   the "hardening" security features of the kernel and how they
-    interact with containers.
+ - the intrinsic security of containers, as implemented by kernel
+   namespaces and cgroups;
+ - the attack surface of the Docker daemon itself;
+ - the "hardening" security features of the kernel and how they
+   interact with containers.
 
 ## Kernel Namespaces
 
@@ -33,12 +33,12 @@ less affect, processes running in another container, or in the host
 system.
 
 **Each container also gets its own network stack**, meaning that a
-container doesn’t get a privileged access to the sockets or interfaces
+container doesn't get a privileged access to the sockets or interfaces
 of another container. Of course, if the host system is setup
 accordingly, containers can interact with each other through their
 respective network interfaces — just like they can interact with
 external hosts. When you specify public ports for your containers or use
-[*links*](../../use/working_with_links_names/#working-with-links-names)
+[*links*](/use/working_with_links_names/#working-with-links-names)
 then IP traffic is allowed between containers. They can ping each other,
 send/receive UDP packets, and establish TCP connections, but that can be
 restricted if necessary. From a network architecture point of view, all
@@ -54,8 +54,8 @@ This means that since July 2008 (date of the 2.6.26 release, now 5 years
 ago), namespace code has been exercised and scrutinized on a large
 number of production systems. And there is more: the design and
 inspiration for the namespaces code are even older. Namespaces are
-actually an effort to reimplement the features of
-[OpenVZ](http://en.wikipedia.org/wiki/OpenVZ) in such a way that they
+actually an effort to reimplement the features of [OpenVZ](
+http://en.wikipedia.org/wiki/OpenVZ) in such a way that they
 could be merged within the mainstream kernel. And OpenVZ was initially
 released in 2005, so both the design and the implementation are pretty
 mature.
@@ -90,11 +90,10 @@ Docker daemon**. This is a direct consequence of some powerful Docker
 features. Specifically, Docker allows you to share a directory between
 the Docker host and a guest container; and it allows you to do so
 without limiting the access rights of the container. This means that you
-can start a container where the `/host` directory
-will be the `/` directory on your host; and the
-container will be able to alter your host filesystem without any
-restriction. This sounds crazy? Well, you have to know that **all
-virtualization systems allowing filesystem resource sharing behave the
+can start a container where the `/host` directory will be the `/` directory
+on your host; and the container will be able to alter your host filesystem
+without any restriction. This sounds crazy? Well, you have to know that
+**all virtualization systems allowing filesystem resource sharing behave the
 same way**. Nothing prevents you from sharing your root filesystem (or
 even your root block device) with a virtual machine.
 
@@ -120,8 +119,8 @@ and client SSL certificates.
 
 Recent improvements in Linux namespaces will soon allow to run
 full-featured containers without root privileges, thanks to the new user
-namespace. This is covered in detail
-[here](http://s3hh.wordpress.com/2013/07/19/creating-and-using-containers-without-privilege/).
+namespace. This is covered in detail [here](
+http://s3hh.wordpress.com/2013/07/19/creating-and-using-containers-without-privilege/).
 Moreover, this will solve the problem caused by sharing filesystems
 between host and guest, since the user namespace allows users within
 containers (including the root user) to be mapped to other users in the
@@ -130,13 +129,13 @@ host system.
 The end goal for Docker is therefore to implement two additional
 security improvements:
 
--   map the root user of a container to a non-root user of the Docker
-    host, to mitigate the effects of a container-to-host privilege
-    escalation;
--   allow the Docker daemon to run without root privileges, and delegate
-    operations requiring those privileges to well-audited sub-processes,
-    each with its own (very limited) scope: virtual network setup,
-    filesystem management, etc.
+ - map the root user of a container to a non-root user of the Docker
+   host, to mitigate the effects of a container-to-host privilege
+   escalation;
+ - allow the Docker daemon to run without root privileges, and delegate
+   operations requiring those privileges to well-audited sub-processes,
+   each with its own (very limited) scope: virtual network setup,
+   filesystem management, etc.
 
 Finally, if you run Docker on a server, it is recommended to run
 exclusively Docker in the server, and move all other services within
@@ -152,11 +151,11 @@ capabilities. What does that mean?
 Capabilities turn the binary "root/non-root" dichotomy into a
 fine-grained access control system. Processes (like web servers) that
 just need to bind on a port below 1024 do not have to run as root: they
-can just be granted the `net_bind_service`
-capability instead. And there are many other capabilities, for almost
-all the specific areas where root privileges are usually needed.
+can just be granted the `net_bind_service` capability instead. And there
+are many other capabilities, for almost all the specific areas where root
+privileges are usually needed.
 
-This means a lot for container security; let’s see why!
+This means a lot for container security; let's see why!
 
 Your average server (bare metal or virtual machine) needs to run a bunch
 of processes as root. Those typically include SSH, cron, syslogd;
@@ -165,41 +164,41 @@ tools (to handle e.g. DHCP, WPA, or VPNs), and much more. A container is
 very different, because almost all of those tasks are handled by the
 infrastructure around the container:
 
--   SSH access will typically be managed by a single server running in
-    the Docker host;
--   `cron`, when necessary, should run as a user
-    process, dedicated and tailored for the app that needs its
-    scheduling service, rather than as a platform-wide facility;
--   log management will also typically be handed to Docker, or by
-    third-party services like Loggly or Splunk;
--   hardware management is irrelevant, meaning that you never need to
-    run `udevd` or equivalent daemons within
-    containers;
--   network management happens outside of the containers, enforcing
-    separation of concerns as much as possible, meaning that a container
-    should never need to perform `ifconfig`,
-    `route`, or ip commands (except when a container
-    is specifically engineered to behave like a router or firewall, of
-    course).
+ - SSH access will typically be managed by a single server running in
+   the Docker host;
+ - `cron`, when necessary, should run as a user
+   process, dedicated and tailored for the app that needs its
+   scheduling service, rather than as a platform-wide facility;
+ - log management will also typically be handed to Docker, or by
+   third-party services like Loggly or Splunk;
+ - hardware management is irrelevant, meaning that you never need to
+   run `udevd` or equivalent daemons within
+   containers;
+ - network management happens outside of the containers, enforcing
+   separation of concerns as much as possible, meaning that a container
+   should never need to perform `ifconfig`,
+   `route`, or ip commands (except when a container
+   is specifically engineered to behave like a router or firewall, of
+   course).
 
 This means that in most cases, containers will not need "real" root
 privileges *at all*. And therefore, containers can run with a reduced
 capability set; meaning that "root" within a container has much less
 privileges than the real "root". For instance, it is possible to:
 
--   deny all "mount" operations;
--   deny access to raw sockets (to prevent packet spoofing);
--   deny access to some filesystem operations, like creating new device
-    nodes, changing the owner of files, or altering attributes
-    (including the immutable flag);
--   deny module loading;
--   and many others.
+ - deny all "mount" operations;
+ - deny access to raw sockets (to prevent packet spoofing);
+ - deny access to some filesystem operations, like creating new device
+   nodes, changing the owner of files, or altering attributes (including
+   the immutable flag);
+ - deny module loading;
+ - and many others.
 
 This means that even if an intruder manages to escalate to root within a
 container, it will be much harder to do serious damage, or to escalate
 to the host.
 
-This won’t affect regular web apps; but malicious users will find that
+This won't affect regular web apps; but malicious users will find that
 the arsenal at their disposal has shrunk considerably! You can see [the
 list of dropped capabilities in the Docker
 code](https://github.com/dotcloud/docker/blob/v0.5.0/lxc_template.go#L97),
@@ -217,28 +216,28 @@ modern Linux kernels. It is also possible to leverage existing,
 well-known systems like TOMOYO, AppArmor, SELinux, GRSEC, etc. with
 Docker.
 
-While Docker currently only enables capabilities, it doesn’t interfere
+While Docker currently only enables capabilities, it doesn't interfere
 with the other systems. This means that there are many different ways to
 harden a Docker host. Here are a few examples.
 
--   You can run a kernel with GRSEC and PAX. This will add many safety
-    checks, both at compile-time and run-time; it will also defeat many
-    exploits, thanks to techniques like address randomization. It
-    doesn’t require Docker-specific configuration, since those security
-    features apply system-wide, independently of containers.
--   If your distribution comes with security model templates for LXC
-    containers, you can use them out of the box. For instance, Ubuntu
-    comes with AppArmor templates for LXC, and those templates provide
-    an extra safety net (even though it overlaps greatly with
-    capabilities).
--   You can define your own policies using your favorite access control
-    mechanism. Since Docker containers are standard LXC containers,
-    there is nothing “magic” or specific to Docker.
+ - You can run a kernel with GRSEC and PAX. This will add many safety
+   checks, both at compile-time and run-time; it will also defeat many
+   exploits, thanks to techniques like address randomization. It
+   doesn't require Docker-specific configuration, since those security
+   features apply system-wide, independently of containers.
+ - If your distribution comes with security model templates for LXC
+   containers, you can use them out of the box. For instance, Ubuntu
+   comes with AppArmor templates for LXC, and those templates provide
+   an extra safety net (even though it overlaps greatly with
+   capabilities).
+ - You can define your own policies using your favorite access control
+   mechanism. Since Docker containers are standard LXC containers,
+   there is nothing “magic” or specific to Docker.
 
 Just like there are many third-party tools to augment Docker containers
 with e.g. special network topologies or shared filesystems, you can
 expect to see tools to harden existing Docker containers without
-affecting Docker’s core.
+affecting Docker's core.
 
 ## Conclusions
 
@@ -254,5 +253,5 @@ containerization systems, you will be able to implement them as well
 with Docker, since everything is provided by the kernel anyway.
 
 For more context and especially for comparisons with VMs and other
-container systems, please also see the [original blog
-post](http://blog.docker.io/2013/08/containers-docker-how-secure-are-they/).
+container systems, please also see the [original blog post](
+http://blog.docker.io/2013/08/containers-docker-how-secure-are-they/).

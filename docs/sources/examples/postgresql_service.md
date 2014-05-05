@@ -9,13 +9,13 @@ page_keywords: docker, example, package installation, postgresql
 > - This example assumes you have Docker running in daemon mode. For
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
-> - **If you don’t like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+> - **If you don't like sudo** then see [*Giving non-root
+>   access*](/installation/binaries/#dockergroup)
 
 ## Installing PostgreSQL on Docker
 
-Assuming there is no Docker image that suits your needs in [the
-index](http://index.docker.io), you can create one yourself.
+Assuming there is no Docker image that suits your needs in [the index](
+http://index.docker.io), you can create one yourself.
 
 Start by creating a new Dockerfile:
 
@@ -25,7 +25,7 @@ Start by creating a new Dockerfile:
 > suitably secure.
 
     #
-    # example Dockerfile for http://docs.docker.io/en/latest/examples/postgresql_service/
+    # example Dockerfile for http://docs.docker.io/examples/postgresql_service/
     #
 
     FROM ubuntu
@@ -87,7 +87,7 @@ And run the PostgreSQL server container (in the foreground):
     $ sudo docker run -rm -P -name pg_test eg_postgresql
 
 There are 2 ways to connect to the PostgreSQL server. We can use [*Link
-Containers*](../../use/working_with_links_names/#working-with-links-names),
+Containers*](/use/working_with_links_names/#working-with-links-names),
 or we can access it from our host (or the network).
 
 > **Note**: 
@@ -96,8 +96,8 @@ or we can access it from our host (or the network).
 
 ### Using container linking
 
-Containers can be linked to another container’s ports directly using
-`-link remote_name:local_alias` in the client’s
+Containers can be linked to another container's ports directly using
+`-link remote_name:local_alias` in the client's
 `docker run`. This will set a number of environment
 variables that can then be used to connect:
 
@@ -125,14 +125,14 @@ prompt, you can create a table and populate it.
     psql (9.3.1)
     Type "help" for help.
 
-    docker=# CREATE TABLE cities (
+    $ docker=# CREATE TABLE cities (
     docker(#     name            varchar(80),
     docker(#     location        point
     docker(# );
     CREATE TABLE
-    docker=# INSERT INTO cities VALUES ('San Francisco', '(-194.0, 53.0)');
+    $ docker=# INSERT INTO cities VALUES ('San Francisco', '(-194.0, 53.0)');
     INSERT 0 1
-    docker=# select * from cities;
+    $ docker=# select * from cities;
          name      | location
     ---------------+-----------
      San Francisco | (-194,53)
@@ -143,7 +143,7 @@ prompt, you can create a table and populate it.
 You can use the defined volumes to inspect the PostgreSQL log files and
 to backup your configuration and data:
 
-    docker run -rm --volumes-from pg_test -t -i busybox sh
+    $ docker run -rm --volumes-from pg_test -t -i busybox sh
 
     / # ls
     bin      etc      lib      linuxrc  mnt      proc     run      sys      usr

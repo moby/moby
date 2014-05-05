@@ -1,10 +1,11 @@
 package lxc
 
 import (
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/label"
 	"strings"
 	"text/template"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/label"
 )
 
 const LxcTemplate = `
@@ -13,12 +14,13 @@ const LxcTemplate = `
 lxc.network.type = veth
 lxc.network.link = {{.Network.Interface.Bridge}}
 lxc.network.name = eth0
-{{else}}
+lxc.network.mtu = {{.Network.Mtu}}
+{{else if not .Network.HostNetworking}}
 # network is disabled (-n=false)
 lxc.network.type = empty
 lxc.network.flags = up
-{{end}}
 lxc.network.mtu = {{.Network.Mtu}}
+{{end}}
 
 # root filesystem
 {{$ROOTFS := .Rootfs}}
@@ -82,12 +84,11 @@ lxc.pivotdir = lxc_putold
 
 # NOTICE: These mounts must be applied within the namespace
 
-#  WARNING: procfs is a known attack vector and should probably be disabled
-#           if your userspace allows it. eg. see http://blog.zx2c4.com/749
+# WARNING: mounting procfs and/or sysfs read-write is a known attack vector.
+# See e.g. http://blog.zx2c4.com/749 and http://bit.ly/T9CkqJ
+# We mount them read-write here, but later, dockerinit will call the Restrict() function to remount them read-only.
+# We cannot mount them directly read-only, because that would prevent loading AppArmor profiles.
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
-
-# WARNING: sysfs is a known attack vector and should probably be disabled
-# if your userspace allows it. eg. see http://bit.ly/T9CkqJ
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
 
 {{if .Tty}}
@@ -109,7 +110,7 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
-#lxc.aa_profile = unconfined
+# Let AppArmor normal confinement take place (i.e., not unconfined)
 {{end}}
 {{end}}
 

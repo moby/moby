@@ -3,6 +3,16 @@ package daemon
 import (
 	"container/list"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/execdrivers"
@@ -17,20 +27,12 @@ import (
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
 )
 
 // Set the max depth to the aufs default that most
@@ -134,9 +136,6 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 	if container.ID != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
-	if container.State.IsRunning() {
-		container.State.SetGhost(true)
-	}
 	return container, nil
 }
 
@@ -171,35 +170,32 @@ func (daemon *Daemon) Register(container *Container) error {
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		if container.State.IsGhost() {
-			utils.Debugf("killing ghost %s", container.ID)
+		utils.Debugf("killing old running container %s", container.ID)
 
-			existingPid := container.State.Pid
-			container.State.SetGhost(false)
-			container.State.SetStopped(0)
+		existingPid := container.State.Pid
+		container.State.SetStopped(0)
 
-			// We only have to handle this for lxc because the other drivers will ensure that
-			// no ghost processes are left when docker dies
-			if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
-				lxc.KillLxc(container.ID, 9)
-			} else {
-				// use the current driver and ensure that the container is dead x.x
-				cmd := &execdriver.Command{
-					ID: container.ID,
-				}
-				var err error
-				cmd.Process, err = os.FindProcess(existingPid)
-				if err != nil {
-					utils.Debugf("cannot find existing process for %d", existingPid)
-				}
-				daemon.execDriver.Terminate(cmd)
+		// We only have to handle this for lxc because the other drivers will ensure that
+		// no processes are left when docker dies
+		if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
+			lxc.KillLxc(container.ID, 9)
+		} else {
+			// use the current driver and ensure that the container is dead x.x
+			cmd := &execdriver.Command{
+				ID: container.ID,
 			}
-			if err := container.Unmount(); err != nil {
-				utils.Debugf("ghost unmount error %s", err)
+			var err error
+			cmd.Process, err = os.FindProcess(existingPid)
+			if err != nil {
+				utils.Debugf("cannot find existing process for %d", existingPid)
 			}
-			if err := container.ToDisk(); err != nil {
-				utils.Debugf("saving ghost state to disk %s", err)
-			}
+			daemon.execDriver.Terminate(cmd)
+		}
+		if err := container.Unmount(); err != nil {
+			utils.Debugf("unmount error %s", err)
+		}
+		if err := container.ToDisk(); err != nil {
+			utils.Debugf("saving stopped state to disk %s", err)
 		}
 
 		info := daemon.execDriver.Info(container.ID)
@@ -211,8 +207,6 @@ func (daemon *Daemon) Register(container *Container) error {
 					utils.Debugf("restart unmount error %s", err)
 				}
 
-				container.State.SetGhost(false)
-				container.State.SetStopped(0)
 				if err := container.Start(); err != nil {
 					return err
 				}
@@ -278,6 +272,10 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return err
 	}
 
+	// Deregister the container before removing its directory, to avoid race conditions
+	daemon.idIndex.Delete(container.ID)
+	daemon.containers.Remove(element)
+
 	if err := daemon.driver.Remove(container.ID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
 	}
@@ -291,12 +289,11 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		utils.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
-	// Deregister the container before removing its directory, to avoid race conditions
-	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Remove(element)
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
+	selinux.FreeLxcContexts(container.ProcessLabel)
+
 	return nil
 }
 
@@ -541,6 +538,10 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		ExecDriver:      daemon.execDriver.Name(),
 	}
 	container.root = daemon.containerRoot(container.ID)
+
+	if container.ProcessLabel, container.MountLabel, err = label.GenLabels(""); err != nil {
+		return nil, err
+	}
 	return container, nil
 }
 
@@ -551,10 +552,10 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Create(initID, img.ID, ""); err != nil {
+	if err := daemon.driver.Create(initID, img.ID); err != nil {
 		return err
 	}
-	initPath, err := daemon.driver.Get(initID)
+	initPath, err := daemon.driver.Get(initID, "")
 	if err != nil {
 		return err
 	}
@@ -564,7 +565,7 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 		return err
 	}
 
-	if err := daemon.driver.Create(container.ID, initID, ""); err != nil {
+	if err := daemon.driver.Create(container.ID, initID); err != nil {
 		return err
 	}
 	return nil
@@ -678,7 +679,6 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if !config.EnableSelinuxSupport {
 		selinux.SetDisabled()
 	}
-
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
 
@@ -848,7 +848,7 @@ func (daemon *Daemon) Close() error {
 }
 
 func (daemon *Daemon) Mount(container *Container) error {
-	dir, err := daemon.driver.Get(container.ID)
+	dir, err := daemon.driver.Get(container.ID, container.GetMountLabel())
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
 	}
@@ -870,12 +870,12 @@ func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	if differ, ok := daemon.driver.(graphdriver.Differ); ok {
 		return differ.Changes(container.ID)
 	}
-	cDir, err := daemon.driver.Get(container.ID)
+	cDir, err := daemon.driver.Get(container.ID, "")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
 	}
 	defer daemon.driver.Put(container.ID)
-	initDir, err := daemon.driver.Get(container.ID + "-init")
+	initDir, err := daemon.driver.Get(container.ID+"-init", "")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
 	}
@@ -893,7 +893,7 @@ func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
 		return nil, err
 	}
 
-	cDir, err := daemon.driver.Get(container.ID)
+	cDir, err := daemon.driver.Get(container.ID, "")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
 	}

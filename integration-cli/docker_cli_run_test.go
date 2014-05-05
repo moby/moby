@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -89,6 +90,22 @@ func TestDockerRunEchoNamedContainer(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - echo with named container")
+}
+
+// docker run should not leak file descriptors
+func TestDockerRunLeakyFileDescriptors(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "ls", "-C", "/proc/self/fd")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, out)
+
+	// normally, we should only get 0, 1, and 2, but 3 gets created by "ls" when it does "opendir" on the "fd" directory
+	if out != "0  1  2  3\n" {
+		t.Errorf("container should've printed '0  1  2  3', not: %s", out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - check file descriptor leakage")
 }
 
 // it should be possible to ping Google DNS resolver
@@ -424,6 +441,48 @@ func TestCreateVolume(t *testing.T) {
 	logDone("run - create docker mangaed volume")
 }
 
+// Test that creating a volume with a symlink in its path works correctly. Test for #5152.
+// Note that this bug happens only with symlinks with a target that starts with '/'.
+func TestVolumeWithSymlink(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "run_tests", "TestVolumeWithSymlink")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumewithsymlink", ".")
+	buildCmd.Dir = buildDirectory
+	err := buildCmd.Run()
+	if err != nil {
+		t.Fatal("could not build 'docker-test-volumewithsymlink': %v", err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-volumewithsymlink", "docker-test-volumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
+	exitCode, err := runCommand(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatal("[run] err: %v, exitcode: %d", err, exitCode)
+	}
+
+	var volPath string
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-volumewithsymlink")
+	volPath, exitCode, err = runCommandWithOutput(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatal("[inspect] err: %v, exitcode: %d", err, exitCode)
+	}
+
+	cmd = exec.Command(dockerBinary, "rm", "-v", "test-volumewithsymlink")
+	exitCode, err = runCommand(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatal("[rm] err: %v, exitcode: %d", err, exitCode)
+	}
+
+	f, err := os.Open(volPath)
+	defer f.Close()
+	if !os.IsNotExist(err) {
+		t.Fatal("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
+	}
+
+	deleteImages("docker-test-volumewithsymlink")
+	deleteAllContainers()
+
+	logDone("run - volume with symlink")
+}
+
 func TestExitCode(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "busybox", "/bin/sh", "-c", "exit 72")
 
@@ -664,4 +723,48 @@ func TestUnPrivilegedCannotMount(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - test un-privileged cannot mount")
+}
+
+func TestSysNotWritableInNonPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", "/sys/kernel/profiling")
+	if code, err := runCommand(cmd); err == nil || code == 0 {
+		t.Fatal("sys should not be writable in a non privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - sys not writable in non privileged container")
+}
+
+func TestSysWritableInPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "touch", "/sys/kernel/profiling")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("sys should be writable in privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - sys writable in privileged container")
+}
+
+func TestProcNotWritableInNonPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", "/proc/sysrq-trigger")
+	if code, err := runCommand(cmd); err == nil || code == 0 {
+		t.Fatal("proc should not be writable in a non privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - proc not writable in non privileged container")
+}
+
+func TestProcWritableInPrivilegedContainers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "touch", "/proc/sysrq-trigger")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("proc should be writable in privileged container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - proc writable in privileged container")
 }

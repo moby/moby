@@ -2,10 +2,6 @@ package lxc
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +12,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DriverName = "lxc"
@@ -25,23 +27,21 @@ func init() {
 		if err := setupEnv(args); err != nil {
 			return err
 		}
-
 		if err := setupHostname(args); err != nil {
 			return err
 		}
-
 		if err := setupNetworking(args); err != nil {
 			return err
 		}
-
 		if err := setupCapabilities(args); err != nil {
 			return err
 		}
-
 		if err := setupWorkingDirectory(args); err != nil {
 			return err
 		}
-
+		if err := system.CloseFdsFrom(3); err != nil {
+			return err
+		}
 		if err := changeUser(args); err != nil {
 			return err
 		}

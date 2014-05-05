@@ -2,21 +2,31 @@ package fs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/dotcloud/docker/pkg/cgroups"
 )
 
 type freezerGroup struct {
 }
 
 func (s *freezerGroup) Set(d *data) error {
-	// we just want to join this group even though we don't set anything
-	if _, err := d.join("freezer"); err != nil && err != cgroups.ErrNotFound {
-		return err
+	dir, err := d.join("freezer")
+	if err != nil {
+		if err != cgroups.ErrNotFound {
+			return err
+		}
+		return nil
+	}
+
+	if d.c.Freezer != "" {
+		if err := writeFile(dir, "freezer.state", d.c.Freezer); err != nil {
+			return err
+		}
 	}
 	return nil
 }

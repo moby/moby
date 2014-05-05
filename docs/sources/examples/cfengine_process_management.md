@@ -10,14 +10,14 @@ Docker monitors one process in each running container and the container
 lives or dies with that process. By introducing CFEngine inside Docker
 containers, we can alleviate a few of the issues that may arise:
 
--   It is possible to easily start multiple processes within a
-    container, all of which will be managed automatically, with the
-    normal `docker run` command.
--   If a managed process dies or crashes, CFEngine will start it again
-    within 1 minute.
--   The container itself will live as long as the CFEngine scheduling
-    daemon (cf-execd) lives. With CFEngine, we are able to decouple the
-    life of the container from the uptime of the service it provides.
+ - It is possible to easily start multiple processes within a
+   container, all of which will be managed automatically, with the
+   normal `docker run` command.
+ - If a managed process dies or crashes, CFEngine will start it again
+   within 1 minute.
+ - The container itself will live as long as the CFEngine scheduling
+   daemon (cf-execd) lives. With CFEngine, we are able to decouple the
+   life of the container from the uptime of the service it provides.
 
 ## How it works
 
@@ -25,23 +25,20 @@ CFEngine, together with the cfe-docker integration policies, are
 installed as part of the Dockerfile. This builds CFEngine into our
 Docker image.
 
-The Dockerfile’s `ENTRYPOINT` takes an arbitrary
+The Dockerfile's `ENTRYPOINT` takes an arbitrary
 amount of commands (with any desired arguments) as parameters. When we
 run the Docker container these parameters get written to CFEngine
 policies and CFEngine takes over to ensure that the desired processes
 are running in the container.
 
-CFEngine scans the process table for the `basename`
-of the commands given to the `ENTRYPOINT` and runs
-the command to start the process if the `basename`
+CFEngine scans the process table for the `basename` of the commands given
+to the `ENTRYPOINT` and runs the command to start the process if the `basename`
 is not found. For example, if we start the container with
-`docker run "/path/to/my/application parameters"`,
-CFEngine will look for a process named `application`
-and run the command. If an entry for `application`
-is not found in the process table at any point in time, CFEngine will
-execute `/path/to/my/application parameters` to
-start the application once again. The check on the process table happens
-every minute.
+`docker run "/path/to/my/application parameters"`, CFEngine will look for a
+process named `application` and run the command. If an entry for `application`
+is not found in the process table at any point in time, CFEngine will execute
+`/path/to/my/application parameters` to start the application once again. The
+check on the process table happens every minute.
 
 Note that it is therefore important that the command to start your
 application leaves a process with the basename of the command. This can
@@ -56,11 +53,10 @@ in a single container.
 
 There are three steps:
 
-1.  Install CFEngine into the container.
-2.  Copy the CFEngine Docker process management policy into the
-    containerized CFEngine installation.
-3.  Start your application processes as part of the
-    `docker run` command.
+1. Install CFEngine into the container.
+2. Copy the CFEngine Docker process management policy into the
+   containerized CFEngine installation.
+3. Start your application processes as part of the `docker run` command.
 
 ### Building the container image
 
@@ -90,25 +86,22 @@ The first two steps can be done as part of a Dockerfile, as follows.
 
     ENTRYPOINT ["/var/cfengine/bin/docker_processes_run.sh"]
 
-By saving this file as `Dockerfile` to a working
-directory, you can then build your container with the docker build
-command, e.g. `docker build -t managed_image`.
+By saving this file as Dockerfile to a working directory, you can then build
+your container with the docker build command, e.g.
+`docker build -t managed_image`.
 
 ### Testing the container
 
-Start the container with `apache2` and
-`sshd` running and managed, forwarding a port to our
-SSH instance:
+Start the container with `apache2` and `sshd` running and managed, forwarding
+a port to our SSH instance:
 
-    docker run -p 127.0.0.1:222:22 -d managed_image "/usr/sbin/sshd" "/etc/init.d/apache2 start"
+    $ docker run -p 127.0.0.1:222:22 -d managed_image "/usr/sbin/sshd" "/etc/init.d/apache2 start"
 
 We now clearly see one of the benefits of the cfe-docker integration: it
-allows to start several processes as part of a normal
-`docker run` command.
+allows to start several processes as part of a normal `docker run` command.
 
-We can now log in to our new container and see that both
-`apache2` and `sshd` are
-running. We have set the root password to "password" in the Dockerfile
+We can now log in to our new container and see that both `apache2` and `sshd`
+are running. We have set the root password to "password" in the Dockerfile
 above and can use that to log in with ssh:
 
     ssh -p222 root@127.0.0.1
@@ -144,9 +137,8 @@ CFEngine.
 To make sure your applications get managed in the same manner, there are
 just two things you need to adjust from the above example:
 
--   In the Dockerfile used above, install your applications instead of
-    `apache2` and `sshd`.
--   When you start the container with `docker run`,
-    specify the command line arguments to your applications rather than
-    `apache2` and `sshd`.
-
+ - In the Dockerfile used above, install your applications instead of
+   `apache2` and `sshd`.
+ - When you start the container with `docker run`,
+   specify the command line arguments to your applications rather than
+   `apache2` and `sshd`.

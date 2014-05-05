@@ -24,3 +24,7 @@ func GetPidCon(pid int) (string, error) {
 
 func Init() {
 }
+
+func ReserveLabel(label string) error {
+	return nil
+}

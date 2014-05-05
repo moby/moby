@@ -4,8 +4,9 @@ package label
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/selinux"
 	"strings"
+
+	"github.com/dotcloud/docker/pkg/selinux"
 )
 
 func GenLabels(options string) (string, string, error) {
@@ -32,13 +33,13 @@ func GenLabels(options string) (string, string, error) {
 	return processLabel, mountLabel, err
 }
 
-func FormatMountLabel(src string, mountLabel string) string {
-	if selinux.SelinuxEnabled() && mountLabel != "" {
+func FormatMountLabel(src, mountLabel string) string {
+	if mountLabel != "" {
 		switch src {
 		case "":
-			src = fmt.Sprintf("%s,context=%s", src, mountLabel)
+			src = fmt.Sprintf("context=%q", mountLabel)
 		default:
-			src = fmt.Sprintf("context=%s", mountLabel)
+			src = fmt.Sprintf("%s,context=%q", src, mountLabel)
 		}
 	}
 	return src
@@ -74,4 +75,9 @@ func GetPidCon(pid int) (string, error) {
 
 func Init() {
 	selinux.SelinuxEnabled()
+}
+
+func ReserveLabel(label string) error {
+	selinux.ReserveLabel(label)
+	return nil
 }

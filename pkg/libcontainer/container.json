@@ -1,50 +1,62 @@
 {
-    "hostname": "koye",
-    "tty": true,
-    "environment": [
-        "HOME=/",
-        "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
-        "container=docker",
-        "TERM=xterm-256color"
-    ],
-    "namespaces": [
-        "NEWIPC",
-        "NEWNS",
-        "NEWPID",
-        "NEWUTS",
-        "NEWNET"
-    ],
-    "capabilities_mask": [
-        "SETPCAP",
-        "SYS_MODULE",
-        "SYS_RAWIO",
-        "SYS_PACCT",
-        "SYS_ADMIN",
-        "SYS_NICE",
-        "SYS_RESOURCE",
-        "SYS_TIME",
-        "SYS_TTY_CONFIG",
-        "MKNOD",
-        "AUDIT_WRITE",
-        "AUDIT_CONTROL",
-        "MAC_OVERRIDE",
-        "MAC_ADMIN",
-        "NET_ADMIN"
-    ],
-    "networks": [{
-            "type": "veth",
-            "context": {
-                "bridge": "docker0",
-                "prefix": "dock"
-            },
-            "address": "172.17.0.100/16",
-            "gateway": "172.17.42.1",
-            "mtu": 1500
-        }
-    ],
-    "cgroups": {
-        "name": "docker-koye",
-        "parent": "docker",
-        "memory": 5248000
+  "namespaces": {
+    "NEWNET": true,
+    "NEWPID": true,
+    "NEWIPC": true,
+    "NEWUTS": true,
+    "NEWNS": true
+  },
+  "networks": [
+    {
+      "gateway": "localhost",
+      "type": "loopback",
+      "address": "127.0.0.1/0",
+      "mtu": 1500
+    },
+    {
+      "gateway": "172.17.42.1",
+      "context": {
+        "prefix": "veth",
+        "bridge": "docker0"
+      },
+      "type": "veth",
+      "address": "172.17.42.2/16",
+      "mtu": 1500
     }
+  ],
+  "capabilities_mask": {
+    "SYSLOG": false,
+    "MKNOD": true,
+    "NET_ADMIN": false,
+    "MAC_ADMIN": false,
+    "MAC_OVERRIDE": false,
+    "AUDIT_CONTROL": false,
+    "AUDIT_WRITE": false,
+    "SYS_TTY_CONFIG": false,
+    "SETPCAP": false,
+    "SYS_MODULE": false,
+    "SYS_RAWIO": false,
+    "SYS_PACCT": false,
+    "SYS_ADMIN": false,
+    "SYS_NICE": false,
+    "SYS_RESOURCE": false,
+    "SYS_TIME": false
+  },
+  "cgroups": {
+    "name": "docker-koye",
+    "parent": "docker"
+  },
+  "hostname": "koye",
+  "environment": [
+    "HOME=/",
+    "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
+    "container=docker",
+    "TERM=xterm-256color"
+  ],
+  "tty": true,
+  "mounts": [
+    {
+      "type": "devtmpfs"
+    }
+  ]
 }

@@ -29,6 +29,7 @@ type Config struct {
 	Mtu                         int
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
+	Context                     map[string][]string
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -46,7 +47,7 @@ func ConfigFromJob(job *engine.Job) *Config {
 		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
 		GraphDriver:                 job.Getenv("GraphDriver"),
 		ExecDriver:                  job.Getenv("ExecDriver"),
-		EnableSelinuxSupport:        false, // FIXME: hardcoded default to disable selinux for .10 release
+		EnableSelinuxSupport:        job.GetenvBool("EnableSelinuxSupport"),
 	}
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns

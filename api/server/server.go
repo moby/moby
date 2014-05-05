@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go.net/websocket"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"code.google.com/p/go.net/websocket"
 
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
@@ -324,6 +325,48 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 		if _, err = outs.WriteListTo(w); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func getContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var (
+		job    = eng.Job("inspect", vars["name"], "container")
+		c, err = job.Stdout.AddEnv()
+	)
+	if err != nil {
+		return err
+	}
+	if err = job.Run(); err != nil {
+		return err
+	}
+
+	var outStream, errStream io.Writer
+	outStream = utils.NewWriteFlusher(w)
+
+	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
+		errStream = utils.NewStdWriter(outStream, utils.Stderr)
+		outStream = utils.NewStdWriter(outStream, utils.Stdout)
+	} else {
+		errStream = outStream
+	}
+
+	job = eng.Job("logs", vars["name"])
+	job.Setenv("follow", r.Form.Get("follow"))
+	job.Setenv("stdout", r.Form.Get("stdout"))
+	job.Setenv("stderr", r.Form.Get("stderr"))
+	job.Setenv("timestamps", r.Form.Get("timestamps"))
+	job.Stdout.Add(outStream)
+	job.Stderr.Set(errStream)
+	if err := job.Run(); err != nil {
+		fmt.Fprintf(outStream, "Error: %s\n", err)
 	}
 	return nil
 }
@@ -934,6 +977,11 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
+func ping(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	_, err := w.Write([]byte{'O', 'K'})
+	return err
+}
+
 func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, enableCors bool, dockerVersion version.Version) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
@@ -1002,6 +1050,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
+			"/_ping":                          ping,
 			"/events":                         getEvents,
 			"/info":                           getInfo,
 			"/version":                        getVersion,
@@ -1017,6 +1066,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/changes":   getContainersChanges,
 			"/containers/{name:.*}/json":      getContainersByName,
 			"/containers/{name:.*}/top":       getContainersTop,
+			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
 		},
 		"POST": {
@@ -1224,6 +1274,9 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 // ServeApi loops through all of the protocols sent in to docker and spawns
 // off a go routine to setup a serving http.Server for each.
 func ServeApi(job *engine.Job) engine.Status {
+	if len(job.Args) == 0 {
+		return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+	}
 	var (
 		protoAddrs = job.Args
 		chErrors   = make(chan error, len(protoAddrs))
@@ -1236,6 +1289,9 @@ func ServeApi(job *engine.Job) engine.Status {
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if len(protoAddrParts) != 2 {
+			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+		}
 		go func() {
 			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)

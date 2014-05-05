@@ -4,16 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/links"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/arp"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -23,6 +13,18 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/links"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/arp"
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -65,7 +67,8 @@ type Container struct {
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 
-	daemon *Daemon
+	daemon                   *Daemon
+	MountLabel, ProcessLabel string
 
 	waitLock chan struct{}
 	Volumes  map[string]string
@@ -121,6 +124,10 @@ func (container *Container) FromDisk() error {
 	// Load container settings
 	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
+		return err
+	}
+
+	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
 		return err
 	}
 	return container.readHostConfig()
@@ -319,29 +326,46 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
-func populateCommand(c *Container, env []string) {
+func populateCommand(c *Container, env []string) error {
 	var (
-		en           *execdriver.Network
-		driverConfig = make(map[string][]string)
+		en      *execdriver.Network
+		context = make(map[string][]string)
 	)
+	context["process_label"] = []string{c.GetProcessLabel()}
+	context["mount_label"] = []string{c.GetMountLabel()}
 
 	en = &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
 		Interface: nil,
 	}
 
-	if !c.Config.NetworkDisabled {
-		network := c.NetworkSettings
-		en.Interface = &execdriver.NetworkInterface{
-			Gateway:     network.Gateway,
-			Bridge:      network.Bridge,
-			IPAddress:   network.IPAddress,
-			IPPrefixLen: network.IPPrefixLen,
+	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
+	switch parts[0] {
+	case "none":
+	case "host":
+		en.HostNetworking = true
+	case "bridge", "": // empty string to support existing containers
+		if !c.Config.NetworkDisabled {
+			network := c.NetworkSettings
+			en.Interface = &execdriver.NetworkInterface{
+				Gateway:     network.Gateway,
+				Bridge:      network.Bridge,
+				IPAddress:   network.IPAddress,
+				IPPrefixLen: network.IPPrefixLen,
+			}
 		}
+	case "container":
+		nc, err := c.getNetworkedContainer()
+		if err != nil {
+			return err
+		}
+		en.ContainerID = nc.ID
+	default:
+		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
-	mergeLxcConfIntoOptions(c.hostConfig, driverConfig)
+	mergeLxcConfIntoOptions(c.hostConfig, context)
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
@@ -359,11 +383,12 @@ func populateCommand(c *Container, env []string) {
 		Network:    en,
 		Tty:        c.Config.Tty,
 		User:       c.Config.User,
-		Config:     driverConfig,
+		Config:     context,
 		Resources:  resources,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env
+	return nil
 }
 
 func (container *Container) Start() (err error) {
@@ -407,7 +432,9 @@ func (container *Container) Start() (err error) {
 	if err := container.setupWorkingDirectory(); err != nil {
 		return err
 	}
-	populateCommand(container, env)
+	if err := populateCommand(container, env); err != nil {
+		return err
+	}
 	if err := setupMountsForContainer(container); err != nil {
 		return err
 	}
@@ -465,9 +492,30 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) {
+func (container *Container) StdoutLogPipe() io.ReadCloser {
+	reader, writer := io.Pipe()
+	container.stdout.AddWriter(writer, "stdout")
+	return utils.NewBufReader(reader)
+}
+
+func (container *Container) StderrLogPipe() io.ReadCloser {
+	reader, writer := io.Pipe()
+	container.stderr.AddWriter(writer, "stderr")
+	return utils.NewBufReader(reader)
+}
+
+func (container *Container) buildHostname() {
 	container.HostnamePath = path.Join(container.root, "hostname")
-	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+
+	if container.Config.Domainname != "" {
+		ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
+	} else {
+		ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+	}
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) {
+	container.buildHostname()
 
 	hostsContent := []byte(`
 127.0.0.1	localhost
@@ -485,12 +533,12 @@ ff02::2		ip6-allrouters
 	} else if !container.Config.NetworkDisabled {
 		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
 	}
-
 	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
 }
 
 func (container *Container) allocateNetwork() error {
-	if container.Config.NetworkDisabled {
+	mode := container.hostConfig.NetworkMode
+	if container.Config.NetworkDisabled || mode.IsContainer() || mode.IsHost() {
 		return nil
 	}
 
@@ -655,9 +703,12 @@ func (container *Container) Kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
-		if err := syscall.Kill(container.State.Pid, 9); err != nil {
-			return err
+		// Ensure that we don't kill ourselves
+		if pid := container.State.Pid; pid != 0 {
+			log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
+			if err := syscall.Kill(pid, 9); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -940,14 +991,22 @@ func (container *Container) setupContainerDns() error {
 	if container.ResolvConfPath != "" {
 		return nil
 	}
+
 	var (
 		config = container.hostConfig
 		daemon = container.daemon
 	)
+
+	if config.NetworkMode == "host" {
+		container.ResolvConfPath = "/etc/resolv.conf"
+		return nil
+	}
+
 	resolvConf, err := utils.GetResolvConf()
 	if err != nil {
 		return err
 	}
+
 	// If custom dns exists, then create a resolv.conf for the container
 	if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
 		var (
@@ -987,7 +1046,32 @@ func (container *Container) setupContainerDns() error {
 }
 
 func (container *Container) initializeNetworking() error {
-	if container.daemon.config.DisableNetwork {
+	var err error
+	if container.hostConfig.NetworkMode.IsHost() {
+		container.Config.Hostname, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+
+		parts := strings.SplitN(container.Config.Hostname, ".", 2)
+		if len(parts) > 1 {
+			container.Config.Hostname = parts[0]
+			container.Config.Domainname = parts[1]
+		}
+		container.HostsPath = "/etc/hosts"
+
+		container.buildHostname()
+	} else if container.hostConfig.NetworkMode.IsContainer() {
+		// we need to get the hosts files from the container to join
+		nc, err := container.getNetworkedContainer()
+		if err != nil {
+			return err
+		}
+		container.HostsPath = nc.HostsPath
+		container.ResolvConfPath = nc.ResolvConfPath
+		container.Config.Hostname = nc.Config.Hostname
+		container.Config.Domainname = nc.Config.Domainname
+	} else if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
 		container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
@@ -1193,4 +1277,37 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 	}
 	bindings[port] = binding
 	return nil
+}
+
+func (container *Container) GetProcessLabel() string {
+	// even if we have a process label return "" if we are running
+	// in privileged mode
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.ProcessLabel
+}
+
+func (container *Container) GetMountLabel() string {
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.MountLabel
+}
+
+func (container *Container) getNetworkedContainer() (*Container, error) {
+	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
+	switch parts[0] {
+	case "container":
+		nc := container.daemon.Get(parts[1])
+		if nc == nil {
+			return nil, fmt.Errorf("no such container to join network: %s", parts[1])
+		}
+		if !nc.State.IsRunning() {
+			return nil, fmt.Errorf("cannot join network of a non running container: %s", parts[1])
+		}
+		return nc, nil
+	default:
+		return nil, fmt.Errorf("network mode not set to container")
+	}
 }
