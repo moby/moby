@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -41,6 +42,7 @@ type buildFile struct {
 	image      string
 	maintainer string
 	config     *runconfig.Config
+	macros     map[string]string
 
 	contextPath string
 	context     *utils.TarSum
@@ -265,6 +267,24 @@ func (b *buildFile) CmdEnv(args string) error {
 		b.config.Env = append(b.config.Env, replacedVar)
 	}
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
+}
+
+func (b *buildFile) CmdSet(args string) error {
+	if b.macros == nil {
+		b.macros = make(map[string]string)
+	}
+
+	item := strings.SplitN(args, " ", 2)
+
+	if len(item) != 2 {
+		return fmt.Errorf("Invalid SET directive: %s", args)
+	}
+
+	identifier := item[0]
+	value := item[1]
+
+	b.macros[identifier] = value
+	return nil
 }
 
 func (b *buildFile) buildCmdFromJson(args string) []string {
@@ -782,13 +802,101 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
 }
 
+func isValidMacroRune(ch rune) bool {
+	return !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_", ch)
+}
+
+// Conducts complete macro substitution of input string based on given macros
+func macroSubstitution(input string, macros map[string]string) (string, error) {
+	if macros == nil {
+		return input, nil
+	}
+
+	var output bytes.Buffer
+
+	squotes := false
+	dquotes := false
+
+	for i := 0; i < len(input); i++ {
+		ch := input[i]
+
+		// Get quote level
+		switch ch {
+		case '"':
+			dquotes = !dquotes
+		case '\'':
+			squotes = !squotes
+		}
+
+		// No replacements when in single-quotes
+		if squotes {
+			output.WriteByte(ch)
+			continue
+		}
+
+		switch ch {
+		case '$':
+			// Replace $$ with $
+			if input[i+1] == '$' {
+				i++
+				output.WriteByte('$')
+				continue
+			}
+
+			// Find end of macro identifier
+			start := i + 1
+			offset := strings.IndexFunc(input[start:], isValidMacroRune)
+			end := start + offset
+
+			// Default to end of string
+			if offset < 0 {
+				offset = len(input) - start
+				end = len(input)
+			}
+
+			i += offset
+
+			// Get macro values
+			ident := input[start:end]
+			value, ok := macros[ident]
+
+			// Conduct the replacement
+			if ok {
+				// Recursively get value of the macro (allows for nested macros)
+				value, err := macroSubstitution(value, macros)
+
+				if err != nil {
+					return "", err
+				}
+
+				output.WriteString(value)
+			} else {
+				output.WriteString("$" + ident)
+			}
+		default:
+			output.WriteByte(ch)
+		}
+	}
+
+	return output.String(), nil
+}
+
 // BuildStep parses a single build step from `instruction` and executes it in the current context.
+// In addition, it will preform macro substitutions on the instruction's expression.
 func (b *buildFile) BuildStep(name, expression string) error {
+	expression, err := macroSubstitution(expression, b.macros)
+
+	if err != nil {
+		return fmt.Errorf("Error parsing Dockerfile: %s", err.Error())
+	}
+
 	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
 	tmp := strings.SplitN(expression, " ", 2)
+
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid Dockerfile format")
 	}
+
 	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
 	arguments := strings.Trim(tmp[1], " ")
 
@@ -826,6 +934,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		daemon:        srv.daemon,
 		srv:           srv,
 		config:        &runconfig.Config{},
+		macros:        make(map[string]string),
 		outStream:     outStream,
 		errStream:     errStream,
 		tmpContainers: make(map[string]struct{}),
