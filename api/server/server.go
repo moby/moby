@@ -916,6 +916,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
 	job.Setenv("rm", r.FormValue("rm"))
+	job.Setenv("macros", r.FormValue("macros"))
 	job.SetenvJson("auth", configFile)
 
 	if err := job.Run(); err != nil {
