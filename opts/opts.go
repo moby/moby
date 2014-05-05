@@ -128,6 +128,14 @@ func ValidateEnv(val string) (string, error) {
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
 }
 
+func ValidateExtraHost(val string) (string, error) {
+	arr := strings.Split(val, ":")
+	if len(arr) != 2 {
+		return val, fmt.Errorf("bad format for add-host: %s", val)
+	}
+	return val, nil
+}
+
 func ValidateIp4Address(val string) (string, error) {
 	re := regexp.MustCompile(`^(([0-9]+\.){3}([0-9]+))\s*$`)
 	var ns = re.FindSubmatch([]byte(val))
