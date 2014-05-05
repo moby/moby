@@ -24,14 +24,23 @@ type PortMap map[Port][]PortBinding
 
 type PortSet map[Port]struct{}
 
-// 80/tcp
+// Formats:
+//  tcp: "80", "80/tcp"
+//  udp: "80/udp"
+//  unix: "/absolute/path"
 type Port string
 
 func NewPort(proto, port string) Port {
+	if proto == "unix" {
+		return Port(fmt.Sprintf("%s", port))
+	}
 	return Port(fmt.Sprintf("%s/%s", port, proto))
 }
 
 func ParsePort(rawPort string) (int, error) {
+	if rawPort[0] == '/' {
+		return 0, fmt.Errorf("Can't parse unix port as integer")
+	}
 	port, err := strconv.ParseUint(rawPort, 10, 16)
 	if err != nil {
 		return 0, err
@@ -40,7 +49,11 @@ func ParsePort(rawPort string) (int, error) {
 }
 
 func (p Port) Proto() string {
-	parts := strings.Split(string(p), "/")
+	s := string(p)
+	if s[0] == '/' {
+		return "unix"
+	}
+	parts := strings.Split(s, "/")
 	if len(parts) == 1 {
 		return "tcp"
 	}
@@ -48,7 +61,11 @@ func (p Port) Proto() string {
 }
 
 func (p Port) Port() string {
-	return strings.Split(string(p), "/")[0]
+	s := string(p)
+	if s[0] == '/' {
+		return s
+	}
+	return strings.Split(s, "/")[0]
 }
 
 func (p Port) Int() int {
@@ -61,6 +78,10 @@ func (p Port) Int() int {
 
 // Splits a port in the format of port/proto
 func SplitProtoPort(rawPort string) (string, string) {
+	if rawPort[0] == '/' {
+		return "unix", rawPort
+	}
+
 	parts := strings.Split(rawPort, "/")
 	l := len(parts)
 	if l == 0 {

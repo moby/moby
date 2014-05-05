@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/dotcloud/docker/daemon/networkdriver"
@@ -13,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
 	"github.com/dotcloud/docker/daemon/networkdriver/portmapper"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
@@ -468,35 +468,33 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
-	split := func(p string) (string, string) {
-		parts := strings.Split(p, "/")
-		return parts[0], parts[1]
-	}
 
 	for _, p := range ports {
-		port, proto := split(p)
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
-			"-s", parentIP,
-			"--dport", port,
-			"-d", childIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return job.Error(err)
-		} else if len(output) != 0 {
-			return job.Errorf("Error toggle iptables forward: %s", output)
-		}
+		proto, port := nat.SplitProtoPort(p)
+		if proto == "udp" || proto == "tcp" {
+			if output, err := iptables.Raw(action, "FORWARD",
+				"-i", bridgeIface, "-o", bridgeIface,
+				"-p", proto,
+				"-s", parentIP,
+				"--dport", port,
+				"-d", childIP,
+				"-j", "ACCEPT"); !ignoreErrors && err != nil {
+				return job.Error(err)
+			} else if len(output) != 0 {
+				return job.Errorf("Error toggle iptables forward: %s", output)
+			}
 
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
-			"-s", childIP,
-			"--sport", port,
-			"-d", parentIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return job.Error(err)
-		} else if len(output) != 0 {
-			return job.Errorf("Error toggle iptables forward: %s", output)
+			if output, err := iptables.Raw(action, "FORWARD",
+				"-i", bridgeIface, "-o", bridgeIface,
+				"-p", proto,
+				"-s", childIP,
+				"--sport", port,
+				"-d", parentIP,
+				"-j", "ACCEPT"); !ignoreErrors && err != nil {
+				return job.Error(err)
+			} else if len(output) != 0 {
+				return job.Errorf("Error toggle iptables forward: %s", output)
+			}
 		}
 	}
 	return engine.StatusOK

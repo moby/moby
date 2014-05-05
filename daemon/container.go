@@ -1085,24 +1085,28 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 	for i := 0; i < len(binding); i++ {
 		b := binding[i]
 
-		job := eng.Job("allocate_port", container.ID)
-		job.Setenv("HostIP", b.HostIp)
-		job.Setenv("HostPort", b.HostPort)
-		job.Setenv("Proto", port.Proto())
-		job.Setenv("ContainerPort", port.Port())
+		proto := port.Proto()
 
-		portEnv, err := job.Stdout.AddEnv()
-		if err != nil {
-			return err
-		}
-		if err := job.Run(); err != nil {
-			eng.Job("release_interface", container.ID).Run()
-			return err
-		}
-		b.HostIp = portEnv.Get("HostIP")
-		b.HostPort = portEnv.Get("HostPort")
+		if proto == "udp" || proto == "tcp" {
+			job := eng.Job("allocate_port", container.ID)
+			job.Setenv("HostIP", b.HostIp)
+			job.Setenv("HostPort", b.HostPort)
+			job.Setenv("Proto", port.Proto())
+			job.Setenv("ContainerPort", port.Port())
 
-		binding[i] = b
+			portEnv, err := job.Stdout.AddEnv()
+			if err != nil {
+				return err
+			}
+			if err := job.Run(); err != nil {
+				eng.Job("release_interface", container.ID).Run()
+				return err
+			}
+			b.HostIp = portEnv.Get("HostIP")
+			b.HostPort = portEnv.Get("HostPort")
+
+			binding[i] = b
+		}
 	}
 	bindings[port] = binding
 	return nil
