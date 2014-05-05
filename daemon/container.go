@@ -487,18 +487,18 @@ func (container *Container) StderrLogPipe() io.ReadCloser {
 	return utils.NewBufReader(reader)
 }
 
-func (container *Container) buildHostname() {
+func (container *Container) buildHostnameFile() error {
 	container.HostnamePath = path.Join(container.root, "hostname")
-
 	if container.Config.Domainname != "" {
-		ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
-	} else {
-		ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
 	}
+	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
 func (container *Container) buildHostnameAndHostsFiles(IP string) error {
-	container.buildHostname()
+	if err := container.buildHostnameFile(); err != nil {
+		return err
+	}
 
 	container.HostsPath = path.Join(container.root, "hosts")
 	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname)
@@ -998,7 +998,7 @@ func (container *Container) initializeNetworking() error {
 		}
 		container.HostsPath = "/etc/hosts"
 
-		container.buildHostname()
+		return container.buildHostnameFile()
 	} else if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()
