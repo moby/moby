@@ -2,12 +2,13 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/utils"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/utils"
 )
 
 type Action func(*libcontainer.Container, interface{}, string) error
@@ -97,38 +98,22 @@ func memorySwap(container *libcontainer.Container, context interface{}, value st
 }
 
 func addCap(container *libcontainer.Container, context interface{}, value string) error {
-	c := container.CapabilitiesMask.Get(value)
-	if c == nil {
-		return fmt.Errorf("%s is not a valid capability", value)
-	}
-	c.Enabled = true
+	container.CapabilitiesMask[value] = true
 	return nil
 }
 
 func dropCap(container *libcontainer.Container, context interface{}, value string) error {
-	c := container.CapabilitiesMask.Get(value)
-	if c == nil {
-		return fmt.Errorf("%s is not a valid capability", value)
-	}
-	c.Enabled = false
+	container.CapabilitiesMask[value] = false
 	return nil
 }
 
 func addNamespace(container *libcontainer.Container, context interface{}, value string) error {
-	ns := container.Namespaces.Get(value)
-	if ns == nil {
-		return fmt.Errorf("%s is not a valid namespace", value[1:])
-	}
-	ns.Enabled = true
+	container.Namespaces[value] = true
 	return nil
 }
 
 func dropNamespace(container *libcontainer.Container, context interface{}, value string) error {
-	ns := container.Namespaces.Get(value)
-	if ns == nil {
-		return fmt.Errorf("%s is not a valid namespace", value[1:])
-	}
-	ns.Enabled = false
+	container.Namespaces[value] = false
 	return nil
 }
 

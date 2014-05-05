@@ -1,151 +1,62 @@
 {
-   "mounts" : [
-      {
-         "type" : "devtmpfs"
-      }
-   ],
-   "tty" : true,
-   "environment" : [
-      "HOME=/",
-      "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
-      "container=docker",
-      "TERM=xterm-256color"
-   ],
-   "hostname" : "koye",
-   "cgroups" : {
-      "parent" : "docker",
-      "name" : "docker-koye"
-   },
-   "capabilities_mask" : [
-      {
-         "value" : 8,
-         "key" : "SETPCAP",
-         "enabled" : false
+  "namespaces": {
+    "NEWNET": true,
+    "NEWPID": true,
+    "NEWIPC": true,
+    "NEWUTS": true,
+    "NEWNS": true
+  },
+  "networks": [
+    {
+      "gateway": "localhost",
+      "type": "loopback",
+      "address": "127.0.0.1/0",
+      "mtu": 1500
+    },
+    {
+      "gateway": "172.17.42.1",
+      "context": {
+        "prefix": "veth",
+        "bridge": "docker0"
       },
-      {
-         "enabled" : false,
-         "value" : 16,
-         "key" : "SYS_MODULE"
-      },
-      {
-         "value" : 17,
-         "key" : "SYS_RAWIO",
-         "enabled" : false
-      },
-      {
-         "key" : "SYS_PACCT",
-         "value" : 20,
-         "enabled" : false
-      },
-      {
-         "value" : 21,
-         "key" : "SYS_ADMIN",
-         "enabled" : false
-      },
-      {
-         "value" : 23,
-         "key" : "SYS_NICE",
-         "enabled" : false
-      },
-      {
-         "value" : 24,
-         "key" : "SYS_RESOURCE",
-         "enabled" : false
-      },
-      {
-         "key" : "SYS_TIME",
-         "value" : 25,
-         "enabled" : false
-      },
-      {
-         "enabled" : false,
-         "value" : 26,
-         "key" : "SYS_TTY_CONFIG"
-      },
-      {
-         "key" : "AUDIT_WRITE",
-         "value" : 29,
-         "enabled" : false
-      },
-      {
-         "value" : 30,
-         "key" : "AUDIT_CONTROL",
-         "enabled" : false
-      },
-      {
-         "enabled" : false,
-         "key" : "MAC_OVERRIDE",
-         "value" : 32
-      },
-      {
-         "enabled" : false,
-         "key" : "MAC_ADMIN",
-         "value" : 33
-      },
-      {
-         "key" : "NET_ADMIN",
-         "value" : 12,
-         "enabled" : false
-      },
-      {
-         "value" : 27,
-         "key" : "MKNOD",
-         "enabled" : true
-      },
-      {
-         "value" : 34,
-         "key" : "SYSLOG",
-         "enabled" : false
-      }
-   ],
-   "networks" : [
-      {
-         "mtu" : 1500,
-         "address" : "127.0.0.1/0",
-         "type" : "loopback",
-         "gateway" : "localhost"
-      },
-      {
-         "mtu" : 1500,
-         "address" : "172.17.42.2/16",
-         "type" : "veth",
-         "context" : {
-            "bridge" : "docker0",
-            "prefix" : "veth"
-         },
-         "gateway" : "172.17.42.1"
-      }
-   ],
-   "namespaces" : [
-      {
-         "key" : "NEWNS",
-         "value" : 131072,
-         "enabled" : true,
-         "file" : "mnt"
-      },
-      {
-         "key" : "NEWUTS",
-         "value" : 67108864,
-         "enabled" : true,
-         "file" : "uts"
-      },
-      {
-         "enabled" : true,
-         "file" : "ipc",
-         "key" : "NEWIPC",
-         "value" : 134217728
-      },
-      {
-         "file" : "pid",
-         "enabled" : true,
-         "value" : 536870912,
-         "key" : "NEWPID"
-      },
-      {
-         "enabled" : true,
-         "file" : "net",
-         "key" : "NEWNET",
-         "value" : 1073741824
-      }
-   ]
+      "type": "veth",
+      "address": "172.17.42.2/16",
+      "mtu": 1500
+    }
+  ],
+  "capabilities_mask": {
+    "SYSLOG": false,
+    "MKNOD": true,
+    "NET_ADMIN": false,
+    "MAC_ADMIN": false,
+    "MAC_OVERRIDE": false,
+    "AUDIT_CONTROL": false,
+    "AUDIT_WRITE": false,
+    "SYS_TTY_CONFIG": false,
+    "SETPCAP": false,
+    "SYS_MODULE": false,
+    "SYS_RAWIO": false,
+    "SYS_PACCT": false,
+    "SYS_ADMIN": false,
+    "SYS_NICE": false,
+    "SYS_RESOURCE": false,
+    "SYS_TIME": false
+  },
+  "cgroups": {
+    "name": "docker-koye",
+    "parent": "docker"
+  },
+  "hostname": "koye",
+  "environment": [
+    "HOME=/",
+    "PATH=PATH=$PATH:/bin:/usr/bin:/sbin:/usr/sbin",
+    "container=docker",
+    "TERM=xterm-256color"
+  ],
+  "tty": true,
+  "mounts": [
+    {
+      "type": "devtmpfs"
+    }
+  ]
 }

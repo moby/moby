@@ -23,6 +23,6 @@ func SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveC
 	return nil, libcontainer.ErrUnsupported
 }
 
-func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
+func GetNamespaceFlags(namespaces map[string]bool) (flag int) {
 	return 0
 }

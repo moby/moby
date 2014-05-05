@@ -18,8 +18,8 @@ type Container struct {
 	WorkingDir       string          `json:"working_dir,omitempty"`       // current working directory
 	Env              []string        `json:"environment,omitempty"`       // environment to set
 	Tty              bool            `json:"tty,omitempty"`               // setup a proper tty or not
-	Namespaces       Namespaces      `json:"namespaces,omitempty"`        // namespaces to apply
-	CapabilitiesMask Capabilities    `json:"capabilities_mask,omitempty"` // capabilities to drop
+	Namespaces       map[string]bool `json:"namespaces,omitempty"`        // namespaces to apply
+	CapabilitiesMask map[string]bool `json:"capabilities_mask,omitempty"` // capabilities to drop
 	Networks         []*Network      `json:"networks,omitempty"`          // nil for host's network stack
 	Cgroups          *cgroups.Cgroup `json:"cgroups,omitempty"`           // cgroups
 	Context          Context         `json:"context,omitempty"`           // generic context for specific options (apparmor, selinux)

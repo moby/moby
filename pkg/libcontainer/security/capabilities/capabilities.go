@@ -1,9 +1,10 @@
 package capabilities
 
 import (
+	"os"
+
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/syndtr/gocapability/capability"
-	"os"
 )
 
 // DropCapabilities drops capabilities for the current process based
@@ -26,9 +27,11 @@ func DropCapabilities(container *libcontainer.Container) error {
 // getCapabilitiesMask returns the specific cap mask values for the libcontainer types
 func getCapabilitiesMask(container *libcontainer.Container) []capability.Cap {
 	drop := []capability.Cap{}
-	for _, c := range container.CapabilitiesMask {
-		if !c.Enabled {
-			drop = append(drop, c.Value)
+	for key, enabled := range container.CapabilitiesMask {
+		if !enabled {
+			if c := libcontainer.GetCapability(key); c != nil {
+				drop = append(drop, c.Value)
+			}
 		}
 	}
 	return drop
