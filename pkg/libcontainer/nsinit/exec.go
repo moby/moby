@@ -159,10 +159,12 @@ func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *Sy
 
 // GetNamespaceFlags parses the container's Namespaces options to set the correct
 // flags on clone, unshare, and setns
-func GetNamespaceFlags(namespaces libcontainer.Namespaces) (flag int) {
-	for _, ns := range namespaces {
-		if ns.Enabled {
-			flag |= ns.Value
+func GetNamespaceFlags(namespaces map[string]bool) (flag int) {
+	for key, enabled := range namespaces {
+		if enabled {
+			if ns := libcontainer.GetNamespace(key); ns != nil {
+				flag |= ns.Value
+			}
 		}
 	}
 	return flag

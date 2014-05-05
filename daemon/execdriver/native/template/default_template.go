@@ -9,30 +9,30 @@ import (
 // New returns the docker default configuration for libcontainer
 func New() *libcontainer.Container {
 	container := &libcontainer.Container{
-		CapabilitiesMask: libcontainer.Capabilities{
-			libcontainer.GetCapability("SETPCAP"),
-			libcontainer.GetCapability("SYS_MODULE"),
-			libcontainer.GetCapability("SYS_RAWIO"),
-			libcontainer.GetCapability("SYS_PACCT"),
-			libcontainer.GetCapability("SYS_ADMIN"),
-			libcontainer.GetCapability("SYS_NICE"),
-			libcontainer.GetCapability("SYS_RESOURCE"),
-			libcontainer.GetCapability("SYS_TIME"),
-			libcontainer.GetCapability("SYS_TTY_CONFIG"),
-			libcontainer.GetCapability("AUDIT_WRITE"),
-			libcontainer.GetCapability("AUDIT_CONTROL"),
-			libcontainer.GetCapability("MAC_OVERRIDE"),
-			libcontainer.GetCapability("MAC_ADMIN"),
-			libcontainer.GetCapability("NET_ADMIN"),
-			libcontainer.GetCapability("MKNOD"),
-			libcontainer.GetCapability("SYSLOG"),
+		CapabilitiesMask: map[string]bool{
+			"SETPCAP":        false,
+			"SYS_MODULE":     false,
+			"SYS_RAWIO":      false,
+			"SYS_PACCT":      false,
+			"SYS_ADMIN":      false,
+			"SYS_NICE":       false,
+			"SYS_RESOURCE":   false,
+			"SYS_TIME":       false,
+			"SYS_TTY_CONFIG": false,
+			"AUDIT_WRITE":    false,
+			"AUDIT_CONTROL":  false,
+			"MAC_OVERRIDE":   false,
+			"MAC_ADMIN":      false,
+			"NET_ADMIN":      false,
+			"MKNOD":          true,
+			"SYSLOG":         false,
 		},
-		Namespaces: libcontainer.Namespaces{
-			libcontainer.GetNamespace("NEWNS"),
-			libcontainer.GetNamespace("NEWUTS"),
-			libcontainer.GetNamespace("NEWIPC"),
-			libcontainer.GetNamespace("NEWPID"),
-			libcontainer.GetNamespace("NEWNET"),
+		Namespaces: map[string]bool{
+			"NEWNS":  true,
+			"NEWUTS": true,
+			"NEWIPC": true,
+			"NEWPID": true,
+			"NEWNET": true,
 		},
 		Cgroups: &cgroups.Cgroup{
 			Parent:       "docker",
@@ -40,7 +40,6 @@ func New() *libcontainer.Container {
 		},
 		Context: libcontainer.Context{},
 	}
-	container.CapabilitiesMask.Get("MKNOD").Enabled = true
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "docker-default"
 	}

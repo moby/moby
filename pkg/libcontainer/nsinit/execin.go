@@ -23,11 +23,13 @@ func ExecIn(container *libcontainer.Container, nspid int, args []string) (int, e
 		return -1, err
 	}
 
-	for _, nsv := range container.Namespaces {
+	for key, enabled := range container.Namespaces {
 		// skip the PID namespace on unshare because it it not supported
-		if nsv.Enabled && nsv.Key != "NEWPID" {
-			if err := system.Unshare(nsv.Value); err != nil {
-				return -1, err
+		if enabled && key != "NEWPID" {
+			if ns := libcontainer.GetNamespace(key); ns != nil {
+				if err := system.Unshare(ns.Value); err != nil {
+					return -1, err
+				}
 			}
 		}
 	}
@@ -59,7 +61,7 @@ func ExecIn(container *libcontainer.Container, nspid int, args []string) (int, e
 
 	// if the container has a new pid and mount namespace we need to
 	// remount proc and sys to pick up the changes
-	if container.Namespaces.Contains("NEWNS") && container.Namespaces.Contains("NEWPID") {
+	if container.Namespaces["NEWNS"] && container.Namespaces["NEWPID"] {
 		pid, err := system.Fork()
 		if err != nil {
 			return -1, err
@@ -102,13 +104,18 @@ dropAndExec:
 }
 
 func getNsFds(pid int, container *libcontainer.Container) ([]uintptr, error) {
-	fds := make([]uintptr, len(container.Namespaces))
-	for i, ns := range container.Namespaces {
-		f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", ns.File), os.O_RDONLY, 0)
-		if err != nil {
-			return fds, err
+	fds := []uintptr{}
+
+	for key, enabled := range container.Namespaces {
+		if enabled {
+			if ns := libcontainer.GetNamespace(key); ns != nil {
+				f, err := os.OpenFile(filepath.Join("/proc/", strconv.Itoa(pid), "ns", ns.File), os.O_RDONLY, 0)
+				if err != nil {
+					return fds, err
+				}
+				fds = append(fds, f.Fd())
+			}
 		}
-		fds[i] = f.Fd()
 	}
 	return fds, nil
 }
