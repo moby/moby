@@ -293,7 +293,7 @@ A `#` sign is used to provide a comment:
 
 > **Tip:** The `Dockerfile` is very flexible and provides a powerful set
 > of instructions for building applications. To learn more about the
-> `Dockerfile` and it's instructions see the [Dockerfile
+> `Dockerfile` and its instructions see the [Dockerfile
 > Reference](http://docs.docker.io/reference/builder/).
 
 ### First steps with the Dockerfile
