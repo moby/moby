@@ -22,6 +22,7 @@ import (
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
@@ -513,26 +514,11 @@ func (container *Container) buildHostname() {
 	}
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) {
+func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	container.buildHostname()
 
-	hostsContent := []byte(`
-127.0.0.1	localhost
-::1		localhost ip6-localhost ip6-loopback
-fe00::0		ip6-localnet
-ff00::0		ip6-mcastprefix
-ff02::1		ip6-allnodes
-ff02::2		ip6-allrouters
-`)
-
 	container.HostsPath = path.Join(container.root, "hosts")
-
-	if container.Config.Domainname != "" {
-		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else if !container.Config.NetworkDisabled {
-		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
-	}
-	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
+	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname)
 }
 
 func (container *Container) allocateNetwork() error {
@@ -1072,12 +1058,12 @@ func (container *Container) initializeNetworking() error {
 		container.Config.Domainname = nc.Config.Domainname
 	} else if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
-		container.buildHostnameAndHostsFiles("127.0.1.1")
+		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
-		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+		return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 	}
 	return nil
 }
