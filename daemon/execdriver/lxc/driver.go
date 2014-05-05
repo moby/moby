@@ -1,6 +1,7 @@
 package lxc
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -83,6 +84,9 @@ func (d *driver) Name() string {
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	if err := execdriver.SetTerminal(c, pipes); err != nil {
+		return -1, err
+	}
+	if err := d.generateEnvConfig(c); err != nil {
 		return -1, err
 	}
 	configPath, err := d.generateLXCConfig(c)
@@ -415,4 +419,15 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 		return "", err
 	}
 	return root, nil
+}
+
+func (d *driver) generateEnvConfig(c *execdriver.Command) error {
+	data, err := json.Marshal(c.Env)
+	if err != nil {
+		return err
+	}
+	p := path.Join(d.root, "containers", c.ID, "config.env")
+	c.Mounts = append(c.Mounts, execdriver.Mount{p, "/.dockerenv", false, true})
+
+	return ioutil.WriteFile(p, data, 0600)
 }

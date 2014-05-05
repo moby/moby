@@ -2,14 +2,15 @@ package daemon
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/utils"
 )
 
 type BindMap struct {
@@ -34,14 +35,8 @@ func prepareVolumesForContainer(container *Container) error {
 }
 
 func setupMountsForContainer(container *Container) error {
-	envPath, err := container.EnvConfigPath()
-	if err != nil {
-		return err
-	}
-
 	mounts := []execdriver.Mount{
 		{container.daemon.sysInitPath, "/.dockerinit", false, true},
-		{envPath, "/.dockerenv", false, true},
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 

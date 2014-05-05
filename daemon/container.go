@@ -168,19 +168,6 @@ func (container *Container) WriteHostConfig() (err error) {
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
-func (container *Container) generateEnvConfig(env []string) error {
-	data, err := json.Marshal(env)
-	if err != nil {
-		return err
-	}
-	p, err := container.EnvConfigPath()
-	if err != nil {
-		return err
-	}
-	ioutil.WriteFile(p, data, 0600)
-	return nil
-}
-
 func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
 	var cStdout, cStderr io.ReadCloser
 
@@ -422,15 +409,10 @@ func (container *Container) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	env := container.createDaemonEnvironment(linkedEnv)
-	// TODO: This is only needed for lxc so we should look for a way to
-	// remove this dep
-	if err := container.generateEnvConfig(env); err != nil {
-		return err
-	}
 	if err := container.setupWorkingDirectory(); err != nil {
 		return err
 	}
+	env := container.createDaemonEnvironment(linkedEnv)
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
@@ -849,22 +831,6 @@ func (container *Container) hostConfigPath() string {
 
 func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
-}
-
-func (container *Container) EnvConfigPath() (string, error) {
-	p := path.Join(container.root, "config.env")
-	if _, err := os.Stat(p); err != nil {
-		if os.IsNotExist(err) {
-			f, err := os.Create(p)
-			if err != nil {
-				return "", err
-			}
-			f.Close()
-		} else {
-			return "", err
-		}
-	}
-	return p, nil
 }
 
 // This method must be exported to be used from the lxc template
