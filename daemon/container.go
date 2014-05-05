@@ -84,42 +84,6 @@ type Container struct {
 	activeLinks map[string]*links.Link
 }
 
-// Inject the io.Reader at the given path. Note: do not close the reader
-func (container *Container) Inject(file io.Reader, pth string) error {
-	if err := container.Mount(); err != nil {
-		return fmt.Errorf("inject: error mounting container %s: %s", container.ID, err)
-	}
-	defer container.Unmount()
-
-	// Return error if path exists
-	destPath := container.getResourcePath(pth)
-	if _, err := os.Stat(destPath); err == nil {
-		// Since err is nil, the path could be stat'd and it exists
-		return fmt.Errorf("%s exists", pth)
-	} else if !os.IsNotExist(err) {
-		// Expect err might be that the file doesn't exist, so
-		// if it's some other error, return that.
-
-		return err
-	}
-
-	// Make sure the directory exists
-	if err := os.MkdirAll(container.getResourcePath(path.Dir(pth)), 0755); err != nil {
-		return err
-	}
-
-	dest, err := os.Create(destPath)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-
-	if _, err := io.Copy(dest, file); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (container *Container) FromDisk() error {
 	data, err := ioutil.ReadFile(container.jsonPath())
 	if err != nil {

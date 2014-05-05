@@ -63,6 +63,9 @@ Trusted builds are now Automated Builds - `is_trusted` is now `is_automated`.
 **New!**
 You can now ping the server via the `_ping` endpoint.
 
+**Removed Insert Endpoint**
+The insert endpoint has been removed.
+
 `GET /events`
 
 **New!**
