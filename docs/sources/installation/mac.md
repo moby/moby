@@ -28,21 +28,13 @@ Once the download is complete, open the disk image, run the set up file
 (i.e. `VirtualBox.pkg`) and install VirtualBox. Do
 not simply copy the package without running the installer.
 
-### boot2docker
+### Manual Installation
+#### boot2docker
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
-handy script to easily manage the VM running the `docker`
+handy script to manage the VM running the `docker`
 daemon. It also takes care of the installation for the OS
 image that is used for the job.
-
-#### With Homebrew
-
-If you are using Homebrew on your machine, simply run the following
-command to install `boot2docker`:
-
-    $ brew install boot2docker
-
-#### Manual installation
 
 Open up a new terminal window, if you have not already.
 
@@ -52,33 +44,23 @@ Run the following commands to get boot2docker:
     $ cd ~/bin
 
     # Get the file
-    $ curl https://raw.github.com/boot2docker/boot2docker/master/boot2docker > boot2docker
+    $ curl https://raw.githubusercontent.com/boot2docker/boot2docker/master/boot2docker > boot2docker
 
     # Mark it executable
     $ chmod +x boot2docker
 
-### Docker OS X Client
+#### Docker OS X Client
 
-The `docker` daemon is accessed using the
-`docker` client.
-
-#### With Homebrew
-
-Run the following command to install the `docker`
-client:
-
-    $ brew install docker
-
-#### Manual installation
+The `docker` daemon is accessed using the `docker` client.
 
 Run the following commands to get it downloaded and set up:
 
     # Get the docker client file
     $ DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
-    $ curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
-    $ gunzip $DIR/ld.tgz && \
-    $ tar xvf $DIR/ld.tar -C $DIR/ && \
-    $ cp $DIR/usr/local/bin/docker ./docker
+      curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
+      gunzip $DIR/ld.tgz && \
+      tar xvf $DIR/ld.tar -C $DIR/ && \
+      cp $DIR/usr/local/bin/docker ./docker
 
     # Set the environment variable for the docker daemon
     $ export DOCKER_HOST=tcp://127.0.0.1:4243
@@ -86,6 +68,18 @@ Run the following commands to get it downloaded and set up:
     # Copy the executable file
     $ sudo mkdir -p /usr/local/bin
     $ sudo cp docker /usr/local/bin/
+
+### (OR) With Homebrew
+
+If you are using Homebrew on your machine, simply run the following
+command to install `boot2docker`:
+
+    $ brew install boot2docker
+
+Run the following command to install the `docker`
+client:
+
+    $ brew install docker
 
 And that's it! Let's check out how to use it.
 
@@ -104,8 +98,7 @@ commands:
 
     # To see all available commands:
     $ ./boot2docker
-
-    # Usage ./boot2docker {init|start|up|pause|stop|restart|status|info|delete|ssh|download}
+    Usage ./boot2docker {init|start|up|pause|stop|restart|status|info|delete|ssh|download}
 
 ### The `docker` client
 
@@ -114,12 +107,12 @@ use the `docker` client just like any other
 application.
 
     $ docker version
-    # Client version: 0.7.6
-    # Go version (client): go1.2
-    # Git commit (client): bc3b2ec
-    # Server version: 0.7.5
-    # Git commit (server): c348c04
-    # Go version (server): go1.2
+    Client version: 0.10.0
+    Client API version: 1.10
+    Server version: 0.10.0
+    Server API version: 1.10
+    Last stable version: 0.10.0
+
 
 ### Forwarding VM Port Range to Host
 
