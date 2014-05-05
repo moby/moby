@@ -41,6 +41,9 @@ You can still call an old version of the api using
 **New!**
 You can now ping the server via the `_ping` endpoint.
 
+**Removed Insert Endpoint**
+The insert endpoint has been removed.
+
 `GET /events`
 
 **New!**
