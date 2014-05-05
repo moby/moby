@@ -2369,7 +2369,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 			cStderr = job.Stderr
 		}
 
-		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
+		<-srv.daemon.Attach(container, cStdin, cStdinCloser, cStdout, cStderr)
 
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
