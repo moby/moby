@@ -3,9 +3,10 @@
 package systemd
 
 import (
-	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,6 +17,7 @@ import (
 )
 
 type systemdCgroup struct {
+	cleanupDirs []string
 }
 
 type DeviceAllow struct {
@@ -69,20 +71,42 @@ func getIfaceForUnit(unitName string) string {
 	return "Unit"
 }
 
+type cgroupArg struct {
+	File  string
+	Value string
+}
+
 func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	var (
 		unitName   = c.Parent + "-" + c.Name + ".scope"
 		slice      = "system.slice"
 		properties []systemd1.Property
+		cpuArgs    []cgroupArg
+		cpusetArgs []cgroupArg
+		memoryArgs []cgroupArg
+		res        systemdCgroup
 	)
 
-	for _, v := range c.UnitProperties {
-		switch v[0] {
-		case "Slice":
-			slice = v[1]
-		default:
-			return nil, fmt.Errorf("Unknown unit propery %s", v[0])
+	// First set up things not supported by systemd
+
+	// -1 disables memorySwap
+	if c.MemorySwap >= 0 && (c.Memory != 0 || c.MemorySwap > 0) {
+		memorySwap := c.MemorySwap
+
+		if memorySwap == 0 {
+			// By default, MemorySwap is set to twice the size of RAM.
+			memorySwap = c.Memory * 2
 		}
+
+		memoryArgs = append(memoryArgs, cgroupArg{"memory.memsw.limit_in_bytes", strconv.FormatInt(memorySwap, 10)})
+	}
+
+	if c.CpusetCpus != "" {
+		cpusetArgs = append(cpusetArgs, cgroupArg{"cpuset.cpus", c.CpusetCpus})
+	}
+
+	if c.Slice != "" {
+		slice = c.Slice
 	}
 
 	properties = append(properties,
@@ -111,11 +135,12 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 			})})
 	}
 
-	// Always enable accounting, this gets us the same behaviour as the raw implementation,
+	// Always enable accounting, this gets us the same behaviour as the fs implementation,
 	// plus the kernel has some problems with joining the memory cgroup at a later time.
 	properties = append(properties,
 		systemd1.Property{"MemoryAccounting", dbus.MakeVariant(true)},
-		systemd1.Property{"CPUAccounting", dbus.MakeVariant(true)})
+		systemd1.Property{"CPUAccounting", dbus.MakeVariant(true)},
+		systemd1.Property{"BlockIOAccounting", dbus.MakeVariant(true)})
 
 	if c.Memory != 0 {
 		properties = append(properties,
@@ -162,10 +187,114 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 			return nil, err
 		}
 	}
-	return &systemdCgroup{}, nil
+
+	if len(cpuArgs) != 0 {
+		mountpoint, err := cgroups.FindCgroupMountpoint("cpu")
+		if err != nil {
+			return nil, err
+		}
+
+		path := filepath.Join(mountpoint, cgroup)
+
+		for _, arg := range cpuArgs {
+			if err := ioutil.WriteFile(filepath.Join(path, arg.File), []byte(arg.Value), 0700); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if len(memoryArgs) != 0 {
+		mountpoint, err := cgroups.FindCgroupMountpoint("memory")
+		if err != nil {
+			return nil, err
+		}
+
+		path := filepath.Join(mountpoint, cgroup)
+
+		for _, arg := range memoryArgs {
+			if err := ioutil.WriteFile(filepath.Join(path, arg.File), []byte(arg.Value), 0700); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if len(cpusetArgs) != 0 {
+		// systemd does not atm set up the cpuset controller, so we must manually
+		// join it. Additionally that is a very finicky controller where each
+		// level must have a full setup as the default for a new directory is "no cpus",
+		// so we avoid using any hierarchies here, creating a toplevel directory.
+		mountpoint, err := cgroups.FindCgroupMountpoint("cpuset")
+		if err != nil {
+			return nil, err
+		}
+		initPath, err := cgroups.GetInitCgroupDir("cpuset")
+		if err != nil {
+			return nil, err
+		}
+
+		rootPath := filepath.Join(mountpoint, initPath)
+
+		path := filepath.Join(mountpoint, initPath, c.Parent+"-"+c.Name)
+
+		res.cleanupDirs = append(res.cleanupDirs, path)
+
+		if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+
+		foundCpus := false
+		foundMems := false
+
+		for _, arg := range cpusetArgs {
+			if arg.File == "cpuset.cpus" {
+				foundCpus = true
+			}
+			if arg.File == "cpuset.mems" {
+				foundMems = true
+			}
+			if err := ioutil.WriteFile(filepath.Join(path, arg.File), []byte(arg.Value), 0700); err != nil {
+				return nil, err
+			}
+		}
+
+		// These are required, if not specified inherit from parent
+		if !foundCpus {
+			s, err := ioutil.ReadFile(filepath.Join(rootPath, "cpuset.cpus"))
+			if err != nil {
+				return nil, err
+			}
+
+			if err := ioutil.WriteFile(filepath.Join(path, "cpuset.cpus"), s, 0700); err != nil {
+				return nil, err
+			}
+		}
+
+		// These are required, if not specified inherit from parent
+		if !foundMems {
+			s, err := ioutil.ReadFile(filepath.Join(rootPath, "cpuset.mems"))
+			if err != nil {
+				return nil, err
+			}
+
+			if err := ioutil.WriteFile(filepath.Join(path, "cpuset.mems"), s, 0700); err != nil {
+				return nil, err
+			}
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"), []byte(strconv.Itoa(pid)), 0700); err != nil {
+			return nil, err
+		}
+	}
+
+	return &res, nil
 }
 
 func (c *systemdCgroup) Cleanup() error {
-	// systemd cleans up, we don't need to do anything
+	// systemd cleans up, we don't need to do much
+
+	for _, path := range c.cleanupDirs {
+		os.RemoveAll(path)
+	}
+
 	return nil
 }

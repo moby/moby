@@ -22,7 +22,7 @@ type Cgroup struct {
 	CpusetCpus        string `json:"cpuset_cpus,omitempty"`        // CPU to use
 	Freezer           string `json:"freezer,omitempty"`            // set the freeze value for the process
 
-	UnitProperties [][2]string `json:"unit_properties,omitempty"` // systemd unit properties
+	Slice string `json:"slice,omitempty"` // Parent slice to use for systemd
 }
 
 type ActiveCgroup interface {

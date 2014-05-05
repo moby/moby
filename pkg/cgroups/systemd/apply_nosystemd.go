@@ -11,6 +11,6 @@ func UseSystemd() bool {
 	return false
 }
 
-func systemdApply(c *Cgroup, pid int) (cgroups.ActiveCgroup, error) {
+func Apply(c *Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	return nil, fmt.Errorf("Systemd not supported")
 }
