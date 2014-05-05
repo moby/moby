@@ -126,7 +126,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"insert":           srv.ImageInsert,
 		"attach":           srv.ContainerAttach,
 		"logs":             srv.ContainerLogs,
-		"search":           srv.ImagesSearch,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
 		"version":          srv.DockerVersion,
@@ -139,31 +138,12 @@ func InitServer(job *engine.Job) engine.Status {
 		"events":           srv.Events,
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
-		"auth":             srv.Auth,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			return job.Error(err)
 		}
 	}
 	return engine.StatusOK
-}
-
-// simpleVersionInfo is a simple implementation of
-// the interface VersionInfo, which is used
-// to provide version information for some product,
-// component, etc. It stores the product name and the version
-// in string and returns them on calls to Name() and Version().
-type simpleVersionInfo struct {
-	name    string
-	version string
-}
-
-func (v *simpleVersionInfo) Name() string {
-	return v.name
-}
-
-func (v *simpleVersionInfo) Version() string {
-	return v.version
 }
 
 // ContainerKill send signal to the container
@@ -212,29 +192,6 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	} else {
 		return job.Errorf("No such container: %s", name)
 	}
-	return engine.StatusOK
-}
-
-func (srv *Server) Auth(job *engine.Job) engine.Status {
-	var (
-		err        error
-		authConfig = &registry.AuthConfig{}
-	)
-
-	job.GetenvJson("authConfig", authConfig)
-	// TODO: this is only done here because auth and registry need to be merged into one pkg
-	if addr := authConfig.ServerAddress; addr != "" && addr != registry.IndexServerAddress() {
-		addr, err = registry.ExpandAndVerifyRegistryUrl(addr)
-		if err != nil {
-			return job.Error(err)
-		}
-		authConfig.ServerAddress = addr
-	}
-	status, err := registry.Login(authConfig, srv.HTTPRequestFactory(nil))
-	if err != nil {
-		return job.Error(err)
-	}
-	job.Printf("%s\n", status)
 	return engine.StatusOK
 }
 
@@ -640,39 +597,6 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 	utils.Debugf("Completed processing %s", address)
 
 	return nil
-}
-
-func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s TERM", job.Name)
-	}
-	var (
-		term        = job.Args[0]
-		metaHeaders = map[string][]string{}
-		authConfig  = &registry.AuthConfig{}
-	)
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", metaHeaders)
-
-	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), registry.IndexServerAddress())
-	if err != nil {
-		return job.Error(err)
-	}
-	results, err := r.SearchRepositories(term)
-	if err != nil {
-		return job.Error(err)
-	}
-	outs := engine.NewTable("star_count", 0)
-	for _, result := range results.Results {
-		out := &engine.Env{}
-		out.Import(result)
-		outs.Add(out)
-	}
-	outs.ReverseSort()
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
 }
 
 // FIXME: 'insert' is deprecated and should be removed in a future version.
@@ -1457,7 +1381,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	r, err := registry.NewRegistry(&authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err := registry.NewRegistry(&authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1680,7 +1604,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	}
 
 	img, err := srv.daemon.Graph().Get(localName)
-	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err2 := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
 		return job.Error(err2)
 	}
@@ -2556,24 +2480,6 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 	}
 	daemon.SetServer(srv)
 	return srv, nil
-}
-
-func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
-	httpVersion := make([]utils.VersionInfo, 0, 4)
-	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", dockerversion.VERSION})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"go", goruntime.Version()})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", dockerversion.GITCOMMIT})
-	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
-		httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", kernelVersion.String()})
-	}
-	httpVersion = append(httpVersion, &simpleVersionInfo{"os", goruntime.GOOS})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", goruntime.GOARCH})
-	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
-	md := &utils.HTTPMetaHeadersDecorator{
-		Headers: metaHeaders,
-	}
-	factory := utils.NewHTTPRequestFactory(ud, md)
-	return factory
 }
 
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
