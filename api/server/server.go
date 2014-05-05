@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go.net/websocket"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"code.google.com/p/go.net/websocket"
 
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/engine"
@@ -976,6 +977,11 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
 }
 
+func ping(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	_, err := w.Write([]byte{'O', 'K'})
+	return err
+}
+
 func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, enableCors bool, dockerVersion version.Version) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
@@ -1044,6 +1050,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
+			"/_ping":                          ping,
 			"/events":                         getEvents,
 			"/info":                           getInfo,
 			"/version":                        getVersion,

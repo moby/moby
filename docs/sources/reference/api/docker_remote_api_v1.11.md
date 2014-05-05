@@ -1162,6 +1162,27 @@ Show the docker version information
     -   **200** – no error
     -   **500** – server error
 
+### Ping the docker server
+
+`GET /_ping`
+
+Ping the docker server
+
+    **Example request**:
+
+        GET /_ping HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+
+        OK
+
+    Status Codes:
+
+    -   **200** - no error
+    -   **500** - server error
+
 ### Create a new image from a container's changes
 
 `POST /commit`
