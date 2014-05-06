@@ -809,33 +809,39 @@ Run a command in a new container
 
     Usage: docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
-    -a, --attach=[]: Attach to stdin, stdout or stderr.
-    -c, --cpu-shares=0: CPU shares (relative weight)
-    --cidfile="": Write the container ID to the file
-    -d, --detach=false: Detached mode: Run container in the background, print new container id
-    --dns=[]: Set custom dns servers
-    --dns-search=[]: Set custom dns search domains
-    -e, --env=[]: Set environment variables
-    --entrypoint="": Overwrite the default entrypoint of the image
-    --env-file=[]: Read in a line delimited file of ENV variables
-    --expose=[]: Expose a port from the container without publishing it to your host
-    -h, --hostname="": Container host name
-    -i, --interactive=false: Keep stdin open even if not attached
-    --link=[]: Add link to another container (name:alias)
-    --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-    -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-    --name="": Assign a name to the container
-    --net="bridge": Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'none': no networking for this container, 'container:<name|id>': reuses another container network stack), 'host': use the host network stack inside the container
-    -P, --publish-all=false: Publish all exposed ports to the host interfaces
-    -p, --publish=[]: Publish a container's port to the host (format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort) (use 'docker port' to see the actual mapping)
-    --privileged=false: Give extended privileges to this container
-    --rm=false: Automatically remove the container when it exits (incompatible with -d)
-    --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
-    -t, --tty=false: Allocate a pseudo-tty
-    -u, --user="": Username or UID
-    -v, --volume=[]: Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
-    --volumes-from=[]: Mount volumes from the specified container(s)
-    -w, --workdir="": Working directory inside the container
+    -a, --attach=[]            Attach to stdin, stdout or stderr.
+    -c, --cpu-shares=0         CPU shares (relative weight)
+    --cidfile=""               Write the container ID to the file
+    -d, --detach=false         Detached mode: Run container in the background, print new container id
+    --dns=[]                   Set custom dns servers
+    --dns-search=[]            Set custom dns search domains
+    -e, --env=[]               Set environment variables
+    --entrypoint=""            Overwrite the default entrypoint of the image
+    --env-file=[]              Read in a line delimited file of ENV variables
+    --expose=[]                Expose a port from the container without publishing it to your host
+    -h, --hostname=""          Container host name
+    -i, --interactive=false    Keep stdin open even if not attached
+    --link=[]                  Add link to another container (name:alias)
+    --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+    -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+    --name=""                  Assign a name to the container
+    --net="bridge"             Set the Network mode for the container
+                                 'bridge': creates a new network stack for the container on the docker bridge
+                                 'none': no networking for this container
+                                 'container:<name|id>': reuses another container network stack
+                                 'host': use the host network stack inside the contaner
+    -p, --publish=[]           Publish a container's port to the host
+                                 format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
+                                 (use 'docker port' to see the actual mapping)
+    -P, --publish-all=false    Publish all exposed ports to the host interfaces
+    --privileged=false         Give extended privileges to this container
+    --rm=false                 Automatically remove the container when it exits (incompatible with -d)
+    --sig-proxy=true           Proxify all received signal to the process (even in non-tty mode)
+    -t, --tty=false            Allocate a pseudo-tty
+    -u, --user=""              Username or UID
+    -v, --volume=[]            Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
+    --volumes-from=[]          Mount volumes from the specified container(s)
+    -w, --workdir=""           Working directory inside the container
 
 The `docker run` command first `creates` a writeable container layer over the
 specified image, and then `starts` it using the specified command. That is,
