@@ -136,12 +136,12 @@ PID files):
 
 ## Network Settings
 
-    --dns=[]     : Set custom dns servers for the container
-    --net=bridge : Set the network mode
+    --dns=[]      : Set custom dns servers for the container
+    --net="bridge": Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'none': no networking for this container, 'container:<name|id>': reuses another container network stack), 'host': use the host network stack inside the container
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
-with `docker run -n` which disables all incoming and
+with `docker run --net none` which disables all incoming and
 outgoing networking. In cases like this, you would perform I/O through
 files or STDIN/STDOUT only.
 
