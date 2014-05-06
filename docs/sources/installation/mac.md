@@ -41,6 +41,10 @@ and install VirtualBox.
 > Do not simply copy the package without running the
 > installer.
 
+To prevent slow uploading when building images you must enable a `virtio-net` adapter for your given VM.
+
+<img src="docs/sources/installation/images/mac/virtual-box-network.png" width="400px">
+
 ## Installing boot2docker
 
 ### Installing manually
@@ -183,4 +187,3 @@ See the GitHub page for
 
 You can now continue with the [*Hello
 World*](/examples/hello_world/#hello-world) example.
-
