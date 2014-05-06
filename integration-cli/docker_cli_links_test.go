@@ -21,10 +21,10 @@ func TestPingLinkedContainers(t *testing.T) {
 	var out string
 	out, _, _ = cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	idA := stripTrailingCharacters(out)
-	out, _, _ = cmd("run", "-d", "--name", "container2", "busybox", "sleep", "10")
+	out, _, _ = cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
 	idB := stripTrailingCharacters(out)
-	cmd("run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
-	cmd("kill", idA)
-	cmd("kill", idB)
+	cmd(t, "run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
+	cmd(t, "kill", idA)
+	cmd(t, "kill", idB)
 	deleteAllContainers()
 }
