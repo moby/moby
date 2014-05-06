@@ -31,6 +31,9 @@ func newDriver(t *testing.T, name string) *Driver {
 
 	d, err := graphdriver.GetDriver(name, root)
 	if err != nil {
+		if err == graphdriver.ErrNotSupported {
+			t.Skip("Driver %s not supported", name)
+		}
 		t.Fatal(err)
 	}
 	return &Driver{d, root, 1}
@@ -54,7 +57,7 @@ func GetDriver(t *testing.T, name string) graphdriver.Driver {
 
 func PutDriver(t *testing.T) {
 	if drv == nil {
-		t.Fatal("No driver to put!")
+		t.Skip("No driver to put!")
 	}
 	drv.refCount--
 	if drv.refCount == 0 {
