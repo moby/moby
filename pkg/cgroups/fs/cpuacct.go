@@ -36,15 +36,19 @@ func (s *cpuacctGroup) Remove(d *data) error {
 
 func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	var (
-		startCpu, lastCpu, startSystem, lastSystem float64
-		percentage                                 float64
-		paramData                                  = make(map[string]float64)
+		startCpu, lastCpu, startSystem, lastSystem, startUsage, lastUsage float64
+		percentage                                                        float64
+		paramData                                                         = make(map[string]float64)
 	)
 	path, err := d.path("cpuacct")
 	if startCpu, err = s.getCpuUsage(d, path); err != nil {
 		return nil, err
 	}
 	if startSystem, err = s.getSystemCpuUsage(d); err != nil {
+		return nil, err
+	}
+	startUsageTime := time.Now()
+	if startUsage, err = getCgroupParamFloat64(path, "cpuacct.usage"); err != nil {
 		return nil, err
 	}
 	// sample for 100ms
@@ -55,10 +59,15 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
 		return nil, err
 	}
+	usageSampleDuration := time.Since(startUsageTime)
+	if lastUsage, err = getCgroupParamFloat64(path, "cpuacct.usage"); err != nil {
+		return nil, err
+	}
 
 	var (
 		deltaProc   = lastCpu - startCpu
 		deltaSystem = lastSystem - startSystem
+		deltaUsage  = lastUsage - startUsage
 	)
 	if deltaSystem > 0.0 {
 		percentage = ((deltaProc / deltaSystem) * clockTicks) * cpuCount
@@ -66,6 +75,9 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]float64, error) {
 	// NOTE: a percentage over 100% is valid for POSIX because that means the
 	// processes is using multiple cores
 	paramData["percentage"] = percentage
+
+	// Delta usage is in nanoseconds of CPU time so get the usage (in cores) over the sample time.
+	paramData["usage"] = deltaUsage / float64(usageSampleDuration.Nanoseconds())
 	return paramData, nil
 }
 
