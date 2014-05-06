@@ -1,4 +1,4 @@
-page_title: Docker Run Reference 
+page_title: Docker Run Reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
@@ -406,6 +406,13 @@ And we can use that information to connect from another container as a client:
 
     $ docker run -i -t --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
     172.17.0.32:6379>
+
+Docker will also map the private IP address to the alias of a linked
+container by inserting an entry into `/etc/hosts`.  You can use this
+mechanism to communicate with a linked container by its alias:
+
+    $ docker run -d --name servicename busybox sleep 30
+    $ docker run -i -t --link servicename:servicealias busybox ping -c 1 servicealias
 
 ## VOLUME (Shared Filesystems)
 
