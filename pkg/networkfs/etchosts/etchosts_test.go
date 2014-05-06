@@ -14,7 +14,7 @@ func TestBuildHostnameDomainname(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "10.11.12.13", "testhostname", "testdomainname")
+	err = Build(file.Name(), "10.11.12.13", "testhostname", "testdomainname", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestBuildHostname(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "10.11.12.13", "testhostname", "")
+	err = Build(file.Name(), "10.11.12.13", "testhostname", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestBuildNoIP(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), "", "testhostname", "")
+	err = Build(file.Name(), "", "testhostname", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
