@@ -276,14 +276,20 @@ func (b *buildFile) CmdSet(args string) error {
 
 	item := strings.SplitN(args, " ", 2)
 
-	if len(item) != 2 {
+	switch len(item) {
+	case 1:
+		identifier := item[0]
+
+		delete(b.macros, identifier)
+	case 2:
+		identifier := item[0]
+		value := item[1]
+
+		b.macros[identifier] = value
+	default:
 		return fmt.Errorf("Invalid SET directive: %s", args)
 	}
 
-	identifier := item[0]
-	value := item[1]
-
-	b.macros[identifier] = value
 	return nil
 }
 
@@ -861,7 +867,7 @@ func macroSubstitution(input string, macros map[string]string, callers []string)
 		switch ch {
 		case '$':
 			// If no characters left, just add $ and leave
-			if i + 1 >= len(input) {
+			if i+1 >= len(input) {
 				output.WriteByte('$')
 				break
 			}
