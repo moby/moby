@@ -146,11 +146,7 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 		properties = append(properties,
 			systemd1.Property{"MemoryLimit", dbus.MakeVariant(uint64(c.Memory))})
 	}
-	if c.MemoryReservation != 0 {
-		properties = append(properties,
-			systemd1.Property{"MemorySoftLimit", dbus.MakeVariant(uint64(c.MemoryReservation))})
-	}
-	// TODO: MemorySwap not available in systemd
+	// TODO: MemoryReservation and MemorySwap not available in systemd
 
 	if c.CpuShares != 0 {
 		properties = append(properties,
