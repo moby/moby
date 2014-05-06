@@ -1,12 +1,13 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/server"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/server"
 )
 
 func TestCreateNumberHostname(t *testing.T) {
@@ -397,28 +398,6 @@ func TestImagesFilter(t *testing.T) {
 
 	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
-	}
-}
-
-// FIXE: 'insert' is deprecated and should be removed in a future version.
-func TestImageInsert(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
-
-	// bad image name fails
-	if err := srv.Eng.Job("insert", "foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err == nil {
-		t.Fatal("expected an error and got none")
-	}
-
-	// bad url fails
-	if err := srv.Eng.Job("insert", unitTestImageID, "http://bad_host_name_that_will_totally_fail.com/", "/foo").Run(); err == nil {
-		t.Fatal("expected an error and got none")
-	}
-
-	// success returns nil
-	if err := srv.Eng.Job("insert", unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err != nil {
-		t.Fatalf("expected no error, but got %v", err)
 	}
 }
 
