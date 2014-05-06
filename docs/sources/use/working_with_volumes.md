@@ -59,7 +59,7 @@ more new volumes to any container created from that image:
 ### Creating and mounting a Data Volume Container
 
 If you have some persistent data that you want to share between
-containers, or want to use from non-persistent containers, its best to
+containers, or want to use from non-persistent containers, it's best to
 create a named Data Volume Container, and then to mount the data from
 it.
 
