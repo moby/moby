@@ -806,10 +806,30 @@ func isValidMacroRune(ch rune) bool {
 	return !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_", ch)
 }
 
+func contains(hay []string, needle string) bool {
+	if hay == nil {
+		return false
+	}
+
+	for _, item := range hay {
+		if needle == item {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Conducts complete macro substitution of input string based on given macros
-func macroSubstitution(input string, macros map[string]string) (string, error) {
+func macroSubstitution(input string, macros map[string]string, callers []string) (string, error) {
+	// A nil macro map[] value is identical to an empty map
 	if macros == nil {
-		return input, nil
+		macros = make(map[string]string)
+	}
+
+	// A nil caller slice value is identical to an empty slice
+	if callers == nil {
+		callers = make([]string, 0)
 	}
 
 	var output bytes.Buffer
@@ -823,9 +843,13 @@ func macroSubstitution(input string, macros map[string]string) (string, error) {
 		// Get quote level
 		switch ch {
 		case '"':
-			dquotes = !dquotes
+			if !squotes {
+				dquotes = !dquotes
+			}
 		case '\'':
-			squotes = !squotes
+			if !dquotes {
+				squotes = !squotes
+			}
 		}
 
 		// No replacements when in single-quotes
@@ -836,6 +860,12 @@ func macroSubstitution(input string, macros map[string]string) (string, error) {
 
 		switch ch {
 		case '$':
+			// If no characters left, just add $ and leave
+			if i + 1 >= len(input) {
+				output.WriteByte('$')
+				break
+			}
+
 			// Replace $$ with $
 			if input[i+1] == '$' {
 				i++
@@ -854,16 +884,23 @@ func macroSubstitution(input string, macros map[string]string) (string, error) {
 				end = len(input)
 			}
 
+			// Update offset in input
 			i += offset
 
 			// Get macro values
 			ident := input[start:end]
 			value, ok := macros[ident]
 
+			// Check for infinite recursion
+			if contains(callers, ident) {
+				return "", fmt.Errorf("infinite recursion detected when evaluating macro $%s", ident)
+			}
+
 			// Conduct the replacement
 			if ok {
 				// Recursively get value of the macro (allows for nested macros)
-				value, err := macroSubstitution(value, macros)
+				tmpCallers := append(callers, ident)
+				value, err := macroSubstitution(value, macros, tmpCallers)
 
 				if err != nil {
 					return "", err
@@ -884,7 +921,7 @@ func macroSubstitution(input string, macros map[string]string) (string, error) {
 // BuildStep parses a single build step from `instruction` and executes it in the current context.
 // In addition, it will preform macro substitutions on the instruction's expression.
 func (b *buildFile) BuildStep(name, expression string) error {
-	expression, err := macroSubstitution(expression, b.macros)
+	expression, err := macroSubstitution(expression, b.macros, nil)
 
 	if err != nil {
 		return fmt.Errorf("Error parsing Dockerfile: %s", err.Error())
