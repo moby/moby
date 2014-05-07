@@ -432,7 +432,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		tag            string
 		context        io.ReadCloser
 	)
-	job.GetenvJson("auth", configFile)
+	job.GetenvJson("configFile", configFile)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
@@ -1349,7 +1349,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		tag = job.Args[1]
 	}
 
-	job.GetenvJson("auth", configFile)
+	job.GetenvJson("configFile", configFile)
 	job.GetenvJson("metaHeaders", metaHeaders)
 
 	endpoint, _, err := registry.ResolveRepositoryName(localName)

@@ -881,6 +881,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	// Both headers will be parsed and sent along to the daemon, but if a non-empty
 	// ConfigFile is present, any value provided as an AuthConfig directly will
 	// be overridden. See BuildFile::CmdFrom for details.
+	// /*
 	var (
 		authEncoded = r.Header.Get("X-Registry-Auth")
 		authConfig  = &registry.AuthConfig{}
@@ -895,6 +896,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 			configFile.Configs[authConfig.ServerAddress] = *authConfig
 		}
 	}
+	// */
 
 	if configFileEncoded != "" {
 		configFileJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(configFileEncoded))
@@ -917,7 +919,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
 	job.Setenv("rm", r.FormValue("rm"))
-	job.SetenvJson("auth", configFile)
+	job.SetenvJson("configFile", configFile)
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
