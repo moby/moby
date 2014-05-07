@@ -3,6 +3,8 @@ package fs
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -26,4 +28,13 @@ func getCgroupParamKeyValue(t string) (string, float64, error) {
 	default:
 		return "", 0.0, ErrNotValidFormat
 	}
+}
+
+// Gets a single float64 value from the specified cgroup file.
+func getCgroupParamFloat64(cgroupPath, cgroupFile string) (float64, error) {
+	contents, err := ioutil.ReadFile(filepath.Join(cgroupPath, cgroupFile))
+	if err != nil {
+		return -1.0, err
+	}
+	return strconv.ParseFloat(strings.TrimSpace(string(contents)), 64)
 }

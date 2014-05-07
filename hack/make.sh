@@ -45,7 +45,7 @@ DEFAULT_BUNDLES=(
 	
 	binary
 	
-	test
+	test-unit
 	test-integration
 	test-integration-cli
 	

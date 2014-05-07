@@ -9,8 +9,8 @@ page_keywords: docker, example, python, web app
 > - This example assumes you have Docker running in daemon mode. For
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
-> - **If you don’t like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+> - **If you don't like sudo** then see [*Giving non-root
+>   access*](/installation/binaries/#dockergroup)
 
 While using Dockerfiles is the preferred way to create maintainable and
 repeatable images, its useful to know how you can try things out and
@@ -18,13 +18,13 @@ then commit your live changes to an image.
 
 The goal of this example is to show you how you can modify your own
 Docker images by making changes to a running container, and then saving
-the results as a new image. We will do that by making a simple ‘hello
-world’ Flask web application image.
+the results as a new image. We will do that by making a simple `hello
+world` Flask web application image.
 
 ## Download the initial image
 
-Download the `shykes/pybuilder` Docker image from
-the `http://index.docker.io` registry.
+Download the `shykes/pybuilder` Docker image from the `http://index.docker.io`
+registry.
 
 This image contains a `buildapp` script to download
 the web app and then `pip install` any required
@@ -36,7 +36,7 @@ modules, and a `runapp` script that finds the
 > **Note**: 
 > This container was built with a very old version of docker (May 2013 -
 > see [shykes/pybuilder](https://github.com/shykes/pybuilder) ), when the
-> `Dockerfile` format was different, but the image can
+> Dockerfile format was different, but the image can
 > still be used now.
 
 ## Interactively make some modifications
@@ -49,7 +49,7 @@ the `$URL` variable. The container is given a name
 `pybuilder_run` which we will use in the next steps.
 
 While this example is simple, you could run any number of interactive
-commands, try things out, and then exit when you’re done.
+commands, try things out, and then exit when you're done.
 
     $ sudo docker run -i -t -name pybuilder_run shykes/pybuilder bash
 
@@ -76,11 +76,11 @@ mapped to a local port
 
     $ sudo docker run -d -p 5000 --name web_worker /builds/github.com/shykes/helloflask/master /usr/local/bin/runapp
 
--   **"docker run -d "** run a command in a new container. We pass "-d"
-    so it runs as a daemon.
--   **"-p 5000"** the web app is going to listen on this port, so it
-    must be mapped from the container to the host system.
--   **/usr/local/bin/runapp** is the command which starts the web app.
+ - **"docker run -d "** run a command in a new container. We pass "-d"
+   so it runs as a daemon.
+ - **"-p 5000"** the web app is going to listen on this port, so it
+   must be mapped from the container to the host system.
+ - **/usr/local/bin/runapp** is the command which starts the web app.
 
 ## View the container logs
 
@@ -93,7 +93,7 @@ another terminal and continue with the example while watching the result
 in the logs.
 
     $ sudo docker logs -f web_worker
-     * Running on http://0.0.0.0:5000/
+    * Running on http://0.0.0.0:5000/
 
 ## See the webapp output
 
@@ -117,7 +117,7 @@ everything worked as planned you should see the line
 
 List `--all` the Docker containers. If this
 container had already finished running, it will still be listed here
-with a status of ‘Exit 0’.
+with a status of `Exit 0`.
 
     $ sudo docker stop web_worker
     $ sudo docker rm web_worker pybuilder_run

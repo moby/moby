@@ -80,7 +80,7 @@ func getDirFd(dir *C.DIR) uintptr {
 	return uintptr(C.dirfd(dir))
 }
 
-func subvolCreate(path, name string, mountLabel string) error {
+func subvolCreate(path, name string) error {
 	dir, err := openDir(path)
 	if err != nil {
 		return err
@@ -155,17 +155,17 @@ func (d *Driver) subvolumesDirId(id string) string {
 	return path.Join(d.subvolumesDir(), id)
 }
 
-func (d *Driver) Create(id string, parent string, mountLabel string) error {
+func (d *Driver) Create(id string, parent string) error {
 	subvolumes := path.Join(d.home, "subvolumes")
 	if err := os.MkdirAll(subvolumes, 0700); err != nil {
 		return err
 	}
 	if parent == "" {
-		if err := subvolCreate(subvolumes, id, mountLabel); err != nil {
+		if err := subvolCreate(subvolumes, id); err != nil {
 			return err
 		}
 	} else {
-		parentDir, err := d.Get(parent)
+		parentDir, err := d.Get(parent, "")
 		if err != nil {
 			return err
 		}
@@ -187,7 +187,7 @@ func (d *Driver) Remove(id string) error {
 	return os.RemoveAll(dir)
 }
 
-func (d *Driver) Get(id string) (string, error) {
+func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dir := d.subvolumesDirId(id)
 	st, err := os.Stat(dir)
 	if err != nil {

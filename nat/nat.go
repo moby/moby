@@ -69,7 +69,7 @@ func SplitProtoPort(rawPort string) (string, string) {
 	if l == 1 {
 		return "tcp", rawPort
 	}
-	return parts[0], parts[1]
+	return parts[1], parts[0]
 }
 
 // We will receive port specs in the format of ip:public:private/proto and these need to be

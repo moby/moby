@@ -87,14 +87,14 @@ to you.
 *Docker is made for humans.*
 
 It's easy to get started and easy to build and deploy applications with
-Docker: or as we say "*dockerise*" them! As much of Docker as possible
+Docker: or as we say "*dockerize*" them! As much of Docker as possible
 uses plain English for commands and tries to be as lightweight and
 transparent as possible. We want to get out of the way so you can build
 and deploy your applications.
 
 ### Docker is Portable
 
-*Dockerise And Go!*
+*Dockerize And Go!*
 
 Docker containers are highly portable. Docker provides a standard
 container format to hold your applications:
@@ -179,10 +179,10 @@ Without dealing with complicated commands or third party applications.
 Docker allows you to share the images you've built with the world. And
 lots of people have already shared their own images.
 
-To facilitate this sharing Docker comes with a public registry and index
-called the [Docker Index](http://index.docker.io). If you don't want
-your images to be public you can also use private images on the Index or
-even run your own registry behind your firewall.
+To facilitate this sharing Docker comes with a public registry called 
+[Docker.io](http://index.docker.io). If you don't want your images to be
+public you can also use private images on [Docker.io](https://index.docker.io)
+or even run your own registry behind your firewall.
 
 **This translates to:**
 

@@ -6,12 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -22,6 +16,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -644,10 +645,9 @@ func (b *buildFile) create() (*daemon.Container, error) {
 
 func (b *buildFile) run(c *daemon.Container) error {
 	var errCh chan error
-
 	if b.verbose {
 		errCh = utils.Go(func() error {
-			return <-c.Attach(nil, nil, b.outStream, b.errStream)
+			return <-b.daemon.Attach(c, nil, nil, b.outStream, b.errStream)
 		})
 	}
 

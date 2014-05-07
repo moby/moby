@@ -9,13 +9,13 @@ page_keywords: docker, example, package installation, networking, debian, ubuntu
 > - This example assumes you have Docker running in daemon mode. For
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
-> - **If you don’t like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup).
-> - **If you’re using OS X or docker via TCP** then you shouldn’t use
+> - **If you don't like sudo** then see [*Giving non-root
+>   access*](/installation/binaries/#dockergroup).
+> - **If you're using OS X or docker via TCP** then you shouldn't use
 >   sudo.
 
 When you have multiple Docker servers, or build unrelated Docker
-containers which can’t make use of the Docker build cache, it can be
+containers which can't make use of the Docker build cache, it can be
 useful to have a caching proxy for your packages. This container makes
 the second download of any package almost instant.
 
@@ -45,7 +45,7 @@ Then run it, mapping the exposed port to one on the host
 
     $ sudo docker run -d -p 3142:3142 --name test_apt_cacher_ng eg_apt_cacher_ng
 
-To see the logfiles that are ‘tailed’ in the default command, you can
+To see the logfiles that are `tailed` in the default command, you can
 use:
 
     $ sudo docker logs -f test_apt_cacher_ng
@@ -53,13 +53,12 @@ use:
 To get your Debian-based containers to use the proxy, you can do one of
 three things
 
-1.  Add an apt Proxy setting
-    `echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy`
-
-2.  Set an environment variable:
-    `http_proxy=http://dockerhost:3142/`
-3.  Change your `sources.list` entries to start with
-    `http://dockerhost:3142/`
+1. Add an apt Proxy setting
+   `echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy`
+2. Set an environment variable:
+   `http_proxy=http://dockerhost:3142/`
+3. Change your `sources.list` entries to start with
+   `http://dockerhost:3142/`
 
 **Option 1** injects the settings safely into your apt configuration in
 a local version of a common base:

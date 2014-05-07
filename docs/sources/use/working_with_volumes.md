@@ -8,23 +8,23 @@ page_keywords: Examples, Usage, volume, docker, documentation, examples
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](../../terms/layer/#ufs-def) to provide several useful features
+System*](/terms/layer/#ufs-def) to provide several useful features
 for persistent or shared data:
 
-- **Data volumes can be shared and reused between containers:**  
-  This is the feature that makes data volumes so powerful. You can
-  use it for anything from hot database upgrades to custom backup or
-  replication tools. See the example below.
-- **Changes to a data volume are made directly:**  
-  Without the overhead of a copy-on-write mechanism. This is good for
-  very large files.
-- **Changes to a data volume will not be included at the next commit:**  
-  Because they are not recorded as regular filesystem changes in the
-  top layer of the [*Union File System*](../../terms/layer/#ufs-def)
-- **Volumes persist until no containers use them:**  
-  As they are a reference counted resource. The container does not need to be
-  running to share its volumes, but running it can help protect it
-  against accidental removal via `docker rm`.
+ - **Data volumes can be shared and reused between containers:**  
+   This is the feature that makes data volumes so powerful. You can
+   use it for anything from hot database upgrades to custom backup or
+   replication tools. See the example below.
+ - **Changes to a data volume are made directly:**  
+   Without the overhead of a copy-on-write mechanism. This is good for
+   very large files.
+ - **Changes to a data volume will not be included at the next commit:**  
+   Because they are not recorded as regular filesystem changes in the
+   top layer of the [*Union File System*](/terms/layer/#ufs-def)
+ - **Volumes persist until no containers use them:**  
+   As they are a reference counted resource. The container does not need to be
+   running to share its volumes, but running it can help protect it
+   against accidental removal via `docker rm`.
 
 Each container can have zero or more data volumes.
 
@@ -50,8 +50,8 @@ not.
 Or, you can use the VOLUME instruction in a Dockerfile to add one or
 more new volumes to any container created from that image:
 
-    # BUILD-USING:        docker build -t data .
-    # RUN-USING:          docker run -name DATA data
+    # BUILD-USING:        $ docker build -t data .
+    # RUN-USING:          $ docker run -name DATA data
     FROM          busybox
     VOLUME        ["/var/volume1", "/var/volume2"]
     CMD           ["/bin/true"]
@@ -59,7 +59,7 @@ more new volumes to any container created from that image:
 ### Creating and mounting a Data Volume Container
 
 If you have some persistent data that you want to share between
-containers, or want to use from non-persistent containers, its best to
+containers, or want to use from non-persistent containers, it's best to
 create a named Data Volume Container, and then to mount the data from
 it.
 
@@ -82,8 +82,8 @@ Interestingly, you can mount the volumes that came from the
     $ docker run -t -i -rm -volumes-from client1 -name client2 ubuntu bash
 
 This allows you to abstract the actual data source from users of that
-data, similar to
-[*ambassador\_pattern\_linking*](../ambassador_pattern_linking/#ambassador-pattern-linking).
+data, similar to [*Ambassador Pattern Linking*](
+../ambassador_pattern_linking/#ambassador-pattern-linking).
 
 If you remove containers that mount volumes, including the initial DATA
 container, or the middleman, the volumes will not be deleted until there
@@ -108,7 +108,7 @@ For example:
     # Usage:
     # sudo docker run [OPTIONS] -v /(dir. on host):/(dir. in container):(Read-Write or Read-Only) [ARG..]
     # Example:
-    sudo docker run -i -t -v /var/log:/logs_from_host:ro ubuntu bash
+    $ sudo docker run -i -t -v /var/log:/logs_from_host:ro ubuntu bash
 
 The command above mounts the host directory `/var/log` into the container
 with *read only* permissions as `/logs_from_host`.
@@ -117,40 +117,34 @@ New in version v0.5.0.
 
 ### Note for OS/X users and remote daemon users:
 
-OS/X users run `boot2docker` to create a minimalist
-virtual machine running the docker daemon. That virtual machine then
-launches docker commands on behalf of the OS/X command line. The means
-that `host directories` refer to directories in the
-`boot2docker` virtual machine, not the OS/X
-filesystem.
+OS/X users run `boot2docker` to create a minimalist virtual machine running
+the docker daemon. That virtual machine then launches docker commands on
+behalf of the OS/X command line. The means that `host directories` refer to
+directories in the `boot2docker` virtual machine, not the OS/X filesystem.
 
-Similarly, anytime when the docker daemon is on a remote machine, the
-`host directories` always refer to directories on
-the daemon’s machine.
+Similarly, anytime when the docker daemon is on a remote machine, the 
+`host directories` always refer to directories on the daemon's machine.
 
 ### Backup, restore, or migrate data volumes
 
-You cannot back up volumes using `docker export`,
-`docker save` and `docker cp`
-because they are external to images. Instead you can use
-`--volumes-from` to start a new container that can
-access the data-container’s volume. For example:
+You cannot back up volumes using `docker export`, `docker save` and `docker cp`
+because they are external to images. Instead you can use `--volumes-from` to
+start a new container that can access the data-container's volume. For example:
 
     $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
 
--   `-rm` - remove the container when it exits
--   `--volumes-from DATA` - attach to the volumes
-    shared by the `DATA` container
--   `-v $(pwd):/backup` - bind mount the current
-    directory into the container; to write the tar file to
--   `busybox` - a small simpler image - good for
-    quick maintenance
--   `tar cvf /backup/backup.tar /data` - creates an
-    uncompressed tar file of all the files in the `/data`
- directory
+ - `-rm`:  
+   remove the container when it exits
+ - `--volumes-from DATA`:  
+   attach to the volumes shared by the `DATA` container
+ - `-v $(pwd):/backup`:  
+   bind mount the current directory into the container; to write the tar file to
+ - `busybox`:
+   a small simpler image - good for quick maintenance
+ - `tar cvf /backup/backup.tar /data`:  
+   creates an uncompressed tar file of all the files in the `/data` directory
 
-Then to restore to the same container, or another that you’ve made
-elsewhere:
+Then to restore to the same container, or another that you`ve made elsewhere:
 
     # create a new data container
     $ sudo docker run -v /data -name DATA2 busybox true
@@ -167,12 +161,11 @@ restore testing using your preferred tools.
 
 ## Known Issues
 
--   [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
+ - [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
     "lxc-start: Permission denied - failed to mount" could indicate a
     permissions problem with AppArmor. Please see the issue for a
     workaround.
--   [Issue 2528](https://github.com/dotcloud/docker/issues/2528): the
+ - [Issue 2528](https://github.com/dotcloud/docker/issues/2528): the
     busybox container is used to make the resulting container as small
     and simple as possible - whenever you need to interact with the data
     in the volume you mount it into another container.
-

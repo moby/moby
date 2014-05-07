@@ -18,12 +18,12 @@ type Container struct {
 	WorkingDir       string          `json:"working_dir,omitempty"`       // current working directory
 	Env              []string        `json:"environment,omitempty"`       // environment to set
 	Tty              bool            `json:"tty,omitempty"`               // setup a proper tty or not
-	Namespaces       Namespaces      `json:"namespaces,omitempty"`        // namespaces to apply
-	CapabilitiesMask Capabilities    `json:"capabilities_mask,omitempty"` // capabilities to drop
+	Namespaces       map[string]bool `json:"namespaces,omitempty"`        // namespaces to apply
+	CapabilitiesMask map[string]bool `json:"capabilities_mask,omitempty"` // capabilities to drop
 	Networks         []*Network      `json:"networks,omitempty"`          // nil for host's network stack
 	Cgroups          *cgroups.Cgroup `json:"cgroups,omitempty"`           // cgroups
 	Context          Context         `json:"context,omitempty"`           // generic context for specific options (apparmor, selinux)
-	Mounts           []Mount         `json:"mounts,omitempty"`
+	Mounts           Mounts          `json:"mounts,omitempty"`
 }
 
 // Network defines configuration for a container's networking stack
@@ -36,13 +36,4 @@ type Network struct {
 	Address string  `json:"address,omitempty"`
 	Gateway string  `json:"gateway,omitempty"`
 	Mtu     int     `json:"mtu,omitempty"`
-}
-
-// Bind mounts from the host system to the container
-//
-type Mount struct {
-	Source      string `json:"source"`      // Source path, in the host namespace
-	Destination string `json:"destination"` // Destination path, in the container
-	Writable    bool   `json:"writable"`
-	Private     bool   `json:"private"`
 }

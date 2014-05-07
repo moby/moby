@@ -8,8 +8,9 @@ page_keywords: API, Docker, accounts, REST, documentation
 
 ### 1.1 Get a single user
 
- `GET /api/v1.1/users/:username/`
-:   Get profile info for the specified user.
+`GET /api/v1.1/users/:username/`
+
+Get profile info for the specified user.
 
     Parameters:
 
@@ -61,8 +62,9 @@ page_keywords: API, Docker, accounts, REST, documentation
 
 ### 1.2 Update a single user
 
- `PATCH /api/v1.1/users/:username/`
-:   Update profile info for the specified user.
+`PATCH /api/v1.1/users/:username/`
+
+Update profile info for the specified user.
 
     Parameters:
 
@@ -73,11 +75,11 @@ page_keywords: API, Docker, accounts, REST, documentation
 
      
 
-    -   **full\_name** (*string*) – (optional) the new name of the user.
+    -   **full_name** (*string*) – (optional) the new name of the user.
     -   **location** (*string*) – (optional) the new location.
     -   **company** (*string*) – (optional) the new company of the user.
-    -   **profile\_url** (*string*) – (optional) the new profile url.
-    -   **gravatar\_email** (*string*) – (optional) the new Gravatar
+    -   **profile_url** (*string*) – (optional) the new profile url.
+    -   **gravatar_email** (*string*) – (optional) the new Gravatar
         email address.
 
     Request Headers:
@@ -134,8 +136,9 @@ page_keywords: API, Docker, accounts, REST, documentation
 
 ### 1.3 List email addresses for a user
 
- `GET /api/v1.1/users/:username/emails/`
-:   List email info for the specified user.
+`GET /api/v1.1/users/:username/emails/`
+
+List email info for the specified user.
 
     Parameters:
 
@@ -180,10 +183,11 @@ page_keywords: API, Docker, accounts, REST, documentation
 
 ### 1.4 Add email address for a user
 
- `POST /api/v1.1/users/:username/emails/`
-:   Add a new email address to the specified user’s account. The email
-    address must be verified separately, a confirmation email is not
-    automatically sent.
+`POST /api/v1.1/users/:username/emails/`
+
+Add a new email address to the specified user's account. The email
+address must be verified separately, a confirmation email is not
+automatically sent.
 
     Json Parameters:
 
@@ -233,81 +237,12 @@ page_keywords: API, Docker, accounts, REST, documentation
             "primary": false
         }
 
-### 1.5 Update an email address for a user
+### 1.5 Delete email address for a user
 
- `PATCH /api/v1.1/users/:username/emails/`
-:   Update an email address for the specified user to either verify an
-    email address or set it as the primary email for the user. You
-    cannot use this endpoint to un-verify an email address. You cannot
-    use this endpoint to unset the primary email, only set another as
-    the primary.
+`DELETE /api/v1.1/users/:username/emails/`
 
-    Parameters:
-
-    -   **username** – username of the user whose email info is being
-        updated.
-
-    Json Parameters:
-
-     
-
-    -   **email** (*string*) – the email address to be updated.
-    -   **verified** (*boolean*) – (optional) whether the email address
-        is verified, must be `true` or absent.
-    -   **primary** (*boolean*) – (optional) whether to set the email
-        address as the primary email, must be `true`
-        or absent.
-
-    Request Headers:
-
-     
-
-    -   **Authorization** – required authentication credentials of
-        either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
-        form data, etc.
-
-    Status Codes:
-
-    -   **200** – success, user’s email updated.
-    -   **400** – data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
-        whose data is being updated, OAuth access tokens must have
-        `email_write` scope.
-    -   **404** – the specified username or email address does not
-        exist.
-
-    **Example request**:
-
-    Once you have independently verified an email address.
-
-        PATCH /api/v1.1/users/janedoe/emails/ HTTP/1.1
-        Host: www.docker.io
-        Accept: application/json
-        Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
-
-        {
-            "email": "jane.doe+other@example.com",
-            "verified": true,
-        }
-
-    **Example response**:
-
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {
-            "email": "jane.doe+other@example.com",
-            "verified": true,
-            "primary": false
-        }
-
-### 1.6 Delete email address for a user
-
- `DELETE /api/v1.1/users/:username/emails/`
-:   Delete an email address from the specified user’s account. You
-    cannot delete a user’s primary email address.
+Delete an email address from the specified user's account. You
+cannot delete a user's primary email address.
 
     Json Parameters:
 
@@ -351,5 +286,3 @@ page_keywords: API, Docker, accounts, REST, documentation
 
         HTTP/1.1 204 NO CONTENT
         Content-Length: 0
-
-

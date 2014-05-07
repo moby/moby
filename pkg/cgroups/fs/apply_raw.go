@@ -67,6 +67,7 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	}
 	for _, sys := range subsystems {
 		if err := sys.Set(d); err != nil {
+			d.Cleanup()
 			return nil, err
 		}
 	}
