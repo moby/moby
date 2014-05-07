@@ -59,6 +59,23 @@ When you're done with your build, you're ready to look into
 [*Pushing a repository to its registry*](
 /use/workingwithrepository/#image-push).
 
+### Macros
+
+Dockerfiles can contain macros, which are substituted before each
+Dockerfile instruction is run by `docker build`. Macros can be defined both
+inside the Dockerfile (see the [*SET*](#SET) instruction for more details),
+or through command-line arguments in the form `docker build -D MACRO=value`.
+
+Macros are of the form `$MACRO_NAME`, where the macro `MACRO_NAME` must have
+been previously defined either by using the [*SET*](#SET) instruction or through
+command-line arguments.
+
+> **Notes**:
+> * The special value `$$` is replaced with `$`.
+> * Unknown macros are not replaced.
+> * Macros are evaluated recursively, so macros which contain other macros will
+>   be completely expanded (similar to how `cpp` expands macros).
+
 ## Format
 
 Here is the format of the Dockerfile:
@@ -212,6 +229,30 @@ change them using `docker run --env <key>=<value>`.
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
+## SET
+
+    SET <macro> <expression>
+    SET <macro>
+
+The `SET` instruction sets the expression of the macro `<macro>` to the value
+`<expression>`. This macro will be replaced in all future instructions, until
+another `SET` instruction changes its value. This is equivalent to replacing
+the completely expanded macro everywhere `$<macro>` appears.
+
+As a special case, if `<expression>` is empty, the macro will be unset so that
+it will not be replaced in all future instructions, until another `SET`
+instruction changes its value. A `SET` instruction with no expression, with
+an already undefined macro will be ignored.
+
+> **Note**:
+> When creating recursive macros, an instruction like this:
+> `SET MACRO A $RECURSIVE macro` where `$RECURSIVE` is a macro.
+> It should be noted that the macro replacement will occur before the `SET`
+> instruction will take place, so changes to `$RECURSIVE` will not be reflected
+> in `$MACRO`. This can be fixed by changing the expression to:
+> `SET MACRO A $$RECURSIVE macro`. This is because macros are expanded in
+> *all* instructions, including `SET` instructions.
+
 ## ADD
 
     ADD <src> <dest>
@@ -264,7 +305,7 @@ The copy obeys the following rules:
   unpacked, it has the same behavior as `tar -x`: the result is the union of:
 
     1. whatever existed at the destination path and
-    2. the contents of the source tree, with conflicts resolved in favor of 
+    2. the contents of the source tree, with conflicts resolved in favor of
        "2." on a file-by-file basis.
 
 - If `<src>` is any other kind of file, it is copied individually along with
@@ -296,7 +337,7 @@ runs as if it was just that executable.
 
 The `ENTRYPOINT` instruction adds an entry command that will **not** be
 overwritten when arguments are passed to `docker run`, unlike the behavior
-of `CMD`. This allows arguments to be passed to the entrypoint. i.e. 
+of `CMD`. This allows arguments to be passed to the entrypoint. i.e.
 `docker run <image> -d` will pass the "-d" argument to the ENTRYPOINT.
 
 You can specify parameters either in the ENTRYPOINT JSON array (as in

@@ -429,10 +429,14 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
 		configFile     = &registry.ConfigFile{}
+		macros         map[string]string
 		tag            string
 		context        io.ReadCloser
 	)
+
 	job.GetenvJson("auth", configFile)
+	job.GetenvJson("macros", &macros)
+
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
@@ -484,7 +488,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile)
+		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile, macros)
 	id, err := b.Build(context)
 	if err != nil {
 		return job.Error(err)
