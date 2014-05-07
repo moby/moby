@@ -138,7 +138,8 @@ func TestRaceWriteBroadcaster(t *testing.T) {
 
 // Test the behavior of TruncIndex, an index for querying IDs from a non-conflicting prefix.
 func TestTruncIndex(t *testing.T) {
-	index := NewTruncIndex()
+	ids := []string{}
+	index := NewTruncIndex(ids)
 	// Get on an empty index
 	if _, err := index.Get("foobar"); err == nil {
 		t.Fatal("Get on an empty index should return an error")
@@ -215,6 +216,25 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 		t.Fatalf("Getting '%s' should return an error", input)
 	} else if result != expectedResult {
 		t.Fatalf("Getting '%s' returned '%s' instead of '%s'", input, result, expectedResult)
+	}
+}
+
+func BenchmarkTruncIndexAdd(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range ids {
+			index.Add(id)
+		}
+	}
+}
+
+func BenchmarkTruncIndexNew(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewTruncIndex(ids)
 	}
 }
 
@@ -357,20 +377,6 @@ func TestParseRepositoryTag(t *testing.T) {
 	}
 }
 
-func TestGetResolvConf(t *testing.T) {
-	resolvConfUtils, err := GetResolvConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(resolvConfUtils) != string(resolvConfSystem) {
-		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
-	}
-}
-
 func TestCheckLocalDns(t *testing.T) {
 	for resolv, result := range map[string]bool{`# Dynamic
 nameserver 10.0.2.3
@@ -442,95 +448,6 @@ func TestParsePortMapping(t *testing.T) {
 	if data["private"] != "8080" {
 		t.Fail()
 	}
-}
-
-func TestGetNameservers(t *testing.T) {
-	for resolv, result := range map[string][]string{`
-nameserver 1.2.3.4
-nameserver 40.3.200.10
-search example.com`: {"1.2.3.4", "40.3.200.10"},
-		`search example.com`: {},
-		`nameserver 1.2.3.4
-search example.com
-nameserver 4.30.20.100`: {"1.2.3.4", "4.30.20.100"},
-		``: {},
-		`  nameserver 1.2.3.4   `: {"1.2.3.4"},
-		`search example.com
-nameserver 1.2.3.4
-#nameserver 4.3.2.1`: {"1.2.3.4"},
-		`search example.com
-nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4"},
-	} {
-		test := GetNameservers([]byte(resolv))
-		if !StrSlicesEqual(test, result) {
-			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
-		}
-	}
-}
-
-func TestGetNameserversAsCIDR(t *testing.T) {
-	for resolv, result := range map[string][]string{`
-nameserver 1.2.3.4
-nameserver 40.3.200.10
-search example.com`: {"1.2.3.4/32", "40.3.200.10/32"},
-		`search example.com`: {},
-		`nameserver 1.2.3.4
-search example.com
-nameserver 4.30.20.100`: {"1.2.3.4/32", "4.30.20.100/32"},
-		``: {},
-		`  nameserver 1.2.3.4   `: {"1.2.3.4/32"},
-		`search example.com
-nameserver 1.2.3.4
-#nameserver 4.3.2.1`: {"1.2.3.4/32"},
-		`search example.com
-nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
-	} {
-		test := GetNameserversAsCIDR([]byte(resolv))
-		if !StrSlicesEqual(test, result) {
-			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
-		}
-	}
-}
-
-func TestGetSearchDomains(t *testing.T) {
-	for resolv, result := range map[string][]string{
-		`search example.com`:           {"example.com"},
-		`search example.com # ignored`: {"example.com"},
-		` 	  search 	 example.com 	  `: {"example.com"},
-		` 	  search 	 example.com 	  # ignored`: {"example.com"},
-		`search foo.example.com example.com`: {"foo.example.com", "example.com"},
-		`	   search   	   foo.example.com 	 example.com 	`: {"foo.example.com", "example.com"},
-		`	   search   	   foo.example.com 	 example.com 	# ignored`: {"foo.example.com", "example.com"},
-		``:          {},
-		`# ignored`: {},
-		`nameserver 1.2.3.4
-search foo.example.com example.com`: {"foo.example.com", "example.com"},
-		`nameserver 1.2.3.4
-search dup1.example.com dup2.example.com
-search foo.example.com example.com`: {"foo.example.com", "example.com"},
-		`nameserver 1.2.3.4
-search foo.example.com example.com
-nameserver 4.30.20.100`: {"foo.example.com", "example.com"},
-	} {
-		test := GetSearchDomains([]byte(resolv))
-		if !StrSlicesEqual(test, result) {
-			t.Fatalf("Wrong search domain string {%s} should be %v. Input: %s", test, result, resolv)
-		}
-	}
-}
-
-func StrSlicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func TestReplaceAndAppendEnvVars(t *testing.T) {

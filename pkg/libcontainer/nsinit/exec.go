@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/cgroups/fs"
+	"github.com/dotcloud/docker/pkg/cgroups/systemd"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
@@ -15,7 +17,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args []string) (int, error) {
+func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -28,10 +30,8 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("created sync pipe parent fd %d child fd %d\n", syncPipe.parent.Fd(), syncPipe.child.Fd())
 
 	if container.Tty {
-		ns.logger.Println("creating master and console")
 		master, console, err = system.CreateMasterAndConsole()
 		if err != nil {
 			return -1, err
@@ -39,14 +39,12 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 		term.SetMaster(master)
 	}
 
-	command := ns.commandFactory.Create(container, console, syncPipe.child, args)
-	ns.logger.Println("attach terminal to command")
+	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
 	if err := term.Attach(command); err != nil {
 		return -1, err
 	}
 	defer term.Close()
 
-	ns.logger.Println("starting command")
 	if err := command.Start(); err != nil {
 		return -1, err
 	}
@@ -55,56 +53,97 @@ func (ns *linuxNs) Exec(container *libcontainer.Container, term Terminal, args [
 	if err != nil {
 		return -1, err
 	}
-	ns.logger.Printf("writting pid %d to file\n", command.Process.Pid)
-	if err := ns.stateWriter.WritePid(command.Process.Pid, started); err != nil {
+	if err := WritePid(dataPath, command.Process.Pid, started); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	defer func() {
-		ns.logger.Println("removing pid file")
-		ns.stateWriter.DeletePid()
-	}()
+	defer DeletePid(dataPath)
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	ns.logger.Println("setting cgroups")
-	activeCgroup, err := ns.SetupCgroups(container, command.Process.Pid)
+	cleaner, err := SetupCgroups(container, command.Process.Pid)
 	if err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
-	if activeCgroup != nil {
-		defer activeCgroup.Cleanup()
+	if cleaner != nil {
+		defer cleaner.Cleanup()
 	}
 
-	ns.logger.Println("setting up network")
-	if err := ns.InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
+	if err := InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
 
-	ns.logger.Println("closing sync pipe with child")
 	// Sync with child
 	syncPipe.Close()
+
+	if startCallback != nil {
+		startCallback()
+	}
 
 	if err := command.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return -1, err
 		}
 	}
-	status := command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-	ns.logger.Printf("process exited with status %d\n", status)
-	return status, err
+	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
-func (ns *linuxNs) SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
+// DefaultCreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
+// defined on the container's configuration and use the current binary as the init with the
+// args provided
+//
+// console: the /dev/console to setup inside the container
+// init: the progam executed inside the namespaces
+// root: the path to the container json file and information
+// pipe: sync pipe to syncronize the parent and child processes
+// args: the arguemnts to pass to the container to run as the user's program
+func DefaultCreateCommand(container *libcontainer.Container, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
+	// get our binary name from arg0 so we can always reexec ourself
+	env := []string{
+		"console=" + console,
+		"pipe=3",
+		"data_path=" + dataPath,
+	}
+
+	/*
+	   TODO: move user and wd into env
+	   if user != "" {
+	       env = append(env, "user="+user)
+	   }
+	   if workingDir != "" {
+	       env = append(env, "wd="+workingDir)
+	   }
+	*/
+
+	command := exec.Command(init, append([]string{"init"}, args...)...)
+	// make sure the process is executed inside the context of the rootfs
+	command.Dir = rootfs
+	command.Env = append(os.Environ(), env...)
+
+	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
+	command.ExtraFiles = []*os.File{pipe}
+
+	return command
+}
+
+// SetupCgroups applies the cgroup restrictions to the process running in the contaienr based
+// on the container's configuration
+func SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
-		return container.Cgroups.Apply(nspid)
+		c := container.Cgroups
+		if systemd.UseSystemd() {
+			return systemd.Apply(c, nspid)
+		}
+		return fs.Apply(c, nspid)
 	}
 	return nil, nil
 }
 
-func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
+// InitializeNetworking creates the container's network stack outside of the namespace and moves
+// interfaces into the container's net namespaces if necessary
+func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
 	context := libcontainer.Context{}
 	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
@@ -116,4 +155,17 @@ func (ns *linuxNs) InitializeNetworking(container *libcontainer.Container, nspid
 		}
 	}
 	return pipe.SendToChild(context)
+}
+
+// GetNamespaceFlags parses the container's Namespaces options to set the correct
+// flags on clone, unshare, and setns
+func GetNamespaceFlags(namespaces map[string]bool) (flag int) {
+	for key, enabled := range namespaces {
+		if enabled {
+			if ns := libcontainer.GetNamespace(key); ns != nil {
+				flag |= ns.Value
+			}
+		}
+	}
+	return flag
 }

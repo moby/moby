@@ -5,12 +5,17 @@ import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
 	"io"
-	"log"
 	"os"
-	"runtime"
 	"sort"
 	"strings"
 )
+
+// Installer is a standard interface for objects which can "install" themselves
+// on an engine by registering handlers.
+// This can be used as an entrypoint for external plugins etc.
+type Installer interface {
+	Install(*Engine) error
+}
 
 type Handler func(*Job) Status
 
@@ -37,17 +42,14 @@ func unregister(name string) {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	root     string
 	handlers map[string]Handler
+	catchall Handler
 	hack     Hack // data for temporary hackery (see hack.go)
 	id       string
 	Stdout   io.Writer
 	Stderr   io.Writer
 	Stdin    io.Reader
-}
-
-func (eng *Engine) Root() string {
-	return eng.root
+	Logging  bool
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
@@ -59,43 +61,19 @@ func (eng *Engine) Register(name string, handler Handler) error {
 	return nil
 }
 
-// New initializes a new engine managing the directory specified at `root`.
-// `root` is used to store containers and any other state private to the engine.
-// Changing the contents of the root without executing a job will cause unspecified
-// behavior.
-func New(root string) (*Engine, error) {
-	// Check for unsupported architectures
-	if runtime.GOARCH != "amd64" {
-		return nil, fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
-	// Check for unsupported kernel versions
-	// FIXME: it would be cleaner to not test for specific versions, but rather
-	// test for specific functionalities.
-	// Unfortunately we can't test for the feature "does not cause a kernel panic"
-	// without actually causing a kernel panic, so we need this workaround until
-	// the circumstances of pre-3.8 crashes are clearer.
-	// For details see http://github.com/dotcloud/docker/issues/407
-	if k, err := utils.GetKernelVersion(); err != nil {
-		log.Printf("WARNING: %s\n", err)
-	} else {
-		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
-			}
-		}
-	}
+func (eng *Engine) RegisterCatchall(catchall Handler) {
+	eng.catchall = catchall
+}
 
-	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
-		return nil, err
-	}
-
+// New initializes a new engine.
+func New() *Engine {
 	eng := &Engine{
-		root:     root,
 		handlers: make(map[string]Handler),
 		id:       utils.RandomString(),
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,
 		Stdin:    os.Stdin,
+		Logging:  true,
 	}
 	eng.Register("commands", func(job *Job) Status {
 		for _, name := range eng.commands() {
@@ -107,11 +85,11 @@ func New(root string) (*Engine, error) {
 	for k, v := range globalHandlers {
 		eng.handlers[k] = v
 	}
-	return eng, nil
+	return eng
 }
 
 func (eng *Engine) String() string {
-	return fmt.Sprintf("%s|%s", eng.Root(), eng.id[:8])
+	return fmt.Sprintf("%s", eng.id[:8])
 }
 
 // Commands returns a list of all currently registered commands,
@@ -137,10 +115,16 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Stderr: NewOutput(),
 		env:    &Env{},
 	}
-	job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
-	handler, exists := eng.handlers[name]
-	if exists {
+	if eng.Logging {
+		job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
+	}
+
+	// Catchall is shadowed by specific Register.
+	if handler, exists := eng.handlers[name]; exists {
 		job.handler = handler
+	} else if eng.catchall != nil && name != "" {
+		// empty job names are illegal, catchall or not.
+		job.handler = eng.catchall
 	}
 	return job
 }
@@ -188,9 +172,9 @@ func (eng *Engine) ParseJob(input string) (*Job, error) {
 }
 
 func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
-	if os.Getenv("TEST") == "" {
-		prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-		return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
+	if !eng.Logging {
+		return 0, nil
 	}
-	return 0, nil
+	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
+	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
 }

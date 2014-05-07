@@ -46,6 +46,19 @@ bundle_ubuntu() {
 	mkdir -p $DIR/etc/fish/completions
 	cp contrib/completion/fish/docker.fish $DIR/etc/fish/completions/
 
+	# Include contributed man pages
+	contrib/man/md/md2man-all.sh -q
+	manRoot="$DIR/usr/share/man"
+	mkdir -p "$manRoot"
+	for manDir in contrib/man/man*; do
+		manBase="$(basename "$manDir")" # "man1"
+		for manFile in "$manDir"/*; do
+			manName="$(basename "$manFile")" # "docker-build.1"
+			mkdir -p "$manRoot/$manBase"
+			gzip -c "$manFile" > "$manRoot/$manBase/$manName.gz"
+		done
+	done
+
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
 	mkdir -p $DIR/usr/bin
@@ -122,7 +135,7 @@ EOF
 			--deb-recommends ca-certificates \
 			--deb-recommends git \
 			--deb-recommends xz-utils \
-			--deb-suggests cgroup-lite \
+			--deb-recommends 'cgroupfs-mount | cgroup-lite' \
 			--description "$PACKAGE_DESCRIPTION" \
 			--maintainer "$PACKAGE_MAINTAINER" \
 			--conflicts docker \

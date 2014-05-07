@@ -1491,7 +1491,8 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := cli.Subcmd("events", "[OPTIONS]", "Get real time events from the server")
-	since := cmd.String([]string{"#since", "-since"}, "", "Show previously created events and then stream.")
+	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")
+	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1500,22 +1501,27 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	v := url.Values{}
-	if *since != "" {
-		loc := time.FixedZone(time.Now().Zone())
+	var (
+		v   = url.Values{}
+		loc = time.FixedZone(time.Now().Zone())
+	)
+	var setTime = func(key, value string) {
 		format := "2006-01-02 15:04:05 -0700 MST"
-		if len(*since) < len(format) {
-			format = format[:len(*since)]
+		if len(value) < len(format) {
+			format = format[:len(value)]
 		}
-
-		if t, err := time.ParseInLocation(format, *since, loc); err == nil {
-			v.Set("since", strconv.FormatInt(t.Unix(), 10))
+		if t, err := time.ParseInLocation(format, value, loc); err == nil {
+			v.Set(key, strconv.FormatInt(t.Unix(), 10))
 		} else {
-			v.Set("since", *since)
+			v.Set(key, value)
 		}
 	}
-
+	if *since != "" {
+		setTime("since", *since)
+	}
+	if *until != "" {
+		setTime("until", *until)
+	}
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
 		return err
 	}
@@ -1577,6 +1583,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	cmd := cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
 	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1597,14 +1604,16 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	}
 
 	v := url.Values{}
-	v.Set("logs", "1")
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
+	if *times {
+		v.Set("timestamps", "1")
+	}
 	if *follow && container.State.Running {
-		v.Set("stream", "1")
+		v.Set("follow", "1")
 	}
 
-	if err := cli.hijack("POST", "/containers/"+name+"/attach?"+v.Encode(), container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
+	if err := cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 	return nil

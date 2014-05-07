@@ -9,56 +9,9 @@ import (
 	"time"
 )
 
-func TestCreateRm(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := createTestContainer(eng, config, t)
-
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err := job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
-	}
-
-	job = eng.Job("container_delete", id)
-	job.SetenvBool("removeVolume", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err = job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(outs.Data))
-	}
-
-}
-
 func TestCreateNumberHostname(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config, _, _, err := runconfig.Parse([]string{"-h", "web.0", unitTestImageID, "echo test"}, nil)
 	if err != nil {
@@ -70,7 +23,7 @@ func TestCreateNumberHostname(t *testing.T) {
 
 func TestCreateNumberUsername(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config, _, _, err := runconfig.Parse([]string{"-u", "1002", unitTestImageID, "echo test"}, nil)
 	if err != nil {
@@ -80,143 +33,9 @@ func TestCreateNumberUsername(t *testing.T) {
 	createTestContainer(eng, config, t)
 }
 
-func TestCreateRmVolumes(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	config, hostConfig, _, err := runconfig.Parse([]string{"-v", "/srv", unitTestImageID, "echo", "test"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := createTestContainer(eng, config, t)
-
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err := job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
-	}
-
-	job = eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("stop", id)
-	job.SetenvInt("t", 1)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("container_delete", id)
-	job.SetenvBool("removeVolume", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err = job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(outs.Data))
-	}
-}
-
-func TestCreateRmRunning(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
-
-	config, hostConfig, _, err := runconfig.Parse([]string{"--name", "foo", unitTestImageID, "sleep 300"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := createTestContainer(eng, config, t)
-
-	job := eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("containers")
-	outs, err := job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
-	}
-
-	// Test cannot remove running container
-	job = eng.Job("container_delete", id)
-	job.SetenvBool("forceRemove", false)
-	if err := job.Run(); err == nil {
-		t.Fatal("Expected container delete to fail")
-	}
-
-	job = eng.Job("containers")
-	outs, err = job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
-	}
-
-	// Test can force removal of running container
-	job = eng.Job("container_delete", id)
-	job.SetenvBool("forceRemove", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err = job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(outs.Data))
-	}
-}
-
 func TestCommit(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
@@ -236,7 +55,7 @@ func TestCommit(t *testing.T) {
 
 func TestMergeConfigOnCommit(t *testing.T) {
 	eng := NewTestEngine(t)
-	runtime := mkRuntimeFromEngine(eng, t)
+	runtime := mkDaemonFromEngine(eng, t)
 	defer runtime.Nuke()
 
 	container1, _, _ := mkContainer(runtime, []string{"-e", "FOO=bar", unitTestImageID, "echo test > /tmp/foo"}, t)
@@ -294,7 +113,7 @@ func TestMergeConfigOnCommit(t *testing.T) {
 func TestRestartKillWait(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
-	runtime := mkRuntimeFromEngine(eng, t)
+	runtime := mkDaemonFromEngine(eng, t)
 	defer runtime.Nuke()
 
 	config, hostConfig, _, err := runconfig.Parse([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
@@ -330,7 +149,7 @@ func TestRestartKillWait(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eng = newTestEngine(t, false, eng.Root())
+	eng = newTestEngine(t, false, runtime.Config().Root)
 	srv = mkServerFromEngine(eng, t)
 
 	job = srv.Eng.Job("containers")
@@ -360,7 +179,7 @@ func TestRestartKillWait(t *testing.T) {
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config, hostConfig, _, err := runconfig.Parse([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
@@ -439,7 +258,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
 	job := eng.Job("create")
@@ -457,7 +276,7 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 func TestRmi(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	initialImages := getAllImages(eng, t)
 
@@ -542,7 +361,7 @@ func TestRmi(t *testing.T) {
 
 func TestImagesFilter(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	if err := eng.Job("tag", unitTestImageName, "utest", "tag1").Run(); err != nil {
 		t.Fatal(err)
@@ -584,7 +403,7 @@ func TestImagesFilter(t *testing.T) {
 // FIXE: 'insert' is deprecated and should be removed in a future version.
 func TestImageInsert(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 	srv := mkServerFromEngine(eng, t)
 
 	// bad image name fails
@@ -606,7 +425,7 @@ func TestImageInsert(t *testing.T) {
 func TestListContainers(t *testing.T) {
 	eng := NewTestEngine(t)
 	srv := mkServerFromEngine(eng, t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config := runconfig.Config{
 		Image:     unitTestImageID,
@@ -721,7 +540,7 @@ func assertContainerList(srv *server.Server, all bool, limit int, since, before 
 // container
 func TestDeleteTagWithExistingContainers(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	srv := mkServerFromEngine(eng, t)
 

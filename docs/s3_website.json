@@ -1,0 +1,17 @@
+{
+  "ErrorDocument": {
+    "Key": "jsearch/index.html"
+  },
+  "IndexDocument": {
+    "Suffix": "index.html"
+  },
+  "RoutingRules": [
+    { "Condition": { "KeyPrefixEquals": "en/latest/" }, "Redirect": { "ReplaceKeyPrefixWith": "" } },
+    { "Condition": { "KeyPrefixEquals": "en/master/" }, "Redirect": { "ReplaceKeyPrefixWith": "" } },
+    { "Condition": { "KeyPrefixEquals": "en/v0.6.3/" }, "Redirect": { "ReplaceKeyPrefixWith": "" } },
+    { "Condition": { "KeyPrefixEquals": "jsearch/index.html" }, "Redirect": { "ReplaceKeyPrefixWith": "jsearch/" } },
+    { "Condition": { "KeyPrefixEquals": "index/" }, "Redirect": { "ReplaceKeyPrefixWith": "docker-io/" } },
+    { "Condition": { "KeyPrefixEquals": "reference/api/index_api/" }, "Redirect": { "ReplaceKeyPrefixWith": "reference/api/docker-io_api/" } }
+  ]
+}
+

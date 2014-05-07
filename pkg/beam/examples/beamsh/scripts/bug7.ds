@@ -1,0 +1,6 @@
+#!/usr/bin/env beamsh
+
+stdio {
+	# exec fails
+	echo hello world
+}

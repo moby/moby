@@ -65,7 +65,12 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 	var (
 		isTerminal = false
 		terminalFd uintptr
+		scheme     = "http"
 	)
+
+	if tlsConfig != nil {
+		scheme = "https"
+	}
 
 	if in != nil {
 		if file, ok := in.(*os.File); ok {
@@ -86,6 +91,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 		isTerminal: isTerminal,
 		terminalFd: terminalFd,
 		tlsConfig:  tlsConfig,
+		scheme:     scheme,
 	}
 }
 
@@ -99,4 +105,5 @@ type DockerCli struct {
 	isTerminal bool
 	terminalFd uintptr
 	tlsConfig  *tls.Config
+	scheme     string
 }

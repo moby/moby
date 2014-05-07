@@ -1,7 +1,7 @@
 package image
 
 import (
-	"github.com/dotcloud/docker/runtime/graphdriver"
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 type Graph interface {

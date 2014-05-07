@@ -2,19 +2,25 @@ package builtins
 
 import (
 	api "github.com/dotcloud/docker/api/server"
+	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runtime/networkdriver/bridge"
+	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/server"
 )
 
-func Register(eng *engine.Engine) {
-	daemon(eng)
-	remote(eng)
+func Register(eng *engine.Engine) error {
+	if err := daemon(eng); err != nil {
+		return err
+	}
+	if err := remote(eng); err != nil {
+		return err
+	}
+	return registry.NewService().Install(eng)
 }
 
 // remote: a RESTful api for cross-docker communication
-func remote(eng *engine.Engine) {
-	eng.Register("serveapi", api.ServeApi)
+func remote(eng *engine.Engine) error {
+	return eng.Register("serveapi", api.ServeApi)
 }
 
 // daemon: a default execution and storage backend for Docker on Linux,
@@ -32,7 +38,9 @@ func remote(eng *engine.Engine) {
 //
 // These components should be broken off into plugins of their own.
 //
-func daemon(eng *engine.Engine) {
-	eng.Register("initserver", server.InitServer)
-	eng.Register("init_networkdriver", bridge.InitDriver)
+func daemon(eng *engine.Engine) error {
+	if err := eng.Register("initserver", server.InitServer); err != nil {
+		return err
+	}
+	return eng.Register("init_networkdriver", bridge.InitDriver)
 }

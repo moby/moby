@@ -82,13 +82,17 @@ editors have plugins that do this automatically, and there's also a git
 pre-commit hook:
 
 ```
-curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/master/fmt-check && chmod +x .git/hooks/pre-commit
+curl -o .git/hooks/pre-commit https://raw.githubusercontent.com/edsrzf/gofmt-git-hook/master/fmt-check && chmod +x .git/hooks/pre-commit
 ```
 
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
 
 Pull requests must not contain commits from other users or branches.
+
+Commit messages must start with a capitalized and short summary (max. 50
+chars) written in the imperative, followed by an optional, more detailed
+explanatory text which is separated from the summary by an empty line.
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Be

@@ -3,10 +3,12 @@ package docker
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/dotcloud/docker/api/client"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/api/client"
 )
 
 const (
@@ -56,7 +58,7 @@ func TestHttpsInfoRogueCert(t *testing.T) {
 		if err == nil {
 			t.Fatal("Expected error but got nil")
 		}
-		if err.Error() != errBadCertificate {
+		if !strings.Contains(err.Error(), errBadCertificate) {
 			t.Fatalf("Expected error: %s, got instead: %s", errBadCertificate, err)
 		}
 	})
@@ -74,7 +76,7 @@ func TestHttpsInfoRogueServerCert(t *testing.T) {
 			t.Fatal("Expected error but got nil")
 		}
 
-		if err.Error() != errCaUnknown {
+		if !strings.Contains(err.Error(), errCaUnknown) {
 			t.Fatalf("Expected error: %s, got instead: %s", errBadCertificate, err)
 		}
 

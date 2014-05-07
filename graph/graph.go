@@ -3,10 +3,10 @@ package graph
 import (
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/runtime/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -40,7 +40,7 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 
 	graph := &Graph{
 		Root:    abspath,
-		idIndex: utils.NewTruncIndex(),
+		idIndex: utils.NewTruncIndex([]string{}),
 		driver:  driver,
 	}
 	if err := graph.restore(); err != nil {
@@ -54,12 +54,14 @@ func (graph *Graph) restore() error {
 	if err != nil {
 		return err
 	}
+	var ids = []string{}
 	for _, v := range dir {
 		id := v.Name()
 		if graph.driver.Exists(id) {
-			graph.idIndex.Add(id)
+			ids = append(ids, id)
 		}
 	}
+	graph.idIndex = utils.NewTruncIndex(ids)
 	utils.Debugf("Restored %d elements", len(dir))
 	return nil
 }
@@ -96,7 +98,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	img.SetGraph(graph)
 
 	if img.Size < 0 {
-		rootfs, err := graph.driver.Get(img.ID)
+		rootfs, err := graph.driver.Get(img.ID, "")
 		if err != nil {
 			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 		}
@@ -108,7 +110,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 				return nil, err
 			}
 		} else {
-			parentFs, err := graph.driver.Get(img.Parent)
+			parentFs, err := graph.driver.Get(img.Parent, "")
 			if err != nil {
 				return nil, err
 			}
@@ -189,11 +191,11 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, i
 	}
 
 	// Create root filesystem in the driver
-	if err := graph.driver.Create(img.ID, img.Parent, ""); err != nil {
+	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
 	// Mount the root filesystem so we can apply the diff/layer
-	rootfs, err := graph.driver.Get(img.ID)
+	rootfs, err := graph.driver.Get(img.ID, "")
 	if err != nil {
 		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
 	}
@@ -272,15 +274,15 @@ func SetupInitLayer(initLayer string) error {
 
 		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
+				if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+					return err
+				}
 				switch typ {
 				case "dir":
 					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
 						return err
 					}
 				case "file":
-					if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
-						return err
-					}
 					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
 					if err != nil {
 						return err

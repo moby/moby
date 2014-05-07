@@ -365,7 +365,7 @@ func TestBuild(t *testing.T) {
 func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*image.Image, error) {
 	if eng == nil {
 		eng = NewTestEngine(t)
-		runtime := mkRuntimeFromEngine(eng, t)
+		runtime := mkDaemonFromEngine(eng, t)
 		// FIXME: we might not need runtime, why not simply nuke
 		// the engine?
 		defer nuke(runtime)
@@ -394,7 +394,7 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
 	id, err := buildfile.Build(context.Archive(dockerfile, t))
 	if err != nil {
 		return nil, err
@@ -547,7 +547,7 @@ func TestBuildEntrypoint(t *testing.T) {
 // utilizing cache
 func TestBuildEntrypointRunCleanup(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
@@ -576,7 +576,7 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 
 func checkCacheBehavior(t *testing.T, template testContextTemplate, expectHit bool) (imageId string) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	img, err := buildImage(template, t, eng, true)
 	if err != nil {
@@ -660,7 +660,7 @@ func TestBuildADDLocalFileWithCache(t *testing.T) {
 		},
 		nil}
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	id1 := checkCacheBehaviorFromEngime(t, template, true, eng)
 	template.files = append(template.files, [2]string{"bar", "hello2"})
@@ -796,7 +796,7 @@ func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 
 func TestForbiddenContextPath(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 	srv := mkServerFromEngine(eng, t)
 
 	context := testContextTemplate{`
@@ -828,7 +828,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
 	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
@@ -844,7 +844,7 @@ func TestForbiddenContextPath(t *testing.T) {
 
 func TestBuildADDFileNotFound(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	context := testContextTemplate{`
         from {IMAGE}
@@ -874,7 +874,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := server.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
 	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
@@ -890,7 +890,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 
 func TestBuildInheritance(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	img, err := buildImage(testContextTemplate{`
             from {IMAGE}
@@ -1012,7 +1012,7 @@ func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
 // gh #2446
 func TestBuildAddToSymlinkDest(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
+	defer nuke(mkDaemonFromEngine(eng, t))
 
 	_, err := buildImage(testContextTemplate{`
         from {IMAGE}
