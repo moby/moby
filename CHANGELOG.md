@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0 (2014-05-07)
+
+#### Notable features since 0.10.0
+
+* SELinux support for mount and process labels
+* Linked containers can be accessed by hostname
+* Use the net `--net` flag to allow advanced network configuration such as host networking so that containers can use the host's network interfaces
+* Add a ping endpoint to the Remote API to do healthchecks of your docker daemon
+* Logs can now be returned with an optional timestamp
+* Docker now works with registries that support SHA-512
+* Multiple registry endpoints are supported to allow registry mirrors
+
 ## 0.10.0 (2014-04-08)
 
 #### Builder
