@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	ErrInvalidWorikingDirectory = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrInvalidWorkingDirectory  = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
 )
@@ -95,7 +95,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, ErrConflictAttachDetach
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvalidWorikingDirectory
+		return nil, nil, cmd, ErrInvalidWorkingDirectory
 	}
 	if *flDetach && *flAutoRemove {
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
