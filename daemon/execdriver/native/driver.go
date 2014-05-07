@@ -122,6 +122,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return &c.Cmd
 	}, func() {
 		if startCallback != nil {
+			c.ContainerPid = c.Process.Pid
 			startCallback(c)
 		}
 	})
