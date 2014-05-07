@@ -10,7 +10,7 @@ import (
 
 // TreeSize walks a directory tree and returns its total size in bytes.
 func TreeSize(dir string) (size int64, err error) {
-	data := make(map[uint64]bool)
+	data := make(map[uint64]struct{})
 	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, e error) error {
 		// Ignore directory sizes
 		if fileInfo == nil {
@@ -29,7 +29,7 @@ func TreeSize(dir string) (size int64, err error) {
 			return nil
 		}
 		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		data[uint64(inode)] = false
+		data[uint64(inode)] = struct{}{}
 
 		size += s
 
@@ -62,6 +62,15 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 		prev = filepath.Clean(prev)
 
 		for {
+			if !strings.HasPrefix(prev, root) {
+				// Don't resolve symlinks outside of root. For example,
+				// we don't have to check /home in the below.
+				//
+				//   /home -> usr/home
+				//   FollowSymlinkInScope("/home/bob/foo/bar", "/home/bob/foo")
+				break
+			}
+
 			stat, err := os.Lstat(prev)
 			if err != nil {
 				if os.IsNotExist(err) {

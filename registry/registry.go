@@ -3,10 +3,10 @@ package registry
 import (
 	"bytes"
 	"crypto/sha256"
+	_ "crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net"
@@ -14,9 +14,13 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -25,11 +29,11 @@ var (
 	errLoginRequired         = errors.New("Authentication is required.")
 )
 
-func pingRegistryEndpoint(endpoint string) (bool, error) {
+func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
 	if endpoint == IndexServerAddress() {
 		// Skip the check, we now this one is valid
 		// (and we never want to fallback to http in case of error)
-		return false, nil
+		return RegistryInfo{Standalone: false}, nil
 	}
 	httpDial := func(proto string, addr string) (net.Conn, error) {
 		// Set the connect timeout to 5 seconds
@@ -48,26 +52,41 @@ func pingRegistryEndpoint(endpoint string) (bool, error) {
 	client := &http.Client{Transport: httpTransport}
 	resp, err := client.Get(endpoint + "_ping")
 	if err != nil {
-		return false, err
+		return RegistryInfo{Standalone: false}, err
 	}
 	defer resp.Body.Close()
 
-	if resp.Header.Get("X-Docker-Registry-Version") == "" {
-		return false, errors.New("This does not look like a Registry server (\"X-Docker-Registry-Version\" header not found in the response)")
+	jsonString, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return RegistryInfo{Standalone: false}, fmt.Errorf("Error while reading the http response: %s", err)
 	}
+
+	// If the header is absent, we assume true for compatibility with earlier
+	// versions of the registry. default to true
+	info := RegistryInfo{
+		Standalone: true,
+	}
+	if err := json.Unmarshal(jsonString, &info); err != nil {
+		utils.Debugf("Error unmarshalling the _ping RegistryInfo: %s", err)
+		// don't stop here. Just assume sane defaults
+	}
+	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
+		utils.Debugf("Registry version header: '%s'", hdr)
+		info.Version = hdr
+	}
+	utils.Debugf("RegistryInfo.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
 	utils.Debugf("Registry standalone header: '%s'", standalone)
-	// If the header is absent, we assume true for compatibility with earlier
-	// versions of the registry
-	if standalone == "" {
-		return true, nil
-		// Accepted values are "true" (case-insensitive) and "1".
-	} else if strings.EqualFold(standalone, "true") || standalone == "1" {
-		return true, nil
+	// Accepted values are "true" (case-insensitive) and "1".
+	if strings.EqualFold(standalone, "true") || standalone == "1" {
+		info.Standalone = true
+	} else if len(standalone) > 0 {
+		// there is a header set, and it is not "true" or "1", so assume fails
+		info.Standalone = false
 	}
-	// Otherwise, not standalone
-	return false, nil
+	utils.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
+	return info, nil
 }
 
 func validateRepositoryName(repositoryName string) error {
@@ -101,16 +120,11 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		return "", "", ErrInvalidRepositoryName
 	}
 	nameParts := strings.SplitN(reposName, "/", 2)
-	if !strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
-		nameParts[0] != "localhost" {
+	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
+		nameParts[0] != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		err := validateRepositoryName(reposName)
 		return IndexServerAddress(), reposName, err
-	}
-	if len(nameParts) < 2 {
-		// There is a dot in repos name (and no registry address)
-		// Is it a Registry address without repos name?
-		return "", "", ErrInvalidRepositoryName
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
@@ -226,9 +240,13 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 
-	imageSize, err := strconv.Atoi(res.Header.Get("X-Docker-Size"))
-	if err != nil {
-		return nil, -1, err
+	// if the size header is not present, then set it to '-1'
+	imageSize := -1
+	if hdr := res.Header.Get("X-Docker-Size"); hdr != "" {
+		imageSize, err = strconv.Atoi(hdr)
+		if err != nil {
+			return nil, -1, err
+		}
 	}
 
 	jsonString, err := ioutil.ReadAll(res.Body)
@@ -297,6 +315,25 @@ func (r *Registry) GetRemoteTags(registries []string, repository string, token [
 	return nil, fmt.Errorf("Could not reach any registry endpoint")
 }
 
+func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
+	var endpoints []string
+	parsedUrl, err := url.Parse(indexEp)
+	if err != nil {
+		return nil, err
+	}
+	var urlScheme = parsedUrl.Scheme
+	// The Registry's URL scheme has to match the Index'
+	for _, ep := range headers {
+		epList := strings.Split(ep, ",")
+		for _, epListElement := range epList {
+			endpoints = append(
+				endpoints,
+				fmt.Sprintf("%s://%s/v1/", urlScheme, strings.TrimSpace(epListElement)))
+		}
+	}
+	return endpoints, nil
+}
+
 func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	indexEp := r.indexEndpoint
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", indexEp, remote)
@@ -332,14 +369,18 @@ func (r *Registry) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 
 	var endpoints []string
-	var urlScheme = indexEp[:strings.Index(indexEp, ":")]
 	if res.Header.Get("X-Docker-Endpoints") != "" {
-		// The Registry's URL scheme has to match the Index'
-		for _, ep := range res.Header["X-Docker-Endpoints"] {
-			endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, ep))
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], indexEp)
+		if err != nil {
+			return nil, err
 		}
 	} else {
-		return nil, fmt.Errorf("Index response didn't contain any endpoints")
+		// Assume the endpoint is on the same host
+		u, err := url.Parse(indexEp)
+		if err != nil {
+			return nil, err
+		}
+		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", u.Scheme, req.URL.Host))
 	}
 
 	checksumsJSON, err := ioutil.ReadAll(res.Body)
@@ -565,7 +606,6 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 	}
 
 	var tokens, endpoints []string
-	var urlScheme = indexEp[:strings.Index(indexEp, ":")]
 	if !validate {
 		if res.StatusCode != 200 && res.StatusCode != 201 {
 			errBody, err := ioutil.ReadAll(res.Body)
@@ -582,9 +622,9 @@ func (r *Registry) PushImageJSONIndex(remote string, imgList []*ImgData, validat
 		}
 
 		if res.Header.Get("X-Docker-Endpoints") != "" {
-			// The Registry's URL scheme has to match the Index'
-			for _, ep := range res.Header["X-Docker-Endpoints"] {
-				endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", urlScheme, ep))
+			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], indexEp)
+			if err != nil {
+				return nil, err
 			}
 		} else {
 			return nil, fmt.Errorf("Index response didn't contain any endpoints")
@@ -673,6 +713,11 @@ type ImgData struct {
 	Tag             string `json:",omitempty"`
 }
 
+type RegistryInfo struct {
+	Version    string `json:"version"`
+	Standalone bool   `json:"standalone"`
+}
+
 type Registry struct {
 	client        *http.Client
 	authConfig    *AuthConfig
@@ -701,11 +746,11 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
 	if indexEndpoint != IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
-		standalone, err := pingRegistryEndpoint(indexEndpoint)
+		info, err := pingRegistryEndpoint(indexEndpoint)
 		if err != nil {
 			return nil, err
 		}
-		if standalone {
+		if info.Standalone {
 			utils.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
@@ -714,4 +759,41 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 
 	r.reqFactory = factory
 	return r, nil
+}
+
+func HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
+	// FIXME: this replicates the 'info' job.
+	httpVersion := make([]utils.VersionInfo, 0, 4)
+	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", dockerversion.VERSION})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"go", runtime.Version()})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", dockerversion.GITCOMMIT})
+	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
+		httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", kernelVersion.String()})
+	}
+	httpVersion = append(httpVersion, &simpleVersionInfo{"os", runtime.GOOS})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", runtime.GOARCH})
+	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
+	md := &utils.HTTPMetaHeadersDecorator{
+		Headers: metaHeaders,
+	}
+	factory := utils.NewHTTPRequestFactory(ud, md)
+	return factory
+}
+
+// simpleVersionInfo is a simple implementation of
+// the interface VersionInfo, which is used
+// to provide version information for some product,
+// component, etc. It stores the product name and the version
+// in string and returns them on calls to Name() and Version().
+type simpleVersionInfo struct {
+	name    string
+	version string
+}
+
+func (v *simpleVersionInfo) Name() string {
+	return v.name
+}
+
+func (v *simpleVersionInfo) Version() string {
+	return v.version
 }

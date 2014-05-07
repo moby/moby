@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/runtime/graphdriver"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
@@ -98,7 +98,7 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 					return err
 				}
 			} else {
-				parent, err := driver.Get(img.Parent)
+				parent, err := driver.Get(img.Parent, "")
 				if err != nil {
 					return err
 				}
@@ -159,7 +159,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 		return differ.Diff(img.ID)
 	}
 
-	imgFs, err := driver.Get(img.ID)
+	imgFs, err := driver.Get(img.ID, "")
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 		}), nil
 	}
 
-	parentFs, err := driver.Get(img.Parent)
+	parentFs, err := driver.Get(img.Parent, "")
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
 
-![Docker L](docs/theme/docker/static/img/dockerlogo-h.png "Docker")
+![Docker L](docs/theme/mkdocs/img/logo_compressed.png "Docker")
 
 ## Better than VMs
 

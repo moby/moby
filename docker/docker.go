@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/dotcloud/docker/api"
@@ -63,10 +64,11 @@ func main() {
 		flCa                 = flag.String([]string{"-tlscacert"}, dockerConfDir+defaultCaFile, "Trust only remotes providing a certificate signed by the CA given here")
 		flCert               = flag.String([]string{"-tlscert"}, dockerConfDir+defaultCertFile, "Path to TLS certificate file")
 		flKey                = flag.String([]string{"-tlskey"}, dockerConfDir+defaultKeyFile, "Path to TLS key file")
+		flSelinuxEnabled     = flag.Bool([]string{"-selinux-enabled"}, false, "Enable selinux support")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
-	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
+	flag.Var(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
 
 	flag.Parse()
 
@@ -96,6 +98,10 @@ func main() {
 	}
 
 	if *flDaemon {
+		if os.Geteuid() != 0 {
+			log.Fatalf("The Docker daemon needs to be run as root")
+		}
+
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
@@ -120,13 +126,15 @@ func main() {
 				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
 			}
 		}
-
-		eng, err := engine.New(realRoot)
-		if err != nil {
+		if err := checkKernelAndArch(); err != nil {
 			log.Fatal(err)
 		}
+
+		eng := engine.New()
 		// Load builtins
-		builtins.Register(eng)
+		if err := builtins.Register(eng); err != nil {
+			log.Fatal(err)
+		}
 		// load the daemon in the background so we can immediately start
 		// the http api so that connections don't fail while the daemon
 		// is booting
@@ -147,6 +155,7 @@ func main() {
 			job.Setenv("GraphDriver", *flGraphDriver)
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
+			job.SetenvBool("EnableSelinuxSupport", *flSelinuxEnabled)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
 			}
@@ -156,6 +165,13 @@ func main() {
 				log.Fatal(err)
 			}
 		}()
+
+		// TODO actually have a resolved graphdriver to show?
+		log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+			dockerversion.VERSION,
+			dockerversion.GITCOMMIT,
+			*flExecDriver,
+			*flGraphDriver)
 
 		// Serve api
 		job := eng.Job("serveapi", flHosts.GetAll()...)
@@ -231,4 +247,28 @@ func main() {
 
 func showVersion() {
 	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
+}
+
+func checkKernelAndArch() error {
+	// Check for unsupported architectures
+	if runtime.GOARCH != "amd64" {
+		return fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+	}
+	// Check for unsupported kernel versions
+	// FIXME: it would be cleaner to not test for specific versions, but rather
+	// test for specific functionalities.
+	// Unfortunately we can't test for the feature "does not cause a kernel panic"
+	// without actually causing a kernel panic, so we need this workaround until
+	// the circumstances of pre-3.8 crashes are clearer.
+	// For details see http://github.com/dotcloud/docker/issues/407
+	if k, err := utils.GetKernelVersion(); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			}
+		}
+	}
+	return nil
 }

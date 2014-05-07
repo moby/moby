@@ -1,0 +1,6 @@
+#!/usr/bin/env beamsh
+
+stdio {
+	# exec fails
+	exec ls -l
+}

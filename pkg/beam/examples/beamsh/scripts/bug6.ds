@@ -1,0 +1,7 @@
+#!/usr/bin/env beamsh
+
+stdio {
+	trace {
+		echo hello
+	}
+}

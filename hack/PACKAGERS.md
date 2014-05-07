@@ -265,6 +265,7 @@ To function properly, the Docker daemon needs the following software to be
 installed and available at runtime:
 
 * iptables version 1.4 or later
+* procps (or similar provider of a "ps" executable)
 * XZ Utils version 4.9 or later
 * a [properly
   mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)

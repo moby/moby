@@ -40,13 +40,19 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
+	validate-dco
+	validate-gofmt
+	
 	binary
-	test
+	
+	test-unit
 	test-integration
 	test-integration-cli
+	
 	dynbinary
 	dyntest
 	dyntest-integration
+	
 	cover
 	cross
 	tgz
@@ -101,6 +107,24 @@ LDFLAGS_STATIC_DOCKER="
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 
+if [ "$(uname -s)" = 'FreeBSD' ]; then
+	# Tell cgo the compiler is Clang, not GCC
+	# https://code.google.com/p/go/source/browse/src/cmd/cgo/gcc.go?spec=svne77e74371f2340ee08622ce602e9f7b15f29d8d3&r=e6794866ebeba2bf8818b9261b54e2eef1c9e588#752
+	export CC=clang
+
+	# "-extld clang" is a workaround for
+	# https://code.google.com/p/go/issues/detail?id=6845
+	LDFLAGS="$LDFLAGS -extld clang"
+fi
+
+# If sqlite3.h doesn't exist under /usr/include,
+# check /usr/local/include also just in case
+# (e.g. FreeBSD Ports installs it under the directory)
+if [ ! -e /usr/include/sqlite3.h ] && [ -e /usr/local/include/sqlite3.h ]; then
+	export CGO_CFLAGS='-I/usr/local/include'
+	export CGO_LDFLAGS='-L/usr/local/lib'
+fi
+
 HAVE_GO_TEST_COVER=
 if \
 	go help testflag | grep -- -cover > /dev/null \
@@ -136,7 +160,7 @@ go_test_dir() {
 # holding certain files ($1 parameter), and prints their paths on standard
 # output, one per line.
 find_dirs() {
-	find -not \( \
+	find . -not \( \
 		\( \
 			-wholename './vendor' \
 			-o -wholename './integration' \

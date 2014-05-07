@@ -9,7 +9,7 @@ import (
 // result as an http response.
 // This method allows an Engine instance to be passed as a standard http.Handler interface.
 //
-// Note that the protocol used in this methid is a convenience wrapper and is not the canonical
+// Note that the protocol used in this method is a convenience wrapper and is not the canonical
 // implementation of remote job execution. This is because HTTP/1 does not handle stream multiplexing,
 // and so cannot differentiate stdout from stderr. Additionally, headers cannot be added to a response
 // once data has been written to the body, which makes it inconvenient to return metadata such

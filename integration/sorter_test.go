@@ -8,7 +8,7 @@ import (
 
 func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	if err := generateImage("", eng); err != nil {
 		t.Fatal(err)
@@ -23,7 +23,7 @@ func TestServerListOrderedImagesByCreationDate(t *testing.T) {
 
 func TestServerListOrderedImagesByCreationDateAndTag(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	err := generateImage("bar", eng)
 	if err != nil {

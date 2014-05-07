@@ -6,13 +6,17 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"syscall"
 
+	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
-	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
+	"github.com/dotcloud/docker/pkg/libcontainer/console"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
+	"github.com/dotcloud/docker/pkg/libcontainer/security/capabilities"
+	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
@@ -20,36 +24,35 @@ import (
 
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, console string, syncPipe *SyncPipe, args []string) error {
+func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, syncPipe *SyncPipe, args []string) error {
 	rootfs, err := utils.ResolveRootfs(uncleanRootfs)
 	if err != nil {
 		return err
 	}
 
+	// clear the current processes env and replace it with the environment
+	// defined on the container
+	if err := LoadContainerEnvironment(container); err != nil {
+		return err
+	}
+
 	// We always read this as it is a way to sync with the parent as well
-	ns.logger.Printf("reading from sync pipe fd %d\n", syncPipe.child.Fd())
 	context, err := syncPipe.ReadFromParent()
 	if err != nil {
 		syncPipe.Close()
 		return err
 	}
-	ns.logger.Println("received context from parent")
 	syncPipe.Close()
 
-	if console != "" {
-		ns.logger.Printf("setting up %s as console\n", console)
-		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
-		if err != nil {
-			return fmt.Errorf("open terminal %s", err)
-		}
-		if err := dupSlave(slave); err != nil {
-			return fmt.Errorf("dup2 slave %s", err)
+	if consolePath != "" {
+		if err := console.OpenAndDup(consolePath); err != nil {
+			return err
 		}
 	}
 	if _, err := system.Setsid(); err != nil {
 		return fmt.Errorf("setsid %s", err)
 	}
-	if console != "" {
+	if consolePath != "" {
 		if err := system.Setctty(); err != nil {
 			return fmt.Errorf("setctty %s", err)
 		}
@@ -59,72 +62,49 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	label.Init()
-	ns.logger.Println("setup mount namespace")
-	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot, container.Context["mount_label"]); err != nil {
+
+	if err := mount.InitializeMountNamespace(rootfs, consolePath, container); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
-	if err := system.Sethostname(container.Hostname); err != nil {
-		return fmt.Errorf("sethostname %s", err)
-	}
-	if err := finalizeNamespace(container); err != nil {
-		return fmt.Errorf("finalize namespace %s", err)
+	if container.Hostname != "" {
+		if err := system.Sethostname(container.Hostname); err != nil {
+			return fmt.Errorf("sethostname %s", err)
+		}
 	}
 
-	if profile := container.Context["apparmor_profile"]; profile != "" {
-		ns.logger.Printf("setting apparmor profile %s\n", profile)
-		if err := apparmor.ApplyProfile(os.Getpid(), profile); err != nil {
+	runtime.LockOSThread()
+
+	if err := apparmor.ApplyProfile(container.Context["apparmor_profile"]); err != nil {
+		return fmt.Errorf("set apparmor profile %s: %s", container.Context["apparmor_profile"], err)
+	}
+	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
+		return fmt.Errorf("set process label %s", err)
+	}
+	if container.Context["restrictions"] != "" {
+		if err := restrict.Restrict("proc", "sys"); err != nil {
 			return err
 		}
 	}
-	runtime.LockOSThread()
-	if err := label.SetProcessLabel(container.Context["process_label"]); err != nil {
-		return fmt.Errorf("SetProcessLabel label %s", err)
+	if err := FinalizeNamespace(container); err != nil {
+		return fmt.Errorf("finalize namespace %s", err)
 	}
-	ns.logger.Printf("execing %s\n", args[0])
 	return system.Execv(args[0], args[0:], container.Env)
 }
 
-func setupUser(container *libcontainer.Container) error {
-	switch container.User {
-	case "root", "":
-		if err := system.Setgroups(nil); err != nil {
-			return err
-		}
-		if err := system.Setresgid(0, 0, 0); err != nil {
-			return err
-		}
-		if err := system.Setresuid(0, 0, 0); err != nil {
-			return err
-		}
-	default:
-		uid, gid, suppGids, err := user.GetUserGroupSupplementary(container.User, syscall.Getuid(), syscall.Getgid())
-		if err != nil {
-			return err
-		}
-		if err := system.Setgroups(suppGids); err != nil {
-			return err
-		}
-		if err := system.Setgid(gid); err != nil {
-			return err
-		}
-		if err := system.Setuid(uid); err != nil {
-			return err
-		}
+// SetupUser changes the groups, gid, and uid for the user inside the container
+func SetupUser(u string) error {
+	uid, gid, suppGids, err := user.GetUserGroupSupplementary(u, syscall.Getuid(), syscall.Getgid())
+	if err != nil {
+		return fmt.Errorf("get supplementary groups %s", err)
 	}
-	return nil
-}
-
-// dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
-// the slave's fd is 0, or stdin
-func dupSlave(slave *os.File) error {
-	if err := system.Dup2(slave.Fd(), 0); err != nil {
-		return err
+	if err := system.Setgroups(suppGids); err != nil {
+		return fmt.Errorf("setgroups %s", err)
 	}
-	if err := system.Dup2(slave.Fd(), 1); err != nil {
-		return err
+	if err := system.Setgid(gid); err != nil {
+		return fmt.Errorf("setgid %s", err)
 	}
-	if err := system.Dup2(slave.Fd(), 2); err != nil {
-		return err
+	if err := system.Setuid(uid); err != nil {
+		return fmt.Errorf("setuid %s", err)
 	}
 	return nil
 }
@@ -147,18 +127,33 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 	return nil
 }
 
-// finalizeNamespace drops the caps and sets the correct user
-// and working dir before execing the command inside the namespace
-func finalizeNamespace(container *libcontainer.Container) error {
+// FinalizeNamespace drops the caps, sets the correct user
+// and working dir, and closes any leaky file descriptors
+// before execing the command inside the namespace
+func FinalizeNamespace(container *libcontainer.Container) error {
 	if err := capabilities.DropCapabilities(container); err != nil {
 		return fmt.Errorf("drop capabilities %s", err)
 	}
-	if err := setupUser(container); err != nil {
+	if err := system.CloseFdsFrom(3); err != nil {
+		return fmt.Errorf("close open file descriptors %s", err)
+	}
+	if err := SetupUser(container.User); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
 	if container.WorkingDir != "" {
 		if err := system.Chdir(container.WorkingDir); err != nil {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
+		}
+	}
+	return nil
+}
+
+func LoadContainerEnvironment(container *libcontainer.Container) error {
+	os.Clearenv()
+	for _, pair := range container.Env {
+		p := strings.SplitN(pair, "=", 2)
+		if err := os.Setenv(p[0], p[1]); err != nil {
+			return err
 		}
 	}
 	return nil
