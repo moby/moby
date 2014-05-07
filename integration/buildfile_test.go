@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -363,6 +364,10 @@ func TestBuild(t *testing.T) {
 }
 
 func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*image.Image, error) {
+	return buildImageAllOptions(context, t, eng, useCache, nil)
+}
+
+func buildImageAllOptions(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool, cacheRe *regexp.Regexp) (*image.Image, error) {
 	if eng == nil {
 		eng = NewTestEngine(t)
 		runtime := mkDaemonFromEngine(eng, t)
@@ -642,6 +647,42 @@ func TestBuildImageWithoutCache(t *testing.T) {
         `,
 		nil, nil}
 	checkCacheBehavior(t, template, false)
+}
+
+func TestBuildImageCacheRegexpSkips(t *testing.T) {
+
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+        RUN date > some-file
+        `,
+		nil, nil}
+	eng := NewTestEngine(t)
+	defer nuke(mkRuntimeFromEngine(eng, t))
+
+	img1, err := buildImage(template, t, eng, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	img1RegexpMiss, err := buildImageAllOptions(template, t, eng, "no match")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if img1.ID != img1RegexpMiss.ID {
+		t.Fatal("Expected to cache when bustCache regexp misses all commands")
+	}
+
+	img2, err := buildImageAllOptions(template, t, eng, "date > some-file")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if img1.ID == img2.ID {
+		t.Fatal("Expected cache not to be used when bustCache matches a command")
+	}
+
 }
 
 func TestBuildADDLocalFileWithCache(t *testing.T) {

@@ -48,6 +48,7 @@ type buildFile struct {
 
 	verbose      bool
 	utilizeCache bool
+	cacheRe      *regexp.Regexp
 	rm           bool
 
 	configFile *registry.ConfigFile
@@ -145,23 +146,20 @@ func (b *buildFile) CmdMaintainer(name string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
 }
 
-// probeCache checks to see if image-caching is enabled (`b.utilizeCache`)
-// and if so attempts to look up the current `b.image` and `b.config` pair
+// Attempts to look up the current `b.image` and `b.config` pair
 // in the current server `b.srv`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
 func (b *buildFile) probeCache() (bool, error) {
-	if b.utilizeCache {
-		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
-			return false, err
-		} else if cache != nil {
-			fmt.Fprintf(b.outStream, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
-			b.image = cache.ID
-			return true, nil
-		} else {
-			utils.Debugf("[BUILDER] Cache miss")
-		}
+	if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+		return false, err
+	} else if cache != nil {
+		fmt.Fprintf(b.outStream, " ---> Using cache\n")
+		utils.Debugf("[BUILDER] Use cached version")
+		b.image = cache.ID
+		return true, nil
+	} else {
+		utils.Debugf("[BUILDER] Cache miss")
 	}
 	return false, nil
 }
@@ -183,12 +181,16 @@ func (b *buildFile) CmdRun(args string) error {
 
 	utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
-	hit, err := b.probeCache()
-	if err != nil {
-		return err
-	}
-	if hit {
-		return nil
+	if b.utilizeCache(b.config.Cmd) {
+
+		hit, err := b.probeCache()
+		if err != nil {
+			return err
+		}
+		if hit {
+			return nil
+		}
+
 	}
 
 	c, err := b.create()
@@ -209,6 +211,17 @@ func (b *buildFile) CmdRun(args string) error {
 	}
 
 	return nil
+}
+
+func (b *buildFile) utilizeCache(cmd []string) bool {
+	if b.utilizeCache == false {
+		return false
+	}
+	if b.cacheBreak == nil {
+		return true
+	}
+	cmdString := strings.Join(cmd, " ")
+	return !b.cacheBreak.MatchString(cmdString)
 }
 
 func (b *buildFile) FindEnvKey(key string) int {
@@ -556,7 +569,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 
 	// Hash path and check the cache
-	if b.utilizeCache {
+	if b.utilizeCache(b.config.Cmd) {
 		var (
 			hash string
 			sums = b.context.GetSums()
@@ -821,7 +834,7 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile, cacheRe *regexp.Regexp) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
@@ -831,7 +844,8 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		tmpContainers: make(map[string]struct{}),
 		tmpImages:     make(map[string]struct{}),
 		verbose:       verbose,
-		utilizeCache:  utilizeCache,
+		cacheBreak:    cacheBreak,
+		cacheRe:       cacheRe,
 		rm:            rm,
 		sf:            sf,
 		configFile:    configFile,
