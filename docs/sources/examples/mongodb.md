@@ -59,7 +59,7 @@ file)
     # Create the MongoDB data directory
     RUN mkdir -p /data/db
 
-Finally, we'll expose the standard port that MongoDB runs on, 27107, as
+Finally, we'll expose the standard port that MongoDB runs on, 27017, as
 well as define an `ENTRYPOINT` instruction for the
 container.
 
