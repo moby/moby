@@ -340,8 +340,6 @@ func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 		return nil
 	}
 
-	fmt.Printf("Loaded metadata %v\n", info)
-
 	// If the transaction id is larger than the actual one we lost the device due to some crash
 	if info.TransactionId > devices.TransactionId {
 		return nil
@@ -352,7 +350,6 @@ func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 
 func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo, _ := devices.lookupDevice("")
-	utils.Debugf("oldInfo: %p", oldInfo)
 	if oldInfo != nil && oldInfo.Initialized {
 		return nil
 	}
