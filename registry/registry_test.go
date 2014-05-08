@@ -11,7 +11,7 @@ import (
 var (
 	IMAGE_ID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
 	TOKEN    = []string{"fake-token"}
-	REPO     = "foo42/bar"
+	REPO     = "Foo42/bAr"
 )
 
 func spawnTestRegistry(t *testing.T) *Registry {
@@ -106,7 +106,7 @@ func TestGetRepositoryData(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := "http://" + parsedUrl.Host + "/v1/"
-	data, err := r.GetRepositoryData("foo42/bar")
+	data, err := r.GetRepositoryData("Foo42/bAr")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestResolveRepositoryName(t *testing.T) {
 
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistry(t)
-	err := r.PushRegistryTag("foo42/bar", IMAGE_ID, "stable", makeURL("/v1/"), TOKEN)
+	err := r.PushRegistryTag("Foo42/bAr", IMAGE_ID, "stable", makeURL("/v1/"), TOKEN)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,14 +188,14 @@ func TestPushImageJSONIndex(t *testing.T) {
 			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
 		},
 	}
-	repoData, err := r.PushImageJSONIndex("foo42/bar", imgData, false, nil)
+	repoData, err := r.PushImageJSONIndex("Foo42/bAr", imgData, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if repoData == nil {
 		t.Fatal("Expected RepositoryData object")
 	}
-	repoData, err = r.PushImageJSONIndex("foo42/bar", imgData, true, []string{r.indexEndpoint})
+	repoData, err = r.PushImageJSONIndex("Foo42/bAr", imgData, true, []string{r.indexEndpoint})
 	if err != nil {
 		t.Fatal(err)
 	}
