@@ -46,7 +46,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	help := fmt.Sprintf("Usage: docker [OPTIONS] COMMAND [arg...]\n -H=[unix://%s]: tcp://host:port to bind/connect to or unix://path/to/socket to use\n\nA self-sufficient runtime for linux containers.\n\nCommands:\n", api.DEFAULTUNIXSOCKET)
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
-		{"build", "Build a container from a Dockerfile"},
+		{"build", "Build a container image from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
 		{"cp", "Copy files/folders from the containers filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},

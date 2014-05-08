@@ -20,7 +20,7 @@ func TestBuildSixtySteps(t *testing.T) {
 
 	deleteImages("foobuildsixtysteps")
 
-	logDone("build - build an image with sixty build steps")
+	logDone("build - build a container image with sixty build steps")
 }
 
 // TODO: TestCaching
