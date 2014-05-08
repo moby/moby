@@ -743,7 +743,7 @@ func (container *Container) GetSize() (int64, int64) {
 }
 
 func isSymlink(mode os.FileMode) bool {
-	return (mode & os.ModeSymlink) != 0
+	return (mode & os.ModeSymlink) == os.ModeSymlink
 }
 
 func (container *Container) Copy(resource string) (io.ReadCloser, error) {
