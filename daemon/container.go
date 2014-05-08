@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -741,33 +742,80 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
+func isSymlink(mode os.FileMode) bool {
+	return (mode & os.ModeSymlink) != 0
+}
+
 func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+
 	var filter []string
 	basePath := path.Join(container.basefs, resource)
-	stat, err := os.Stat(basePath)
+	stat, err := os.Lstat(basePath)
+
 	if err != nil {
 		container.Unmount()
 		return nil, err
 	}
+
+	if isSymlink(stat.Mode()) {
+		var target string
+
+		// To fix absolute paths in symlinks, resolve them, change them to be relative to /.
+		// Rinse and repeat until the target is no longer a symlink.
+		for isSymlink(stat.Mode()) {
+			target, err = os.Readlink(basePath)
+
+			if err != nil {
+				container.Unmount()
+				return nil, err
+			}
+
+			if filepath.IsAbs(target) {
+				// Change target to be relative to root.
+				target, err = filepath.Rel("/", target)
+
+				if err != nil {
+					container.Unmount()
+					return nil, err
+				}
+			}
+
+			// Re-stat the file.
+			target = path.Join(container.basefs, target)
+			stat, err = os.Lstat(target)
+
+			if err != nil {
+				container.Unmount()
+				return nil, err
+			}
+		}
+
+		// Update path.
+		basePath = target
+	}
+
 	if !stat.IsDir() {
 		d, f := path.Split(basePath)
 		basePath = d
 		filter = []string{f}
 	} else {
-		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
+		filter = []string{path.Base(basePath)}
 	}
 
 	archive, err := archive.TarFilter(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
 	})
+
 	if err != nil {
+		container.Unmount()
 		return nil, err
 	}
+
 	return utils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
 			container.Unmount()
