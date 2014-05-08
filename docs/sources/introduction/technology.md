@@ -60,7 +60,7 @@ with a Docker daemon to manage the container lifecycle on any host.
 ### Docker.io registry
 
 [Docker.io](https://index.docker.io) is the global archive (and
-directory) of user supplied Docker container images. It currently hosts
+directory) of user supplied Docker images. It currently hosts
 a large – in fact, rapidly growing – number of projects where you
 can find almost any popular application or deployment stack readily
 available to download and run with a single command.
@@ -236,14 +236,14 @@ Docker image you can *push* it to a public or private repository on [Docker.io](
 http://index.docker.io) or to your own registry running behind your firewall.
 
 Using the Docker client, you can search for already published images and
-then pull them down to your Docker host to build containers from them
+then pull them down to your Docker host to run containers from them
 (or even build on these images).
 
 [Docker.io](http://index.docker.io) provides both public and
 private storage for images. Public storage is searchable and can be
 downloaded by anyone. Private repositories are excluded from search
 results and only you and your users can pull them down and use them to
-build containers. You can [sign up for a plan here](https://index.docker.io/plans).
+run containers. You can [sign up for a plan here](https://index.docker.io/plans).
 
 To learn more, check out the [Working with Repositories](
 http://docs.docker.io/use/workingwithrepository) section from the

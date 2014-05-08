@@ -103,7 +103,7 @@ You will get an output with all currently available commands.
 
     Commands:
          attach    Attach to a running container
-         build     Build a container from a Dockerfile
+         build     Build an image from a Dockerfile
          commit    Create a new image from a container's changes
     . . .
 

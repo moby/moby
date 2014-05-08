@@ -18,7 +18,7 @@ set -e
 # - The right way to call this script is to invoke "make" from
 #   your checkout of the Docker repository.
 #   the Makefile will do a "docker build -t docker ." and then
-#   "docker run hack/make.sh" in the resulting container image.
+#   "docker run hack/make.sh" in the resulting image.
 #
 
 set -o pipefail

@@ -2,7 +2,7 @@
 % William Henry
 % APRIL 2014
 # NAME
-docker-build - Build a container image from a Dockerfile source at PATH
+docker-build - Build an image from a Dockerfile source at PATH
 
 # SYNOPSIS
 **docker build** [**--no-cache**[=*false*]] [**-q**|**--quiet**[=*false*]]

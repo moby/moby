@@ -95,9 +95,9 @@ Here We've exposed ports 22 and 80 on the container and we're running
 the `/usr/bin/supervisord` binary when the container
 launches.
 
-## Building our container
+## Building our image
 
-We can now build our new container.
+We can now build our new image.
 
     $ sudo docker build -t <yourname>/supervisord .
 
