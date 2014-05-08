@@ -190,7 +190,7 @@ To kill the container, use `docker kill`.
 
     Usage: docker build [OPTIONS] PATH | URL | -
 
-    Build a new container image from the source code at PATH
+    Build a new image from the source code at PATH
 
       --force-rm=false     Always remove intermediate containers, even after unsuccessful builds
       --no-cache=false     Do not use cache when building the image

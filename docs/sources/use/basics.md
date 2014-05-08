@@ -157,7 +157,7 @@ TCP and a Unix socket
 
 ## Committing (saving) a container state
 
-Save your containers state to a container image, so the state can be
+Save your containers state to an image, so the state can be
 re-used.
 
 When you commit your container only the differences between the image
@@ -171,7 +171,7 @@ will be stored (as a diff). See which images you already have using the
     # List your containers
     $ sudo docker images
 
-You now have a image state from which you can create new instances.
+You now have an image state from which you can create new instances.
 
 Read more about [*Share Images via Repositories*](
 ../workingwithrepository/#working-with-the-repository) or
