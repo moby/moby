@@ -11,7 +11,7 @@ port. When this service runs inside a container, one can connect to the
 port after finding the IP address of the container as follows:
 
     # Find IP address of container with ID <container_id>
-    $ docker inspect <container_id> | grep IPAddress | cut -d '"' -f 4
+    $ docker inspect --format='{{.NetworkSettings.IPAddress}}' <container_id>
 
 However, this IP address is local to the host system and the container
 port is not reachable by the outside world. Furthermore, even if the
