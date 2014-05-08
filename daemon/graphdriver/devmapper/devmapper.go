@@ -62,6 +62,10 @@ var (
 	ErrInvalidAddNode         = errors.New("Invalide AddNoce type")
 	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
+	ErrBusy                   = errors.New("Device is Busy")
+
+	dmSawBusy  bool
+	dmSawExist bool
 )
 
 type (
@@ -464,23 +468,33 @@ func resumeDevice(name string) error {
 	return nil
 }
 
-func createDevice(poolName string, deviceId int) error {
-	utils.Debugf("[devmapper] createDevice(poolName=%v, deviceId=%v)", poolName, deviceId)
-	task, err := createTask(DeviceTargetMsg, poolName)
-	if task == nil {
-		return err
-	}
+func createDevice(poolName string, deviceId *int) error {
+	utils.Debugf("[devmapper] createDevice(poolName=%v, deviceId=%v)", poolName, *deviceId)
 
-	if err := task.SetSector(0); err != nil {
-		return fmt.Errorf("Can't set sector")
-	}
+	for {
+		task, err := createTask(DeviceTargetMsg, poolName)
+		if task == nil {
+			return err
+		}
 
-	if err := task.SetMessage(fmt.Sprintf("create_thin %d", deviceId)); err != nil {
-		return fmt.Errorf("Can't set message")
-	}
+		if err := task.SetSector(0); err != nil {
+			return fmt.Errorf("Can't set sector")
+		}
 
-	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running createDevice")
+		if err := task.SetMessage(fmt.Sprintf("create_thin %d", *deviceId)); err != nil {
+			return fmt.Errorf("Can't set message")
+		}
+
+		dmSawExist = false
+		if err := task.Run(); err != nil {
+			if dmSawExist {
+				// Already exists, try next id
+				*deviceId++
+				continue
+			}
+			return fmt.Errorf("Error running createDevice")
+		}
+		break
 	}
 	return nil
 }
@@ -512,7 +526,11 @@ func removeDevice(name string) error {
 	if task == nil {
 		return err
 	}
+	dmSawBusy = false
 	if err = task.Run(); err != nil {
+		if dmSawBusy {
+			return ErrBusy
+		}
 		return fmt.Errorf("Error running removeDevice")
 	}
 	return nil
@@ -546,7 +564,7 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 	return nil
 }
 
-func (devices *DeviceSet) createSnapDevice(poolName string, deviceId int, baseName string, baseDeviceId int) error {
+func createSnapDevice(poolName string, deviceId *int, baseName string, baseDeviceId int) error {
 	devinfo, _ := getInfo(baseName)
 	doSuspend := devinfo != nil && devinfo.Exists != 0
 
@@ -556,33 +574,44 @@ func (devices *DeviceSet) createSnapDevice(poolName string, deviceId int, baseNa
 		}
 	}
 
-	task, err := createTask(DeviceTargetMsg, poolName)
-	if task == nil {
-		if doSuspend {
-			resumeDevice(baseName)
+	for {
+		task, err := createTask(DeviceTargetMsg, poolName)
+		if task == nil {
+			if doSuspend {
+				resumeDevice(baseName)
+			}
+			return err
 		}
-		return err
-	}
 
-	if err := task.SetSector(0); err != nil {
-		if doSuspend {
-			resumeDevice(baseName)
+		if err := task.SetSector(0); err != nil {
+			if doSuspend {
+				resumeDevice(baseName)
+			}
+			return fmt.Errorf("Can't set sector")
 		}
-		return fmt.Errorf("Can't set sector")
-	}
 
-	if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", deviceId, baseDeviceId)); err != nil {
-		if doSuspend {
-			resumeDevice(baseName)
+		if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", *deviceId, baseDeviceId)); err != nil {
+			if doSuspend {
+				resumeDevice(baseName)
+			}
+			return fmt.Errorf("Can't set message")
 		}
-		return fmt.Errorf("Can't set message")
-	}
 
-	if err := task.Run(); err != nil {
-		if doSuspend {
-			resumeDevice(baseName)
+		dmSawExist = false
+		if err := task.Run(); err != nil {
+			if dmSawExist {
+				// Already exists, try next id
+				*deviceId++
+				continue
+			}
+
+			if doSuspend {
+				resumeDevice(baseName)
+			}
+			return fmt.Errorf("Error running DeviceCreate (createSnapDevice)")
 		}
-		return fmt.Errorf("Error running DeviceCreate (createSnapDevice)")
+
+		break
 	}
 
 	if doSuspend {
