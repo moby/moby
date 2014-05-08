@@ -459,7 +459,10 @@ func (container *Container) AllocateNetwork() error {
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
-	if err = job.Run(); err != nil {
+	if container.Config.Ip != "" {
+		job.Setenv("RequestedIP", container.Config.Ip)
+	}
+	if err := job.Run(); err != nil {
 		return err
 	}
 

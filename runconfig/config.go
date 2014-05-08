@@ -33,6 +33,7 @@ type Config struct {
 	NetworkDisabled bool
 	OnBuild         []string
 	SecurityOpt     []string
+	Ip              string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -53,6 +54,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Image:           job.Getenv("Image"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
+		Ip:              job.Getenv("Ip"),
 	}
 	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
 	job.GetenvJson("Volumes", &config.Volumes)

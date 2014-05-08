@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/docker/libcontainer/netlink"
+	"github.com/dotcloud/docker/engine"
 )
 
 var (
@@ -115,4 +117,40 @@ func GetDefaultRouteIface() (*net.Interface, error) {
 		}
 	}
 	return nil, ErrNoDefaultRoute
+}
+
+func ParseNetworkSettings(s string) (engine.Env, error) {
+	var (
+		settings = engine.Env{}
+		addr     = s
+	)
+
+	i := strings.Index(s, "@")
+
+	if i >= 0 {
+		addr = s[:i]
+		settings.Set("Gateway", s[i+1:])
+	}
+
+	i = strings.Index(addr, "/")
+	if i >= 0 {
+		ip, net, err := net.ParseCIDR(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		settings.Set("IP", ip.String())
+		settings.Set("Mask", net.Mask.String())
+		size, _ := net.Mask.Size()
+		settings.SetInt("IPPrefixLen", size)
+	} else {
+		ip := net.ParseIP(addr)
+		settings.Set("IP", ip.String())
+	}
+
+	if ip := settings.Get("IP"); ip == "" || ip == "<nil>" {
+		return nil, fmt.Errorf("Could not get ip address from `%s`", s)
+	}
+
+	return settings, nil
 }
