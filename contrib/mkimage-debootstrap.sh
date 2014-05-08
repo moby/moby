@@ -43,7 +43,7 @@ usage() {
 debianStable=wheezy
 debianUnstable=sid
 # this should match the name found at http://releases.ubuntu.com/
-ubuntuLatestLTS=precise
+ubuntuLatestLTS=trusty
 # this should match the name found at http://releases.tanglu.org/
 tangluLatest=aequorea
 
