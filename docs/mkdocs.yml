@@ -49,6 +49,7 @@ pages:
 - ['installation/cruxlinux.md', 'Installation', 'CRUX Linux']
 - ['installation/windows.md', 'Installation', 'Microsoft Windows']
 - ['installation/binaries.md', 'Installation', 'Binaries']
+- ['installation/mac_other.md', '**HIDDEN**']
 
 # Examples:
 - ['use/index.md', '**HIDDEN**']
