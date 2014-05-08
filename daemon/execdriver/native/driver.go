@@ -193,6 +193,9 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	filename := filepath.Join(cgroupRoot, cgroupDir, id, "tasks")
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		filename = filepath.Join(cgroupRoot, cgroupDir, "docker", id, "tasks")
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			filename = filepath.Join(cgroupRoot, cgroupDir, fmt.Sprintf("docker-%s.scope", id), "tasks")
+		}
 	}
 
 	output, err := ioutil.ReadFile(filename)
