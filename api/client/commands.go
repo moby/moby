@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	goruntime "runtime"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -359,7 +359,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
 	}
 	fmt.Fprintf(cli.out, "Client API version: %s\n", api.APIVERSION)
-	fmt.Fprintf(cli.out, "Go version (client): %s\n", goruntime.Version())
+	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
 	if dockerversion.GITCOMMIT != "" {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
 	}

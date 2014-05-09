@@ -34,7 +34,7 @@ import (
 	gosignal "os/signal"
 	"path"
 	"path/filepath"
-	goruntime "runtime"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -789,7 +789,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetBool("IPv4Forwarding", !srv.daemon.SystemConfig().IPv4ForwardingDisabled)
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())
-	v.SetInt("NGoroutines", goruntime.NumGoroutine())
+	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.daemon.ExecutionDriver().Name())
 	v.SetInt("NEventsListener", len(srv.listeners))
 	v.Set("KernelVersion", kernelVersion)
@@ -807,9 +807,9 @@ func (srv *Server) DockerVersion(job *engine.Job) engine.Status {
 	v.Set("Version", dockerversion.VERSION)
 	v.SetJson("ApiVersion", api.APIVERSION)
 	v.Set("GitCommit", dockerversion.GITCOMMIT)
-	v.Set("GoVersion", goruntime.Version())
-	v.Set("Os", goruntime.GOOS)
-	v.Set("Arch", goruntime.GOARCH)
+	v.Set("GoVersion", runtime.Version())
+	v.Set("Os", runtime.GOOS)
+	v.Set("Arch", runtime.GOARCH)
 	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
 		v.Set("KernelVersion", kernelVersion.String())
 	}
