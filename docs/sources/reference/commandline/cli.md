@@ -274,11 +274,16 @@ and the tag will be `2.0`
 
     $ sudo docker build - < Dockerfile
 
-This will read a Dockerfile from *stdin* without
+This will read a Dockerfile from STDIN without
 context. Due to the lack of a context, no contents of any local
 directory will be sent to the `docker` daemon. Since
 there is no context, a Dockerfile `ADD`
 only works if it refers to a remote URL.
+
+    $ sudo docker build - < context.tar.gz
+
+This will build an image for a compressed context read from STDIN.
+Supported formats are: bzip2, gzip and xz.
 
     $ sudo docker build github.com/creack/docker-firefox
 
@@ -531,7 +536,7 @@ URLs must start with `http` and point to a single
 file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a
 root filesystem. If you would like to import from a local directory or
 archive, you can use the `-` parameter to take the
-data from *stdin*.
+data from STDIN.
 
 ### Examples
 
@@ -543,7 +548,7 @@ This will create a new untagged image.
 
 **Import from a local file:**
 
-Import to docker via pipe and *stdin*.
+Import to docker via pipe and STDIN.
 
     $ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
 
