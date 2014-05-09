@@ -36,20 +36,27 @@ func (s *Sender) Handle(job *Job) Status {
 	r := beam.NewRouter(nil)
 	r.NewRoute().KeyStartsWith("cmd", "log", "stdout").HasAttachment().Handler(func(p []byte, stdout *os.File) error {
 		tasks.Add(1)
-		io.Copy(job.Stdout, stdout)
-		tasks.Done()
+		go func() {
+			io.Copy(job.Stdout, stdout)
+			stdout.Close()
+			tasks.Done()
+		}()
 		return nil
 	})
 	r.NewRoute().KeyStartsWith("cmd", "log", "stderr").HasAttachment().Handler(func(p []byte, stderr *os.File) error {
 		tasks.Add(1)
-		io.Copy(job.Stderr, stderr)
-		tasks.Done()
+		go func() {
+			io.Copy(job.Stderr, stderr)
+			stderr.Close()
+			tasks.Done()
+		}()
 		return nil
 	})
 	r.NewRoute().KeyStartsWith("cmd", "log", "stdin").HasAttachment().Handler(func(p []byte, stdin *os.File) error {
-		tasks.Add(1)
-		io.Copy(stdin, job.Stdin)
-		tasks.Done()
+		go func() {
+			io.Copy(stdin, job.Stdin)
+			stdin.Close()
+		}()
 		return nil
 	})
 	var status int
