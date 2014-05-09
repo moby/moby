@@ -325,8 +325,9 @@ optional but default, you could use a CMD:
 
 The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
-containers. For more information/examples and mounting instructions via docker
-client, refer to [*Share Directories via Volumes*](
+containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
+string, `VOLUME /var/log`. For more information/examples and mounting
+instructions via the Docker client, refer to [*Share Directories via Volumes*](
 /use/working_with_volumes/#volume-def) documentation.
 
 ## USER
