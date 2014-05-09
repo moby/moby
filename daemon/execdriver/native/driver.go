@@ -329,3 +329,7 @@ func (d *driver) Suspend(c *execdriver.Command) error {
 func (d *driver) Resume(c *execdriver.Command) error {
 	panic("Not implemented")
 }
+
+func (d *driver) Parent() string {
+	return "docker"
+}

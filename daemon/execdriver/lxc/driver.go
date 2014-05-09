@@ -557,3 +557,7 @@ func (d *driver) UpdateConfig(c *execdriver.Command) error {
 	}
 	return nil
 }
+
+func (d *driver) Parent() string {
+	return DriverName
+}

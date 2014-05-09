@@ -25,6 +25,8 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/metricdriver"
+	_ "github.com/docker/docker/metricdriver/lxc"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/graphdb"
@@ -897,12 +899,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
-	md, err := metricdriver.GetDriver("lxc")
-	if err != nil {
-		return nil, err
-	}
-	utils.Debugf("Using mertic driver lxc")
-
 	daemon := &Daemon{
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
@@ -1140,6 +1136,6 @@ func checkKernelAndArch() error {
 	return nil
 }
 
-func (daemon *Daemon) GetMetric(c *Container) (*metricdriver.Metric, error) {
-	return daemon.metricDriver.Get(c.ID)
+func (daemon *Daemon) GetMetric(c *Container) (map[string]map[string]float64, error) {
+	return metricdriver.Get(c.ID, daemon.ExecutionDriver().Parent(), c.State.Pid)
 }
