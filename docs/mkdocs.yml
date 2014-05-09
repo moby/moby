@@ -140,3 +140,4 @@ pages:
 - ['contributing/index.md', '**HIDDEN**']
 - ['contributing/contributing.md', 'Contribute', 'Contributing']
 - ['contributing/devenvironment.md', 'Contribute', 'Development environment']
+- ['contributing/cli-extension-development.md', 'Contribute', 'CLI Extension Development']

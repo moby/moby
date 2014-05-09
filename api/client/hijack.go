@@ -1,7 +1,6 @@
 package client
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -18,10 +17,7 @@ import (
 )
 
 func (cli *DockerCli) dial() (net.Conn, error) {
-	if cli.tlsConfig != nil && cli.proto != "unix" {
-		return tls.Dial(cli.proto, cli.addr, cli.tlsConfig)
-	}
-	return net.Dial(cli.proto, cli.addr)
+	return cli.Remote.Dial(cli)
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer) error {
@@ -37,7 +33,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
 	req.Header.Set("Content-Type", "plain/text")
-	req.Host = cli.addr
+	req.Host = cli.Address
 
 	dial, err := cli.dial()
 	if err != nil {
@@ -63,20 +59,20 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	var oldState *term.State
 
-	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
-		oldState, err = term.SetRawTerminal(cli.terminalFd)
+	if in != nil && setRawTerminal && cli.IsTerminal && os.Getenv("NORAW") == "" {
+		oldState, err = term.SetRawTerminal(cli.TerminalFd)
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(cli.terminalFd, oldState)
+		defer term.RestoreTerminal(cli.TerminalFd, oldState)
 	}
 
 	if stdout != nil || stderr != nil {
 		receiveStdout = utils.Go(func() (err error) {
 			defer func() {
 				if in != nil {
-					if setRawTerminal && cli.isTerminal {
-						term.RestoreTerminal(cli.terminalFd, oldState)
+					if setRawTerminal && cli.IsTerminal {
+						term.RestoreTerminal(cli.TerminalFd, oldState)
 					}
 					// For some reason this Close call blocks on darwin..
 					// As the client exists right after, simply discard the close
@@ -123,7 +119,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 	}
 
-	if !cli.isTerminal {
+	if !cli.IsTerminal {
 		if err := <-sendStdin; err != nil {
 			utils.Debugf("Error sendStdin: %s", err)
 			return err
