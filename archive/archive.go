@@ -1,14 +1,11 @@
 package archive
 
 import (
-	"bytes"
+	"bufio"
 	"compress/bzip2"
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,6 +14,10 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type (
@@ -74,31 +75,24 @@ func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
 }
 
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	buf := make([]byte, 10)
-	totalN := 0
-	for totalN < 10 {
-		n, err := archive.Read(buf[totalN:])
-		if err != nil {
-			if err == io.EOF {
-				return nil, fmt.Errorf("Tarball too short")
-			}
-			return nil, err
-		}
-		totalN += n
-		utils.Debugf("[tar autodetect] n: %d", n)
+	buf := bufio.NewReader(archive)
+	bs, err := buf.Peek(10)
+	if err != nil {
+		return nil, err
 	}
-	compression := DetectCompression(buf)
-	wrap := io.MultiReader(bytes.NewReader(buf), archive)
+	utils.Debugf("[tar autodetect] n: %v", bs)
+
+	compression := DetectCompression(bs)
 
 	switch compression {
 	case Uncompressed:
-		return ioutil.NopCloser(wrap), nil
+		return ioutil.NopCloser(buf), nil
 	case Gzip:
-		return gzip.NewReader(wrap)
+		return gzip.NewReader(buf)
 	case Bzip2:
-		return ioutil.NopCloser(bzip2.NewReader(wrap)), nil
+		return ioutil.NopCloser(bzip2.NewReader(buf)), nil
 	case Xz:
-		return xzDecompress(wrap)
+		return xzDecompress(buf)
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
