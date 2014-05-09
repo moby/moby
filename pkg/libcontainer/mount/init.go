@@ -36,7 +36,7 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 		flag = syscall.MS_SLAVE
 	}
 	if err := system.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
-		return fmt.Errorf("mounting / as slave %s", err)
+		return fmt.Errorf("mounting / with flags %X %s", (flag | syscall.MS_REC), err)
 	}
 	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
