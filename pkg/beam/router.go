@@ -78,7 +78,7 @@ func (route *Route) Tee(dst Sender) *Route {
 			return inner(payload, attachment)
 		}
 		// Setup the tee
-		w, err := SendPipe(dst, payload)
+		w, err := SendRPipe(dst, payload)
 		if err != nil {
 			return err
 		}

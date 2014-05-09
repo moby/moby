@@ -29,17 +29,48 @@ type ReceiveSender interface {
 	Sender
 }
 
-func SendPipe(dst Sender, data []byte) (*os.File, error) {
+const (
+	R int = 1 << (32 - 1 - iota)
+	W
+)
+
+func sendPipe(dst Sender, data []byte, mode int) (*os.File, error) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
-	if err := dst.Send(data, r); err != nil {
-		r.Close()
-		w.Close()
+	var (
+		remote *os.File
+		local  *os.File
+	)
+	if mode == R {
+		remote = r
+		local = w
+	} else if mode == W {
+		remote = w
+		local = r
+	}
+	if err := dst.Send(data, remote); err != nil {
+		local.Close()
+		remote.Close()
 		return nil, err
 	}
-	return w, nil
+	return local, nil
+
+}
+
+// SendRPipe create a pipe and sends its *read* end attached in a beam message
+// to `dst`, with `data` as the message payload.
+// It returns the *write* end of the pipe, or an error.
+func SendRPipe(dst Sender, data []byte) (*os.File, error) {
+	return sendPipe(dst, data, R)
+}
+
+// SendWPipe create a pipe and sends its *read* end attached in a beam message
+// to `dst`, with `data` as the message payload.
+// It returns the *write* end of the pipe, or an error.
+func SendWPipe(dst Sender, data []byte) (*os.File, error) {
+	return sendPipe(dst, data, W)
 }
 
 func SendConn(dst Sender, data []byte) (conn *UnixConn, err error) {

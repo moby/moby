@@ -92,17 +92,17 @@ func (rcv *Receiver) Run() error {
 		}
 		cmd := data.Message(p).Get("cmd")
 		job := rcv.Engine.Job(cmd[0], cmd[1:]...)
-		stdout, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stdout").Bytes())
+		stdout, err := beam.SendRPipe(peer, data.Empty().Set("cmd", "log", "stdout").Bytes())
 		if err != nil {
 			return err
 		}
 		job.Stdout.Add(stdout)
-		stderr, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stderr").Bytes())
+		stderr, err := beam.SendRPipe(peer, data.Empty().Set("cmd", "log", "stderr").Bytes())
 		if err != nil {
 			return err
 		}
 		job.Stderr.Add(stderr)
-		stdin, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stdin").Bytes())
+		stdin, err := beam.SendWPipe(peer, data.Empty().Set("cmd", "log", "stdin").Bytes())
 		if err != nil {
 			return err
 		}
