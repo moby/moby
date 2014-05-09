@@ -118,7 +118,7 @@ func (o *Output) Close() error {
 	defer o.Unlock()
 	var firstErr error
 	for _, dst := range o.dests {
-		if closer, ok := dst.(io.WriteCloser); ok {
+		if closer, ok := dst.(io.Closer); ok {
 			err := closer.Close()
 			if err != nil && firstErr == nil {
 				firstErr = err
@@ -154,7 +154,7 @@ func (i *Input) Read(p []byte) (n int, err error) {
 // Not thread safe on purpose
 func (i *Input) Close() error {
 	if i.src != nil {
-		if closer, ok := i.src.(io.WriteCloser); ok {
+		if closer, ok := i.src.(io.Closer); ok {
 			return closer.Close()
 		}
 	}
