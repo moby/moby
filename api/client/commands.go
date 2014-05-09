@@ -1988,7 +1988,7 @@ func (cid *cidFile) Close() error {
 
 	if !cid.written {
 		if err := os.Remove(cid.path); err != nil {
-			return fmt.Errorf("failed to remove CID file '%s': %s \n", cid.path, err)
+			return fmt.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
 		}
 	}
 
@@ -2096,7 +2096,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// These are flags not stored in Config/HostConfig
 	var (
 		flAutoRemove = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
-		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
+		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run the container in the background and print the new container ID")
 		flSigProxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
 		flName       = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
 
