@@ -37,6 +37,7 @@ const (
 	Uncompressed Compression = iota
 	Bzip2
 	Gzip
+	GzipFastest
 	Xz
 )
 
@@ -111,6 +112,12 @@ func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteClose
 		return utils.NopWriteCloser(dest), nil
 	case Gzip:
 		return gzip.NewWriter(dest), nil
+	case GzipFastest:
+		if gzipWriter, err := gzip.NewWriterLevel(dest, 1); err != nil {
+			return nil, fmt.Errorf("Failed to create compressor: %s", err)
+		} else {
+			return gzipWriter, nil
+		}
 	case Bzip2, Xz:
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
