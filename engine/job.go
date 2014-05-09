@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -56,8 +57,8 @@ func (job *Job) Run() error {
 	defer func() {
 		job.Eng.Logf("-job %s%s", job.CallString(), job.StatusString())
 	}()
-	var errorMessage string
-	job.Stderr.AddString(&errorMessage)
+	var errorMessage = bytes.NewBuffer(nil)
+	job.Stderr.Add(errorMessage)
 	if job.handler == nil {
 		job.Errorf("%s: command not found", job.Name)
 		job.status = 127
@@ -73,7 +74,7 @@ func (job *Job) Run() error {
 		return err
 	}
 	if job.status != 0 {
-		return fmt.Errorf("%s", errorMessage)
+		return fmt.Errorf("%s", Tail(errorMessage, 1))
 	}
 	return nil
 }

@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -40,13 +42,13 @@ func TestJobStdoutString(t *testing.T) {
 	})
 
 	job := eng.Job("say_something_in_stdout")
-	var output string
-	if err := job.Stdout.AddString(&output); err != nil {
-		t.Fatal(err)
-	}
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
+	fmt.Println(outputBuffer)
+	var output = Tail(outputBuffer, 1)
 	if expectedOutput := "Hello world"; output != expectedOutput {
 		t.Fatalf("Stdout last line:\nExpected: %v\nReceived: %v", expectedOutput, output)
 	}
@@ -61,13 +63,12 @@ func TestJobStderrString(t *testing.T) {
 	})
 
 	job := eng.Job("say_something_in_stderr")
-	var output string
-	if err := job.Stderr.AddString(&output); err != nil {
-		t.Fatal(err)
-	}
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stderr.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
+	var output = Tail(outputBuffer, 1)
 	if expectedOutput := "Something happened"; output != expectedOutput {
 		t.Fatalf("Stderr last line:\nExpected: %v\nReceived: %v", expectedOutput, output)
 	}
