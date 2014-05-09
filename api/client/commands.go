@@ -160,7 +160,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
-		context, err = archive.Tar(root, archive.Uncompressed)
+		context, err = archive.Tar(root, archive.GzipFastest)
 	}
 	var body io.Reader
 	// Setup an upload progress bar
