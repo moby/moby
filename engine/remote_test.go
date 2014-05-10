@@ -82,6 +82,47 @@ func TestStdin(t *testing.T) {
 	)
 }
 
+func TestEnv(t *testing.T) {
+	var (
+		foo          string
+		answer       int
+		shadok_words []string
+	)
+	testRemote(t,
+
+		func(eng *Engine) {
+			job := eng.Job("sendenv")
+			job.Env().Set("foo", "bar")
+			job.Env().SetInt("answer", 42)
+			job.Env().SetList("shadok_words", []string{"ga", "bu", "zo", "meu"})
+			if err := job.Run(); err != nil {
+				t.Fatal(err)
+			}
+		},
+
+		func(eng *Engine) {
+			eng.Register("sendenv", func(job *Job) Status {
+				foo = job.Env().Get("foo")
+				answer = job.Env().GetInt("answer")
+				shadok_words = job.Env().GetList("shadok_words")
+				return StatusOK
+			})
+		},
+	)
+	// Check for results here rather than inside the job handler,
+	// otherwise the tests may incorrectly pass if the handler is not
+	// called.
+	if foo != "bar" {
+		t.Fatalf("%#v", foo)
+	}
+	if answer != 42 {
+		t.Fatalf("%#v", answer)
+	}
+	if strings.Join(shadok_words, ", ") != "ga, bu, zo, meu" {
+		t.Fatalf("%#v", shadok_words)
+	}
+}
+
 // Helpers
 
 func testRemote(t *testing.T, senderSide, receiverSide func(*Engine)) {
