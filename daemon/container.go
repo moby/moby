@@ -745,8 +745,13 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+
 	var filter []string
+
+	// Ensure path is local to container basefs
+	resource = path.Join("/", resource)
 	basePath := path.Join(container.basefs, resource)
+
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		container.Unmount()
