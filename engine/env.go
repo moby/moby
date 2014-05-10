@@ -250,3 +250,27 @@ func (env *Env) Map() map[string]string {
 	}
 	return m
 }
+
+// MultiMap returns a representation of env as a
+// map of string arrays, keyed by string.
+// This is the same structure as http headers for example,
+// which allow each key to have multiple values.
+func (env *Env) MultiMap() map[string][]string {
+	m := make(map[string][]string)
+	for _, kv := range *env {
+		parts := strings.SplitN(kv, "=", 2)
+		m[parts[0]] = append(m[parts[0]], parts[1])
+	}
+	return m
+}
+
+// InitMultiMap removes all values in env, then initializes
+// new values from the contents of m.
+func (env *Env) InitMultiMap(m map[string][]string) {
+	(*env) = make([]string, 0, len(m))
+	for k, vals := range m {
+		for _, v := range vals {
+			env.Set(k, v)
+		}
+	}
+}
