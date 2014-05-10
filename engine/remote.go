@@ -25,7 +25,9 @@ func (s *Sender) Install(eng *Engine) error {
 }
 
 func (s *Sender) Handle(job *Job) Status {
-	msg := data.Empty().Set("cmd", append([]string{job.Name}, job.Args...)...)
+	cmd := append([]string{job.Name}, job.Args...)
+	env := data.Encode(job.Env().MultiMap())
+	msg := data.Empty().Set("cmd", cmd...).Set("env", env)
 	peer, err := beam.SendConn(s, msg.Bytes())
 	if err != nil {
 		return job.Errorf("beamsend: %v", err)
@@ -99,8 +101,15 @@ func (rcv *Receiver) Run() error {
 		}
 		f.Close()
 		defer peer.Close()
-		cmd := data.Message(p).Get("cmd")
+		msg := data.Message(p)
+		cmd := msg.Get("cmd")
 		job := rcv.Engine.Job(cmd[0], cmd[1:]...)
+		// Decode env
+		env, err := data.Decode(msg.GetOne("env"))
+		if err != nil {
+			return fmt.Errorf("error decoding 'env': %v", err)
+		}
+		job.Env().InitMultiMap(env)
 		stdout, err := beam.SendRPipe(peer, data.Empty().Set("cmd", "log", "stdout").Bytes())
 		if err != nil {
 			return err
