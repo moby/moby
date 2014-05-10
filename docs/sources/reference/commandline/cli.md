@@ -425,24 +425,24 @@ You'll need two shells for this example.
 
 **Shell 1: (Again .. now showing events):**
 
-    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
 **Show events in the past from a specified time:**
 
     $ sudo docker events --since 1378216169
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
     $ sudo docker events --since '2013-09-03'
-    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
     $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
 ## export
 
@@ -749,6 +749,10 @@ the container's `STDOUT` and `STDERR`.
 
 Passing a negative number or a non-integer to `--tail` is invalid and the
 value is set to `all` in that case. This behavior may change in the future.
+
+The `docker logs --timestamp` commands will add an RFC3339Nano
+timestamp, for example `2014-05-10T17:42:14.999999999Z07:00`, to each
+log entry.
 
 ## port
 
