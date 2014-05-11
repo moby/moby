@@ -30,7 +30,7 @@ type ReceiveSender interface {
 }
 
 const (
-	R int = 1 << (32 - 1 - iota)
+	R = iota
 	W
 )
 
