@@ -51,3 +51,11 @@ func TestSetDelMessage(t *testing.T) {
 		t.Fatalf("'%v' != '%v'", output, expectedOutput)
 	}
 }
+
+func TestGetOne(t *testing.T) {
+	m := Empty().Set("shadok words", "ga", "bu", "zo", "meu")
+	val := m.GetOne("shadok words")
+	if val != "meu" {
+		t.Fatalf("%#v", val)
+	}
+}

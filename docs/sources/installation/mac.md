@@ -41,9 +41,9 @@ and install VirtualBox.
 > Do not simply copy the package without running the
 > installer.
 
-## Installing boot2docker
+## Installing boot2docker manually
 
-### Installing manually
+### Downloading the boot2docker script
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
 handy script to manage the VM running the Docker daemon. It also takes

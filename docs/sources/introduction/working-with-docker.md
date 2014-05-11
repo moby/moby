@@ -137,11 +137,10 @@ You will get an output with all available options:
 ### Docker Images
 
 As we've discovered a Docker image is a read-only template that we build
-containers from. Every Docker container is launched from an image and
-you can use both images provided by others, for example we've discovered
-the base `ubuntu` image provided by Docker, as well as images built by
-others. For example we can build an image that runs Apache and our own
-web application as a starting point to launch containers.
+containers from. Every Docker container is launched from an image. You can
+use both images provided by Docker, such as the base `ubuntu` image,
+as well as images built by others. For example we can build an image that
+runs Apache and our own web application as a starting point to launch containers.
 
 ### Searching for images
 

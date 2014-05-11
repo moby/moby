@@ -57,7 +57,7 @@ pages:
 - ['examples/hello_world.md', 'Examples', 'Hello World']
 - ['examples/nodejs_web_app.md', 'Examples', 'Node.js web application']
 - ['examples/python_web_app.md', 'Examples', 'Python web application']
-- ['examples/mongodb.md', 'Examples', 'MongoDB service']
+- ['examples/mongodb.md', 'Examples', 'Dockerizing MongoDB']
 - ['examples/running_redis_service.md', 'Examples', 'Redis service']
 - ['examples/postgresql_service.md', 'Examples', 'PostgreSQL service']
 - ['examples/running_riak_service.md', 'Examples', 'Running a Riak service']

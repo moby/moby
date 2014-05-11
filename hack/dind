@@ -14,7 +14,7 @@ set -e
 export container=docker
 
 # First, make sure that cgroups are mounted correctly.
-CGROUP=/sys/fs/cgroup
+CGROUP=/cgroup
 
 mkdir -p "$CGROUP"
 

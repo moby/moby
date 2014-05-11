@@ -72,6 +72,16 @@ func (m Message) Get(k string) []string {
 	return v
 }
 
+// GetOne returns the last value added at the key k,
+// or an empty string if there is no value.
+func (m Message) GetOne(k string) string {
+	var v string
+	if vals := m.Get(k); len(vals) > 0 {
+		v = vals[len(vals)-1]
+	}
+	return v
+}
+
 func (m Message) Pretty() string {
 	data, err := Decode(string(m))
 	if err != nil {

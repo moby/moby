@@ -16,7 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -127,7 +127,7 @@ func init() {
 	spawnGlobalDaemon()
 	spawnLegitHttpsDaemon()
 	spawnRogueHttpsDaemon()
-	startFds, startGoroutines = utils.GetTotalUsedFds(), goruntime.NumGoroutine()
+	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
 func setupBaseImage() {
