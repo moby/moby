@@ -56,9 +56,7 @@ and install VirtualBox.
 > Do not simply copy the package without running the
 > installer.
 
-## Installing boot2docker manually
-
-### Downloading the boot2docker script
+## Installing boot2docker
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
 handy script to manage the VM running the Docker daemon. It also takes
@@ -74,7 +72,7 @@ $ curl -L https://github.com/boot2docker/boot2docker/raw/master/boot2docker -o ~
 $ chmod +x ~/bin/boot2docker
 ```
 
-### Installing the Docker OS X Client
+## Installing the Docker Client
 
 The Docker daemon is accessed using the `docker` binary.
 
@@ -93,20 +91,7 @@ local boot2docker virtual machine as the value of that variable.
 export DOCKER_HOST=tcp://127.0.0.1:4243
 ```
 
-## Installing boot2docker with Homebrew
-
-If you are using Homebrew on your machine, simply run the following
-command to install `boot2docker`:
-
-    $ brew install boot2docker
-
-Run the following command to install the Docker client:
-
-    $ brew install docker
-
-And that's it! Let's check out how to use it.
-
-# How To Use Docker On Mac OS X
+# Using Docker on Mac OS X
 
 ## Running the Docker daemon via boot2docker
 
