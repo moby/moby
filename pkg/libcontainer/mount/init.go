@@ -128,7 +128,7 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 			return err
 		}
 		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
-			return fmt.Errorf("Creating new bind-mount target, %s\n", err)
+			return fmt.Errorf("Creating new bind-mount target, %s", err)
 		}
 
 		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
