@@ -41,7 +41,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/daemonconfig"
@@ -128,7 +127,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"logs":             srv.ContainerLogs,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
-		"version":          srv.DockerVersion,
 		"load":             srv.ImageLoad,
 		"build":            srv.Build,
 		"pull":             srv.ImagePull,
@@ -801,23 +799,6 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
-	if _, err := v.WriteTo(job.Stdout); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
-}
-
-func (srv *Server) DockerVersion(job *engine.Job) engine.Status {
-	v := &engine.Env{}
-	v.Set("Version", dockerversion.VERSION)
-	v.SetJson("ApiVersion", api.APIVERSION)
-	v.Set("GitCommit", dockerversion.GITCOMMIT)
-	v.Set("GoVersion", runtime.Version())
-	v.Set("Os", runtime.GOOS)
-	v.Set("Arch", runtime.GOARCH)
-	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
-		v.Set("KernelVersion", kernelVersion.String())
-	}
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
