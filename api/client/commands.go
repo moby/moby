@@ -28,6 +28,7 @@ import (
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/pkg/units"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -884,14 +885,14 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 				fmt.Fprintf(w, "%s\t", utils.TruncateID(outID))
 			}
 
-			fmt.Fprintf(w, "%s ago\t", utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))))
+			fmt.Fprintf(w, "%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))))
 
 			if *noTrunc {
 				fmt.Fprintf(w, "%s\t", out.Get("CreatedBy"))
 			} else {
 				fmt.Fprintf(w, "%s\t", utils.Trunc(out.Get("CreatedBy"), 45))
 			}
-			fmt.Fprintf(w, "%s\n", utils.HumanSize(out.GetInt64("Size")))
+			fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("Size")))
 		} else {
 			if *noTrunc {
 				fmt.Fprintln(w, outID)
@@ -1249,7 +1250,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 
 				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), utils.HumanSize(out.GetInt64("VirtualSize")))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(out.GetInt64("VirtualSize")))
 				} else {
 					fmt.Fprintln(w, outID)
 				}
@@ -1323,7 +1324,7 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 		imageID = utils.TruncateID(image.Get("Id"))
 	}
 
-	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, utils.HumanSize(image.GetInt64("VirtualSize")))
+	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, units.HumanSize(image.GetInt64("VirtualSize")))
 	if image.GetList("RepoTags")[0] != "<none>:<none>" {
 		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.GetList("RepoTags"), ", "))
 	} else {
@@ -1408,12 +1409,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 				outCommand = utils.Trunc(outCommand, 20)
 			}
 			ports.ReadListFrom([]byte(out.Get("Ports")))
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, utils.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
 			if *size {
 				if out.GetInt("SizeRootFs") > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", utils.HumanSize(out.GetInt64("SizeRw")), utils.HumanSize(out.GetInt64("SizeRootFs")))
+					fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
 				} else {
-					fmt.Fprintf(w, "%s\n", utils.HumanSize(out.GetInt64("SizeRw")))
+					fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("SizeRw")))
 				}
 			} else {
 				fmt.Fprint(w, "\n")

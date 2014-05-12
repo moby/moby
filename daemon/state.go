@@ -2,9 +2,10 @@ package daemon
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"sync"
 	"time"
+
+	"github.com/dotcloud/docker/pkg/units"
 )
 
 type State struct {
@@ -22,12 +23,12 @@ func (s *State) String() string {
 	defer s.RUnlock()
 
 	if s.Running {
-		return fmt.Sprintf("Up %s", utils.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
 	if s.FinishedAt.IsZero() {
 		return ""
 	}
-	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, utils.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
 func (s *State) IsRunning() bool {

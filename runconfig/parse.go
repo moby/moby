@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/pkg/units"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -119,7 +120,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	var flMemory int64
 	if *flMemoryString != "" {
-		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
+		parsedMemory, err := units.RAMInBytes(*flMemoryString)
 		if err != nil {
 			return nil, nil, cmd, err
 		}

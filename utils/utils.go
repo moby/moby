@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -81,79 +80,6 @@ func Debugf(format string, a ...interface{}) {
 
 func Errorf(format string, a ...interface{}) {
 	logf("error", format, a...)
-}
-
-// HumanDuration returns a human-readable approximation of a duration
-// (eg. "About a minute", "4 hours ago", etc.)
-func HumanDuration(d time.Duration) string {
-	if seconds := int(d.Seconds()); seconds < 1 {
-		return "Less than a second"
-	} else if seconds < 60 {
-		return fmt.Sprintf("%d seconds", seconds)
-	} else if minutes := int(d.Minutes()); minutes == 1 {
-		return "About a minute"
-	} else if minutes < 60 {
-		return fmt.Sprintf("%d minutes", minutes)
-	} else if hours := int(d.Hours()); hours == 1 {
-		return "About an hour"
-	} else if hours < 48 {
-		return fmt.Sprintf("%d hours", hours)
-	} else if hours < 24*7*2 {
-		return fmt.Sprintf("%d days", hours/24)
-	} else if hours < 24*30*3 {
-		return fmt.Sprintf("%d weeks", hours/24/7)
-	} else if hours < 24*365*2 {
-		return fmt.Sprintf("%d months", hours/24/30)
-	}
-	return fmt.Sprintf("%f years", d.Hours()/24/365)
-}
-
-// HumanSize returns a human-readable approximation of a size
-// using SI standard (eg. "44kB", "17MB")
-func HumanSize(size int64) string {
-	i := 0
-	var sizef float64
-	sizef = float64(size)
-	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
-	for sizef >= 1000.0 {
-		sizef = sizef / 1000.0
-		i++
-	}
-	return fmt.Sprintf("%.4g %s", sizef, units[i])
-}
-
-// Parses a human-readable string representing an amount of RAM
-// in bytes, kibibytes, mebibytes or gibibytes, and returns the
-// number of bytes, or -1 if the string is unparseable.
-// Units are case-insensitive, and the 'b' suffix is optional.
-func RAMInBytes(size string) (bytes int64, err error) {
-	re, error := regexp.Compile("^(\\d+)([kKmMgG])?[bB]?$")
-	if error != nil {
-		return -1, error
-	}
-
-	matches := re.FindStringSubmatch(size)
-
-	if len(matches) != 3 {
-		return -1, fmt.Errorf("Invalid size: '%s'", size)
-	}
-
-	memLimit, error := strconv.ParseInt(matches[1], 10, 0)
-	if error != nil {
-		return -1, error
-	}
-
-	unit := strings.ToLower(matches[2])
-
-	if unit == "k" {
-		memLimit *= 1024
-	} else if unit == "m" {
-		memLimit *= 1024 * 1024
-	} else if unit == "g" {
-		memLimit *= 1024 * 1024 * 1024
-	}
-
-	return memLimit, nil
 }
 
 func Trunc(s string, maxlen int) string {
