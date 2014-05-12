@@ -24,10 +24,6 @@ easier we've designed a helper application called
 [boot2docker](https://github.com/boot2docker/boot2docker) to install
 that virtual machine and run our Docker daemon.
 
-[boot2docker](https://github.com/boot2docker/boot2docker) uses
-VirtualBox to create the virtual machine so we'll need to install that
-first.
-
 ## Preparing your home directory
 
 First, we recommend creating a `bin` directory in your home to install new
@@ -45,7 +41,7 @@ $ echo 'export PATH=~/bin:$PATH' >> ~/.bash_profile
 
 ## Installing VirtualBox
 
-Docker on OS X needs VirtualBox to run. To begin with, head over to
+Boot2docker on OS X needs VirtualBox to run. To begin with, head over to
 [VirtualBox Download Page](https://www.virtualbox.org/wiki/Downloads)
 and get the tool for `OS X hosts x86/amd64`.
 
