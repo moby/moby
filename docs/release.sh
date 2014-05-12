@@ -19,7 +19,7 @@ EOF
 [ "$AWS_S3_BUCKET" ] || usage
 
 #VERSION=$(cat VERSION)
-BUCKET=$AWS_S3_BUCKET
+export BUCKET=$AWS_S3_BUCKET
 
 export AWS_CONFIG_FILE=$(pwd)/awsconfig
 [ -e "$AWS_CONFIG_FILE" ] || usage
@@ -37,7 +37,10 @@ setup_s3() {
 	# Make the bucket accessible through website endpoints.
 	echo "make $BUCKET accessible as a website"
 	#aws s3 website s3://$BUCKET --index-document index.html --error-document jsearch/index.html
-	s3conf=$(cat s3_website.json)
+	s3conf=$(cat s3_website.json | envsubst)
+	echo
+	echo $s3conf
+	echo
 	aws s3api put-bucket-website --bucket $BUCKET --website-configuration "$s3conf"
 }
 

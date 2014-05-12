@@ -4,7 +4,7 @@
 FROM 		debian:jessie
 MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-RUN 	apt-get update && apt-get install -yq make python-pip python-setuptools vim-tiny git pandoc
+RUN 	apt-get update && apt-get install -yq make python-pip python-setuptools vim-tiny git gettext
 
 RUN	pip install mkdocs
 
