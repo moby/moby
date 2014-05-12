@@ -47,6 +47,34 @@ Options like `--name=""` expect a string, and they
 can only be specified once. Options like `-c=0`
 expect an integer, and they can only be specified once.
 
+## Extensibility Features
+
+The Docker CLI allows for certain extensions to be activated by the user
+at runtime.
+
+### Remotes
+
+The Docker CLI allows you to contact a remote Docker daemon through the
+Remote Docker API. However, in the future more protocol options may become
+available. In order to switch between available remote call implementations
+a user may specify the `DOCKER_CLI_REMOTE` environment variable.
+
+    $ DOCKER_CLI_REMOTE="http" docker run ubuntu bash
+
+### Plugins
+
+The Docker CLI allows for users to specify and enable extended functionality
+and behaviors for commands by enabling CLI plugins. CLI plugins are enabled
+by specifying the registered name of the plugin in a list of comma delimited
+plugins assigned to the `DOCKER_CLI_PLUGINS` environment variable.
+
+#### Single Plugin
+    $ DOCKER_CLI_PLUGINS="cluster" docker run ubuntu bash
+
+#### Multiple Plugins
+    $ DOCKER_CLI_PLUGINS="oauth,cluster" docker run ubuntu bash
+
+
 ## daemon
 
     Usage of docker:

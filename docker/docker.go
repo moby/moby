@@ -12,6 +12,7 @@ import (
 
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/api/client"
+	_ "github.com/dotcloud/docker/api/client_extensions"
 	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
