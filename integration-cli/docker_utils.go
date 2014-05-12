@@ -61,3 +61,13 @@ func cmd(t *testing.T, args ...string) (string, int, error) {
 	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
 	return out, status, err
 }
+
+func findContainerIp(t *testing.T, id string) string {
+	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	return strings.Trim(out, " \r\n'")
+}
