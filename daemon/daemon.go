@@ -680,6 +680,12 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if !config.EnableSelinuxSupport {
 		selinux.SetDisabled()
 	}
+
+	// Create the root directory if it doesn't exists
+	if err := os.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
 
