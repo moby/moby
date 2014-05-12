@@ -310,8 +310,8 @@ layer; you will also have to add traffic going through the userland
 proxy.
 
 Then, you will need to check those counters on a regular basis. If you
-happen to use `collectd`, there is a nice plugin to
-automate iptables counters collection.
+happen to use `collectd`, there is a [nice plugin](https://collectd.org/wiki/index.php/Plugin:IPTables)
+to automate iptables counters collection.
 
 ### Interface-level counters
 
