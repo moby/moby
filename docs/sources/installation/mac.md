@@ -28,6 +28,21 @@ that virtual machine and run our Docker daemon.
 VirtualBox to create the virtual machine so we'll need to install that
 first.
 
+## Preparing your home directory
+
+First, we recommend creating a `bin` directory in your home to install new
+binaries without messing with your system installation.
+
+This will create a new directory for binaries, and make sure its contents
+are accessible from the shell.
+
+```
+$ mkdir -p ~/bin
+$ export PATH=~/bin:$PATH
+$ echo 'export PATH=~/bin:$PATH' >> ~/.bash_profile
+```
+
+
 ## Installing VirtualBox
 
 Docker on OS X needs VirtualBox to run. To begin with, head over to
@@ -52,15 +67,12 @@ care of the installation of that VM.
 Open up a new terminal window and run the following commands to get
 boot2docker:
 
-    # Enter the installation directory
-    $ mkdir -p ~/bin
-    $ cd ~/bin
 
-    # Get the file
-    $ curl https://raw.githubusercontent.com/boot2docker/boot2docker/master/boot2docker > boot2docker
-
-    # Mark it executable
-    $ chmod +x boot2docker
+```
+$ mkdir -p ~/bin &&\
+$ curl -L https://github.com/boot2docker/boot2docker/raw/master/boot2docker -o ~/bin/boot2docker &&\
+$ chmod +x ~/bin/boot2docker
+```
 
 ### Installing the Docker OS X Client
 
@@ -68,24 +80,18 @@ The Docker daemon is accessed using the `docker` binary.
 
 Run the following commands to get it downloaded and set up:
 
-    # Get the docker binary
-    $ DIR=$(mktemp -d ${TMPDIR:-/tmp}/dockerdl.XXXXXXX) && \
-      curl -f -o $DIR/ld.tgz https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz && \
-      gunzip $DIR/ld.tgz && \
-      tar xvf $DIR/ld.tar -C $DIR/ && \
-      cp $DIR/usr/local/bin/docker ./docker
-
-    # Copy the executable file
-    $ sudo mkdir -p /usr/local/bin
-    $ sudo cp docker /usr/local/bin/
-
-### Configure the Docker OS X Client
+```
+$ curl https://get.docker.io/builds/Darwin/x86_64/docker-latest.tgz | tar -z -x --strip-components=3 -C ~/bin
+```
 
 The Docker client, `docker`, uses an environment variable `DOCKER_HOST`
 to specify the location of the Docker daemon to connect to. Specify your
 local boot2docker virtual machine as the value of that variable.
 
-    $ export DOCKER_HOST=tcp://127.0.0.1:4243
+
+```
+export DOCKER_HOST=tcp://127.0.0.1:4243
+```
 
 ## Installing boot2docker with Homebrew
 
