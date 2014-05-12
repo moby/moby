@@ -54,7 +54,7 @@ upload_current_documentation() {
 	echo "  to $dst"
 	echo
 	#s3cmd --recursive --follow-symlinks --preserve --acl-public sync "$src" "$dst"
-	aws s3 sync --acl public-read --exclude "*.rej" --exclude "*.rst" --exclude "*.orig" --exclude "*.py" "$src" "$dst"
+	aws s3 sync --cache-control "max-age=3600" --acl public-read --exclude "*.rej" --exclude "*.rst" --exclude "*.orig" --exclude "*.py" "$src" "$dst"
 }
 
 setup_s3
