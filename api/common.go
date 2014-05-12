@@ -2,11 +2,12 @@ package api
 
 import (
 	"fmt"
+	"mime"
+	"strings"
+
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/version"
 	"github.com/dotcloud/docker/utils"
-	"mime"
-	"strings"
 )
 
 const (
@@ -30,7 +31,7 @@ func DisplayablePorts(ports *engine.Table) string {
 	ports.Sort()
 	for _, port := range ports.Data {
 		if port.Get("IP") == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))
+			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PrivatePort"), port.Get("Type")))
 		} else {
 			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
 		}
