@@ -91,6 +91,28 @@ func mountSystem(rootfs string, container *libcontainer.Container) error {
 	return nil
 }
 
+func createIfNotExists(path string, isDir bool) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			if isDir {
+				if err := os.MkdirAll(path, 0755); err != nil {
+					return err
+				}
+			} else {
+				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+					return err
+				}
+				f, err := os.OpenFile(path, os.O_CREATE, 0755)
+				if err != nil {
+					return err
+				}
+				f.Close()
+			}
+		}
+	}
+	return nil
+}
+
 func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 	for _, m := range bindMounts.OfType("bind") {
 		var (
@@ -100,6 +122,15 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 		if !m.Writable {
 			flags = flags | syscall.MS_RDONLY
 		}
+
+		stat, err := os.Stat(m.Source)
+		if err != nil {
+			return err
+		}
+		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
+			return fmt.Errorf("Creating new bind-mount target, %s\n", err)
+		}
+
 		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
 		}
