@@ -30,11 +30,11 @@ type ReceiveSender interface {
 }
 
 const (
-	R int = 1 << (32 - 1 - iota)
+	R int64 = 1 << (32 - 1 - iota)
 	W
 )
 
-func sendPipe(dst Sender, data []byte, mode int) (*os.File, error) {
+func sendPipe(dst Sender, data []byte, mode int64) (*os.File, error) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		return nil, err
@@ -117,8 +117,8 @@ func ReceiveConn(src Receiver) ([]byte, *UnixConn, error) {
 	return nil, nil, nil
 }
 
-func Copy(dst Sender, src Receiver) (int, error) {
-	var n int
+func Copy(dst Sender, src Receiver) (int64, error) {
+	var n int64
 	for {
 		payload, attachment, err := src.Receive()
 		if err == io.EOF {
