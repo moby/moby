@@ -8,7 +8,7 @@ import (
 
 func reset() {
 	allocatedIPs = networkSet{}
-	availableIPS = networkSet{}
+	availableIPs = networkPool{}
 }
 
 func TestRequestNewIps(t *testing.T) {
@@ -59,9 +59,49 @@ func TestGetReleasedIp(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	value := intToIP(ipToInt(ip) + 1).String()
+
+	if err := ReleaseIP(network, ip); err != nil {
+		t.Fatal(err)
+	}
+
+	ip, err = RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ip.String() != value {
+		t.Fatalf("Expected to receive the next ip %s got %s", value, ip.String())
+	}
+}
+
+func TestGetReleasedIps(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 0, 1},
+		Mask: []byte{255, 255, 255, 0},
+	}
+
+	ip, err := RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	value := ip.String()
 	if err := ReleaseIP(network, ip); err != nil {
 		t.Fatal(err)
+	}
+
+	for i := 0; i < 252; i++ {
+		_, err = RequestIP(network, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = ReleaseIP(network, ip)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	ip, err = RequestIP(network, nil)
@@ -174,8 +214,7 @@ func TestIPAllocator(t *testing.T) {
 	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
 	//                       ↑
 
-	// Make sure that IPs are reused in sequential order, starting
-	// with the first released IP
+	// Make sure that IPs are reused in the order they were released
 	newIPs := make([]*net.IP, 3)
 	for i := 0; i < 3; i++ {
 		ip, err := RequestIP(network, nil)
@@ -185,26 +224,10 @@ func TestIPAllocator(t *testing.T) {
 
 		newIPs[i] = ip
 	}
-	// Before loop begin
-	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
-	//                       ↑
 
-	// After i = 0
-	// 2(u) - 3(u) - 4(f) - 5(u) - 6(f)
-	//                              ↑
-
-	// After i = 1
-	// 2(u) - 3(u) - 4(f) - 5(u) - 6(u)
-	//                ↑
-
-	// After i = 2
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u)
-	//                       ↑
-
-	// Reordered these because the new set will always return the
-	// lowest ips first and not in the order that they were released
-	assertIPEquals(t, &expectedIPs[2], newIPs[0])
-	assertIPEquals(t, &expectedIPs[3], newIPs[1])
+	// the assertions are in the same order as calls to ReleaseIP
+	assertIPEquals(t, &expectedIPs[3], newIPs[0])
+	assertIPEquals(t, &expectedIPs[2], newIPs[1])
 	assertIPEquals(t, &expectedIPs[4], newIPs[2])
 
 	_, err = RequestIP(network, nil)
