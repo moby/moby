@@ -3,15 +3,16 @@ package archive
 import (
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type ChangeType int
@@ -293,13 +294,23 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 
 // Compare two directories and generate an array of Change objects describing the changes
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
-	oldRoot, err := collectFileInfo(oldDir)
-	if err != nil {
-		return nil, err
-	}
-	newRoot, err := collectFileInfo(newDir)
-	if err != nil {
-		return nil, err
+	var (
+		oldRoot, newRoot *FileInfo
+		err1, err2       error
+		errs             = make(chan error, 2)
+	)
+	go func() {
+		oldRoot, err1 = collectFileInfo(oldDir)
+		errs <- err1
+	}()
+	go func() {
+		newRoot, err2 = collectFileInfo(newDir)
+		errs <- err2
+	}()
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			return nil, err
+		}
 	}
 
 	return newRoot.Changes(oldRoot), nil
