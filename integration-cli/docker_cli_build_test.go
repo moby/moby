@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -117,6 +119,92 @@ func TestAddWholeDirToRoot(t *testing.T) {
 	deleteImages("testaddimg")
 
 	logDone("build - add whole directory to root")
+}
+
+// Issue #5270 - ensure we throw a better error than "unexpected EOF"
+// when we can't access files in the context.
+func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildWithInaccessibleFilesInContext")
+	addUserCmd := exec.Command("adduser", "unprivilegeduser")
+	out, _, err := runCommandWithOutput(addUserCmd)
+	errorOut(err, t, fmt.Sprintf("failed to add user: %v %v", out, err))
+
+	{
+		// This is used to ensure we detect inaccessible files early during build in the cli client
+		pathToInaccessibleFileBuildDirectory := filepath.Join(buildDirectory, "inaccessiblefile")
+		pathToFileWithoutReadAccess := filepath.Join(pathToInaccessibleFileBuildDirectory, "fileWithoutReadAccess")
+
+		err = os.Chown(pathToFileWithoutReadAccess, 0, 0)
+		errorOut(err, t, fmt.Sprintf("failed to chown file to root: %s", err))
+		err = os.Chmod(pathToFileWithoutReadAccess, 0700)
+		errorOut(err, t, fmt.Sprintf("failed to chmod file to 700: %s", err))
+
+		buildCommandStatement := fmt.Sprintf("%s build -t inaccessiblefiles .", dockerBinary)
+		buildCmd := exec.Command("su", "unprivilegeduser", "-c", buildCommandStatement)
+		buildCmd.Dir = pathToInaccessibleFileBuildDirectory
+		out, exitCode, err := runCommandWithOutput(buildCmd)
+		if err == nil || exitCode == 0 {
+			t.Fatalf("build should have failed: %s %s", err, out)
+		}
+
+		// check if we've detected the failure before we started building
+		if !strings.Contains(out, "no permission to read from ") {
+			t.Fatalf("output should've contained the string: no permission to read from ")
+		}
+
+		if !strings.Contains(out, "Error checking context is accessible") {
+			t.Fatalf("output should've contained the string: Error checking context is accessible")
+		}
+	}
+	{
+		// This is used to ensure we detect inaccessible directories early during build in the cli client
+		pathToInaccessibleDirectoryBuildDirectory := filepath.Join(buildDirectory, "inaccessibledirectory")
+		pathToDirectoryWithoutReadAccess := filepath.Join(pathToInaccessibleDirectoryBuildDirectory, "directoryWeCantStat")
+		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
+
+		err = os.Chown(pathToDirectoryWithoutReadAccess, 0, 0)
+		errorOut(err, t, fmt.Sprintf("failed to chown directory to root: %s", err))
+		err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444)
+		errorOut(err, t, fmt.Sprintf("failed to chmod directory to 755: %s", err))
+		err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700)
+		errorOut(err, t, fmt.Sprintf("failed to chmod file to 444: %s", err))
+
+		buildCommandStatement := fmt.Sprintf("%s build -t inaccessiblefiles .", dockerBinary)
+		buildCmd := exec.Command("su", "unprivilegeduser", "-c", buildCommandStatement)
+		buildCmd.Dir = pathToInaccessibleDirectoryBuildDirectory
+		out, exitCode, err := runCommandWithOutput(buildCmd)
+		if err == nil || exitCode == 0 {
+			t.Fatalf("build should have failed: %s %s", err, out)
+		}
+
+		// check if we've detected the failure before we started building
+		if !strings.Contains(out, "can't stat") {
+			t.Fatalf("output should've contained the string: can't access %s", out)
+		}
+
+		if !strings.Contains(out, "Error checking context is accessible") {
+			t.Fatalf("output should've contained the string: Error checking context is accessible")
+		}
+
+	}
+	{
+		// This is used to ensure we don't follow links when checking if everything in the context is accessible
+		// This test doesn't require that we run commands as an unprivileged user
+		pathToDirectoryWhichContainsLinks := filepath.Join(buildDirectory, "linksdirectory")
+
+		buildCmd := exec.Command(dockerBinary, "build", "-t", "testlinksok", ".")
+		buildCmd.Dir = pathToDirectoryWhichContainsLinks
+		out, exitCode, err := runCommandWithOutput(buildCmd)
+		if err != nil || exitCode != 0 {
+			t.Fatalf("build should have worked: %s %s", err, out)
+		}
+
+		deleteImages("testlinksok")
+
+	}
+	deleteImages("inaccessiblefiles")
+	logDone("build - ADD from context with inaccessible files must fail")
+	logDone("build - ADD from context with accessible links must work")
 }
 
 // TODO: TestCaching
