@@ -20,6 +20,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -404,7 +405,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 	)
 
 	if destPath != container.RootfsPath() {
-		destPath, err = utils.FollowSymlinkInScope(destPath, container.RootfsPath())
+		destPath, err = symlink.FollowSymlinkInScope(destPath, container.RootfsPath())
 		if err != nil {
 			return err
 		}

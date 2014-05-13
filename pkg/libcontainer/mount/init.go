@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
+	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/pkg/system"
 )
 
@@ -127,6 +128,12 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 		if err != nil {
 			return err
 		}
+
+		dest, err = symlink.FollowSymlinkInScope(dest, rootfs)
+		if err != nil {
+			return err
+		}
+
 		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
 			return fmt.Errorf("Creating new bind-mount target, %s", err)
 		}
