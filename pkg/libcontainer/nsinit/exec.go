@@ -5,6 +5,7 @@ package nsinit
 import (
 	"os"
 	"os/exec"
+	"os/signal"
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/cgroups"
@@ -22,6 +23,9 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		master  *os.File
 		console string
 		err     error
+
+		sigc  = make(chan os.Signal, 10)
+		waitc = make(chan error, 1)
 	)
 
 	// create a pipe so that we can syncronize with the namespaced process and
@@ -44,6 +48,10 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		return -1, err
 	}
 	defer term.Close()
+
+	// capture signals before we start the command; they'll be processed after
+	// the process is configured.
+	signal.Notify(sigc)
 
 	if err := command.Start(); err != nil {
 		return -1, err
@@ -82,12 +90,25 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		startCallback()
 	}
 
-	if err := command.Wait(); err != nil {
-		if _, ok := err.(*exec.ExitError); !ok {
+	go func() { waitc <- command.Wait() }()
+
+	for {
+		select {
+		case sig := <-sigc:
+			command.Process.Signal(sig)
+
+		case err := <-waitc:
+			if err == nil {
+				return 0, nil
+			}
+
+			if _, ok := err.(*exec.ExitError); ok {
+				return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+			}
+
 			return -1, err
 		}
 	}
-	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
 // DefaultCreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces
@@ -123,6 +144,7 @@ func DefaultCreateCommand(container *libcontainer.Container, console, rootfs, da
 	command.Env = append(os.Environ(), env...)
 
 	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
+	command.SysProcAttr.Pdeathsig = syscall.SIGKILL
 	command.ExtraFiles = []*os.File{pipe}
 
 	return command
