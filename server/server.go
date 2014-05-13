@@ -2029,37 +2029,6 @@ func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*imag
 	return match, nil
 }
 
-func (srv *Server) RegisterLinks(container *daemon.Container, hostConfig *runconfig.HostConfig) error {
-	daemon := srv.daemon
-
-	if hostConfig != nil && hostConfig.Links != nil {
-		for _, l := range hostConfig.Links {
-			parts, err := utils.PartParser("name:alias", l)
-			if err != nil {
-				return err
-			}
-			child, err := srv.daemon.GetByName(parts["name"])
-			if err != nil {
-				return err
-			}
-			if child == nil {
-				return fmt.Errorf("Could not get container for %s", parts["name"])
-			}
-			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
-				return err
-			}
-		}
-
-		// After we load all the links into the daemon
-		// set them to nil on the hostconfig
-		hostConfig.Links = nil
-		if err := container.WriteHostConfig(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s container_id", job.Name)
@@ -2100,7 +2069,7 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 			}
 		}
 		// Register any links from the host config before starting the container
-		if err := srv.RegisterLinks(container, hostConfig); err != nil {
+		if err := srv.daemon.RegisterLinks(container, hostConfig); err != nil {
 			return job.Error(err)
 		}
 		container.SetHostConfig(hostConfig)
