@@ -3,13 +3,15 @@ package ipallocator
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/dotcloud/docker/daemon/networkdriver"
-	"github.com/dotcloud/docker/pkg/collections"
 	"net"
 	"sync"
+
+	"github.com/dotcloud/docker/daemon/networkdriver"
+	"github.com/dotcloud/docker/pkg/collections"
 )
 
 type networkSet map[string]*collections.OrderedIntSet
+type networkPool map[string]*collections.UnorderedIntSet
 
 var (
 	ErrNoAvailableIPs     = errors.New("no available ip addresses on network")
@@ -19,7 +21,7 @@ var (
 var (
 	lock         = sync.Mutex{}
 	allocatedIPs = networkSet{}
-	availableIPS = networkSet{}
+	availableIPs = networkPool{}
 )
 
 // RequestIP requests an available ip from the given network.  It
@@ -56,7 +58,7 @@ func ReleaseIP(address *net.IPNet, ip *net.IP) error {
 
 	var (
 		existing  = allocatedIPs[address.String()]
-		available = availableIPS[address.String()]
+		available = availableIPs[address.String()]
 		pos       = getPosition(address, ip)
 	)
 
@@ -81,13 +83,10 @@ func getPosition(address *net.IPNet, ip *net.IP) int32 {
 // return the next available ip for the nextwork
 func getNextIp(address *net.IPNet) (*net.IP, error) {
 	var (
-		ownIP     = ipToInt(&address.IP)
-		available = availableIPS[address.String()]
+		available = availableIPs[address.String()]
 		allocated = allocatedIPs[address.String()]
 		first, _  = networkdriver.NetworkRange(address)
 		base      = ipToInt(&first)
-		size      = int(networkdriver.NetworkSize(address.Mask))
-		max       = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
 		pos       = int32(available.Pop())
 	)
 
@@ -99,33 +98,13 @@ func getNextIp(address *net.IPNet) (*net.IP, error) {
 		return ip, nil
 	}
 
-	var (
-		firstNetIP = address.IP.To4().Mask(address.Mask)
-		firstAsInt = ipToInt(&firstNetIP) + 1
-	)
-
-	pos = int32(allocated.PullBack())
-	for i := int32(0); i < max; i++ {
-		pos = pos%max + 1
-		next := int32(base + pos)
-
-		if next == ownIP || next == firstAsInt {
-			continue
-		}
-
-		if !allocated.Exists(int(pos)) {
-			ip := intToIP(next)
-			allocated.Push(int(pos))
-			return ip, nil
-		}
-	}
 	return nil, ErrNoAvailableIPs
 }
 
 func registerIP(address *net.IPNet, ip *net.IP) error {
 	var (
 		existing  = allocatedIPs[address.String()]
-		available = availableIPS[address.String()]
+		available = availableIPs[address.String()]
 		pos       = getPosition(address, ip)
 	)
 
@@ -154,6 +133,30 @@ func checkAddress(address *net.IPNet) {
 	key := address.String()
 	if _, exists := allocatedIPs[key]; !exists {
 		allocatedIPs[key] = collections.NewOrderedIntSet()
-		availableIPS[key] = collections.NewOrderedIntSet()
+		availableIPs[key] = collections.NewUnorderedIntSet()
+
+		// initialize the available pool with all possible IPs
+		var (
+			ownIP    = ipToInt(&address.IP)
+			first, _ = networkdriver.NetworkRange(address)
+			base     = ipToInt(&first)
+			size     = int(networkdriver.NetworkSize(address.Mask))
+			max      = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
+
+			firstNetIP = address.IP.To4().Mask(address.Mask)
+			firstAsInt = ipToInt(&firstNetIP) + 1
+			pos        = int32(0)
+		)
+
+		for i := int32(0); i < max; i++ {
+			pos = pos%max + 1
+			next := int32(base + pos)
+
+			if next == ownIP || next == firstAsInt {
+				continue
+			}
+
+			availableIPs[key].Push(int(pos))
+		}
 	}
 }
