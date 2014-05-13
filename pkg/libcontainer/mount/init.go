@@ -12,6 +12,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
 )
 
 // default mount point flags
@@ -127,6 +128,12 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 		if err != nil {
 			return err
 		}
+
+		dest, err = utils.FollowSymlinkInScope(dest, rootfs)
+		if err != nil {
+			return err
+		}
+
 		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
 			return fmt.Errorf("Creating new bind-mount target, %s", err)
 		}
