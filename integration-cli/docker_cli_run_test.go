@@ -768,3 +768,14 @@ func TestProcWritableInPrivilegedContainers(t *testing.T) {
 
 	logDone("run - proc writable in privileged container")
 }
+
+func TestRunWithCpuset(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cpuset", "0", "busybox", "true")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("container should run successfuly with cpuset of 0: %s", err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - cpuset 0")
+}

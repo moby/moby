@@ -215,6 +215,7 @@ func populateCommand(c *Container, env []string) error {
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
 		CpuShares:  c.Config.CpuShares,
+		Cpuset:     c.Config.Cpuset,
 	}
 	c.command = &execdriver.Command{
 		ID:         c.ID,

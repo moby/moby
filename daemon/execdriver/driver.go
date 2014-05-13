@@ -103,9 +103,10 @@ type NetworkInterface struct {
 }
 
 type Resources struct {
-	Memory     int64 `json:"memory"`
-	MemorySwap int64 `json:"memory_swap"`
-	CpuShares  int64 `json:"cpu_shares"`
+	Memory     int64  `json:"memory"`
+	MemorySwap int64  `json:"memory_swap"`
+	CpuShares  int64  `json:"cpu_shares"`
+	Cpuset     string `json:"cpuset"`
 }
 
 type Mount struct {

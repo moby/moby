@@ -127,6 +127,9 @@ lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{if .Resources.CpuShares}}
 lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 {{end}}
+{{if .Resources.Cpuset}}
+lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
+{{end}}
 {{end}}
 
 {{if .Config.lxc}}
