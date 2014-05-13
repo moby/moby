@@ -25,8 +25,8 @@ project provides [Docker.io](http://index.docker.io) to host public and
 user. We provide user authentication and search over all the public
 repositories.
 
-Docker acts as a client for these services via the `docker search, pull,
-login` and `push` commands.
+Docker acts as a client for these services via the `docker search`, `pull`,
+`login` and `push` commands.
 
 ## Repositories
 
@@ -176,7 +176,7 @@ If you want to see the status of your Trusted Builds you can go to your
 index, and it will show you the status of your builds, and the build
 history.
 
-Once you`ve created a Trusted Build you can deactivate or delete it. You
+Once you've created a Trusted Build you can deactivate or delete it. You
 cannot however push to a Trusted Build with the `docker push` command.
 You can only manage it by committing code to your GitHub repository.
 
