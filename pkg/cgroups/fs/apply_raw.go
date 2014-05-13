@@ -103,12 +103,20 @@ func GetStats(c *cgroups.Cgroup, subsystem string, pid int) (map[string]float64,
 	return sys.Stats(d)
 }
 
-func (raw *data) path(subsystem string) (string, error) {
+func (raw *data) parent(subsystem string) (string, error) {
 	initPath, err := cgroups.GetInitCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(raw.root, subsystem, initPath, raw.cgroup), nil
+	return filepath.Join(raw.root, subsystem, initPath), nil
+}
+
+func (raw *data) path(subsystem string) (string, error) {
+	parent, err := raw.parent(subsystem)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, raw.cgroup), nil
 }
 
 func (raw *data) join(subsystem string) (string, error) {
