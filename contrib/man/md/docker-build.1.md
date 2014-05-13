@@ -5,7 +5,7 @@
 docker-build - Build a container image from a Dockerfile source at PATH
 
 # SYNOPSIS
-**docker build** [**--no-cache**[=*false*]] [**-q**|**--quiet**[=*false*]]
+**docker build** [**--cache**[=*true*]] [**-q**|**--quiet**[=*false*]]
  [**--rm**] [**-t**|**--tag**=TAG] PATH | URL | -
 
 # DESCRIPTION
@@ -37,9 +37,9 @@ build process. The default is true.
    Tag to be applied to the resulting image on successful completion of
 the build.
 
-**--no-cache**=*true*|*false*
-   When set to true, do not use a cache when building the image. The
-default is *false*.
+**--cache**=*true*|*false*
+   When set to true, use a cache when building the image. The default 
+is *false*.
 
 # EXAMPLES
 

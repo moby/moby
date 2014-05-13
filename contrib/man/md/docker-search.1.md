@@ -5,7 +5,7 @@
 docker-search - Search the docker index for images
 
 # SYNOPSIS
-**docker search** **--no-trunc**[=*false*] **-t**|**--trusted**[=*false*]
+**docker search** **--trunc**[=*true*] **-t**|**--trusted**[=*false*]
  **-s**|**--stars**[=*0*] TERM
 
 # DESCRIPTION
@@ -16,8 +16,8 @@ number of stars awarded, whether the image is official, and whether it
 is trusted.
 
 # OPTIONS
-**--no-trunc**=*true*|*false*
-   When true display the complete description. The default is false.
+**--trunc**=*true*|*false*
+   When true display the complete description. The default is true.
 
 **-s**, **--stars**=NUM
    Only displays with at least NUM (integer) stars. I.e. only those images
