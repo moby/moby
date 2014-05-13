@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # DinD: a wrapper script which allows docker to be run inside a docker container.
 # Original version by Jerome Petazzoni <jerome@dotcloud.com>
@@ -9,32 +10,34 @@
 
 # Usage: dind CMD [ARG...]
 
+# apparmor sucks and Docker needs to know that it's in a container (c) @tianon
+export container=docker
+
 # First, make sure that cgroups are mounted correctly.
 CGROUP=/sys/fs/cgroup
 
-[ -d $CGROUP ] || 
-	mkdir $CGROUP
+mkdir -p "$CGROUP"
 
-mountpoint -q $CGROUP || 
+if ! mountpoint -q "$CGROUP"; then
 	mount -n -t tmpfs -o uid=0,gid=0,mode=0755 cgroup $CGROUP || {
-		echo "Could not make a tmpfs mount. Did you use --privileged?"
+		echo >&2 'Could not make a tmpfs mount. Did you use --privileged?'
 		exit 1
 	}
+fi
 
-if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security
-then
-    mount -t securityfs none /sys/kernel/security || {
-	echo "Could not mount /sys/kernel/security."
-	echo "AppArmor detection and -privileged mode might break."
-    }
+if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
+	mount -t securityfs none /sys/kernel/security || {
+		echo >&2 'Could not mount /sys/kernel/security.'
+		echo >&2 'AppArmor detection and -privileged mode might break.'
+	}
 fi
 
 # Mount the cgroup hierarchies exactly as they are in the parent system.
-for SUBSYS in $(cut -d: -f2 /proc/1/cgroup)
-do
-	[ -d $CGROUP/$SUBSYS ] || mkdir $CGROUP/$SUBSYS
-	mountpoint -q $CGROUP/$SUBSYS || 
-		mount -n -t cgroup -o $SUBSYS cgroup $CGROUP/$SUBSYS
+for SUBSYS in $(cut -d: -f2 /proc/1/cgroup); do
+	mkdir -p "$CGROUP/$SUBSYS"
+	if ! mountpoint -q $CGROUP/$SUBSYS; then
+		mount -n -t cgroup -o "$SUBSYS" cgroup "$CGROUP/$SUBSYS"
+	fi
 
 	# The two following sections address a bug which manifests itself
 	# by a cryptic "lxc-start: no ns_cgroup option specified" when
@@ -49,45 +52,37 @@ do
 	# Systemd and OpenRC (and possibly others) both create such a
 	# cgroup. To avoid the aforementioned bug, we symlink "foo" to
 	# "name=foo". This shouldn't have any adverse effect.
-	echo $SUBSYS | grep -q ^name= && {
-		NAME=$(echo $SUBSYS | sed s/^name=//)
-		ln -s $SUBSYS $CGROUP/$NAME
-	}
+	name="${SUBSYS#name=}"
+	if [ "$name" != "$SUBSYS" ]; then
+		ln -s "$SUBSYS" "$CGROUP/$name"
+	fi
 
 	# Likewise, on at least one system, it has been reported that
 	# systemd would mount the CPU and CPU accounting controllers
 	# (respectively "cpu" and "cpuacct") with "-o cpuacct,cpu"
 	# but on a directory called "cpu,cpuacct" (note the inversion
 	# in the order of the groups). This tries to work around it.
-	[ $SUBSYS = cpuacct,cpu ] && ln -s $SUBSYS $CGROUP/cpu,cpuacct
+	if [ "$SUBSYS" = 'cpuacct,cpu' ]; then
+		ln -s "$SUBSYS" "$CGROUP/cpu,cpuacct"
+	fi
 done
 
 # Note: as I write those lines, the LXC userland tools cannot setup
 # a "sub-container" properly if the "devices" cgroup is not in its
 # own hierarchy. Let's detect this and issue a warning.
-grep -q :devices: /proc/1/cgroup ||
-	echo "WARNING: the 'devices' cgroup should be in its own hierarchy."
-grep -qw devices /proc/1/cgroup ||
-	echo "WARNING: it looks like the 'devices' cgroup is not mounted."
-
-# Now, close extraneous file descriptors.
-pushd /proc/self/fd >/dev/null
-for FD in *
-do
-	case "$FD" in
-	# Keep stdin/stdout/stderr
-	[012])
-		;;
-	# Nuke everything else
-	*)
-		eval exec "$FD>&-"
-		;;
-	esac
-done
-popd >/dev/null
+if ! grep -q :devices: /proc/1/cgroup; then
+	echo >&2 'WARNING: the "devices" cgroup should be in its own hierarchy.'
+fi
+if ! grep -qw devices /proc/1/cgroup; then
+	echo >&2 'WARNING: it looks like the "devices" cgroup is not mounted.'
+fi
 
 # Mount /tmp
 mount -t tmpfs none /tmp
 
-[ "$1" ] && exec "$@"
-echo "You probably want to run hack/make.sh, or maybe a shell?"
+if [ $# -gt 0 ]; then
+	exec "$@"
+fi
+
+echo >&2 'ERROR: No command specified.'
+echo >&2 'You probably want to run hack/make.sh, or maybe a shell?'

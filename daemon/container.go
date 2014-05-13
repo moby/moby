@@ -4,15 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/links"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,6 +13,19 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/links"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
+	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -64,7 +68,8 @@ type Container struct {
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 
-	daemon *Daemon
+	daemon                   *Daemon
+	MountLabel, ProcessLabel string
 
 	waitLock chan struct{}
 	Volumes  map[string]string
@@ -122,6 +127,10 @@ func (container *Container) FromDisk() error {
 	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
+
+	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
+		return err
+	}
 	return container.readHostConfig()
 }
 
@@ -161,186 +170,46 @@ func (container *Container) WriteHostConfig() (err error) {
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
-func (container *Container) generateEnvConfig(env []string) error {
-	data, err := json.Marshal(env)
-	if err != nil {
-		return err
-	}
-	p, err := container.EnvConfigPath()
-	if err != nil {
-		return err
-	}
-	ioutil.WriteFile(p, data, 0600)
-	return nil
-}
-
-func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
-	var cStdout, cStderr io.ReadCloser
-
-	var nJobs int
-	errors := make(chan error, 3)
-	if stdin != nil && container.Config.OpenStdin {
-		nJobs += 1
-		if cStdin, err := container.StdinPipe(); err != nil {
-			errors <- err
-		} else {
-			go func() {
-				utils.Debugf("attach: stdin: begin")
-				defer utils.Debugf("attach: stdin: end")
-				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-				if container.Config.StdinOnce && !container.Config.Tty {
-					defer cStdin.Close()
-				} else {
-					defer func() {
-						if cStdout != nil {
-							cStdout.Close()
-						}
-						if cStderr != nil {
-							cStderr.Close()
-						}
-					}()
-				}
-				if container.Config.Tty {
-					_, err = utils.CopyEscapable(cStdin, stdin)
-				} else {
-					_, err = io.Copy(cStdin, stdin)
-				}
-				if err == io.ErrClosedPipe {
-					err = nil
-				}
-				if err != nil {
-					utils.Errorf("attach: stdin: %s", err)
-				}
-				errors <- err
-			}()
-		}
-	}
-	if stdout != nil {
-		nJobs += 1
-		if p, err := container.StdoutPipe(); err != nil {
-			errors <- err
-		} else {
-			cStdout = p
-			go func() {
-				utils.Debugf("attach: stdout: begin")
-				defer utils.Debugf("attach: stdout: end")
-				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce && stdin != nil {
-					defer stdin.Close()
-				}
-				if stdinCloser != nil {
-					defer stdinCloser.Close()
-				}
-				_, err := io.Copy(stdout, cStdout)
-				if err == io.ErrClosedPipe {
-					err = nil
-				}
-				if err != nil {
-					utils.Errorf("attach: stdout: %s", err)
-				}
-				errors <- err
-			}()
-		}
-	} else {
-		go func() {
-			if stdinCloser != nil {
-				defer stdinCloser.Close()
-			}
-			if cStdout, err := container.StdoutPipe(); err != nil {
-				utils.Errorf("attach: stdout pipe: %s", err)
-			} else {
-				io.Copy(&utils.NopWriter{}, cStdout)
-			}
-		}()
-	}
-	if stderr != nil {
-		nJobs += 1
-		if p, err := container.StderrPipe(); err != nil {
-			errors <- err
-		} else {
-			cStderr = p
-			go func() {
-				utils.Debugf("attach: stderr: begin")
-				defer utils.Debugf("attach: stderr: end")
-				// If we are in StdinOnce mode, then close stdin
-				if container.Config.StdinOnce && stdin != nil {
-					defer stdin.Close()
-				}
-				if stdinCloser != nil {
-					defer stdinCloser.Close()
-				}
-				_, err := io.Copy(stderr, cStderr)
-				if err == io.ErrClosedPipe {
-					err = nil
-				}
-				if err != nil {
-					utils.Errorf("attach: stderr: %s", err)
-				}
-				errors <- err
-			}()
-		}
-	} else {
-		go func() {
-			if stdinCloser != nil {
-				defer stdinCloser.Close()
-			}
-
-			if cStderr, err := container.StderrPipe(); err != nil {
-				utils.Errorf("attach: stdout pipe: %s", err)
-			} else {
-				io.Copy(&utils.NopWriter{}, cStderr)
-			}
-		}()
-	}
-
-	return utils.Go(func() error {
-		defer func() {
-			if cStdout != nil {
-				cStdout.Close()
-			}
-			if cStderr != nil {
-				cStderr.Close()
-			}
-		}()
-
-		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
-		// of closing the passed stdin? Add an intermediary io.Pipe?
-		for i := 0; i < nJobs; i += 1 {
-			utils.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
-			if err := <-errors; err != nil {
-				utils.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
-				return err
-			}
-			utils.Debugf("attach: job %d completed successfully", i+1)
-		}
-		utils.Debugf("attach: all jobs completed successfully")
-		return nil
-	})
-}
-
-func populateCommand(c *Container, env []string) {
+func populateCommand(c *Container, env []string) error {
 	var (
-		en           *execdriver.Network
-		driverConfig = make(map[string][]string)
+		en      *execdriver.Network
+		context = make(map[string][]string)
 	)
+	context["process_label"] = []string{c.GetProcessLabel()}
+	context["mount_label"] = []string{c.GetMountLabel()}
 
 	en = &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
 		Interface: nil,
 	}
 
-	if !c.Config.NetworkDisabled {
-		network := c.NetworkSettings
-		en.Interface = &execdriver.NetworkInterface{
-			Gateway:     network.Gateway,
-			Bridge:      network.Bridge,
-			IPAddress:   network.IPAddress,
-			IPPrefixLen: network.IPPrefixLen,
+	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
+	switch parts[0] {
+	case "none":
+	case "host":
+		en.HostNetworking = true
+	case "bridge", "": // empty string to support existing containers
+		if !c.Config.NetworkDisabled {
+			network := c.NetworkSettings
+			en.Interface = &execdriver.NetworkInterface{
+				Gateway:     network.Gateway,
+				Bridge:      network.Bridge,
+				IPAddress:   network.IPAddress,
+				IPPrefixLen: network.IPPrefixLen,
+			}
 		}
+	case "container":
+		nc, err := c.getNetworkedContainer()
+		if err != nil {
+			return err
+		}
+		en.ContainerID = nc.ID
+	default:
+		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
-	mergeLxcConfIntoOptions(c.hostConfig, driverConfig)
+	mergeLxcConfIntoOptions(c.hostConfig, context)
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
@@ -358,11 +227,12 @@ func populateCommand(c *Container, env []string) {
 		Network:    en,
 		Tty:        c.Config.Tty,
 		User:       c.Config.User,
-		Config:     driverConfig,
+		Config:     context,
 		Resources:  resources,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env
+	return nil
 }
 
 func (container *Container) Start() (err error) {
@@ -397,16 +267,13 @@ func (container *Container) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	env := container.createDaemonEnvironment(linkedEnv)
-	// TODO: This is only needed for lxc so we should look for a way to
-	// remove this dep
-	if err := container.generateEnvConfig(env); err != nil {
-		return err
-	}
 	if err := container.setupWorkingDirectory(); err != nil {
 		return err
 	}
-	populateCommand(container, env)
+	env := container.createDaemonEnvironment(linkedEnv)
+	if err := populateCommand(container, env); err != nil {
+		return err
+	}
 	if err := setupMountsForContainer(container); err != nil {
 		return err
 	}
@@ -464,32 +331,51 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) {
-	container.HostnamePath = path.Join(container.root, "hostname")
-	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+func (container *Container) StdoutLogPipe() io.ReadCloser {
+	reader, writer := io.Pipe()
+	container.stdout.AddWriter(writer, "stdout")
+	return utils.NewBufReader(reader)
+}
 
-	hostsContent := []byte(`
-127.0.0.1	localhost
-::1		localhost ip6-localhost ip6-loopback
-fe00::0		ip6-localnet
-ff00::0		ip6-mcastprefix
-ff02::1		ip6-allnodes
-ff02::2		ip6-allrouters
-`)
+func (container *Container) StderrLogPipe() io.ReadCloser {
+	reader, writer := io.Pipe()
+	container.stderr.AddWriter(writer, "stderr")
+	return utils.NewBufReader(reader)
+}
+
+func (container *Container) buildHostnameFile() error {
+	container.HostnamePath = path.Join(container.root, "hostname")
+	if container.Config.Domainname != "" {
+		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
+	}
+	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) error {
+	if err := container.buildHostnameFile(); err != nil {
+		return err
+	}
 
 	container.HostsPath = path.Join(container.root, "hosts")
 
-	if container.Config.Domainname != "" {
-		hostsContent = append([]byte(fmt.Sprintf("%s\t%s.%s %s\n", IP, container.Config.Hostname, container.Config.Domainname, container.Config.Hostname)), hostsContent...)
-	} else if !container.Config.NetworkDisabled {
-		hostsContent = append([]byte(fmt.Sprintf("%s\t%s\n", IP, container.Config.Hostname)), hostsContent...)
+	extraContent := make(map[string]string)
+
+	children, err := container.daemon.Children(container.Name)
+	if err != nil {
+		return err
 	}
 
-	ioutil.WriteFile(container.HostsPath, hostsContent, 0644)
+	for linkAlias, child := range children {
+		_, alias := path.Split(linkAlias)
+		extraContent[alias] = child.NetworkSettings.IPAddress
+	}
+
+	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
 }
 
 func (container *Container) allocateNetwork() error {
-	if container.Config.NetworkDisabled {
+	mode := container.hostConfig.NetworkMode
+	if container.Config.NetworkDisabled || mode.IsContainer() || mode.IsHost() {
 		return nil
 	}
 
@@ -654,9 +540,12 @@ func (container *Container) Kill() error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := container.WaitTimeout(10 * time.Second); err != nil {
-		log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
-		if err := syscall.Kill(container.State.Pid, 9); err != nil {
-			return err
+		// Ensure that we don't kill ourselves
+		if pid := container.State.Pid; pid != 0 {
+			log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
+			if err := syscall.Kill(pid, 9); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -800,22 +689,6 @@ func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
 }
 
-func (container *Container) EnvConfigPath() (string, error) {
-	p := path.Join(container.root, "config.env")
-	if _, err := os.Stat(p); err != nil {
-		if os.IsNotExist(err) {
-			f, err := os.Create(p)
-			if err != nil {
-				return "", err
-			}
-			f.Close()
-		} else {
-			return "", err
-		}
-	}
-	return p, nil
-}
-
 // This method must be exported to be used from the lxc template
 // This directory is only usable when the container is running
 func (container *Container) RootfsPath() string {
@@ -939,19 +812,27 @@ func (container *Container) setupContainerDns() error {
 	if container.ResolvConfPath != "" {
 		return nil
 	}
+
 	var (
 		config = container.hostConfig
 		daemon = container.daemon
 	)
-	resolvConf, err := utils.GetResolvConf()
+
+	if config.NetworkMode == "host" {
+		container.ResolvConfPath = "/etc/resolv.conf"
+		return nil
+	}
+
+	resolvConf, err := resolvconf.Get()
 	if err != nil {
 		return err
 	}
+
 	// If custom dns exists, then create a resolv.conf for the container
 	if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
 		var (
-			dns       = utils.GetNameservers(resolvConf)
-			dnsSearch = utils.GetSearchDomains(resolvConf)
+			dns       = resolvconf.GetNameservers(resolvConf)
+			dnsSearch = resolvconf.GetSearchDomains(resolvConf)
 		)
 		if len(config.Dns) > 0 {
 			dns = config.Dns
@@ -964,21 +845,7 @@ func (container *Container) setupContainerDns() error {
 			dnsSearch = daemon.config.DnsSearch
 		}
 		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
-		f, err := os.Create(container.ResolvConfPath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		for _, dns := range dns {
-			if _, err := f.Write([]byte("nameserver " + dns + "\n")); err != nil {
-				return err
-			}
-		}
-		if len(dnsSearch) > 0 {
-			if _, err := f.Write([]byte("search " + strings.Join(dnsSearch, " ") + "\n")); err != nil {
-				return err
-			}
-		}
+		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
 	}
@@ -986,14 +853,39 @@ func (container *Container) setupContainerDns() error {
 }
 
 func (container *Container) initializeNetworking() error {
-	if container.daemon.config.DisableNetwork {
+	var err error
+	if container.hostConfig.NetworkMode.IsHost() {
+		container.Config.Hostname, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+
+		parts := strings.SplitN(container.Config.Hostname, ".", 2)
+		if len(parts) > 1 {
+			container.Config.Hostname = parts[0]
+			container.Config.Domainname = parts[1]
+		}
+		container.HostsPath = "/etc/hosts"
+
+		return container.buildHostnameFile()
+	} else if container.hostConfig.NetworkMode.IsContainer() {
+		// we need to get the hosts files from the container to join
+		nc, err := container.getNetworkedContainer()
+		if err != nil {
+			return err
+		}
+		container.HostsPath = nc.HostsPath
+		container.ResolvConfPath = nc.ResolvConfPath
+		container.Config.Hostname = nc.Config.Hostname
+		container.Config.Domainname = nc.Config.Domainname
+	} else if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
-		container.buildHostnameAndHostsFiles("127.0.1.1")
+		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
-		container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+		return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 	}
 	return nil
 }
@@ -1178,4 +1070,37 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 	}
 	bindings[port] = binding
 	return nil
+}
+
+func (container *Container) GetProcessLabel() string {
+	// even if we have a process label return "" if we are running
+	// in privileged mode
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.ProcessLabel
+}
+
+func (container *Container) GetMountLabel() string {
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.MountLabel
+}
+
+func (container *Container) getNetworkedContainer() (*Container, error) {
+	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
+	switch parts[0] {
+	case "container":
+		nc := container.daemon.Get(parts[1])
+		if nc == nil {
+			return nil, fmt.Errorf("no such container to join network: %s", parts[1])
+		}
+		if !nc.State.IsRunning() {
+			return nil, fmt.Errorf("cannot join network of a non running container: %s", parts[1])
+		}
+		return nc, nil
+	default:
+		return nil, fmt.Errorf("network mode not set to container")
+	}
 }

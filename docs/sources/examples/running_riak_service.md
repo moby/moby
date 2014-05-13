@@ -9,20 +9,20 @@ page_keywords: docker, example, package installation, networking, riak
 > - This example assumes you have Docker running in daemon mode. For
 >   more information please see [*Check your Docker
 >   install*](../hello_world/#running-examples).
-> - **If you don’t like sudo** then see [*Giving non-root
->   access*](../../installation/binaries/#dockergroup)
+> - **If you don't like sudo** then see [*Giving non-root
+>   access*](/installation/binaries/#dockergroup)
 
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.
 
-## Creating a `Dockerfile`
+## Creating a Dockerfile
 
-Create an empty file called `Dockerfile`:
+Create an empty file called Dockerfile:
 
-    touch Dockerfile
+    $ touch Dockerfile
 
 Next, define the parent image you want to use to build your image on top
-of. We’ll use [Ubuntu](https://index.docker.io/_/ubuntu/) (tag:
+of. We'll use [Ubuntu](https://index.docker.io/_/ubuntu/) (tag:
 `latest`), which is available on the [docker
 index](http://index.docker.io):
 
@@ -43,13 +43,13 @@ Next, we update the APT cache and apply any updates:
 
 After that, we install and setup a few dependencies:
 
--   `curl` is used to download Basho’s APT
+ - `curl` is used to download Basho's APT
     repository key
--   `lsb-release` helps us derive the Ubuntu release
+ - `lsb-release` helps us derive the Ubuntu release
     codename
--   `openssh-server` allows us to login to
+ - `openssh-server` allows us to login to
     containers remotely and join Riak nodes to form a cluster
--   `supervisor` is used manage the OpenSSH and Riak
+ - `supervisor` is used manage the OpenSSH and Riak
     processes
 
 <!-- -->
@@ -66,7 +66,7 @@ After that, we install and setup a few dependencies:
 
     RUN echo 'root:basho' | chpasswd
 
-Next, we add Basho’s APT repository:
+Next, we add Basho's APT repository:
 
     RUN curl -s http://apt.basho.com/gpg/basho.apt.key | apt-key add --
     RUN echo "deb http://apt.basho.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/basho.list
@@ -98,10 +98,10 @@ are started:
 
     CMD ["/usr/bin/supervisord"]
 
-## Create a `supervisord` configuration file
+## Create a supervisord configuration file
 
 Create an empty file called `supervisord.conf`. Make
-sure it’s at the same directory level as your `Dockerfile`:
+sure it's at the same directory level as your Dockerfile:
 
     touch supervisord.conf
 
@@ -126,12 +126,12 @@ Populate it with the following program definitions:
 
 Now you should be able to build a Docker image for Riak:
 
-    docker build -t "<yourname>/riak" .
+    $ docker build -t "<yourname>/riak" .
 
 ## Next steps
 
 Riak is a distributed database. Many production deployments consist of
-[at least five
-nodes](http://basho.com/why-your-riak-cluster-should-have-at-least-five-nodes/).
+[at least five nodes](
+http://basho.com/why-your-riak-cluster-should-have-at-least-five-nodes/).
 See the [docker-riak](https://github.com/hectcastro/docker-riak) project
 details on how to deploy a Riak cluster using Docker and Pipework.

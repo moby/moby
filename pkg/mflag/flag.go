@@ -83,6 +83,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
@@ -419,11 +420,12 @@ func Set(name, value string) error {
 // PrintDefaults prints, to standard error unless configured
 // otherwise, the default values of all defined flags in the set.
 func (f *FlagSet) PrintDefaults() {
+	writer := tabwriter.NewWriter(f.out(), 20, 1, 3, ' ', 0)
 	f.VisitAll(func(flag *Flag) {
-		format := "  -%s=%s: %s\n"
+		format := "  -%s=%s"
 		if _, ok := flag.Value.(*stringValue); ok {
 			// put quotes on the value
-			format = "  -%s=%q: %s\n"
+			format = "  -%s=%q"
 		}
 		names := []string{}
 		for _, name := range flag.Names {
@@ -432,9 +434,18 @@ func (f *FlagSet) PrintDefaults() {
 			}
 		}
 		if len(names) > 0 {
-			fmt.Fprintf(f.out(), format, strings.Join(names, ", -"), flag.DefValue, flag.Usage)
+			fmt.Fprintf(writer, format, strings.Join(names, ", -"), flag.DefValue)
+			for i, line := range strings.Split(flag.Usage, "\n") {
+				if i != 0 {
+					line = "  " + line
+				}
+				fmt.Fprintln(writer, "\t", line)
+			}
+			//			start := fmt.Sprintf(format, strings.Join(names, ", -"), flag.DefValue)
+			//			fmt.Fprintln(f.out(), start, strings.Replace(flag.Usage, "\n", "\n"+strings.Repeat(" ", len(start)+1), -1))
 		}
 	})
+	writer.Flush()
 }
 
 // PrintDefaults prints to standard error the default values of all defined command-line flags.

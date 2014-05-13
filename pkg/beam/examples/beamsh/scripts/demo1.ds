@@ -1,0 +1,9 @@
+#!/usr/bin/env beamsh
+
+devnull {
+	multiprint {
+			exec tail -f /var/log/system.log &
+			exec ls -l
+			exec ls ksdhfkjdshf jksdfhkjsdhf
+	}
+}

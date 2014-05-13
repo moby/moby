@@ -2,6 +2,7 @@ package libcontainer
 
 import (
 	"errors"
+
 	"github.com/syndtr/gocapability/capability"
 )
 
@@ -11,6 +12,26 @@ var (
 	ErrUnsupported      = errors.New("Unsupported method")
 )
 
+type Mounts []Mount
+
+func (s Mounts) OfType(t string) Mounts {
+	out := Mounts{}
+	for _, m := range s {
+		if m.Type == t {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+type Mount struct {
+	Type        string `json:"type,omitempty"`
+	Source      string `json:"source,omitempty"`      // Source path, in the host namespace
+	Destination string `json:"destination,omitempty"` // Destination path, in the container
+	Writable    bool   `json:"writable,omitempty"`
+	Private     bool   `json:"private,omitempty"`
+}
+
 // namespaceList is used to convert the libcontainer types
 // into the names of the files located in /proc/<pid>/ns/* for
 // each namespace
@@ -18,30 +39,30 @@ var (
 	namespaceList = Namespaces{}
 
 	capabilityList = Capabilities{
-		{Key: "SETPCAP", Value: capability.CAP_SETPCAP, Enabled: false},
-		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE, Enabled: false},
-		{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO, Enabled: false},
-		{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT, Enabled: false},
-		{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN, Enabled: false},
-		{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE, Enabled: false},
-		{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE, Enabled: false},
-		{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME, Enabled: false},
-		{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG, Enabled: false},
-		{Key: "MKNOD", Value: capability.CAP_MKNOD, Enabled: false},
-		{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE, Enabled: false},
-		{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL, Enabled: false},
-		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE, Enabled: false},
-		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN, Enabled: false},
-		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN, Enabled: false},
+		{Key: "SETPCAP", Value: capability.CAP_SETPCAP},
+		{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE},
+		{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO},
+		{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT},
+		{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN},
+		{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE},
+		{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE},
+		{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME},
+		{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG},
+		{Key: "MKNOD", Value: capability.CAP_MKNOD},
+		{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE},
+		{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL},
+		{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE},
+		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN},
+		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN},
+		{Key: "SYSLOG", Value: capability.CAP_SYSLOG},
 	}
 )
 
 type (
 	Namespace struct {
-		Key     string `json:"key,omitempty"`
-		Enabled bool   `json:"enabled,omitempty"`
-		Value   int    `json:"value,omitempty"`
-		File    string `json:"file,omitempty"`
+		Key   string `json:"key,omitempty"`
+		Value int    `json:"value,omitempty"`
+		File  string `json:"file,omitempty"`
 	}
 	Namespaces []*Namespace
 )
@@ -77,9 +98,8 @@ func (n Namespaces) Get(ns string) *Namespace {
 
 type (
 	Capability struct {
-		Key     string         `json:"key,omitempty"`
-		Enabled bool           `json:"enabled"`
-		Value   capability.Cap `json:"value,omitempty"`
+		Key   string         `json:"key,omitempty"`
+		Value capability.Cap `json:"value,omitempty"`
 	}
 	Capabilities []*Capability
 )

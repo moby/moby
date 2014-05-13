@@ -146,15 +146,15 @@ func Setfilecon(path string, scon string) error {
 }
 
 func Setfscreatecon(scon string) error {
-	return writeCon("/proc/self/attr/fscreate", scon)
+	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()), scon)
 }
 
 func Getfscreatecon() (string, error) {
-	return readCon("/proc/self/attr/fscreate")
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()))
 }
 
 func getcon() (string, error) {
-	return readCon("/proc/self/attr/current")
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/current", system.Gettid()))
 }
 
 func Getpidcon(pid int) (string, error) {
@@ -204,6 +204,13 @@ func NewContext(scon string) SELinuxContext {
 	return c
 }
 
+func ReserveLabel(scon string) {
+	if len(scon) != 0 {
+		con := strings.SplitN(scon, ":", 4)
+		mcsAdd(con[3])
+	}
+}
+
 func SelinuxGetEnforce() int {
 	var enforce int
 
@@ -229,8 +236,12 @@ func SelinuxGetEnforceMode() int {
 	return Disabled
 }
 
-func mcsAdd(mcs string) {
+func mcsAdd(mcs string) error {
+	if mcsList[mcs] {
+		return fmt.Errorf("MCS Label already exists")
+	}
 	mcsList[mcs] = true
+	return nil
 }
 
 func mcsDelete(mcs string) {
@@ -283,13 +294,19 @@ func uniqMcs(catRange uint32) string {
 			}
 		}
 		mcs = fmt.Sprintf("s0:c%d,c%d", c1, c2)
-		if mcsExists(mcs) {
+		if err := mcsAdd(mcs); err != nil {
 			continue
 		}
-		mcsAdd(mcs)
 		break
 	}
 	return mcs
+}
+
+func FreeLxcContexts(scon string) {
+	if len(scon) != 0 {
+		con := strings.SplitN(scon, ":", 4)
+		mcsDelete(con[3])
+	}
 }
 
 func GetLxcContexts() (processLabel string, fileLabel string) {
@@ -344,7 +361,8 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 	}
 
 exit:
-	mcs := IntToMcs(os.Getpid(), 1024)
+	//	mcs := IntToMcs(os.Getpid(), 1024)
+	mcs := uniqMcs(1024)
 	scon := NewContext(processLabel)
 	scon["level"] = mcs
 	processLabel = scon.Get()
@@ -373,6 +391,8 @@ func CopyLevel(src, dest string) (string, error) {
 	}
 	scon := NewContext(src)
 	tcon := NewContext(dest)
+	mcsDelete(tcon["level"])
+	mcsAdd(scon["level"])
 	tcon["level"] = scon["level"]
 	return tcon.Get(), nil
 }

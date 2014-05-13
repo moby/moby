@@ -1,0 +1,65 @@
+.\" Process this file with
+.\" nroff -man -Tascii docker-build.1
+.\"
+.TH "DOCKER" "1" "MARCH 2014" "0.1" "Docker"
+.SH NAME
+docker-build \- Build a container image from a Dockerfile source at PATH
+.SH SYNOPSIS
+.B docker build 
+[\fB--no-cache\fR[=\fIfalse\fR] 
+[\fB-q\fR|\fB--quiet\fR[=\fIfalse\fR] 
+[\fB--rm\fR[=\fitrue\fR]]
+[\fB-t\fR|\fB--tag\fR=\fItag\fR] 
+PATH | URL | -
+.SH DESCRIPTION
+This will read the Dockerfile from the directory specified in \fBPATH\fR. It also sends any other files and directories found in the current directory to the Docker daemon. The contents of this directory would be used by ADD command found within the Dockerfile. 
+Warning, this will send a lot of data to the Docker daemon if the current directory contains a lot of data.
+If the absolute path is provided instead of ‘.’, only the files and directories required by the ADD commands from the Dockerfile will be added to the context and transferred to the Docker daemon.
+.sp
+When a single Dockerfile is given as URL, then no context is set. When a Git repository is set as URL, the repository is used as context.
+.SH "OPTIONS"
+.TP
+.B -q, --quiet=\fItrue\fR|\fIfalse\fR: 
+When set to true, suppress verbose build output. Default is \fIfalse\fR.
+.TP
+.B --rm=\fItrue\fr|\fIfalse\fR:
+When true, remove intermediate containers that are created during the build process. The default is true.
+.TP
+.B -t, --tag=\fItag\fR: 
+Tag to be applied to the resulting image on successful completion of the build.
+.TP
+.B --no-cache=\fItrue\fR|\fIfalse\fR
+When set to true, do not use a cache when building the image. The default is \fIfalse\fR.
+.sp
+.SH EXAMPLES
+.sp
+.sp
+.B Building an image from current directory
+.TP
+USing a Dockerfile, Docker images are built using the build command:
+.sp
+.RS
+docker build .
+.RE
+.sp
+If, for some reasone, you do not what to remove the intermediate containers created during the build you must set--rm=false.
+.sp
+.RS
+docker build --rm=false .
+.sp
+.RE
+.sp
+A good practice is to make a subdirectory with a related name and create the Dockerfile in that directory. E.g. a directory called mongo may contain a Dockerfile for a MongoDB image, or a directory called httpd may contain an Dockerfile for an Apache web server. 
+.sp
+It is also good practice to add the files required for the image to the subdirectory. These files will be then specified with the `ADD` instruction in the Dockerfile. Note: if you include a tar file, which is good practice, then Docker will automatically extract the contents of the tar file specified in the `ADD` instruction into the specified target.  
+.sp
+.B Building an image container using a URL
+.TP
+This will clone the Github repository and use it as context. The Dockerfile at the root of the repository is used as Dockerfile. This only works if the Github repository is a dedicated repository. Note that you can specify an arbitrary Git repository by using the ‘git://’ schema. 
+.sp
+.RS
+docker build github.com/scollier/Fedora-Dockerfiles/tree/master/apache
+.RE
+.sp
+.SH HISTORY
+March 2014, Originally compiled by William Henry (whenry at redhat dot com) based on dockier.io source material and internal work.

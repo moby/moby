@@ -6,12 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -22,6 +16,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -50,6 +51,7 @@ type buildFile struct {
 	utilizeCache bool
 	rm           bool
 
+	authConfig *registry.AuthConfig
 	configFile *registry.ConfigFile
 
 	tmpContainers map[string]struct{}
@@ -80,10 +82,20 @@ func (b *buildFile) CmdFrom(name string) error {
 	if err != nil {
 		if b.daemon.Graph().IsNotExist(err) {
 			remote, tag := utils.ParseRepositoryTag(name)
+			pullRegistryAuth := b.authConfig
+			if len(b.configFile.Configs) > 0 {
+				// The request came with a full auth config file, we prefer to use that
+				endpoint, _, err := registry.ResolveRepositoryName(remote)
+				if err != nil {
+					return err
+				}
+				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+				pullRegistryAuth = &resolvedAuth
+			}
 			job := b.srv.Eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())
 			job.SetenvBool("parallel", true)
-			job.SetenvJson("auth", b.configFile)
+			job.SetenvJson("authConfig", pullRegistryAuth)
 			job.Stdout.Add(b.outOld)
 			if err := job.Run(); err != nil {
 				return err
@@ -697,10 +709,9 @@ func (b *buildFile) create() (*daemon.Container, error) {
 
 func (b *buildFile) run(c *daemon.Container) error {
 	var errCh chan error
-
 	if b.verbose {
 		errCh = utils.Go(func() error {
-			return <-c.Attach(nil, nil, b.outStream, b.errStream)
+			return <-b.daemon.Attach(c, nil, nil, b.outStream, b.errStream)
 		})
 	}
 
@@ -879,7 +890,7 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, configFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
@@ -892,7 +903,8 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		utilizeCache:  utilizeCache,
 		rm:            rm,
 		sf:            sf,
-		configFile:    configFile,
+		authConfig:    auth,
+		configFile:    authConfigFile,
 		outOld:        outOld,
 	}
 }

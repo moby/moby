@@ -1,8 +1,9 @@
 package configuration
 
 import (
-	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"testing"
+
+	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 )
 
 func TestSetReadonlyRootFs(t *testing.T) {
@@ -38,10 +39,10 @@ func TestConfigurationsDoNotConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container1.CapabilitiesMask.Get("NET_ADMIN").Enabled {
+	if !container1.CapabilitiesMask["NET_ADMIN"] {
 		t.Fatal("container one should have NET_ADMIN enabled")
 	}
-	if container2.CapabilitiesMask.Get("NET_ADMIN").Enabled {
+	if container2.CapabilitiesMask["NET_ADMIN"] {
 		t.Fatal("container two should not have NET_ADMIN enabled")
 	}
 }
@@ -93,7 +94,7 @@ func TestCpuShares(t *testing.T) {
 	}
 }
 
-func TestCgroupMemory(t *testing.T) {
+func TestMemory(t *testing.T) {
 	var (
 		container = template.New()
 		opts      = []string{
@@ -109,6 +110,22 @@ func TestCgroupMemory(t *testing.T) {
 	}
 }
 
+func TestMemoryReservation(t *testing.T) {
+	var (
+		container = template.New()
+		opts      = []string{
+			"cgroups.memory_reservation=500m",
+		}
+	)
+	if err := ParseConfiguration(container, nil, opts); err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := int64(500 * 1024 * 1024); container.Cgroups.MemoryReservation != expected {
+		t.Fatalf("expected memory reservation %d got %d", expected, container.Cgroups.MemoryReservation)
+	}
+}
+
 func TestAddCap(t *testing.T) {
 	var (
 		container = template.New()
@@ -121,10 +138,10 @@ func TestAddCap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container.CapabilitiesMask.Get("MKNOD").Enabled {
+	if !container.CapabilitiesMask["MKNOD"] {
 		t.Fatal("container should have MKNOD enabled")
 	}
-	if !container.CapabilitiesMask.Get("SYS_ADMIN").Enabled {
+	if !container.CapabilitiesMask["SYS_ADMIN"] {
 		t.Fatal("container should have SYS_ADMIN enabled")
 	}
 }
@@ -137,14 +154,14 @@ func TestDropCap(t *testing.T) {
 		}
 	)
 	// enabled all caps like in privileged mode
-	for _, c := range container.CapabilitiesMask {
-		c.Enabled = true
+	for key := range container.CapabilitiesMask {
+		container.CapabilitiesMask[key] = true
 	}
 	if err := ParseConfiguration(container, nil, opts); err != nil {
 		t.Fatal(err)
 	}
 
-	if container.CapabilitiesMask.Get("MKNOD").Enabled {
+	if container.CapabilitiesMask["MKNOD"] {
 		t.Fatal("container should not have MKNOD enabled")
 	}
 }
@@ -160,7 +177,7 @@ func TestDropNamespace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if container.Namespaces.Get("NEWNET").Enabled {
+	if container.Namespaces["NEWNET"] {
 		t.Fatal("container should not have NEWNET enabled")
 	}
 }

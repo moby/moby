@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/dockerversion"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
@@ -23,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dotcloud/docker/dockerversion"
 )
 
 type KeyValuePair struct {
@@ -341,18 +342,15 @@ func (r *bufReader) Close() error {
 type WriteBroadcaster struct {
 	sync.Mutex
 	buf     *bytes.Buffer
-	writers map[StreamWriter]bool
-}
-
-type StreamWriter struct {
-	wc     io.WriteCloser
-	stream string
+	streams map[string](map[io.WriteCloser]struct{})
 }
 
 func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
-	sw := StreamWriter{wc: writer, stream: stream}
-	w.writers[sw] = true
+	if _, ok := w.streams[stream]; !ok {
+		w.streams[stream] = make(map[io.WriteCloser]struct{})
+	}
+	w.streams[stream][writer] = struct{}{}
 	w.Unlock()
 }
 
@@ -362,33 +360,83 @@ type JSONLog struct {
 	Created time.Time `json:"time"`
 }
 
+func (jl *JSONLog) Format(format string) (string, error) {
+	if format == "" {
+		return jl.Log, nil
+	}
+	if format == "json" {
+		m, err := json.Marshal(jl)
+		return string(m), err
+	}
+	return fmt.Sprintf("[%s] %s", jl.Created.Format(format), jl.Log), nil
+}
+
+func WriteLog(src io.Reader, dst io.WriteCloser, format string) error {
+	dec := json.NewDecoder(src)
+	for {
+		l := &JSONLog{}
+
+		if err := dec.Decode(l); err == io.EOF {
+			return nil
+		} else if err != nil {
+			Errorf("Error streaming logs: %s", err)
+			return err
+		}
+		line, err := l.Format(format)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(dst, "%s", line)
+	}
+}
+
+type LogFormatter struct {
+	wc         io.WriteCloser
+	timeFormat string
+}
+
 func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
+	created := time.Now().UTC()
 	w.Lock()
 	defer w.Unlock()
+	if writers, ok := w.streams[""]; ok {
+		for sw := range writers {
+			if n, err := sw.Write(p); err != nil || n != len(p) {
+				// On error, evict the writer
+				delete(writers, sw)
+			}
+		}
+	}
 	w.buf.Write(p)
-	for sw := range w.writers {
-		lp := p
-		if sw.stream != "" {
-			lp = nil
-			for {
-				line, err := w.buf.ReadString('\n')
+	lines := []string{}
+	for {
+		line, err := w.buf.ReadString('\n')
+		if err != nil {
+			w.buf.Write([]byte(line))
+			break
+		}
+		lines = append(lines, line)
+	}
+
+	if len(lines) != 0 {
+		for stream, writers := range w.streams {
+			if stream == "" {
+				continue
+			}
+			var lp []byte
+			for _, line := range lines {
+				b, err := json.Marshal(&JSONLog{Log: line, Stream: stream, Created: created})
 				if err != nil {
-					w.buf.Write([]byte(line))
-					break
-				}
-				b, err := json.Marshal(&JSONLog{Log: line, Stream: sw.stream, Created: time.Now().UTC()})
-				if err != nil {
-					// On error, evict the writer
-					delete(w.writers, sw)
-					continue
+					Errorf("Error making JSON log line: %s", err)
 				}
 				lp = append(lp, b...)
 				lp = append(lp, '\n')
 			}
-		}
-		if n, err := sw.wc.Write(lp); err != nil || n != len(lp) {
-			// On error, evict the writer
-			delete(w.writers, sw)
+			for sw := range writers {
+				if _, err := sw.Write(lp); err != nil {
+					delete(writers, sw)
+				}
+			}
 		}
 	}
 	return len(p), nil
@@ -397,15 +445,20 @@ func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
 func (w *WriteBroadcaster) CloseWriters() error {
 	w.Lock()
 	defer w.Unlock()
-	for sw := range w.writers {
-		sw.wc.Close()
+	for _, writers := range w.streams {
+		for w := range writers {
+			w.Close()
+		}
 	}
-	w.writers = make(map[StreamWriter]bool)
+	w.streams = make(map[string](map[io.WriteCloser]struct{}))
 	return nil
 }
 
 func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[StreamWriter]bool), buf: bytes.NewBuffer(nil)}
+	return &WriteBroadcaster{
+		streams: make(map[string](map[io.WriteCloser]struct{})),
+		buf:     bytes.NewBuffer(nil),
+	}
 }
 
 func GetTotalUsedFds() int {
@@ -727,17 +780,6 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
-// GetResolvConf opens and read the content of /etc/resolv.conf.
-// It returns it as byte slice.
-func GetResolvConf() ([]byte, error) {
-	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		Errorf("Error openning resolv.conf: %s", err)
-		return nil, err
-	}
-	return resolv, nil
-}
-
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {
@@ -771,46 +813,6 @@ func GetLines(input []byte, commentMarker []byte) [][]byte {
 		}
 	}
 	return output
-}
-
-// GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
-func GetNameservers(resolvConf []byte) []string {
-	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
-	for _, line := range GetLines(resolvConf, []byte("#")) {
-		var ns = re.FindSubmatch(line)
-		if len(ns) > 0 {
-			nameservers = append(nameservers, string(ns[1]))
-		}
-	}
-	return nameservers
-}
-
-// GetNameserversAsCIDR returns nameservers (if any) listed in
-// /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
-// This function's output is intended for net.ParseCIDR
-func GetNameserversAsCIDR(resolvConf []byte) []string {
-	nameservers := []string{}
-	for _, nameserver := range GetNameservers(resolvConf) {
-		nameservers = append(nameservers, nameserver+"/32")
-	}
-	return nameservers
-}
-
-// GetSearchDomains returns search domains (if any) listed in /etc/resolv.conf
-// If more than one search line is encountered, only the contents of the last
-// one is returned.
-func GetSearchDomains(resolvConf []byte) []string {
-	re := regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
-	domains := []string{}
-	for _, line := range GetLines(resolvConf, []byte("#")) {
-		match := re.FindSubmatch(line)
-		if match == nil {
-			continue
-		}
-		domains = strings.Fields(string(match[1]))
-	}
-	return domains
 }
 
 // FIXME: Change this not to receive default value as parameter

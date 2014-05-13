@@ -3,9 +3,10 @@ package nsinit
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/libcontainer"
 	"io/ioutil"
 	"os"
+
+	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
 // SyncPipe allows communication to and from the child processes
@@ -34,6 +35,14 @@ func NewSyncPipeFromFd(parendFd, childFd uintptr) (*SyncPipe, error) {
 		return nil, fmt.Errorf("no valid sync pipe fd specified")
 	}
 	return s, nil
+}
+
+func (s *SyncPipe) Child() *os.File {
+	return s.child
+}
+
+func (s *SyncPipe) Parent() *os.File {
+	return s.parent
 }
 
 func (s *SyncPipe) SendToChild(context libcontainer.Context) error {

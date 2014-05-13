@@ -1,0 +1,9 @@
+#!/usr/bin/env beamsh
+
+stdio {
+	trace {
+		stdio {
+			exec ls -l
+		}
+	}
+}

@@ -3,15 +3,16 @@ package lxc
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/netlink"
-	"github.com/dotcloud/docker/pkg/user"
-	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/netlink"
+	"github.com/dotcloud/docker/pkg/user"
+	"github.com/syndtr/gocapability/capability"
 )
 
 // Clear environment pollution introduced by lxc-start
@@ -149,6 +150,7 @@ func setupCapabilities(args *execdriver.InitArgs) error {
 		capability.CAP_MAC_OVERRIDE,
 		capability.CAP_MAC_ADMIN,
 		capability.CAP_NET_ADMIN,
+		capability.CAP_SYSLOG,
 	}
 
 	c, err := capability.NewPid(os.Getpid())

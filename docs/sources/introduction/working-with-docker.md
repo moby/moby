@@ -10,7 +10,7 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 > If you prefer a summary and would like to see how a specific command
 > works, check out the glossary of all available client
 > commands on our [User's Manual: Commands Reference](
-> http://docs.docker.io/en/latest/reference/commandline/cli).
+> http://docs.docker.io/reference/commandline/cli).
 
 ## Introduction
 
@@ -54,13 +54,13 @@ accessed by running the `docker` binary.
 > **Tip:** The below instructions can be considered a summary of our
 > *interactive tutorial*. If you prefer a more hands-on approach without
 > installing anything, why not give that a shot and check out the
-> [Docker Interactive Tutorial](http://www.docker.io/interactivetutorial).
+> [Docker Interactive Tutorial](https://www.docker.io/gettingstarted).
 
 The `docker` client usage consists of passing a chain of arguments:
 
     # Usage:  [sudo] docker [option] [command] [arguments] ..
     # Example:
-    docker run -i -t ubuntu /bin/bash
+    $ docker run -i -t ubuntu /bin/bash
 
 ### Our first Docker command
 
@@ -70,7 +70,7 @@ version` command.
 
     # Usage: [sudo] docker version
     # Example:
-    docker version
+    $ docker version
 
 This command will not only provide you the version of Docker client you
 are using, but also the version of Go (the programming language powering
@@ -97,7 +97,7 @@ binary:
 
     # Usage: [sudo] docker
     # Example:
-    docker
+    $ docker
 
 You will get an output with all currently available commands.
 
@@ -116,12 +116,12 @@ Try typing Docker followed with a `[command]` to see the instructions:
 
     # Usage: [sudo] docker [command] [--help]
     # Example:
-    docker attach
+    $ docker attach
     Help outputs . . .
 
 Or you can pass the `--help` flag to the `docker` binary.
 
-    docker images --help
+    $ docker images --help
 
 You will get an output with all available options:
 
@@ -156,16 +156,16 @@ image is constructed.
 
     # Usage: [sudo] docker search [image name]
     # Example:
-    docker search nginx
+    $ docker search nginx
 
     NAME                                     DESCRIPTION                                     STARS     OFFICIAL   TRUSTED
-    dockerfile/nginx                         Trusted Nginx (http://nginx.org/) Build         6                    [OK]
+    $ dockerfile/nginx                         Trusted Nginx (http://nginx.org/) Build         6                    [OK]
     paintedfox/nginx-php5                    A docker image for running Nginx with PHP5.     3                    [OK]
-    dockerfiles/django-uwsgi-nginx           Dockerfile and configuration files to buil...   2                    [OK]
+    $ dockerfiles/django-uwsgi-nginx           dockerfile and configuration files to buil...   2                    [OK]
     . . .
 
-> **Note:** To learn more about trusted builds, check out [this]
-(http://blog.docker.io/2013/11/introducing-trusted-builds) blog post.
+> **Note:** To learn more about trusted builds, check out [this](
+http://blog.docker.io/2013/11/introducing-trusted-builds) blog post.
 
 ### Downloading an image
 
@@ -174,7 +174,7 @@ Downloading a Docker image is called *pulling*. To do this we hence use the
 
     # Usage: [sudo] docker pull [image name]
     # Example:
-    docker pull dockerfile/nginx
+    $ docker pull dockerfile/nginx
 
     Pulling repository dockerfile/nginx
     0ade68db1d05: Pulling dependent layers
@@ -193,12 +193,12 @@ In order to get a full list of available images, you can use the
 
     # Usage: [sudo] docker images
     # Example:
-    docker images
+    $ docker images
 
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     myUserName/nginx    latest              a0d6c70867d2        41 seconds ago      578.8 MB
     nginx               latest              173c2dd28ab2        3 minutes ago       578.8 MB
-    dockerfile/nginx    latest              0ade68db1d05        3 weeks ago         578.8 MB
+    $ dockerfile/nginx    latest              0ade68db1d05        3 weeks ago         578.8 MB
 
 ## Working with containers
 
@@ -215,7 +215,7 @@ The easiest way to create a new container is to *run* one from an image.
 
     # Usage: [sudo] docker run [arguments] ..
     # Example:
-    docker run -d --name nginx_web nginx /usr/sbin/nginx
+    $ docker run -d --name nginx_web nginx /usr/sbin/nginx
 
 This will create a new container from an image called `nginx` which will
 launch the command `/usr/sbin/nginx` when the container is run. We've
@@ -236,16 +236,16 @@ the container will also stop.
 ### Listing containers
 
 We can see a list of all the containers on our host using the `docker
-ps` command. By default the `docker ps` commands only shows running
+ps` command. By default the `docker ps` command only shows running
 containers. But we can also add the `-a` flag to show *all* containers -
 both running and stopped.
 
     # Usage: [sudo] docker ps [-a]
     # Example:
-    docker ps
+    $ docker ps
 
     CONTAINER ID        IMAGE                     COMMAND             CREATED             STATUS              PORTS                NAMES
-    842a50a13032        dockerfile/nginx:latest   nginx               35 minutes ago      Up 30 minutes       0.0.0.0:80->80/tcp   nginx_web
+    842a50a13032        $ dockerfile/nginx:latest   nginx               35 minutes ago      Up 30 minutes       0.0.0.0:80->80/tcp   nginx_web
 
 ### Stopping a container
 
@@ -254,7 +254,7 @@ end the active process.
 
     # Usage: [sudo] docker stop [container ID]
     # Example:
-    docker stop nginx_web
+    $ docker stop nginx_web
     nginx_web
 
 If the `docker stop` command succeeds it will return the name of
@@ -266,7 +266,7 @@ Stopped containers can be started again.
 
     # Usage: [sudo] docker start [container ID]
     # Example:
-    docker start nginx_web
+    $ docker start nginx_web
     nginx_web
 
 If the `docker start` command succeeds it will return the name of the
@@ -279,7 +279,7 @@ The `Dockerfile` holds the set of instructions Docker uses to build a Docker ima
 > **Tip:** Below is a short summary of our full Dockerfile tutorial.  In
 > order to get a better-grasp of how to work with these automation
 > scripts, check out the [Dockerfile step-by-step
-> tutorial](http://www.docker.io/learn/dockerfile).
+> tutorial](https://www.docker.io/learn/dockerfile).
 
 A `Dockerfile` contains instructions written in the following format:
 
@@ -293,8 +293,8 @@ A `#` sign is used to provide a comment:
 
 > **Tip:** The `Dockerfile` is very flexible and provides a powerful set
 > of instructions for building applications. To learn more about the
-> `Dockerfile` and it's instructions see the [Dockerfile
-> Reference](http://docs.docker.io/en/latest/reference/builder).
+> `Dockerfile` and its instructions see the [Dockerfile
+> Reference](http://docs.docker.io/reference/builder/).
 
 ### First steps with the Dockerfile
 
@@ -358,7 +358,7 @@ Docker uses the `Dockerfile` to build images. The build process is initiated by 
     # Use the Dockerfile at the current location
     # Usage: [sudo] docker build .
     # Example:
-    docker build -t="my_nginx_image" .
+    $ docker build -t="my_nginx_image" .
 
     Uploading context 25.09 kB
     Uploading context
@@ -385,7 +385,7 @@ image, here `my_nginx_image`.
 
 We can see our new image using the `docker images` command.
 
-    docker images
+    $ docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     my_nginx_img        latest              626e92c5fab1        57 seconds ago      337.6 MB
 

@@ -27,46 +27,47 @@ request registration of your application send an email to
 [support-accounts@docker.com](mailto:support-accounts%40docker.com) with
 the following information:
 
--   The name of your application
--   A description of your application and the service it will provide to
-    docker.io users.
--   A callback URI that we will use for redirecting authorization
-    requests to your application. These are used in the step of getting
-    an Authorization Code. The domain name of the callback URI will be
-    visible to the user when they are requested to authorize your
-    application.
+ - The name of your application
+ - A description of your application and the service it will provide to
+   docker.io users.
+ - A callback URI that we will use for redirecting authorization
+   requests to your application. These are used in the step of getting
+   an Authorization Code. The domain name of the callback URI will be
+   visible to the user when they are requested to authorize your
+   application.
 
 When your application is approved you will receive a response from the
 docker.io team with your `client_id` and
 `client_secret` which your application will use in
 the steps of getting an Authorization Code and getting an Access Token.
 
-## 3. Endpoints
+# 3. Endpoints
 
-### 3.1 Get an Authorization Code
+## 3.1 Get an Authorization Code
 
 Once You have registered you are ready to start integrating docker.io
 accounts into your application! The process is usually started by a user
 following a link in your application to an OAuth Authorization endpoint.
 
- `GET /api/v1.1/o/authorize/`
-:   Request that a docker.io user authorize your application. If the
-    user is not already logged in, they will be prompted to login. The
-    user is then presented with a form to authorize your application for
-    the requested access scope. On submission, the user will be
-    redirected to the specified `redirect_uri` with
-    an Authorization Code.
+`GET /api/v1.1/o/authorize/`
+
+Request that a docker.io user authorize your application. If the
+user is not already logged in, they will be prompted to login. The
+user is then presented with a form to authorize your application for
+the requested access scope. On submission, the user will be
+redirected to the specified `redirect_uri` with
+an Authorization Code.
 
     Query Parameters:
 
      
 
-    -   **client\_id** – The `client_id` given to
+    -   **client_id** – The `client_id` given to
         your application at registration.
-    -   **response\_type** – MUST be set to `code`.
+    -   **response_type** – MUST be set to `code`.
         This specifies that you would like an Authorization Code
         returned.
-    -   **redirect\_uri** – The URI to redirect back to after the user
+    -   **redirect_uri** – The URI to redirect back to after the user
         has authorized your application. If omitted, the first of your
         registered `response_uris` is used. If
         included, it must be one of the URIs which were submitted when
@@ -95,7 +96,7 @@ following a link in your application to an OAuth Authorization endpoint.
     prompt which asks the user to authorize your application with a
     description of the requested scopes.
 
-    ![](../../../_images/io_oauth_authorization_page.png)
+    ![](/reference/api/_static/io_oauth_authorization_page.png)
 
     Once the user allows or denies your Authorization Request the user
     will be redirected back to your application. Included in that
@@ -113,34 +114,35 @@ following a link in your application to an OAuth Authorization endpoint.
     :   An error message in the event of the user denying the
         authorization or some other kind of error with the request.
 
-### 3.2 Get an Access Token
+## 3.2 Get an Access Token
 
 Once the user has authorized your application, a request will be made to
-your application’s specified `redirect_uri` which
+your application'sspecified `redirect_uri` which
 includes a `code` parameter that you must then use
 to get an Access Token.
 
- `POST /api/v1.1/o/token/`
-:   Submit your newly granted Authorization Code and your application’s
-    credentials to receive an Access Token and Refresh Token. The code
-    is valid for 60 seconds and cannot be used more than once.
+`POST /api/v1.1/o/token/`
+
+Submit your newly granted Authorization Code and your application's
+credentials to receive an Access Token and Refresh Token. The code
+is valid for 60 seconds and cannot be used more than once.
 
     Request Headers:
 
      
 
     -   **Authorization** – HTTP basic authentication using your
-        application’s `client_id` and
+        application's `client_id` and
         `client_secret`
 
     Form Parameters:
 
      
 
-    -   **grant\_type** – MUST be set to `authorization_code`
-    -   **code** – The authorization code received from the user’s
+    -   **grant_type** – MUST be set to `authorization_code`
+    -   **code** – The authorization code received from the user's
         redirect request.
-    -   **redirect\_uri** – The same `redirect_uri`
+    -   **redirect_uri** – The same `redirect_uri`
         used in the authentication request.
 
     **Example Request**
@@ -177,31 +179,32 @@ to get an Access Token.
     In the case of an error, there will be a non-200 HTTP Status and and
     data detailing the error.
 
-### 3.3 Refresh a Token
+## 3.3 Refresh a Token
 
 Once the Access Token expires you can use your `refresh_token`
 to have docker.io issue your application a new Access Token,
 if the user has not revoked access from your application.
 
- `POST /api/v1.1/o/token/`
-:   Submit your `refresh_token` and application’s
-    credentials to receive a new Access Token and Refresh Token. The
-    `refresh_token` can be used only once.
+`POST /api/v1.1/o/token/`
+
+Submit your `refresh_token` and application's
+credentials to receive a new Access Token and Refresh Token. The
+`refresh_token` can be used only once.
 
     Request Headers:
 
      
 
     -   **Authorization** – HTTP basic authentication using your
-        application’s `client_id` and
+        application's `client_id` and
         `client_secret`
 
     Form Parameters:
 
      
 
-    -   **grant\_type** – MUST be set to `refresh_token`
-    -   **refresh\_token** – The `refresh_token`
+    -   **grant_type** – MUST be set to `refresh_token`
+    -   **refresh_token** – The `refresh_token`
         which was issued to your application.
     -   **scope** – (optional) The scope of the access token to be
         returned. Must not include any scope not originally granted by
@@ -241,11 +244,10 @@ if the user has not revoked access from your application.
     In the case of an error, there will be a non-200 HTTP Status and and
     data detailing the error.
 
-## 4. Use an Access Token with the API
+# 4. Use an Access Token with the API
 
 Many of the docker.io API requests will require a Authorization request
-header field. Simply ensure you add this header with "Bearer
-\<`access_token`\>":
+header field. Simply ensure you add this header with "Bearer <`access_token`>":
 
     GET /api/v1.1/resource HTTP/1.1
     Host: docker.io

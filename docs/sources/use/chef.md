@@ -6,20 +6,20 @@ page_keywords: chef, installation, usage, docker, documentation
 
 > **Note**:
 > Please note this is a community contributed installation path. The only
-> ‘official’ installation is using the
-> [*Ubuntu*](../../installation/ubuntulinux/#ubuntu-linux) installation
+> `official` installation is using the
+> [*Ubuntu*](/installation/ubuntulinux/#ubuntu-linux) installation
 > path. This version may sometimes be out of date.
 
 ## Requirements
 
-To use this guide you’ll need a working installation of
+To use this guide you'll need a working installation of
 [Chef](http://www.getchef.com/). This cookbook supports a variety of
 operating systems.
 
 ## Installation
 
 The cookbook is available on the [Chef Community
-Site](community.opscode.com/cookbooks/docker) and can be installed using
+Site](http://community.opscode.com/cookbooks/docker) and can be installed using
 your favorite cookbook dependency manager.
 
 The source can be found on
@@ -43,7 +43,7 @@ The next step is to pull a Docker image. For this, we have a resource:
 
 This is equivalent to running:
 
-    docker pull samalba/docker-registry
+    $ docker pull samalba/docker-registry
 
 There are attributes available to control how long the cookbook will
 allow for downloading (5 minute default).
@@ -68,7 +68,7 @@ managed by Docker.
 
 This is equivalent to running the following command, but under upstart:
 
-    docker run --detach=true --publish='5000:5000' --env='SETTINGS_FLAVOR=local' --volume='/mnt/docker:/docker-storage' samalba/docker-registry
+    $ docker run --detach=true --publish='5000:5000' --env='SETTINGS_FLAVOR=local' --volume='/mnt/docker:/docker-storage' samalba/docker-registry
 
 The resources will accept a single string or an array of values for any
 docker flags that allow multiple values.

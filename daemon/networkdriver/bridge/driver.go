@@ -2,6 +2,11 @@ package bridge
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net"
+	"strings"
+
 	"github.com/dotcloud/docker/daemon/networkdriver"
 	"github.com/dotcloud/docker/daemon/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
@@ -9,11 +14,8 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/netlink"
+	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/utils"
-	"io/ioutil"
-	"log"
-	"net"
-	"strings"
 )
 
 const (
@@ -97,8 +99,12 @@ func InitDriver(job *engine.Job) engine.Status {
 		network = addr.(*net.IPNet)
 		// validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
-			if !network.IP.Equal(net.ParseIP(bridgeIP)) {
-				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", network.IP, bridgeIP)
+			bip, _, err := net.ParseCIDR(bridgeIP)
+			if err != nil {
+				return job.Error(err)
+			}
+			if !network.IP.Equal(bip) {
+				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", network.IP, bip)
 			}
 		}
 	}
@@ -218,13 +224,13 @@ func setupIPTables(addr net.Addr, icc bool) error {
 // If it can't find an address which doesn't conflict, it will return an error.
 func createBridge(bridgeIP string) error {
 	nameservers := []string{}
-	resolvConf, _ := utils.GetResolvConf()
+	resolvConf, _ := resolvconf.Get()
 	// we don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
 	if resolvConf != nil {
-		nameservers = append(nameservers, utils.GetNameserversAsCIDR(resolvConf)...)
+		nameservers = append(nameservers, resolvconf.GetNameserversAsCIDR(resolvConf)...)
 	}
 
 	var ifaceAddr string

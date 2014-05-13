@@ -1,21 +1,29 @@
+// DEPRECATION NOTICE. PLEASE DO NOT ADD ANYTHING TO THIS FILE.
+//
+// server/server.go is deprecated. We are working on breaking it up into smaller, cleaner
+// pieces which will be easier to find and test. This will help make the code less
+// redundant and more readable.
+//
+// Contributors, please don't add anything to server/server.go, unless it has the explicit
+// goal of helping the deprecation effort.
+//
+// Maintainers, please refuse patches which add code to server/server.go.
+//
+// Instead try the following files:
+// * For code related to local image management, try graph/
+// * For code related to image downloading, uploading, remote search etc, try registry/
+// * For code related to the docker daemon, try daemon/
+// * For small utilities which could potentially be useful outside of Docker, try pkg/
+// * For miscalleneous "util" functions which are docker-specific, try encapsulating them
+//     inside one of the subsystems above. If you really think they should be more widely
+//     available, are you sure you can't remove the docker dependencies and move them to
+//     pkg? In last resort, you can add them to utils/ (but please try not to).
+
 package server
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/daemonconfig"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/graph"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/signal"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -32,6 +40,20 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon"
+	"github.com/dotcloud/docker/daemonconfig"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/graph"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/pkg/graphdb"
+	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 // jobInitApi runs the remote api server `srv` as a daemon,
@@ -103,7 +125,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"container_copy":   srv.ContainerCopy,
 		"insert":           srv.ImageInsert,
 		"attach":           srv.ContainerAttach,
-		"search":           srv.ImagesSearch,
+		"logs":             srv.ContainerLogs,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
 		"version":          srv.DockerVersion,
@@ -116,31 +138,12 @@ func InitServer(job *engine.Job) engine.Status {
 		"events":           srv.Events,
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
-		"auth":             srv.Auth,
 	} {
 		if err := job.Eng.Register(name, handler); err != nil {
 			return job.Error(err)
 		}
 	}
 	return engine.StatusOK
-}
-
-// simpleVersionInfo is a simple implementation of
-// the interface VersionInfo, which is used
-// to provide version information for some product,
-// component, etc. It stores the product name and the version
-// in string and returns them on calls to Name() and Version().
-type simpleVersionInfo struct {
-	name    string
-	version string
-}
-
-func (v *simpleVersionInfo) Name() string {
-	return v.name
-}
-
-func (v *simpleVersionInfo) Version() string {
-	return v.version
 }
 
 // ContainerKill send signal to the container
@@ -189,29 +192,6 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	} else {
 		return job.Errorf("No such container: %s", name)
 	}
-	return engine.StatusOK
-}
-
-func (srv *Server) Auth(job *engine.Job) engine.Status {
-	var (
-		err        error
-		authConfig = &registry.AuthConfig{}
-	)
-
-	job.GetenvJson("authConfig", authConfig)
-	// TODO: this is only done here because auth and registry need to be merged into one pkg
-	if addr := authConfig.ServerAddress; addr != "" && addr != registry.IndexServerAddress() {
-		addr, err = registry.ExpandAndVerifyRegistryUrl(addr)
-		if err != nil {
-			return job.Error(err)
-		}
-		authConfig.ServerAddress = addr
-	}
-	status, err := registry.Login(authConfig, srv.HTTPRequestFactory(nil))
-	if err != nil {
-		return job.Error(err)
-	}
-	job.Printf("%s\n", status)
 	return engine.StatusOK
 }
 
@@ -319,7 +299,7 @@ func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 // out is the writer where the images are written to.
 func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return job.Errorf("Usage: %s IMAGE\n", job.Name)
 	}
 	name := job.Args[0]
 	// get image json
@@ -448,11 +428,13 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		suppressOutput = job.GetenvBool("q")
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
+		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
 		context        io.ReadCloser
 	)
-	job.GetenvJson("auth", configFile)
+	job.GetenvJson("authConfig", authConfig)
+	job.GetenvJson("configFile", configFile)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
@@ -504,7 +486,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, job.Stdout, sf, configFile)
+		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile)
 	id, err := b.Build(context)
 	if err != nil {
 		return job.Error(err)
@@ -617,39 +599,6 @@ func (srv *Server) recursiveLoad(address, tmpImageDir string) error {
 	utils.Debugf("Completed processing %s", address)
 
 	return nil
-}
-
-func (srv *Server) ImagesSearch(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s TERM", job.Name)
-	}
-	var (
-		term        = job.Args[0]
-		metaHeaders = map[string][]string{}
-		authConfig  = &registry.AuthConfig{}
-	)
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", metaHeaders)
-
-	r, err := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), registry.IndexServerAddress())
-	if err != nil {
-		return job.Error(err)
-	}
-	results, err := r.SearchRepositories(term)
-	if err != nil {
-		return job.Error(err)
-	}
-	outs := engine.NewTable("star_count", 0)
-	for _, result := range results.Results {
-		out := &engine.Env{}
-		out.Import(result)
-		outs.Add(out)
-	}
-	outs.ReverseSort()
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
 }
 
 // FIXME: 'insert' is deprecated and should be removed in a future version.
@@ -1394,22 +1343,15 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		localName   = job.Args[0]
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  registry.AuthConfig
-		configFile  = &registry.ConfigFile{}
+		authConfig  = &registry.AuthConfig{}
 		metaHeaders map[string][]string
 	)
 	if len(job.Args) > 1 {
 		tag = job.Args[1]
 	}
 
-	job.GetenvJson("auth", configFile)
+	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
-
-	endpoint, _, err := registry.ResolveRepositoryName(localName)
-	if err != nil {
-		return job.Error(err)
-	}
-	authConfig = configFile.ResolveAuthConfig(endpoint)
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
 	if err != nil {
@@ -1429,12 +1371,12 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err = registry.ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
 
-	r, err := registry.NewRegistry(&authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1657,7 +1599,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	}
 
 	img, err := srv.daemon.Graph().Get(localName)
-	r, err2 := registry.NewRegistry(authConfig, srv.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err2 := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint)
 	if err2 != nil {
 		return job.Error(err2)
 	}
@@ -1931,6 +1873,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 	var (
 		repoName, tag string
 		tags          = []string{}
+		tagDeleted    bool
 	)
 
 	repoName, tag = utils.ParseRepositoryTag(name)
@@ -1981,7 +1924,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 
 	//Untag the current image
 	for _, tag := range tags {
-		tagDeleted, err := srv.daemon.Repositories().Delete(repoName, tag)
+		tagDeleted, err = srv.daemon.Repositories().Delete(repoName, tag)
 		if err != nil {
 			return err
 		}
@@ -1995,7 +1938,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 	tags = srv.daemon.Repositories().ByID()[img.ID]
 	if (len(tags) <= 1 && repoName == "") || len(tags) == 0 {
 		if len(byParents[img.ID]) == 0 {
-			if err := srv.canDeleteImage(img.ID); err != nil {
+			if err := srv.canDeleteImage(img.ID, force, tagDeleted); err != nil {
 				return err
 			}
 			if err := srv.daemon.Repositories().DeleteAll(img.ID); err != nil {
@@ -2038,7 +1981,11 @@ func (srv *Server) ImageDelete(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) canDeleteImage(imgID string) error {
+func (srv *Server) canDeleteImage(imgID string, force, untagged bool) error {
+	var message string
+	if untagged {
+		message = " (docker untagged the image)"
+	}
 	for _, container := range srv.daemon.List() {
 		parent, err := srv.daemon.Repositories().LookupImage(container.Image)
 		if err != nil {
@@ -2047,7 +1994,14 @@ func (srv *Server) canDeleteImage(imgID string) error {
 
 		if err := parent.WalkHistory(func(p *image.Image) error {
 			if imgID == p.ID {
-				return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+				if container.State.IsRunning() {
+					if force {
+						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it%s, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+					}
+					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it%s, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+				} else if !force {
+					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it%s, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+				}
 			}
 			return nil
 		}); err != nil {
@@ -2231,6 +2185,96 @@ func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
 	return job.Errorf("No such container: %s", name)
 }
 
+func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name   = job.Args[0]
+		stdout = job.GetenvBool("stdout")
+		stderr = job.GetenvBool("stderr")
+		follow = job.GetenvBool("follow")
+		times  = job.GetenvBool("timestamps")
+		format string
+	)
+	if !(stdout || stderr) {
+		return job.Errorf("You must choose at least one stream")
+	}
+	if times {
+		format = time.StampMilli
+	}
+	container := srv.daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	cLog, err := container.ReadLog("json")
+	if err != nil && os.IsNotExist(err) {
+		// Legacy logs
+		utils.Debugf("Old logs format")
+		if stdout {
+			cLog, err := container.ReadLog("stdout")
+			if err != nil {
+				utils.Errorf("Error reading logs (stdout): %s", err)
+			} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
+				utils.Errorf("Error streaming logs (stdout): %s", err)
+			}
+		}
+		if stderr {
+			cLog, err := container.ReadLog("stderr")
+			if err != nil {
+				utils.Errorf("Error reading logs (stderr): %s", err)
+			} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
+				utils.Errorf("Error streaming logs (stderr): %s", err)
+			}
+		}
+	} else if err != nil {
+		utils.Errorf("Error reading logs (json): %s", err)
+	} else {
+		dec := json.NewDecoder(cLog)
+		for {
+			l := &utils.JSONLog{}
+
+			if err := dec.Decode(l); err == io.EOF {
+				break
+			} else if err != nil {
+				utils.Errorf("Error streaming logs: %s", err)
+				break
+			}
+			logLine := l.Log
+			if times {
+				logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
+			}
+			if l.Stream == "stdout" && stdout {
+				fmt.Fprintf(job.Stdout, "%s", logLine)
+			}
+			if l.Stream == "stderr" && stderr {
+				fmt.Fprintf(job.Stderr, "%s", logLine)
+			}
+		}
+	}
+	if follow {
+		errors := make(chan error, 2)
+		if stdout {
+			stdoutPipe := container.StdoutLogPipe()
+			go func() {
+				errors <- utils.WriteLog(stdoutPipe, job.Stdout, format)
+			}()
+		}
+		if stderr {
+			stderrPipe := container.StderrLogPipe()
+			go func() {
+				errors <- utils.WriteLog(stderrPipe, job.Stderr, format)
+			}()
+		}
+		err := <-errors
+		if err != nil {
+			utils.Errorf("%s", err)
+		}
+	}
+	return engine.StatusOK
+}
+
 func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
@@ -2320,7 +2364,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 			cStderr = job.Stderr
 		}
 
-		<-container.Attach(cStdin, cStdinCloser, cStdout, cStderr)
+		<-srv.daemon.Attach(container, cStdin, cStdinCloser, cStdout, cStderr)
 
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
@@ -2431,24 +2475,6 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 	}
 	daemon.SetServer(srv)
 	return srv, nil
-}
-
-func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFactory {
-	httpVersion := make([]utils.VersionInfo, 0, 4)
-	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", dockerversion.VERSION})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"go", goruntime.Version()})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", dockerversion.GITCOMMIT})
-	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
-		httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", kernelVersion.String()})
-	}
-	httpVersion = append(httpVersion, &simpleVersionInfo{"os", goruntime.GOOS})
-	httpVersion = append(httpVersion, &simpleVersionInfo{"arch", goruntime.GOARCH})
-	ud := utils.NewHTTPUserAgentDecorator(httpVersion...)
-	md := &utils.HTTPMetaHeadersDecorator{
-		Headers: metaHeaders,
-	}
-	factory := utils.NewHTTPRequestFactory(ud, md)
-	return factory
 }
 
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {

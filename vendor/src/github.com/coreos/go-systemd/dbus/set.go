@@ -21,6 +21,13 @@ func (s *set) Length() (int) {
 	return len(s.data)
 }
 
+func (s *set) Values() (values []string) {
+	 for val, _ := range s.data {
+		values = append(values, val)
+	 }
+	 return
+}
+
 func newSet() (*set) {
 	return &set{make(map[string] bool)}
 }

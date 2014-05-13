@@ -436,6 +436,12 @@ func TestDriverCreate(t *testing.T) {
 		return nil
 	}
 
+	sysUnmount = func(target string, flag int) error {
+		//calls["sysUnmount"] = true
+
+		return nil
+	}
+
 	Mounted = func(mnt string) (bool, error) {
 		calls["Mounted"] = true
 		if !strings.HasPrefix(mnt, "/tmp/docker-test-devmapper-") || !strings.HasSuffix(mnt, "/mnt/1") {
@@ -494,21 +500,16 @@ func TestDriverCreate(t *testing.T) {
 			"?ioctl.loopctlgetfree",
 		)
 
-		if err := d.Create("1", "", ""); err != nil {
+		if err := d.Create("1", ""); err != nil {
 			t.Fatal(err)
 		}
 		calls.Assert(t,
 			"DmTaskCreate",
 			"DmTaskGetInfo",
-			"sysMount",
 			"DmTaskRun",
-			"DmTaskSetTarget",
 			"DmTaskSetSector",
-			"DmTaskSetCookie",
-			"DmUdevWait",
 			"DmTaskSetName",
 			"DmTaskSetMessage",
-			"DmTaskSetAddNode",
 		)
 
 	}()
@@ -547,7 +548,6 @@ func TestDriverRemove(t *testing.T) {
 		return nil
 	}
 	sysUnmount = func(target string, flags int) (err error) {
-		calls["sysUnmount"] = true
 		// FIXME: compare the exact source and target strings (inodes + devname)
 		if expectedTarget := "/tmp/docker-test-devmapper-"; !strings.HasPrefix(target, expectedTarget) {
 			t.Fatalf("Wrong syscall call\nExpected: Mount(%v)\nReceived: Mount(%v)\n", expectedTarget, target)
@@ -612,22 +612,17 @@ func TestDriverRemove(t *testing.T) {
 			"?ioctl.loopctlgetfree",
 		)
 
-		if err := d.Create("1", "", ""); err != nil {
+		if err := d.Create("1", ""); err != nil {
 			t.Fatal(err)
 		}
 
 		calls.Assert(t,
 			"DmTaskCreate",
 			"DmTaskGetInfo",
-			"sysMount",
 			"DmTaskRun",
-			"DmTaskSetTarget",
 			"DmTaskSetSector",
-			"DmTaskSetCookie",
-			"DmUdevWait",
 			"DmTaskSetName",
 			"DmTaskSetMessage",
-			"DmTaskSetAddNode",
 		)
 
 		Mounted = func(mnt string) (bool, error) {
@@ -650,7 +645,6 @@ func TestDriverRemove(t *testing.T) {
 			"DmTaskSetTarget",
 			"DmTaskSetAddNode",
 			"DmUdevWait",
-			"sysUnmount",
 		)
 	}()
 	runtime.GC()
@@ -668,21 +662,21 @@ func TestCleanup(t *testing.T) {
 
 	mountPoints := make([]string, 2)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
 	// Mount the id
-	p, err := d.Get("1")
+	p, err := d.Get("1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	mountPoints[0] = p
 
-	if err := d.Create("2", "1", ""); err != nil {
+	if err := d.Create("2", "1"); err != nil {
 		t.Fatal(err)
 	}
 
-	p, err = d.Get("2")
+	p, err = d.Get("2", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +725,7 @@ func TestNotMounted(t *testing.T) {
 	d := newDriver(t)
 	defer cleanup(d)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -749,10 +743,10 @@ func TestMounted(t *testing.T) {
 	d := newDriver(t)
 	defer cleanup(d)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Get("1"); err != nil {
+	if _, err := d.Get("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -769,10 +763,10 @@ func TestInitCleanedDriver(t *testing.T) {
 	t.Skip("FIXME: not a unit test")
 	d := newDriver(t)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Get("1"); err != nil {
+	if _, err := d.Get("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -787,7 +781,7 @@ func TestInitCleanedDriver(t *testing.T) {
 	d = driver.(*Driver)
 	defer cleanup(d)
 
-	if _, err := d.Get("1"); err != nil {
+	if _, err := d.Get("1", ""); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -797,16 +791,16 @@ func TestMountMountedDriver(t *testing.T) {
 	d := newDriver(t)
 	defer cleanup(d)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
 	// Perform get on same id to ensure that it will
 	// not be mounted twice
-	if _, err := d.Get("1"); err != nil {
+	if _, err := d.Get("1", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Get("1"); err != nil {
+	if _, err := d.Get("1", ""); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -816,7 +810,7 @@ func TestGetReturnsValidDevice(t *testing.T) {
 	d := newDriver(t)
 	defer cleanup(d)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -824,7 +818,7 @@ func TestGetReturnsValidDevice(t *testing.T) {
 		t.Fatalf("Expected id 1 to be in device set")
 	}
 
-	if _, err := d.Get("1"); err != nil {
+	if _, err := d.Get("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -844,11 +838,11 @@ func TestDriverGetSize(t *testing.T) {
 	d := newDriver(t)
 	defer cleanup(d)
 
-	if err := d.Create("1", "", ""); err != nil {
+	if err := d.Create("1", ""); err != nil {
 		t.Fatal(err)
 	}
 
-	mountPoint, err := d.Get("1")
+	mountPoint, err := d.Get("1", "")
 	if err != nil {
 		t.Fatal(err)
 	}

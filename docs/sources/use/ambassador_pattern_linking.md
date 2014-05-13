@@ -62,8 +62,7 @@ linking to the local redis ambassador.
 ## How it works
 
 The following example shows what the `svendowideit/ambassador`
-container does automatically (with a tiny amount of
-`sed`)
+container does automatically (with a tiny amount of `sed`)
 
 On the docker host (192.168.1.52) that redis will run on:
 
@@ -82,8 +81,8 @@ On the docker host (192.168.1.52) that redis will run on:
     # add redis ambassador
     $ docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 busybox sh
 
-in the redis\_ambassador container, you can see the linked redis
-containers’s env
+in the redis_ambassador container, you can see the linked redis
+containers'senv
 
     $ env
     REDIS_PORT=tcp://172.17.0.136:6379
@@ -147,7 +146,7 @@ remote IP and port - in this case `192.168.1.52:6379`.
     # then to run it (on the host that has the real backend on it)
     #   docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 ambassador
     # on the remote host, you can set up another ambassador
-    #    docker run -t -i -name redis_ambassador -expose 6379 sh
+    #   docker run -t -i -name redis_ambassador -expose 6379 sh
 
     FROM    docker-ut
     MAINTAINER      SvenDowideit@home.org.au
