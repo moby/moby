@@ -10,7 +10,7 @@ import (
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/symlink"
 )
 
 type BindMap struct {
@@ -213,7 +213,7 @@ func createVolumes(container *Container) error {
 		}
 
 		// Create the mountpoint
-		rootVolPath, err := utils.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
+		rootVolPath, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
 		if err != nil {
 			return err
 		}

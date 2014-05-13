@@ -11,8 +11,8 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
+	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
 )
 
 // default mount point flags
@@ -129,7 +129,7 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 			return err
 		}
 
-		dest, err = utils.FollowSymlinkInScope(dest, rootfs)
+		dest, err = symlink.FollowSymlinkInScope(dest, rootfs)
 		if err != nil {
 			return err
 		}
