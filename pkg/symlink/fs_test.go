@@ -1,4 +1,4 @@
-package utils
+package symlink
 
 import (
 	"io/ioutil"
