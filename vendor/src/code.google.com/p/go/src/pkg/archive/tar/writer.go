@@ -218,7 +218,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 				tw.cString(prefixHeaderBytes, prefix, false, paxNone, nil)
 
 				// Use the ustar magic if we used ustar long names.
-				if len(prefix) > 0 {
+				if len(prefix) > 0 || !tw.usedBinary {
 					copy(header[257:265], []byte("ustar\000"))
 				}
 			}
