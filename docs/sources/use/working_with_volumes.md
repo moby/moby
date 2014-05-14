@@ -42,9 +42,9 @@ container with two new volumes:
 
 This command will create the new container with two new volumes that
 exits instantly (`true` is pretty much the smallest,
-simplest program that you can run). Once created you can mount its
-volumes in any other container using the `--volumes-from`
-option; irrespective of whether the container is running or
+simplest program that you can run). You can then mount its
+volumes in any other container using the `run` `--volumes-from`
+option; irrespective of whether the volume container is running or
 not.
 
 Or, you can use the VOLUME instruction in a Dockerfile to add one or
