@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 var (

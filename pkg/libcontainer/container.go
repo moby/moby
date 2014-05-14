@@ -1,7 +1,7 @@
 package libcontainer
 
 import (
-	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 // Context is a generic key value pair that allows

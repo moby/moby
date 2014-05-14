@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 )

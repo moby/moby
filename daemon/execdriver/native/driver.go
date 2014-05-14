@@ -13,8 +13,8 @@ import (
 
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/apparmor"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"github.com/dotcloud/docker/pkg/system"
 )

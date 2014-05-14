@@ -1,7 +1,7 @@
 package fs
 
 import (
-	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 type perfEventGroup struct {
