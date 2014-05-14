@@ -5,7 +5,6 @@ import (
 
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/utils"
 )
 
 type NetworkMode string
@@ -22,7 +21,6 @@ func (n NetworkMode) IsContainer() bool {
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
-	LxcConf         []utils.KeyValuePair
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
@@ -40,7 +38,6 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 	}
-	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
 	if Binds := job.GetenvList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds

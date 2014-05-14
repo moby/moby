@@ -208,9 +208,6 @@ func populateCommand(c *Container, env []string) error {
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
-	// TODO: this can be removed after lxc-conf is fully deprecated
-	mergeLxcConfIntoOptions(c.hostConfig, context)
-
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
@@ -689,7 +686,6 @@ func (container *Container) jsonPath() string {
 	return path.Join(container.root, "config.json")
 }
 
-// This method must be exported to be used from the lxc template
 // This directory is only usable when the container is running
 func (container *Container) RootfsPath() string {
 	return container.basefs
