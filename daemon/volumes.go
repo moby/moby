@@ -94,11 +94,11 @@ func applyVolumesFrom(container *Container) error {
 				if _, exists := container.Volumes[volPath]; exists {
 					continue
 				}
-				stat, err := os.Stat(filepath.Join(c.basefs, volPath))
+				stat, err := os.Stat(c.getResourcePath(volPath))
 				if err != nil {
 					return err
 				}
-				if err := createIfNotExists(filepath.Join(container.basefs, volPath), stat.IsDir()); err != nil {
+				if err := createIfNotExists(container.getResourcePath(volPath), stat.IsDir()); err != nil {
 					return err
 				}
 				container.Volumes[volPath] = id
