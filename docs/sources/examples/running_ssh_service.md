@@ -40,7 +40,7 @@ Build the image using:
 Then run it. You can then use `docker port` to find
 out what host port the container's port 22 is mapped to:
 
-    $ sudo docker run -d -P -name test_sshd eg_sshd
+    $ sudo docker run -d -P --name test_sshd eg_sshd
     $ sudo docker port test_sshd 22
     0.0.0.0:49154
 
