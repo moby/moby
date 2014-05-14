@@ -811,6 +811,7 @@ Run a command in a new container
 
     -a, --attach=[]            Attach to stdin, stdout or stderr.
     -c, --cpu-shares=0         CPU shares (relative weight)
+    --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
     --cidfile=""               Write the container ID to the file
     -d, --detach=false         Detached mode: Run container in the background, print new container id
     --dns=[]                   Set custom dns servers

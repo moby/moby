@@ -117,6 +117,7 @@ func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.C
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemoryReservation = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
+		container.Cgroups.CpusetCpus = c.Resources.Cpuset
 	}
 	return nil
 }
