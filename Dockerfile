@@ -80,6 +80,9 @@ RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do
 # Grab Go's cover tool for dead-simple code coverage testing
 RUN	go get code.google.com/p/go.tools/cmd/cover
 
+# Disable official net package (waiting for go1.4)
+RUN	mv /usr/local/go/src/pkg/net /usr/local/go/src/pkg/net.orig
+
 # TODO replace FPM with some very minimal debhelper stuff
 RUN	gem install --no-rdoc --no-ri fpm --version 1.0.2
 
