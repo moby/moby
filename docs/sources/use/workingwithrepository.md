@@ -18,15 +18,14 @@ You can find one or more repositories hosted on a *registry*. There are
 two types of *registry*: public and private. There's also a default
 *registry* that Docker uses which is called
 [Docker.io](http://index.docker.io).
-[Docker.io](http://index.docker.io) is the home of
-"top-level" repositories and public "user" repositories.  The Docker
-project provides [Docker.io](http://index.docker.io) to host public and
-[private repositories](https://index.docker.io/plans/), namespaced by
-user. We provide user authentication and search over all the public
-repositories.
+[Docker.io](http://index.docker.io) is the home of "top-level"
+repositories and public "user" repositories.  The Docker project
+provides [Docker.io](http://index.docker.io) to host public and [private
+repositories](https://index.docker.io/plans/), namespaced by user. We
+provide user authentication and search over all the public repositories.
 
-Docker acts as a client for these services via the `docker search`, `pull`,
-`login` and `push` commands.
+Docker acts as a client for these services via the `docker search`,
+`pull`, `login` and `push` commands.
 
 ## Repositories
 
@@ -42,8 +41,8 @@ There are two types of public repositories: *top-level* repositories
 which are controlled by the Docker team, and *user* repositories created
 by individual contributors. Anyone can read from these repositories –
 they really help people get started quickly! You could also use
-[*Trusted Builds*](#trusted-builds) if you need to keep
-control of who accesses your images.
+[*Trusted Builds*](#trusted-builds) if you need to keep control of who
+accesses your images.
 
 - Top-level repositories can easily be recognized by **not** having a
   `/` (slash) in their name. These repositories represent trusted images
@@ -83,12 +82,11 @@ user name or description:
     ...
 
 There you can see two example results: `centos` and
-`slantview/centos-chef-solo`. The second result
-shows that it comes from the public repository of a user,
-`slantview/`, while the first result
-(`centos`) doesn't explicitly list a repository so
-it comes from the trusted top-level namespace. The `/`
-character separates a user's repository and the image name.
+`slantview/centos-chef-solo`. The second result shows that it comes from
+the public repository of a user, `slantview/`, while the first result
+(`centos`) doesn't explicitly list a repository so it comes from the
+trusted top-level namespace. The `/` character separates a user's
+repository and the image name.
 
 Once you have found the image name, you can download it:
 
@@ -98,8 +96,8 @@ Once you have found the image name, you can download it:
     539c0211cd76: Download complete
 
 What can you do with that image? Check out the
-[*Examples*](/examples/#example-list) and, when you're ready with
-your own image, come back here to learn how to share it.
+[*Examples*](/examples/#example-list) and, when you're ready with your
+own image, come back here to learn how to share it.
 
 ## Contributing to Docker.io
 
@@ -114,10 +112,9 @@ first. You can create your username and login on
 This will prompt you for a username, which will become a public
 namespace for your public repositories.
 
-If your username is available then `docker` will
-also prompt you to enter a password and your e-mail address. It will
-then automatically log you in. Now you're ready to commit and push your
-own images!
+If your username is available then `docker` will also prompt you to
+enter a password and your e-mail address. It will then automatically log
+you in. Now you're ready to commit and push your own images!
 
 > **Note:**
 > Your authentication credentials will be stored in the [`.dockercfg`
@@ -150,9 +147,9 @@ or tag.
 ## Trusted Builds
 
 Trusted Builds automate the building and updating of images from GitHub,
-directly on `docker.io` servers. It works by adding
-a commit hook to your selected repository, triggering a build and update
-when you push a commit.
+directly on Docker.io. It works by adding a commit hook to
+your selected repository, triggering a build and update when you push a
+commit.
 
 ### To setup a trusted build
 
@@ -206,9 +203,10 @@ identify a host), like this:
 
 Once a repository has your registry's host name as part of the tag, you
 can push and pull it like any other repository, but it will **not** be
-searchable (or indexed at all) on [Docker.io](http://index.docker.io), and there will be
-no user name checking performed. Your registry will function completely
-independently from the [Docker.io](http://index.docker.io) registry.
+searchable (or indexed at all) on [Docker.io](http://index.docker.io),
+and there will be no user name checking performed. Your registry will
+function completely independently from the
+[Docker.io](http://index.docker.io) registry.
 
 <iframe width="640" height="360" src="//www.youtube.com/embed/CAewZCBT4PI?rel=0" frameborder="0" allowfullscreen></iframe>
 
@@ -219,15 +217,20 @@ http://blog.docker.io/2013/07/how-to-use-your-own-registry/)
 
 ## Authentication File
 
-The authentication is stored in a json file, `.dockercfg`
-located in your home directory. It supports multiple registry
-urls.
+The authentication is stored in a JSON file, `.dockercfg`, located in
+your home directory. It supports multiple registry URLs.
 
-`docker login` will create the "[https://index.docker.io/v1/](
-https://index.docker.io/v1/)" key.
+The `docker login` command will create the:
 
-`docker login https://my-registry.com` will create the
-"[https://my-registry.com](https://my-registry.com)" key.
+    [https://index.docker.io/v1/](https://index.docker.io/v1/)
+
+key.
+
+The `docker login https://my-registry.com` command will create the:
+
+    [https://my-registry.com](https://my-registry.com)
+
+key.
 
 For example:
 
@@ -243,4 +246,6 @@ For example:
     }
 
 The `auth` field represents
-`base64(<username>:<password>)`
+
+    base64(<username>:<password>)
+

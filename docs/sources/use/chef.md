@@ -19,8 +19,8 @@ operating systems.
 ## Installation
 
 The cookbook is available on the [Chef Community
-Site](http://community.opscode.com/cookbooks/docker) and can be installed using
-your favorite cookbook dependency manager.
+Site](http://community.opscode.com/cookbooks/docker) and can be
+installed using your favorite cookbook dependency manager.
 
 The source can be found on
 [GitHub](https://github.com/bflad/chef-docker).
@@ -71,4 +71,4 @@ This is equivalent to running the following command, but under upstart:
     $ docker run --detach=true --publish='5000:5000' --env='SETTINGS_FLAVOR=local' --volume='/mnt/docker:/docker-storage' samalba/docker-registry
 
 The resources will accept a single string or an array of values for any
-docker flags that allow multiple values.
+Docker flags that allow multiple values.
