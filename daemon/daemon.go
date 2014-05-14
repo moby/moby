@@ -85,6 +85,7 @@ func (daemon *Daemon) List() []*Container {
 	for e := daemon.containers.Front(); e != nil; e = e.Next() {
 		containers.Add(e.Value.(*Container))
 	}
+	containers.Sort()
 	return *containers
 }
 
