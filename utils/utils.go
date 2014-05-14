@@ -493,9 +493,7 @@ func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	return
 }
 
-func (idx *TruncIndex) Add(id string) error {
-	idx.Lock()
-	defer idx.Unlock()
+func (idx *TruncIndex) addId(id string) error {
 	if strings.Contains(id, " ") {
 		return fmt.Errorf("Illegal character: ' '")
 	}
@@ -504,8 +502,29 @@ func (idx *TruncIndex) Add(id string) error {
 	}
 	idx.ids[id] = true
 	idx.bytes = append(idx.bytes, []byte(id+" ")...)
+	return nil
+}
+
+func (idx *TruncIndex) Add(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
+	if err := idx.addId(id); err != nil {
+		return err
+	}
 	idx.index = suffixarray.New(idx.bytes)
 	return nil
+}
+
+func (idx *TruncIndex) AddWithoutSuffixarrayUpdate(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
+	return idx.addId(id)
+}
+
+func (idx *TruncIndex) UpdateSuffixarray() {
+	idx.Lock()
+	defer idx.Unlock()
+	idx.index = suffixarray.New(idx.bytes)
 }
 
 func (idx *TruncIndex) Delete(id string) error {
