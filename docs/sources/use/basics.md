@@ -12,10 +12,10 @@ your Docker install, run the following command:
     # Check that you have a working install
     $ docker info
 
-If you get `docker: command not found` or something
-like `/var/lib/docker/repositories: permission denied`
-you may have an incomplete docker installation or insufficient
-privileges to access Docker on your machine.
+If you get `docker: command not found` or something like
+`/var/lib/docker/repositories: permission denied` you may have an
+incomplete Docker installation or insufficient privileges to access
+Docker on your machine.
 
 Please refer to [*Installation*](/installation/#installation-list)
 for installation instructions.
@@ -26,9 +26,9 @@ for installation instructions.
     $ sudo docker pull ubuntu
 
 This will find the `ubuntu` image by name on
-[*Docker.io*](../workingwithrepository/#find-public-images-on-dockerio) and
-download it from [Docker.io](https://index.docker.io) to a local image
-cache.
+[*Docker.io*](../workingwithrepository/#find-public-images-on-dockerio)
+and download it from [Docker.io](https://index.docker.io) to a local
+image cache.
 
 > **Note**:
 > When the image has successfully downloaded, you will see a 12 character
@@ -50,7 +50,7 @@ cache.
 
 ## Bind Docker to another host/port or a Unix socket
 
-> **Warning**: 
+> **Warning**:
 > Changing the default `docker` daemon binding to a
 > TCP port or Unix *docker* user group will increase your security risks
 > by allowing non-root users to gain *root* access on the host. Make sure
@@ -58,41 +58,44 @@ cache.
 > to a TCP port, anyone with access to that port has full Docker access;
 > so it is not advisable on an open network.
 
-With `-H` it is possible to make the Docker daemon
-to listen on a specific IP and port. By default, it will listen on
-`unix:///var/run/docker.sock` to allow only local
-connections by the *root* user. You *could* set it to
-`0.0.0.0:4243` or a specific host IP to give access
-to everybody, but that is **not recommended** because then it is trivial
-for someone to gain root access to the host where the daemon is running.
+With `-H` it is possible to make the Docker daemon to listen on a
+specific IP and port. By default, it will listen on
+`unix:///var/run/docker.sock` to allow only local connections by the
+*root* user. You *could* set it to `0.0.0.0:4243` or a specific host IP
+to give access to everybody, but that is **not recommended** because
+then it is trivial for someone to gain root access to the host where the
+daemon is running.
 
-Similarly, the Docker client can use `-H` to connect
-to a custom port.
+Similarly, the Docker client can use `-H` to connect to a custom port.
 
-`-H` accepts host and port assignment in the
-following format: `tcp://[host][:port]` or
-`unix://path`
+`-H` accepts host and port assignment in the following format:
+
+    tcp://[host][:port]` or `unix://path
 
 For example:
 
--   `tcp://host:4243` -> tcp connection on
+-   `tcp://host:4243` -> TCP connection on
     host:4243
--   `unix://path/to/socket` -> unix socket located
+-   `unix://path/to/socket` -> Unix socket located
     at `path/to/socket`
 
 `-H`, when empty, will default to the same value as
 when no `-H` was passed in.
 
 `-H` also accepts short form for TCP bindings:
-`host[:port]` or `:port`
 
-    # Run docker in daemon mode
+    host[:port]` or `:port
+
+Run Docker in daemon mode:
+
     $ sudo <path to>/docker -H 0.0.0.0:5555 -d &
-    # Download an ubuntu image
+
+Download an `ubuntu` image:
+
     $ sudo docker -H :5555 pull ubuntu
 
-You can use multiple `-H`, for example, if you want
-to listen on both TCP and a Unix socket
+You can use multiple `-H`, for example, if you want to listen on both
+TCP and a Unix socket
 
     # Run docker in daemon mode
     $ sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock -d &

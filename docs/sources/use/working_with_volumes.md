@@ -8,8 +8,8 @@ page_keywords: Examples, Usage, volume, docker, documentation, examples
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/terms/layer/#ufs-def) to provide several useful features
-for persistent or shared data:
+System*](/terms/layer/#ufs-def) to provide several useful features for
+persistent or shared data:
 
  - **Data volumes can be shared and reused between containers:**  
    This is the feature that makes data volumes so powerful. You can
@@ -28,26 +28,22 @@ for persistent or shared data:
 
 Each container can have zero or more data volumes.
 
-New in version v0.3.0.
-
 ## Getting Started
 
-Using data volumes is as simple as adding a `-v`
-parameter to the `docker run` command. The
-`-v` parameter can be used more than once in order
-to create more volumes within the new container. To create a new
+Using data volumes is as simple as adding a `-v` parameter to the
+`docker run` command. The `-v` parameter can be used more than once in
+order to create more volumes within the new container. To create a new
 container with two new volumes:
 
     $ docker run -v /var/volume1 -v /var/volume2 busybox true
 
 This command will create the new container with two new volumes that
-exits instantly (`true` is pretty much the smallest,
-simplest program that you can run). You can then mount its
-volumes in any other container using the `run` `--volumes-from`
-option; irrespective of whether the volume container is running or
-not.
+exits instantly (`true` is pretty much the smallest, simplest program
+that you can run). You can then mount its volumes in any other container
+using the `run` `--volumes-from` option; irrespective of whether the
+volume container is running or not.
 
-Or, you can use the VOLUME instruction in a Dockerfile to add one or
+Or, you can use the `VOLUME` instruction in a `Dockerfile` to add one or
 more new volumes to any container created from that image:
 
     # BUILD-USING:        $ docker build -t data .
@@ -63,8 +59,8 @@ containers, or want to use from non-persistent containers, it's best to
 create a named Data Volume Container, and then to mount the data from
 it.
 
-Create a named container with volumes to share (`/var/volume1`
-and `/var/volume2`):
+Create a named container with volumes to share (`/var/volume1` and
+`/var/volume2`):
 
     $ docker run -v /var/volume1 -v /var/volume2 -name DATA busybox true
 
@@ -72,12 +68,12 @@ Then mount those data volumes into your application containers:
 
     $ docker run -t -i -rm -volumes-from DATA -name client1 ubuntu bash
 
-You can use multiple `-volumes-from` parameters to
-bring together multiple data volumes from multiple containers.
+You can use multiple `-volumes-from` parameters to bring together
+multiple data volumes from multiple containers.
 
-Interestingly, you can mount the volumes that came from the
-`DATA` container in yet another container via the
-`client1` middleman container:
+Interestingly, you can mount the volumes that came from the `DATA`
+container in yet another container via the `client1` middleman
+container:
 
     $ docker run -t -i -rm -volumes-from client1 -name client2 ubuntu bash
 
@@ -94,14 +90,15 @@ upgrade, or effectively migrate data volumes between containers.
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
 
-You must specify an absolute path for `host-dir`. If `host-dir` is missing from
-the command, then Docker creates a new volume. If `host-dir` is present but
-points to a non-existent directory on the host, Docker will automatically
-create this directory and use it as the source of the bind-mount.
+You must specify an absolute path for `host-dir`. If `host-dir` is
+missing from the command, then Docker creates a new volume. If
+`host-dir` is present but points to a non-existent directory on the
+host, Docker will automatically create this directory and use it as the
+source of the bind-mount.
 
-Note that this is not available from a Dockerfile due the portability and
-sharing purpose of it. The `host-dir` volumes are entirely host-dependent
-and might not work on any other machine.
+Note that this is not available from a `Dockerfile` due the portability
+and sharing purpose of it. The `host-dir` volumes are entirely
+host-dependent and might not work on any other machine.
 
 For example:
 
@@ -110,26 +107,28 @@ For example:
     # Example:
     $ sudo docker run -i -t -v /var/log:/logs_from_host:ro ubuntu bash
 
-The command above mounts the host directory `/var/log` into the container
-with *read only* permissions as `/logs_from_host`.
+The command above mounts the host directory `/var/log` into the
+container with *read only* permissions as `/logs_from_host`.
 
 New in version v0.5.0.
 
 ### Note for OS/X users and remote daemon users:
 
-OS/X users run `boot2docker` to create a minimalist virtual machine running
-the docker daemon. That virtual machine then launches docker commands on
-behalf of the OS/X command line. The means that `host directories` refer to
-directories in the `boot2docker` virtual machine, not the OS/X filesystem.
+OS/X users run `boot2docker` to create a minimalist virtual machine
+running the docker daemon. That virtual machine then launches docker
+commands on behalf of the OS/X command line. The means that `host
+directories` refer to directories in the `boot2docker` virtual machine,
+not the OS/X filesystem.
 
-Similarly, anytime when the docker daemon is on a remote machine, the 
+Similarly, anytime when the docker daemon is on a remote machine, the
 `host directories` always refer to directories on the daemon's machine.
 
 ### Backup, restore, or migrate data volumes
 
-You cannot back up volumes using `docker export`, `docker save` and `docker cp`
-because they are external to images. Instead you can use `--volumes-from` to
-start a new container that can access the data-container's volume. For example:
+You cannot back up volumes using `docker export`, `docker save` and
+`docker cp` because they are external to images. Instead you can use
+`--volumes-from` to start a new container that can access the
+data-container's volume. For example:
 
     $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
 
@@ -144,7 +143,8 @@ start a new container that can access the data-container's volume. For example:
  - `tar cvf /backup/backup.tar /data`:  
    creates an uncompressed tar file of all the files in the `/data` directory
 
-Then to restore to the same container, or another that you`ve made elsewhere:
+Then to restore to the same container, or another that you've made
+elsewhere:
 
     # create a new data container
     $ sudo docker run -v /data -name DATA2 busybox true

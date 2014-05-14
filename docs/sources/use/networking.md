@@ -7,13 +7,13 @@ page_keywords: network, networking, bridge, docker, documentation
 ## Introduction
 
 Docker uses Linux bridge capabilities to provide network connectivity to
-containers. The `docker0` bridge interface is
-managed by Docker for this purpose. When the Docker daemon starts it :
+containers. The `docker0` bridge interface is managed by Docker for this
+purpose. When the Docker daemon starts it:
 
- - creates the `docker0` bridge if not present
- - searches for an IP address range which doesn't overlap with an existing route
- - picks an IP in the selected range
- - assigns this IP to the `docker0` bridge
+ - Creates the `docker0` bridge if not present
+ - Searches for an IP address range which doesn't overlap with an existing route
+ - Picks an IP in the selected range
+ - Assigns this IP to the `docker0` bridge
 
 <!-- -->
 
@@ -42,7 +42,7 @@ for the container.
     docker0             8000.fef213db5a66       no              vethQCDY1N
 
 Above, `docker0` acts as a bridge for the `vethQCDY1N` interface which
-is dedicated to the 52f811c5d3d6 container.
+is dedicated to the `52f811c5d3d6` container.
 
 ## How to use a specific IP address range
 
@@ -50,16 +50,15 @@ Docker will try hard to find an IP range that is not used by the host.
 Even though it works for most cases, it's not bullet-proof and sometimes
 you need to have more control over the IP addressing scheme.
 
-For this purpose, Docker allows you to manage the `docker0`
-bridge or your own one using the `-b=<bridgename>`
-parameter.
+For this purpose, Docker allows you to manage the `docker0` bridge or
+your own one using the `-b=<bridgename>` parameter.
 
 In this scenario:
 
- - ensure Docker is stopped
- - create your own bridge (`bridge0` for example)
- - assign a specific IP to this bridge
- - start Docker with the `-b=bridge0` parameter
+ - Ensure Docker is stopped
+ - Create your own bridge (`bridge0` for example)
+ - Assign a specific IP to this bridge
+ - Start Docker with the `-b=bridge0` parameter
 
 <!-- -->
 
@@ -107,29 +106,27 @@ In this scenario:
 
 ## Container intercommunication
 
-The value of the Docker daemon's `icc` parameter
-determines whether containers can communicate with each other over the
-bridge network.
+The value of the Docker daemon's `icc` parameter determines whether
+containers can communicate with each other over the bridge network.
 
  - The default, `-icc=true` allows containers to communicate with each other.
  - `-icc=false` means containers are isolated from each other.
 
-Docker uses `iptables` under the hood to either
-accept or drop communication between containers.
+Docker uses `iptables` under the hood to either accept or drop
+communication between containers.
 
 ## What is the vethXXXX device?
 
 Well. Things get complicated here.
 
-The `vethXXXX` interface is the host side of a
-point-to-point link between the host and the corresponding container;
-the other side of the link is the container's `eth0`
-interface. This pair (host `vethXXX` and container
-`eth0`) are connected like a tube. Everything that
-comes in one side will come out the other side.
+The `vethXXXX` interface is the host side of a point-to-point link
+between the host and the corresponding container; the other side of the
+link is the container's `eth0` interface. This pair (host `vethXXX` and
+container `eth0`) are connected like a tube. Everything that comes in
+one side will come out the other side.
 
 All the plumbing is delegated to Linux network capabilities (check the
-ip link command) and the namespaces infrastructure.
+`ip link` command) and the namespaces infrastructure.
 
 ## I want more
 
