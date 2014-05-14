@@ -127,7 +127,6 @@ type Command struct {
 	Entrypoint string              `json:"entrypoint"`
 	Arguments  []string            `json:"arguments"`
 	WorkingDir string              `json:"working_dir"`
-	ConfigPath string              `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
 	Tty        bool                `json:"tty"`
 	Network    *Network            `json:"network"`
 	Config     map[string][]string `json:"config"` //  generic values that specific drivers can consume

@@ -95,8 +95,6 @@ To set the DNS search domain for all Docker containers, use
 
 To run the daemon with debug output, use `docker -d -D`.
 
-To use lxc as the execution driver, use `docker -d -e lxc`.
-
 The docker client will also honor the `DOCKER_HOST` environment variable to set
 the `-H` flag for the client.
 
@@ -822,7 +820,6 @@ Run a command in a new container
     -h, --hostname=""          Container host name
     -i, --interactive=false    Keep stdin open even if not attached
     --link=[]                  Add link to another container (name:alias)
-    --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
     -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
     --name=""                  Assign a name to the container
     --net="bridge"             Set the Network mode for the container

@@ -206,7 +206,6 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l expose -d 'Expo
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s h -l hostname -d 'Container host name'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactive -d 'Keep stdin open even if not attached'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container (name:alias)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d 'Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number><optional unit>, where unit = b, k, m or g)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s n -l networking -d 'Enable networking for this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'

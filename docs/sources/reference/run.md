@@ -35,7 +35,7 @@ The list of `[OPTIONS]` breaks down into two groups:
  - Container Identification,
  - Network settings, and
  - Runtime Constraints on CPU and Memory
- - Privileges and LXC Configuration
+ - Privileges
 
 2. Setting shared between operators and developers, where operators can
    override defaults developers set in images at build time.
@@ -60,8 +60,7 @@ following options.
  - [Clean Up (–rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and
     Memory](#runtime-constraints-on-cpu-and-memory)
- - [Runtime Privilege and LXC
-    Configuration](#runtime-privilege-and-lxc-configuration)
+ - [Runtime Privilege](#runtime-privilege)
 
 ## Detached vs Foreground
 
@@ -225,10 +224,9 @@ the same priority and get the same proportion of CPU cycles, but you can
 tell the kernel to give more shares of CPU time to one or more
 containers when you start them via Docker.
 
-## Runtime Privilege and LXC Configuration
+## Runtime Privilege
 
     --privileged=false: Give extended privileges to this container
-    --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
@@ -244,15 +242,6 @@ in AppArmor to allow the container nearly all the same access to the
 host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
 [Docker Blog](http://blog.docker.io/2013/09/docker-can-now-run-within-docker/).
-
-If the Docker daemon was started using the `lxc` exec-driver
-(`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
-using one or more `--lxc-conf` parameters. These can be new parameters or
-override existing parameters from the [lxc-template.go](
-https://github.com/dotcloud/docker/blob/master/daemon/execdriver/lxc/lxc_template.go).
-Note that in the future, a given host's docker daemon may not use LXC, so this
-is an implementation-specific configuration meant for operators already
-familiar with using LXC directly.
 
 ## Overriding Dockerfile Image Defaults
 

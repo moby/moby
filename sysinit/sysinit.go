@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dotcloud/docker/daemon/execdriver"
-	_ "github.com/dotcloud/docker/daemon/execdriver/lxc"
 	_ "github.com/dotcloud/docker/daemon/execdriver/native"
 	"log"
 	"os"

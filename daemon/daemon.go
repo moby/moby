@@ -16,7 +16,6 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/execdrivers"
-	"github.com/dotcloud/docker/daemon/execdriver/lxc"
 	"github.com/dotcloud/docker/daemon/graphdriver"
 	_ "github.com/dotcloud/docker/daemon/graphdriver/vfs"
 	_ "github.com/dotcloud/docker/daemon/networkdriver/bridge"
@@ -177,22 +176,17 @@ func (daemon *Daemon) Register(container *Container) error {
 		existingPid := container.State.Pid
 		container.State.SetStopped(0)
 
-		// We only have to handle this for lxc because the other drivers will ensure that
-		// no processes are left when docker dies
-		if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
-			lxc.KillLxc(container.ID, 9)
-		} else {
-			// use the current driver and ensure that the container is dead x.x
-			cmd := &execdriver.Command{
-				ID: container.ID,
-			}
-			var err error
-			cmd.Process, err = os.FindProcess(existingPid)
-			if err != nil {
-				utils.Debugf("cannot find existing process for %d", existingPid)
-			}
-			daemon.execDriver.Terminate(cmd)
+		// use the current driver and ensure that the container is dead x.x
+		cmd := &execdriver.Command{
+			ID: container.ID,
 		}
+		var err error
+		cmd.Process, err = os.FindProcess(existingPid)
+		if err != nil {
+			utils.Debugf("cannot find existing process for %d", existingPid)
+		}
+		daemon.execDriver.Terminate(cmd)
+
 		if err := container.Unmount(); err != nil {
 			utils.Debugf("unmount error %s", err)
 		}
