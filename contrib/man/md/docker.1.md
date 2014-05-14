@@ -73,6 +73,12 @@ port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
 
+**--registry-append**=""
+  Comma separated list of registries to append to default registry. Registries will be searched in reverse order.
+
+**--registry-replace**=""
+Comma separated list of registries to replace the default registry. Registries will be searched in reverse order
+
 **--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false.
 
