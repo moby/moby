@@ -142,7 +142,13 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
+// This is a wrapper for register
 func (daemon *Daemon) Register(container *Container) error {
+	return daemon.register(container, true)
+}
+
+// register makes a container object usable by the daemon as <container.ID>
+func (daemon *Daemon) register(container *Container, updateSuffixarray bool) error {
 	if container.daemon != nil || daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
@@ -166,7 +172,14 @@ func (daemon *Daemon) Register(container *Container) error {
 	}
 	// done
 	daemon.containers.PushBack(container)
-	daemon.idIndex.Add(container.ID)
+
+	// don't update the Suffixarray if we're starting up
+	// we'll waste time if we update it for every container
+	if updateSuffixarray {
+		daemon.idIndex.Add(container.ID)
+	} else {
+		daemon.idIndex.AddWithoutSuffixarrayUpdate(container.ID)
+	}
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
@@ -330,8 +343,8 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	register := func(container *Container) {
-		if err := daemon.Register(container); err != nil {
+	registerContainer := func(container *Container) {
+		if err := daemon.register(container, false); err != nil {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 		}
 	}
@@ -343,7 +356,7 @@ func (daemon *Daemon) restore() error {
 			}
 			e := entities[p]
 			if container, ok := containers[e.ID()]; ok {
-				register(container)
+				registerContainer(container)
 				delete(containers, e.ID())
 			}
 		}
@@ -360,9 +373,10 @@ func (daemon *Daemon) restore() error {
 		if _, err := daemon.containerGraph.Set(container.Name, container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
-		register(container)
+		registerContainer(container)
 	}
 
+	daemon.idIndex.UpdateSuffixarray()
 	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
 		fmt.Printf(": done.\n")
 	}
