@@ -34,7 +34,7 @@ it:
 
     description "Redis container"
     author "Me"
-    start on filesystem and started docker
+    start on filesystem and started docker.io
     stop on runlevel [!2345]
     respawn
     script
