@@ -38,7 +38,7 @@ func TestDiffFilenameShownInOutput(t *testing.T) {
 // test to ensure GH #3840 doesn't occur any more
 func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 	// this is a list of files which shouldn't show up in `docker diff`
-	dockerinitFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerinit", "/.dockerenv"}
+	dockerinitFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerinit"}
 
 	// we might not run into this problem from the first run, so start a few containers
 	for i := 0; i < 20; i++ {
