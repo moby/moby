@@ -23,7 +23,7 @@ func (settings *NetworkSettings) PortMappingAPI() *engine.Table {
 		p, _ := nat.ParsePort(port.Port())
 		if len(bindings) == 0 {
 			out := &engine.Env{}
-			out.SetInt("PublicPort", p)
+			out.SetInt("PrivatePort", p)
 			out.Set("Type", port.Proto())
 			outs.Add(out)
 			continue
