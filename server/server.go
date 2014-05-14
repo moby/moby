@@ -259,7 +259,10 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 	}
 	for {
 		select {
-		case event := <-listener:
+		case event, ok := <-listener:
+			if !ok { // Channel is closed: listener was evicted
+				return engine.StatusOK
+			}
 			err := sendEvent(&event)
 			if err != nil && err.Error() == "JSON error" {
 				continue
