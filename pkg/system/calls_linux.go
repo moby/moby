@@ -3,6 +3,7 @@ package system
 import (
 	"os/exec"
 	"syscall"
+	"unsafe"
 )
 
 func Chroot(dir string) error {
@@ -120,6 +121,18 @@ func ParentDeathSignal(sig uintptr) error {
 		return err
 	}
 	return nil
+}
+
+func GetParentDeathSignal() (int, error) {
+	var sig int
+
+	_, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_GET_PDEATHSIG, uintptr(unsafe.Pointer(&sig)), 0)
+
+	if err != 0 {
+		return -1, err
+	}
+
+	return sig, nil
 }
 
 func Setctty() error {
