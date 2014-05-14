@@ -7,9 +7,19 @@ import (
 	"github.com/dotcloud/docker/pkg/collections"
 	"net"
 	"sync"
+	"sync/atomic"
 )
 
-type networkSet map[string]*collections.OrderedIntSet
+type allocatedMap struct {
+	*collections.OrderedIntSet
+	last int32
+}
+
+func newAllocatedMap() *allocatedMap {
+	return &allocatedMap{OrderedIntSet: collections.NewOrderedIntSet()}
+}
+
+type networkSet map[string]*allocatedMap
 
 var (
 	ErrNoAvailableIPs     = errors.New("no available ip addresses on network")
@@ -19,7 +29,6 @@ var (
 var (
 	lock         = sync.Mutex{}
 	allocatedIPs = networkSet{}
-	availableIPS = networkSet{}
 )
 
 // RequestIP requests an available ip from the given network.  It
@@ -55,13 +64,11 @@ func ReleaseIP(address *net.IPNet, ip *net.IP) error {
 	checkAddress(address)
 
 	var (
-		existing  = allocatedIPs[address.String()]
-		available = availableIPS[address.String()]
+		allocated = allocatedIPs[address.String()]
 		pos       = getPosition(address, ip)
 	)
 
-	existing.Remove(int(pos))
-	available.Push(int(pos))
+	allocated.Remove(int(pos))
 
 	return nil
 }
@@ -82,29 +89,19 @@ func getPosition(address *net.IPNet, ip *net.IP) int32 {
 func getNextIp(address *net.IPNet) (*net.IP, error) {
 	var (
 		ownIP     = ipToInt(&address.IP)
-		available = availableIPS[address.String()]
 		allocated = allocatedIPs[address.String()]
 		first, _  = networkdriver.NetworkRange(address)
 		base      = ipToInt(&first)
 		size      = int(networkdriver.NetworkSize(address.Mask))
 		max       = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
-		pos       = int32(available.Pop())
+		pos       = atomic.LoadInt32(&allocated.last)
 	)
-
-	// We pop and push the position not the ip
-	if pos != 0 {
-		ip := intToIP(int32(base + pos))
-		allocated.Push(int(pos))
-
-		return ip, nil
-	}
 
 	var (
 		firstNetIP = address.IP.To4().Mask(address.Mask)
 		firstAsInt = ipToInt(&firstNetIP) + 1
 	)
 
-	pos = int32(allocated.PullBack())
 	for i := int32(0); i < max; i++ {
 		pos = pos%max + 1
 		next := int32(base + pos)
@@ -116,6 +113,7 @@ func getNextIp(address *net.IPNet) (*net.IP, error) {
 		if !allocated.Exists(int(pos)) {
 			ip := intToIP(next)
 			allocated.Push(int(pos))
+			atomic.StoreInt32(&allocated.last, pos)
 			return ip, nil
 		}
 	}
@@ -124,15 +122,14 @@ func getNextIp(address *net.IPNet) (*net.IP, error) {
 
 func registerIP(address *net.IPNet, ip *net.IP) error {
 	var (
-		existing  = allocatedIPs[address.String()]
-		available = availableIPS[address.String()]
+		allocated = allocatedIPs[address.String()]
 		pos       = getPosition(address, ip)
 	)
 
-	if existing.Exists(int(pos)) {
+	if allocated.Exists(int(pos)) {
 		return ErrIPAlreadyAllocated
 	}
-	available.Remove(int(pos))
+	atomic.StoreInt32(&allocated.last, pos)
 
 	return nil
 }
@@ -153,7 +150,6 @@ func intToIP(n int32) *net.IP {
 func checkAddress(address *net.IPNet) {
 	key := address.String()
 	if _, exists := allocatedIPs[key]; !exists {
-		allocatedIPs[key] = collections.NewOrderedIntSet()
-		availableIPS[key] = collections.NewOrderedIntSet()
+		allocatedIPs[key] = newAllocatedMap()
 	}
 }
