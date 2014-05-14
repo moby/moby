@@ -4,7 +4,8 @@ package systemd
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/cgroups"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 func UseSystemd() bool {

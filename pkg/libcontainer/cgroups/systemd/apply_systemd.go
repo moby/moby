@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	systemd1 "github.com/coreos/go-systemd/dbus"
-	"github.com/dotcloud/docker/pkg/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/godbus/dbus"
 )

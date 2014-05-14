@@ -7,10 +7,10 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/pkg/cgroups/fs"
-	"github.com/dotcloud/docker/pkg/cgroups/systemd"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/systemd"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/system"
 )
