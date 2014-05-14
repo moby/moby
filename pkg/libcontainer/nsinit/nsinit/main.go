@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 
@@ -39,7 +41,7 @@ func main() {
 			exitCode, err = nsinit.ExecIn(container, nspid, os.Args[2:])
 		} else {
 			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-			exitCode, err = nsinit.Exec(container, term, "", dataPath, os.Args[2:], nsinit.DefaultCreateCommand, nil)
+			exitCode, err = startContainer(container, term, dataPath, os.Args[2:])
 		}
 
 		if err != nil {
@@ -94,4 +96,32 @@ func readPid() (int, error) {
 		return -1, err
 	}
 	return pid, nil
+}
+
+// startContainer starts the container. Returns the exit status or -1 and an
+// error.
+//
+// Signals sent to the current process will be forwarded to container.
+func startContainer(container *libcontainer.Container, term nsinit.Terminal, dataPath string, args []string) (int, error) {
+	var (
+		cmd  *exec.Cmd
+		sigc = make(chan os.Signal, 10)
+	)
+
+	signal.Notify(sigc)
+
+	createCommand := func(container *libcontainer.Container, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
+		cmd = nsinit.DefaultCreateCommand(container, console, rootfs, dataPath, init, pipe, args)
+		return cmd
+	}
+
+	startCallback := func() {
+		go func() {
+			for sig := range sigc {
+				cmd.Process.Signal(sig)
+			}
+		}()
+	}
+
+	return nsinit.Exec(container, term, "", dataPath, args, createCommand, startCallback)
 }
