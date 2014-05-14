@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/units"
 )
 
 type Action func(*libcontainer.Container, interface{}, string) error
@@ -75,7 +75,7 @@ func memory(container *libcontainer.Container, context interface{}, value string
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
 
-	v, err := utils.RAMInBytes(value)
+	v, err := units.RAMInBytes(value)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func memoryReservation(container *libcontainer.Container, context interface{}, v
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
 
-	v, err := utils.RAMInBytes(value)
+	v, err := units.RAMInBytes(value)
 	if err != nil {
 		return err
 	}
