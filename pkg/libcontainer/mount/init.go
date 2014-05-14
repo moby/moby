@@ -54,6 +54,9 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 	if err := SetupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
 		return err
 	}
+	if err := setupDevSymlinks(rootfs); err != nil {
+		return fmt.Errorf("dev symlinks %s", err)
+	}
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
@@ -111,6 +114,34 @@ func createIfNotExists(path string, isDir bool) error {
 			}
 		}
 	}
+	return nil
+}
+
+func setupDevSymlinks(rootfs string) error {
+	var links = [][2]string{
+		{"/proc/self/fd", "/dev/fd"},
+		{"/proc/self/fd/0", "/dev/stdin"},
+		{"/proc/self/fd/1", "/dev/stdout"},
+		{"/proc/self/fd/2", "/dev/stderr"},
+	}
+
+	// kcore support can be toggled with CONFIG_PROC_KCORE; only create a symlink
+	// in /dev if it exists in /proc.
+	if _, err := os.Stat("/proc/kcore"); err == nil {
+		links = append(links, [2]string{"/proc/kcore", "/dev/kcore"})
+	}
+
+	for _, link := range links {
+		var (
+			src = link[0]
+			dst = filepath.Join(rootfs, link[1])
+		)
+
+		if err := os.Symlink(src, dst); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("symlink %s %s %s", src, dst, err)
+		}
+	}
+
 	return nil
 }
 
