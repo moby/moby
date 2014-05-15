@@ -3,6 +3,7 @@ package runconfig
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"path"
 	"strings"
 
@@ -65,6 +66,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flIP              = cmd.String([]string{"ip", "-ip"}, "", "IP address for the container. If not specified, and networking is enabled for the container, docker will automatically assign an IP.")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the contaner")
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -99,7 +101,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
-	}
+	}	
 	if *flDetach && *flAutoRemove {
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
 	}
@@ -210,9 +212,16 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
 	}
 
+	if *flIP != "" {
+		if parsedIP := net.ParseIP(*flIP); parsedIP == nil {
+			return nil, nil, cmd, fmt.Errorf("--ip: invalid ip: %s", *flIP)
+		}
+	}
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
+		IP:              *flIP,
 		PortSpecs:       nil, // Deprecated
 		ExposedPorts:    ports,
 		User:            *flUser,
