@@ -7,7 +7,7 @@ docker-images - List the images in the local repository
 # SYNOPSIS
 **docker images**
 [**-a**|**--all**=*false*]
-[**--no-trunc**[=*false*]
+[**--trunc**[=*true*]
 [**-q**|**--quiet**[=*false*]
 [**-t**|**--tree**=*false*]
 [**-v**|**--viz**=*false*]
@@ -35,9 +35,9 @@ versions.
    When set to true, also include all intermediate images in the list. The
 default is false.
 
-**--no-trunc**=*true*|*false*
+**--trunc**=*true*|*false*
    When set to true, list the full image ID and not the truncated ID. The
-default is false.
+default is true.
 
 **-q**, **--quiet**=*true*|*false*
    When set to true, list the complete image ID as part of the output. The

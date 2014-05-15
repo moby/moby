@@ -422,15 +422,24 @@ func Set(name, value string) error {
 func (f *FlagSet) PrintDefaults() {
 	writer := tabwriter.NewWriter(f.out(), 20, 1, 3, ' ', 0)
 	f.VisitAll(func(flag *Flag) {
-		format := "  -%s=%s"
+		var (
+			format = "  -%s=%s"
+			isBool = false
+		)
 		if _, ok := flag.Value.(*stringValue); ok {
 			// put quotes on the value
 			format = "  -%s=%q"
+		} else if _, ok := flag.Value.(*boolValue); ok {
+			format = "  -%s (=%s)"
+			isBool = true
 		}
 		names := []string{}
 		for _, name := range flag.Names {
 			if name[0] != '#' {
 				names = append(names, name)
+				if isBool && name[0] == '-' {
+					names = append(names, "-no"+name)
+				}
 			}
 		}
 		if len(names) > 0 {
@@ -806,6 +815,15 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		}
 	}
 	m := f.formal
+	boolDefault := "true"
+	if !has_value && len(name) >= 4 && name[0:4] == "-no-" {
+		if flag, ok := m[name[3:]]; ok {
+			if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() {
+				name = name[3:] // turns "-no-tls" into "-tls"
+				boolDefault = "false"
+			}
+		}
+	}
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {
 		if name == "-help" || name == "help" || name == "h" { // special case for nice help message.
@@ -823,7 +841,7 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 				return false, "", f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
 			}
 		} else {
-			fv.Set("true")
+			fv.Set(boolDefault)
 		}
 	} else {
 		// It must have a value, which might be the next argument.
