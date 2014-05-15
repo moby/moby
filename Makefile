@@ -34,7 +34,7 @@ docs-shell: docs-build
 docs-release: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
-test: build
+test: build cross
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-unit test-integration test-integration-cli
 
 test-unit: build
