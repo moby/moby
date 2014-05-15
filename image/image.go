@@ -279,7 +279,7 @@ func (img *Image) Depth() (int, error) {
 	return count, nil
 }
 
-// Build an Image object from raw json data
+// Build a Container Image object from raw json data
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
 
