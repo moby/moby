@@ -17,7 +17,7 @@ import (
 
 // Exec performes setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath string, args []string, files map[string][]byte, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
 		master  *os.File
 		console string
@@ -70,7 +70,17 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		defer cleaner.Cleanup()
 	}
 
-	if err := InitializeNetworking(container, command.Process.Pid, syncPipe); err != nil {
+	pipeData := &SyncPipeData{
+		Context: make(libcontainer.Context),
+		Files:   files,
+	}
+
+	if err := InitializeNetworking(container, command.Process.Pid, pipeData.Context); err != nil {
+		command.Process.Kill()
+		return -1, err
+	}
+
+	if err := syncPipe.SendToChild(pipeData); err != nil {
 		command.Process.Kill()
 		return -1, err
 	}
@@ -143,8 +153,7 @@ func SetupCgroups(container *libcontainer.Container, nspid int) (cgroups.ActiveC
 
 // InitializeNetworking creates the container's network stack outside of the namespace and moves
 // interfaces into the container's net namespaces if necessary
-func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) error {
-	context := libcontainer.Context{}
+func InitializeNetworking(container *libcontainer.Container, nspid int, context libcontainer.Context) error {
 	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
 		if err != nil {
@@ -154,7 +163,7 @@ func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *Sy
 			return err
 		}
 	}
-	return pipe.SendToChild(context)
+	return nil
 }
 
 // GetNamespaceFlags parses the container's Namespaces options to set the correct

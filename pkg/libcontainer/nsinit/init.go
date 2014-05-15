@@ -4,7 +4,9 @@ package nsinit
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -37,7 +39,7 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 	}
 
 	// We always read this as it is a way to sync with the parent as well
-	context, err := syncPipe.ReadFromParent()
+	pipeData, err := syncPipe.ReadFromParent()
 	if err != nil {
 		syncPipe.Close()
 		return err
@@ -57,7 +59,7 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-	if err := setupNetwork(container, context); err != nil {
+	if err := setupNetwork(container, pipeData.Context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
 
@@ -69,6 +71,16 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 	if container.Hostname != "" {
 		if err := system.Sethostname(container.Hostname); err != nil {
 			return fmt.Errorf("sethostname %s", err)
+		}
+	}
+
+	for path, data := range pipeData.Files {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("mkdirall %s %s", filepath.Dir(path), err)
+		}
+		err := ioutil.WriteFile(path, data, 0755)
+		if err != nil {
+			return err
 		}
 	}
 
