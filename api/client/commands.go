@@ -49,6 +49,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build a container from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
+		{"cat", "Print contents of a file from the container's filesystem to stdout"},
 		{"cp", "Copy files/folders from the containers filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
@@ -2063,6 +2064,68 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdCat(args ...string) error {
+	cmd := cli.Subcmd("cat", "CONTAINER [PATH...]", "Print contents of a file in a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	containerId := cmd.Arg(0)
+
+	for i := 1; i < cmd.NArg(); i++ {
+		fpath := cmd.Arg(i)
+
+		// File path must be absolute
+		if !path.IsAbs(fpath) {
+			return fmt.Errorf("File path must be absolute")
+		}
+
+		var copyData engine.Env
+		copyData.Set("Resource", fpath)
+
+		stream, statusCode, err := cli.call("POST", "/containers/"+containerId+"/copy", copyData, false)
+		if stream != nil {
+			defer stream.Close()
+		}
+		if statusCode == 404 {
+			return fmt.Errorf("No such container: %v", containerId)
+		}
+		if err != nil {
+			utils.Errorf("%s\n", err)
+		}
+
+		if statusCode == 200 {
+			reader, err := archive.UntarFile(stream, fpath)
+			if err != nil {
+				return err
+			}
+
+			buf := make([]byte, 1024)
+			for {
+				n, err := reader.Read(buf)
+				if err != nil && err != io.EOF {
+					return err
+				}
+				if n == 0 {
+					break
+				}
+
+				_, err = fmt.Printf("%s", buf[:n])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

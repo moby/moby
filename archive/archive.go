@@ -365,6 +365,52 @@ func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	return pipeReader, nil
 }
 
+// Untar the specified file `fpath` from the stream `archive` and return a io.Reader containing
+// the file contents.
+func UntarFile(archive io.Reader, fpath string) (io.Reader, error) {
+	if archive == nil {
+		return nil, fmt.Errorf("Empty archive")
+	}
+
+	// File path must be absolute
+	if !path.IsAbs(fpath) {
+		return nil, fmt.Errorf("File path must be absolute")
+	}
+	fname := path.Base(fpath)
+
+	decompressedArchive, err := DecompressStream(archive)
+	if err != nil {
+		return nil, err
+	}
+	defer decompressedArchive.Close()
+
+	tr := tar.NewReader(decompressedArchive)
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			// end of tar archive
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		// Normalize name
+		hdr.Name = filepath.Clean(hdr.Name)
+
+		if hdr.Name == fname {
+			if hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA {
+				return tr, nil
+			} else {
+				return nil, fmt.Errorf("Path is not a file: %s", fpath)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("Path not found: %s", fpath)
+}
+
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `path`.
 // The archive may be compressed with one of the following algorithms:
