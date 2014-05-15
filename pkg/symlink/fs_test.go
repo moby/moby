@@ -28,6 +28,19 @@ func TestFollowSymLinkNormal(t *testing.T) {
 	}
 }
 
+func TestFollowSymLinkRelativePath(t *testing.T) {
+	link := "testdata/fs/i"
+
+	rewrite, err := FollowSymlinkInScope(link, "testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := abs(t, "testdata/fs/a"); expected != rewrite {
+		t.Fatalf("Expected %s got %s", expected, rewrite)
+	}
+}
+
 func TestFollowSymLinkUnderLinkedDir(t *testing.T) {
 	dir, err := ioutil.TempDir("", "docker-fs-test")
 	if err != nil {
