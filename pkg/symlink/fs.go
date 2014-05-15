@@ -3,9 +3,12 @@ package symlink
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
+
+const maxLoopCounter = 100
 
 // FollowSymlink will follow an existing link and scope it to the root
 // path provided.
@@ -30,7 +33,14 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 		prev = filepath.Join(prev, p)
 		prev = filepath.Clean(prev)
 
+		loopCounter := 0
 		for {
+			loopCounter++
+
+			if loopCounter >= maxLoopCounter {
+				return "", fmt.Errorf("loopCounter reached MAX: %v", loopCounter)
+			}
+
 			if !strings.HasPrefix(prev, root) {
 				// Don't resolve symlinks outside of root. For example,
 				// we don't have to check /home in the below.
