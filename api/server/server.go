@@ -29,6 +29,7 @@ import (
 	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/pkg/version"
 	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 	"github.com/gorilla/mux"
 )
@@ -872,6 +873,8 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
+		runConfigEncoded  = r.Header.Get("X-Docker-RunConfig")
+		runConfig         = &runconfig.RunConfig{}
 		job               = eng.Job("build")
 	)
 
@@ -897,6 +900,13 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		}
 	}
 
+	if runConfigEncoded != "" {
+		runConfigJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(runConfigEncoded))
+		if err := json.NewDecoder(runConfigJson).Decode(runConfig); err != nil {
+			return err
+		}
+	}
+
 	if version.GreaterThanOrEqualTo("1.8") {
 		job.SetenvBool("json", true)
 		streamJSON(job, w, true)
@@ -911,6 +921,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("rm", r.FormValue("rm"))
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
+	job.SetenvJson("runConfig", runConfig)
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {

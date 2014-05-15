@@ -79,6 +79,9 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
+	// Only set when running
+	runConfig *runconfig.RunConfig
+
 	activeLinks map[string]*links.Link
 }
 
@@ -247,7 +250,7 @@ func populateCommand(c *Container, env []string) error {
 	return nil
 }
 
-func (container *Container) Start() (err error) {
+func (container *Container) Start(runConfig *runconfig.RunConfig) (err error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -261,6 +264,8 @@ func (container *Container) Start() (err error) {
 			container.cleanup()
 		}
 	}()
+
+	container.runConfig = runConfig
 
 	if err := container.setupContainerDns(); err != nil {
 		return err
@@ -289,6 +294,9 @@ func (container *Container) Start() (err error) {
 	if err := setupMountsForContainer(container); err != nil {
 		return err
 	}
+	if err := container.setupPrivateFiles(); err != nil {
+		return err
+	}
 	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
@@ -297,21 +305,21 @@ func (container *Container) Start() (err error) {
 	return container.waitForStart()
 }
 
-func (container *Container) Run() error {
-	if err := container.Start(); err != nil {
+func (container *Container) Run(runConfig *runconfig.RunConfig) error {
+	if err := container.Start(runConfig); err != nil {
 		return err
 	}
 	container.Wait()
 	return nil
 }
 
-func (container *Container) Output() (output []byte, err error) {
+func (container *Container) Output(runConfig *runconfig.RunConfig) (output []byte, err error) {
 	pipe, err := container.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 	defer pipe.Close()
-	if err := container.Start(); err != nil {
+	if err := container.Start(runConfig); err != nil {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
@@ -500,6 +508,8 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 }
 
 func (container *Container) cleanup() {
+	container.runConfig = nil
+
 	container.releaseNetwork()
 
 	// Disable all active links
@@ -597,10 +607,12 @@ func (container *Container) Restart(seconds int) error {
 		defer container.Unmount()
 	}
 
+	oldRunConfig := container.runConfig
+
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
-	return container.Start()
+	return container.Start(oldRunConfig)
 }
 
 // Wait blocks until the container stops running, then returns its exit code.
@@ -917,6 +929,31 @@ func (container *Container) verifyDaemonSettings() {
 	if container.daemon.sysInfo.IPv4ForwardingDisabled {
 		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
+}
+
+func (container *Container) setupPrivateFiles() error {
+	dir := "/etc/docker/private.d"
+	fs, _ := ioutil.ReadDir(dir)
+	container.command.Files = make(map[string][]byte)
+
+	for _, f := range fs {
+		if f.Mode()&os.ModeType == 0 {
+			data, err := ioutil.ReadFile(path.Join(dir, f.Name()))
+			if err != nil {
+				return err
+			}
+
+			container.command.Files[path.Join("/run/private", f.Name())] = data
+		}
+	}
+
+	if container.runConfig != nil {
+		for name, data := range container.runConfig.PrivateFiles {
+			container.command.Files[path.Join("/run/private", name)] = data
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) setupLinkedContainers() ([]string, error) {

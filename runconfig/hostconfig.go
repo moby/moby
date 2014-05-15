@@ -34,6 +34,16 @@ type HostConfig struct {
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
+	env := job.Environ()
+
+	// Don't treat RunConfig as part of HostConfig when checking for
+	// existance
+	delete(env, "RunConfig")
+
+	// If no other environment was set, then no hostconfig was passed.
+	if len(env) == 0 {
+		return nil
+	}
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),

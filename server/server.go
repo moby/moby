@@ -440,11 +440,13 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		rm             = job.GetenvBool("rm")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
+		runConfig      = &runconfig.RunConfig{}
 		tag            string
 		context        io.ReadCloser
 	)
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
+	job.GetenvJson("runConfig", runConfig)
 	repoName, tag = utils.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
@@ -496,7 +498,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile)
+		!suppressOutput, !noCache, rm, job.Stdout, sf, authConfig, configFile, runConfig)
 	id, err := b.Build(context)
 	if err != nil {
 		return job.Error(err)
@@ -2049,9 +2051,9 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
-	// If no environment was set, then no hostconfig was passed.
-	if len(job.Environ()) > 0 {
-		hostConfig := runconfig.ContainerHostConfigFromJob(job)
+
+	hostConfig := runconfig.ContainerHostConfigFromJob(job)
+	if hostConfig != nil {
 		// Validate the HostConfig binds. Make sure that:
 		// 1) the source of a bind mount isn't /
 		//         The bind mount "/:/foo" isn't allowed.
@@ -2082,7 +2084,9 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 		container.SetHostConfig(hostConfig)
 		container.ToDisk()
 	}
-	if err := container.Start(); err != nil {
+	runConfig := runconfig.ContainerRunConfigFromJob(job)
+
+	if err := container.Start(runConfig); err != nil {
 		return job.Errorf("Cannot start container %s: %s", name, err)
 	}
 	srv.LogEvent("start", container.ID, daemon.Repositories().ImageName(container.Image))

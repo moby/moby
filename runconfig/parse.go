@@ -26,15 +26,47 @@ func Parse(args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag
 	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
 	cmd.SetOutput(ioutil.Discard)
 	cmd.Usage = nil
-	return parseRun(cmd, args, sysInfo)
+	c, hc, err := parseRun(cmd, args, sysInfo)
+	return c, hc, cmd, err
 }
 
 // FIXME: this maps the legacy commands.go code. It should be merged with Parse to only expose a single parse function.
-func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
+func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, error) {
 	return parseRun(cmd, args, sysInfo)
 }
 
-func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
+func AddRunConfigFlags(cmd *flag.FlagSet) {
+	flPrivate := opts.NewListOpts(nil)
+	cmd.Var(&flPrivate, []string{"#private", "-private-file"}, "Add private file (name:path)")
+}
+
+func ParseRunConfig(cmd *flag.FlagSet) (*RunConfig, error) {
+	c := RunConfig{}
+
+	flPrivate := cmd.Lookup("private")
+	private, _ := flPrivate.Value.(*opts.ListOpts)
+
+	if private != nil {
+		for _, s := range private.GetAll() {
+			vals := strings.SplitN(s, ":", 2)
+			if len(vals) != 2 {
+				return nil, fmt.Errorf("private '%s' not in name:path form", s)
+			}
+			data, err := ioutil.ReadFile(vals[1])
+			if err != nil {
+				return nil, err
+			}
+			if c.PrivateFiles == nil {
+				c.PrivateFiles = make(map[string][]byte)
+			}
+			c.PrivateFiles[vals[0]] = data
+		}
+	}
+
+	return &c, nil
+}
+
+func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
@@ -85,7 +117,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, err
 	}
 
 	// Check if the kernel supports memory limit cgroup.
@@ -95,17 +127,17 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	// Validate input params
 	if *flDetach && flAttach.Len() > 0 {
-		return nil, nil, cmd, ErrConflictAttachDetach
+		return nil, nil, ErrConflictAttachDetach
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvalidWorkingDirectory
+		return nil, nil, ErrInvalidWorkingDirectory
 	}
 	if *flDetach && *flAutoRemove {
-		return nil, nil, cmd, ErrConflictDetachAutoRemove
+		return nil, nil, ErrConflictDetachAutoRemove
 	}
 
 	if *flNetMode != "bridge" && *flHostname != "" {
-		return nil, nil, cmd, ErrConflictNetworkHostname
+		return nil, nil, ErrConflictNetworkHostname
 	}
 
 	// If neither -d or -a are set, attach to everything by default
@@ -123,7 +155,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	if *flMemoryString != "" {
 		parsedMemory, err := units.RAMInBytes(*flMemoryString)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, err
 		}
 		flMemory = parsedMemory
 	}
@@ -133,14 +165,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	for bind := range flVolumes.GetMap() {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
 			if arr[0] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
+				return nil, nil, fmt.Errorf("Invalid bind mount: source can't be '/'")
 			}
 			dstDir := arr[1]
 			flVolumes.Set(dstDir)
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
 		} else if bind == "/" {
-			return nil, nil, cmd, fmt.Errorf("Invalid volume: path can't be '/'")
+			return nil, nil, fmt.Errorf("Invalid volume: path can't be '/'")
 		}
 	}
 
@@ -162,7 +194,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	lxcConf, err := parseKeyValueOpts(flLxcOpts)
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, err
 	}
 
 	var (
@@ -177,13 +209,13 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, err
 	}
 
 	// Merge in exposed ports to the map of published ports
 	for _, e := range flExpose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
+			return nil, nil, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
 		p := nat.NewPort(nat.SplitProtoPort(e))
 		if _, exists := ports[p]; !exists {
@@ -196,7 +228,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	for _, ef := range flEnvFile.GetAll() {
 		parsedVars, err := opts.ParseEnvFile(ef)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, err
 		}
 		envVariables = append(envVariables, parsedVars...)
 	}
@@ -207,7 +239,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	netMode, err := parseNetMode(*flNetMode)
 	if err != nil {
-		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
+		return nil, nil, fmt.Errorf("--net: invalid net mode: %v", err)
 	}
 
 	config := &Config{
@@ -256,7 +288,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, hostConfig, cmd, nil
+	return config, hostConfig, nil
 }
 
 // options will come in the format of name.key=value or name.option

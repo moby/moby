@@ -97,7 +97,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	term := getTerminal(c, pipes)
 
-	return nsinit.Exec(container, term, c.Rootfs, dataPath, args, nil, func(container *libcontainer.Container, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
+	return nsinit.Exec(container, term, c.Rootfs, dataPath, args, c.Files, func(container *libcontainer.Container, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
 		// we need to join the rootfs because nsinit will setup the rootfs and chroot
 		initPath := filepath.Join(c.Rootfs, c.InitPath)
 
