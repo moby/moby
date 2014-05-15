@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	_ "crypto/sha512"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -27,6 +29,7 @@ var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	errLoginRequired         = errors.New("Authentication is required.")
+	registry_ssl_no_verify   = os.Getenv("DOCKER_REGISTRY_SSL_NO_VERIFY")
 )
 
 func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
@@ -726,9 +729,16 @@ type Registry struct {
 }
 
 func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
+	skipverify := false
+
+	if registry_ssl_no_verify == "true" {
+		skipverify = true
+	}
+
 	httpTransport := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: skipverify},
 	}
 
 	r = &Registry{
