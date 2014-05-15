@@ -122,17 +122,17 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 	var (
 		authConfig, err = ioutil.ReadAll(r.Body)
 		job             = eng.Job("auth")
-		status          string
+		stdoutBuffer    = bytes.NewBuffer(nil)
 	)
 	if err != nil {
 		return err
 	}
 	job.Setenv("authConfig", string(authConfig))
-	job.Stdout.AddString(&status)
+	job.Stdout.Add(stdoutBuffer)
 	if err = job.Run(); err != nil {
 		return err
 	}
-	if status != "" {
+	if status := engine.Tail(stdoutBuffer, 1); status != "" {
 		var env engine.Env
 		env.Set("Status", status)
 		return writeJSON(w, http.StatusOK, env)
@@ -393,9 +393,10 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		return err
 	}
 	var (
-		config engine.Env
-		env    engine.Env
-		job    = eng.Job("commit", r.Form.Get("container"))
+		config       engine.Env
+		env          engine.Env
+		job          = eng.Job("commit", r.Form.Get("container"))
+		stdoutBuffer = bytes.NewBuffer(nil)
 	)
 	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
@@ -407,12 +408,11 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	job.Setenv("comment", r.Form.Get("comment"))
 	job.SetenvSubEnv("config", &config)
 
-	var id string
-	job.Stdout.AddString(&id)
+	job.Stdout.Add(stdoutBuffer)
 	if err := job.Run(); err != nil {
 		return err
 	}
-	env.Set("Id", id)
+	env.Set("Id", engine.Tail(stdoutBuffer, 1))
 	return writeJSON(w, http.StatusCreated, env)
 }
 
@@ -603,17 +603,17 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 		return nil
 	}
 	var (
-		out         engine.Env
-		job         = eng.Job("create", r.Form.Get("name"))
-		outWarnings []string
-		outId       string
-		warnings    = bytes.NewBuffer(nil)
+		out          engine.Env
+		job          = eng.Job("create", r.Form.Get("name"))
+		outWarnings  []string
+		stdoutBuffer = bytes.NewBuffer(nil)
+		warnings     = bytes.NewBuffer(nil)
 	)
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
 	// Read container ID from the first line of stdout
-	job.Stdout.AddString(&outId)
+	job.Stdout.Add(stdoutBuffer)
 	// Read warnings from stderr
 	job.Stderr.Add(warnings)
 	if err := job.Run(); err != nil {
@@ -624,7 +624,7 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	for scanner.Scan() {
 		outWarnings = append(outWarnings, scanner.Text())
 	}
-	out.Set("Id", outId)
+	out.Set("Id", engine.Tail(stdoutBuffer, 1))
 	out.SetList("Warnings", outWarnings)
 	return writeJSON(w, http.StatusCreated, out)
 }
@@ -720,20 +720,16 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 		return fmt.Errorf("Missing parameter")
 	}
 	var (
-		env    engine.Env
-		status string
-		job    = eng.Job("wait", vars["name"])
+		env          engine.Env
+		stdoutBuffer = bytes.NewBuffer(nil)
+		job          = eng.Job("wait", vars["name"])
 	)
-	job.Stdout.AddString(&status)
+	job.Stdout.Add(stdoutBuffer)
 	if err := job.Run(); err != nil {
 		return err
 	}
-	// Parse a 16-bit encoded integer to map typical unix exit status.
-	_, err := strconv.ParseInt(status, 10, 16)
-	if err != nil {
-		return err
-	}
-	env.Set("StatusCode", status)
+
+	env.Set("StatusCode", engine.Tail(stdoutBuffer, 1))
 	return writeJSON(w, http.StatusOK, env)
 }
 

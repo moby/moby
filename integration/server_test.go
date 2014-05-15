@@ -1,12 +1,14 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/server"
+	"bytes"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/server"
 )
 
 func TestCreateNumberHostname(t *testing.T) {
@@ -70,13 +72,13 @@ func TestMergeConfigOnCommit(t *testing.T) {
 	job.Setenv("repo", "testrepo")
 	job.Setenv("tag", "testtag")
 	job.SetenvJson("config", config)
-	var newId string
-	job.Stdout.AddString(&newId)
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		t.Error(err)
 	}
 
-	container2, _, _ := mkContainer(runtime, []string{newId}, t)
+	container2, _, _ := mkContainer(runtime, []string{engine.Tail(outputBuffer, 1)}, t)
 	defer runtime.Destroy(container2)
 
 	job = eng.Job("inspect", container1.Name, "container")
@@ -168,8 +170,6 @@ func TestRestartKillWait(t *testing.T) {
 
 	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
 		job = srv.Eng.Job("wait", outs.Data[0].Get("Id"))
-		var statusStr string
-		job.Stdout.AddString(&statusStr)
 		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
@@ -266,8 +266,6 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	job.Setenv("Memory", "524287")
 	job.Setenv("CpuShares", "1000")
 	job.SetenvList("Cmd", []string{"/bin/cat"})
-	var id string
-	job.Stdout.AddString(&id)
 	if err := job.Run(); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
@@ -302,13 +300,13 @@ func TestRmi(t *testing.T) {
 
 	job = eng.Job("commit", containerID)
 	job.Setenv("repo", "test")
-	var imageID string
-	job.Stdout.AddString(&imageID)
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := eng.Job("tag", imageID, "test", "0.1").Run(); err != nil {
+	if err := eng.Job("tag", engine.Tail(outputBuffer, 1), "test", "0.1").Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -339,7 +337,7 @@ func TestRmi(t *testing.T) {
 		t.Fatalf("Expected 2 new images, found %d.", images.Len()-initialImages.Len())
 	}
 
-	if err = srv.DeleteImage(imageID, engine.NewTable("", 0), true, false, false); err != nil {
+	if err = srv.DeleteImage(engine.Tail(outputBuffer, 1), engine.NewTable("", 0), true, false, false); err != nil {
 		t.Fatal(err)
 	}
 
