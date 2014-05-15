@@ -156,7 +156,7 @@ func (d *Driver) subvolumesDirId(id string) string {
 }
 
 func (d *Driver) Create(id string, parent string) error {
-	subvolumes := path.Join(d.home, "subvolumes")
+	subvolumes := d.subvolumesDir()
 	if err := os.MkdirAll(subvolumes, 0700); err != nil {
 		return err
 	}
