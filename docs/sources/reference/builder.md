@@ -131,6 +131,16 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+The cache for `RUN` instructions isn't invalidated automatically during the
+next build. The cache for an instruction like `RUN apt-get dist-upgrade -y`
+will be reused during the next build.
+The cache for `RUN` instructions can be invalidated by using the `--no-cache`
+flag, for example `docker build --no-cache`.
+
+The first encountered `ADD` instruction will invalidate the cache for all
+following instructions from the 'Dockerfile' if the contents of the context
+have changed. This will also invalidate the cache for `RUN` instructions.
+
 ### Known Issues (RUN)
 
 - [Issue 783](https://github.com/dotcloud/docker/issues/783) is about file
