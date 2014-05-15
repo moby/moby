@@ -3,8 +3,11 @@ package tarsum
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -22,6 +25,7 @@ type testLayer struct {
 	gzip     bool
 	tarsum   string
 	version  Version
+	hash     THash
 }
 
 var testLayers = []testLayer{
@@ -75,6 +79,31 @@ var testLayers = []testLayer{
 		// this tar has newer of collider-1.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-3.tar",
 		tarsum:   "tarsum+sha256:f886e431c08143164a676805205979cd8fa535dfcef714db5515650eea5a7c0f"},
+	{
+		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
+		tarsum:  "tarsum+md5:0d7529ec7a8360155b48134b8e599f53",
+		hash:    md5THash,
+	},
+	{
+		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
+		tarsum:  "tarsum+sha1:f1fee39c5925807ff75ef1925e7a23be444ba4df",
+		hash:    sha1Hash,
+	},
+	{
+		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
+		tarsum:  "tarsum+sha224:6319390c0b061d639085d8748b14cd55f697cf9313805218b21cf61c",
+		hash:    sha224Hash,
+	},
+	{
+		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
+		tarsum:  "tarsum+sha384:a578ce3ce29a2ae03b8ed7c26f47d0f75b4fc849557c62454be4b5ffd66ba021e713b48ce71e947b43aab57afd5a7636",
+		hash:    sha384Hash,
+	},
+	{
+		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
+		tarsum:  "tarsum+sha512:e9bfb90ca5a4dfc93c46ee061a5cf9837de6d2fdf82544d6460d3147290aecfabf7b5e415b9b6e72db9b8941f149d5d69fb17a394cbfaf2eac523bd9eae21855",
+		hash:    sha512Hash,
+	},
 }
 
 type sizedOptions struct {
@@ -203,6 +232,14 @@ func TestEmptyTar(t *testing.T) {
 	}
 }
 
+var (
+	md5THash   = NewTHash("md5", md5.New)
+	sha1Hash   = NewTHash("sha1", sha1.New)
+	sha224Hash = NewTHash("sha224", sha256.New224)
+	sha384Hash = NewTHash("sha384", sha512.New384)
+	sha512Hash = NewTHash("sha512", sha512.New)
+)
+
 func TestTarSums(t *testing.T) {
 	for _, layer := range testLayers {
 		var (
@@ -226,8 +263,13 @@ func TestTarSums(t *testing.T) {
 			defer file.Close()
 		}
 
-		//                                  double negatives!
-		ts, err := NewTarSum(fh, !layer.gzip, layer.version)
+		var ts TarSum
+		if layer.hash == nil {
+			//                           double negatives!
+			ts, err = NewTarSum(fh, !layer.gzip, layer.version)
+		} else {
+			ts, err = NewTarSumHash(fh, !layer.gzip, layer.version, layer.hash)
+		}
 		if err != nil {
 			t.Errorf("%q :: %q", err, layer.filename)
 			continue
