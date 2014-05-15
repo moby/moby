@@ -201,7 +201,8 @@ and a "context".
 The files at `PATH` or `URL` are called the "context" of the build. The build
 process may refer to any of the files in the context, for example when using an
 [*ADD*](/reference/builder/#dockerfile-add) instruction. When a single Dockerfile is
-given as `URL`, then no context is set.
+given as `URL` or is piped through STDIN (`docker build - < Dockerfile`), then
+no context is set.
 
 When a Git repository is set as `URL`, then the
 repository is used as the context. The Git repository is cloned with its
@@ -282,6 +283,13 @@ context. The Dockerfile at the root of the
 repository is used as Dockerfile. Note that you
 can specify an arbitrary Git repository by using the `git://`
 schema.
+
+> **Note:** `docker build` will return a `no such file or directory` error
+> if the file or directory does not exist in the uploaded context. This may
+> happen if there is no context, or if you specify a file that is elsewhere 
+> on the Host system. The context is limited to the current directory (and its
+> children) for security reasons, and to ensure repeatable builds on remote
+> Docker hosts. This is also the reason why `ADD ../file` will not work.
 
 ## commit
 
