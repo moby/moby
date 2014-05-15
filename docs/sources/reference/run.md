@@ -54,10 +54,10 @@ following options.
      - [Detached (-d)](#detached-d)
      - [Foreground](#foreground)
  - [Container Identification](#container-identification)
-     - [Name (–name)](#name-name)
+     - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
  - [Network Settings](#network-settings)
- - [Clean Up (–rm)](#clean-up-rm)
+ - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and
     Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege and LXC
