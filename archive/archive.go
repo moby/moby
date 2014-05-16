@@ -6,9 +6,6 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,6 +14,10 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type (
@@ -309,8 +310,11 @@ func escapeName(name string) string {
 	return string(escaped)
 }
 
-// Tar creates an archive from the directory at `path`, only including files whose relative
-// paths are included in `filter`. If `filter` is nil, then all files are included.
+// TarFilter creates an archive from the directory at `srcPath` with `options`, and returns it as a
+// stream of bytes.
+//
+// Files are included according to `options.Includes`, default to including all files.
+// Stream is compressed according to `options.Compression', default to Uncompressed.
 func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
