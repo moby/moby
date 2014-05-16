@@ -4,6 +4,7 @@ package devmapper
 
 import (
 	"fmt"
+
 	"github.com/dotcloud/docker/utils"
 )
 

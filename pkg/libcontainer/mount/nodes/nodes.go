@@ -4,10 +4,11 @@ package nodes
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 // Default list of device nodes to copy

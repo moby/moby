@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type testLayer struct {

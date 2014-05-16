@@ -1,9 +1,10 @@
 package server
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 func TestPools(t *testing.T) {

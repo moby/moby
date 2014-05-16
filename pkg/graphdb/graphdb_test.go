@@ -1,13 +1,14 @@
 package graphdb
 
 import (
-	_ "code.google.com/p/gosqlite/sqlite3"
 	"database/sql"
 	"fmt"
 	"os"
 	"path"
 	"strconv"
 	"testing"
+
+	_ "code.google.com/p/gosqlite/sqlite3"
 )
 
 func newTestDb(t *testing.T) (*Database, string) {

@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/beam"
 	"io"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/pkg/beam"
 )
 
 func TestHelloWorld(t *testing.T) {

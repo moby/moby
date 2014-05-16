@@ -23,16 +23,17 @@ package aufs
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/label"
-	mountpk "github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/pkg/label"
+	mountpk "github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (

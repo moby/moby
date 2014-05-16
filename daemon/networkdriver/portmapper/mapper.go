@@ -3,10 +3,11 @@ package portmapper
 import (
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
 	"net"
 	"sync"
+
+	"github.com/dotcloud/docker/pkg/iptables"
+	"github.com/dotcloud/docker/pkg/proxy"
 )
 
 type mapping struct {

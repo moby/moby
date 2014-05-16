@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/dotcloud/docker"
 )
 
 var templates = map[string]string{

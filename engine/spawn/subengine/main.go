@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/engine/spawn"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/engine/spawn"
 )
 
 func main() {

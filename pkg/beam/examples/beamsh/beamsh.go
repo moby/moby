@@ -4,10 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/beam"
-	"github.com/dotcloud/docker/pkg/beam/data"
-	"github.com/dotcloud/docker/pkg/dockerscript"
-	"github.com/dotcloud/docker/pkg/term"
 	"io"
 	"net"
 	"net/url"
@@ -15,6 +11,11 @@ import (
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/dotcloud/docker/pkg/beam"
+	"github.com/dotcloud/docker/pkg/beam/data"
+	"github.com/dotcloud/docker/pkg/dockerscript"
+	"github.com/dotcloud/docker/pkg/term"
 )
 
 var rootPlugins = []string{

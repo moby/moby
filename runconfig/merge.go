@@ -1,9 +1,10 @@
 package runconfig
 
 import (
+	"strings"
+
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/utils"
-	"strings"
 )
 
 func Merge(userConf, imageConf *Config) error {

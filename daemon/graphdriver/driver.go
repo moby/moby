@@ -2,10 +2,11 @@ package graphdriver
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"path"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/utils"
 )
 
 type InitFunc func(root string) (Driver, error)

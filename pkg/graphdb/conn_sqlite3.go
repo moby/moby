@@ -3,9 +3,10 @@
 package graphdb
 
 import (
-	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
 	"database/sql"
 	"os"
+
+	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
 )
 
 func NewSqliteConn(root string) (*Database, error) {

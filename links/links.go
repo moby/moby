@@ -2,10 +2,11 @@ package links
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/nat"
 	"path"
 	"strings"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/nat"
 )
 
 type Link struct {

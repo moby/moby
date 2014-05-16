@@ -2,18 +2,19 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/server"
+	"github.com/dotcloud/docker/utils"
 )
 
 // A testContextTemplate describes a build context and how to test it

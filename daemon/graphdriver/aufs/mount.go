@@ -1,9 +1,10 @@
 package aufs
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"os/exec"
 	"syscall"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 func Unmount(target string) error {

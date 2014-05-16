@@ -3,13 +3,14 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DEFAULTTAG = "latest"

@@ -1,8 +1,9 @@
 package beam
 
 import (
-	"github.com/dotcloud/docker/pkg/beam/data"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/beam/data"
 )
 
 func TestSendConn(t *testing.T) {

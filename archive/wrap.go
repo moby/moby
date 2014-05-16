@@ -2,8 +2,9 @@ package archive
 
 import (
 	"bytes"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io/ioutil"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // Generate generates a new archive from the content provided

@@ -2,9 +2,10 @@ package dockerscript
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/dockerscript/scanner"
 	"io"
 	"strings"
+
+	"github.com/dotcloud/docker/pkg/dockerscript/scanner"
 )
 
 type Command struct {

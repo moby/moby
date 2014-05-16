@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/iptables"
 	"os/exec"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/iptables"
 )
 
 func TestPingUnlinkedContainers(t *testing.T) {

@@ -4,13 +4,14 @@ package devmapper
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"io/ioutil"
 	"path"
 	"runtime"
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 func init() {

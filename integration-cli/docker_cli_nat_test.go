@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/daemon"
 	"net"
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/dotcloud/docker/daemon"
 )
 
 func TestNetworkNat(t *testing.T) {

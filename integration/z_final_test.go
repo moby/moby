@@ -1,9 +1,10 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"runtime"
 	"testing"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 func displayFdGoroutines(t *testing.T) {

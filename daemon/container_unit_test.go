@@ -1,8 +1,9 @@
 package daemon
 
 import (
-	"github.com/dotcloud/docker/nat"
 	"testing"
+
+	"github.com/dotcloud/docker/nat"
 )
 
 func TestParseNetworkOptsPrivateOnly(t *testing.T) {

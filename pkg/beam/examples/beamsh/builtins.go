@@ -3,10 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/beam"
-	"github.com/dotcloud/docker/pkg/beam/data"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"net"
 	"net/url"
@@ -16,6 +12,11 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+
+	"github.com/dotcloud/docker/pkg/beam"
+	"github.com/dotcloud/docker/pkg/beam/data"
+	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/utils"
 )
 
 func CmdLogger(args []string, stdout, stderr io.Writer, in beam.Receiver, out beam.Sender) {

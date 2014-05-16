@@ -5,14 +5,15 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/pkg/system"
 	"io"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 const (

@@ -1,11 +1,12 @@
 package execdriver
 
 import (
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/kr/pty"
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/dotcloud/docker/pkg/term"
+	"github.com/kr/pty"
 )
 
 func SetTerminal(command *Command, pipes *Pipes) error {

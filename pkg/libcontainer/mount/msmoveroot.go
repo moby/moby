@@ -4,8 +4,9 @@ package mount
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 func MsMoveRoot(rootfs string) error {

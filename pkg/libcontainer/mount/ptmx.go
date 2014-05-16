@@ -4,9 +4,10 @@ package mount
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/libcontainer/console"
 	"os"
 	"path/filepath"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/console"
 )
 
 func SetupPtmx(rootfs, consolePath, mountLabel string) error {

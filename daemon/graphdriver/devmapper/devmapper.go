@@ -5,9 +5,10 @@ package devmapper
 import (
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"runtime"
 	"syscall"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 type DevmapperLogger interface {

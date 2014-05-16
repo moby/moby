@@ -3,8 +3,6 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
-	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/utils"
+	"github.com/gorilla/mux"
 )
 
 var (

@@ -3,11 +3,12 @@ package sysinit
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/dotcloud/docker/daemon/execdriver"
 	_ "github.com/dotcloud/docker/daemon/execdriver/lxc"
 	_ "github.com/dotcloud/docker/daemon/execdriver/native"
-	"log"
-	"os"
 )
 
 func executeProgram(args *execdriver.InitArgs) error {

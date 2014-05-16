@@ -3,8 +3,9 @@
 package mount
 
 import (
-	"github.com/dotcloud/docker/pkg/system"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 func RemountProc() error {

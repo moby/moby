@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"

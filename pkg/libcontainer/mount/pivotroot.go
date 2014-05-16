@@ -4,11 +4,12 @@ package mount
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 func PivotRoot(rootfs string) error {

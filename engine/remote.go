@@ -2,12 +2,13 @@ package engine
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/beam"
-	"github.com/dotcloud/docker/pkg/beam/data"
 	"io"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/dotcloud/docker/pkg/beam"
+	"github.com/dotcloud/docker/pkg/beam/data"
 )
 
 type Sender struct {

@@ -3,11 +3,12 @@ package ipallocator
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/dotcloud/docker/daemon/networkdriver"
-	"github.com/dotcloud/docker/pkg/collections"
 	"net"
 	"sync"
 	"sync/atomic"
+
+	"github.com/dotcloud/docker/daemon/networkdriver"
+	"github.com/dotcloud/docker/pkg/collections"
 )
 
 type allocatedMap struct {

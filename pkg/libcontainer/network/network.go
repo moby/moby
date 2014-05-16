@@ -1,8 +1,9 @@
 package network
 
 import (
-	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
+
+	"github.com/dotcloud/docker/pkg/netlink"
 )
 
 func InterfaceUp(name string) error {

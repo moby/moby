@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver/devmapper"
 	"os"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/dotcloud/docker/daemon/graphdriver/devmapper"
 )
 
 func usage() {

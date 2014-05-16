@@ -5,10 +5,11 @@
 package native
 
 import (
-	"github.com/dotcloud/docker/daemon/execdriver"
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
 )
 
 type dockerStdTerm struct {

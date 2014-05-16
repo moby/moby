@@ -1,9 +1,10 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/engine"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/engine"
 )
 
 func TestServerListOrderedImagesByCreationDate(t *testing.T) {

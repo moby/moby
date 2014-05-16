@@ -1,9 +1,10 @@
 package links
 
 import (
-	"github.com/dotcloud/docker/nat"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/nat"
 )
 
 func TestLinkNew(t *testing.T) {

@@ -2,9 +2,10 @@ package beam
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/beam/data"
 	"io"
 	"os"
+
+	"github.com/dotcloud/docker/pkg/beam/data"
 )
 
 type Router struct {

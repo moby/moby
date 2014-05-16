@@ -2,10 +2,11 @@ package registry
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 var (

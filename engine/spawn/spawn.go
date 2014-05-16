@@ -2,11 +2,12 @@ package spawn
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/beam"
 	"github.com/dotcloud/docker/utils"
-	"os"
-	"os/exec"
 )
 
 var initCalled bool

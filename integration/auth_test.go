@@ -4,10 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/dotcloud/docker/registry"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/registry"
 )
 
 // FIXME: these tests have an external dependency on a staging index hosted

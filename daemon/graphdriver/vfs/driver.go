@@ -2,10 +2,11 @@ package vfs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 func init() {

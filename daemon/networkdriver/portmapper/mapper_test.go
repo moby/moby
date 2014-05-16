@@ -1,10 +1,11 @@
 package portmapper
 
 import (
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
 	"net"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/iptables"
+	"github.com/dotcloud/docker/pkg/proxy"
 )
 
 func init() {

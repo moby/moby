@@ -2,11 +2,12 @@ package opts
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 // ListOpts type

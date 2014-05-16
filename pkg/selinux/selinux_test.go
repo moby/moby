@@ -1,9 +1,10 @@
 package selinux_test
 
 import (
-	"github.com/dotcloud/docker/pkg/selinux"
 	"os"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/selinux"
 )
 
 func testSetfilecon(t *testing.T) {

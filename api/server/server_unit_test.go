@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/engine"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/engine"
 )
 
 func TestGetBoolParam(t *testing.T) {

@@ -3,12 +3,6 @@ package docker
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/api/client"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,6 +13,13 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/api/client"
+	"github.com/dotcloud/docker/daemon"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/utils"
 )
 
 func closeWrap(args ...io.Closer) error {

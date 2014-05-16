@@ -2,9 +2,10 @@ package portallocator
 
 import (
 	"errors"
-	"github.com/dotcloud/docker/pkg/collections"
 	"net"
 	"sync"
+
+	"github.com/dotcloud/docker/pkg/collections"
 )
 
 const (

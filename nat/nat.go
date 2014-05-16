@@ -5,9 +5,10 @@ package nat
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"strconv"
 	"strings"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 const (

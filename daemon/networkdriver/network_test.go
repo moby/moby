@@ -1,9 +1,10 @@
 package networkdriver
 
 import (
-	"github.com/dotcloud/docker/pkg/netlink"
 	"net"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/netlink"
 )
 
 func TestNonOverlapingNameservers(t *testing.T) {

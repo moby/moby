@@ -2,10 +2,11 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/runconfig"
-	"strings"
 )
 
 func migratePortMappings(config *runconfig.Config, hostConfig *runconfig.HostConfig) error {

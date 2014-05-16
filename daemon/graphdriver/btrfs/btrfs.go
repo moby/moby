@@ -11,11 +11,12 @@ import "C"
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"os"
 	"path"
 	"syscall"
 	"unsafe"
+
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 func init() {

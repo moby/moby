@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/beam"
 	"net"
 	"os"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/pkg/beam"
 )
 
 func main() {

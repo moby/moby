@@ -3,7 +3,6 @@ package lxc
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/daemon/execdriver"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
 )
 
 func TestLXCConfig(t *testing.T) {
