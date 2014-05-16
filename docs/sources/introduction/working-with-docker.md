@@ -129,7 +129,7 @@ You will get an output with all available options:
 
     Attach to a running container
 
-      --no-stdin=false: Do not attach stdin
+      --stdin=true: Attach stdin
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
 ## Working with images

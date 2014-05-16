@@ -127,7 +127,7 @@ _docker_attach()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--no-stdin --sig-proxy" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--stdin --sig-proxy" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag)"
@@ -151,7 +151,7 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t --tag -q --quiet --no-cache --rm" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --tag -q --quiet --cache --rm" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag '-t|--tag')"
@@ -264,7 +264,7 @@ _docker_history()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-q --quiet --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-q --quiet --trunc" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
@@ -279,7 +279,7 @@ _docker_images()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-q --quiet -a --all --no-trunc -v --viz -t --tree" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-q --quiet -a --all --trunc -v --viz -t --tree" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
@@ -404,7 +404,7 @@ _docker_ps()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --no-trunc -l --latest --since --before -n" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --trunc -l --latest --since --before -n" -- "$cur" ) )
 			;;
 		*)
 			;;
@@ -539,7 +539,7 @@ _docker_search()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--no-trunc -t --trusted -s --stars" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--trunc -t --trusted -s --stars" -- "$cur" ) )
 			;;
 		*)
 			;;

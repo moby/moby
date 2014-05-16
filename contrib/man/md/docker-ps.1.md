@@ -6,7 +6,7 @@ docker-ps - List containers
 
 # SYNOPSIS
 **docker ps** [**-a**|**--all**=*false*] [**--before**=""]
-[**-l**|**--latest**=*false*] [**-n**=*-1*] [**--no-trunc**=*false*]
+[**-l**|**--latest**=*false*] [**-n**=*-1*] [**--trunc**=*true*]
 [**-q**|**--quiet**=*false*] [**-s**|**--size**=*false*]
 [**--since**=""]
 
@@ -33,8 +33,8 @@ ones. The default is false.
    Show NUM (integer) last created containers, include non-running ones.
 The default is -1 (none)
 
-**--no-trunc**=*true*|*false*
-   When true truncate output. Default is false.
+**--trunc**=*true*|*false*
+   When true truncate output. Default is true.
 
 **-q**, **--quiet**=*true*|*false*
    When false only display numeric IDs. Default is false.
