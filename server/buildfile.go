@@ -637,7 +637,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	}
 
-	// Create the container and start it
+	// Create the container
 	container, _, err := b.daemon.Create(b.config, "")
 	if err != nil {
 		return err
@@ -666,7 +666,7 @@ func (b *buildFile) create() (*daemon.Container, error) {
 	}
 	b.config.Image = b.image
 
-	// Create the container and start it
+	// Create the container
 	c, _, err := b.daemon.Create(b.config, "")
 	if err != nil {
 		return nil, err
