@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -135,7 +137,7 @@ func (devices *DeviceSet) hasImage(name string) bool {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	_, err := osStat(filename)
+	_, err := os.Stat(filename)
 	return err == nil
 }
 
@@ -147,16 +149,16 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	if err := osMkdirAll(dirname, 0700); err != nil && !osIsExist(err) {
+	if err := os.MkdirAll(dirname, 0700); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 
-	if _, err := osStat(filename); err != nil {
-		if !osIsNotExist(err) {
+	if _, err := os.Stat(filename); err != nil {
+		if !os.IsNotExist(err) {
 			return "", err
 		}
 		utils.Debugf("Creating loopback file %s for device-manage use", filename)
-		file, err := osOpenFile(filename, osORdWr|osOCreate, 0600)
+		file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
 			return "", err
 		}
@@ -175,7 +177,7 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 }
 
 func (devices *DeviceSet) removeMetadata(info *DevInfo) error {
-	if err := osRemoveAll(devices.metadataFile(info)); err != nil {
+	if err := os.RemoveAll(devices.metadataFile(info)); err != nil {
 		return fmt.Errorf("Error removing metadata file %s: %s", devices.metadataFile(info), err)
 	}
 	return nil
@@ -204,7 +206,7 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
-	if err := osRename(tmpFile.Name(), devices.metadataFile(info)); err != nil {
+	if err := os.Rename(tmpFile.Name(), devices.metadataFile(info)); err != nil {
 		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
 	}
 
@@ -271,9 +273,9 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname)
+	err := exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
 	if err != nil {
-		err = execRun("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname)
+		err = exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname).Run()
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
@@ -298,7 +300,7 @@ func (devices *DeviceSet) initMetaData() error {
 	// Migrate old metadatafile
 
 	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
-	if err != nil && !osIsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
@@ -319,7 +321,7 @@ func (devices *DeviceSet) initMetaData() error {
 				devices.saveMetadata(info)
 			}
 		}
-		if err := osRename(devices.oldMetadataFile(), devices.oldMetadataFile()+".migrated"); err != nil {
+		if err := os.Rename(devices.oldMetadataFile(), devices.oldMetadataFile()+".migrated"); err != nil {
 			return err
 		}
 
@@ -408,11 +410,11 @@ func (devices *DeviceSet) setupBaseImage() error {
 func setCloseOnExec(name string) {
 	if fileInfos, _ := ioutil.ReadDir("/proc/self/fd"); fileInfos != nil {
 		for _, i := range fileInfos {
-			link, _ := osReadlink(filepath.Join("/proc/self/fd", i.Name()))
+			link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
 			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
-					sysCloseOnExec(fd)
+					syscall.CloseOnExec(fd)
 				}
 			}
 		}
@@ -440,7 +442,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	datafilename := path.Join(dirname, "data")
 	metadatafilename := path.Join(dirname, "metadata")
 
-	datafile, err := osOpenFile(datafilename, osORdWr, 0)
+	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
 	if datafile == nil {
 		return err
 	}
@@ -461,7 +463,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 	defer dataloopback.Close()
 
-	metadatafile, err := osOpenFile(metadatafilename, osORdWr, 0)
+	metadatafile, err := os.OpenFile(metadatafilename, os.O_RDWR, 0)
 	if metadatafile == nil {
 		return err
 	}
@@ -504,17 +506,17 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logInit(devices)
 
-	if err := osMkdirAll(devices.metadataDir(), 0700); err != nil && !osIsExist(err) {
+	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 
 	// Set the device prefix from the device id and inode of the docker root dir
 
-	st, err := osStat(devices.root)
+	st, err := os.Stat(devices.root)
 	if err != nil {
 		return fmt.Errorf("Error looking up dir %s: %s", devices.root, err)
 	}
-	sysSt := toSysStatT(st.Sys())
+	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
 	// docker-maj,min[-inode] stands for:
@@ -845,7 +847,7 @@ func (devices *DeviceSet) Shutdown() error {
 			// We use MNT_DETACH here in case it is still busy in some running
 			// container. This means it'll go away from the global scope directly,
 			// and the device will be released when that container dies.
-			if err := sysUnmount(info.mountPath, syscall.MNT_DETACH); err != nil {
+			if err := syscall.Unmount(info.mountPath, syscall.MNT_DETACH); err != nil {
 				utils.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
 			}
 
@@ -903,13 +905,13 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
-	var flags uintptr = sysMsMgcVal
+	var flags uintptr = syscall.MS_MGC_VAL
 
 	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
-	if err != nil && err == sysEInval {
+	err = syscall.Mount(info.DevName(), path, "ext4", flags, mountOptions)
+	if err != nil && err == syscall.EINVAL {
 		mountOptions = label.FormatMountLabel("", mountLabel)
-		err = sysMount(info.DevName(), path, "ext4", flags, mountOptions)
+		err = syscall.Mount(info.DevName(), path, "ext4", flags, mountOptions)
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -946,7 +948,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	}
 
 	utils.Debugf("[devmapper] Unmount(%s)", info.mountPath)
-	if err := sysUnmount(info.mountPath, 0); err != nil {
+	if err := syscall.Unmount(info.mountPath, 0); err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}

@@ -5,9 +5,11 @@ package devmapper
 import (
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
+	"os"
 	"runtime"
 	"syscall"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 type DevmapperLogger interface {
@@ -184,7 +186,7 @@ func (t *Task) GetNextTarget(next uintptr) (nextPtr uintptr, start uint64,
 		start, length, targetType, params
 }
 
-func getLoopbackBackingFile(file *osFile) (uint64, uint64, error) {
+func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 	loopInfo, err := ioctlLoopGetStatus64(file.Fd())
 	if err != nil {
 		utils.Errorf("Error get loopback backing file: %s\n", err)
@@ -193,7 +195,7 @@ func getLoopbackBackingFile(file *osFile) (uint64, uint64, error) {
 	return loopInfo.loDevice, loopInfo.loInode, nil
 }
 
-func LoopbackSetCapacity(file *osFile) error {
+func LoopbackSetCapacity(file *os.File) error {
 	if err := ioctlLoopSetCapacity(file.Fd(), 0); err != nil {
 		utils.Errorf("Error loopbackSetCapacity: %s", err)
 		return ErrLoopbackSetCapacity
@@ -201,20 +203,20 @@ func LoopbackSetCapacity(file *osFile) error {
 	return nil
 }
 
-func FindLoopDeviceFor(file *osFile) *osFile {
+func FindLoopDeviceFor(file *os.File) *os.File {
 	stat, err := file.Stat()
 	if err != nil {
 		return nil
 	}
-	targetInode := stat.Sys().(*sysStatT).Ino
-	targetDevice := stat.Sys().(*sysStatT).Dev
+	targetInode := stat.Sys().(*syscall.Stat_t).Ino
+	targetDevice := stat.Sys().(*syscall.Stat_t).Dev
 
 	for i := 0; true; i++ {
 		path := fmt.Sprintf("/dev/loop%d", i)
 
-		file, err := osOpenFile(path, osORdWr, 0)
+		file, err := os.OpenFile(path, os.O_RDWR, 0)
 		if err != nil {
-			if osIsNotExist(err) {
+			if os.IsNotExist(err) {
 				return nil
 			}
 
@@ -284,7 +286,7 @@ func RemoveDevice(name string) error {
 	return nil
 }
 
-func GetBlockDeviceSize(file *osFile) (uint64, error) {
+func GetBlockDeviceSize(file *os.File) (uint64, error) {
 	size, err := ioctlBlkGetSize64(file.Fd())
 	if err != nil {
 		utils.Errorf("Error getblockdevicesize: %s", err)
@@ -294,7 +296,7 @@ func GetBlockDeviceSize(file *osFile) (uint64, error) {
 }
 
 func BlockDeviceDiscard(path string) error {
-	file, err := osOpenFile(path, osORdWr, 0)
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
@@ -317,7 +319,7 @@ func BlockDeviceDiscard(path string) error {
 }
 
 // This is the programmatic example of "dmsetup create"
-func createPool(poolName string, dataFile, metadataFile *osFile) error {
+func createPool(poolName string, dataFile, metadataFile *os.File) error {
 	task, err := createTask(DeviceCreate, poolName)
 	if task == nil {
 		return err
@@ -347,7 +349,7 @@ func createPool(poolName string, dataFile, metadataFile *osFile) error {
 	return nil
 }
 
-func reloadPool(poolName string, dataFile, metadataFile *osFile) error {
+func reloadPool(poolName string, dataFile, metadataFile *os.File) error {
 	task, err := createTask(DeviceReload, poolName)
 	if task == nil {
 		return err

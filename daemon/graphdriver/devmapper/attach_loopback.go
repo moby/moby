@@ -4,6 +4,9 @@ package devmapper
 
 import (
 	"fmt"
+	"os"
+	"syscall"
+
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -14,7 +17,7 @@ func stringToLoopName(src string) [LoNameSize]uint8 {
 }
 
 func getNextFreeLoopbackIndex() (int, error) {
-	f, err := osOpenFile("/dev/loop-control", osORdOnly, 0644)
+	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
 	if err != nil {
 		return 0, err
 	}
@@ -27,27 +30,27 @@ func getNextFreeLoopbackIndex() (int, error) {
 	return index, err
 }
 
-func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile, err error) {
+func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.File, err error) {
 	// Start looking for a free /dev/loop
 	for {
 		target := fmt.Sprintf("/dev/loop%d", index)
 		index++
 
-		fi, err := osStat(target)
+		fi, err := os.Stat(target)
 		if err != nil {
-			if osIsNotExist(err) {
+			if os.IsNotExist(err) {
 				utils.Errorf("There are no more loopback device available.")
 			}
 			return nil, ErrAttachLoopbackDevice
 		}
 
-		if fi.Mode()&osModeDevice != osModeDevice {
+		if fi.Mode()&os.ModeDevice != os.ModeDevice {
 			utils.Errorf("Loopback device %s is not a block device.", target)
 			continue
 		}
 
 		// OpenFile adds O_CLOEXEC
-		loopFile, err = osOpenFile(target, osORdWr, 0644)
+		loopFile, err = os.OpenFile(target, os.O_RDWR, 0644)
 		if err != nil {
 			utils.Errorf("Error openning loopback device: %s", err)
 			return nil, ErrAttachLoopbackDevice
@@ -58,7 +61,7 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 			loopFile.Close()
 
 			// If the error is EBUSY, then try the next loopback
-			if err != sysEBusy {
+			if err != syscall.EBUSY {
 				utils.Errorf("Cannot set up loopback device %s: %s", target, err)
 				return nil, ErrAttachLoopbackDevice
 			}
@@ -80,8 +83,8 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 }
 
 // attachLoopDevice attaches the given sparse file to the next
-// available loopback device. It returns an opened *osFile.
-func attachLoopDevice(sparseName string) (loop *osFile, err error) {
+// available loopback device. It returns an opened *os.File.
+func attachLoopDevice(sparseName string) (loop *os.File, err error) {
 
 	// Try to retrieve the next available loopback device via syscall.
 	// If it fails, we discard error and start loopking for a
@@ -92,7 +95,7 @@ func attachLoopDevice(sparseName string) (loop *osFile, err error) {
 	}
 
 	// OpenFile adds O_CLOEXEC
-	sparseFile, err := osOpenFile(sparseName, osORdWr, 0644)
+	sparseFile, err := os.OpenFile(sparseName, os.O_RDWR, 0644)
 	if err != nil {
 		utils.Errorf("Error openning sparse file %s: %s", sparseName, err)
 		return nil, ErrAttachLoopbackDevice
