@@ -26,6 +26,8 @@ else
 		done
 		echo
 		echo 'Please reformat the above files using "goimports -w" and commit the result.'
+        echo
+        echo 'Note: go get code.google.com/p/go.tools/cmd/goimports'
 		echo
 	} >&2
 	false
