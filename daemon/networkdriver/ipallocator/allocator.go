@@ -39,7 +39,7 @@ func RequestIP(address *net.IPNet, ip *net.IP) (*net.IP, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	checkAddress(address)
+	ensureAllocatedMapExists(address)
 
 	if ip == nil {
 		next, err := getNextIp(address)
@@ -61,7 +61,7 @@ func ReleaseIP(address *net.IPNet, ip *net.IP) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	checkAddress(address)
+	ensureAllocatedMapExists(address)
 
 	var (
 		allocated = allocatedIPs[address.String()]
@@ -125,11 +125,10 @@ func registerIP(address *net.IPNet, ip *net.IP) error {
 		allocated = allocatedIPs[address.String()]
 		pos       = getPosition(address, ip)
 	)
-
 	if allocated.Exists(int(pos)) {
 		return ErrIPAlreadyAllocated
 	}
-	atomic.StoreInt32(&allocated.last, pos)
+	allocated.Push(int(pos))
 
 	return nil
 }
@@ -147,7 +146,7 @@ func intToIP(n int32) *net.IP {
 	return &ip
 }
 
-func checkAddress(address *net.IPNet) {
+func ensureAllocatedMapExists(address *net.IPNet) {
 	key := address.String()
 	if _, exists := allocatedIPs[key]; !exists {
 		allocatedIPs[key] = newAllocatedMap()

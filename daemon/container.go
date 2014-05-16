@@ -396,7 +396,7 @@ func (container *Container) allocateNetwork() error {
 		err error
 		eng = container.daemon.eng
 	)
-	
+
 	job := eng.Job("allocate_interface", container.ID)
 	if container.Config.IP != "" {
 		job.Setenv("RequestedIP", container.Config.IP)
