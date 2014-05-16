@@ -152,6 +152,9 @@ func LoadContainerEnvironment(container *libcontainer.Container) error {
 	os.Clearenv()
 	for _, pair := range container.Env {
 		p := strings.SplitN(pair, "=", 2)
+		if len(p) < 2 {
+			return fmt.Errorf("invalid environment '%v'", pair)
+		}
 		if err := os.Setenv(p[0], p[1]); err != nil {
 			return err
 		}
