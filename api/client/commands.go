@@ -1840,6 +1840,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 		v := url.Values{}
 		repos, tag := utils.ParseRepositoryTag(config.Image)
+		// pull only the image tagged 'latest' if no tag was specified
+		if tag == "" {
+			tag = "latest"
+		}
 		v.Set("fromImage", repos)
 		v.Set("tag", tag)
 
