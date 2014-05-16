@@ -27,19 +27,10 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 
 	Created new window in existing browser session.
 	```
+> **Note**;
+> Not all terminals support output redirect and opening a browser. If you are presented with different output, simply follow the on screen directions in your terminal.
 
-3. `gloud` will do one of the following
-	1. Open your default browser with the URL (with the above output). This can be overridden with the `--no-launch-browser` flag.
-	2. Output a clickable link, if your terminal supports it.
-	3. Require you to copy/paste the full url into a browser. In this case, the above output will instead be `Go to the following link in your browser:`, followed by the URL.
-4. If you have multiple Google account logins cached in your browser, select the account associated with your GCP account from the list, or add it. Click "Accept" to give Google Cloud SDK permission to your GCP account. If your terminal application supports it the resulting code will be pasted to your prompt automatically. If not, the next page will present:
-
-	```
-	Please copy this code, switch to your application and paste it there:
-	<Unique-62-char-random-string-oauth2-response>
-	```
-
-5. Switch back to your terminal, and if the output was not automatically redirected, paste in the code
+4. Switch back to your terminal, and if the output was not automatically redirected, paste in the code
 
 	```
 	Enter verification code:<Unique-62-char-random-string-oauth2-response>
@@ -47,10 +38,9 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 	Enter a cloud project id (or leave blank to not set): <your-google-project-id>
 	```
 > **Note**;
-> Be sure to enter the auto-generated Project ID, as the given name for a GCE project name can be changed at will and 
-> does not map to the ID.
+> Be sure to enter the Project ID that was automatically created when the project was created, not the name you assigned it, as gcutil does not use that name to connect to GCE projects. You can find the Project ID in the `Projects` menu of the Google Developers Console webpage.
 
-6.  Start a new instance, select a zone close to you and the desired instance size:
+5.  Start a new instance, select a zone close to you and the desired instance size:
 
 	```
 	$ gcutil addinstance docker-playground --image=backports-debian-7
@@ -64,23 +54,21 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 	>>> <machine-type-index>
 	```
 
-7. Connect to the instance using SSH:
+6. Connect to the instance using SSH:
 
 	```
 	$ gcutil ssh docker-playground
 	docker-playground:~$
 	```    
-> **Note**;
-> Google discourages logging into GCE instances as root, but you can override this/subdue the warning by setting the `--permit_root_ssh` flag in the above command.
 
-8. Install the latest Docker release and configure it to start when the instance boots:
+7. Install the latest Docker release and configure it to start when the instance boots:
 
 	```
 	docker-playground:~$ curl get.docker.io | bash
 	docker-playground:~$ sudo update-rc.d docker defaults
 	```
 
-9. Start a new container:
+8. Start a new container:
 
 	```
 	docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
