@@ -49,6 +49,11 @@ start() {
         $exec -d $other_args &>> $logfile &
         pid=$!
         touch $lockfile
+        # wait for the pidfile to exist.  see
+        # https://github.com/dotcloud/docker/issues/5359
+        while [ ! -f $pidfile ]; do
+            sleep 1
+        done
         success
         echo
     else
