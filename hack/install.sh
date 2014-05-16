@@ -72,7 +72,7 @@ fi
 if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 	lsb_dist='Debian'
 fi
-if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
+if [ -z "$lsb_dist" ] && [ -r /etc/redhat-release ]; then
 	lsb_dist='Fedora'
 fi
 
