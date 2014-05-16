@@ -2,6 +2,7 @@ package archive
 
 import (
 	"bufio"
+	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
 	"errors"
