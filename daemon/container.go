@@ -879,9 +879,17 @@ func (container *Container) initializeNetworking() error {
 			container.Config.Hostname = parts[0]
 			container.Config.Domainname = parts[1]
 		}
-		container.HostsPath = "/etc/hosts"
 
-		return container.buildHostnameFile()
+		content, err := ioutil.ReadFile("/etc/hosts")
+		if os.IsNotExist(err) {
+			return container.buildHostnameAndHostsFiles("")
+		}
+		if err != nil {
+			return err
+		}
+
+		container.HostsPath = container.getRootResourcePath("hosts")
+		return ioutil.WriteFile(container.HostsPath, content, 0644)
 	} else if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()

@@ -40,8 +40,11 @@ func setupMountsForContainer(container *Container) error {
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
-	if container.HostnamePath != "" && container.HostsPath != "" {
+	if container.HostnamePath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
+	}
+
+	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
 	}
 
