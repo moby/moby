@@ -26,6 +26,11 @@ func New() *libcontainer.Container {
 			"NET_ADMIN":      false,
 			"MKNOD":          true,
 			"SYSLOG":         false,
+			"SETUID":         true,
+			"SETGID":         true,
+			"CHOWN":          true,
+			"NET_RAW":        true,
+			"DAC_OVERRIDE":   true,
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,
