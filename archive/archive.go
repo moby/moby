@@ -42,26 +42,12 @@ const (
 )
 
 func DetectCompression(source []byte) Compression {
-	sourceLen := len(source)
 	for compression, m := range map[Compression][]byte{
 		Bzip2: {0x42, 0x5A, 0x68},
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
 	} {
-		fail := false
-		if len(m) > sourceLen {
-			utils.Debugf("Len too short")
-			continue
-		}
-		i := 0
-		for _, b := range m {
-			if b != source[i] {
-				fail = true
-				break
-			}
-			i++
-		}
-		if !fail {
+		if bytes.Compare(m, source[:len(m)]) == 0 {
 			return compression
 		}
 	}
