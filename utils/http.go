@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"io"
 	"net/http"
 	"strings"
@@ -15,11 +14,13 @@ type VersionInfo interface {
 }
 
 func validVersion(version VersionInfo) bool {
-	stopChars := " \t\r\n/"
-	if strings.ContainsAny(version.Name(), stopChars) {
+	const stopChars = " \t\r\n/"
+	name := version.Name()
+	vers := version.Version()
+	if len(name) == 0 || strings.ContainsAny(name, stopChars) {
 		return false
 	}
-	if strings.ContainsAny(version.Version(), stopChars) {
+	if len(vers) == 0 || strings.ContainsAny(vers, stopChars) {
 		return false
 	}
 	return true
@@ -36,27 +37,18 @@ func appendVersions(base string, versions ...VersionInfo) string {
 		return base
 	}
 
-	var buf bytes.Buffer
+	verstrs := make([]string, 0, 1+len(versions))
 	if len(base) > 0 {
-		buf.Write([]byte(base))
+		verstrs = append(verstrs, base)
 	}
 
 	for _, v := range versions {
-		name := []byte(v.Name())
-		version := []byte(v.Version())
-
-		if len(name) == 0 || len(version) == 0 {
-			continue
-		}
 		if !validVersion(v) {
 			continue
 		}
-		buf.Write([]byte(v.Name()))
-		buf.Write([]byte("/"))
-		buf.Write([]byte(v.Version()))
-		buf.Write([]byte(" "))
+		verstrs = append(verstrs, v.Name()+"/"+v.Version())
 	}
-	return buf.String()
+	return strings.Join(verstrs, " ")
 }
 
 // HTTPRequestDecorator is used to change an instance of
