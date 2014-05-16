@@ -50,6 +50,7 @@ type buildFile struct {
 	verbose      bool
 	utilizeCache bool
 	rm           bool
+	forceRm      bool
 
 	authConfig *registry.AuthConfig
 	configFile *registry.ConfigFile
@@ -807,6 +808,9 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			continue
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
+			if b.forceRm {
+				b.clearTmp(b.tmpContainers)
+			}
 			return "", err
 		} else if b.rm {
 			b.clearTmp(b.tmpContainers)
@@ -859,7 +863,7 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
@@ -871,6 +875,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
 		rm:            rm,
+		forceRm:       forceRm,
 		sf:            sf,
 		authConfig:    auth,
 		configFile:    authConfigFile,

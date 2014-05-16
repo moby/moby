@@ -20,13 +20,23 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 
 
-The current version of the API is v1.11
+The current version of the API is v1.12
 
 Calling /images/<name>/insert is the same as calling
-/v1.11/images/<name>/insert
+/v1.12/images/<name>/insert
 
 You can still call an old version of the api using
-/v1.11/images/<name>/insert
+/v1.12/images/<name>/insert
+
+## v1.12
+
+### Full Documentation
+
+[*Docker Remote API v1.12*](/reference/api/docker_remote_api_v1.12/)
+
+### What's new
+
+docker build now has support for the `forcerm` parameter to always remove containers
 
 ## v1.11
 
