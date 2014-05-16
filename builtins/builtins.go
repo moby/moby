@@ -28,7 +28,10 @@ func Register(eng *engine.Engine) error {
 
 // remote: a RESTful api for cross-docker communication
 func remote(eng *engine.Engine) error {
-	return eng.Register("serveapi", apiserver.ServeApi)
+	if err := eng.Register("serveapi", apiserver.ServeApi); err != nil {
+		return err
+	}
+	return eng.Register("acceptconnections", apiserver.AcceptConnections)
 }
 
 // daemon: a default execution and storage backend for Docker on Linux,
