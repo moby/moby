@@ -190,18 +190,28 @@ interactive shell. The default is value is false.
    Set a username or UID for the container.
 
 
-**-v**, **-volume**=*volume*
-   Bind mount a volume to the container. The **-v** option can be used one or
+**-v**, **-volume**=*volume*[:ro|:rw]
+   Bind mount a volume to the container. 
+
+The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
-used in other containers using the **--volumes-from** option. See examples.
+used in other containers using the **--volumes-from** option. 
 
+The volume may be optionally suffixed with :ro or :rw to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+read-write. See examples.
 
-**--volumes-from**=*container-id*
+**--volumes-from**=*container-id*[:ro|:rw]
    Will mount volumes from the specified container identified by container-id.
 Once a volume is mounted in a one container it can be shared with other
 containers using the **--volumes-from** option when running those other
 containers. The volumes can be shared even if the original container with the
-mount is not running.
+mount is not running. 
+
+The container ID may be optionally suffixed with :ro or 
+:rw to mount the volumes in read-only or read-write mode, respectively. By 
+default, the volumes are mounted in the same mode (read write or read only) as 
+the reference container.
 
 
 **-w**, **-workdir**=*directory*
