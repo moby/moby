@@ -98,9 +98,7 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 }
 
 func (d *driver) setPrivileged(container *libcontainer.Container) error {
-	for key := range container.CapabilitiesMask {
-		container.CapabilitiesMask[key] = true
-	}
+	container.Capabilities = libcontainer.GetAllCapabilities()
 	container.Cgroups.DeviceAccess = true
 
 	delete(container.Context, "restrictions")
