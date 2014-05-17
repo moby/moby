@@ -60,6 +60,7 @@ var (
 		{Key: "CHOWN", Value: capability.CAP_CHOWN},
 		{Key: "NET_RAW", Value: capability.CAP_NET_RAW},
 		{Key: "DAC_OVERRIDE", Value: capability.CAP_DAC_OVERRIDE},
+		{Key: "FOWNER", Value: capability.CAP_FOWNER},
 	}
 )
 
