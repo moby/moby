@@ -1075,11 +1075,11 @@ It is used to create a backup that can then be used with
 `docker load`
 
     $ sudo docker save busybox > busybox.tar
-    $ ls -sh b.tar
-    2.7M b.tar
+    $ ls -sh busybox.tar
+    2.7M busybox.tar
     $ sudo docker save --output busybox.tar busybox
-    $ ls -sh b.tar
-    2.7M b.tar
+    $ ls -sh busybox.tar
+    2.7M busybox.tar
     $ sudo docker save -o fedora-all.tar fedora
     $ sudo docker save -o fedora-latest.tar fedora:latest
 
