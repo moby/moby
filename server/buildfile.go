@@ -16,11 +16,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -563,6 +565,11 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		tmpFile.Close()
 
+		// Remove the mtime of the newly created tmp file
+		if err := system.UtimesNano(tmpFileName, make([]syscall.Timespec, 2)); err != nil {
+			return err
+		}
+
 		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// Process the checksum
@@ -570,8 +577,8 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err != nil {
 			return err
 		}
-		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
-		if _, err := io.Copy(ioutil.Discard, &tarSum); err != nil {
+		tarSum := &utils.TarSum{Reader: r, DisableCompression: true}
+		if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
 			return err
 		}
 		remoteHash = tarSum.Sum(nil)
