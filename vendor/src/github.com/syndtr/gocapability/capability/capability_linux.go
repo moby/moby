@@ -388,6 +388,11 @@ func (c *capsV3) Apply(kind CapType) (err error) {
 				}
 				err = prctl(syscall.PR_CAPBSET_DROP, uintptr(i), 0, 0, 0)
 				if err != nil {
+					// Ignore EINVAL since the capability may not be supported in this system.
+					if errno, ok := err.(syscall.Errno); ok && errno == syscall.EINVAL {
+						err = nil
+						continue
+					}
 					return
 				}
 			}
