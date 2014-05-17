@@ -4,7 +4,18 @@ import (
 	"testing"
 
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
+	"github.com/dotcloud/docker/pkg/libcontainer"
 )
+
+// Checks whether the expected capability is specified in the capabilities.
+func hasCapability(expected string, capabilities []string) bool {
+	for _, capability := range capabilities {
+		if capability == expected {
+			return true
+		}
+	}
+	return false
+}
 
 func TestSetReadonlyRootFs(t *testing.T) {
 	var (
@@ -39,10 +50,10 @@ func TestConfigurationsDoNotConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container1.CapabilitiesMask["NET_ADMIN"] {
+	if !hasCapability("NET_ADMIN", container1.Capabilities) {
 		t.Fatal("container one should have NET_ADMIN enabled")
 	}
-	if container2.CapabilitiesMask["NET_ADMIN"] {
+	if hasCapability("NET_ADMIN", container2.Capabilities) {
 		t.Fatal("container two should not have NET_ADMIN enabled")
 	}
 }
@@ -138,10 +149,10 @@ func TestAddCap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container.CapabilitiesMask["MKNOD"] {
+	if !hasCapability("MKNOD", container.Capabilities) {
 		t.Fatal("container should have MKNOD enabled")
 	}
-	if !container.CapabilitiesMask["SYS_ADMIN"] {
+	if !hasCapability("SYS_ADMIN", container.Capabilities) {
 		t.Fatal("container should have SYS_ADMIN enabled")
 	}
 }
@@ -154,14 +165,12 @@ func TestDropCap(t *testing.T) {
 		}
 	)
 	// enabled all caps like in privileged mode
-	for key := range container.CapabilitiesMask {
-		container.CapabilitiesMask[key] = true
-	}
+	container.Capabilities = libcontainer.GetAllCapabilities()
 	if err := ParseConfiguration(container, nil, opts); err != nil {
 		t.Fatal(err)
 	}
 
-	if container.CapabilitiesMask["MKNOD"] {
+	if hasCapability("MKNOD", container.Capabilities) {
 		t.Fatal("container should not have MKNOD enabled")
 	}
 }

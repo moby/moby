@@ -26,14 +26,12 @@ func DropCapabilities(container *libcontainer.Container) error {
 	return nil
 }
 
-// getCapabilitiesMask returns the capabilities that should not be dropped by the container.
+// getEnabledCapabilities returns the capabilities that should not be dropped by the container.
 func getEnabledCapabilities(container *libcontainer.Container) []capability.Cap {
 	keep := []capability.Cap{}
-	for key, enabled := range container.CapabilitiesMask {
-		if enabled {
-			if c := libcontainer.GetCapability(key); c != nil {
-				keep = append(keep, c.Value)
-			}
+	for _, capability := range container.Capabilities {
+		if c := libcontainer.GetCapability(capability); c != nil {
+			keep = append(keep, c.Value)
 		}
 	}
 	return keep

@@ -60,6 +60,7 @@ var (
 		{Key: "CHOWN", Value: capability.CAP_CHOWN},
 		{Key: "NET_RAW", Value: capability.CAP_NET_RAW},
 		{Key: "DAC_OVERRIDE", Value: capability.CAP_DAC_OVERRIDE},
+		{Key: "FOWNER", Value: capability.CAP_FOWNER},
 	}
 )
 
@@ -121,6 +122,14 @@ func GetCapability(key string) *Capability {
 		}
 	}
 	return nil
+}
+
+func GetAllCapabilities() []string {
+	output := make([]string, len(capabilityList))
+	for i, capability := range capabilityList {
+		output[i] = capability.String()
+	}
+	return output
 }
 
 // Contains returns true if the specified Capability is
