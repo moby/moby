@@ -18,6 +18,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/security/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
+	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 )
@@ -59,6 +60,9 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 	}
 	if err := setupNetwork(container, context); err != nil {
 		return fmt.Errorf("setup networking %s", err)
+	}
+	if err := setupRoute(container); err != nil {
+		return fmt.Errorf("setup route %s", err)
 	}
 
 	label.Init()
@@ -163,6 +167,15 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 		err1 := strategy.Initialize(config, context)
 		if err1 != nil {
 			return err1
+		}
+	}
+	return nil
+}
+
+func setupRoute(container *libcontainer.Container) error {
+	for _, config := range container.Routes {
+		if err := netlink.AddRoute(config.Destination, config.Source, config.Gateway, config.InterfaceName); err != nil {
+			return err
 		}
 	}
 	return nil

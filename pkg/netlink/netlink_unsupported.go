@@ -27,9 +27,12 @@ func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
 	return ErrNotImplemented
 }
 
-func AddDefaultGw(ip net.IP) error {
+func AddRoute(destination, source, gateway, device string) error {
 	return ErrNotImplemented
+}
 
+func AddDefaultGw(ip, device string) error {
+	return ErrNotImplemented
 }
 
 func NetworkSetMTU(iface *net.Interface, mtu int) error {
