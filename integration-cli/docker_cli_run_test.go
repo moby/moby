@@ -544,6 +544,51 @@ func TestUserByID(t *testing.T) {
 	logDone("run - user by id")
 }
 
+func TestUserByIDBig(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "2147483648", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("No error, but must be.", out)
+	}
+	if !strings.Contains(out, "Uids and gids must be in range") {
+		t.Fatalf("expected error about uids range, got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id, id too big")
+}
+
+func TestUserByIDNegative(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "-1", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("No error, but must be.", out)
+	}
+	if !strings.Contains(out, "Uids and gids must be in range") {
+		t.Fatalf("expected error about uids range, got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id, id negative")
+}
+
+func TestUserByIDZero(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "0", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root) groups=10(wheel)") {
+		t.Fatalf("expected daemon user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id, zero uid")
+}
+
 func TestUserNotFound(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-u", "notme", "busybox", "id")
 
