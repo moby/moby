@@ -24,24 +24,9 @@
       "mtu": 1500
     }
   ],
-  "capabilities_mask": {
-    "SYSLOG": false,
-    "MKNOD": true,
-    "NET_ADMIN": false,
-    "MAC_ADMIN": false,
-    "MAC_OVERRIDE": false,
-    "AUDIT_CONTROL": false,
-    "AUDIT_WRITE": false,
-    "SYS_TTY_CONFIG": false,
-    "SETPCAP": false,
-    "SYS_MODULE": false,
-    "SYS_RAWIO": false,
-    "SYS_PACCT": false,
-    "SYS_ADMIN": false,
-    "SYS_NICE": false,
-    "SYS_RESOURCE": false,
-    "SYS_TIME": false
-  },
+  "capabilities": [
+    "MKNOD"
+  ],
   "cgroups": {
     "name": "docker-koye",
     "parent": "docker"

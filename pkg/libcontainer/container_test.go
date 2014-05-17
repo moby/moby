@@ -6,6 +6,16 @@ import (
 	"testing"
 )
 
+// Checks whether the expected capability is specified in the capabilities.
+func hasCapability(expected string, capabilities []string) bool {
+	for _, capability := range capabilities {
+		if capability == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func TestContainerJsonFormat(t *testing.T) {
 	f, err := os.Open("container.json")
 	if err != nil {
@@ -37,22 +47,17 @@ func TestContainerJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
-	if _, exists := container.CapabilitiesMask["SYS_ADMIN"]; !exists {
-		t.Log("capabilities mask should contain SYS_ADMIN")
-		t.Fail()
-	}
-
-	if container.CapabilitiesMask["SYS_ADMIN"] {
+	if hasCapability("SYS_ADMIN", container.Capabilities) {
 		t.Log("SYS_ADMIN should not be enabled in capabilities mask")
 		t.Fail()
 	}
 
-	if !container.CapabilitiesMask["MKNOD"] {
+	if !hasCapability("MKNOD", container.Capabilities) {
 		t.Log("MKNOD should be enabled in capabilities mask")
 		t.Fail()
 	}
 
-	if container.CapabilitiesMask["SYS_CHROOT"] {
+	if hasCapability("SYS_CHROOT", container.Capabilities) {
 		t.Log("capabilities mask should not contain SYS_CHROOT")
 		t.Fail()
 	}

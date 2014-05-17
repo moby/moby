@@ -123,6 +123,14 @@ func GetCapability(key string) *Capability {
 	return nil
 }
 
+func GetAllCapabilities() []string {
+	output := make([]string, len(capabilityList))
+	for i, capability := range capabilityList {
+		output[i] = capability.String()
+	}
+	return output
+}
+
 // Contains returns true if the specified Capability is
 // in the slice
 func (c Capabilities) Contains(capp string) bool {
