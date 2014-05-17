@@ -1,6 +1,6 @@
 page_title: Installation on Ubuntu
-page_description: Please note this project is currently under heavy development. It should not be used in production.
-page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
+page_description: Instructions for installing Docker on Ubuntu.
+page_keywords: Docker, Docker documentation, requirements, virtualbox, installation, ubuntu
 
 # Ubuntu
 
