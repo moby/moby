@@ -198,7 +198,7 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) EvictListener(from string) {
+func (srv *Server) EvictListener(from int64) {
 	srv.Lock()
 	if old, ok := srv.listeners[from]; ok {
 		delete(srv.listeners, from)
@@ -208,12 +208,12 @@ func (srv *Server) EvictListener(from string) {
 }
 
 func (srv *Server) Events(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s FROM", job.Name)
+	if len(job.Args) != 0 {
+		return job.Errorf("Usage: %s", job.Name)
 	}
 
 	var (
-		from    = job.Args[0]
+		from    = time.Now().UTC().UnixNano()
 		since   = job.GetenvInt64("since")
 		until   = job.GetenvInt64("until")
 		timeout = time.NewTimer(time.Unix(until, 0).Sub(time.Now()))
@@ -2432,7 +2432,7 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		pullingPool: make(map[string]chan struct{}),
 		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		listeners:   make(map[string]chan utils.JSONMessage),
+		listeners:   make(map[int64]chan utils.JSONMessage),
 		running:     true,
 	}
 	daemon.SetServer(srv)
@@ -2494,7 +2494,7 @@ type Server struct {
 	pullingPool map[string]chan struct{}
 	pushingPool map[string]chan struct{}
 	events      []utils.JSONMessage
-	listeners   map[string]chan utils.JSONMessage
+	listeners   map[int64]chan utils.JSONMessage
 	Eng         *engine.Engine
 	running     bool
 }
