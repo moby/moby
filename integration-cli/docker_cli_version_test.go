@@ -24,8 +24,8 @@ func TestVersionEnsureSucceeds(t *testing.T) {
 		"Git commit (client):",
 		"Server version:",
 		"Server API version:",
-		"Git commit (server):",
 		"Go version (server):",
+		"Git commit (server):",
 		"Last stable version:",
 	}
 

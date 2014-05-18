@@ -385,8 +385,8 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
 		fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
 	}
-	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
 	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
+	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
 	release := utils.GetReleaseVersion()
 	if release != "" {
 		fmt.Fprintf(cli.out, "Last stable version: %s", release)
