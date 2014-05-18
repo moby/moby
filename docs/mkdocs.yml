@@ -28,9 +28,7 @@ pages:
 - ['index.md', 'About', 'Docker']
 - ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
-- ['introduction/technology.md', 'About', 'The Technology']
 - ['introduction/working-with-docker.md', 'About', 'Working with Docker']
-- ['introduction/get-docker.md', 'About', 'Get Docker']
 
 # Installation:
 - ['installation/index.md', '**HIDDEN**']
