@@ -50,7 +50,7 @@ daemon's host IP address (`ip address` or
 
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.
-    $$
+    $
 
 Finally, clean up after your test by stopping and removing the
 container, and then removing the image.
