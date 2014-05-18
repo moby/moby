@@ -440,6 +440,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false      Show all images (by default filter out the intermediate image layers)
+      -f, --filter=[]: Provide filter values (i.e. 'tagged=false')
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -478,6 +479,46 @@ by default.
     <none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
     tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
+
+### Filtering
+
+The filtering flag (-f or --filter) format is of "key=value". If there are more
+than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
+
+Current filters:
+ * untagged (boolean - true or false)
+
+#### untagged images
+
+    $ sudo docker images --filter "untagged=true"
+
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    <none>              <none>              8abc22fbb042        4 weeks ago         0 B
+    <none>              <none>              48e5f45168b9        4 weeks ago         2.489 MB
+    <none>              <none>              bf747efa0e2f        4 weeks ago         0 B
+    <none>              <none>              980fe10e5736        12 weeks ago        101.4 MB
+    <none>              <none>              dea752e4e117        12 weeks ago        101.4 MB
+    <none>              <none>              511136ea3c5a        8 months ago        0 B
+
+This will display untagged images, that are the leaves of the images tree (not
+intermediary layers). These images occur when a new build of an image takes the
+repo:tag away from the IMAGE ID, leaving it untagged. A warning will be issued
+if trying to remove an image when a container is presently using it.
+By having this flag it allows for batch cleanup.
+
+Ready for use by `docker rmi ...`, like:
+
+    $ sudo docker rmi $(sudo docker images -f "untagged=true" -q)
+
+    8abc22fbb042
+    48e5f45168b9
+    bf747efa0e2f
+    980fe10e5736
+    dea752e4e117
+    511136ea3c5a
+
+NOTE: Docker will warn you if any containers exist that are using these untagged images.
+
 
 ## import
 
