@@ -169,26 +169,23 @@ World*](/examples/hello_world/#hello-world) example.
 
 ### Giving non-root access
 
-The `docker` daemon always runs as the root user,
-and since Docker version 0.5.2, the `docker` daemon
-binds to a Unix socket instead of a TCP port. By default that Unix
-socket is owned by the user *root*, and so, by default, you can access
-it with `sudo`.
+The `docker` daemon always runs as the `root` user, and since Docker
+version 0.5.2, the `docker` daemon binds to a Unix socket instead of a
+TCP port. By default that Unix socket is owned by the user `root`, and
+so, by default, you can access it with `sudo`.
 
 Starting in version 0.5.3, if you (or your Docker installer) create a
-Unix group called *docker* and add users to it, then the
-`docker` daemon will make the ownership of the Unix
-socket read/writable by the *docker* group when the daemon starts. The
-`docker` daemon must always run as the root user,
-but if you run the `docker` client as a user in the
-*docker* group then you don't need to add `sudo` to
-all the client commands. As of 0.9.0, you can specify that a group other
-than `docker` should own the Unix socket with the
-`-G` option.
+Unix group called `docker` and add users to it, then the `docker` daemon
+will make the ownership of the Unix socket read/writable by the `docker`
+group when the daemon starts. The `docker` daemon must always run as the
+`root` user, but if you run the `docker` client as a user in the
+`docker` group then you don't need to add `sudo` to all the client
+commands.  From Docker 0.9.0 you can use the `-G` flag to specify an
+alternative group.
 
 > **Warning**: 
-> The *docker* group (or the group specified with `-G`) is
-> root-equivalent; see [*Docker Daemon Attack Surface*](
+> The `docker` group (or the group specified with the `-G` flag) is
+> `root`-equivalent; see [*Docker Daemon Attack Surface*](
 > /articles/security/#dockersecurity-daemon) details.
 
 **Example:**
