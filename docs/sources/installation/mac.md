@@ -153,7 +153,7 @@ option, ports 49000-49900, and run the following command.
 
 If you feel the need to connect to the VM, you can simply run:
 
-    $ ./boot2docker ssh
+    $ boot2docker ssh
 
     # User: docker
     # Pwd:  tcuser
