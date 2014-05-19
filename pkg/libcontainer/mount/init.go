@@ -48,8 +48,11 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 	if err := setupBindmounts(rootfs, container.Mounts); err != nil {
 		return fmt.Errorf("bind mounts %s", err)
 	}
-	if err := nodes.CopyN(rootfs, nodes.DefaultNodes); err != nil {
+	if err := nodes.CopyN(rootfs, nodes.DefaultNodes, true); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
+	}
+	if err := nodes.CopyN(rootfs, nodes.AdditionalNodes, false); err != nil {
+		return fmt.Errorf("copy additional dev nodes %s", err)
 	}
 	if err := SetupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
 		return err
