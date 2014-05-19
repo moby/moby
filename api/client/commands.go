@@ -1160,10 +1160,10 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.
-	imageFilters := map[string]string{}
+	imageFilterArgs := filters.Args{}
 	for _, f := range flFilter.GetAll() {
 		var err error
-		imageFilters, err = filters.ParseFlag(f, imageFilters)
+		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
 		if err != nil {
 			return err
 		}
@@ -1174,7 +1174,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	if *flViz || *flTree {
 		v := url.Values{
 			"all":     []string{"1"},
-			"filters": []string{filters.ToParam(imageFilters)},
+			"filters": []string{filters.ToParam(imageFilterArgs)},
 		}
 		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
 		if err != nil {
@@ -1238,7 +1238,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	} else {
 		v := url.Values{
-			"filters": []string{filters.ToParam(imageFilters)},
+			"filters": []string{filters.ToParam(imageFilterArgs)},
 		}
 		if cmd.NArg() == 1 {
 			// FIXME rename this parameter, to not be confused with the filters flag

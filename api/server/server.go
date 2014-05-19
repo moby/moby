@@ -189,7 +189,7 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 	)
 
 	job.Setenv("filters", r.Form.Get("filters"))
-	// FIXME rename this parameter, to not be confused with the filters flag
+	// FIXME this parameter could just be a match filter
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
 

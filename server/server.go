@@ -700,12 +700,19 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		filt_tagged = true
 	)
 
-	imageFilters, err := filters.ParseFlag(job.Getenv("filters"), nil)
+	utils.Debugf("SUCH JOB: %#v", job)
+	utils.Debugf("SUCH ENV: %#v", *job.Env())
+	imageFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
 		return job.Error(err)
 	}
-	if i, ok := imageFilters["untagged"]; ok && strings.ToLower(i) == "true" {
-		filt_tagged = false
+	utils.Debugf("SUCH FILTERS: %#v", imageFilters)
+	if i, ok := imageFilters["untagged"]; ok {
+		for _, value := range i {
+			if strings.ToLower(value) == "true" {
+				filt_tagged = false
+			}
+		}
 	}
 
 	if job.GetenvBool("all") && !filt_tagged {
