@@ -198,6 +198,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	if *rm {
 		v.Set("rm", "1")
+	} else {
+		v.Set("rm", "0")
 	}
 
 	if *forceRm {

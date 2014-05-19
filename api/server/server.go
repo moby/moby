@@ -903,7 +903,10 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
+
 	if r.FormValue("forcerm") == "1" && version.GreaterThanOrEqualTo("1.12") {
+		job.Setenv("rm", "1")
+	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
 		job.Setenv("rm", "1")
 	} else {
 		job.Setenv("rm", r.FormValue("rm"))
