@@ -92,6 +92,9 @@ RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN	git config --global user.email 'docker-dummy@example.com'
 
+# Add an unprivileged user to be used for tests which need it
+RUN adduser unprivilegeduser
+
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
 ENV	DOCKER_BUILDTAGS	apparmor selinux
