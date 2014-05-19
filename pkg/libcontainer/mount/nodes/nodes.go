@@ -4,10 +4,11 @@ package nodes
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 // Default list of device nodes to copy
@@ -20,30 +21,43 @@ var DefaultNodes = []string{
 	"tty",
 }
 
+// AdditionalNodes includes nodes that are not required
+var AdditionalNodes = []string{
+	"fuse",
+}
+
 // CopyN copies the device node from the host into the rootfs
-func CopyN(rootfs string, nodesToCopy []string) error {
+func CopyN(rootfs string, nodesToCopy []string, shouldExist bool) error {
 	oldMask := system.Umask(0000)
 	defer system.Umask(oldMask)
 
 	for _, node := range nodesToCopy {
-		if err := Copy(rootfs, node); err != nil {
+		if err := Copy(rootfs, node, shouldExist); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func Copy(rootfs, node string) error {
+// Copy copies the device node into the rootfs.  If the node
+// on the host system does not exist and the boolean flag is passed
+// an error will be returned
+func Copy(rootfs, node string, shouldExist bool) error {
 	stat, err := os.Stat(filepath.Join("/dev", node))
 	if err != nil {
+		if os.IsNotExist(err) && !shouldExist {
+			return nil
+		}
 		return err
 	}
+
 	var (
 		dest = filepath.Join(rootfs, "dev", node)
 		st   = stat.Sys().(*syscall.Stat_t)
 	)
+
 	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("copy %s %s", node, err)
+		return fmt.Errorf("mknod %s %s", node, err)
 	}
 	return nil
 }
