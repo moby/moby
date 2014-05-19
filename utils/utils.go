@@ -821,22 +821,6 @@ func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
 	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
 }
 
-func GetReleaseVersion() string {
-	resp, err := http.Get("https://get.docker.io/latest")
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	if resp.ContentLength > 24 || resp.StatusCode != 200 {
-		return ""
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(body))
-}
-
 // Get a repos name and returns the right reposName + tag
 // The tag can be confusing because of a port in a repository name.
 //     Ex: localhost.localdomain:5000/samalba/hipache:latest
