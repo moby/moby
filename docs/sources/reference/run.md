@@ -439,6 +439,8 @@ but the operator can override it:
 
     -u="": Username or UID
 
+> **Note:** if you pass numeric uid, it must be in range 0-2147483647.
+
 ## WORKDIR
 
 The default working directory for running binaries within a container is the
