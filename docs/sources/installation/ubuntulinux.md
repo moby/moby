@@ -200,6 +200,7 @@ alternative group.
     $ sudo gpasswd -a ${USER} docker
 
     # Restart the Docker daemon.
+    # If you are in Ubuntu 14.04, use docker.io instead of docker
     $ sudo service docker restart
 
 ### Upgrade
