@@ -23,6 +23,9 @@ var funcMap = template.FuncMap{
 }
 
 func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
+	if len(name) == 0 {
+		return nil, false
+	}
 	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
 	method := reflect.ValueOf(cli).MethodByName(methodName)
 	if !method.IsValid() {
