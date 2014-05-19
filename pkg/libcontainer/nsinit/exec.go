@@ -123,6 +123,7 @@ func DefaultCreateCommand(container *libcontainer.Container, console, rootfs, da
 	command.Env = append(os.Environ(), env...)
 
 	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
+	command.SysProcAttr.Pdeathsig = syscall.SIGKILL
 	command.ExtraFiles = []*os.File{pipe}
 
 	return command
