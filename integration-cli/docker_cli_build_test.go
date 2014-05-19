@@ -207,6 +207,33 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 	logDone("build - ADD from context with accessible links must work")
 }
 
+func TestBuildForceRm(t *testing.T) {
+	containerCountBefore, err := getContainerCount()
+	if err != nil {
+		t.Fatalf("failed to get the container count: %s", err)
+	}
+
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildForceRm")
+	buildCmd := exec.Command(dockerBinary, "build", "--force-rm", ".")
+	buildCmd.Dir = buildDirectory
+	_, exitCode, err := runCommandWithOutput(buildCmd)
+
+	if err == nil || exitCode == 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	containerCountAfter, err := getContainerCount()
+	if err != nil {
+		t.Fatalf("failed to get the container count: %s", err)
+	}
+
+	if containerCountBefore != containerCountAfter {
+		t.Fatalf("--force-rm shouldn't have left containers behind")
+	}
+
+	logDone("build - ensure --force-rm doesn't leave containers behind")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation
