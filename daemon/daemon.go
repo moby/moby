@@ -291,6 +291,10 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Remove(element)
 
+	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
+		utils.Debugf("Unable to remove container from link graph: %s", err)
+	}
+
 	if err := daemon.driver.Remove(container.ID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
 	}
@@ -298,10 +302,6 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	if err := daemon.driver.Remove(initID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
-	}
-
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		utils.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
 	if err := os.RemoveAll(container.root); err != nil {
