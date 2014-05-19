@@ -234,6 +234,91 @@ func TestBuildForceRm(t *testing.T) {
 	logDone("build - ensure --force-rm doesn't leave containers behind")
 }
 
+func TestBuildRm(t *testing.T) {
+	{
+		containerCountBefore, err := getContainerCount()
+		if err != nil {
+			t.Fatalf("failed to get the container count: %s", err)
+		}
+
+		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
+		buildCmd := exec.Command(dockerBinary, "build", "--rm", "-t", "testbuildrm", ".")
+		buildCmd.Dir = buildDirectory
+		_, exitCode, err := runCommandWithOutput(buildCmd)
+
+		if err != nil || exitCode != 0 {
+			t.Fatal("failed to build the image")
+		}
+
+		containerCountAfter, err := getContainerCount()
+		if err != nil {
+			t.Fatalf("failed to get the container count: %s", err)
+		}
+
+		if containerCountBefore != containerCountAfter {
+			t.Fatalf("-rm shouldn't have left containers behind")
+		}
+		deleteImages("testbuildrm")
+	}
+
+	{
+		containerCountBefore, err := getContainerCount()
+		if err != nil {
+			t.Fatalf("failed to get the container count: %s", err)
+		}
+
+		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
+		buildCmd := exec.Command(dockerBinary, "build", "-t", "testbuildrm", ".")
+		buildCmd.Dir = buildDirectory
+		_, exitCode, err := runCommandWithOutput(buildCmd)
+
+		if err != nil || exitCode != 0 {
+			t.Fatal("failed to build the image")
+		}
+
+		containerCountAfter, err := getContainerCount()
+		if err != nil {
+			t.Fatalf("failed to get the container count: %s", err)
+		}
+
+		if containerCountBefore != containerCountAfter {
+			t.Fatalf("--rm shouldn't have left containers behind")
+		}
+		deleteImages("testbuildrm")
+	}
+
+	{
+		containerCountBefore, err := getContainerCount()
+		if err != nil {
+			t.Fatalf("failed to get the container count: %s", err)
+		}
+
+		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
+		buildCmd := exec.Command(dockerBinary, "build", "--rm=false", "-t", "testbuildrm", ".")
+		buildCmd.Dir = buildDirectory
+		_, exitCode, err := runCommandWithOutput(buildCmd)
+
+		if err != nil || exitCode != 0 {
+			t.Fatal("failed to build the image")
+		}
+
+		containerCountAfter, err := getContainerCount()
+		if err != nil {
+			t.Fatalf("failed to get the container count: %s", err)
+		}
+
+		if containerCountBefore == containerCountAfter {
+			t.Fatalf("--rm=false should have left containers behind")
+		}
+		deleteAllContainers()
+		deleteImages("testbuildrm")
+
+	}
+
+	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
+	logDone("build - ensure --rm=false overrides the default")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation
