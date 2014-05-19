@@ -431,9 +431,12 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return err
 	}
 
-	chownR := func(destPath string, uid, gid int) error {
+	fixPermsR := func(destPath string, uid, gid int) error {
 		return filepath.Walk(destPath, func(path string, info os.FileInfo, err error) error {
-			if err := os.Lchown(path, uid, gid); err != nil {
+			if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.Chmod(path, 0755); err != nil && !os.IsNotExist(err) {
 				return err
 			}
 			return nil
@@ -450,12 +453,12 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 				return err
 			}
 			for _, file := range files {
-				if err := chownR(filepath.Join(destPath, file.Name()), 0, 0); err != nil {
+				if err := fixPermsR(filepath.Join(destPath, file.Name()), 0, 0); err != nil {
 					return err
 				}
 			}
 		} else {
-			if err := chownR(destPath, 0, 0); err != nil {
+			if err := fixPermsR(destPath, 0, 0); err != nil {
 				return err
 			}
 		}
@@ -494,7 +497,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		resPath = path.Join(destPath, path.Base(origPath))
 	}
 
-	if err := chownR(resPath, 0, 0); err != nil {
+	if err := fixPermsR(resPath, 0, 0); err != nil {
 		return err
 	}
 	return nil
