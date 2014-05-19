@@ -10,12 +10,13 @@ import (
 func New() *libcontainer.Container {
 	container := &libcontainer.Container{
 		Capabilities: []string{
-			"MKNOD",
-			"SETUID",
-			"SETGID",
 			"CHOWN",
-			"NET_RAW",
 			"DAC_OVERRIDE",
+			"FOWNER",
+			"MKNOD",
+			"NET_RAW",
+			"SETGID",
+			"SETUID",
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,
