@@ -168,6 +168,12 @@ func createVolumes(container *Container) error {
 			return err
 		}
 	}
+
+	for volPath := range binds {
+		if err := initializeVolume(container, volPath, binds); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -226,7 +232,6 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 		}
 		// Otherwise create an directory in $ROOT/volumes/ and use that
 	} else {
-
 		// Do not pass a container as the parameter for the volume creation.
 		// The graph driver using the container's information ( Image ) to
 		// create the parent.
@@ -273,37 +278,49 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 
 	// Do not copy or change permissions if we are mounting from the host
 	if srcRW && !isBindMount {
-		volList, err := ioutil.ReadDir(rootVolPath)
+		if err := copyExistingContents(rootVolPath, srcPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyExistingContents(rootVolPath, srcPath string) error {
+	volList, err := ioutil.ReadDir(rootVolPath)
+	if err != nil {
+		return err
+	}
+
+	if len(volList) > 0 {
+		srcList, err := ioutil.ReadDir(srcPath)
 		if err != nil {
 			return err
 		}
-		if len(volList) > 0 {
-			srcList, err := ioutil.ReadDir(srcPath)
-			if err != nil {
-				return err
-			}
-			if len(srcList) == 0 {
-				// If the source volume is empty copy files from the root into the volume
-				if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
-					return err
-				}
-			}
-		}
 
-		var stat syscall.Stat_t
-		if err := syscall.Stat(rootVolPath, &stat); err != nil {
-			return err
-		}
-		var srcStat syscall.Stat_t
-		if err := syscall.Stat(srcPath, &srcStat); err != nil {
-			return err
-		}
-		// Change the source volume's ownership if it differs from the root
-		// files that were just copied
-		if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-			if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+		if len(srcList) == 0 {
+			// If the source volume is empty copy files from the root into the volume
+			if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
 				return err
 			}
+		}
+	}
+
+	var (
+		stat    syscall.Stat_t
+		srcStat syscall.Stat_t
+	)
+
+	if err := syscall.Stat(rootVolPath, &stat); err != nil {
+		return err
+	}
+	if err := syscall.Stat(srcPath, &srcStat); err != nil {
+		return err
+	}
+	// Change the source volume's ownership if it differs from the root
+	// files that were just copied
+	if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
+		if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
+			return err
 		}
 	}
 	return nil

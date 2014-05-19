@@ -135,8 +135,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 			if arr[0] == "/" {
 				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
 			}
-			dstDir := arr[1]
-			flVolumes.Set(dstDir)
+			// after creating the bind mount we want to delete it from the flVolumes values because
+			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
 		} else if bind == "/" {
