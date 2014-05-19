@@ -2,12 +2,19 @@
 
 package nsinit
 
+/*
+#include <linux/securebits.h>
+*/
+import "C"
+
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
 	"syscall"
+	"unsafe"
 
 	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/label"
@@ -95,17 +102,138 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 		return fmt.Errorf("get parent death signal %s", err)
 	}
 
-	if err := FinalizeNamespace(container); err != nil {
-		return fmt.Errorf("finalize namespace %s", err)
+	if !container.MapDockerRoot {
+		if err := FinalizeNamespace(container); err != nil {
+			return fmt.Errorf("finalize namespace %s", err)
+		}
 	}
 
-	// FinalizeNamespace can change user/group which clears the parent death
+	// Retain capabilities on clone.
+	if container.MapDockerRoot {
+		if err := system.Prctl(syscall.PR_SET_SECUREBITS, uintptr(C.SECBIT_KEEP_CAPS|C.SECBIT_NO_SETUID_FIXUP), 0, 0, 0); err != nil {
+			return fmt.Errorf("prctl %s", err)
+		}
+
+		// Switch to the docker-root user.
+		if err := system.Setuid(container.DockerRootUid); err != nil {
+			return fmt.Errorf("setuid %s", err)
+		}
+
+		// Switch to the docker-root group.
+		if err := system.Setgid(container.DockerRootGid); err != nil {
+			return fmt.Errorf("setgid %s", err)
+		}
+	}
+
+	// Changing user/group clears the parent death
 	// signal, so we restore it here.
 	if err := RestoreParentDeathSignal(pdeathSignal); err != nil {
 		return fmt.Errorf("restore parent death signal %s", err)
 	}
 
-	return system.Execv(args[0], args[0:], container.Env)
+	// Non user namespace case.
+	if !container.MapDockerRoot {
+		return system.Execv(args[0], args[0:], container.Env)
+	}
+
+	// Switch into a user namespace and map docker-root to root.
+	sPipe, err := NewSyncPipe()
+	if err != nil {
+		return err
+	}
+
+	// Prepare arguments for the raw syscalls.
+	var (
+		r1   uintptr
+		err1 syscall.Errno
+		dir  *byte
+	)
+
+	argv0p, err := syscall.BytePtrFromString(args[0])
+	if err != nil {
+		return err
+	}
+
+	argvp, err := syscall.SlicePtrFromStrings(args[0:])
+	if err != nil {
+		return err
+	}
+
+	envvp, err := syscall.SlicePtrFromStrings(container.Env)
+	if err != nil {
+		return err
+	}
+
+	if container.WorkingDir != "" {
+		dir, err = syscall.BytePtrFromString(container.WorkingDir)
+		if err != nil {
+			return err
+		}
+	}
+
+	syscall.ForkLock.Lock()
+	r1, _, err1 = syscall.RawSyscall6(syscall.SYS_CLONE, uintptr(syscall.CLONE_NEWUSER|syscall.CLONE_FILES|syscall.SIGCHLD), 0, 0, 0, 0, 0)
+	if err1 != 0 {
+		return fmt.Errorf("userns clone: %s", err)
+	}
+
+	if r1 != 0 {
+		// In parent.
+		syscall.ForkLock.Unlock()
+		proc, err := os.FindProcess(int(r1))
+		if err != nil {
+			return err
+		}
+
+		if err = writeUserMappings(int(r1), container.UidMappings, container.GidMappings); err != nil {
+			proc.Kill()
+			return fmt.Errorf("Failed to write mappings: %s", err)
+		}
+		sPipe.Close()
+
+		state, err := proc.Wait()
+		if err != nil {
+			proc.Kill()
+			return fmt.Errorf("wait: %s", err)
+		}
+		os.Exit(state.Sys().(syscall.WaitStatus).ExitStatus())
+	}
+
+	// In child.
+	if dir != nil {
+		_, _, err1 = syscall.RawSyscall(syscall.SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
+		if err1 != 0 {
+			return err1
+		}
+	}
+
+	_, _, err1 = syscall.RawSyscall(syscall.SYS_EXECVE,
+		uintptr(unsafe.Pointer(argv0p)),
+		uintptr(unsafe.Pointer(&argvp[0])),
+		uintptr(unsafe.Pointer(&envvp[0])))
+
+	return nil
+}
+
+// Write UID/GID mappings for a process.
+func writeUserMappings(pid int, uidMappings, gidMappings []string) error {
+	if len(uidMappings) > 5 || len(gidMappings) > 5 {
+		return fmt.Errorf("Only 5 uid/gid mappings are supported by the kernel")
+	}
+
+	uidMap := []byte(strings.Join(uidMappings, "\n"))
+	gidMap := []byte(strings.Join(gidMappings, "\n"))
+
+	uidMappingsFile := fmt.Sprintf("/proc/%v/uid_map", pid)
+	gidMappingsFile := fmt.Sprintf("/proc/%v/gid_map", pid)
+
+	if err := ioutil.WriteFile(uidMappingsFile, uidMap, 0644); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(gidMappingsFile, gidMap, 0644); err != nil {
+		return err
+	}
+	return nil
 }
 
 // RestoreParentDeathSignal sets the parent death signal to old.

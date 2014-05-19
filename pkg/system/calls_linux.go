@@ -104,6 +104,13 @@ func Ioctl(fd uintptr, flag, data uintptr) error {
 	return nil
 }
 
+func Prctl(option int, arg2, arg3, arg4, arg5 uintptr) error {
+	if _, _, err := syscall.Syscall6(syscall.SYS_PRCTL, uintptr(option), arg2, arg3, arg4, arg5, 0); err != 0 {
+		return err
+	}
+	return nil
+}
+
 func Closefd(fd uintptr) error {
 	return syscall.Close(int(fd))
 }

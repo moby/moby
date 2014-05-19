@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/native/configuration"
@@ -12,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
+	"github.com/dotcloud/docker/pkg/user"
 )
 
 // createContainer populates and configures the container type with the
@@ -28,6 +30,14 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 	container.Context["restrictions"] = "true"
+	container.MapDockerRoot = false
+	container.DockerRootUser = "docker-root"
+
+	if container.MapDockerRoot {
+		if err := d.setDockerRootUidGid(container); err != nil {
+			return nil, err
+		}
+	}
 
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
@@ -54,6 +64,21 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		return nil, err
 	}
 	return container, nil
+}
+
+func (d *driver) setDockerRootUidGid(container *libcontainer.Container) error {
+	// Get the uid/gid of the docker-root user on the host.
+	uid, gid, _, err := user.GetUserGroupSupplementary(container.DockerRootUser, syscall.Getuid(), syscall.Getgid())
+	if err != nil {
+		return fmt.Errorf("get supplementary groups %s", err)
+	}
+
+	container.DockerRootUid = int(uid)
+	container.DockerRootGid = int(gid)
+
+	container.UidMappings = []string{fmt.Sprintf("0 %v 1", container.DockerRootUid)}
+	container.GidMappings = []string{fmt.Sprintf("0 %v 1", container.DockerRootGid)}
+	return nil
 }
 
 func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.Command) error {
