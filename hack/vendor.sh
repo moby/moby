@@ -45,7 +45,7 @@ clone git github.com/gorilla/context 708054d61e5
 
 clone git github.com/gorilla/mux 9b36453141c
 
-clone git github.com/syndtr/gocapability 3454319be2
+clone git github.com/syndtr/gocapability 3c85049eae
 
 clone hg code.google.com/p/go.net 84a4013f96e0
 
