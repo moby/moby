@@ -297,7 +297,7 @@ Docker daemon for the containers:
 
 The Docker daemon has to be restarted:
 
-    $ sudo restart docker
+    $ sudo restart docker.io
 
 > **Warning**: 
 > If you're doing this on a laptop which connects to various networks,
