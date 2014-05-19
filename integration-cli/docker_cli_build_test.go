@@ -125,16 +125,13 @@ func TestAddWholeDirToRoot(t *testing.T) {
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildWithInaccessibleFilesInContext")
-	addUserCmd := exec.Command("adduser", "unprivilegeduser")
-	out, _, err := runCommandWithOutput(addUserCmd)
-	errorOut(err, t, fmt.Sprintf("failed to add user: %v %v", out, err))
 
 	{
 		// This is used to ensure we detect inaccessible files early during build in the cli client
 		pathToInaccessibleFileBuildDirectory := filepath.Join(buildDirectory, "inaccessiblefile")
 		pathToFileWithoutReadAccess := filepath.Join(pathToInaccessibleFileBuildDirectory, "fileWithoutReadAccess")
 
-		err = os.Chown(pathToFileWithoutReadAccess, 0, 0)
+		err := os.Chown(pathToFileWithoutReadAccess, 0, 0)
 		errorOut(err, t, fmt.Sprintf("failed to chown file to root: %s", err))
 		err = os.Chmod(pathToFileWithoutReadAccess, 0700)
 		errorOut(err, t, fmt.Sprintf("failed to chmod file to 700: %s", err))
@@ -162,7 +159,7 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		pathToDirectoryWithoutReadAccess := filepath.Join(pathToInaccessibleDirectoryBuildDirectory, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
 
-		err = os.Chown(pathToDirectoryWithoutReadAccess, 0, 0)
+		err := os.Chown(pathToDirectoryWithoutReadAccess, 0, 0)
 		errorOut(err, t, fmt.Sprintf("failed to chown directory to root: %s", err))
 		err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444)
 		errorOut(err, t, fmt.Sprintf("failed to chmod directory to 755: %s", err))
