@@ -161,6 +161,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
+		if err = utils.ValidateContextDirectory(root); err != nil {
+			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
+		}
 		context, err = archive.Tar(root, archive.Uncompressed)
 	}
 	var body io.Reader
