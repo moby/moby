@@ -11,6 +11,7 @@ bundle_test_integration_cli() {
 }
 
 # subshell so that we can export PATH without breaking other things
+exec > >(tee -a $DEST/test.log) 2>&1
 (
 	export PATH="$DEST/../binary:$DEST/../dynbinary:$PATH"
 
@@ -40,4 +41,4 @@ bundle_test_integration_cli() {
 	DOCKERD_PID=$(set -x; cat $DEST/docker.pid)
 	( set -x; kill $DOCKERD_PID )
 	wait $DOCKERD_PID || true
-) 2>&1 | tee $DEST/test.log
+)
