@@ -152,6 +152,21 @@ func TestAddWholeDirToRoot(t *testing.T) {
 	logDone("build - add whole directory to root")
 }
 
+func TestAddEtcToRoot(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "EtcToRoot")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testaddimg")
+	logDone("build - add etc directory to root")
+}
+
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {

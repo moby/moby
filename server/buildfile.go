@@ -438,9 +438,6 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 			if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
 				return err
 			}
-			if err := os.Chmod(path, 0755); err != nil && !os.IsNotExist(err) {
-				return err
-			}
 			return nil
 		})
 	}

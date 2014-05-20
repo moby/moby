@@ -5,5 +5,5 @@ RUN touch /exists
 RUN chown dockerio.dockerio /exists
 ADD test_file /
 RUN [ $(ls -l /test_file | awk '{print $3":"$4}') = 'root:root' ]
-RUN [ $(ls -l /test_file | awk '{print $1}') = '-rwxr-xr-x' ]
+RUN [ $(ls -l /test_file | awk '{print $1}') = '-rw-r--r--' ]
 RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
