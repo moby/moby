@@ -17,6 +17,9 @@ func New() *libcontainer.Container {
 			"NET_RAW",
 			"SETGID",
 			"SETUID",
+			"SETFCAP",
+			"SETPCAP",
+			"NET_BIND_SERVICE",
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,
