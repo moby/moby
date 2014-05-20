@@ -9,6 +9,37 @@ import (
 	"testing"
 )
 
+func TestBuildCacheADD(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
+	buildCmd.Dir = buildDirectory
+	exitCode, err := runCommand(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v", err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	buildDirectory = filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "2")
+	buildCmd = exec.Command(dockerBinary, "build", "-t", "testcacheadd2", ".")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	if strings.Contains(out, "Using cache") {
+		t.Fatal("2nd build used cache on ADD, it shouldn't")
+	}
+
+	deleteImages("testcacheadd1")
+	deleteImages("testcacheadd2")
+
+	logDone("build - build two images with ADD")
+}
+
 func TestBuildSixtySteps(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildSixtySteps")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "foobuildsixtysteps", ".")
