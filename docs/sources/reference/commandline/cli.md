@@ -1143,8 +1143,8 @@ them to [*Share Images via Repositories*](
 
     Show the docker version information.
 
-Show the version of the Docker client, daemon, and latest released
-version.
+Show the Docker version, API version, Git commit, and Go version of
+both Docker client and daemon.
 
 ## wait
 
