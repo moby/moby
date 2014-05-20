@@ -1,7 +1,10 @@
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/utils"
@@ -11,6 +14,8 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 	eng.Register("image_set", s.CmdSet)
 	eng.Register("image_tag", s.CmdTag)
 	eng.Register("image_get", s.CmdGet)
+	eng.Register("image_inspect", s.CmdLookup)
+	eng.Register("image_tarlayer", s.CmdTarLayer)
 	return nil
 }
 
@@ -107,11 +112,6 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 		// but we didn't, so now we're doing it here.
 		//
 		// Fields that we're probably better off not including:
-		//	- ID (the caller already knows it, and we stay more flexible on
-		//		naming down the road)
-		//	- Parent. That field is really an implementation detail of
-		//		layer storage ("layer is a diff against this other layer).
-		//		It doesn't belong at the same level as author/description/etc.
 		//	- Config/ContainerConfig. Those structs have the same sprawl problem,
 		//		so we shouldn't include them wholesale either.
 		//	- Comment: initially created to fulfill the "every image is a git commit"
@@ -122,7 +122,50 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 		res.Set("os", img.OS)
 		res.Set("architecture", img.Architecture)
 		res.Set("docker_version", img.DockerVersion)
+		res.Set("ID", img.ID)
+		res.Set("Parent", img.Parent)
 	}
 	res.WriteTo(job.Stdout)
 	return engine.StatusOK
+}
+
+// CmdLookup return an image encoded in JSON
+func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("usage: %s NAME", job.Name)
+	}
+	name := job.Args[0]
+	if image, err := s.LookupImage(name); err == nil && image != nil {
+		b, err := json.Marshal(image)
+		if err != nil {
+			return job.Error(err)
+		}
+		job.Stdout.Write(b)
+		return engine.StatusOK
+	}
+	return job.Errorf("No such image: %s", name)
+}
+
+// CmdTarLayer return the tarLayer of the image
+func (s *TagStore) CmdTarLayer(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("usage: %s NAME", job.Name)
+	}
+	name := job.Args[0]
+	if image, err := s.LookupImage(name); err == nil && image != nil {
+		fs, err := image.TarLayer()
+		if err != nil {
+			return job.Error(err)
+		}
+		defer fs.Close()
+
+		if written, err := io.Copy(job.Stdout, fs); err != nil {
+			return job.Error(err)
+		} else {
+			utils.Debugf("rendered layer for %s of [%d] size", image.ID, written)
+		}
+
+		return engine.StatusOK
+	}
+	return job.Errorf("No such image: %s", name)
 }

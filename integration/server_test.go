@@ -81,13 +81,13 @@ func TestMergeConfigOnCommit(t *testing.T) {
 	container2, _, _ := mkContainer(runtime, []string{engine.Tail(outputBuffer, 1)}, t)
 	defer runtime.Destroy(container2)
 
-	job = eng.Job("inspect", container1.Name, "container")
+	job = eng.Job("container_inspect", container1.Name)
 	baseContainer, _ := job.Stdout.AddEnv()
 	if err := job.Run(); err != nil {
 		t.Error(err)
 	}
 
-	job = eng.Job("inspect", container2.Name, "container")
+	job = eng.Job("container_inspect", container2.Name)
 	commitContainer, _ := job.Stdout.AddEnv()
 	if err := job.Run(); err != nil {
 		t.Error(err)

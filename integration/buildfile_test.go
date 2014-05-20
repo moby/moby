@@ -1,19 +1,22 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/server"
+	"github.com/dotcloud/docker/utils"
 )
 
 // A testContextTemplate describes a build context and how to test it
@@ -400,7 +403,15 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 		return nil, err
 	}
 
-	return srv.ImageInspect(id)
+	job := eng.Job("image_inspect", id)
+	buffer := bytes.NewBuffer(nil)
+	image := &image.Image{}
+	job.Stdout.Add(buffer)
+	if err := job.Run(); err != nil {
+		return nil, err
+	}
+	err = json.NewDecoder(buffer).Decode(image)
+	return image, err
 }
 
 func TestVolume(t *testing.T) {

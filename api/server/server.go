@@ -338,7 +338,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	var (
-		job    = eng.Job("inspect", vars["name"], "container")
+		job    = eng.Job("container_inspect", vars["name"])
 		c, err = job.Stdout.AddEnv()
 	)
 	if err != nil {
@@ -755,7 +755,7 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	}
 
 	var (
-		job    = eng.Job("inspect", vars["name"], "container")
+		job    = eng.Job("container_inspect", vars["name"])
 		c, err = job.Stdout.AddEnv()
 	)
 	if err != nil {
@@ -819,7 +819,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if err := eng.Job("inspect", vars["name"], "container").Run(); err != nil {
+	if err := eng.Job("container_inspect", vars["name"]).Run(); err != nil {
 		return err
 	}
 
@@ -847,9 +847,8 @@ func getContainersByName(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("inspect", vars["name"], "container")
+	var job = eng.Job("container_inspect", vars["name"])
 	streamJSON(job, w, false)
-	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
 
@@ -857,9 +856,8 @@ func getImagesByName(eng *engine.Engine, version version.Version, w http.Respons
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("inspect", vars["name"], "image")
+	var job = eng.Job("image_inspect", vars["name"])
 	streamJSON(job, w, false)
-	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
 

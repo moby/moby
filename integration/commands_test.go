@@ -1052,11 +1052,12 @@ func TestContainerOrphaning(t *testing.T) {
 		if err := cli.CmdBuild("-t", image, tmpDir); err != nil {
 			t.Fatal(err)
 		}
-		img, err := srv.ImageInspect(image)
-		if err != nil {
+		job := globalEngine.Job("image_get", image)
+		info, _ := job.Stdout.AddEnv()
+		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
-		return img.ID
+		return info.Get("ID")
 	}
 
 	// build an image
