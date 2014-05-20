@@ -41,6 +41,7 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
+	lxc=1.0* \
 	mercurial \
 	pandoc \
 	reprepro \
@@ -48,10 +49,6 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	ruby1.9.1-dev \
 	s3cmd=1.1.0* \
 	--no-install-recommends
-
-# Get and compile LXC 0.8 (since it is the most stable)
-RUN	git clone --no-checkout https://github.com/lxc/lxc.git /usr/local/lxc && cd /usr/local/lxc && git checkout -q lxc-0.8.0
-RUN	cd /usr/local/lxc && ./autogen.sh && ./configure --disable-docs && make && make install
 
 # Get lvm2 source for compiling statically
 RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103
