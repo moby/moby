@@ -100,7 +100,6 @@ func ReleaseAll() error {
 }
 
 func registerDynamicPort(ip net.IP, proto string) (int, error) {
-
 	if !equalsDefault(ip) {
 		registerIP(ip)
 
@@ -114,14 +113,12 @@ func registerDynamicPort(ip net.IP, proto string) (int, error) {
 		return port, nil
 
 	} else {
-
 		allocated := defaultAllocatedPorts[proto]
 
 		port, err := findNextPort(proto, allocated)
 		if err != nil {
 			return 0, err
 		}
-		allocated.Push(port)
 		return port, nil
 	}
 }
@@ -159,6 +156,8 @@ func findNextPort(proto string, allocated *collections.OrderedIntSet) (int, erro
 			return 0, ErrAllPortsAllocated
 		}
 	}
+
+	allocated.Push(port)
 	return port, nil
 }
 
