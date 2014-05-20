@@ -39,11 +39,11 @@ clone() {
 	echo done
 }
 
-clone git github.com/kr/pty 98c7b80083
+clone git github.com/kr/pty 67e2db24c8
 
-clone git github.com/gorilla/context 708054d61e5
+clone git github.com/gorilla/context b06ed15e1c
 
-clone git github.com/gorilla/mux 9b36453141c
+clone git github.com/gorilla/mux 136d54f81f
 
 clone git github.com/syndtr/gocapability 3c85049eae
 
