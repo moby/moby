@@ -64,6 +64,11 @@ type Daemon struct {
 	execDriver     execdriver.Driver
 }
 
+// Install installs daemon capabilities to eng.
+func (daemon *Daemon) Install(eng *engine.Engine) error {
+	return eng.Register("container_inspect", daemon.ContainerInspect)
+}
+
 // Mountpoints should be private to the container
 func remountPrivate(mountPoint string) error {
 	mounted, err := mount.Mounted(mountPoint)
