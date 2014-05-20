@@ -1205,10 +1205,19 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 		}
 	}
 
+	var oldmask int
+	if proto == "unix" {
+		oldmask = syscall.Umask(0777)
+	}
+
 	if job.GetenvBool("BufferRequests") {
 		l, err = listenbuffer.NewListenBuffer(proto, addr, activationLock)
 	} else {
 		l, err = net.Listen(proto, addr)
+	}
+
+	if proto == "unix" {
+		syscall.Umask(oldmask)
 	}
 	if err != nil {
 		return err
@@ -1247,9 +1256,6 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 	case "unix":
-		if err := os.Chmod(addr, 0660); err != nil {
-			return err
-		}
 		socketGroup := job.Getenv("SocketGroup")
 		if socketGroup != "" {
 			if err := changeGroup(addr, socketGroup); err != nil {
@@ -1260,6 +1266,9 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 					return err
 				}
 			}
+		}
+		if err := os.Chmod(addr, 0660); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("Invalid protocol format.")
