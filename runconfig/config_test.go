@@ -1,9 +1,10 @@
 package runconfig
 
 import (
-	"github.com/dotcloud/docker/nat"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/nat"
 )
 
 func parse(t *testing.T, args string) (*Config, *HostConfig, error) {
@@ -93,32 +94,20 @@ func TestParseRunVolumes(t *testing.T) {
 		t.Fatalf("Error parsing volume flags, `-v /var` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp` should mount-bind /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" || hostConfig.Binds[1] != "/hostVar:/containerVar" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" || hostConfig.Binds[1] != "/hostVar:/containerVar" {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /hostVar:/containerVar` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerTmp` is missing from volumes. Received %v", config.Volumes)
-	} else if _, exists := config.Volumes["/containerVar"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp:ro" || hostConfig.Binds[1] != "/hostVar:/containerVar:rw" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp:ro" || hostConfig.Binds[1] != "/hostVar:/containerVar:rw" {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerTmp` is missing from volumes. Received %v", config.Volumes)
-	} else if _, exists := config.Volumes["/containerVar"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}
 
 	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /containerVar"); hostConfig.Binds == nil || len(hostConfig.Binds) > 1 || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /containerVar` should mount-bind only /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerTmp` is missing from volumes. Received %v", config.Volumes)
 	} else if _, exists := config.Volumes["/containerVar"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}

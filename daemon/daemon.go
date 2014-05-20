@@ -607,15 +607,18 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 		containerID, containerImage string
 		containerConfig             *runconfig.Config
 	)
+
 	if container != nil {
 		containerID = container.ID
 		containerImage = container.Image
 		containerConfig = container.Config
 	}
+
 	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}
+
 	// Register the image if needed
 	if repository != "" {
 		if err := daemon.repositories.Set(repository, tag, img.ID, true); err != nil {

@@ -83,3 +83,28 @@ func TestCommitTTY(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCommitWithHostBindMount(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit", "bind-commit", "bindtest")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+
+	cmd = exec.Command(dockerBinary, "run", "bindtest", "true")
+
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+	deleteImages(imageId)
+
+	logDone("commit - commit bind mounted file")
+}
