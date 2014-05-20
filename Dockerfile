@@ -91,6 +91,8 @@ RUN	git config --global user.email 'docker-dummy@example.com'
 
 # Add an unprivileged user to be used for tests which need it
 RUN adduser unprivilegeduser
+RUN groupadd docker
+RUN gpasswd -a unprivilegeduser docker
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
