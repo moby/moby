@@ -104,8 +104,21 @@ make test
 ### 5. Test the docs
 
 Make sure that your tree includes documentation for any modified or
-new features, syntax or semantic changes. Instructions for building
-the docs are in `docs/README.md`.
+new features, syntax or semantic changes.
+
+To test locally:
+
+```bash
+make docs
+```
+
+To make a shared test at http://beta-docs.docker.io:
+
+(You will need the `awsconfig` file added to the `docs/` dir)
+
+```bash
+make AWS_S3_BUCKET=beta-docs.docker.io docs-release
+```
 
 ### 6. Commit and create a pull request to the "release" branch
 
@@ -211,17 +224,20 @@ branch afterwards!
 
 ### 12. Update the docs branch
 
+You will need the `awsconfig` file added to the `docs/` directory to contain the
+s3 credentials for the bucket you are deploying to.
+
 ```bash
 git checkout docs
 git fetch
 git reset --hard origin/release
 git push -f origin docs
+make AWS_S3_BUCKET=docs.docker.io docs-release
 ```
 
-Updating the docs branch will automatically update the documentation on the
-"latest" revision of the docs. You should see the updated docs 5-10 minutes
-after the merge. The docs will appear on http://docs.docker.io/. For more
-information about documentation releases, see `docs/README.md`.
+The docs will appear on http://docs.docker.io/ (though there may be cached
+versions, so its worth checking http://docs.docker.io.s3-website-us-west-2.amazonaws.com/).
+For more information about documentation releases, see `docs/README.md`.
 
 ### 13. Create a new pull request to merge release back into master
 
