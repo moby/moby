@@ -43,5 +43,15 @@
     {
       "type": "devtmpfs"
     }
-  ]
+  ],
+  "device_nodes": {
+      "required": [
+          "null",
+          "zero",
+          "full",
+          "random",
+          "urandom",
+          "tty"
+      ]
+  }
 }

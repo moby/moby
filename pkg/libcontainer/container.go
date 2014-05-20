@@ -11,19 +11,20 @@ type Context map[string]string
 // Container defines configuration options for how a
 // container is setup inside a directory and how a process should be executed
 type Container struct {
-	Hostname     string          `json:"hostname,omitempty"`      // hostname
-	ReadonlyFs   bool            `json:"readonly_fs,omitempty"`   // set the containers rootfs as readonly
-	NoPivotRoot  bool            `json:"no_pivot_root,omitempty"` // this can be enabled if you are running in ramdisk
-	User         string          `json:"user,omitempty"`          // user to execute the process as
-	WorkingDir   string          `json:"working_dir,omitempty"`   // current working directory
-	Env          []string        `json:"environment,omitempty"`   // environment to set
-	Tty          bool            `json:"tty,omitempty"`           // setup a proper tty or not
-	Namespaces   map[string]bool `json:"namespaces,omitempty"`    // namespaces to apply
-	Capabilities []string        `json:"capabilities,omitempty"`  // capabilities given to the container
-	Networks     []*Network      `json:"networks,omitempty"`      // nil for host's network stack
-	Cgroups      *cgroups.Cgroup `json:"cgroups,omitempty"`       // cgroups
-	Context      Context         `json:"context,omitempty"`       // generic context for specific options (apparmor, selinux)
-	Mounts       Mounts          `json:"mounts,omitempty"`
+	Hostname     string              `json:"hostname,omitempty"`      // hostname
+	ReadonlyFs   bool                `json:"readonly_fs,omitempty"`   // set the containers rootfs as readonly
+	NoPivotRoot  bool                `json:"no_pivot_root,omitempty"` // this can be enabled if you are running in ramdisk
+	User         string              `json:"user,omitempty"`          // user to execute the process as
+	WorkingDir   string              `json:"working_dir,omitempty"`   // current working directory
+	Env          []string            `json:"environment,omitempty"`   // environment to set
+	Tty          bool                `json:"tty,omitempty"`           // setup a proper tty or not
+	Namespaces   map[string]bool     `json:"namespaces,omitempty"`    // namespaces to apply
+	Capabilities []string            `json:"capabilities,omitempty"`  // capabilities given to the container
+	Networks     []*Network          `json:"networks,omitempty"`      // nil for host's network stack
+	Cgroups      *cgroups.Cgroup     `json:"cgroups,omitempty"`       // cgroups
+	Context      Context             `json:"context,omitempty"`       // generic context for specific options (apparmor, selinux)
+	Mounts       Mounts              `json:"mounts,omitempty"`
+	DeviceNodes  map[string][]string `json:"device_nodes,omitempty"` // device nodes to add to the container's /dev
 }
 
 // Network defines configuration for a container's networking stack

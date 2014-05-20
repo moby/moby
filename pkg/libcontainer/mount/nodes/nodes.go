@@ -4,6 +4,7 @@ package nodes
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -19,11 +20,6 @@ var DefaultNodes = []string{
 	"random",
 	"urandom",
 	"tty",
-}
-
-// AdditionalNodes includes nodes that are not required
-var AdditionalNodes = []string{
-	"fuse",
 }
 
 // CopyN copies the device node from the host into the rootfs
@@ -60,4 +56,19 @@ func Copy(rootfs, node string, shouldExist bool) error {
 		return fmt.Errorf("mknod %s %s", node, err)
 	}
 	return nil
+}
+
+func GetHostDeviceNodes() ([]string, error) {
+	files, err := ioutil.ReadDir("/dev")
+	if err != nil {
+		return nil, err
+	}
+
+	out := []string{}
+	for _, f := range files {
+		if f.Mode()&os.ModeDevice == os.ModeDevice {
+			out = append(out, f.Name())
+		}
+	}
+	return out, nil
 }
