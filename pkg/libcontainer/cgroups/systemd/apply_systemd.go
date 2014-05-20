@@ -174,6 +174,14 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 
 		path := filepath.Join(mountpoint, cgroup)
 
+		// allow mknod for all devices
+		if err := ioutil.WriteFile(filepath.Join(path, "devices.allow"), []byte("c *:* m"), 0700); err != nil {
+			return nil, err
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(path, "devices.allow"), []byte("b *:* m"), 0700); err != nil {
+			return nil, err
+		}
 		// /dev/pts/*
 		if err := ioutil.WriteFile(filepath.Join(path, "devices.allow"), []byte("c 136:* rwm"), 0700); err != nil {
 			return nil, err
