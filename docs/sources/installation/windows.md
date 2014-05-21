@@ -59,10 +59,34 @@ Let's try the “hello world” example. Run
 
 This will download the small busybox image and print hello world.
 
-## Observations
+## Persistent storage
 
-### Persistent storage
+1. Add a virtual hard drive to the VM created in Installation
+2. Start the VM
+3. Create an empty partition on the attached virtual hard drive
 
-The virtual machine created above lacks any persistent data storage. All
-images and containers will be lost when shutting down or rebooting the
-VM.
+    ```sh
+    sudo fdisk /dev/sda
+    n (new partition)
+    p (primary partition)
+    1 (partition 1)
+    w (write changes to disk)
+    ```
+
+4. Format the partition using ext4 
+
+    ```sh
+    mkfs.ext4 -L boot2docker-data /dev/sda1
+    ```
+
+5. Reboot
+
+    ```sh
+    sudo reboot
+    ```
+
+6. boot2docker should now auto mount the partition and persist data there. (/var/lib/docker linking to /mnt/sda1/var/lib/docker)
+
+    ```sh
+    ls -l /var/lib
+    ```
