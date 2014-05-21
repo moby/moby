@@ -2,13 +2,14 @@ package archive
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
@@ -79,7 +80,7 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 					}
 					defer os.RemoveAll(aufsTempdir)
 				}
-				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr); err != nil {
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true); err != nil {
 					return err
 				}
 			}
@@ -126,7 +127,7 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 				srcData = tmpFile
 			}
 
-			if err := createTarFile(path, dest, srcHdr, srcData); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData, true); err != nil {
 				return err
 			}
 
