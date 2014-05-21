@@ -11,7 +11,14 @@
     { "Condition": { "KeyPrefixEquals": "en/v0.6.3/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "" } },
     { "Condition": { "KeyPrefixEquals": "jsearch/index.html" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "jsearch/" } },
     { "Condition": { "KeyPrefixEquals": "index/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "docker-io/" } },
-    { "Condition": { "KeyPrefixEquals": "reference/api/index_api/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "reference/api/docker-io_api/" } }
+    { "Condition": { "KeyPrefixEquals": "reference/api/index_api/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "reference/api/docker-io_api/" } },
+    { "Condition": { "KeyPrefixEquals": "examples/hello_world/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerizing/" } },
+    { "Condition": { "KeyPrefixEquals": "examples/python_web_app/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerizing/" } },
+    { "Condition": { "KeyPrefixEquals": "use/working_with_volumes/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockervolumes/" } },
+    { "Condition": { "KeyPrefixEquals": "use/working_with_links_names/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerlinks/" } },
+    { "Condition": { "KeyPrefixEquals": "use/workingwithrepository/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerrepos/" } },
+    { "Condition": { "KeyPrefixEquals": "use/port_redirection" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerlinks/" } },
+    { "Condition": { "KeyPrefixEquals": "use/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "examples/" } },
   ]
 }
 

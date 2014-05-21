@@ -48,5 +48,6 @@ Docker daemon.
     $ sudo usermod -G docker <username>
 
 **Done!**
-Now continue with the [*Hello World*](
-/examples/hello_world/#hello-world) example.
+
+Continue with the [User Guide](/userguide/).
+

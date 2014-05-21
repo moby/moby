@@ -142,12 +142,11 @@ running in parallel.
 ### How do I connect Docker containers?
 
 Currently the recommended way to link containers is via the link
-primitive. You can see details of how to [work with links here](
-http://docs.docker.io/use/working_with_links_names/).
+primitive. You can see details of how to [work with links
+here](/userguide/dockerlinks).
 
 Also of useful when enabling more flexible service portability is the
-[Ambassador linking pattern](
-http://docs.docker.io/use/ambassador_pattern_linking/).
+[Ambassador linking pattern](/articles/ambassador_pattern_linking/).
 
 ### How do I run more than one process in a Docker container?
 
@@ -156,8 +155,7 @@ http://supervisord.org/), runit, s6, or daemontools can do the trick.
 Docker will start up the process management daemon which will then fork
 to run additional processes. As long as the processor manager daemon continues
 to run, the container will continue to as well. You can see a more substantial
-example [that uses supervisord here](
-http://docs.docker.io/examples/using_supervisord/).
+example [that uses supervisord here](/articles/using_supervisord/).
 
 ### What platforms does Docker run on?
 
@@ -207,5 +205,5 @@ You can find more answers on:
 - [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 
-Looking for something else to read? Checkout the [*Hello World*](
-../examples/hello_world/#hello-world) example.
+Looking for something else to read? Checkout the [User
+Guide](/userguide/).

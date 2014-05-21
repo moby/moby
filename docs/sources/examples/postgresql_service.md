@@ -1,26 +1,22 @@
-page_title: PostgreSQL service How-To
+page_title: Dockerizing PostgreSQL
 page_description: Running and installing a PostgreSQL service
 page_keywords: docker, example, package installation, postgresql
 
-# PostgreSQL Service
+# Dockerizing PostgreSQL
 
 > **Note**: 
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#dockergroup)
 
 ## Installing PostgreSQL on Docker
 
-Assuming there is no Docker image that suits your needs in [the index](
-http://index.docker.io), you can create one yourself.
+Assuming there is no Docker image that suits your needs on the [Docker
+Hub]( http://index.docker.io), you can create one yourself.
 
-Start by creating a new Dockerfile:
+Start by creating a new `Dockerfile`:
 
 > **Note**: 
-> This PostgreSQL setup is for development only purposes. Refer to the
+> This PostgreSQL setup is for development-only purposes. Refer to the
 > PostgreSQL documentation to fine-tune these settings so that it is
 > suitably secure.
 
@@ -32,7 +28,7 @@ Start by creating a new Dockerfile:
     MAINTAINER SvenDowideit@docker.com
 
     # Add the PostgreSQL PGP key to verify their Debian packages.
-    # It should be the same key as https://www.postgresql.org/media/keys/ACCC4CF8.asc 
+    # It should be the same key as https://www.postgresql.org/media/keys/ACCC4CF8.asc
     RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
 
     # Add PostgreSQL's repository. It contains the most recent stable release
@@ -87,11 +83,11 @@ And run the PostgreSQL server container (in the foreground):
     $ sudo docker run --rm -P --name pg_test eg_postgresql
 
 There are 2 ways to connect to the PostgreSQL server. We can use [*Link
-Containers*](/use/working_with_links_names/#working-with-links-names),
-or we can access it from our host (or the network).
+Containers*](/userguide/dockerlinks), or we can access it from our host
+(or the network).
 
 > **Note**: 
-> The `-rm` removes the container and its image when
+> The `--rm` removes the container and its image when
 > the container exists successfully.
 
 ### Using container linking

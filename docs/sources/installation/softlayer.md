@@ -24,5 +24,7 @@ page_keywords: IBM SoftLayer, virtualization, cloud, docker, documentation, inst
 7. Then continue with the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
    instructions.
 
-Continue with the [*Hello World*](
-/examples/hello_world/#hello-world) example.
+## What next?
+
+Continue with the [User Guide](/userguide/).
+

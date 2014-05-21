@@ -14,6 +14,13 @@ Docker made the choice `172.17.42.1/16` when I started it a few minutes
 ago, for example — a 16-bit netmask providing 65,534 addresses for the
 host machine and its containers.
 
+> **Note:** 
+> This document discusses advanced networking configuration
+> and options for Docker. In most cases you won't need this information.
+> If you're looking to get started with a simpler explanation of Docker
+> networking and an introduction to the concept of container linking see
+> the [Docker User Guide](/userguide/dockerlinks/).
+
 But `docker0` is no ordinary interface.  It is a virtual *Ethernet
 bridge* that automatically forwards packets between any other network
 interfaces that are attached to it.  This lets containers communicate
@@ -29,7 +36,7 @@ container.
 
 The remaining sections of this document explain all of the ways that you
 can use Docker options and — in advanced cases — raw Linux networking
-commands to tweak, supplement, or entirely replace Docker’s default
+commands to tweak, supplement, or entirely replace Docker's default
 networking configuration.
 
 ## Quick Guide to the Options
@@ -53,9 +60,6 @@ server when it starts up, and cannot be changed once it is running:
     it tells the Docker server over what channels
     it should be willing to receive commands
     like “run container” and “stop container.”
-    To learn about the option,
-    read [Bind Docker to another host/port or a Unix socket](../basics/#bind-docker-to-another-hostport-or-a-unix-socket)
-    over in the Basics document.
 
  *  `--icc=true|false` — see
     [Communication between containers](#between-containers)
@@ -219,7 +223,7 @@ services.  If the Docker daemon is running with both `--icc=false` and
 `ACCEPT` rules so that the new container can connect to the ports
 exposed by the other container — the ports that it mentioned in the
 `EXPOSE` lines of its `Dockerfile`.  Docker has more documentation on
-this subject — see the [Link Containers](working_with_links_names.md)
+this subject — see the [linking Docker containers](/userguide/dockerlinks)
 page for further details.
 
 > **Note**:
@@ -280,7 +284,7 @@ machine that the Docker server creates when it starts:
 
 But if you want containers to accept incoming connections, you will need
 to provide special options when invoking `docker run`.  These options
-are covered in more detail on the [Redirect Ports](port_redirection.md)
+are covered in more detail in the [Docker User Guide](/userguide/dockerlinks)
 page.  There are two approaches.
 
 First, you can supply `-P` or `--publish-all=true|false` to `docker run`
@@ -329,7 +333,7 @@ option `--ip=IP_ADDRESS`.  Remember to restart your Docker server after
 editing this setting.
 
 Again, this topic is covered without all of these low-level networking
-details in the [Redirect Ports](port_redirection.md) document if you
+details in the [Docker User Guide](/userguide/dockerlinks/) document if you
 would like to use that as your port redirection reference instead.
 
 ## <a name="docker0"></a>Customizing docker0

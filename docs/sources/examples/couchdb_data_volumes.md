@@ -1,14 +1,10 @@
-page_title: Sharing data between 2 couchdb databases
+page_title: Dockerizing a CouchDB Service
 page_description: Sharing data between 2 couchdb databases
 page_keywords: docker, example, package installation, networking, couchdb, data volumes
 
-# CouchDB Service
+# Dockerizing a CouchDB Service
 
 > **Note**: 
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#dockergroup)
 

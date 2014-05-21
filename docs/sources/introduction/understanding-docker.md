@@ -7,7 +7,7 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 **What is Docker?**
 
 Docker is a platform for developing, shipping, and running applications.
-Docker is designed to deliver your applications faster.  With Docker you
+Docker is designed to deliver your applications faster. With Docker you
 can separate your applications from your infrastructure AND treat your
 infrastructure like a managed application. We want to help you ship code
 faster, test faster, deploy faster and shorten the cycle between writing
@@ -317,15 +317,12 @@ Zones.
 
 ## Next steps
 
-### Learning how to use Docker
-
-Visit [Working with Docker](working-with-docker.md).
-
 ### Installing Docker
 
 Visit the [installation](/installation/#installation) section.
 
-### Get the whole story
+### The Docker User Guide
 
-[https://www.docker.io/the_whole_story/](https://www.docker.io/the_whole_story/)
+[Learn how to use Docker](/userguide/).
+
 

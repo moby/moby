@@ -26,7 +26,7 @@ for installation instructions.
     $ sudo docker pull ubuntu
 
 This will find the `ubuntu` image by name on
-[*Docker.io*](../workingwithrepository/#find-public-images-on-dockerio)
+[*Docker.io*](/userguide/dockerrepos/#find-public-images-on-dockerio)
 and download it from [Docker.io](https://index.docker.io) to a local
 image cache.
 
@@ -173,6 +173,7 @@ will be stored (as a diff). See which images you already have using the
 
 You now have an image state from which you can create new instances.
 
-Read more about [*Share Images via Repositories*](
-../workingwithrepository/#working-with-the-repository) or
-continue to the complete [*Command Line*](/reference/commandline/cli/#cli)
+Read more about [*Share Images via
+Repositories*](/userguide/dockerrepos/#working-with-the-repository) or
+continue to the complete [*Command
+Line*](/reference/commandline/cli/#cli)

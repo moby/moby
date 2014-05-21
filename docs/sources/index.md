@@ -6,8 +6,6 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 **Develop, Ship and Run Any Application, Anywhere**
 
-## Introduction
-
 [**Docker**](https://www.docker.io) is a platform for developers and
 sysadmins to develop, ship, and run applications.  Docker consists of:
 
@@ -78,22 +76,17 @@ section](introduction/understanding-docker.md):
 > [Click here to go to the Understanding
 > Docker section](introduction/understanding-docker.md).
 
-Next we get [**practical** with the Working with Docker
-section](introduction/working-with-docker.md) and you can learn about:
+### Installation Guides
 
- - Docker on the command line;
- - Get introduced to your first Docker commands;
- - Get to know your way around the basics of Docker operation.
-
-> [Click here to go to the Working with
-> Docker section](introduction/working-with-docker.md).
-
-If you want to see how to install Docker you can jump to the
+Then we'll learn how to install Docker on a variety of platforms in our
 [installation](/installation/#installation) section.
 
-> **Note**:
-> We know how valuable your time is so you if you want to get started
-> with Docker straight away don't hesitate to jump to [Working with
-> Docker](introduction/working-with-docker.md). For a fuller
-> understanding of Docker though we do recommend you read [Understanding
-> Docker]( introduction/understanding-docker.md).
+> [Click here to go to the Installation
+> section](/installation/#installation).
+
+### Docker User Guide
+
+Once you've gotten Docker installed we recommend you step through our [Docker User Guide](/userguide/), which will give you an in depth introduction to Docker.
+
+> [Click here to go to the Docker User Guide](/userguide/).
+

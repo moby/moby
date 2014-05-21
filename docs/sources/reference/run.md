@@ -11,21 +11,17 @@ The [*Image*](/terms/image/#image-def) which starts the process may
 define defaults related to the binary to run, the networking to expose,
 and more, but `docker run` gives final control to
 the operator who starts the container from the image. That's the main
-reason [*run*](/commandline/cli/#cli-run) has more options than any
+reason [*run*](/reference/commandline/cli/#cli-run) has more options than any
 other `docker` command.
-
-Every one of the [*Examples*](/examples/#example-list) shows
-running containers, and so here we try to give more in-depth guidance.
 
 ## General Form
 
-As you`ve seen in the [*Examples*](/examples/#example-list), the
-basic run command takes this form:
+The basic `docker run` command takes this form:
 
     $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
-see [*Option types*](/commandline/cli/#cli-options).
+see [*Option types*](/reference/commandline/cli/#cli-options).
 
 The list of `[OPTIONS]` breaks down into two groups:
 
@@ -75,9 +71,9 @@ default foreground mode:
 
 In detached mode (`-d=true` or just `-d`), all I/O should be done
 through network connections or shared volumes because the container is
-no longer listening to the commandline where you executed `docker run`.
+no longer listening to the command line where you executed `docker run`.
 You can reattach to a detached container with `docker`
-[*attach*](commandline/cli/#attach). If you choose to run a
+[*attach*](/reference/commandline/cli/#attach). If you choose to run a
 container in the detached mode, then you cannot use the `--rm` option.
 
 ### Foreground
@@ -85,7 +81,7 @@ container in the detached mode, then you cannot use the `--rm` option.
 In foreground mode (the default when `-d` is not specified), `docker run`
 can start the process in the container and attach the console to the process's
 standard input, output, and standard error. It can even pretend to be a TTY
-(this is what most commandline executables expect) and pass along signals. All
+(this is what most command line executables expect) and pass along signals. All
 of that is configurable:
 
     -a=[]           : Attach to ``stdin``, ``stdout`` and/or ``stderr``
@@ -121,11 +117,11 @@ assign a name to the container with `--name` then
 the daemon will also generate a random string name too. The name can
 become a handy way to add meaning to a container since you can use this
 name when defining
-[*links*](/use/working_with_links_names/#working-with-links-names)
+[*links*](/userguide/dockerlinks/#working-with-links-names)
 (or any other place you need to identify a container). This works for
 both background and foreground Docker containers.
 
-### PID Equivalent
+### PID Equivalent 
 
 And finally, to help with automation, you can have Docker write the
 container ID out to a file of your choosing. This is similar to how some
@@ -256,7 +252,7 @@ familiar with using LXC directly.
 
 ## Overriding Dockerfile Image Defaults
 
-When a developer builds an image from a [*Dockerfile*](builder/#dockerbuilder)
+When a developer builds an image from a [*Dockerfile*](/reference/builder/#dockerbuilder)
 or when she commits it, the developer can set a number of default parameters
 that take effect when the image starts up as a container.
 
@@ -425,7 +421,7 @@ mechanism to communicate with a linked container by its alias:
     --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own documentation in
-section [*Share Directories via Volumes*](/use/working_with_volumes/#volume-def).
+section [*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def).
 A developer can define one or more `VOLUME's associated with an image, but only the
 operator can give access from one container to another (or from a container to a
 volume mounted on the host).

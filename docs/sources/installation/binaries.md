@@ -56,20 +56,17 @@ Linux kernel (it even builds on OSX!).
 
 ## Giving non-root access
 
-The `docker` daemon always runs as the root user,
-and since Docker version 0.5.2, the `docker` daemon
-binds to a Unix socket instead of a TCP port. By default that Unix
-socket is owned by the user *root*, and so, by default, you can access
-it with `sudo`.
+The `docker` daemon always runs as the root user, and the `docker`
+daemon binds to a Unix socket instead of a TCP port. By default that
+Unix socket is owned by the user *root*, and so, by default, you can
+access it with `sudo`.
 
-Starting in version 0.5.3, if you (or your Docker installer) create a
-Unix group called *docker* and add users to it, then the
-`docker` daemon will make the ownership of the Unix
-socket read/writable by the *docker* group when the daemon starts. The
-`docker` daemon must always run as the root user,
-but if you run the `docker` client as a user in the
-*docker* group then you don't need to add `sudo` to
-all the client commands.
+If you (or your Docker installer) create a Unix group called *docker*
+and add users to it, then the `docker` daemon will make the ownership of
+the Unix socket read/writable by the *docker* group when the daemon
+starts. The `docker` daemon must always run as the root user, but if you
+run the `docker` client as a user in the *docker* group then you don't
+need to add `sudo` to all the client commands.
 
 > **Warning**: 
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
@@ -93,4 +90,4 @@ Then follow the regular installation steps.
     # run a container and open an interactive shell in the container
     $ sudo ./docker run -i -t ubuntu /bin/bash
 
-Continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
+Continue with the [User Guide](/userguide/).

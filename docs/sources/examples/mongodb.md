@@ -2,7 +2,7 @@ page_title: Dockerizing MongoDB
 page_description: Creating a Docker image with MongoDB pre-installed using a Dockerfile and sharing the image on Docker.io
 page_keywords: docker, dockerize, dockerizing, article, example, docker.io, platform, package, installation, networking, mongodb, containers, images, image, sharing, dockerfile, build, auto-building, virtualization, framework
 
-# Dockerizing MongoDB 
+# Dockerizing MongoDB
 
 ## Introduction
 
@@ -18,17 +18,10 @@ instances will bring several benefits, such as:
  - Ready to run and start working within milliseconds;
  - Based on globally accessible and shareable images.
 
-> **Note:** 
-> 
-> This example assumes you have Docker running in daemon mode. To verify,
-> try running `sudo docker info`.
-> For more information, please see: [*Check your Docker installation*](
-> /examples/hello_world/#running-examples).
-
 > **Note:**
 > 
 > If you do **_not_** like `sudo`, you might want to check out: 
-> [*Giving non-root access*](installation/binaries/#giving-non-root-access).
+> [*Giving non-root access*](/installation/binaries/#giving-non-root-access).
 
 ## Creating a Dockerfile for MongoDB
 
@@ -101,8 +94,7 @@ Now save the file and let's build our image.
 
 > **Note:**
 > 
-> The full version of this `Dockerfile` can be found [here](/
-> /examples/mongodb/Dockerfile).
+> The full version of this `Dockerfile` can be found [here](/examples/mongodb/Dockerfile).
 
 ## Building the MongoDB Docker image
 
@@ -157,8 +149,6 @@ as daemon process(es).
     # Usage: mongo --port <port you get from `docker ps`> 
     $ mongo --port 12345
 
-## Learn more
-
- - [Linking containers](/use/working_with_links_names/)
- - [Cross-host linking containers](/use/ambassador_pattern_linking/)
+ - [Linking containers](/userguide/dockerlinks)
+ - [Cross-host linking containers](/articles/ambassador_pattern_linking/)
  - [Creating a Trusted Build](/docker-io/builds/#trusted-builds)

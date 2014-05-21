@@ -56,7 +56,8 @@ Now let's verify that Docker is working.
     $ sudo docker run -i -t fedora /bin/bash
 
 **Done!**
-Now continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
+
+Continue with the [User Guide](/userguide/).
 
 ## Issues?
 

@@ -1,30 +1,21 @@
-page_title: Running a Riak service
+page_title: Dockerizing a Riak service
 page_description: Build a Docker image with Riak pre-installed
 page_keywords: docker, example, package installation, networking, riak
 
-# Riak Service
-
-> **Note**:
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#dockergroup)
+# Dockerizing a Riak Service
 
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.
 
 ## Creating a Dockerfile
 
-Create an empty file called Dockerfile:
+Create an empty file called `Dockerfile`:
 
     $ touch Dockerfile
 
 Next, define the parent image you want to use to build your image on top
 of. We'll use [Ubuntu](https://index.docker.io/_/ubuntu/) (tag:
-`latest`), which is available on the [docker
-index](http://index.docker.io):
+`latest`), which is available on [Docker Hub](http://index.docker.io):
 
     # Riak
     #
@@ -101,7 +92,7 @@ are started:
 ## Create a supervisord configuration file
 
 Create an empty file called `supervisord.conf`. Make
-sure it's at the same directory level as your Dockerfile:
+sure it's at the same directory level as your `Dockerfile`:
 
     touch supervisord.conf
 

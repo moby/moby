@@ -7,7 +7,7 @@ page_keywords: containers, concepts, explanation, image, repository, container
 ## Introduction
 
 A repository is a set of images either on your local Docker server, or
-shared, by pushing it to a [*Registry*](../registry/#registry-def)
+shared, by pushing it to a [*Registry*](/terms/registry/#registry-def)
 server.
 
 Images can be associated with a repository (or multiple) by giving them
@@ -31,5 +31,5 @@ If you create a new repository which you want to share, you will need to
 set at least the `user_name`, as the `default` blank `user_name` prefix is
 reserved for official Docker images.
 
-For more information see [*Working with Repositories*](
-../use/workingwithrepository/#working-with-the-repository)
+For more information see [*Working with
+Repositories*](/userguide/dockerrepos/#working-with-the-repository)

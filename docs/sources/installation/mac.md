@@ -40,9 +40,8 @@ virtual machine and run the Docker daemon.
 (but least secure) is to just hit [Enter]. This passphrase is used by the
 `boot2docker ssh` command.
 
-
-Once you have an initialized virtual machine, you can `boot2docker stop` and 
-`boot2docker start` it.
+Once you have an initialized virtual machine, you can `boot2docker stop`
+and `boot2docker start` it.
 
 ## Upgrading
 
@@ -60,29 +59,19 @@ To upgrade:
 	boot2docker start
 ```
 
-
 ## Running Docker
 
 From your terminal, you can try the “hello world” example. Run:
 
     $ docker run ubuntu echo hello world
 
-This will download the ubuntu image and print hello world.
+This will download the `ubuntu` image and print `hello world`.
 
-# Further details
+## Container port redirection
 
-The Boot2Docker management tool provides some commands:
-
-```
-$ ./boot2docker
-Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version} [<args>]
-```
-
-## Container port redirection 
-
-The latest version of `boot2docker` sets up two network adaptors: one using NAT
+The latest version of `boot2docker` sets up two network adapters: one using NAT
 to allow the VM to download images and files from the Internet, and one host only
-network adaptor to which the container's ports will be exposed on.
+network adapter to which the container's ports will be exposed on.
 
 If you run a container with an exposed port:
 
@@ -103,6 +92,17 @@ If you want to share container ports with other computers on your LAN, you will
 need to set up [NAT adaptor based port forwarding](
 https://github.com/boot2docker/boot2docker/blob/master/doc/WORKAROUNDS.md)
 
+# Further details
 
+The Boot2Docker management tool provides some commands:
+
+```
+$ ./boot2docker
+Usage: ./boot2docker [<options>]
+{help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version}
+[<args>]
+```
+
+Continue with the [User Guide](/userguide/).
 
 For further information or to report issues, please see the [Boot2Docker site](http://boot2docker.io).
