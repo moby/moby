@@ -146,17 +146,17 @@ or tag.
 
 ## Trusted Builds
 
-Trusted Builds automate the building and updating of images from GitHub,
-directly on Docker.io. It works by adding a commit hook to
+Trusted Builds automate the building and updating of images from GitHub
+or BitBucket, directly on Docker.io. It works by adding a commit hook to
 your selected repository, triggering a build and update when you push a
 commit.
 
 ### To setup a trusted build
 
 1.  Create a [Docker.io account](https://index.docker.io/) and login.
-2.  Link your GitHub account through the `Link Accounts` menu.
+2.  Link your GitHub or BitBucket account through the [`Link Accounts`](https://index.docker.io/account/accounts/) menu.
 3.  [Configure a Trusted build](https://index.docker.io/builds/).
-4.  Pick a GitHub project that has a `Dockerfile` that you want to build.
+4.  Pick a GitHub or BitBucket project that has a `Dockerfile` that you want to build.
 5.  Pick the branch you want to build (the default is the `master` branch).
 6.  Give the Trusted Build a name.
 7.  Assign an optional Docker tag to the Build.
@@ -165,17 +165,17 @@ commit.
 Once the Trusted Build is configured it will automatically trigger a
 build, and in a few minutes, if there are no errors, you will see your
 new trusted build on the [Docker.io](https://index.docker.io) Registry.
-It will will stay in sync with your GitHub repo until you deactivate the
-Trusted Build.
+It will stay in sync with your GitHub and BitBucket repository until you
+deactivate the Trusted Build.
 
 If you want to see the status of your Trusted Builds you can go to your
-[Trusted Builds page](https://index.docker.io/builds/) on the Docker
-index, and it will show you the status of your builds, and the build
-history.
+[Trusted Builds page](https://index.docker.io/builds/) on the Docker.io,
+and it will show you the status of your builds, and the build history.
 
 Once you've created a Trusted Build you can deactivate or delete it. You
 cannot however push to a Trusted Build with the `docker push` command.
-You can only manage it by committing code to your GitHub repository.
+You can only manage it by committing code to your GitHub or BitBucket
+repository.
 
 You can create multiple Trusted Builds per repository and configure them
 to point to specific `Dockerfile`'s or Git branches.
