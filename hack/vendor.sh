@@ -60,4 +60,4 @@ mkdir -p src/code.google.com/p/go/src/pkg/archive
 mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 
 clone git github.com/godbus/dbus v1
-clone git github.com/coreos/go-systemd v1
+clone git github.com/coreos/go-systemd v2
