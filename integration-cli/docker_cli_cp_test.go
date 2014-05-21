@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -205,4 +206,40 @@ func TestCpAbsolutePath(t *testing.T) {
 	}
 
 	logDone("cp - absolute paths relative to container's rootfs")
+}
+
+// Check that cp with unprivileged user doesn't return any error
+func TestCpUnprivilegedUser(t *testing.T) {
+	out, exitCode, err := cmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = cmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmpdir)
+
+	if err = os.Chmod(tmpdir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	path := cpTestName
+
+	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+cleanedContainerID+":"+path+" "+tmpdir))
+	if err != nil {
+		t.Fatalf("couldn't copy with unprivileged user: %s:%s %s", cleanedContainerID, path, err)
+	}
+
+	logDone("cp - unprivileged user")
 }

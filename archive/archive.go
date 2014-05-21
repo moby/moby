@@ -28,6 +28,7 @@ type (
 	TarOptions    struct {
 		Includes    []string
 		Compression Compression
+		NoLchown    bool
 	}
 )
 
@@ -179,7 +180,7 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -240,7 +241,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
 
-	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil && Lchown {
 		return err
 	}
 
@@ -415,8 +416,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 				}
 			}
 		}
-
-		if err := createTarFile(path, dest, hdr, tr); err != nil {
+		if err := createTarFile(path, dest, hdr, tr, options == nil || !options.NoLchown); err != nil {
 			return err
 		}
 
