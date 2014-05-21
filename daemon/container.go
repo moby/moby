@@ -72,7 +72,7 @@ type Container struct {
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
 
-	waitLock chan struct{}
+	waitLock sync.RWMutex
 	Volumes  map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
@@ -292,7 +292,6 @@ func (container *Container) Start() (err error) {
 	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
-	container.waitLock = make(chan struct{})
 
 	return container.waitForStart()
 }
@@ -456,6 +455,9 @@ func (container *Container) releaseNetwork() {
 }
 
 func (container *Container) monitor(callback execdriver.StartCallback) error {
+	container.waitLock.Lock()
+	defer container.waitLock.Unlock()
+	
 	var (
 		err      error
 		exitCode int
@@ -493,8 +495,6 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.daemon != nil && container.daemon.srv != nil {
 		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
 	}
-
-	close(container.waitLock)
 
 	return err
 }
@@ -605,8 +605,9 @@ func (container *Container) Restart(seconds int) error {
 
 // Wait blocks until the container stops running, then returns its exit code.
 func (container *Container) Wait() int {
-	<-container.waitLock
-	return container.State.GetExitCode()
+  container.waitLock.RLock()
+  defer container.waitLock.RUnlock()
+  return container.State.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {
