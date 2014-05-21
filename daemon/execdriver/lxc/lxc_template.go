@@ -92,7 +92,6 @@ lxc.pivotdir = lxc_putold
 # We cannot mount them directly read-only, because that would prevent loading AppArmor profiles.
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
-lxc.mount.entry = tmpfs {{escapeFstabSpaces $ROOTFS}}/run tmpfs nosuid,nodev,noexec 0 0
 
 {{if .Tty}}
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
