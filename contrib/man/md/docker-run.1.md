@@ -164,7 +164,7 @@ and foreground Docker containers.
 Docker container. This is because by default a container is not allowed to
 access any devices. A “privileged” container is given access to all devices.
 
-When the operator executes **docker run -privileged**, Docker will enable access
+When the operator executes **docker run --privileged**, Docker will enable access
 to all devices on the host as well as set some configuration in AppArmor to
 allow the container nearly all the same access to the host as processes running
 outside of a container on the host.
@@ -317,7 +317,7 @@ fedora-data image:
     # docker run --name=data -v /var/volume1 -v /tmp/volume2 -i -t fedora-data true
     # docker run --volumes-from=data --name=fedora-container1 -i -t fedora bash
 
-Multiple -volumes-from parameters will bring together multiple data volumes from
+Multiple --volumes-from parameters will bring together multiple data volumes from
 multiple containers. And it's possible to mount the volumes that came from the
 DATA container in yet another container via the fedora-container1 intermidiery
 container, allowing to abstract the actual data source from users of that data:

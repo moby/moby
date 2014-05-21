@@ -50,7 +50,7 @@ For Docker containers using cgroups, the container name will be the full
 ID or long ID of the container. If a container shows up as ae836c95b4c3
 in `docker ps`, its long ID might be something like
 `ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`. You can
-look it up with `docker inspect` or `docker ps -notrunc`.
+look it up with `docker inspect` or `docker ps --no-trunc`.
 
 Putting everything together to look at the memory metrics for a Docker
 container, take a look at `/sys/fs/cgroup/memory/lxc/<longid>/`.
