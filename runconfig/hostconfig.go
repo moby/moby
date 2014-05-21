@@ -13,14 +13,6 @@ type HostConfig struct {
 	PortBindings    nat.PortMap
 	Links           []string
 	PublishAllPorts bool
-	UidMaps         [3]UidMap
-	ContainerRoot   int64
-}
-
-type UidMap struct {
-	HostUid		int64
-	ContainerUid 	int64
-	Size		int64
 }
 
 type KeyValuePair struct {

@@ -358,6 +358,12 @@ func (container *Container) Attach(stdin io.ReadCloser, stdinCloser io.Closer, s
 	})
 }
 
+type UidMap struct {
+	HostUid		int64
+	ContainerUid	int64
+	Size		int64
+}
+
 func populateCommand(c *Container) {
 	var (
 		en           *execdriver.Network
@@ -385,7 +391,18 @@ func populateCommand(c *Container) {
 		}
 	}
 
-	for _, uidMap := range c.hostConfig.UidMaps {
+	dockerRootUid, _ := utils.ContainerRootUid()
+	maxUid, _ := utils.HostMaxUid()
+
+	// Add 3 uid mappings: one to map docker-root on host to root in
+	// container and the other two to map all other UIDs one-to-one
+	uidMaps := [3]UidMap {
+		{1, 1, dockerRootUid - 1},
+		{dockerRootUid + 1, dockerRootUid + 1, maxUid - dockerRootUid - 1},
+		{dockerRootUid, 0, 1},
+	}
+
+	for _, uidMap := range uidMaps {
 		driverConfig = append(driverConfig, fmt.Sprintf("lxc.id_map = u %d %d %d", uidMap.ContainerUid, uidMap.HostUid, uidMap.Size))
 		driverConfig = append(driverConfig, fmt.Sprintf("lxc.id_map = g %d %d %d", uidMap.ContainerUid, uidMap.HostUid, uidMap.Size))
 	}

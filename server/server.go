@@ -11,7 +11,6 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/signal"
-	"github.com/dotcloud/docker/pkg/user"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/runtime"
@@ -2091,37 +2090,6 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 		if err := srv.RegisterLinks(container, hostConfig); err != nil {
 			return job.Error(err)
 		}
-
-		// Get the uid of docker-root user
-		uid, _, _, err := user.GetUserGroupSupplementary("docker-root", syscall.Getuid(), syscall.Getgid())
-		if err != nil {
-			return job.Error(err)
-		}
-		dockerRootUid := int64(uid)
-
-		// Get the highest uid on the host from /proc
-		file, err := os.Open("/proc/self/uid_map")
-		if err != nil {
-			return job.Error(err)
-		}
-		uidMapString := make([]byte, 100)
-		if err != nil {
-			return job.Error(err)
-		}
-		_, err = file.Read(uidMapString)
-
-		var tmp, maxUid int64
-		fmt.Sscanf(string(uidMapString), "%d %d %d", &tmp, &tmp, &maxUid)
-
-		// Add 3 uid mappings: one to map docker-root on host to root in
-		// container and the other two to map all other UIDs one-to-one
-		hostConfig.UidMaps = [3]runconfig.UidMap {
-			{1, 1, dockerRootUid - 1},
-			{dockerRootUid + 1, dockerRootUid + 1, maxUid - dockerRootUid - 1},
-			{dockerRootUid, 0, 1},
-		}
-		hostConfig.ContainerRoot = dockerRootUid
-
 		container.SetHostConfig(hostConfig)
 		container.ToDisk()
 	}

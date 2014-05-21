@@ -462,7 +462,7 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	container.root = runtime.containerRoot(container.ID)
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
-	if err := os.Mkdir(container.root, 0700); err != nil {
+	if err := os.Mkdir(container.root, 0711); err != nil {
 		return nil, nil, err
 	}
 
@@ -472,6 +472,13 @@ func (runtime *Runtime) Create(config *runconfig.Config, name string) (*Containe
 	}
 	initPath, err := runtime.driver.Get(initID)
 	if err != nil {
+		return nil, nil, err
+	}
+	containerRoot, err := utils.ContainerRootUid()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := os.Chown(initPath, int(containerRoot), int(containerRoot)); err != nil {
 		return nil, nil, err
 	}
 	defer runtime.driver.Put(initID)
@@ -723,6 +730,13 @@ func NewRuntimeFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*
 			return nil, err
 		}
 		if err := os.Chmod(localCopy, 0711); err != nil {
+			return nil, err
+		}
+		containerRoot, err := utils.ContainerRootUid()
+		if err != nil {
+			return nil, err
+		}
+		if err := os.Chown(localCopy, int(containerRoot), int(containerRoot)); err != nil {
 			return nil, err
 		}
 		sysInitPath = localCopy

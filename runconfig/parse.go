@@ -59,7 +59,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flXlateUids       = cmd.Bool([]string{"x", "-xlate-uids"}, false, "Translate the UIDs of the container image and new volumes before running the container")
 
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -202,7 +201,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		XlateUids:       *flXlateUids,
 	}
 
 	hostConfig := &HostConfig{

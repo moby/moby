@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/pkg/user"
 	"index/suffixarray"
 	"io"
 	"io/ioutil"
@@ -22,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -1046,4 +1048,34 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
 	}
 	return realPath, nil
+}
+
+// Get the uid of docker-root user
+func ContainerRootUid() (int64, error) {
+	uid, _, _, err := user.GetUserGroupSupplementary("docker-root", syscall.Getuid(), syscall.Getgid())
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(uid), nil
+}
+
+// Get the highest uid on the host from /proc
+func HostMaxUid() (int64, error) {
+	file, err := os.Open("/proc/self/uid_map")
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	uidMapString := make([]byte, 100)
+	_, err = file.Read(uidMapString)
+	if err != nil {
+		return 0, err
+	}
+
+	var tmp, maxUid int64
+	fmt.Sscanf(string(uidMapString), "%d %d %d", &tmp, &tmp, &maxUid)
+
+	return maxUid, nil
 }
