@@ -57,8 +57,13 @@ func TestBuildSixtySteps(t *testing.T) {
 }
 
 func TestAddSingleFileToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "SingleFileToRoot")
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", "SingleFileToRoot")
+	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", ".")
 	buildCmd.Dir = buildDirectory
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -137,8 +142,17 @@ func TestAddDirContentToExistDir(t *testing.T) {
 }
 
 func TestAddWholeDirToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "WholeDirToRoot")
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", "WholeDirToRoot")
+	test_dir := filepath.Join(buildDirectory, "test_dir")
+	if err := os.MkdirAll(test_dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(filepath.Join(test_dir, "test_file"), os.O_CREATE, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", ".")
 	buildCmd.Dir = buildDirectory
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -192,7 +206,7 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 
 		// check if we've detected the failure before we started building
 		if !strings.Contains(out, "no permission to read from ") {
-			t.Fatalf("output should've contained the string: no permission to read from ")
+			t.Fatalf("output should've contained the string: no permission to read from but contained: %s", out)
 		}
 
 		if !strings.Contains(out, "Error checking context is accessible") {
