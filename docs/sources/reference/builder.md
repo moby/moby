@@ -235,7 +235,9 @@ being built (also called the *context* of the build) or a remote file URL.
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
-All new files and directories are created with mode 0755, uid and gid 0.
+All new files and directories are created with a uid and gid of 0.
+
+In the case where `<src>` is a remote file URL, the destination will have permissions 600.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
