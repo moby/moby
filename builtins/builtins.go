@@ -5,6 +5,7 @@ import (
 
 	"github.com/dotcloud/docker/api"
 	apiserver "github.com/dotcloud/docker/api/server"
+	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
@@ -14,10 +15,10 @@ import (
 )
 
 func Register(eng *engine.Engine) error {
-	if err := daemon(eng); err != nil {
+	if err := registerDaemon(eng); err != nil {
 		return err
 	}
-	if err := remote(eng); err != nil {
+	if err := registerRemote(eng); err != nil {
 		return err
 	}
 	if err := eng.Register("version", dockerVersion); err != nil {
@@ -26,8 +27,8 @@ func Register(eng *engine.Engine) error {
 	return registry.NewService().Install(eng)
 }
 
-// remote: a RESTful api for cross-docker communication
-func remote(eng *engine.Engine) error {
+// registerRemote: a RESTful api for cross-docker communication
+func registerRemote(eng *engine.Engine) error {
 	if err := eng.Register("serveapi", apiserver.ServeApi); err != nil {
 		return err
 	}
@@ -49,7 +50,10 @@ func remote(eng *engine.Engine) error {
 //
 // These components should be broken off into plugins of their own.
 //
-func daemon(eng *engine.Engine) error {
+func registerDaemon(eng *engine.Engine) error {
+	if err := eng.Register("daemon", daemon.DaemonInit); err != nil {
+		return err
+	}
 	if err := eng.Register("initserver", server.InitServer); err != nil {
 		return err
 	}

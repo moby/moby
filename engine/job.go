@@ -105,6 +105,10 @@ func (job *Job) String() string {
 	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
 }
 
+func (job *Job) Job(name string, args ...string) *Job {
+	return job.Eng.Job(name, args...)
+}
+
 func (job *Job) Env() *Env {
 	return job.env
 }
