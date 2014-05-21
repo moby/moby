@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/dotcloud/docker/pkg/mount"
@@ -47,6 +49,30 @@ func GetInitCgroupDir(subsystem string) (string, error) {
 	defer f.Close()
 
 	return parseCgroupFile(subsystem, f)
+}
+
+func ReadProcsFile(dir string) ([]int, error) {
+	f, err := os.Open(filepath.Join(dir, "cgroup.procs"))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var (
+		s   = bufio.NewScanner(f)
+		out = []int{}
+	)
+
+	for s.Scan() {
+		if t := s.Text(); t != "" {
+			pid, err := strconv.Atoi(t)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, pid)
+		}
+	}
+	return out, nil
 }
 
 func parseCgroupFile(subsystem string, r io.Reader) (string, error) {

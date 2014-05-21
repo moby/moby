@@ -3,6 +3,7 @@ package native
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
@@ -46,7 +47,11 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	if err := d.setupLabels(container, c); err != nil {
 		return nil, err
 	}
-	if err := configuration.ParseConfiguration(container, d.activeContainers, c.Config["native"]); err != nil {
+	cmds := make(map[string]*exec.Cmd)
+	for k, v := range d.activeContainers {
+		cmds[k] = v.cmd
+	}
+	if err := configuration.ParseConfiguration(container, cmds, c.Config["native"]); err != nil {
 		return nil, err
 	}
 	return container, nil
@@ -82,10 +87,12 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 	}
 
 	if c.Network.ContainerID != "" {
-		cmd := d.activeContainers[c.Network.ContainerID]
-		if cmd == nil || cmd.Process == nil {
+		active := d.activeContainers[c.Network.ContainerID]
+		if active == nil || active.cmd.Process == nil {
 			return fmt.Errorf("%s is not a valid running container to join", c.Network.ContainerID)
 		}
+		cmd := active.cmd
+
 		nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
 		container.Networks = append(container.Networks, &libcontainer.Network{
 			Type: "netns",
