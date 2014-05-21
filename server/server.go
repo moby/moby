@@ -704,7 +704,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	if i, ok := imageFilters["untagged"]; ok {
+	if i, ok := imageFilters["dangling"]; ok {
 		for _, value := range i {
 			if strings.ToLower(value) == "true" {
 				filt_tagged = false

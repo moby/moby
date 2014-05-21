@@ -440,7 +440,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false      Show all images (by default filter out the intermediate image layers)
-      -f, --filter=[]: Provide filter values (i.e. 'tagged=false')
+      -f, --filter=[]:     Provide filter values (i.e. 'dangling=true')
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -486,11 +486,11 @@ The filtering flag (-f or --filter) format is of "key=value". If there are more
 than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
- * untagged (boolean - true or false)
+ * dangling (boolean - true or false)
 
 #### untagged images
 
-    $ sudo docker images --filter "untagged=true"
+    $ sudo docker images --filter "dangling=true"
 
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     <none>              <none>              8abc22fbb042        4 weeks ago         0 B
@@ -508,7 +508,7 @@ By having this flag it allows for batch cleanup.
 
 Ready for use by `docker rmi ...`, like:
 
-    $ sudo docker rmi $(sudo docker images -f "untagged=true" -q)
+    $ sudo docker rmi $(sudo docker images -f "dangling=true" -q)
 
     8abc22fbb042
     48e5f45168b9

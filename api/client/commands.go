@@ -1148,7 +1148,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
 	var flFilter opts.ListOpts
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'tagged=false')")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
