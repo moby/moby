@@ -47,7 +47,7 @@ Or, you can use the `VOLUME` instruction in a `Dockerfile` to add one or
 more new volumes to any container created from that image:
 
     # BUILD-USING:        $ docker build -t data .
-    # RUN-USING:          $ docker run -name DATA data
+    # RUN-USING:          $ docker run --name DATA data
     FROM          busybox
     VOLUME        ["/var/volume1", "/var/volume2"]
     CMD           ["/bin/true"]
@@ -62,11 +62,11 @@ it.
 Create a named container with volumes to share (`/var/volume1` and
 `/var/volume2`):
 
-    $ docker run -v /var/volume1 -v /var/volume2 -name DATA busybox true
+    $ docker run -v /var/volume1 -v /var/volume2 --name DATA busybox true
 
 Then mount those data volumes into your application containers:
 
-    $ docker run -t -i -rm -volumes-from DATA -name client1 ubuntu bash
+    $ docker run -t -i --rm --from DATA --name client1 ubuntu bash
 
 You can use multiple `-volumes-from` parameters to bring together
 multiple data volumes from multiple containers.
@@ -75,7 +75,7 @@ Interestingly, you can mount the volumes that came from the `DATA`
 container in yet another container via the `client1` middleman
 container:
 
-    $ docker run -t -i -rm -volumes-from client1 -name client2 ubuntu bash
+    $ docker run -t -i --rm --volumes-from client1 --name client2 ubuntu bash
 
 This allows you to abstract the actual data source from users of that
 data, similar to [*Ambassador Pattern Linking*](
@@ -130,7 +130,7 @@ You cannot back up volumes using `docker export`, `docker save` and
 `--volumes-from` to start a new container that can access the
 data-container's volume. For example:
 
-    $ sudo docker run -rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
+    $ sudo docker run --rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
 
  - `-rm`:  
    remove the container when it exits
@@ -147,13 +147,13 @@ Then to restore to the same container, or another that you've made
 elsewhere:
 
     # create a new data container
-    $ sudo docker run -v /data -name DATA2 busybox true
+    $ sudo docker run -v /data --name DATA2 busybox true
     # untar the backup files into the new container᾿s data volume
-    $ sudo docker run -rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
+    $ sudo docker run --rm --volumes-from DATA2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
     data/
     data/sven.txt
     # compare to the original container
-    $ sudo docker run -rm --volumes-from DATA -v `pwd`:/backup busybox ls /data
+    $ sudo docker run --rm --volumes-from DATA -v `pwd`:/backup busybox ls /data
     sven.txt
 
 You can use the basic techniques above to automate backup, migration and

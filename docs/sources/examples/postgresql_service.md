@@ -84,7 +84,7 @@ Build an image from the Dockerfile assign it a name.
 
 And run the PostgreSQL server container (in the foreground):
 
-    $ sudo docker run -rm -P -name pg_test eg_postgresql
+    $ sudo docker run --rm -P --name pg_test eg_postgresql
 
 There are 2 ways to connect to the PostgreSQL server. We can use [*Link
 Containers*](/use/working_with_links_names/#working-with-links-names),
@@ -101,7 +101,7 @@ Containers can be linked to another container's ports directly using
 `docker run`. This will set a number of environment
 variables that can then be used to connect:
 
-    $ sudo docker run -rm -t -i -link pg_test:pg eg_postgresql bash
+    $ sudo docker run --rm -t -i --link pg_test:pg eg_postgresql bash
 
     postgres@7ef98b1b7243:/$ psql -h $PG_PORT_5432_TCP_ADDR -p $PG_PORT_5432_TCP_PORT -d docker -U docker --password
 
@@ -143,7 +143,7 @@ prompt, you can create a table and populate it.
 You can use the defined volumes to inspect the PostgreSQL log files and
 to backup your configuration and data:
 
-    $ docker run -rm --volumes-from pg_test -t -i busybox sh
+    $ docker run --rm --volumes-from pg_test -t -i busybox sh
 
     / # ls
     bin      etc      lib      linuxrc  mnt      proc     run      sys      usr
