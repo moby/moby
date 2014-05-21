@@ -38,6 +38,11 @@ var testLayers = []testLayer{
 		gzip:     true,
 		tarsum:   "tarsum+sha256:e58fcf7418d4390dec8e8fb69d88c06ec07039d651fedd3aa72af9972e7d046b"},
 	{
+		filename: "testdata/xattr/layer.tar",
+		jsonfile: "testdata/xattr/json",
+		// without xattr support, this layer produces "tarsum+sha256:e86f81a4d552f13039b1396ed03ca968ea9717581f9577ef1876ea6ff9b38c98"
+		tarsum: "tarsum+sha256:eadcd9c55164e2a942ea67f781abbf645ee55d36e173c34de8a36d4d69d3021c"},
+	{
 		filename: "testdata/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/layer.tar",
 		jsonfile: "testdata/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/json",
 		tarsum:   "tarsum+sha256:ac672ee85da9ab7f9667ae3c32841d3e42f33cc52c273c23341dabba1c8b0c8b"},

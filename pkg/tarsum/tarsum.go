@@ -95,6 +95,18 @@ func (ts *tarSum) encodeHeader(h *tar.Header) error {
 			return err
 		}
 	}
+
+	// include the additional pax headers, from an ordered list
+	var keys []string
+	for k := range h.Xattrs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if _, err := ts.h.Write([]byte(k + h.Xattrs[k])); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
