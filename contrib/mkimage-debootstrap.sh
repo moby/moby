@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/debootstrap'
+echo >&2
+
 variant='minbase'
 include='iproute,iputils-ping'
 arch='amd64' # intentionally undocumented for now
