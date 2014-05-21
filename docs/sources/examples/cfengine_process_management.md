@@ -58,7 +58,7 @@ There are three steps:
    containerized CFEngine installation.
 3. Start your application processes as part of the `docker run` command.
 
-### Building the container image
+### Building the image
 
 The first two steps can be done as part of a Dockerfile, as follows.
 
@@ -87,7 +87,7 @@ The first two steps can be done as part of a Dockerfile, as follows.
     ENTRYPOINT ["/var/cfengine/bin/docker_processes_run.sh"]
 
 By saving this file as Dockerfile to a working directory, you can then build
-your container with the docker build command, e.g.
+your image with the docker build command, e.g.
 `docker build -t managed_image`.
 
 ### Testing the container

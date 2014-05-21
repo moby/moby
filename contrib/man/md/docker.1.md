@@ -81,7 +81,7 @@ port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
   Attach to a running container
 
 **docker-build(1)**
-  Build a container from a Dockerfile
+  Build an image from a Dockerfile
 
 **docker-commit(1)**
   Create a new image from a container's changes
