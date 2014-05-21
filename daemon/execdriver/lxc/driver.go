@@ -218,6 +218,30 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return KillLxc(c.ID, sig)
 }
 
+func (d *driver) Pause(c *execdriver.Command) error {
+	_, err := exec.LookPath("lxc-freeze")
+	if err == nil {
+		output, errExec := exec.Command("lxc-freeze", "-n", c.ID).CombinedOutput()
+		if errExec != nil {
+			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+		}
+	}
+
+	return err
+}
+
+func (d *driver) Unpause(c *execdriver.Command) error {
+	_, err := exec.LookPath("lxc-unfreeze")
+	if err == nil {
+		output, errExec := exec.Command("lxc-unfreeze", "-n", c.ID).CombinedOutput()
+		if errExec != nil {
+			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+		}
+	}
+
+	return err
+}
+
 func (d *driver) Terminate(c *execdriver.Command) error {
 	return KillLxc(c.ID, 9)
 }

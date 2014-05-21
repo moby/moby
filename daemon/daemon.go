@@ -1014,6 +1014,24 @@ func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback e
 	return daemon.execDriver.Run(c.command, pipes, startCallback)
 }
 
+func (daemon *Daemon) Pause(c *Container) error {
+	err := daemon.execDriver.Pause(c.command)
+	if err != nil {
+		return err
+	}
+	c.State.SetPaused()
+	return nil
+}
+
+func (daemon *Daemon) Unpause(c *Container) error {
+	err := daemon.execDriver.Unpause(c.command)
+	if err != nil {
+		return err
+	}
+	c.State.SetUnpaused()
+	return nil
+}
+
 func (daemon *Daemon) Kill(c *Container, sig int) error {
 	return daemon.execDriver.Kill(c.command, sig)
 }

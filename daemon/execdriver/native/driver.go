@@ -145,6 +145,32 @@ func (d *driver) Kill(p *execdriver.Command, sig int) error {
 	return syscall.Kill(p.Process.Pid, syscall.Signal(sig))
 }
 
+func (d *driver) Pause(c *execdriver.Command) error {
+	active := d.activeContainers[c.ID]
+	active.container.Cgroups.Freezer = "FROZEN"
+	pid := c.Process.Pid
+
+	if systemd.UseSystemd() {
+		_, err := systemd.Apply(active.container.Cgroups, pid)
+		return err
+	}
+	_, err := fs.Apply(active.container.Cgroups, pid)
+	return err
+}
+
+func (d *driver) Unpause(c *execdriver.Command) error {
+	active := d.activeContainers[c.ID]
+	active.container.Cgroups.Freezer = "THAWED"
+	pid := c.Process.Pid
+
+	if systemd.UseSystemd() {
+		_, err := systemd.Apply(active.container.Cgroups, pid)
+		return err
+	}
+	_, err := fs.Apply(active.container.Cgroups, pid)
+	return err
+}
+
 func (d *driver) Terminate(p *execdriver.Command) error {
 	// lets check the start time for the process
 	started, err := d.readStartTime(p)
