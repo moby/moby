@@ -438,7 +438,7 @@ func TestCreateVolume(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - create docker mangaed volume")
+	logDone("run - create docker managed volume")
 }
 
 // Test that creating a volume with a symlink in its path works correctly. Test for #5152.

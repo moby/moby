@@ -3,9 +3,45 @@ package main
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/iptables"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"strings"
 	"testing"
 )
+
+func TestEtcHostsRegularFile(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, out)
+
+	if !strings.HasPrefix(out, "-") {
+		t.Errorf("/etc/hosts should be a regular file")
+	}
+
+	deleteAllContainers()
+
+	logDone("link - /etc/hosts is a regular file")
+}
+
+func TestEtcHostsContentMatch(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hosts")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, out)
+
+	hosts, err := ioutil.ReadFile("/etc/hosts")
+	if os.IsNotExist(err) {
+		t.Skip("/etc/hosts does not exist, skip this test")
+	}
+
+	if out != string(hosts) {
+		t.Errorf("container")
+	}
+
+	deleteAllContainers()
+
+	logDone("link - /etc/hosts matches hosts copy")
+}
 
 func TestPingUnlinkedContainers(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
