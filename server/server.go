@@ -700,13 +700,10 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		filt_tagged = true
 	)
 
-	utils.Debugf("SUCH JOB: %#v", job)
-	utils.Debugf("SUCH ENV: %#v", *job.Env())
 	imageFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
 		return job.Error(err)
 	}
-	utils.Debugf("SUCH FILTERS: %#v", imageFilters)
 	if i, ok := imageFilters["untagged"]; ok {
 		for _, value := range i {
 			if strings.ToLower(value) == "true" {
