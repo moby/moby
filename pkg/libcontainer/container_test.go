@@ -65,7 +65,7 @@ func TestContainerJsonFormat(t *testing.T) {
 	}
 
 	for _, n := range nodes.DefaultNodes {
-		if !contains(n, container.DeviceNodes["required"]) {
+		if !contains(n, container.RequiredDeviceNodes) {
 			t.Logf("devices should contain %s", n)
 			t.Fail()
 		}

@@ -43,7 +43,7 @@ type Container struct {
 	// All capbilities not specified will be dropped from the processes capability mask
 	Capabilities []string `json:"capabilities,omitempty"`
 
-	// Networks specifies the container's network stop to be created
+	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks,omitempty"`
 
 	// Cgroups specifies specific cgroup settings for the various subsystems that the container is
@@ -60,14 +60,13 @@ type Container struct {
 	// rootfs and mount namespace if specified
 	Mounts Mounts `json:"mounts,omitempty"`
 
-	// DeviceNodes are a list of 'required' and 'additional' nodes that will be mknod into the container's
-	// rootfs at /dev
-	//
-	// Required device nodes will return an error if the host system does not have this device available
-	//
-	// Additional device nodes are created but no error is returned if the host system does not have the
-	// device avaliable for use by the container
-	DeviceNodes map[string][]string `json:"device_nodes,omitempty"`
+	// RequiredDeviceNodes are a list of device nodes that will be mknod into the container's rootfs at /dev
+	// If the host system does not support the device that the container requests an error is returned
+	RequiredDeviceNodes []string `json:"required_device_nodes,omitempty"`
+
+	// OptionalDeviceNodes are a list of device nodes that will be mknod into the container's rootfs at /dev
+	// If the host system does not support the device that the container requests the error is ignored
+	OptionalDeviceNodes []string `json:"optional_device_nodes,omitempty"`
 }
 
 // Network defines configuration for a container's networking stack

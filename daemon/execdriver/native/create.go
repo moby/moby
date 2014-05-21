@@ -101,9 +101,9 @@ func (d *driver) setPrivileged(container *libcontainer.Container) (err error) {
 	container.Cgroups.DeviceAccess = true
 
 	delete(container.Context, "restrictions")
-	delete(container.DeviceNodes, "additional")
 
-	if container.DeviceNodes["required"], err = nodes.GetHostDeviceNodes(); err != nil {
+	container.OptionalDeviceNodes = nil
+	if container.RequiredDeviceNodes, err = nodes.GetHostDeviceNodes(); err != nil {
 		return err
 	}
 
