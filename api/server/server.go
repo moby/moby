@@ -901,12 +901,20 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
+
+	if r.FormValue("forcerm") == "1" && version.GreaterThanOrEqualTo("1.12") {
+		job.Setenv("rm", "1")
+	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
+		job.Setenv("rm", "1")
+	} else {
+		job.Setenv("rm", r.FormValue("rm"))
+	}
 	job.Stdin.Add(r.Body)
 	job.Setenv("remote", r.FormValue("remote"))
 	job.Setenv("t", r.FormValue("t"))
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
-	job.Setenv("rm", r.FormValue("rm"))
+	job.Setenv("forcerm", r.FormValue("forcerm"))
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
 

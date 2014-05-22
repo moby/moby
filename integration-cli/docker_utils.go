@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -70,4 +71,29 @@ func findContainerIp(t *testing.T, id string) string {
 	}
 
 	return strings.Trim(out, " \r\n'")
+}
+
+func getContainerCount() (int, error) {
+	const containers = "Containers:"
+
+	cmd := exec.Command(dockerBinary, "info")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		return 0, err
+	}
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, containers) {
+			output := stripTrailingCharacters(line)
+			output = strings.TrimLeft(output, containers)
+			output = strings.Trim(output, " ")
+			containerCount, err := strconv.Atoi(output)
+			if err != nil {
+				return 0, err
+			}
+			return containerCount, nil
+		}
+	}
+	return 0, fmt.Errorf("couldn't find the Container count in the output")
 }

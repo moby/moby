@@ -1,8 +1,8 @@
-page_title: Remote API v1.11
+page_title: Remote API v1.12
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
-# Docker Remote API v1.11
+# Docker Remote API v1.12
 
 ## 1. Brief introduction
 
@@ -1063,7 +1063,8 @@ Build an image from Dockerfile via stdin
         the resulting image in case of success
     -   **q** – suppress verbose build output
     -   **nocache** – do not use the cache when building the image
-    -   **rm** - remove intermediate containers after a successful build
+    -   **rm** - remove intermediate containers after a successful build (default behavior)
+    -   **forcerm - always remove intermediate containers (includes rm)
 
     Request Headers:
 
