@@ -95,7 +95,7 @@ func (s *blkioGroup) Stats(d *data) (map[string]int64, error) {
 				if err != nil {
 					return nil, err
 				}
-				paramData[fmt.Sprintf("%s:%s:%s", param, fields[0], fields[1])] = v
+				paramData[fmt.Sprintf("%s:%s:%s", param, fields[0], fields[1])] = int64(v)
 			case 2:
 				// this is the total line, skip
 			default:

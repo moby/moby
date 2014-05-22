@@ -86,7 +86,7 @@ type Container struct {
 
 type Stat struct {
 	Name  string
-	Stats map[string]float64
+	Stats map[string]int64
 }
 
 // Inject the io.Reader at the given path. Note: do not close the reader

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,11 +21,11 @@ func getCgroupParamKeyValue(t string) (string, int64, error) {
 	parts := strings.Fields(t)
 	switch len(parts) {
 	case 2:
-		value, err := strconv.ParseInt(parts[1], 10, 64)
-		if err != nil {
-			return "", 0, fmt.Errorf("Unable to convert param value to int: %s", err)
+		b := big.NewInt(0)
+		if _, ok := b.SetString(parts[1], 10); !ok {
+			return "", 0, fmt.Errorf("Unable to convert param value to int")
 		}
-		return parts[0], value, nil
+		return parts[0], b.Int64(), nil
 	default:
 		return "", 0, ErrNotValidFormat
 	}

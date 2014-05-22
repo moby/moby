@@ -67,7 +67,7 @@ func (s *freezerGroup) Stats(d *data) (map[string]int64, error) {
 		if err != nil {
 			return nil, err
 		}
-		paramData[param] = v
+		paramData[param] = int64(v)
 	}
 	return paramData, nil
 }
