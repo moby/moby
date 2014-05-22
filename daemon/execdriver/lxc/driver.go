@@ -181,6 +181,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		if c.Process != nil {
 			c.Process.Kill()
+			c.Process.Wait()
 		}
 		return -1, err
 	}
