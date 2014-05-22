@@ -57,9 +57,9 @@ examples:
     8:0 Total 0
     Total 0
 */
-func (s *blkioGroup) Stats(d *data) (map[string]float64, error) {
+func (s *blkioGroup) Stats(d *data) (map[string]int64, error) {
 	var (
-		paramData = make(map[string]float64)
+		paramData = make(map[string]int64)
 		params    = []string{
 			"io_service_bytes_recursive",
 			"io_serviced_recursive",
@@ -91,7 +91,7 @@ func (s *blkioGroup) Stats(d *data) (map[string]float64, error) {
 			fields := strings.Fields(sc.Text())
 			switch len(fields) {
 			case 3:
-				v, err := strconv.ParseFloat(fields[2], 64)
+				v, err := strconv.ParseInt(fields[2], 10, 64)
 				if err != nil {
 					return nil, err
 				}
@@ -106,7 +106,7 @@ func (s *blkioGroup) Stats(d *data) (map[string]float64, error) {
 	return paramData, nil
 }
 
-func (s *blkioGroup) getSectors(path string) (string, float64, error) {
+func (s *blkioGroup) getSectors(path string) (string, int64, error) {
 	f, err := os.Open(filepath.Join(path, "blkio.sectors_recursive"))
 	if err != nil {
 		return "", 0, err

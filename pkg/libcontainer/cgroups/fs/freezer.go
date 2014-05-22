@@ -35,9 +35,9 @@ func (s *freezerGroup) Remove(d *data) error {
 	return removePath(d.path("freezer"))
 }
 
-func (s *freezerGroup) Stats(d *data) (map[string]float64, error) {
+func (s *freezerGroup) Stats(d *data) (map[string]int64, error) {
 	var (
-		paramData = make(map[string]float64)
+		paramData = make(map[string]int64)
 		params    = []string{
 			"parent_freezing",
 			"self_freezing",
@@ -50,6 +50,7 @@ func (s *freezerGroup) Stats(d *data) (map[string]float64, error) {
 		return nil, err
 	}
 
+	// TODO(vmarmol): This currently outputs nothing since the output is a string, fix.
 	for _, param := range params {
 		f, err := os.Open(filepath.Join(path, fmt.Sprintf("freezer.%s", param)))
 		if err != nil {
@@ -62,7 +63,7 @@ func (s *freezerGroup) Stats(d *data) (map[string]float64, error) {
 			return nil, err
 		}
 
-		v, err := strconv.ParseFloat(strings.TrimSuffix(string(data), "\n"), 64)
+		v, err := strconv.ParseInt(strings.TrimSuffix(string(data), "\n"), 10, 64)
 		if err != nil {
 			return nil, err
 		}

@@ -43,29 +43,29 @@ func TestBlkioStats(t *testing.T) {
 	}
 
 	// Verify expected stats.
-	expectedStats := map[string]float64{
-		"blkio.sectors_recursive:8:0": 1024.0,
+	expectedStats := map[string]int64{
+		"blkio.sectors_recursive:8:0": 1024,
 
 		// Serviced bytes.
-		"io_service_bytes_recursive:8:0:Read":  100.0,
-		"io_service_bytes_recursive:8:0:Write": 400.0,
-		"io_service_bytes_recursive:8:0:Sync":  200.0,
-		"io_service_bytes_recursive:8:0:Async": 300.0,
-		"io_service_bytes_recursive:8:0:Total": 500.0,
+		"io_service_bytes_recursive:8:0:Read":  100,
+		"io_service_bytes_recursive:8:0:Write": 400,
+		"io_service_bytes_recursive:8:0:Sync":  200,
+		"io_service_bytes_recursive:8:0:Async": 300,
+		"io_service_bytes_recursive:8:0:Total": 500,
 
 		// Serviced requests.
-		"io_serviced_recursive:8:0:Read":  10.0,
-		"io_serviced_recursive:8:0:Write": 40.0,
-		"io_serviced_recursive:8:0:Sync":  20.0,
-		"io_serviced_recursive:8:0:Async": 30.0,
-		"io_serviced_recursive:8:0:Total": 50.0,
+		"io_serviced_recursive:8:0:Read":  10,
+		"io_serviced_recursive:8:0:Write": 40,
+		"io_serviced_recursive:8:0:Sync":  20,
+		"io_serviced_recursive:8:0:Async": 30,
+		"io_serviced_recursive:8:0:Total": 50,
 
 		// Queued requests.
-		"io_queued_recursive:8:0:Read":  1.0,
-		"io_queued_recursive:8:0:Write": 4.0,
-		"io_queued_recursive:8:0:Sync":  2.0,
-		"io_queued_recursive:8:0:Async": 3.0,
-		"io_queued_recursive:8:0:Total": 5.0,
+		"io_queued_recursive:8:0:Read":  1,
+		"io_queued_recursive:8:0:Write": 4,
+		"io_queued_recursive:8:0:Sync":  2,
+		"io_queued_recursive:8:0:Async": 3,
+		"io_queued_recursive:8:0:Total": 5,
 	}
 	expectStats(t, expectedStats, stats)
 }
