@@ -45,11 +45,11 @@
     }
   ],
   "required_device_nodes": [
-      "null",
-      "zero",
-      "full",
-      "random",
-      "urandom",
-      "tty"
+      "/dev/null",
+      "/dev/zero",
+      "/dev/full",
+      "/dev/random",
+      "/dev/urandom",
+      "/dev/tty"
   ]
 }
