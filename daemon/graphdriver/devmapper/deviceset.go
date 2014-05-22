@@ -273,9 +273,9 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
+	err := exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
 	if err != nil {
-		err = exec.Command("mkfs.ext4", "-E", "discard,lazy_itable_init=0", devname).Run()
+		err = exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0", devname).Run()
 	}
 	if err != nil {
 		utils.Debugf("\n--->Err: %s\n", err)
