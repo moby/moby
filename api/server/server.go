@@ -283,6 +283,20 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	return job.Run()
 }
 
+func getImagesFingerprint(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var job = eng.Job("fingerprint", vars["name"])
+	streamJSON(job, w, false)
+
+	if err := job.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getImagesHistory(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1092,6 +1106,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,
 			"/images/{name:.*}/get":           getImagesGet,
+			"/images/{name:.*}/fingerprint":   getImagesFingerprint,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
 			"/containers/ps":                  getContainersJSON,
