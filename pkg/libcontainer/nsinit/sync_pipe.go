@@ -9,6 +9,11 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
+type SyncPipeData struct {
+	Context libcontainer.Context
+	Files   map[string][]byte
+}
+
 // SyncPipe allows communication to and from the child processes
 // to it's parent and allows the two independent processes to
 // syncronize their state.
@@ -45,8 +50,8 @@ func (s *SyncPipe) Parent() *os.File {
 	return s.parent
 }
 
-func (s *SyncPipe) SendToChild(context libcontainer.Context) error {
-	data, err := json.Marshal(context)
+func (s *SyncPipe) SendToChild(pipeData *SyncPipeData) error {
+	data, err := json.Marshal(pipeData)
 	if err != nil {
 		return err
 	}
@@ -54,18 +59,18 @@ func (s *SyncPipe) SendToChild(context libcontainer.Context) error {
 	return nil
 }
 
-func (s *SyncPipe) ReadFromParent() (libcontainer.Context, error) {
+func (s *SyncPipe) ReadFromParent() (*SyncPipeData, error) {
 	data, err := ioutil.ReadAll(s.child)
 	if err != nil {
 		return nil, fmt.Errorf("error reading from sync pipe %s", err)
 	}
-	var context libcontainer.Context
+	var pipeData SyncPipeData
 	if len(data) > 0 {
-		if err := json.Unmarshal(data, &context); err != nil {
+		if err := json.Unmarshal(data, &pipeData); err != nil {
 			return nil, err
 		}
 	}
-	return context, nil
+	return &pipeData, nil
 
 }
 

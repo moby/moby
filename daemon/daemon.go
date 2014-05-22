@@ -227,7 +227,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 					utils.Debugf("restart unmount error %s", err)
 				}
 
-				if err := container.Start(); err != nil {
+				if err := container.Start(nil); err != nil {
 					return err
 				}
 			} else {

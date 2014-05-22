@@ -55,6 +55,7 @@ type buildFile struct {
 
 	authConfig *registry.AuthConfig
 	configFile *registry.ConfigFile
+	runConfig  *runconfig.RunConfig
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -700,7 +701,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 	}
 
 	//start the container
-	if err := c.Start(); err != nil {
+	if err := c.Start(b.runConfig); err != nil {
 		return err
 	}
 
@@ -869,7 +870,7 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile, runConfig *runconfig.RunConfig) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
@@ -885,5 +886,6 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		authConfig:    auth,
 		configFile:    authConfigFile,
 		outOld:        outOld,
+		runConfig:     runConfig,
 	}
 }
