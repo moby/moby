@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 )
 
 // Checks whether the expected capability is specified in the capabilities.
-func hasCapability(expected string, capabilities []string) bool {
-	for _, capability := range capabilities {
-		if capability == expected {
+func contains(expected string, values []string) bool {
+	for _, v := range values {
+		if v == expected {
 			return true
 		}
 	}
@@ -47,18 +49,25 @@ func TestContainerJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
-	if hasCapability("SYS_ADMIN", container.Capabilities) {
+	if contains("SYS_ADMIN", container.Capabilities) {
 		t.Log("SYS_ADMIN should not be enabled in capabilities mask")
 		t.Fail()
 	}
 
-	if !hasCapability("MKNOD", container.Capabilities) {
+	if !contains("MKNOD", container.Capabilities) {
 		t.Log("MKNOD should be enabled in capabilities mask")
 		t.Fail()
 	}
 
-	if hasCapability("SYS_CHROOT", container.Capabilities) {
+	if contains("SYS_CHROOT", container.Capabilities) {
 		t.Log("capabilities mask should not contain SYS_CHROOT")
 		t.Fail()
+	}
+
+	for _, n := range nodes.DefaultNodes {
+		if !contains(n, container.RequiredDeviceNodes) {
+			t.Logf("devices should contain %s", n)
+			t.Fail()
+		}
 	}
 }

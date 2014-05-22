@@ -4,6 +4,7 @@ import (
 	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 )
 
 // New returns the docker default configuration for libcontainer
@@ -32,7 +33,9 @@ func New() *libcontainer.Container {
 			Parent:       "docker",
 			DeviceAccess: false,
 		},
-		Context: libcontainer.Context{},
+		Context:             libcontainer.Context{},
+		RequiredDeviceNodes: nodes.DefaultNodes,
+		OptionalDeviceNodes: []string{"fuse"},
 	}
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "docker-default"

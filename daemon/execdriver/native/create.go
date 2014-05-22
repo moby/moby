@@ -10,6 +10,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 )
 
 // createContainer populates and configures the container type with the
@@ -34,8 +35,6 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
-	} else {
-		container.Mounts = append(container.Mounts, libcontainer.Mount{Type: "devtmpfs"})
 	}
 	if err := d.setupCgroups(container, c); err != nil {
 		return nil, err
@@ -97,11 +96,16 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 	return nil
 }
 
-func (d *driver) setPrivileged(container *libcontainer.Container) error {
+func (d *driver) setPrivileged(container *libcontainer.Container) (err error) {
 	container.Capabilities = libcontainer.GetAllCapabilities()
 	container.Cgroups.DeviceAccess = true
 
 	delete(container.Context, "restrictions")
+
+	container.OptionalDeviceNodes = nil
+	if container.RequiredDeviceNodes, err = nodes.GetHostDeviceNodes(); err != nil {
+		return err
+	}
 
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "unconfined"
