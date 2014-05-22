@@ -125,6 +125,9 @@ __docker_subcommand () {
         (diff|export|logs)
             _arguments '*:containers:__docker_containers'
             ;;
+        (fingerprint)
+            _arguments ':images:__docker_images'
+            ;;
         (history)
             _arguments '*:images:__docker_images'
             ;;
