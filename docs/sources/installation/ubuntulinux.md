@@ -39,7 +39,7 @@ To install the latest Ubuntu package (may not be the latest Docker release):
 
 To verify that everything has worked as expected:
 
-    $ sudo docker run -i -t ubuntu /bin/bash
+    $ sudo docker.io run -i -t ubuntu /bin/bash
 
 Which should download the `ubuntu` image, and then start `bash` in a container.
 
