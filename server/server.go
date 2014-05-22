@@ -137,6 +137,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"container_delete": srv.ContainerDestroy,
 		"image_export":     srv.ImageExport,
 		"images":           srv.Images,
+		"fingerprint":      srv.ImageFingerprint,
 		"history":          srv.ImageHistory,
 		"viz":              srv.ImagesViz,
 		"container_copy":   srv.ContainerCopy,
