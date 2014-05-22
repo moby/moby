@@ -14,12 +14,12 @@ import (
 
 // Default list of device nodes to copy
 var DefaultNodes = []string{
-	"null",
-	"zero",
-	"full",
-	"random",
-	"urandom",
-	"tty",
+	"/dev/null",
+	"/dev/zero",
+	"/dev/full",
+	"/dev/random",
+	"/dev/urandom",
+	"/dev/tty",
 }
 
 // CopyN copies the device node from the host into the rootfs
@@ -39,7 +39,7 @@ func CopyN(rootfs string, nodesToCopy []string, shouldExist bool) error {
 // on the host system does not exist and the boolean flag is passed
 // an error will be returned
 func Copy(rootfs, node string, shouldExist bool) error {
-	stat, err := os.Stat(filepath.Join("/dev", node))
+	stat, err := os.Stat(node)
 	if err != nil {
 		if os.IsNotExist(err) && !shouldExist {
 			return nil
@@ -48,9 +48,14 @@ func Copy(rootfs, node string, shouldExist bool) error {
 	}
 
 	var (
-		dest = filepath.Join(rootfs, "dev", node)
-		st   = stat.Sys().(*syscall.Stat_t)
+		dest   = filepath.Join(rootfs, node)
+		st     = stat.Sys().(*syscall.Stat_t)
+		parent = filepath.Dir(dest)
 	)
+
+	if err := os.MkdirAll(parent, 0755); err != nil {
+		return err
+	}
 
 	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("mknod %s %s", node, err)
@@ -58,17 +63,26 @@ func Copy(rootfs, node string, shouldExist bool) error {
 	return nil
 }
 
-func GetHostDeviceNodes() ([]string, error) {
-	files, err := ioutil.ReadDir("/dev")
+func getNodes(path string) ([]string, error) {
+	out := []string{}
+	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
-
-	out := []string{}
 	for _, f := range files {
-		if f.Mode()&os.ModeDevice == os.ModeDevice {
-			out = append(out, f.Name())
+		if f.IsDir() && f.Name() != "pts" && f.Name() != "shm" {
+			sub, err := getNodes(filepath.Join(path, f.Name()))
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, sub...)
+		} else if f.Mode()&os.ModeDevice == os.ModeDevice {
+			out = append(out, filepath.Join(path, f.Name()))
 		}
 	}
 	return out, nil
+}
+
+func GetHostDeviceNodes() ([]string, error) {
+	return getNodes("/dev")
 }
