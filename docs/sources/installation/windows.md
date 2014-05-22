@@ -16,14 +16,14 @@ that's where Docker will run.
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-1. Install virtualbox from [https://www.virtualbox.org](
+1. Install VirtualBox from [https://www.virtualbox.org](
    https://www.virtualbox.org) - or follow this [tutorial](
    http://www.slideshare.net/julienbarbier42/install-virtualbox-on-windows-7).
 2. Download the latest boot2docker.iso from
    [https://github.com/boot2docker/boot2docker/releases](
    https://github.com/boot2docker/boot2docker/releases).
 3. Start VirtualBox.
-4. Create a new Virtual machine with the following settings:
+4. Create a new virtual machine with the following settings:
 
         - Name: boot2docker
         - Type: Linux
@@ -31,22 +31,25 @@ that's where Docker will run.
         - Memory size: 1024 MB
         - Hard drive: Do not add a virtual hard drive
 
-5. Open the settings of the virtual machine:
+5. Open the settings of the virtual machine.
 
-    5.1. go to Storage
-    5.2. click the empty slot below Controller: IDE
-    5.3. click the disc icon on the right of IDE Secondary Master
-    5.4. click Choose a virtual CD/DVD disk file
+6. Go to Storage.
 
-6. Browse to the path where you`ve saved the boot2docker.iso, select
+7. Click the empty slot below Controller: IDE.
+
+8. Click the disc icon on the right of IDE Secondary Master.
+
+9. Click Choose a virtual CD/DVD disk file.
+
+10. Browse to the path where you`ve saved the boot2docker.iso, select
    the boot2docker.iso and click open.
 
-7. Click OK on the Settings dialog to save the changes and close the
+11. Click OK on the Settings dialog to save the changes and close the
    window.
 
-8. Start the virtual machine by clicking the green start button.
+12. Start the virtual machine by clicking the green start button.
 
-9. The boot2docker virtual machine should boot now.
+13. The boot2docker virtual machine should boot now.
 
 ## Running Docker
 
