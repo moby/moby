@@ -16,7 +16,7 @@
 
 function __fish_docker_no_subcommand --description 'Test if docker has yet to be given the subcommand'
     for i in (commandline -opc)
-        if contains -- $i attach build commit cp diff events export history images import info insert inspect kill load login logs port ps pull push restart rm rmi run save search start stop tag top version wait
+        if contains -- $i attach build commit cp diff events export fingerprint history images import info insert inspect kill load login logs port ps pull push restart rm rmi run save search start stop tag top version wait
             return 1
         end
     end
@@ -98,6 +98,10 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l since -d 'Sh
 # export
 complete -c docker -f -n '__fish_docker_no_subcommand' -a export -d 'Stream the contents of a container as a tar archive'
 complete -c docker -A -f -n '__fish_seen_subcommand_from export' -a '(__fish_print_docker_containers all)' -d "Container"
+
+# fingerprint
+complete -c docker -f -n '__fish_docker_no_subcommand' -a fingerprint -d 'Show the image fingerprint'
+complete -c docker -A -f -n '__fish_seen_subcommand_from fingerprint' -a '(__fish_print_docker_images)' -d "Image"
 
 # history
 complete -c docker -f -n '__fish_docker_no_subcommand' -a history -d 'Show the history of an image'
