@@ -807,6 +807,40 @@ Return low-level information on the image `name`
     -   **404** – no such image
     -   **500** – server error
 
+### Get the fingerprint of an image
+
+`GET /images/(name)/fingerprint`
+
+Return the fingerprint of the image `name`
+
+    **Example request**:
+
+        GET /images/debian/fingerprint HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+             {
+                     "Id":"b750fe79269d",
+                     "Created":1364102658,
+                     "CreatedBy":"/bin/bash"
+             },
+             {
+                     "Id":"27cf78414709",
+                     "Created":1364068391,
+                     "CreatedBy":""
+             }
+        ]
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **404** – no such image
+    -   **500** – server error
+
 ### Get the history of an image
 
 `GET /images/(name)/history`
