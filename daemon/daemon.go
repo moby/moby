@@ -29,7 +29,6 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/selinux"
@@ -1059,8 +1058,11 @@ func (daemon *Daemon) Stats(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	if container := daemon.Get(name); container != nil {
 		stats, err := container.Stats()
-		if err == cgroups.ErrStatsNotFound {
-			return job.Errorf("container %s does not appear to be running", name)
+		if err != nil {
+			if daemon.Get(name) == nil {
+				return job.Errorf("container %s does not appear to be running", name)
+			}
+			return job.Error(err)
 		}
 		if err != nil {
 			return job.Error(err)
