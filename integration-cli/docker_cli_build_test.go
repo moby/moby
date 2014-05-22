@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBuildCacheADD(t *testing.T) {
@@ -75,6 +76,42 @@ func TestAddSingleFileToRoot(t *testing.T) {
 	deleteImages("testaddimg")
 
 	logDone("build - add single file to root")
+}
+
+// Issue #3960: "ADD src ." hangs
+func TestAddSingleFileToWorkdir(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", "SingleFileToWorkdir")
+	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", ".")
+	buildCmd.Dir = buildDirectory
+	done := make(chan error)
+	go func() {
+		out, exitCode, err := runCommandWithOutput(buildCmd)
+		if err != nil || exitCode != 0 {
+			done <- fmt.Errorf("build failed to complete: %s %v", out, err)
+			return
+		}
+		done <- nil
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		if err := buildCmd.Process.Kill(); err != nil {
+			fmt.Printf("could not kill build (pid=%d): %v\n", buildCmd.Process.Pid, err)
+		}
+		t.Fatal("build timed out")
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	deleteImages("testaddimg")
+
+	logDone("build - add single file to workdir")
 }
 
 func TestAddSingleFileToExistDir(t *testing.T) {
