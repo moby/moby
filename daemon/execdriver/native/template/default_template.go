@@ -35,7 +35,7 @@ func New() *libcontainer.Container {
 		},
 		Context:             libcontainer.Context{},
 		RequiredDeviceNodes: nodes.DefaultNodes,
-		OptionalDeviceNodes: []string{"fuse"},
+		OptionalDeviceNodes: []string{"/dev/fuse"},
 	}
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "docker-default"
