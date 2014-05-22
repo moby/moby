@@ -414,26 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestVolume(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        volume /test
-        cmd Hello world
-    `, nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(img.Config.Volumes) == 0 {
-		t.Fail()
-	}
-	for key := range img.Config.Volumes {
-		if key != "/test" {
-			t.Fail()
-		}
-	}
-}
-
 func TestBuildMaintainer(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}

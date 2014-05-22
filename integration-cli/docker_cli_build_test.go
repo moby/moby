@@ -10,6 +10,25 @@ import (
 	"time"
 )
 
+func checkSimpleBuild(t *testing.T, dockerfile, name, inspectFormat, expected string) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
+	buildCmd.Stdin = strings.NewReader(dockerfile)
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", inspectFormat, name)
+	out, exitCode, err = runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to inspect the image: %s", out)
+	}
+	out = strings.TrimSpace(out)
+	if out != expected {
+		t.Fatalf("From format %s expected %s, got %s", inspectFormat, expected, out)
+	}
+}
+
 func TestBuildCacheADD(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
@@ -411,6 +430,20 @@ func TestBuildRm(t *testing.T) {
 
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
 	logDone("build - ensure --rm=false overrides the default")
+}
+
+func TestBuildWithVolume(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+		FROM scratch
+		VOLUME /test
+		`,
+		"testbuildimg",
+		"{{json .config.Volumes}}",
+		`{"/test":{}}`)
+
+	deleteImages("testbuildimg")
+	logDone("build - with volume")
 }
 
 // TODO: TestCaching
