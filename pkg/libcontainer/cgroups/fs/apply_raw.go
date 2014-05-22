@@ -26,7 +26,7 @@ var (
 type subsystem interface {
 	Set(*data) error
 	Remove(*data) error
-	Stats(*data) (map[string]float64, error)
+	Stats(*data) (map[string]int64, error)
 }
 
 type data struct {
@@ -74,7 +74,7 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	return d, nil
 }
 
-func GetStats(c *cgroups.Cgroup, subsystem string, pid int) (map[string]float64, error) {
+func GetStats(c *cgroups.Cgroup, subsystem string, pid int) (map[string]int64, error) {
 	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
 	if err != nil {
 		return nil, err

@@ -50,8 +50,8 @@ func (s *memoryGroup) Remove(d *data) error {
 	return removePath(d.path("memory"))
 }
 
-func (s *memoryGroup) Stats(d *data) (map[string]float64, error) {
-	paramData := make(map[string]float64)
+func (s *memoryGroup) Stats(d *data) (map[string]int64, error) {
+	paramData := make(map[string]int64)
 	path, err := d.path("memory")
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (s *memoryGroup) Stats(d *data) (map[string]float64, error) {
 		"max_usage_in_bytes",
 	}
 	for _, param := range params {
-		value, err := getCgroupParamFloat64(path, fmt.Sprintf("memory.%s", param))
+		value, err := getCgroupParamInt(path, fmt.Sprintf("memory.%s", param))
 		if err != nil {
 			return nil, err
 		}

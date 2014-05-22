@@ -38,7 +38,7 @@ func (s *cpusetGroup) Remove(d *data) error {
 	return removePath(d.path("cpuset"))
 }
 
-func (s *cpusetGroup) Stats(d *data) (map[string]float64, error) {
+func (s *cpusetGroup) Stats(d *data) (map[string]int64, error) {
 	return nil, ErrNotSupportStat
 }
 

@@ -61,7 +61,7 @@ func (c *cgroupTestUtil) writeFileContents(fileContents map[string]string) {
 }
 
 // Expect the specified stats.
-func expectStats(t *testing.T, expected, actual map[string]float64) {
+func expectStats(t *testing.T, expected, actual map[string]int64) {
 	for stat, expectedValue := range expected {
 		actualValue, ok := actual[stat]
 		if !ok {

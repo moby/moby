@@ -39,8 +39,8 @@ func (s *cpuGroup) Remove(d *data) error {
 	return removePath(d.path("cpu"))
 }
 
-func (s *cpuGroup) Stats(d *data) (map[string]float64, error) {
-	paramData := make(map[string]float64)
+func (s *cpuGroup) Stats(d *data) (map[string]int64, error) {
+	paramData := make(map[string]int64)
 	path, err := d.path("cpu")
 	if err != nil {
 		return nil, err

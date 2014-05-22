@@ -55,6 +55,6 @@ func (s *devicesGroup) Remove(d *data) error {
 	return removePath(d.path("devices"))
 }
 
-func (s *devicesGroup) Stats(d *data) (map[string]float64, error) {
+func (s *devicesGroup) Stats(d *data) (map[string]int64, error) {
 	return nil, ErrNotSupportStat
 }

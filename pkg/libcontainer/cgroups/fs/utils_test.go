@@ -13,7 +13,7 @@ const (
 	floatString = "2048"
 )
 
-func TestGetCgroupParamsFloat64(t *testing.T) {
+func TestGetCgroupParamsInt(t *testing.T) {
 	// Setup tempdir.
 	tempDir, err := ioutil.TempDir("", "cgroup_utils_test")
 	if err != nil {
@@ -27,7 +27,7 @@ func TestGetCgroupParamsFloat64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	value, err := getCgroupParamFloat64(tempDir, cgroupFile)
+	value, err := getCgroupParamInt(tempDir, cgroupFile)
 	if err != nil {
 		t.Fatal(err)
 	} else if value != floatValue {
@@ -39,7 +39,7 @@ func TestGetCgroupParamsFloat64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	value, err = getCgroupParamFloat64(tempDir, cgroupFile)
+	value, err = getCgroupParamInt(tempDir, cgroupFile)
 	if err != nil {
 		t.Fatal(err)
 	} else if value != floatValue {
@@ -51,7 +51,7 @@ func TestGetCgroupParamsFloat64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = getCgroupParamFloat64(tempDir, cgroupFile)
+	_, err = getCgroupParamInt(tempDir, cgroupFile)
 	if err == nil {
 		t.Fatal("Expecting error, got none")
 	}
@@ -61,7 +61,7 @@ func TestGetCgroupParamsFloat64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = getCgroupParamFloat64(tempDir, cgroupFile)
+	_, err = getCgroupParamInt(tempDir, cgroupFile)
 	if err == nil {
 		t.Fatal("Expecting error, got none")
 	}

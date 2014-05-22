@@ -20,10 +20,10 @@ func TestCpuStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected_stats := map[string]float64{
-		"nr_periods":     2000.0,
-		"nr_throttled":   200.0,
-		"throttled_time": 42424242424.0,
+	expected_stats := map[string]int64{
+		"nr_periods":     2000,
+		"nr_throttled":   200,
+		"throttled_time": 42424242424,
 	}
 	expectStats(t, expected_stats, stats)
 }

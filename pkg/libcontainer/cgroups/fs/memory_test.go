@@ -25,7 +25,7 @@ func TestMemoryStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedStats := map[string]float64{"cache": 512.0, "rss": 1024.0, "usage_in_bytes": 2048.0, "max_usage_in_bytes": 4096.0}
+	expectedStats := map[string]int64{"cache": 512, "rss": 1024, "usage_in_bytes": 2048, "max_usage_in_bytes": 4096}
 	expectStats(t, expectedStats, stats)
 }
 
