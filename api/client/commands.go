@@ -60,6 +60,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
+		{"fingerprint", "Show an image fingerprint for signing"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
@@ -920,6 +921,31 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		}
 	}
 	return encounteredError
+}
+
+func (cli *DockerCli) CmdFingerprint(args ...string) error {
+	cmd := cli.Subcmd("fingerprint", "IMAGE", "Show the image fingerprint")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/fingerprint", nil, false))
+	if err != nil {
+		return err
+	}
+
+	_, err := cli.out.Write(body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
