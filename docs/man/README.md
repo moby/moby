@@ -15,6 +15,7 @@ Markdown (*.md) files.
     docker-diff.md
     docker-events.md
     docker-export.md
+    docker-fingerprint.md
     docker-history.md
     docker-images.md
     docker-import.md
