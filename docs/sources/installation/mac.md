@@ -94,7 +94,8 @@ command to install `boot2docker`:
 
     $ brew install boot2docker
 
-Run the following command to install the Docker client:
+Docker client will be automatically installed since it is a dependency of
+`boot2docker`. If you want to install it separately:
 
     $ brew install docker
 
