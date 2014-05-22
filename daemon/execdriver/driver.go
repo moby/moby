@@ -138,6 +138,7 @@ type Command struct {
 	Config             map[string][]string `json:"config"` //  generic values that specific drivers can consume
 	Resources          *Resources          `json:"resources"`
 	Mounts             []Mount             `json:"mounts"`
+	RunFs              bool                `json:"runfs"`
 	AllowedDevices     []*devices.Device   `json:"allowed_devices"`
 	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
 
