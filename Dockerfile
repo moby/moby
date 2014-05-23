@@ -81,7 +81,7 @@ RUN	go get code.google.com/p/go.tools/cmd/cover
 RUN	gem install --no-rdoc --no-ri fpm --version 1.0.2
 
 # Get the "busybox" image source so we can build locally instead of pulling
-RUN	git clone https://github.com/jpetazzo/docker-busybox.git /docker-busybox
+RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
 
 # Setup s3cmd config
 RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > /.s3cfg
@@ -90,9 +90,8 @@ RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 RUN	git config --global user.email 'docker-dummy@example.com'
 
 # Add an unprivileged user to be used for tests which need it
-RUN adduser unprivilegeduser
-RUN groupadd docker
-RUN gpasswd -a unprivilegeduser docker
+RUN groupadd -r docker
+RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
