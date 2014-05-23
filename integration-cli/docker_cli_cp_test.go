@@ -208,6 +208,134 @@ func TestCpAbsolutePath(t *testing.T) {
 	logDone("cp - absolute paths relative to container's rootfs")
 }
 
+// Test for #5619
+// Check that absolute symlinks are still relative to the container's rootfs
+func TestCpAbsoluteSymlink(t *testing.T) {
+	out, exitCode, err := cmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = cmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
+		t.Fatal(err)
+	}
+
+	hostFile, err := os.Create(cpFullPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hostFile.Close()
+	defer os.RemoveAll(cpTestPathParent)
+
+	fmt.Fprintf(hostFile, "%s", cpHostContents)
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpname := filepath.Join(tmpdir, cpTestName)
+	defer os.RemoveAll(tmpdir)
+
+	path := filepath.Join("/", "container_path")
+
+	_, _, err = cmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
+	if err != nil {
+		t.Fatalf("couldn't copy from absolute path: %s:%s %s", cleanedContainerID, path, err)
+	}
+
+	file, _ := os.Open(tmpname)
+	defer file.Close()
+
+	test, err := ioutil.ReadAll(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(test) == cpHostContents {
+		t.Errorf("output matched host file -- absolute symlink can escape container rootfs")
+	}
+
+	if string(test) != cpContainerContents {
+		t.Errorf("output doesn't match the input for absolute symlink")
+	}
+
+	logDone("cp - absolute symlink relative to container's rootfs")
+}
+
+// Test for #5619
+// Check that symlinks which are part of the resource path are still relative to the container's rootfs
+func TestCpSymlinkComponent(t *testing.T) {
+	out, exitCode, err := cmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = cmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
+		t.Fatal(err)
+	}
+
+	hostFile, err := os.Create(cpFullPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hostFile.Close()
+	defer os.RemoveAll(cpTestPathParent)
+
+	fmt.Fprintf(hostFile, "%s", cpHostContents)
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpname := filepath.Join(tmpdir, cpTestName)
+	defer os.RemoveAll(tmpdir)
+
+	path := filepath.Join("/", "container_path", cpTestName)
+
+	_, _, err = cmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
+	if err != nil {
+		t.Fatalf("couldn't copy from symlink path component: %s:%s %s", cleanedContainerID, path, err)
+	}
+
+	file, _ := os.Open(tmpname)
+	defer file.Close()
+
+	test, err := ioutil.ReadAll(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(test) == cpHostContents {
+		t.Errorf("output matched host file -- symlink path component can escape container rootfs")
+	}
+
+	if string(test) != cpContainerContents {
+		t.Errorf("output doesn't match the input for symlink path component")
+	}
+
+	logDone("cp - symlink path components relative to container's rootfs")
+}
+
 // Check that cp with unprivileged user doesn't return any error
 func TestCpUnprivilegedUser(t *testing.T) {
 	out, exitCode, err := cmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
