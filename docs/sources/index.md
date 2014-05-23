@@ -27,16 +27,16 @@ possible.
 - **Faster delivery of your applications**  
     * We want to help your environment work better. Docker containers,
       and the work flow that comes with them, helps your developers,
-      sysadmins, QA folks, and release engineers all work together to get code
+      sysadmins, QA folks, and release engineers work together to get code
       into production and doing something useful. We've created a standard
       container format that allows developers to care about their applications
       inside containers and sysadmins and operators to care about running the
       container. This creates a separation of duties that makes managing and
       deploying code much easier and much more streamlined.
-    * We make it easy to build new containers and expose how each rapid
-      iterations and updates as well as visibility of changes.
-      container is built. This helps everyone in your organization understand
-      how an application works and how it is built.
+    * We make it easy to build new containers, enable rapid iteration of
+      your applications and increase the visibility of changes. This
+      helps everyone in your organization understand how an application works
+      and how it is built.
     * Docker containers are lightweight and fast! Containers have
       sub-second launch times! With containers you can reduce the cycle
       time in development, testing and deployment.
@@ -44,7 +44,7 @@ possible.
 - **Deploy and scale more easily**  
     * Docker containers run (almost!) everywhere. You can deploy your
       containers on desktops, physical servers, virtual machines, into
-      data centers and to public and private cloud.
+      data centers and to public and private clouds.
     * As Docker runs on so many platforms it makes it easy to move your
       appications around. You can easily move an application from a
       testing environment into the cloud and back whenever you need.
