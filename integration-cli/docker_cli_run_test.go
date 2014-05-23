@@ -251,13 +251,13 @@ func TestDockerRunWorkingDirectory(t *testing.T) {
 
 // pinging Google's DNS resolver should fail when we disable the networking
 func TestDockerRunWithoutNetworking(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ping", "-c", "1", "8.8.8.8")
+	runCmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ping", "-c", "1", "8.8.8.8")
 	out, _, exitCode, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil && exitCode != 1 {
 		t.Fatal(out, err)
 	}
 	if exitCode != 1 {
-		t.Errorf("--networking=false should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
+		t.Errorf("--net=none should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
 	}
 
 	runCmd = exec.Command(dockerBinary, "run", "-n=false", "busybox", "ping", "-c", "1", "8.8.8.8")
@@ -271,7 +271,7 @@ func TestDockerRunWithoutNetworking(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - disable networking with --networking=false")
+	logDone("run - disable networking with --net=none")
 	logDone("run - disable networking with -n=false")
 }
 
@@ -678,7 +678,7 @@ func TestContainerNetwork(t *testing.T) {
 
 // Issue #4681
 func TestLoopbackWhenNetworkDisabled(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ping", "-c", "1", "127.0.0.1")
+	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ping", "-c", "1", "127.0.0.1")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
@@ -689,18 +689,29 @@ func TestLoopbackWhenNetworkDisabled(t *testing.T) {
 }
 
 func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ip", "a", "show", "up")
+	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ip", "-o", "-4", "a", "show", "up")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
-	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(out, -1)
-	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
+	var (
+		count = 0
+		parts = strings.Split(out, "\n")
+	)
+
+	for _, l := range parts {
+		if l != "" {
+			count++
+		}
 	}
-	if !strings.HasSuffix(interfaces[0], ": lo") {
-		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
+
+	if count != 1 {
+		t.Fatalf("Wrong interface count in container %d", count)
+	}
+
+	if !strings.HasPrefix(out, "1: lo") {
+		t.Fatalf("Wrong interface in test container: expected [1: lo], got %s", out)
 	}
 
 	deleteAllContainers()
