@@ -33,17 +33,18 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 		flDevices = opts.NewListOpts(opts.ValidatePath)
 
-		flPublish     = opts.NewListOpts(nil)
-		flExpose      = opts.NewListOpts(nil)
-		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
-		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
-		flVolumesFrom = opts.NewListOpts(nil)
-		flLxcOpts     = opts.NewListOpts(nil)
-		flEnvFile     = opts.NewListOpts(nil)
-		flCapAdd      = opts.NewListOpts(nil)
-		flCapDrop     = opts.NewListOpts(nil)
-		flSecurityOpt = opts.NewListOpts(nil)
+		flPublish      = opts.NewListOpts(nil)
+		flExpose       = opts.NewListOpts(nil)
+		flDns          = opts.NewListOpts(opts.ValidateIPAddress)
+		flDnsSearch    = opts.NewListOpts(opts.ValidateDnsSearch)
+		flExtraHosts   = opts.NewListOpts(opts.ValidateExtraHost)
+		flVolumesFrom  = opts.NewListOpts(nil)
+		flGrantSecrets = opts.NewListOpts(nil)
+		flLxcOpts      = opts.NewListOpts(nil)
+		flEnvFile      = opts.NewListOpts(nil)
+		flCapAdd       = opts.NewListOpts(nil)
+		flCapDrop      = opts.NewListOpts(nil)
+		flSecurityOpt  = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -76,6 +77,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
+	cmd.Var(&flGrantSecrets, []string{"-grant-secret"}, "Grant container access to named secret")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
@@ -271,6 +273,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		DnsSearch:       flDnsSearch.GetAll(),
 		ExtraHosts:      flExtraHosts.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
+		GrantSecrets:    flGrantSecrets.GetAll(),
 		NetworkMode:     netMode,
 		Devices:         deviceMappings,
 		CapAdd:          flCapAdd.GetAll(),

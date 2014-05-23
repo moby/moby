@@ -52,6 +52,7 @@ type HostConfig struct {
 	ExtraHosts      []string
 	VolumesFrom     []string
 	Devices         []DeviceMapping
+	GrantSecrets    []string
 	NetworkMode     NetworkMode
 	CapAdd          []string
 	CapDrop         []string
@@ -114,6 +115,8 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
 		hostConfig.CapDrop = CapDrop
 	}
-
+	if GrantSecrets := job.GetenvList("GrantSecrets"); GrantSecrets != nil {
+		hostConfig.GrantSecrets = GrantSecrets
+	}
 	return hostConfig
 }

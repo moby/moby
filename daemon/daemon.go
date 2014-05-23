@@ -100,6 +100,7 @@ type Daemon struct {
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
 	trustStore     *trust.TrustStore
+	secrets        *Secrets
 }
 
 // Install installs daemon capabilities to eng.
@@ -139,6 +140,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		return err
 	}
 	if err := daemon.trustStore.Install(eng); err != nil {
+		return err
+	}
+	if err := daemon.secrets.Install(eng); err != nil {
 		return err
 	}
 	// FIXME: this hack is necessary for legacy integration tests to access
@@ -908,6 +912,11 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	secrets, err := NewSecrets(config.Root)
+	if err != nil {
+		return nil, err
+	}
+
 	daemon := &Daemon{
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
@@ -924,6 +933,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		execDriver:     ed,
 		eng:            eng,
 		trustStore:     t,
+		secrets:        secrets,
 	}
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err

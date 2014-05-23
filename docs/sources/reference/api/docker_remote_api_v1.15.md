@@ -1104,6 +1104,7 @@ Query Parameters:
 -   **nocache** – do not use the cache when building the image
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm - always remove intermediate containers (includes rm)
+-   **grant_secret** – list of secrets to grant to the build containers
 
     Request Headers:
 
@@ -1539,6 +1540,96 @@ Status Codes:
 
 -   **201** – no error
 -   **404** – no such exec instance
+
+### List secrets
+
+`GET /secrets/json`
+
+List secrets
+
+**Example request**:
+
+        GET /secrets/json HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+             {
+                     "Name": "secret-1",
+                     "HostBased": 0,
+                     "IsDir": 0,
+              },
+             {
+                     "Name": "dir",
+                     "HostBased": 0,
+                     "IsDir": 1,
+              },
+             {
+                     "Name": "dir/secret-2",
+                     "HostBased": 0,
+                     "IsDir":0,
+              }
+        ]
+
+Query Parameters:
+
+-   **all** – 1/True/true or 0/False/false, Show all secret.
+    Only toplevel secrets are shown by default
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### Create secret
+
+`POST /secrets/(name)`
+
+Create a secret called `name` in the secrets store
+
+**Example request**:
+
+        POST /secrets/foo HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 201 Created
+        Content-Type: application/json
+
+        {
+            "Name": "foo"
+        }
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### Remove a secret
+
+`DELETE /secrets/(name)`
+
+Remove the secret `name` from the secret store
+
+**Example request**:
+
+        DELETE /secrets/foo HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **404** – no such secret
+-   **500** – server error
 
 # 3. Going further
 

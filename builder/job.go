@@ -36,6 +36,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
 		forceRm        = job.GetenvBool("forcerm")
+		grantSecrets   = job.GetenvList("grant_secret")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -116,6 +117,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
+		GrantSecrets:    grantSecrets,
 	}
 
 	id, err := builder.Run(context)
