@@ -689,18 +689,29 @@ func TestLoopbackWhenNetworkDisabled(t *testing.T) {
 }
 
 func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ip", "a", "show", "up")
+	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ip", "-o", "-4", "a", "show", "up")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
-	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(out, -1)
-	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
+	var (
+		count = 0
+		parts = strings.Split(out, "\n")
+	)
+
+	for _, l := range parts {
+		if l != "" {
+			count++
+		}
 	}
-	if !strings.HasSuffix(interfaces[0], ": lo") {
-		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
+
+	if count != 1 {
+		t.Fatalf("Wrong interface count in container %d", count)
+	}
+
+	if !strings.HasPrefix(out, "1: lo") {
+		t.Fatalf("Wrong interface in test container: expected [1: lo], got %s", out)
 	}
 
 	deleteAllContainers()
