@@ -28,8 +28,8 @@ name using the `docker ps` command.
 ## Links: service discovery for docker
 
 Links allow containers to discover and securely communicate with each
-other by using the flag `-link name:alias`. Inter-container
-communication can be disabled with the daemon flag `-icc=false`. With
+other by using the flag `--link name:alias`. Inter-container
+communication can be disabled with the daemon flag `--icc=false`. With
 this flag set to `false`, Container A cannot access Container unless
 explicitly allowed via a link. This is a huge win for securing your
 containers. When two containers are linked together Docker creates a
