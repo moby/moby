@@ -55,6 +55,17 @@ import (
 	"github.com/dotcloud/docker/utils"
 )
 
+func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
+	return func(job *engine.Job) engine.Status {
+		if !srv.IsRunning() {
+			return job.Errorf("Server is not running")
+		}
+		srv.tasks.Add(1)
+		defer srv.tasks.Done()
+		return h(job)
+	}
+}
+
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
@@ -136,7 +147,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
 	} {
-		if err := job.Eng.Register(name, handler); err != nil {
+		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
 		}
 	}
@@ -150,6 +161,7 @@ func InitServer(job *engine.Job) engine.Status {
 	if err := srv.daemon.Install(job.Eng); err != nil {
 		return job.Error(err)
 	}
+	srv.SetRunning(true)
 	return engine.StatusOK
 }
 
@@ -2366,7 +2378,6 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		pushingPool: make(map[string]chan struct{}),
 		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
 		listeners:   make(map[int64]chan utils.JSONMessage),
-		running:     true,
 	}
 	daemon.SetServer(srv)
 	return srv, nil
@@ -2415,6 +2426,16 @@ func (srv *Server) Close() error {
 		return nil
 	}
 	srv.SetRunning(false)
+	done := make(chan struct{})
+	go func() {
+		srv.tasks.Wait()
+		close(done)
+	}()
+	select {
+	// Waiting server jobs for 15 seconds, shutdown immediately after that time
+	case <-time.After(time.Second * 15):
+	case <-done:
+	}
 	if srv.daemon == nil {
 		return nil
 	}
@@ -2430,4 +2451,5 @@ type Server struct {
 	listeners   map[int64]chan utils.JSONMessage
 	Eng         *engine.Engine
 	running     bool
+	tasks       sync.WaitGroup
 }
