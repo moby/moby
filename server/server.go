@@ -1008,6 +1008,9 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		}
 		out.SetInt64("Created", container.Created.Unix())
 		out.Set("Status", container.State.String())
+		if container.State.IsRunning() {
+			out.SetInt("Pid", container.State.Pid)
+		}
 		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
 		if err != nil {
 			return job.Error(err)
