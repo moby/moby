@@ -150,7 +150,7 @@ func Raw(args ...string) ([]byte, error) {
 	if os.Getenv("DEBUG") != "" {
 		fmt.Printf("[DEBUG] [iptables]: %s, %v\n", path, args)
 	}
-	output, err := exec.Command(path, args...).CombinedOutput()
+	output, err := exec.Command(path, append([]string{"--wait"}, args...)...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
