@@ -90,9 +90,8 @@ RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 RUN	git config --global user.email 'docker-dummy@example.com'
 
 # Add an unprivileged user to be used for tests which need it
-RUN adduser unprivilegeduser
-RUN groupadd docker
-RUN gpasswd -a unprivilegeduser docker
+RUN groupadd -r docker
+RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/dotcloud/docker
