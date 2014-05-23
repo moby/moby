@@ -30,7 +30,7 @@ install and manage both an SSH daemon and an Apache daemon.
 Let's start by creating a basic `Dockerfile` for our
 new image.
 
-    FROM ubuntu:latest
+    FROM ubuntu:13.04
     MAINTAINER examples@docker.io
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
     RUN apt-get update
