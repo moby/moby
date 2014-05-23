@@ -22,28 +22,57 @@ var funcMap = template.FuncMap{
 	},
 }
 
-func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
-	if len(name) == 0 {
-		return nil, false
+func toCamel(str string) string {
+	return strings.ToUpper(str[:1]) + strings.ToLower(str[1:])
+}
+
+func (cli *DockerCli) getMethod(args []string) (func(...string) error, int, error) {
+	name := args[0]
+	if name == "" {
+		return nil, 0, fmt.Errorf("Command not found")
 	}
-	methodName := "Cmd" + strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
+
+	methodName := "Cmd" + toCamel(name)
 	method := reflect.ValueOf(cli).MethodByName(methodName)
 	if !method.IsValid() {
-		return nil, false
+		return nil, 0, fmt.Errorf("Command not found: %s", name)
 	}
-	return method.Interface().(func(...string) error), true
+
+	numArgs := method.Type().NumIn()
+	if numArgs == 1 {
+		// Leaf command
+		return method.Interface().(func(...string) error), 1, nil
+	}
+
+	// command with subcommands
+	f := method.Interface().(func(bool, ...string) error)
+
+	if len(args) == 1 || args[1] == "" || strings.HasPrefix(args[1], "-") {
+		// No subcommand, call directly
+		return func(args ...string) error { return f(false, args...) }, 1, nil
+	}
+
+	subName := args[1]
+
+	methodName = "Cmd" + toCamel(name) + toCamel(subName)
+	method = reflect.ValueOf(cli).MethodByName(methodName)
+	if !method.IsValid() {
+		return nil, 1, fmt.Errorf("Command not found: %s %s", name, subName)
+	}
+
+	return method.Interface().(func(...string) error), 2, nil
 }
 
 func (cli *DockerCli) ParseCommands(args ...string) error {
 	if len(args) > 0 {
-		method, exists := cli.getMethod(args[0])
-		if !exists {
-			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp(args[1:]...)
+		method, consumed, err := cli.getMethod(args)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return cli.CmdHelp(args[0:consumed]...)
 		}
-		return method(args[1:]...)
+		return method(args[consumed:]...)
 	}
-	return cli.CmdHelp(args...)
+	return cli.CmdHelp()
 }
 
 func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {

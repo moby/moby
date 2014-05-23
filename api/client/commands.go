@@ -38,9 +38,10 @@ import (
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
 	if len(args) > 0 {
-		method, exists := cli.getMethod(args[0])
-		if !exists {
-			fmt.Fprintf(cli.err, "Error: Command not found: %s\n", args[0])
+		method, consumed, err := cli.getMethod(args)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return cli.CmdHelp(args[0:consumed]...)
 		} else {
 			method("--help")
 			return nil
