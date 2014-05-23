@@ -415,17 +415,18 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 	}
 
 	// Preserve the trailing '/'
-	if strings.HasSuffix(dest, "/") {
+	if strings.HasSuffix(dest, "/") || dest == "." {
 		destPath = destPath + "/"
 	}
+
 	destStat, err := os.Stat(destPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			destExists = false
-		} else {
+		if !os.IsNotExist(err) {
 			return err
 		}
+		destExists = false
 	}
+
 	fi, err := os.Stat(origPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -434,57 +435,29 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return err
 	}
 
-	fixPermsR := func(destPath string, uid, gid int) error {
-		return filepath.Walk(destPath, func(path string, info os.FileInfo, err error) error {
-			if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
-				return err
-			}
-			return nil
-		})
-	}
-
 	if fi.IsDir() {
-		if err := archive.CopyWithTar(origPath, destPath); err != nil {
-			return err
-		}
-		if destExists {
-			files, err := ioutil.ReadDir(origPath)
-			if err != nil {
-				return err
-			}
-			for _, file := range files {
-				if err := fixPermsR(filepath.Join(destPath, file.Name()), 0, 0); err != nil {
-					return err
-				}
-			}
-		} else {
-			if err := fixPermsR(destPath, 0, 0); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	// First try to unpack the source as an archive
-	// to support the untar feature we need to clean up the path a little bit
-	// because tar is very forgiving.  First we need to strip off the archive's
-	// filename from the path but this is only added if it does not end in / .
-	tarDest := destPath
-	if strings.HasSuffix(tarDest, "/") {
-		tarDest = filepath.Dir(destPath)
+		return copyAsDirectory(origPath, destPath, destExists)
 	}
 
 	// If we are adding a remote file, do not try to untar it
 	if !remote {
+		// First try to unpack the source as an archive
+		// to support the untar feature we need to clean up the path a little bit
+		// because tar is very forgiving.  First we need to strip off the archive's
+		// filename from the path but this is only added if it does not end in / .
+		tarDest := destPath
+		if strings.HasSuffix(tarDest, "/") {
+			tarDest = filepath.Dir(destPath)
+		}
+
 		// try to successfully untar the orig
 		if err := archive.UntarPath(origPath, tarDest); err == nil {
 			return nil
+		} else if err != io.EOF {
+			utils.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
 		}
-		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 	}
 
-	// If that fails, just copy it as a regular file
-	// but do not use all the magic path handling for the tar path
 	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 		return err
 	}
@@ -497,10 +470,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		resPath = path.Join(destPath, path.Base(origPath))
 	}
 
-	if err := fixPermsR(resPath, 0, 0); err != nil {
-		return err
-	}
-	return nil
+	return fixPermissions(resPath, 0, 0)
 }
 
 func (b *buildFile) CmdAdd(args string) error {
@@ -871,6 +841,37 @@ func stripComments(raw []byte) string {
 		out = append(out, l)
 	}
 	return strings.Join(out, "\n")
+}
+
+func copyAsDirectory(source, destination string, destinationExists bool) error {
+	if err := archive.CopyWithTar(source, destination); err != nil {
+		return err
+	}
+
+	if destinationExists {
+		files, err := ioutil.ReadDir(source)
+		if err != nil {
+			return err
+		}
+
+		for _, file := range files {
+			if err := fixPermissions(filepath.Join(destination, file.Name()), 0, 0); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return fixPermissions(destination, 0, 0)
+}
+
+func fixPermissions(destination string, uid, gid int) error {
+	return filepath.Walk(destination, func(path string, info os.FileInfo, err error) error {
+		if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	})
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
