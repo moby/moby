@@ -35,6 +35,7 @@ pages:
 - ['installation/mac.md', 'Installation', 'Mac OS X']
 - ['installation/ubuntulinux.md', 'Installation', 'Ubuntu']
 - ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
+- ['installation/centos.md', 'Installation', 'CentOS']
 - ['installation/debian.md', 'Installation', 'Debian']
 - ['installation/gentoolinux.md', 'Installation', 'Gentoo']
 - ['installation/google.md', 'Installation', 'Google Cloud Platform']
