@@ -900,6 +900,10 @@ func (daemon *Daemon) Close() error {
 		utils.Errorf("daemon.containerGraph.Close(): %s", err.Error())
 		errorsStrings = append(errorsStrings, err.Error())
 	}
+	if err := mount.Unmount(daemon.config.Root); err != nil {
+		utils.Errorf("daemon.Umount(%s): %s", daemon.config.Root, err.Error())
+		errorsStrings = append(errorsStrings, err.Error())
+	}
 	if len(errorsStrings) > 0 {
 		return fmt.Errorf("%s", strings.Join(errorsStrings, ", "))
 	}
