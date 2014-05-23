@@ -25,6 +25,7 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
+	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
@@ -760,7 +761,13 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	var filter []string
 
-	basePath := container.getResourcePath(resource)
+	resPath := container.getResourcePath(resource)
+	basePath, err := symlink.FollowSymlinkInScope(resPath, container.basefs)
+	if err != nil {
+		container.Unmount()
+		return nil, err
+	}
+
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		container.Unmount()
@@ -780,6 +787,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		Includes:    filter,
 	})
 	if err != nil {
+		container.Unmount()
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
