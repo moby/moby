@@ -67,9 +67,10 @@ List containers
              {
                      "Id": "4cb07b47f9fb",
                      "Image": "base:latest",
-                     "Command": "echo 444444444444444444444444444444444",
+                     "Command": "sleep 1337",
                      "Created": 1367854152,
-                     "Status": "Exit 0",
+                     "Status": "Up 10 seconds",
+                     "Pid":6667,
                      "Ports":[],
                      "SizeRw":12288,
                      "SizeRootFs":0
