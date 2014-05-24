@@ -1,11 +1,13 @@
 package lxc
 
 import (
+	"fmt"
 	"strings"
 	"text/template"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 const LxcTemplate = `
@@ -48,36 +50,14 @@ lxc.cgroup.devices.allow = a
 # no implicit access to devices
 lxc.cgroup.devices.deny = a
 
-# but allow mknod for any device
-lxc.cgroup.devices.allow = c *:* m
-lxc.cgroup.devices.allow = b *:* m
+#Allow the devices passed to us in the AllowedDevices list.
 
-# /dev/null and zero
-lxc.cgroup.devices.allow = c 1:3 rwm
-lxc.cgroup.devices.allow = c 1:5 rwm
+{{range $allowedDevice := .AllowedDevices}}
 
-# consoles
-lxc.cgroup.devices.allow = c 5:1 rwm
-lxc.cgroup.devices.allow = c 5:0 rwm
-lxc.cgroup.devices.allow = c 4:0 rwm
-lxc.cgroup.devices.allow = c 4:1 rwm
+lxc.cgroup.devices.allow = {{runeToString $allowedDevice.Type}} {{getDeviceNumberString $allowedDevice.MajorNumber}}:{{getDeviceNumberString $allowedDevice.MinorNumber}} {{$allowedDevice.CgroupPermissions}}
 
-# /dev/urandom,/dev/random
-lxc.cgroup.devices.allow = c 1:9 rwm
-lxc.cgroup.devices.allow = c 1:8 rwm
+{{end}}
 
-# /dev/pts/ - pts namespaces are "coming soon"
-lxc.cgroup.devices.allow = c 136:* rwm
-lxc.cgroup.devices.allow = c 5:2 rwm
-
-# tuntap
-lxc.cgroup.devices.allow = c 10:200 rwm
-
-# fuse
-#lxc.cgroup.devices.allow = c 10:229 rwm
-
-# rtc
-#lxc.cgroup.devices.allow = c 254:0 rwm
 {{end}}
 
 # standard mount point
@@ -168,12 +148,18 @@ func getLabel(c map[string][]string, name string) string {
 	return ""
 }
 
+func runeToString(rune rune) string {
+	return fmt.Sprintf("%c", rune)
+}
+
 func init() {
 	var err error
 	funcMap := template.FuncMap{
-		"getMemorySwap":     getMemorySwap,
-		"escapeFstabSpaces": escapeFstabSpaces,
-		"formatMountLabel":  label.FormatMountLabel,
+		"getMemorySwap":         getMemorySwap,
+		"escapeFstabSpaces":     escapeFstabSpaces,
+		"formatMountLabel":      label.FormatMountLabel,
+		"getDeviceNumberString": devices.GetDeviceNumberString,
+		"runeToString":          runeToString,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-
-	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 )
 
 // Checks whether the expected capability is specified in the capabilities.
@@ -64,10 +62,10 @@ func TestContainerJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
-	for _, n := range nodes.DefaultNodes {
-		if !contains(n, container.RequiredDeviceNodes) {
-			t.Logf("devices should contain %s", n)
+	/*for _, n := range devices.DefaultAutoCreatedDevices {
+		if !contains(n, container.DeviceNodes) {
+			t.Logf("devices should contain %s", n.Path)
 			t.Fail()
 		}
-	}
+	}*/
 }

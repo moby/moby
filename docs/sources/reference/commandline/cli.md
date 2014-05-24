@@ -852,7 +852,7 @@ removed before the image is removed.
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc[:/dev/xvdc])
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc[:/dev/xvdc[:rwm]])
       -w, --workdir=""           Working directory inside the container
 
 The `docker run` command first `creates` a writeable container layer over the
