@@ -48,33 +48,34 @@ To proceed with `docker-io` installation, please remove `docker` first.
 Next, let's install the `docker-io` package which
 will install Docker on our host.
 
-    sudo yum install docker-io
+    $ sudo yum install docker-io
 
 Now that it's installed, let's start the Docker daemon.
 
-    sudo service docker start
+    $ sudo service docker start
 
 If we want Docker to start at boot, we should also:
 
-    sudo chkconfig docker on
+    $ sudo chkconfig docker on
 
 Now let's verify that Docker is working. First we'll need to get the latest
 centos image.
 
-    sudo docker pull centos:latest
+    $ sudo docker pull centos:latest
 
 Next we'll make sure that we can see the image by running:
 
-    sudo docker images centos
+    $ sudo docker images centos
 
 This should generate some output similar to:
 
-    [your-user@lappy ~]# sudo docker images centos
+    $ sudo docker images centos
     REPOSITORY      TAG             IMAGE ID          CREATED             VIRTUAL SIZE
     centos          latest          0b443ba03958      2 hours ago         297.6 MB
 
 Run a simple bash shell to test the image:     
-    sudo docker run -i -t centos /bin/bash
+
+    $ sudo docker run -i -t centos /bin/bash
 
 If everything is working properly, you'll get a simple bash prompt. Type exit to continue.
 
