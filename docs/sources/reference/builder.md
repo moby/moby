@@ -346,7 +346,8 @@ instructions via the Docker client, refer to [*Share Directories via Volumes*](
 
     USER daemon
 
-The `USER` instruction sets the username or UID to use when running the image.
+The `USER` instruction sets the username or UID to use when running the image
+and for any following `RUN` directives.
 
 ## WORKDIR
 
