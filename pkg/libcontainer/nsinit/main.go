@@ -27,20 +27,20 @@ func main() {
 		log.Fatalf("invalid number of arguments %d", len(os.Args))
 	}
 
-	container, err := loadContainer()
-	if err != nil {
-		log.Fatalf("unable to load container: %s", err)
-	}
-
 	switch os.Args[1] {
 	case "exec": // this is executed outside of the namespace in the cwd
+		container, err := loadContainer()
+		if err != nil {
+			log.Fatalf("unable to load container: %s", err)
+		}
+
 		var nspid, exitCode int
 		if nspid, err = readPid(); err != nil && !os.IsNotExist(err) {
 			log.Fatalf("unable to read pid: %s", err)
 		}
 
 		if nspid > 0 {
-			exitCode, err = namespaces.ExecIn(container, nspid, os.Args[2:])
+			err = namespaces.ExecIn(container, nspid, os.Args[2:])
 		} else {
 			term := namespaces.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
 			exitCode, err = startContainer(container, term, dataPath, os.Args[2:])
@@ -50,7 +50,36 @@ func main() {
 			log.Fatalf("failed to exec: %s", err)
 		}
 		os.Exit(exitCode)
+	case "nsenter": // this is executed inside the namespace.
+		// nsinit nsenter <pid> <process label> <container JSON> <cmd>...
+		if len(os.Args) < 6 {
+			log.Fatalf("incorrect usage: nsinit nsenter <pid> <process label> <container JSON> <cmd>...")
+		}
+
+		container, err := loadContainerFromJson(os.Args[4])
+		if err != nil {
+			log.Fatalf("unable to load container: %s", err)
+		}
+
+		nspid, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatalf("unable to read pid: %s from %q", err, os.Args[2])
+		}
+
+		if nspid <= 0 {
+			log.Fatalf("cannot enter into namespaces without valid pid: %q", nspid)
+		}
+
+		err = namespaces.NsEnter(container, os.Args[3], nspid, os.Args[5:])
+		if err != nil {
+			log.Fatalf("failed to nsenter: %s", err)
+		}
 	case "init": // this is executed inside of the namespace to setup the container
+		container, err := loadContainer()
+		if err != nil {
+			log.Fatalf("unable to load container: %s", err)
+		}
+
 		// by default our current dir is always our rootfs
 		rootfs, err := os.Getwd()
 		if err != nil {
@@ -70,6 +99,11 @@ func main() {
 			log.Fatalf("unable to initialize for container: %s", err)
 		}
 	case "stats":
+		container, err := loadContainer()
+		if err != nil {
+			log.Fatalf("unable to load container: %s", err)
+		}
+
 		// returns the stats of the current container.
 		stats, err := getContainerStats(container)
 		if err != nil {
@@ -80,6 +114,11 @@ func main() {
 		os.Exit(0)
 
 	case "spec":
+		container, err := loadContainer()
+		if err != nil {
+			log.Fatalf("unable to load container: %s", err)
+		}
+
 		// returns the spec of the current container.
 		spec, err := getContainerSpec(container)
 		if err != nil {
@@ -90,19 +129,29 @@ func main() {
 		os.Exit(0)
 
 	default:
-		log.Fatalf("command not supported for nsinit %s", os.Args[0])
+		log.Fatalf("command not supported for nsinit %s", os.Args[1])
 	}
 }
 
 func loadContainer() (*libcontainer.Container, error) {
 	f, err := os.Open(filepath.Join(dataPath, "container.json"))
 	if err != nil {
+		log.Printf("Path: %q", filepath.Join(dataPath, "container.json"))
 		return nil, err
 	}
 	defer f.Close()
 
 	var container *libcontainer.Container
 	if err := json.NewDecoder(f).Decode(&container); err != nil {
+		return nil, err
+	}
+	return container, nil
+}
+
+func loadContainerFromJson(rawData string) (*libcontainer.Container, error) {
+	container := &libcontainer.Container{}
+	err := json.Unmarshal([]byte(rawData), container)
+	if err != nil {
 		return nil, err
 	}
 	return container, nil
