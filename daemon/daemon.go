@@ -29,6 +29,7 @@ import (
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
@@ -250,19 +251,14 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 func (daemon *Daemon) ensureName(container *Container) error {
 	if container.Name == "" {
-		name, err := generateRandomName(daemon)
+		name, err := daemon.generateNewName(container.ID)
 		if err != nil {
-			name = utils.TruncateID(container.ID)
+			return err
 		}
 		container.Name = name
 
 		if err := container.ToDisk(); err != nil {
 			utils.Debugf("Error saving container name %s", err)
-		}
-		if !daemon.containerGraph.Exists(name) {
-			if _, err := daemon.containerGraph.Set(name, container.ID); err != nil {
-				utils.Debugf("Setting default id - %s", err)
-			}
 		}
 	}
 	return nil
@@ -370,12 +366,8 @@ func (daemon *Daemon) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		container.Name, err = generateRandomName(daemon)
+		container.Name, err = daemon.generateNewName(container.ID)
 		if err != nil {
-			container.Name = utils.TruncateID(container.ID)
-		}
-
-		if _, err := daemon.containerGraph.Set(container.Name, container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
 		registerContainer(container)
@@ -470,42 +462,75 @@ func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
 	)
 
 	if name == "" {
-		name, err = generateRandomName(daemon)
-		if err != nil {
-			name = utils.TruncateID(id)
+		if name, err = daemon.generateNewName(id); err != nil {
+			return "", "", err
 		}
-	} else {
-		if !validContainerNamePattern.MatchString(name) {
-			return "", "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
-		}
+		return id, name, nil
 	}
+
+	if name, err = daemon.reserveName(id, name); err != nil {
+		return "", "", err
+	}
+
+	return id, name, nil
+}
+
+func (daemon *Daemon) reserveName(id, name string) (string, error) {
+	if !validContainerNamePattern.MatchString(name) {
+		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
+	}
+
 	if name[0] != '/' {
 		name = "/" + name
 	}
-	// Set the enitity in the graph using the default name specified
+
 	if _, err := daemon.containerGraph.Set(name, id); err != nil {
 		if !graphdb.IsNonUniqueNameError(err) {
-			return "", "", err
+			return "", err
 		}
 
 		conflictingContainer, err := daemon.GetByName(name)
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find entity") {
-				return "", "", err
+				return "", err
 			}
 
 			// Remove name and continue starting the container
 			if err := daemon.containerGraph.Delete(name); err != nil {
-				return "", "", err
+				return "", err
 			}
 		} else {
 			nameAsKnownByUser := strings.TrimPrefix(name, "/")
-			return "", "", fmt.Errorf(
+			return "", fmt.Errorf(
 				"Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser,
 				utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
 		}
 	}
-	return id, name, nil
+	return name, nil
+}
+
+func (daemon *Daemon) generateNewName(id string) (string, error) {
+	var name string
+	for i := 1; i < 6; i++ {
+		name = namesgenerator.GetRandomName(i)
+		if name[0] != '/' {
+			name = "/" + name
+		}
+
+		if _, err := daemon.containerGraph.Set(name, id); err != nil {
+			if !graphdb.IsNonUniqueNameError(err) {
+				return "", err
+			}
+			continue
+		}
+		return name, nil
+	}
+
+	name = "/" + utils.TruncateID(id)
+	if _, err := daemon.containerGraph.Set(name, id); err != nil {
+		return "", err
+	}
+	return name, nil
 }
 
 func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {

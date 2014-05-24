@@ -2,10 +2,10 @@ package daemon
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/namesgenerator"
-	"github.com/dotcloud/docker/runconfig"
 	"strings"
+
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/runconfig"
 )
 
 func migratePortMappings(config *runconfig.Config, hostConfig *runconfig.HostConfig) error {
@@ -48,17 +48,4 @@ func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig, driverConfig map[
 		}
 		driverConfig["lxc"] = lxc
 	}
-}
-
-type checker struct {
-	daemon *Daemon
-}
-
-func (c *checker) Exists(name string) bool {
-	return c.daemon.containerGraph.Exists("/" + name)
-}
-
-// Generate a random and unique name
-func generateRandomName(daemon *Daemon) (string, error) {
-	return namesgenerator.GenerateRandomName(&checker{daemon})
 }

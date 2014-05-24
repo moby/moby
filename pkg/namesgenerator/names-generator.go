@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-type NameChecker interface {
-	Exists(name string) bool
-}
-
 var (
 	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious", "berserk", "high", "romantic", "prickly", "evil"}
 	// Docker 0.7.x generates names from notable scientists and hackers.
@@ -79,16 +75,17 @@ var (
 	right = [...]string{"lovelace", "franklin", "tesla", "einstein", "bohr", "davinci", "pasteur", "nobel", "curie", "darwin", "turing", "ritchie", "torvalds", "pike", "thompson", "wozniak", "galileo", "euclid", "newton", "fermat", "archimedes", "poincare", "heisenberg", "feynman", "hawking", "fermi", "pare", "mccarthy", "engelbart", "babbage", "albattani", "ptolemy", "bell", "wright", "lumiere", "morse", "mclean", "brown", "bardeen", "brattain", "shockley", "goldstine", "hoover", "hopper", "bartik", "sammet", "jones", "perlman", "wilson", "kowalevski", "hypatia", "goodall", "mayer", "elion", "blackwell", "lalande", "kirch", "ardinghelli", "colden", "almeida", "leakey", "meitner", "mestorf", "rosalind", "sinoussi", "carson", "mcclintock", "yonath"}
 )
 
-func GenerateRandomName(checker NameChecker) (string, error) {
-	retry := 5
+func GetRandomName(retry int) string {
 	rand.Seed(time.Now().UnixNano())
+
+begin:
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
-	for checker != nil && checker.Exists(name) && retry > 0 || name == "boring_wozniak" /* Steve Wozniak is not boring */ {
+	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
+		goto begin
+	}
+
+	if retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
-		retry = retry - 1
 	}
-	if retry == 0 {
-		return name, fmt.Errorf("Error generating random name")
-	}
-	return name, nil
+	return name
 }
