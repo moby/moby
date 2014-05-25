@@ -446,6 +446,20 @@ func TestBuildWithVolume(t *testing.T) {
 	logDone("build - with volume")
 }
 
+func TestBuildMaintainer(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        MAINTAINER dockerio
+		`,
+		"testbuildimg",
+		"{{json .author}}",
+		`"dockerio"`)
+
+	deleteImages("testbuildimg")
+	logDone("build - maintainer")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation
