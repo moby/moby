@@ -476,6 +476,26 @@ func TestBuildUser(t *testing.T) {
 	logDone("build - user")
 }
 
+func TestBuildRelativeWorkdir(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+		FROM busybox
+		RUN [ "$PWD" = '/' ]
+		WORKDIR test1
+		RUN [ "$PWD" = '/test1' ]
+		WORKDIR /test2
+		RUN [ "$PWD" = '/test2' ]
+		WORKDIR test3
+		RUN [ "$PWD" = '/test2/test3' ]
+		`,
+		"testbuildimg",
+		"{{json .config.WorkingDir}}",
+		`"/test2/test3"`)
+
+	deleteImages("testbuildimg")
+	logDone("build - relative workdir")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation
