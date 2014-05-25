@@ -460,6 +460,22 @@ func TestBuildMaintainer(t *testing.T) {
 	logDone("build - maintainer")
 }
 
+func TestBuildUser(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+		FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		USER dockerio
+		RUN [ $(whoami) = 'dockerio' ]
+		`,
+		"testbuildimg",
+		"{{json .config.User}}",
+		`"dockerio"`)
+
+	deleteImages("testbuildimg")
+	logDone("build - user")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation

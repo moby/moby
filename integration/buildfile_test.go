@@ -414,20 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildUser(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        user dockerio
-    `, nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.User != "dockerio" {
-		t.Fail()
-	}
-}
-
 func TestBuildRelativeWorkdir(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
 		FROM {IMAGE}
