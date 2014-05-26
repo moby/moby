@@ -32,7 +32,7 @@ it. To proceed with `docker-io` installation on Fedora 19, please remove
 
     $ sudo yum -y remove docker
 
-For Fedora 20 and later, the `wmdocker` package will
+For Fedora 21 and later, the `wmdocker` package will
 provide the same functionality as `docker` and will
 also not conflict with `docker-io`.
 
