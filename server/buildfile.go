@@ -19,6 +19,7 @@ import (
 	"syscall"
 
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/config"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/symlink"
@@ -55,7 +56,7 @@ type buildFile struct {
 	forceRm      bool
 
 	authConfig *registry.AuthConfig
-	configFile *registry.ConfigFile
+	configFile *config.ConfigFile
 
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
@@ -92,7 +93,7 @@ func (b *buildFile) CmdFrom(name string) error {
 				if err != nil {
 					return err
 				}
-				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+				resolvedAuth := registry.ResolveAuthConfig(b.configFile, endpoint)
 				pullRegistryAuth = &resolvedAuth
 			}
 			job := b.srv.Eng.Job("pull", remote, tag)
@@ -884,7 +885,7 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *config.ConfigFile) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
