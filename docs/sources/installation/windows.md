@@ -1,14 +1,8 @@
 page_title: Installation on Windows
-page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_description: Docker installation on Microsoft Windows
 page_keywords: Docker, Docker documentation, Windows, requirements, virtualbox, boot2docker
 
 # Windows
-
-Docker can run on Windows using a virtualization platform like
-VirtualBox. A Linux distribution is run inside a virtual machine and
-that's where Docker will run.
-
-## Installation
 
 > **Note**:
 > Docker is still under heavy development! We don't recommend using it in
@@ -16,41 +10,48 @@ that's where Docker will run.
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-1. Install virtualbox from [https://www.virtualbox.org](
-   https://www.virtualbox.org) - or follow this [tutorial](
-   http://www.slideshare.net/julienbarbier42/install-virtualbox-on-windows-7).
-2. Download the latest boot2docker.iso from
-   [https://github.com/boot2docker/boot2docker/releases](
-   https://github.com/boot2docker/boot2docker/releases).
-3. Start VirtualBox.
-4. Create a new Virtual machine with the following settings:
+Docker Engine runs on Windows using a lightweight virtual machine. There
+is no native Windows Docker client yet, so everything is done inside the virtual
+machine.
 
-        - Name: boot2docker
-        - Type: Linux
-        - Version: Linux 2.6 (64 bit)
-        - Memory size: 1024 MB
-        - Hard drive: Do not add a virtual hard drive
+To make this process easier we designed a helper application called
+[boot2docker](https://github.com/boot2docker/boot2docker) to install the
+virtual machine and run the Docker daemon.
 
-5. Open the settings of the virtual machine:
 
-    5.1. go to Storage
-    5.2. click the empty slot below Controller: IDE
-    5.3. click the disc icon on the right of IDE Secondary Master
-    5.4. click Choose a virtual CD/DVD disk file
+## Installation
 
-6. Browse to the path where you`ve saved the boot2docker.iso, select
-   the boot2docker.iso and click open.
+1. Download the latest release of the [Docker for Windows Installer](https://github.com/boot2docker/windows-installer/releases)
+2. Run the installer, which will install VirtualBox, MSYS-git, the boot2docker Linux ISO and the
+   Boot2Docker management tool.
+   ![](/installation/images/windows-installer.png)
+3. Run the `Boot2Docker Start` shell script from your Desktop or Program Files > Docker.
+   The Start script will ask you to enter an ssh key passphrase - the simplest
+   (but least secure) is to just hit [Enter].
+   ![](/installation/images/windows-boot2docker-start.png)
 
-7. Click OK on the Settings dialog to save the changes and close the
-   window.
+The `Boot2Docker Start` script will connect you to a shell session in the virtual
+Machine. If needed, it will initialise a new VM and start it.
 
-8. Start the virtual machine by clicking the green start button.
+## Upgrading
 
-9. The boot2docker virtual machine should boot now.
+To upgrade:
+
+1. Download the latest release of the [Docker for Windows Installer](
+   https://github.com/boot2docker/windows-installer/releases)
+2. Run the installer, which will update the Boot2Docker management tool.
+3. To upgrade your existing virtual machine, open a terminal and run:
+    
+```
+        boot2docker stop
+        boot2docker download
+        boot2docker start
+```
+
 
 ## Running Docker
 
-boot2docker will log you in automatically so you can start using Docker
+Boot2Docker will log you in automatically so you can start using Docker
 right away.
 
 Let's try the “hello world” example. Run
@@ -59,34 +60,14 @@ Let's try the “hello world” example. Run
 
 This will download the small busybox image and print hello world.
 
-## Persistent storage
+# Further Details
 
-1. Add a virtual hard drive to the VM created in Installation
-2. Start the VM
-3. Create an empty partition on the attached virtual hard drive
+The Boot2Docker management tool provides some commands:
 
-    ```sh
-    sudo fdisk /dev/sda
-    n (new partition)
-    p (primary partition)
-    1 (partition 1)
-    w (write changes to disk)
-    ```
+```
+$ ./boot2docker
+Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version} [<args>]
+```
 
-4. Format the partition using ext4 
 
-    ```sh
-    mkfs.ext4 -L boot2docker-data /dev/sda1
-    ```
-
-5. Reboot
-
-    ```sh
-    sudo reboot
-    ```
-
-6. boot2docker should now auto mount the partition and persist data there. (/var/lib/docker linking to /mnt/sda1/var/lib/docker)
-
-    ```sh
-    ls -l /var/lib
-    ```
+For further information or to report issues, please see the [Boot2Docker site](http://boot2docker.io)
