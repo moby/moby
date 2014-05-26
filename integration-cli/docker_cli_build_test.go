@@ -496,6 +496,21 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 	logDone("build - relative workdir")
 }
 
+func TestBuildEnv(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM busybox
+        ENV PORT 4243
+		RUN [ $(env | grep PORT) = 'PORT=4243' ]
+        `,
+		"testbuildimg",
+		"{{json .config.Env}}",
+		`["HOME=/","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","PORT=4243"]`)
+
+	deleteImages("testbuildimg")
+	logDone("build - env")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation

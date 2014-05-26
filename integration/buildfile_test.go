@@ -414,28 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildEnv(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        env port 4243
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	hasEnv := false
-	for _, envVar := range img.Config.Env {
-		if envVar == "port=4243" {
-			hasEnv = true
-			break
-		}
-	}
-	if !hasEnv {
-		t.Fail()
-	}
-}
-
 func TestBuildCmd(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
