@@ -414,21 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildExpose(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        expose 4243
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "4243")]; !exists {
-		t.Fail()
-	}
-}
-
 func TestBuildEntrypoint(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}

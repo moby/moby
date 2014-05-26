@@ -525,6 +525,21 @@ func TestBuildCmd(t *testing.T) {
 	logDone("build - cmd")
 }
 
+func TestBuildExpose(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        EXPOSE 4243
+        `,
+
+		"testbuildimg",
+		"{{json .config.ExposedPorts}}",
+		`{"4243/tcp":{}}`)
+
+	deleteImages("testbuildimg")
+	logDone("build - expose")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation
