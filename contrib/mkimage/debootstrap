@@ -47,7 +47,7 @@ if strings "$rootfsDir/usr/bin/dpkg" | grep -q unsafe-io; then
 	echo 'force-unsafe-io' > "$rootfsDir/etc/dpkg/dpkg.cfg.d/docker-apt-speedup"
 fi
 
-if [ -d /etc/apt/apt.conf.d ]; then
+if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 	# _keep_ us lean by effectively running "apt-get clean" after every install
 	aptGetClean='"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true";'
 	echo >&2 "+ cat > '$rootfsDir/etc/apt/apt.conf.d/docker-clean'"
