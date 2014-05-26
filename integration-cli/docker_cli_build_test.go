@@ -511,6 +511,20 @@ func TestBuildEnv(t *testing.T) {
 	logDone("build - env")
 }
 
+func TestBuildCmd(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        CMD ["/bin/echo", "Hello World"]
+        `,
+		"testbuildimg",
+		"{{json .config.Cmd}}",
+		`["/bin/echo","Hello World"]`)
+
+	deleteImages("testbuildimg")
+	logDone("build - cmd")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation

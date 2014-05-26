@@ -414,26 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildCmd(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        cmd ["/bin/echo", "Hello World"]
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.Cmd[0] != "/bin/echo" {
-		t.Log(img.Config.Cmd[0])
-		t.Fail()
-	}
-	if img.Config.Cmd[1] != "Hello World" {
-		t.Log(img.Config.Cmd[1])
-		t.Fail()
-	}
-}
-
 func TestBuildExpose(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
