@@ -484,6 +484,36 @@ func TestVolumeWithSymlink(t *testing.T) {
 	logDone("run - volume with symlink")
 }
 
+// Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
+func TestVolumesFromSymlinkPath(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumesfromsymlinkpath", "-")
+	buildCmd.Stdin = strings.NewReader(`FROM busybox
+		RUN mkdir /baz && ln -s /baz /foo
+		VOLUME ["/foo/bar"]`)
+	buildCmd.Dir = workingDirectory
+	err := buildCmd.Run()
+	if err != nil {
+		t.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test-volumesfromsymlinkpath", "docker-test-volumesfromsymlinkpath")
+	exitCode, err := runCommand(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("[run] (volume) err: %v, exitcode: %d", err, exitCode)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "test-volumesfromsymlinkpath", "busybox", "sh", "-c", "ls /foo | grep -q bar")
+	exitCode, err = runCommand(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
+	}
+
+	deleteImages("docker-test-volumesfromsymlinkpath")
+	deleteAllContainers()
+
+	logDone("run - volumes-from symlink path")
+}
+
 func TestExitCode(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "busybox", "/bin/sh", "-c", "exit 72")
 
