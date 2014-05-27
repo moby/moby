@@ -34,8 +34,9 @@ as context.
 build process. The default is true.
 
 **-t**, **--tag**=*tag*
-   Tag to be applied to the resulting image on successful completion of
-the build.
+   The name to be applied to the resulting image on successful completion of
+the build. 'Tag' is this context means the entire image name including the 
+optional TAG after the ':'.
 
 **--no-cache**=*true*|*false*
    When set to true, do not use a cache when building the image. The
@@ -65,6 +66,38 @@ sub-directory. These files will then be specified with the `ADD` instruction
 in the Dockerfile. Note: If you include a tar file (a good practice!), then
 Docker will automatically extract the contents of the tar file
 specified within the `ADD` instruction into the specified target.
+
+## Building an image and naming that image
+
+A good practice is to give a name to the image you are building. There are
+not hard rules here but it is best to give the names consideration. 
+
+The '-t'/'--tag' flag is used to rename an image. Here are some examples:
+
+Though not a good practice image names can be aribtrary:
+
+    docker build -t myimage .
+
+Better is provide a fully qualified and meaningful repository name, name,
+and tag (where tag in this context means the qualifier after the ':'). In
+this example we build a Jboss image for the Fedora repository and give it
+a version 1.0:
+
+    docker build -t fedora/jboss:1.0
+
+The next example is for the 'whenry' user repository and uses Fedora and
+JBoss and gives it a version 2.1 :
+
+    docker build -t whenry/fedora-jboss:V2.1
+
+Or:
+
+    docker build -t whenry/fedora-jboss:latest
+
+So renaming an image is arbitrary but consideration should be given to 
+a useful convention that makes sense for consumers and should also take
+into account Docker community conventions.
+
 
 ## Building an image using a URL
 

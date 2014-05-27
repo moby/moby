@@ -64,6 +64,9 @@ the other shell to view a list of the running containers. You can reattach to a
 detached container with **docker attach**. If you choose to run a container in
 the detached mode, then you cannot use the **-rm** option.
 
+   When attached in tty mode, you can detach from a running container by pressing
+the keys ctrl+p ctrl+q.
+
 
 **--dns**=*IP-address*
    Set custom DNS servers. This option can be used to override the DNS
@@ -237,7 +240,7 @@ can override the working directory by using the **-w** option.
 ## Exposing log messages from the container to the host's log
 
 If you want messages that are logged in your container to show up in the host's
-syslog/journal then you should bind mount the /var/log directory as follows.
+syslog/journal then you should bind mount the /dev/log directory as follows.
 
     # docker run -v /dev/log:/dev/log -i -t fedora /bin/bash
 
