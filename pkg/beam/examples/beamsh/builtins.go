@@ -272,7 +272,7 @@ func CmdPrint(args []string, stdout, stderr io.Writer, in beam.Receiver, out bea
 		}
 		// Skip commands
 		if a != nil && data.Message(payload).Get("cmd") == nil {
-			dup, err := beam.SendPipe(out, payload)
+			dup, err := beam.SendRPipe(out, payload)
 			if err != nil {
 				a.Close()
 				return

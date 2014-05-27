@@ -40,9 +40,6 @@ func Setup(rootfs, consolePath, mountLabel string) error {
 	if err := label.SetFileLabel(consolePath, mountLabel); err != nil {
 		return fmt.Errorf("set file label %s %s", dest, err)
 	}
-	if err := system.Mount(consolePath, dest, "bind", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("bind %s to %s %s", consolePath, dest, err)
-	}
 	return nil
 }
 

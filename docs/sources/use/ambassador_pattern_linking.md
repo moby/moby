@@ -7,82 +7,77 @@ page_keywords: Examples, Usage, links, docker, documentation, examples, names, n
 ## Introduction
 
 Rather than hardcoding network links between a service consumer and
-provider, Docker encourages service portability.
-
-eg, instead of
+provider, Docker encourages service portability, for example instead of:
 
     (consumer) --> (redis)
 
-requiring you to restart the `consumer` to attach it
-to a different `redis` service, you can add
-ambassadors
+Requiring you to restart the `consumer` to attach it to a different
+`redis` service, you can add ambassadors:
 
     (consumer) --> (redis-ambassador) --> (redis)
 
-    or
+Or
 
     (consumer) --> (redis-ambassador) ---network---> (redis-ambassador) --> (redis)
 
-When you need to rewire your consumer to talk to a different redis
-server, you can just restart the `redis-ambassador`
-container that the consumer is connected to.
+When you need to rewire your consumer to talk to a different Redis
+server, you can just restart the `redis-ambassador` container that the
+consumer is connected to.
 
-This pattern also allows you to transparently move the redis server to a
+This pattern also allows you to transparently move the Redis server to a
 different docker host from the consumer.
 
-Using the `svendowideit/ambassador` container, the
-link wiring is controlled entirely from the `docker run`
-parameters.
+Using the `svendowideit/ambassador` container, the link wiring is
+controlled entirely from the `docker run` parameters.
 
 ## Two host Example
 
-Start actual redis server on one Docker host
+Start actual Redis server on one Docker host
 
-    big-server $ docker run -d -name redis crosbymichael/redis
+    big-server $ docker run -d --name redis crosbymichael/redis
 
-Then add an ambassador linked to the redis server, mapping a port to the
+Then add an ambassador linked to the Redis server, mapping a port to the
 outside world
 
-    big-server $ docker run -d -link redis:redis -name redis_ambassador -p 6379:6379 svendowideit/ambassador
+    big-server $ docker run -d --link redis:redis --name redis_ambassador -p 6379:6379 svendowideit/ambassador
 
 On the other host, you can set up another ambassador setting environment
-variables for each remote port we want to proxy to the
-`big-server`
+variables for each remote port we want to proxy to the `big-server`
 
-    client-server $ docker run -d -name redis_ambassador -expose 6379 -e REDIS_PORT_6379_TCP=tcp://192.168.1.52:6379 svendowideit/ambassador
+    client-server $ docker run -d --name redis_ambassador --expose 6379 -e REDIS_PORT_6379_TCP=tcp://192.168.1.52:6379 svendowideit/ambassador
 
-Then on the `client-server` host, you can use a
-redis client container to talk to the remote redis server, just by
-linking to the local redis ambassador.
+Then on the `client-server` host, you can use a Redis client container
+to talk to the remote Redis server, just by linking to the local Redis
+ambassador.
 
-    client-server $ docker run -i -t -rm -link redis_ambassador:redis relateiq/redis-cli
+    client-server $ docker run -i -t --rm --link redis_ambassador:redis relateiq/redis-cli
     redis 172.17.0.160:6379> ping
     PONG
 
 ## How it works
 
-The following example shows what the `svendowideit/ambassador`
-container does automatically (with a tiny amount of `sed`)
+The following example shows what the `svendowideit/ambassador` container
+does automatically (with a tiny amount of `sed`)
 
-On the docker host (192.168.1.52) that redis will run on:
+On the Docker host (192.168.1.52) that Redis will run on:
 
     # start actual redis server
-    $ docker run -d -name redis crosbymichael/redis
+    $ docker run -d --name redis crosbymichael/redis
 
     # get a redis-cli container for connection testing
     $ docker pull relateiq/redis-cli
 
     # test the redis server by talking to it directly
-    $ docker run -t -i -rm -link redis:redis relateiq/redis-cli
+    $ docker run -t -i --rm --link redis:redis relateiq/redis-cli
     redis 172.17.0.136:6379> ping
     PONG
     ^D
 
     # add redis ambassador
-    $ docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 busybox sh
+    $ docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 busybox sh
 
-in the redis_ambassador container, you can see the linked redis
-containers'senv
+In the `redis_ambassador` container, you can see the linked Redis
+containers `env`:
 
     $ env
     REDIS_PORT=tcp://172.17.0.136:6379
@@ -98,43 +93,43 @@ containers'senv
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     PWD=/
 
-This environment is used by the ambassador socat script to expose redis
-to the world (via the -p 6379:6379 port mapping)
+This environment is used by the ambassador `socat` script to expose Redis
+to the world (via the `-p 6379:6379` port mapping):
 
     $ docker rm redis_ambassador
     $ sudo ./contrib/mkimage-unittest.sh
-    $ docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 docker-ut sh
+    $ docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 docker-ut sh
 
     $ socat TCP4-LISTEN:6379,fork,reuseaddr TCP4:172.17.0.136:6379
 
-then ping the redis server via the ambassador
+Now ping the Redis server via the ambassador:
 
-Now goto a different server
+Now go to a different server:
 
     $ sudo ./contrib/mkimage-unittest.sh
-    $ docker run -t -i  -expose 6379 -name redis_ambassador docker-ut sh
+    $ docker run -t -i --expose 6379 --name redis_ambassador docker-ut sh
 
     $ socat TCP4-LISTEN:6379,fork,reuseaddr TCP4:192.168.1.52:6379
 
-and get the redis-cli image so we can talk over the ambassador bridge
+And get the `redis-cli` image so we can talk over the ambassador bridge.
 
     $ docker pull relateiq/redis-cli
-    $ docker run -i -t -rm -link redis_ambassador:redis relateiq/redis-cli
+    $ docker run -i -t --rm --link redis_ambassador:redis relateiq/redis-cli
     redis 172.17.0.160:6379> ping
     PONG
 
 ## The svendowideit/ambassador Dockerfile
 
-The `svendowideit/ambassador` image is a small
-busybox image with `socat` built in. When you start
-the container, it uses a small `sed` script to parse
-out the (possibly multiple) link environment variables to set up the
-port forwarding. On the remote host, you need to set the variable using
-the `-e` command line option.
+The `svendowideit/ambassador` image is a small `busybox` image with
+`socat` built in. When you start the container, it uses a small `sed`
+script to parse out the (possibly multiple) link environment variables
+to set up the port forwarding. On the remote host, you need to set the
+variable using the `-e` command line option.
 
-`--expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379`
-will forward the local `1234` port to the
-remote IP and port - in this case `192.168.1.52:6379`.
+    --expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379
+
+Will forward the local `1234` port to the remote IP and port, in this
+case `192.168.1.52:6379`.
 
     #
     #
@@ -144,9 +139,9 @@ remote IP and port - in this case `192.168.1.52:6379`.
     #   docker build -t SvenDowideit/ambassador .
     #   docker tag SvenDowideit/ambassador ambassador
     # then to run it (on the host that has the real backend on it)
-    #   docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 ambassador
+    #   docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 ambassador
     # on the remote host, you can set up another ambassador
-    #   docker run -t -i -name redis_ambassador -expose 6379 sh
+    #   docker run -t -i --name redis_ambassador --expose 6379 sh
 
     FROM    docker-ut
     MAINTAINER      SvenDowideit@home.org.au

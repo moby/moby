@@ -15,7 +15,9 @@ lxc.network.type = veth
 lxc.network.link = {{.Network.Interface.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = {{.Network.Mtu}}
-{{else if not .Network.HostNetworking}}
+{{else if .Network.HostNetworking}}
+lxc.network.type = none
+{{else}}
 # network is disabled (-n=false)
 lxc.network.type = empty
 lxc.network.flags = up
@@ -125,6 +127,9 @@ lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{if .Resources.CpuShares}}
 lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
+{{end}}
+{{if .Resources.Cpuset}}
+lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
 {{end}}
 {{end}}
 

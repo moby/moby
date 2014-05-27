@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -60,4 +61,39 @@ func cmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
 	return out, status, err
+}
+
+func findContainerIp(t *testing.T, id string) string {
+	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	return strings.Trim(out, " \r\n'")
+}
+
+func getContainerCount() (int, error) {
+	const containers = "Containers:"
+
+	cmd := exec.Command(dockerBinary, "info")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		return 0, err
+	}
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, containers) {
+			output := stripTrailingCharacters(line)
+			output = strings.TrimLeft(output, containers)
+			output = strings.Trim(output, " ")
+			containerCount, err := strconv.Atoi(output)
+			if err != nil {
+				return 0, err
+			}
+			return containerCount, nil
+		}
+	}
+	return 0, fmt.Errorf("couldn't find the Container count in the output")
 }

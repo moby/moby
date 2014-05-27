@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 )
@@ -268,18 +268,14 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (in
 		}
 
 		output, err = d.getInfo(c.ID)
-		if err != nil {
-			output, err = d.getInfo(c.ID)
+		if err == nil {
+			info, err := parseLxcInfo(string(output))
 			if err != nil {
 				return -1, err
 			}
-		}
-		info, err := parseLxcInfo(string(output))
-		if err != nil {
-			return -1, err
-		}
-		if info.Running {
-			return info.Pid, nil
+			if info.Running {
+				return info.Pid, nil
+			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

@@ -55,6 +55,29 @@ var (
 		{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN},
 		{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN},
 		{Key: "SYSLOG", Value: capability.CAP_SYSLOG},
+		{Key: "SETUID", Value: capability.CAP_SETUID},
+		{Key: "SETGID", Value: capability.CAP_SETGID},
+		{Key: "CHOWN", Value: capability.CAP_CHOWN},
+		{Key: "NET_RAW", Value: capability.CAP_NET_RAW},
+		{Key: "DAC_OVERRIDE", Value: capability.CAP_DAC_OVERRIDE},
+		{Key: "FOWNER", Value: capability.CAP_FOWNER},
+		{Key: "DAC_READ_SEARCH", Value: capability.CAP_DAC_READ_SEARCH},
+		{Key: "FSETID", Value: capability.CAP_FSETID},
+		{Key: "KILL", Value: capability.CAP_KILL},
+		{Key: "SETGID", Value: capability.CAP_SETGID},
+		{Key: "SETUID", Value: capability.CAP_SETUID},
+		{Key: "LINUX_IMMUTABLE", Value: capability.CAP_LINUX_IMMUTABLE},
+		{Key: "NET_BIND_SERVICE", Value: capability.CAP_NET_BIND_SERVICE},
+		{Key: "NET_BROADCAST", Value: capability.CAP_NET_BROADCAST},
+		{Key: "IPC_LOCK", Value: capability.CAP_IPC_LOCK},
+		{Key: "IPC_OWNER", Value: capability.CAP_IPC_OWNER},
+		{Key: "SYS_CHROOT", Value: capability.CAP_SYS_CHROOT},
+		{Key: "SYS_PTRACE", Value: capability.CAP_SYS_PTRACE},
+		{Key: "SYS_BOOT", Value: capability.CAP_SYS_BOOT},
+		{Key: "LEASE", Value: capability.CAP_LEASE},
+		{Key: "SETFCAP", Value: capability.CAP_SETFCAP},
+		{Key: "WAKE_ALARM", Value: capability.CAP_WAKE_ALARM},
+		{Key: "BLOCK_SUSPEND", Value: capability.CAP_BLOCK_SUSPEND},
 	}
 )
 
@@ -116,6 +139,14 @@ func GetCapability(key string) *Capability {
 		}
 	}
 	return nil
+}
+
+func GetAllCapabilities() []string {
+	output := make([]string, len(capabilityList))
+	for i, capability := range capabilityList {
+		output[i] = capability.String()
+	}
+	return output
 }
 
 // Contains returns true if the specified Capability is

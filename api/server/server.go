@@ -122,17 +122,17 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 	var (
 		authConfig, err = ioutil.ReadAll(r.Body)
 		job             = eng.Job("auth")
-		status          string
+		stdoutBuffer    = bytes.NewBuffer(nil)
 	)
 	if err != nil {
 		return err
 	}
 	job.Setenv("authConfig", string(authConfig))
-	job.Stdout.AddString(&status)
+	job.Stdout.Add(stdoutBuffer)
 	if err = job.Run(); err != nil {
 		return err
 	}
-	if status != "" {
+	if status := engine.Tail(stdoutBuffer, 1); status != "" {
 		var env engine.Env
 		env.Set("Status", status)
 		return writeJSON(w, http.StatusOK, env)
@@ -244,7 +244,7 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		return err
 	}
 
-	var job = eng.Job("events", r.RemoteAddr)
+	var job = eng.Job("events")
 	streamJSON(job, w, true)
 	job.Setenv("since", r.Form.Get("since"))
 	job.Setenv("until", r.Form.Get("until"))
@@ -338,7 +338,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	var (
-		job    = eng.Job("inspect", vars["name"], "container")
+		job    = eng.Job("container_inspect", vars["name"])
 		c, err = job.Stdout.AddEnv()
 	)
 	if err != nil {
@@ -393,9 +393,10 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		return err
 	}
 	var (
-		config engine.Env
-		env    engine.Env
-		job    = eng.Job("commit", r.Form.Get("container"))
+		config       engine.Env
+		env          engine.Env
+		job          = eng.Job("commit", r.Form.Get("container"))
+		stdoutBuffer = bytes.NewBuffer(nil)
 	)
 	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
@@ -407,12 +408,11 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	job.Setenv("comment", r.Form.Get("comment"))
 	job.SetenvSubEnv("config", &config)
 
-	var id string
-	job.Stdout.AddString(&id)
+	job.Stdout.Add(stdoutBuffer)
 	if err := job.Run(); err != nil {
 		return err
 	}
-	env.Set("Id", id)
+	env.Set("Id", engine.Tail(stdoutBuffer, 1))
 	return writeJSON(w, http.StatusCreated, env)
 }
 
@@ -603,17 +603,17 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 		return nil
 	}
 	var (
-		out         engine.Env
-		job         = eng.Job("create", r.Form.Get("name"))
-		outWarnings []string
-		outId       string
-		warnings    = bytes.NewBuffer(nil)
+		out          engine.Env
+		job          = eng.Job("create", r.Form.Get("name"))
+		outWarnings  []string
+		stdoutBuffer = bytes.NewBuffer(nil)
+		warnings     = bytes.NewBuffer(nil)
 	)
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
 	// Read container ID from the first line of stdout
-	job.Stdout.AddString(&outId)
+	job.Stdout.Add(stdoutBuffer)
 	// Read warnings from stderr
 	job.Stderr.Add(warnings)
 	if err := job.Run(); err != nil {
@@ -624,7 +624,7 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	for scanner.Scan() {
 		outWarnings = append(outWarnings, scanner.Text())
 	}
-	out.Set("Id", outId)
+	out.Set("Id", engine.Tail(stdoutBuffer, 1))
 	out.SetList("Warnings", outWarnings)
 	return writeJSON(w, http.StatusCreated, out)
 }
@@ -720,20 +720,16 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 		return fmt.Errorf("Missing parameter")
 	}
 	var (
-		env    engine.Env
-		status string
-		job    = eng.Job("wait", vars["name"])
+		env          engine.Env
+		stdoutBuffer = bytes.NewBuffer(nil)
+		job          = eng.Job("wait", vars["name"])
 	)
-	job.Stdout.AddString(&status)
+	job.Stdout.Add(stdoutBuffer)
 	if err := job.Run(); err != nil {
 		return err
 	}
-	// Parse a 16-bit encoded integer to map typical unix exit status.
-	_, err := strconv.ParseInt(status, 10, 16)
-	if err != nil {
-		return err
-	}
-	env.Set("StatusCode", status)
+
+	env.Set("StatusCode", engine.Tail(stdoutBuffer, 1))
 	return writeJSON(w, http.StatusOK, env)
 }
 
@@ -759,7 +755,7 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	}
 
 	var (
-		job    = eng.Job("inspect", vars["name"], "container")
+		job    = eng.Job("container_inspect", vars["name"])
 		c, err = job.Stdout.AddEnv()
 	)
 	if err != nil {
@@ -823,7 +819,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if err := eng.Job("inspect", vars["name"], "container").Run(); err != nil {
+	if err := eng.Job("container_inspect", vars["name"]).Run(); err != nil {
 		return err
 	}
 
@@ -851,9 +847,8 @@ func getContainersByName(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("inspect", vars["name"], "container")
+	var job = eng.Job("container_inspect", vars["name"])
 	streamJSON(job, w, false)
-	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
 
@@ -861,9 +856,8 @@ func getImagesByName(eng *engine.Engine, version version.Version, w http.Respons
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("inspect", vars["name"], "image")
+	var job = eng.Job("image_inspect", vars["name"])
 	streamJSON(job, w, false)
-	job.SetenvBool("conflict", true) //conflict=true to detect conflict between containers and images in the job
 	return job.Run()
 }
 
@@ -872,6 +866,8 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
 	}
 	var (
+		authEncoded       = r.Header.Get("X-Registry-Auth")
+		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
 		job               = eng.Job("build")
@@ -881,18 +877,12 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	// Both headers will be parsed and sent along to the daemon, but if a non-empty
 	// ConfigFile is present, any value provided as an AuthConfig directly will
 	// be overridden. See BuildFile::CmdFrom for details.
-	var (
-		authEncoded = r.Header.Get("X-Registry-Auth")
-		authConfig  = &registry.AuthConfig{}
-	)
 	if version.LessThan("1.9") && authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
 			authConfig = &registry.AuthConfig{}
-		} else {
-			configFile.Configs[authConfig.ServerAddress] = *authConfig
 		}
 	}
 
@@ -911,13 +901,22 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
+
+	if r.FormValue("forcerm") == "1" && version.GreaterThanOrEqualTo("1.12") {
+		job.Setenv("rm", "1")
+	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
+		job.Setenv("rm", "1")
+	} else {
+		job.Setenv("rm", r.FormValue("rm"))
+	}
 	job.Stdin.Add(r.Body)
 	job.Setenv("remote", r.FormValue("remote"))
 	job.Setenv("t", r.FormValue("t"))
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
-	job.Setenv("rm", r.FormValue("rm"))
-	job.SetenvJson("auth", configFile)
+	job.Setenv("forcerm", r.FormValue("forcerm"))
+	job.SetenvJson("authConfig", authConfig)
+	job.SetenvJson("configFile", configFile)
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
@@ -1196,6 +1195,7 @@ func changeGroup(addr string, nameOrGid string) error {
 // ListenAndServe sets up the required http.Server and gets it listening for
 // each addr passed in and does protocol specific checking.
 func ListenAndServe(proto, addr string, job *engine.Job) error {
+	var l net.Listener
 	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 	if err != nil {
 		return err
@@ -1211,7 +1211,11 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 		}
 	}
 
-	l, err := listenbuffer.NewListenBuffer(proto, addr, activationLock)
+	if job.GetenvBool("BufferRequests") {
+		l, err = listenbuffer.NewListenBuffer(proto, addr, activationLock)
+	} else {
+		l, err = net.Listen(proto, addr)
+	}
 	if err != nil {
 		return err
 	}
@@ -1283,10 +1287,6 @@ func ServeApi(job *engine.Job) engine.Status {
 	)
 	activationLock = make(chan struct{})
 
-	if err := job.Eng.Register("acceptconnections", AcceptConnections); err != nil {
-		return job.Error(err)
-	}
-
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
@@ -1313,7 +1313,9 @@ func AcceptConnections(job *engine.Job) engine.Status {
 	go systemd.SdNotify("READY=1")
 
 	// close the lock so the listeners start accepting connections
-	close(activationLock)
+	if activationLock != nil {
+		close(activationLock)
+	}
 
 	return engine.StatusOK
 }

@@ -164,7 +164,7 @@ and foreground Docker containers.
 Docker container. This is because by default a container is not allowed to
 access any devices. A “privileged” container is given access to all devices.
 
-When the operator executes **docker run -privileged**, Docker will enable access
+When the operator executes **docker run --privileged**, Docker will enable access
 to all devices on the host as well as set some configuration in AppArmor to
 allow the container nearly all the same access to the host as processes running
 outside of a container on the host.
@@ -190,18 +190,28 @@ interactive shell. The default is value is false.
    Set a username or UID for the container.
 
 
-**-v**, **-volume**=*volume*
-   Bind mount a volume to the container. The **-v** option can be used one or
+**-v**, **-volume**=*volume*[:ro|:rw]
+   Bind mount a volume to the container. 
+
+The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
-used in other containers using the **--volumes-from** option. See examples.
+used in other containers using the **--volumes-from** option. 
 
+The volume may be optionally suffixed with :ro or :rw to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+read-write. See examples.
 
-**--volumes-from**=*container-id*
+**--volumes-from**=*container-id*[:ro|:rw]
    Will mount volumes from the specified container identified by container-id.
 Once a volume is mounted in a one container it can be shared with other
 containers using the **--volumes-from** option when running those other
 containers. The volumes can be shared even if the original container with the
-mount is not running.
+mount is not running. 
+
+The container ID may be optionally suffixed with :ro or 
+:rw to mount the volumes in read-only or read-write mode, respectively. By 
+default, the volumes are mounted in the same mode (read write or read only) as 
+the reference container.
 
 
 **-w**, **-workdir**=*directory*
@@ -307,7 +317,7 @@ fedora-data image:
     # docker run --name=data -v /var/volume1 -v /tmp/volume2 -i -t fedora-data true
     # docker run --volumes-from=data --name=fedora-container1 -i -t fedora bash
 
-Multiple -volumes-from parameters will bring together multiple data volumes from
+Multiple --volumes-from parameters will bring together multiple data volumes from
 multiple containers. And it's possible to mount the volumes that came from the
 DATA container in yet another container via the fedora-container1 intermidiery
 container, allowing to abstract the actual data source from users of that data:

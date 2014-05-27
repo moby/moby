@@ -41,9 +41,9 @@ and install VirtualBox.
 > Do not simply copy the package without running the
 > installer.
 
-## Installing boot2docker
+## Installing boot2docker manually
 
-### Installing manually
+### Downloading the boot2docker script
 
 [boot2docker](https://github.com/boot2docker/boot2docker) provides a
 handy script to manage the VM running the Docker daemon. It also takes
@@ -153,7 +153,7 @@ option, ports 49000-49900, and run the following command.
 
 If you feel the need to connect to the VM, you can simply run:
 
-    $ ./boot2docker ssh
+    $ boot2docker ssh
 
     # User: docker
     # Pwd:  tcuser

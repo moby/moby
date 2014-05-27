@@ -9,6 +9,15 @@ import (
 	"strings"
 )
 
+const (
+	minId = 0
+	maxId = 1<<31 - 1 //for 32-bit systems compatibility
+)
+
+var (
+	ErrRange = fmt.Errorf("Uids and gids must be in range %d-%d", minId, maxId)
+)
+
 type User struct {
 	Name  string
 	Pass  string
@@ -194,6 +203,9 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 			// not numeric - we have to bail
 			return 0, 0, nil, fmt.Errorf("Unable to find user %v", userArg)
 		}
+		if uid < minId || uid > maxId {
+			return 0, 0, nil, ErrRange
+		}
 
 		// if userArg couldn't be found in /etc/passwd but is numeric, just roll with it - this is legit
 	}
@@ -225,6 +237,9 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 				if err != nil {
 					// not numeric - we have to bail
 					return 0, 0, nil, fmt.Errorf("Unable to find group %v", groupArg)
+				}
+				if gid < minId || gid > maxId {
+					return 0, 0, nil, ErrRange
 				}
 
 				// if groupArg couldn't be found in /etc/group but is numeric, just roll with it - this is legit

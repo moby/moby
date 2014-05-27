@@ -131,6 +131,16 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+The cache for `RUN` instructions isn't invalidated automatically during the
+next build. The cache for an instruction like `RUN apt-get dist-upgrade -y`
+will be reused during the next build.
+The cache for `RUN` instructions can be invalidated by using the `--no-cache`
+flag, for example `docker build --no-cache`.
+
+The first encountered `ADD` instruction will invalidate the cache for all
+following instructions from the 'Dockerfile' if the contents of the context
+have changed. This will also invalidate the cache for `RUN` instructions.
+
 ### Known Issues (RUN)
 
 - [Issue 783](https://github.com/dotcloud/docker/issues/783) is about file
@@ -225,7 +235,9 @@ being built (also called the *context* of the build) or a remote file URL.
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
-All new files and directories are created with mode 0755, uid and gid 0.
+All new files and directories are created with a uid and gid of 0.
+
+In the case where `<src>` is a remote file URL, the destination will have permissions 600.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
@@ -325,15 +337,17 @@ optional but default, you could use a CMD:
 
 The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
-containers. For more information/examples and mounting instructions via docker
-client, refer to [*Share Directories via Volumes*](
+containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
+string, `VOLUME /var/log`. For more information/examples and mounting
+instructions via the Docker client, refer to [*Share Directories via Volumes*](
 /use/working_with_volumes/#volume-def) documentation.
 
 ## USER
 
     USER daemon
 
-The `USER` instruction sets the username or UID to use when running the image.
+The `USER` instruction sets the username or UID to use when running the image
+and for any following `RUN` directives.
 
 ## WORKDIR
 

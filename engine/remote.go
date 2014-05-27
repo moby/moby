@@ -25,7 +25,9 @@ func (s *Sender) Install(eng *Engine) error {
 }
 
 func (s *Sender) Handle(job *Job) Status {
-	msg := data.Empty().Set("cmd", append([]string{job.Name}, job.Args...)...)
+	cmd := append([]string{job.Name}, job.Args...)
+	env := data.Encode(job.Env().MultiMap())
+	msg := data.Empty().Set("cmd", cmd...).Set("env", env)
 	peer, err := beam.SendConn(s, msg.Bytes())
 	if err != nil {
 		return job.Errorf("beamsend: %v", err)
@@ -36,20 +38,27 @@ func (s *Sender) Handle(job *Job) Status {
 	r := beam.NewRouter(nil)
 	r.NewRoute().KeyStartsWith("cmd", "log", "stdout").HasAttachment().Handler(func(p []byte, stdout *os.File) error {
 		tasks.Add(1)
-		io.Copy(job.Stdout, stdout)
-		tasks.Done()
+		go func() {
+			io.Copy(job.Stdout, stdout)
+			stdout.Close()
+			tasks.Done()
+		}()
 		return nil
 	})
 	r.NewRoute().KeyStartsWith("cmd", "log", "stderr").HasAttachment().Handler(func(p []byte, stderr *os.File) error {
 		tasks.Add(1)
-		io.Copy(job.Stderr, stderr)
-		tasks.Done()
+		go func() {
+			io.Copy(job.Stderr, stderr)
+			stderr.Close()
+			tasks.Done()
+		}()
 		return nil
 	})
 	r.NewRoute().KeyStartsWith("cmd", "log", "stdin").HasAttachment().Handler(func(p []byte, stdin *os.File) error {
-		tasks.Add(1)
-		io.Copy(stdin, job.Stdin)
-		tasks.Done()
+		go func() {
+			io.Copy(stdin, job.Stdin)
+			stdin.Close()
+		}()
 		return nil
 	})
 	var status int
@@ -90,19 +99,28 @@ func (rcv *Receiver) Run() error {
 			f.Close()
 			return err
 		}
-		cmd := data.Message(p).Get("cmd")
+		f.Close()
+		defer peer.Close()
+		msg := data.Message(p)
+		cmd := msg.Get("cmd")
 		job := rcv.Engine.Job(cmd[0], cmd[1:]...)
-		stdout, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stdout").Bytes())
+		// Decode env
+		env, err := data.Decode(msg.GetOne("env"))
+		if err != nil {
+			return fmt.Errorf("error decoding 'env': %v", err)
+		}
+		job.Env().InitMultiMap(env)
+		stdout, err := beam.SendRPipe(peer, data.Empty().Set("cmd", "log", "stdout").Bytes())
 		if err != nil {
 			return err
 		}
 		job.Stdout.Add(stdout)
-		stderr, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stderr").Bytes())
+		stderr, err := beam.SendRPipe(peer, data.Empty().Set("cmd", "log", "stderr").Bytes())
 		if err != nil {
 			return err
 		}
 		job.Stderr.Add(stderr)
-		stdin, err := beam.SendPipe(peer, data.Empty().Set("cmd", "log", "stdin").Bytes())
+		stdin, err := beam.SendWPipe(peer, data.Empty().Set("cmd", "log", "stdin").Bytes())
 		if err != nil {
 			return err
 		}

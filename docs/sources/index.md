@@ -1,82 +1,99 @@
 page_title: About Docker
-page_description: Docker introduction home page
+page_description: Introduction to Docker.
 page_keywords: docker, introduction, documentation, about, technology, understanding, Dockerfile
 
 # About Docker
 
-*Secure And Portable Containers Made Easy*
+**Develop, Ship and Run Any Application, Anywhere**
 
 ## Introduction
 
-[**Docker**](https://www.docker.io) is a container based virtualization
-framework. Unlike traditional virtualization Docker is fast, lightweight
-and easy to use. Docker allows you to create containers holding
-all the dependencies for an application. Each container is kept isolated
-from any other, and nothing gets shared.
+[**Docker**](https://www.docker.io) is a platform for developers and
+sysadmins to develop, ship, and run applications.  Docker consists of:
 
-## Docker highlights
+* The Docker Engine - our lightweight and powerful open source container
+  virtualization technology combined with a work flow to help you build
+  and containerize your applications.
+* [Docker.io](https://index.docker.io) - our SAAS service that helps you
+  share and manage your applications stacks.
 
- - **Containers provide sand-boxing:**  
-   Applications run securely without outside access.
- - **Docker allows simple portability:**  
-   Containers are directories, they can be zipped and transported.
- - **It all works fast:**  
-   Starting a container is a very fast single process.
- - **Docker is easy on the system resources (unlike VMs):**  
-   No more than what each application needs.
- - **Agnostic in its _essence_:**  
-   Free of framework, language or platform dependencies.
+Docker enables applications to be quickly assembled from components and
+eliminates the friction when shipping code. We want to help you get code
+from your desktop, tested and deployed into production as fast as
+possible.
 
-And most importantly:
+## Why Docker?
 
- - **Docker reduces complexity:**  
-   Docker accepts commands *in plain English*, e.g. `docker run [..]`.
+- **Faster delivery of your applications**  
+    * We want to help your environment work better. Docker containers,
+      and the work flow that comes with them, helps your developers,
+      sysadmins, QA folks, and release engineers work together to get code
+      into production and doing something useful. We've created a standard
+      container format that allows developers to care about their applications
+      inside containers and sysadmins and operators to care about running the
+      container. This creates a separation of duties that makes managing and
+      deploying code much easier and much more streamlined.
+    * We make it easy to build new containers, enable rapid iteration of
+      your applications and increase the visibility of changes. This
+      helps everyone in your organization understand how an application works
+      and how it is built.
+    * Docker containers are lightweight and fast! Containers have
+      sub-second launch times! With containers you can reduce the cycle
+      time in development, testing and deployment.
+
+- **Deploy and scale more easily**  
+    * Docker containers run (almost!) everywhere. You can deploy your
+      containers on desktops, physical servers, virtual machines, into
+      data centers and to public and private clouds.
+    * As Docker runs on so many platforms it makes it easy to move your
+      appications around. You can easily move an application from a
+      testing environment into the cloud and back whenever you need.
+    * The lightweight containers Docker creates also making scaling and
+      down really fast and easy. If you need more containers you can
+      quickly launch them and then shut them down when you don't need them
+      anymore.
+
+- **Get higher density and run more workloads**  
+    * Docker containers don't need a hypervisor so you can pack more of
+      them onto your hosts. This means you get more value out of every
+      server and can potentially reduce the money you spend on equipment and
+      licenses!
+
+- **Faster deployment makes for easier management**  
+    * As Docker speeds up your work flow it makes it easier to make lots
+      of little changes instead of huge, big bang updates. Smaller
+      changes mean smaller risks and mean more uptime!
 
 ## About this guide
 
-In this introduction we will take you on a tour and show you what
-makes Docker tick.
+First we'll show you [what makes Docker tick in our Understanding Docker
+section](introduction/understanding-docker.md):
 
-On the [**first page**](introduction/understanding-docker.md), which is
-**_informative_**:
-
- - You will find information on Docker;
- - And discover Docker's features.
- - We will also compare Docker to virtual machines;
+ - You will find see how Docker works at a high level;
+ - The architecture of Docker;
+ - Discover Docker's features;
+ - See how Docker compares to virtual machines;
  - And see some common use cases.
 
-> [Click here to go to Understanding Docker](introduction/understanding-docker.md).
+> [Click here to go to the Understanding
+> Docker section](introduction/understanding-docker.md).
 
-The [**second page**](introduction/technology.md) has **_technical_** information on:
+Next we get [**practical** with the Working with Docker
+section](introduction/working-with-docker.md) and you can learn about:
 
- - The architecture of Docker;
- - The underlying technology, and;
- - *How* Docker works.
+ - Docker on the command line;
+ - Get introduced to your first Docker commands;
+ - Get to know your way around the basics of Docker operation.
 
-> [Click here to go to Understanding the Technology](introduction/technology.md).
+> [Click here to go to the Working with
+> Docker section](introduction/working-with-docker.md).
 
-On the [**third page**](introduction/working-with-docker.md) we get **_practical_**.
-There you can:
-
- - Learn about Docker's components (i.e. Containers, Images and the
-   Dockerfile);
- - And get started working with them straight away.
-
-> [Click here to go to Working with Docker](introduction/working-with-docker.md).
-
-Finally, on the [**fourth**](introduction/get-docker.md) page, we go **_hands on_**
-and see:
-
- - The installation instructions, and;
- - How Docker makes some hard problems much, much easier.
-
-> [Click here to go to Get Docker](introduction/get-docker.md).
+If you want to see how to install Docker you can jump to the
+[installation](/installation/#installation) section.
 
 > **Note**:
-> We know how valuable your time is. Therefore, the documentation is prepared
-> in a way to allow anyone to start from any section need. Although we strongly
-> recommend that you visit [Understanding Docker](
-> introduction/understanding-docker.md) to see how Docker is different, if you
-> already have some knowledge and want to quickly get started with Docker,
-> don't hesitate to jump to [Working with Docker](
-> introduction/working-with-docker.md).
+> We know how valuable your time is so you if you want to get started
+> with Docker straight away don't hesitate to jump to [Working with
+> Docker](introduction/working-with-docker.md). For a fuller
+> understanding of Docker though we do recommend you read [Understanding
+> Docker]( introduction/understanding-docker.md).

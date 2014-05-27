@@ -3,7 +3,6 @@ package archive
 import (
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"path"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestCmdStreamLargeStderr(t *testing.T) {
@@ -132,8 +133,37 @@ func TestTarUntar(t *testing.T) {
 // Failing prevents the archives from being uncompressed during ADD
 func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
 	hdr := tar.Header{Typeflag: tar.TypeXGlobalHeader}
-	err := createTarFile("pax_global_header", "some_dir", &hdr, nil)
+	err := createTarFile("pax_global_header", "some_dir", &hdr, nil, true)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Some tar have both GNU specific (huge uid) and Ustar specific (long name) things.
+// Not supposed to happen (should use PAX instead of Ustar for long name) but it does and it should still work.
+func TestUntarUstarGnuConflict(t *testing.T) {
+	f, err := os.Open("testdata/broken.tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	tr := tar.NewReader(f)
+	// Iterate through the files in the archive.
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			// end of tar archive
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hdr.Name == "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("%s not found in the archive", "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm")
 	}
 }

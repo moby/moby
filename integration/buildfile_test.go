@@ -1,19 +1,22 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/server"
+	"github.com/dotcloud/docker/utils"
 )
 
 // A testContextTemplate describes a build context and how to test it
@@ -394,13 +397,21 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	id, err := buildfile.Build(context.Archive(dockerfile, t))
 	if err != nil {
 		return nil, err
 	}
 
-	return srv.ImageInspect(id)
+	job := eng.Job("image_inspect", id)
+	buffer := bytes.NewBuffer(nil)
+	image := &image.Image{}
+	job.Stdout.Add(buffer)
+	if err := job.Run(); err != nil {
+		return nil, err
+	}
+	err = json.NewDecoder(buffer).Decode(image)
+	return image, err
 }
 
 func TestVolume(t *testing.T) {
@@ -828,7 +839,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
@@ -874,7 +885,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := server.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil)
+	buildfile := server.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {

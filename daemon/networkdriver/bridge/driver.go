@@ -380,7 +380,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 		ip            = defaultBindingIP
 		id            = job.Args[0]
 		hostIP        = job.Getenv("HostIP")
-		hostPort      = job.GetenvInt("HostPort")
+		origHostPort  = job.GetenvInt("HostPort")
 		containerPort = job.GetenvInt("ContainerPort")
 		proto         = job.Getenv("Proto")
 		network       = currentInterfaces[id]
@@ -390,29 +390,45 @@ func AllocatePort(job *engine.Job) engine.Status {
 		ip = net.ParseIP(hostIP)
 	}
 
-	// host ip, proto, and host port
-	hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
-	if err != nil {
-		return job.Error(err)
-	}
-
 	var (
+		hostPort  int
 		container net.Addr
 		host      net.Addr
 	)
 
-	if proto == "tcp" {
-		host = &net.TCPAddr{IP: ip, Port: hostPort}
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
-	} else {
-		host = &net.UDPAddr{IP: ip, Port: hostPort}
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+	/*
+	 Try up to 10 times to get a port that's not already allocated.
+
+	 In the event of failure to bind, return the error that portmapper.Map
+	 yields.
+	*/
+	for i := 0; i < 10; i++ {
+		// host ip, proto, and host port
+		hostPort, err = portallocator.RequestPort(ip, proto, origHostPort)
+
+		if err != nil {
+			return job.Error(err)
+		}
+
+		if proto == "tcp" {
+			host = &net.TCPAddr{IP: ip, Port: hostPort}
+			container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			host = &net.UDPAddr{IP: ip, Port: hostPort}
+			container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		}
+
+		if err = portmapper.Map(container, ip, hostPort); err == nil {
+			break
+		}
+
+		job.Logf("Failed to bind %s:%d for container address %s:%d. Trying another port.", ip.String(), hostPort, network.IP.String(), containerPort)
 	}
 
-	if err := portmapper.Map(container, ip, hostPort); err != nil {
-		portallocator.ReleasePort(ip, proto, hostPort)
+	if err != nil {
 		return job.Error(err)
 	}
+
 	network.PortMappings = append(network.PortMappings, host)
 
 	out := engine.Env{}

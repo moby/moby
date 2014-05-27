@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.1 (2014-05-07)
+
+#### Registry
+- Fix push and pull to private registry
+
 ## 0.11.0 (2014-05-07)
 
 #### Notable features since 0.10.0

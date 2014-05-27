@@ -7,14 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/apparmor"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/systemd"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 	"github.com/dotcloud/docker/pkg/system"
 )
@@ -53,24 +53,31 @@ func init() {
 	})
 }
 
+type activeContainer struct {
+	container *libcontainer.Container
+	cmd       *exec.Cmd
+}
+
 type driver struct {
 	root             string
 	initPath         string
-	activeContainers map[string]*exec.Cmd
+	activeContainers map[string]*activeContainer
 }
 
 func NewDriver(root, initPath string) (*driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
+
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
 	if err := apparmor.InstallDefaultProfile(filepath.Join(root, "../..", BackupApparmorProfilePath)); err != nil {
 		return nil, err
 	}
+
 	return &driver{
 		root:             root,
 		initPath:         initPath,
-		activeContainers: make(map[string]*exec.Cmd),
+		activeContainers: make(map[string]*activeContainer),
 	}, nil
 }
 
@@ -80,7 +87,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		return -1, err
 	}
-	d.activeContainers[c.ID] = &c.Cmd
+	d.activeContainers[c.ID] = &activeContainer{
+		container: container,
+		cmd:       &c.Cmd,
+	}
 
 	var (
 		dataPath = filepath.Join(d.root, c.ID)
@@ -175,41 +185,18 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, Version)
 }
 
-// TODO: this can be improved with our driver
-// there has to be a better way to do this
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
-	pids := []int{}
+	active := d.activeContainers[id]
 
-	subsystem := "devices"
-	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
-	if err != nil {
-		return pids, err
+	if active == nil {
+		return nil, fmt.Errorf("active container for %s does not exist", id)
 	}
-	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
-	if err != nil {
-		return pids, err
-	}
+	c := active.container.Cgroups
 
-	filename := filepath.Join(cgroupRoot, cgroupDir, id, "tasks")
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		filename = filepath.Join(cgroupRoot, cgroupDir, "docker", id, "tasks")
+	if systemd.UseSystemd() {
+		return systemd.GetPids(c)
 	}
-
-	output, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return pids, err
-	}
-	for _, p := range strings.Split(string(output), "\n") {
-		if len(p) == 0 {
-			continue
-		}
-		pid, err := strconv.Atoi(p)
-		if err != nil {
-			return pids, fmt.Errorf("Invalid pid '%s': %s", p, err)
-		}
-		pids = append(pids, pid)
-	}
-	return pids, nil
+	return fs.GetPids(c)
 }
 
 func (d *driver) writeContainerFile(container *libcontainer.Container, id string) error {
@@ -225,6 +212,8 @@ func (d *driver) createContainerRoot(id string) error {
 }
 
 func (d *driver) removeContainerRoot(id string) error {
+	delete(d.activeContainers, id)
+
 	return os.RemoveAll(filepath.Join(d.root, id))
 }
 

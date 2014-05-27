@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -89,7 +90,7 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	defer container.Unmount()
 
 	// Return error if path exists
-	destPath := path.Join(container.basefs, pth)
+	destPath := container.getResourcePath(pth)
 	if _, err := os.Stat(destPath); err == nil {
 		// Since err is nil, the path could be stat'd and it exists
 		return fmt.Errorf("%s exists", pth)
@@ -101,7 +102,7 @@ func (container *Container) Inject(file io.Reader, pth string) error {
 	}
 
 	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.basefs, path.Dir(pth)), 0755); err != nil {
+	if err := os.MkdirAll(container.getResourcePath(path.Dir(pth)), 0755); err != nil {
 		return err
 	}
 
@@ -170,6 +171,16 @@ func (container *Container) WriteHostConfig() (err error) {
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
+func (container *Container) getResourcePath(path string) string {
+	cleanPath := filepath.Join("/", path)
+	return filepath.Join(container.basefs, cleanPath)
+}
+
+func (container *Container) getRootResourcePath(path string) string {
+	cleanPath := filepath.Join("/", path)
+	return filepath.Join(container.root, cleanPath)
+}
+
 func populateCommand(c *Container, env []string) error {
 	var (
 		en      *execdriver.Network
@@ -215,6 +226,7 @@ func populateCommand(c *Container, env []string) error {
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
 		CpuShares:  c.Config.CpuShares,
+		Cpuset:     c.Config.Cpuset,
 	}
 	c.command = &execdriver.Command{
 		ID:         c.ID,
@@ -344,7 +356,7 @@ func (container *Container) StderrLogPipe() io.ReadCloser {
 }
 
 func (container *Container) buildHostnameFile() error {
-	container.HostnamePath = path.Join(container.root, "hostname")
+	container.HostnamePath = container.getRootResourcePath("hostname")
 	if container.Config.Domainname != "" {
 		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
 	}
@@ -356,7 +368,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 		return err
 	}
 
-	container.HostsPath = path.Join(container.root, "hosts")
+	container.HostsPath = container.getRootResourcePath("hosts")
 
 	extraContent := make(map[string]string)
 
@@ -640,7 +652,7 @@ func (container *Container) Export() (archive.Archive, error) {
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		container.Wait()
 		done <- true
@@ -674,7 +686,7 @@ func (container *Container) Unmount() error {
 }
 
 func (container *Container) logPath(name string) string {
-	return path.Join(container.root, fmt.Sprintf("%s-%s.log", container.ID, name))
+	return container.getRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
 }
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
@@ -682,11 +694,11 @@ func (container *Container) ReadLog(name string) (io.Reader, error) {
 }
 
 func (container *Container) hostConfigPath() string {
-	return path.Join(container.root, "hostconfig.json")
+	return container.getRootResourcePath("hostconfig.json")
 }
 
 func (container *Container) jsonPath() string {
-	return path.Join(container.root, "config.json")
+	return container.getRootResourcePath("config.json")
 }
 
 // This method must be exported to be used from the lxc template
@@ -745,8 +757,10 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+
 	var filter []string
-	basePath := path.Join(container.basefs, resource)
+
+	basePath := container.getResourcePath(resource)
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		container.Unmount()
@@ -844,7 +858,7 @@ func (container *Container) setupContainerDns() error {
 		} else if len(daemon.config.DnsSearch) > 0 {
 			dnsSearch = daemon.config.DnsSearch
 		}
-		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
+		container.ResolvConfPath = container.getRootResourcePath("resolv.conf")
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
@@ -865,9 +879,17 @@ func (container *Container) initializeNetworking() error {
 			container.Config.Hostname = parts[0]
 			container.Config.Domainname = parts[1]
 		}
-		container.HostsPath = "/etc/hosts"
 
-		return container.buildHostnameFile()
+		content, err := ioutil.ReadFile("/etc/hosts")
+		if os.IsNotExist(err) {
+			return container.buildHostnameAndHostsFiles("")
+		}
+		if err != nil {
+			return err
+		}
+
+		container.HostsPath = container.getRootResourcePath("hosts")
+		return ioutil.WriteFile(container.HostsPath, content, 0644)
 	} else if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()
@@ -982,12 +1004,12 @@ func (container *Container) setupWorkingDirectory() error {
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
 
-		pthInfo, err := os.Stat(path.Join(container.basefs, container.Config.WorkingDir))
+		pthInfo, err := os.Stat(container.getResourcePath(container.Config.WorkingDir))
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-			if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
+			if err := os.MkdirAll(container.getResourcePath(container.Config.WorkingDir), 0755); err != nil {
 				return err
 			}
 		}

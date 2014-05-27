@@ -10,16 +10,15 @@ You can use your Docker containers with process managers like
 ## Introduction
 
 If you want a process manager to manage your containers you will need to
-run the docker daemon with the `-r=false` so that
-docker will not automatically restart your containers when the host is
-restarted.
+run the docker daemon with the `-r=false` so that docker will not
+automatically restart your containers when the host is restarted.
 
 When you have finished setting up your image and are happy with your
 running container, you can then attach a process manager to manage it.
-When your run `docker start -a` docker will
-automatically attach to the running container, or start it if needed and
-forward all signals so that the process manager can detect when a
-container stops and correctly restart it.
+When your run `docker start -a` docker will automatically attach to the
+running container, or start it if needed and forward all signals so that
+the process manager can detect when a container stops and correctly
+restart it.
 
 Here are a few sample scripts for systemd and upstart to integrate with
 docker.
@@ -27,9 +26,8 @@ docker.
 ## Sample Upstart Script
 
 In this example We've already created a container to run Redis with
-`--name redis_server`. To create an upstart script
-for our container, we create a file named
-`/etc/init/redis.conf` and place the following into
+`--name redis_server`. To create an upstart script for our container, we
+create a file named `/etc/init/redis.conf` and place the following into
 it:
 
     description "Redis container"

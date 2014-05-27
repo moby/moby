@@ -1,9 +1,9 @@
 package graphdriver
 
 import (
+	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"path"
 )
@@ -43,6 +43,8 @@ var (
 		"devicemapper",
 		"vfs",
 	}
+
+	ErrNotSupported = errors.New("driver not supported")
 )
 
 func init() {
@@ -62,7 +64,7 @@ func GetDriver(name, home string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(path.Join(home, name))
 	}
-	return nil, fmt.Errorf("No such driver: %s", name)
+	return nil, ErrNotSupported
 }
 
 func New(root string) (driver Driver, err error) {
@@ -74,9 +76,12 @@ func New(root string) (driver Driver, err error) {
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		if driver, err = GetDriver(name, root); err != nil {
-			utils.Debugf("Error loading driver %s: %s", name, err)
-			continue
+		driver, err = GetDriver(name, root)
+		if err != nil {
+			if err == ErrNotSupported {
+				continue
+			}
+			return nil, err
 		}
 		return driver, nil
 	}
@@ -84,9 +89,12 @@ func New(root string) (driver Driver, err error) {
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
 		if driver, err = initFunc(root); err != nil {
-			continue
+			if err == ErrNotSupported {
+				continue
+			}
+			return nil, err
 		}
 		return driver, nil
 	}
-	return nil, err
+	return nil, fmt.Errorf("No supported storage backend found")
 }

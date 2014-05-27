@@ -81,14 +81,55 @@ func Init(container *libcontainer.Container, uncleanRootfs, consolePath string, 
 		return fmt.Errorf("set process label %s", err)
 	}
 	if container.Context["restrictions"] != "" {
-		if err := restrict.Restrict("proc", "sys"); err != nil {
+		if err := restrict.Restrict("proc/sys", "proc/sysrq-trigger", "proc/irq", "proc/bus", "sys"); err != nil {
 			return err
 		}
 	}
+
+	pdeathSignal, err := system.GetParentDeathSignal()
+	if err != nil {
+		return fmt.Errorf("get parent death signal %s", err)
+	}
+
 	if err := FinalizeNamespace(container); err != nil {
 		return fmt.Errorf("finalize namespace %s", err)
 	}
+
+	// FinalizeNamespace can change user/group which clears the parent death
+	// signal, so we restore it here.
+	if err := RestoreParentDeathSignal(pdeathSignal); err != nil {
+		return fmt.Errorf("restore parent death signal %s", err)
+	}
+
 	return system.Execv(args[0], args[0:], container.Env)
+}
+
+// RestoreParentDeathSignal sets the parent death signal to old.
+func RestoreParentDeathSignal(old int) error {
+	if old == 0 {
+		return nil
+	}
+
+	current, err := system.GetParentDeathSignal()
+	if err != nil {
+		return fmt.Errorf("get parent death signal %s", err)
+	}
+
+	if old == current {
+		return nil
+	}
+
+	if err := system.ParentDeathSignal(uintptr(old)); err != nil {
+		return fmt.Errorf("set parent death signal %s", err)
+	}
+
+	// Signal self if parent is already dead. Does nothing if running in a new
+	// PID namespace, as Getppid will always return 0.
+	if syscall.Getppid() == 1 {
+		return syscall.Kill(syscall.Getpid(), syscall.Signal(old))
+	}
+
+	return nil
 }
 
 // SetupUser changes the groups, gid, and uid for the user inside the container
@@ -152,6 +193,9 @@ func LoadContainerEnvironment(container *libcontainer.Container) error {
 	os.Clearenv()
 	for _, pair := range container.Env {
 		p := strings.SplitN(pair, "=", 2)
+		if len(p) < 2 {
+			return fmt.Errorf("invalid environment '%v'", pair)
+		}
 		if err := os.Setenv(p[0], p[1]); err != nil {
 			return err
 		}

@@ -12,7 +12,7 @@ page_keywords: puppet, installation, usage, docker, documentation
 ## Requirements
 
 To use this guide you'll need a working installation of Puppet from
-[Puppetlabs](https://puppetlabs.com) .
+[Puppet Labs](https://puppetlabs.com) .
 
 The module also currently uses the official PPA so only works with
 Ubuntu.
@@ -26,8 +26,8 @@ installed using the built-in module tool.
     $ puppet module install garethr/docker
 
 It can also be found on
-[GitHub](https://github.com/garethr/garethr-docker) if you would
-rather download the source.
+[GitHub](https://github.com/garethr/garethr-docker) if you would rather
+download the source.
 
 ## Usage
 
@@ -88,5 +88,6 @@ Run also contains a number of optional parameters:
       dns          => ['8.8.8.8', '8.8.4.4'],
     }
 
-Note that ports, env, dns and volumes can be set with either a single
-string or as above with an array of values.
+> *Note:*
+> The `ports`, `env`, `dns` and `volumes` attributes can be set with either a single
+> string or as above with an array of values.

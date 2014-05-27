@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/units"
 )
 
 type Action func(*libcontainer.Container, interface{}, string) error
@@ -75,7 +75,7 @@ func memory(container *libcontainer.Container, context interface{}, value string
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
 
-	v, err := utils.RAMInBytes(value)
+	v, err := units.RAMInBytes(value)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func memoryReservation(container *libcontainer.Container, context interface{}, v
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
 
-	v, err := utils.RAMInBytes(value)
+	v, err := units.RAMInBytes(value)
 	if err != nil {
 		return err
 	}
@@ -109,12 +109,19 @@ func memorySwap(container *libcontainer.Container, context interface{}, value st
 }
 
 func addCap(container *libcontainer.Container, context interface{}, value string) error {
-	container.CapabilitiesMask[value] = true
+	container.Capabilities = append(container.Capabilities, value)
 	return nil
 }
 
 func dropCap(container *libcontainer.Container, context interface{}, value string) error {
-	container.CapabilitiesMask[value] = false
+	// If the capability is specified multiple times, remove all instances.
+	for i, capability := range container.Capabilities {
+		if capability == value {
+			container.Capabilities = append(container.Capabilities[:i], container.Capabilities[i+1:]...)
+		}
+	}
+
+	// The capability wasn't found so we will drop it anyways.
 	return nil
 }
 

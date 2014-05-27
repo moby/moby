@@ -3,7 +3,6 @@ package docker
 import (
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/daemon"
@@ -42,11 +43,12 @@ func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f ut
 	if err := job.ImportEnv(config); err != nil {
 		f.Fatal(err)
 	}
-	job.Stdout.AddString(&shortId)
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		f.Fatal(err)
 	}
-	return
+	return engine.Tail(outputBuffer, 1)
 }
 
 func createTestContainer(eng *engine.Engine, config *runconfig.Config, f utils.Fataler) (shortId string) {

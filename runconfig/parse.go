@@ -10,13 +10,15 @@ import (
 	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/pkg/units"
 	"github.com/dotcloud/docker/utils"
 )
 
 var (
-	ErrInvalidWorikingDirectory = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrInvalidWorkingDirectory  = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
+	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and --net")
 )
 
 //FIXME Only used in tests
@@ -62,6 +64,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the contaner")
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
@@ -95,10 +98,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, ErrConflictAttachDetach
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvalidWorikingDirectory
+		return nil, nil, cmd, ErrInvalidWorkingDirectory
 	}
 	if *flDetach && *flAutoRemove {
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
+	}
+
+	if *flNetMode != "bridge" && *flHostname != "" {
+		return nil, nil, cmd, ErrConflictNetworkHostname
 	}
 
 	// If neither -d or -a are set, attach to everything by default
@@ -114,7 +121,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	var flMemory int64
 	if *flMemoryString != "" {
-		parsedMemory, err := utils.RAMInBytes(*flMemoryString)
+		parsedMemory, err := units.RAMInBytes(*flMemoryString)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
@@ -128,8 +135,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 			if arr[0] == "/" {
 				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
 			}
-			dstDir := arr[1]
-			flVolumes.Set(dstDir)
+			// after creating the bind mount we want to delete it from the flVolumes values because
+			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
 		} else if bind == "/" {
@@ -214,6 +221,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
+		Cpuset:          *flCpuset,
 		AttachStdin:     flAttach.Get("stdin"),
 		AttachStdout:    flAttach.Get("stdout"),
 		AttachStderr:    flAttach.Get("stderr"),

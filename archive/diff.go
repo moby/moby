@@ -2,14 +2,14 @@ package archive
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
@@ -17,15 +17,6 @@ import (
 // then the top 12 bits of the minor
 func mkdev(major int64, minor int64) uint32 {
 	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
-}
-func timeToTimespec(time time.Time) (ts syscall.Timespec) {
-	if time.IsZero() {
-		// Return UTIME_OMIT special value
-		ts.Sec = 0
-		ts.Nsec = ((1 << 30) - 2)
-		return
-	}
-	return syscall.NsecToTimespec(time.UnixNano())
 }
 
 // ApplyLayer parses a diff in the standard layer format from `layer`, and
@@ -89,7 +80,7 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 					}
 					defer os.RemoveAll(aufsTempdir)
 				}
-				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr); err != nil {
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true); err != nil {
 					return err
 				}
 			}
@@ -136,7 +127,7 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 				srcData = tmpFile
 			}
 
-			if err := createTarFile(path, dest, srcHdr, srcData); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData, true); err != nil {
 				return err
 			}
 

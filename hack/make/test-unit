@@ -49,7 +49,8 @@ bundle_test_unit() {
 			echo
 			true
 		fi
-	} 2>&1 | tee $DEST/test.log
+	}
 }
 
+exec > >(tee -a $DEST/test.log) 2>&1
 bundle_test_unit

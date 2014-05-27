@@ -17,50 +17,24 @@ page_keywords: crux linux, virtualization, Docker, documentation, installation
 > some binaries to be updated and published.
 
 Installing on CRUX Linux can be handled via the ports from [James
-Mills](http://prologic.shortcircuit.net.au/):
+Mills](http://prologic.shortcircuit.net.au/) and are included in the
+official [contrib](http://crux.nu/portdb/?a=repo&q=contrib) ports:
 
-- [docker](https://bitbucket.org/prologic/ports/src/tip/docker/)
-- [docker-bin](https://bitbucket.org/prologic/ports/src/tip/docker-bin/)
-- [docker-git](https://bitbucket.org/prologic/ports/src/tip/docker-git/)
+- docker
+- docker-bin
 
 The `docker` port will install the latest tagged
 version of Docker. The `docker-bin` port will
-install the latest tagged versin of Docker from upstream built binaries.
-The `docker-git` package will build from the current
-master branch.
+install the latest tagged version of Docker from upstream built binaries.
 
 ## Installation
 
-For the time being (*until the CRUX Docker port(s) get into the official
-contrib repository*) you will need to install [James
-Mills`](https://bitbucket.org/prologic/ports) ports repository. You can
-do so via:
+Assuming you have contrib enabled, update your ports tree and install docker (*as root*):
 
-Download the `httpup` file to
-`/etc/ports/`:
+    # prt-get depinst docker
 
-    $ curl -q -o - http://crux.nu/portdb/?a=getup&q=prologic > /etc/ports/prologic.httpup
+You can install `docker-bin` instead if you wish to avoid compilation time.
 
-Add `prtdir /usr/ports/prologic` to
-`/etc/prt-get.conf`:
-
-    $ vim /etc/prt-get.conf
-
-    # or:
-    $ echo "prtdir /usr/ports/prologic" >> /etc/prt-get.conf
-
-Update ports and prt-get cache:
-
-    $ ports -u
-    $ prt-get cache
-
-To install (*and its dependencies*):
-
-    $ prt-get depinst docker
-
-Use `docker-bin` for the upstream binary or
-`docker-git` to build and install from the master
-branch from git.
 
 ## Kernel Requirements
 
@@ -68,24 +42,34 @@ To have a working **CRUX+Docker** Host you must ensure your Kernel has
 the necessary modules enabled for LXC containers to function correctly
 and Docker Daemon to work properly.
 
-Please read the `README.rst`:
+Please read the `README`:
 
     $ prt-get readme docker
 
-There is a `test_kernel_config.sh` script in the
-above ports which you can use to test your Kernel configuration:
+The `docker` and `docker-bin` ports install the `contrib/check-config.sh`
+script provided by the Docker contributors for checking your kernel
+configuration as a suitable Docker Host.
 
-    $ cd /usr/ports/prologic/docker
-    $ ./test_kernel_config.sh /usr/src/linux/.config
+    $ /usr/share/docker/check-config.sh
 
 ## Starting Docker
 
-There is a rc script created for Docker. To start the Docker service:
+There is a rc script created for Docker. To start the Docker service (*as root*):
 
-    $ sudo su -
-    $ /etc/rc.d/docker start
+    # /etc/rc.d/docker start
 
 To start on system boot:
 
  - Edit `/etc/rc.conf`
  - Put `docker` into the `SERVICES=(...)` array after `net`.
+
+## Issues
+
+If you have any issues please file a bug with the
+[CRUX Bug Tracker](http://crux.nu/bugs/).
+
+## Support
+
+For support contact the [CRUX Mailing List](http://crux.nu/Main/MailingLists)
+or join CRUX's [IRC Channels](http://crux.nu/Main/IrcChannels). on the
+[FreeNode](http://freenode.net/) IRC Network.

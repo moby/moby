@@ -8,6 +8,10 @@
 
 set -e
 
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/rinse'
+echo >&2
+
 repo="$1"
 distro="$2"
 mirror="$3"

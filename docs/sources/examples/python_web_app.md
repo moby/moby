@@ -51,7 +51,7 @@ the `$URL` variable. The container is given a name
 While this example is simple, you could run any number of interactive
 commands, try things out, and then exit when you're done.
 
-    $ sudo docker run -i -t -name pybuilder_run shykes/pybuilder bash
+    $ sudo docker run -i -t --name pybuilder_run shykes/pybuilder bash
 
     $$ URL=http://github.com/shykes/helloflask/archive/master.tar.gz
     $$ /usr/local/bin/buildapp $URL

@@ -54,10 +54,10 @@ following options.
      - [Detached (-d)](#detached-d)
      - [Foreground](#foreground)
  - [Container Identification](#container-identification)
-     - [Name (–name)](#name-name)
+     - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
  - [Network Settings](#network-settings)
- - [Clean Up (–rm)](#clean-up-rm)
+ - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and
     Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege and LXC
@@ -136,9 +136,8 @@ PID files):
 
 ## Network Settings
 
-    --dns=[]      : Set custom dns servers for the container
-    --net="bridge": Set the Network mode for the container ('bridge': creates a new network stack for the container on the docker bridge, 'none': no networking for this container, 'container:<name|id>': reuses another container network stack), 'host': use the host network stack inside the container
-    --net="bridge"             Set the Network mode for the container
+    --dns=[]        : Set custom dns servers for the container
+    --net="bridge"  : Set the Network mode for the container
                                  'bridge': creates a new network stack for the container on the docker bridge
                                  'none': no networking for this container
                                  'container:<name|id>': reuses another container network stack
@@ -235,7 +234,7 @@ By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
 "privileged" container is given access to all devices (see [lxc-template.go](
-https://github.com/dotcloud/docker/blob/master/execdriver/lxc/lxc_template.go)
+https://github.com/dotcloud/docker/blob/master/daemon/execdriver/lxc/lxc_template.go)
 and documentation on [cgroups devices](
 https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
@@ -250,7 +249,7 @@ If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
 using one or more `--lxc-conf` parameters. These can be new parameters or
 override existing parameters from the [lxc-template.go](
-https://github.com/dotcloud/docker/blob/master/execdriver/lxc/lxc_template.go).
+https://github.com/dotcloud/docker/blob/master/daemon/execdriver/lxc/lxc_template.go).
 Note that in the future, a given host's docker daemon may not use LXC, so this
 is an implementation-specific configuration meant for operators already
 familiar with using LXC directly.
@@ -439,6 +438,8 @@ default user to run the first process with the `Dockerfile USER` command,
 but the operator can override it:
 
     -u="": Username or UID
+
+> **Note:** if you pass numeric uid, it must be in range 0-2147483647.
 
 ## WORKDIR
 

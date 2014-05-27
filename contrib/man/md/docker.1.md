@@ -73,7 +73,7 @@ port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
 
-**--selinux-enabled=*true*|*false*
+**--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false.
 
 # COMMANDS
