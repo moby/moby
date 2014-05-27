@@ -35,7 +35,7 @@ build process. The default is true.
 
 **-t**, **--tag**=*tag*
    The name to be applied to the resulting image on successful completion of
-the build. 'Tag' is this context means the entire image name including the 
+the build. `tag` in this context means the entire image name including the 
 optional TAG after the ':'.
 
 **--no-cache**=*true*|*false*
@@ -72,20 +72,20 @@ specified within the `ADD` instruction into the specified target.
 A good practice is to give a name to the image you are building. There are
 not hard rules here but it is best to give the names consideration. 
 
-The '-t'/'--tag' flag is used to rename an image. Here are some examples:
+The **-t**/**--tag** flag is used to rename an image. Here are some examples:
 
-Though not a good practice image names can be aribtrary:
+Though t is not good practice, image names can be aribtrary:
 
     docker build -t myimage .
 
-Better is provide a fully qualified and meaningful repository name, name,
-and tag (where tag in this context means the qualifier after the ':'). In
-this example we build a Jboss image for the Fedora repository and give it
-a version 1.0:
+A better approach is provide a fully qualified and meaningful repository 
+name, name, and tag (where tag in this context means the qualifier after 
+the ":"). In this example we build a Jboss image for the Fedora repository 
+and give it a version 1.0:
 
     docker build -t fedora/jboss:1.0
 
-The next example is for the 'whenry' user repository and uses Fedora and
+The next example is for the "whenry" user repository and uses Fedora and
 JBoss and gives it a version 2.1 :
 
     docker build -t whenry/fedora-jboss:V2.1
