@@ -20,6 +20,19 @@ func mustParse(t *testing.T, args string) (*Config, *HostConfig) {
 	return config, hostConfig
 }
 
+func TestParseRunIP(t *testing.T) {
+	if _, hostConfig := mustParse(t, ""); len(hostConfig.IP) > 0 {
+		t.Fatalf("Config must not contain an IP address when none is specified in the input")
+	}
+	if _, hostConfig := mustParse(t, "--ip 1.2.3"); len(hostConfig.IP) > 0 {
+		t.Fatalf("Expected failure but instead received ip: %v", hostConfig.IP)
+	}
+
+	if _, hostConfig := mustParse(t, "--ip 1.2.3.4"); len(hostConfig.IP) == 0 || hostConfig.IP != "1.2.3.4" {
+		t.Fatalf("Error parsing IP address. Expected []string{\"1.2.3.4\"}, recieved: %v", hostConfig.IP)
+	}
+}
+
 func TestParseRunLinks(t *testing.T) {
 	if _, hostConfig := mustParse(t, "--link a:b"); len(hostConfig.Links) == 0 || hostConfig.Links[0] != "a:b" {
 		t.Fatalf("Error parsing links. Expected []string{\"a:b\"}, received: %v", hostConfig.Links)

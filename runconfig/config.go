@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Hostname        string
 	Domainname      string
+	IP              string
 	User            string
 	Memory          int64  // Memory limit (in bytes)
 	MemorySwap      int64  // Total memory usage (memory + swap); set `-1' to disable swap
@@ -38,6 +39,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	config := &Config{
 		Hostname:        job.Getenv("Hostname"),
 		Domainname:      job.Getenv("Domainname"),
+		IP:              job.Getenv("IP"),
 		User:            job.Getenv("User"),
 		Memory:          job.GetenvInt64("Memory"),
 		MemorySwap:      job.GetenvInt64("MemorySwap"),
