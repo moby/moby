@@ -672,6 +672,8 @@ func (container *Container) Mount() error {
 }
 
 func (container *Container) Changes() ([]archive.Change, error) {
+	container.Lock()
+	defer container.Unlock()
 	return container.daemon.Changes(container)
 }
 
