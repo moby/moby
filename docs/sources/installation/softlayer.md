@@ -1,16 +1,8 @@
 page_title: Installation on IBM SoftLayer 
-page_description: Please note this project is currently under heavy development. It should not be used in production. 
+page_description: Installation instructions for Docker on IBM Softlayer.
 page_keywords: IBM SoftLayer, virtualization, cloud, docker, documentation, installation
 
 # IBM SoftLayer
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
-
-## IBM SoftLayer QuickStart
 
 1. Create an [IBM SoftLayer account](
    https://www.softlayer.com/cloud-servers/).

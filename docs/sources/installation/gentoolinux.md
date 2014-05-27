@@ -1,33 +1,21 @@
 page_title: Installation on Gentoo
-page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_description: Installation instructions for Docker on Gentoo.
 page_keywords: gentoo linux, virtualization, docker, documentation, installation
 
 # Gentoo
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
-
-> **Note**:
-> This is a community contributed installation path. The only `official`
-> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-> installation path. This version may be out of date because it depends on
-> some binaries to be updated and published
 
 Installing Docker on Gentoo Linux can be accomplished using one of two
 methods. The first and best way if you're looking for a stable
 experience is to use the official app-emulation/docker package directly
 in the portage tree.
 
-If you're looking for a `-bin` ebuild, a live
-ebuild, or bleeding edge ebuild changes/fixes, the second installation
-method is to use the overlay provided at
+If you're looking for a `-bin` ebuild, a live ebuild, or bleeding edge
+ebuild changes/fixes, the second installation method is to use the
+overlay provided at
 [https://github.com/tianon/docker-overlay](https://github.com/tianon/docker-overlay)
-which can be added using `app-portage/layman`. The
-most accurate and up-to-date documentation for properly installing and
-using the overlay can be found in [the overlay
+which can be added using `app-portage/layman`. The most accurate and
+up-to-date documentation for properly installing and using the overlay
+can be found in [the overlay
 README](https://github.com/tianon/docker-overlay/blob/master/README.md#using-this-overlay).
 
 Note that sometimes there is a disparity between the latest version and
