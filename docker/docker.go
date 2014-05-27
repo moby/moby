@@ -13,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/api/client"
 	"github.com/dotcloud/docker/builtins"
+	"github.com/dotcloud/docker/config"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/opts"
@@ -82,8 +83,16 @@ func main() {
 		defaultHost := os.Getenv("DOCKER_HOST")
 
 		if defaultHost == "" || *flDaemon {
-			// If we do not have a host, default to unix socket
-			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
+			if configFile, err := config.LoadConfig(os.Getenv("HOME")); err == nil {
+				if c, err := configFile.GetConfig("DOCKER_HOST"); err == nil {
+					defaultHost = c.(string)
+				}
+			}
+
+			if defaultHost == "" {
+				// If we do not have a host, default to unix socket
+				defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
+			}
 		}
 		if _, err := api.ValidateHost(defaultHost); err != nil {
 			log.Fatal(err)

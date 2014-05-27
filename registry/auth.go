@@ -224,7 +224,7 @@ func ResolveAuthConfig(config *config.ConfigFile, hostname string) AuthConfig {
 	}
 
 	normalizedHostename := convertToHostname(hostname)
-	for index, _ := range config.Configs {
+	for index := range config.Configs {
 		if registryHostname := convertToHostname(index); registryHostname == normalizedHostename {
 			if c, err := GetAuth(config, index); err == nil {
 				return *c
