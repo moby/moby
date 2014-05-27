@@ -1,5 +1,5 @@
 page_title: Installation on CentOS
-page_description: This page provides documentation for installing docker on CentOS
+page_description: Instructions for installing Docker on CentOS
 page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, docker.io, docker-io
 
 # CentOS 
@@ -14,7 +14,7 @@ page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, 
 > This is a community contributed installation path. The only `official`
 > installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
 > installation path. This version may be out of date because it depends on
-> some binaries to be updated and published
+> some binaries to be updated and published.
 
 The Docker package is available via the EPEL repository. These instructions work
 for CentOS 6 and later. They will likely work for other binary compatible EL6 
@@ -86,5 +86,4 @@ or explore and build on the images yourself.
 ## Issues?
 
 If you have any issues - please report them directly in the
-[CentOS bug tracker](
-http://bugs.centos.org).
+[CentOS bug tracker](http://bugs.centos.org).
