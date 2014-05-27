@@ -126,9 +126,7 @@ func RestoreParentDeathSignal(old int) error {
 	// Signal self if parent is already dead. Does nothing if running in a new
 	// PID namespace, as Getppid will always return 0.
 	if syscall.Getppid() == 1 {
-		err := syscall.Kill(syscall.Getpid(), syscall.Signal(old))
-		syscall.Wait4(syscall.Getpid(), nil, 0, nil)
-		return err
+		return syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
 	}
 
 	return nil

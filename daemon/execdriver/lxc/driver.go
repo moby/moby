@@ -167,6 +167,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		waitErr  error
 		waitLock = make(chan struct{})
 	)
+
 	go func() {
 		if err := c.Wait(); err != nil {
 			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
@@ -181,10 +182,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		if c.Process != nil {
 			c.Process.Kill()
-			c.Process.Wait()
+			c.Wait()
 		}
 		return -1, err
 	}
+
 	c.ContainerPid = pid
 
 	if startCallback != nil {
