@@ -4,35 +4,9 @@ import (
 	"testing"
 )
 
-type FalseChecker struct{}
-
-func (n *FalseChecker) Exists(name string) bool {
-	return false
-}
-
-type TrueChecker struct{}
-
-func (n *TrueChecker) Exists(name string) bool {
-	return true
-}
-
-func TestGenerateRandomName(t *testing.T) {
-	if _, err := GenerateRandomName(&FalseChecker{}); err != nil {
-		t.Error(err)
-	}
-
-	if _, err := GenerateRandomName(&TrueChecker{}); err == nil {
-		t.Error("An error was expected")
-	}
-
-}
-
 // Make sure the generated names are awesome
 func TestGenerateAwesomeNames(t *testing.T) {
-	name, err := GenerateRandomName(&FalseChecker{})
-	if err != nil {
-		t.Error(err)
-	}
+	name := GetRandomName(0)
 	if !isAwesome(name) {
 		t.Fatalf("Generated name '%s' is not awesome.", name)
 	}
