@@ -1,16 +1,8 @@
 page_title: Installation on Google Cloud Platform
-page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_description: Installation instructions for Docker on the Google Cloud Platform.
 page_keywords: Docker, Docker documentation, installation, google, Google Compute Engine, Google Cloud Platform
 
 # Google Cloud Platform
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
-
-## Compute Engine QuickStart for Debian
 
 1. Go to [Google Cloud Console](https://cloud.google.com/console) and
    create a new Cloud Project with [Compute Engine
