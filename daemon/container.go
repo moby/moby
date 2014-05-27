@@ -584,6 +584,7 @@ func (container *Container) Stop(seconds int) error {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
+			container.Wait()
 			return err
 		}
 	}
