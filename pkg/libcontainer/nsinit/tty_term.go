@@ -28,10 +28,11 @@ func (t *TtyTerminal) Attach(command *exec.Cmd) error {
 	go io.Copy(t.master, t.stdin)
 
 	state, err := t.setupWindow(t.master, os.Stdin)
+
 	if err != nil {
-		command.Process.Kill()
 		return err
 	}
+
 	t.state = state
 	return err
 }

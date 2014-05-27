@@ -42,7 +42,6 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
 
 	if err := term.Attach(command); err != nil {
-		command.Wait()
 		return -1, err
 	}
 	defer term.Close()
