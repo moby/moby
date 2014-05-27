@@ -10,7 +10,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 > our blog post, [Getting to Docker 1.0](
 > http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
-## Compute Engine QuickStart for debian
+## QuickStart with [Container-optimized Google Compute Engine images](https://developers.google.com/compute/docs/containers#container-optimized_google_compute_engine_images)
 
 1. Go to [Google Cloud Console](https://cloud.google.com/console) and
    create a new Cloud Project with [Compute Engine
@@ -40,6 +40,8 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 
     ```
     $ gcloud compute ssh --zone us-central1-a docker-playground
+    ```
+    ```
     docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
     docker on GCE \o/
     ```
