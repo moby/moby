@@ -324,3 +324,20 @@ func assertIPEquals(t *testing.T, ip1, ip2 *net.IP) {
 		t.Fatalf("Expected IP %s, got %s", ip1, ip2)
 	}
 }
+
+func BenchmarkRequestIP(b *testing.B) {
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 0, 1},
+		Mask: []byte{255, 255, 255, 0},
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 253; j++ {
+			_, err := RequestIP(network, nil)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		reset()
+	}
+}
