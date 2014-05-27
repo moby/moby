@@ -514,7 +514,7 @@ func GenerateRandomID() string {
 		// if we try to parse the truncated for as an int and we don't have
 		// an error then the value is all numberic and causes issues when
 		// used as a hostname. ref #3869
-		if _, err := strconv.Atoi(TruncateID(value)); err == nil {
+		if _, err := strconv.ParseInt(TruncateID(value), 10, 64); err == nil {
 			continue
 		}
 		return value
