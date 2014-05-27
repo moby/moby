@@ -414,22 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildEntrypoint(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        entrypoint ["/bin/echo"]
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.Entrypoint[0] != "/bin/echo" {
-		t.Log(img.Config.Entrypoint[0])
-		t.Fail()
-	}
-}
-
 // testing #1405 - config.Cmd does not get cleaned up if
 // utilizing cache
 func TestBuildEntrypointRunCleanup(t *testing.T) {

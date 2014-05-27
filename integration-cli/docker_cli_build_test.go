@@ -540,6 +540,20 @@ func TestBuildExpose(t *testing.T) {
 	logDone("build - expose")
 }
 
+func TestBuildEntrypoint(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        ENTRYPOINT ["/bin/echo"]
+        `,
+		"testbuildimg",
+		"{{json .config.Entrypoint}}",
+		`["/bin/echo"]`)
+
+	deleteImages("testbuildimg")
+	logDone("build - entrypoint")
+}
+
 // TODO: TestCaching
 
 // TODO: TestADDCacheInvalidation
