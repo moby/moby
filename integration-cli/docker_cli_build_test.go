@@ -10,6 +10,25 @@ import (
 	"time"
 )
 
+func checkSimpleBuild(t *testing.T, dockerfile, name, inspectFormat, expected string) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
+	buildCmd.Stdin = strings.NewReader(dockerfile)
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", inspectFormat, name)
+	out, exitCode, err = runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to inspect the image: %s", out)
+	}
+	out = strings.TrimSpace(out)
+	if out != expected {
+		t.Fatalf("From format %s expected %s, got %s", inspectFormat, expected, out)
+	}
+}
+
 func TestBuildCacheADD(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
@@ -411,6 +430,128 @@ func TestBuildRm(t *testing.T) {
 
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
 	logDone("build - ensure --rm=false overrides the default")
+}
+
+func TestBuildWithVolume(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+		FROM scratch
+		VOLUME /test
+		`,
+		"testbuildimg",
+		"{{json .config.Volumes}}",
+		`{"/test":{}}`)
+
+	deleteImages("testbuildimg")
+	logDone("build - with volume")
+}
+
+func TestBuildMaintainer(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        MAINTAINER dockerio
+		`,
+		"testbuildimg",
+		"{{json .author}}",
+		`"dockerio"`)
+
+	deleteImages("testbuildimg")
+	logDone("build - maintainer")
+}
+
+func TestBuildUser(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+		FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		USER dockerio
+		RUN [ $(whoami) = 'dockerio' ]
+		`,
+		"testbuildimg",
+		"{{json .config.User}}",
+		`"dockerio"`)
+
+	deleteImages("testbuildimg")
+	logDone("build - user")
+}
+
+func TestBuildRelativeWorkdir(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+		FROM busybox
+		RUN [ "$PWD" = '/' ]
+		WORKDIR test1
+		RUN [ "$PWD" = '/test1' ]
+		WORKDIR /test2
+		RUN [ "$PWD" = '/test2' ]
+		WORKDIR test3
+		RUN [ "$PWD" = '/test2/test3' ]
+		`,
+		"testbuildimg",
+		"{{json .config.WorkingDir}}",
+		`"/test2/test3"`)
+
+	deleteImages("testbuildimg")
+	logDone("build - relative workdir")
+}
+
+func TestBuildEnv(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM busybox
+        ENV PORT 4243
+		RUN [ $(env | grep PORT) = 'PORT=4243' ]
+        `,
+		"testbuildimg",
+		"{{json .config.Env}}",
+		`["HOME=/","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","PORT=4243"]`)
+
+	deleteImages("testbuildimg")
+	logDone("build - env")
+}
+
+func TestBuildCmd(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        CMD ["/bin/echo", "Hello World"]
+        `,
+		"testbuildimg",
+		"{{json .config.Cmd}}",
+		`["/bin/echo","Hello World"]`)
+
+	deleteImages("testbuildimg")
+	logDone("build - cmd")
+}
+
+func TestBuildExpose(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        EXPOSE 4243
+        `,
+
+		"testbuildimg",
+		"{{json .config.ExposedPorts}}",
+		`{"4243/tcp":{}}`)
+
+	deleteImages("testbuildimg")
+	logDone("build - expose")
+}
+
+func TestBuildEntrypoint(t *testing.T) {
+	checkSimpleBuild(t,
+		`
+        FROM scratch
+        ENTRYPOINT ["/bin/echo"]
+        `,
+		"testbuildimg",
+		"{{json .config.Entrypoint}}",
+		`["/bin/echo"]`)
+
+	deleteImages("testbuildimg")
+	logDone("build - entrypoint")
 }
 
 // TODO: TestCaching
