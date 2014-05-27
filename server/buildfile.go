@@ -439,8 +439,11 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return copyAsDirectory(origPath, destPath, destExists)
 	}
 
+	// extract only tarballs with known extensions
+	tarballExtensions := []string{".tar", ".tgz", ".tbz2", ".tar.gz", ".tar.bz2", ".tar.xz", ".txz"}
 	// If we are adding a remote file, do not try to untar it
-	if !remote {
+	// Attempt to extract only files with valid tarball suffixes
+	if !remote && utils.HasSuffixFromArray(orig, tarballExtensions) {
 		// First try to unpack the source as an archive
 		// to support the untar feature we need to clean up the path a little bit
 		// because tar is very forgiving.  First we need to strip off the archive's
