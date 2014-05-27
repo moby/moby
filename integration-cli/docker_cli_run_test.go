@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -444,29 +443,30 @@ func TestCreateVolume(t *testing.T) {
 
 // Test that creating a volume with a symlink in its path works correctly. Test for #5152.
 // Note that this bug happens only with symlinks with a target that starts with '/'.
-func TestVolumeWithSymlink(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "run_tests", "TestVolumeWithSymlink")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumewithsymlink", ".")
-	buildCmd.Dir = buildDirectory
+func TestCreateVolumeWithSymlink(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-createvolumewithsymlink", "-")
+	buildCmd.Stdin = strings.NewReader(`FROM busybox
+		RUN mkdir /foo && ln -s /foo /bar`)
+	buildCmd.Dir = workingDirectory
 	err := buildCmd.Run()
 	if err != nil {
-		t.Fatalf("could not build 'docker-test-volumewithsymlink': %v", err)
+		t.Fatalf("could not build 'docker-test-createvolumewithsymlink': %v", err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-volumewithsymlink", "docker-test-volumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
+	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", "docker-test-createvolumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
 	exitCode, err := runCommand(cmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
 	var volPath string
-	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-volumewithsymlink")
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-createvolumewithsymlink")
 	volPath, exitCode, err = runCommandWithOutput(cmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("[inspect] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	cmd = exec.Command(dockerBinary, "rm", "-v", "test-volumewithsymlink")
+	cmd = exec.Command(dockerBinary, "rm", "-v", "test-createvolumewithsymlink")
 	exitCode, err = runCommand(cmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("[rm] err: %v, exitcode: %d", err, exitCode)
@@ -478,10 +478,10 @@ func TestVolumeWithSymlink(t *testing.T) {
 		t.Fatalf("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
 	}
 
-	deleteImages("docker-test-volumewithsymlink")
+	deleteImages("docker-test-createvolumewithsymlink")
 	deleteAllContainers()
 
-	logDone("run - volume with symlink")
+	logDone("run - create volume with symlink")
 }
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
