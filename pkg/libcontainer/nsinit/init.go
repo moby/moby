@@ -172,15 +172,33 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 // and working dir, and closes any leaky file descriptors
 // before execing the command inside the namespace
 func FinalizeNamespace(container *libcontainer.Container) error {
-	if err := capabilities.DropCapabilities(container); err != nil {
-		return fmt.Errorf("drop capabilities %s", err)
-	}
 	if err := system.CloseFdsFrom(3); err != nil {
 		return fmt.Errorf("close open file descriptors %s", err)
 	}
+
+	// drop capabilities in bounding set before changing user
+	if err := capabilities.DropBoundingSet(container); err != nil {
+		return fmt.Errorf("drop bounding set %s", err)
+	}
+
+	// preserve existing capabilities while we change users
+	if err := system.SetKeepCaps(); err != nil {
+		return fmt.Errorf("set keep caps %s", err)
+	}
+
 	if err := SetupUser(container.User); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
+
+	if err := system.ClearKeepCaps(); err != nil {
+		return fmt.Errorf("clear keep caps %s", err)
+	}
+
+	// drop all other capabilities
+	if err := capabilities.DropCapabilities(container); err != nil {
+		return fmt.Errorf("drop capabilities %s", err)
+	}
+
 	if container.WorkingDir != "" {
 		if err := system.Chdir(container.WorkingDir); err != nil {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)

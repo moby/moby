@@ -9,6 +9,25 @@ import (
 
 const allCapabilityTypes = capability.CAPS | capability.BOUNDS
 
+// DropBoundingSet drops the capability bounding set to those specified in the
+// container configuration.
+func DropBoundingSet(container *libcontainer.Container) error {
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	keep := getEnabledCapabilities(container)
+	c.Clear(capability.BOUNDS)
+	c.Set(capability.BOUNDS, keep...)
+
+	if err := c.Apply(capability.BOUNDS); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // DropCapabilities drops all capabilities for the current process expect those specified in the container configuration.
 func DropCapabilities(container *libcontainer.Container) error {
 	c, err := capability.NewPid(os.Getpid())
