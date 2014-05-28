@@ -212,7 +212,7 @@ repository is used as the context. The Git repository is cloned with its
 submodules (git clone –recursive). A fresh git clone occurs in a
 temporary directory on your local host, and then this is sent to the
 Docker daemon as the context. This way, your local user credentials and
-vpn's etc can be used to access private repositories
+vpn's etc can be used to access private repositories.
 
 See also:
 
@@ -647,7 +647,7 @@ Restores both images and tags.
       -p, --password=""    Password
       -u, --username=""    Username
 
-If you want to login to a private registry you can
+If you want to login to a self-hosted registry you can
 specify this by adding the server name.
 
     example:
@@ -728,8 +728,8 @@ use `docker pull`:
 
     Push an image or a repository to the registry
 
-Use `docker push` to share your images on public or
-private registries.
+Use `docker push` to share your images to the [Docker.io](https://index.docker.io)
+registry or to a self-hosted one.
 
 ## restart
 
