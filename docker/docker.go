@@ -259,7 +259,7 @@ func showVersion() {
 func checkKernelAndArch() error {
 	// Check for unsupported architectures
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm" {
-		return nil, fmt.Errorf("The docker runtime currently only supports amd64 and arm (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+		return fmt.Errorf("The docker runtime currently only supports amd64 and arm (not %s). This will change in the future. Aborting.", runtime.GOARCH)
 	}
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather
