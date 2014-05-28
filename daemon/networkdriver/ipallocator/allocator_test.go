@@ -318,6 +318,86 @@ func TestAllocateDifferentSubnets(t *testing.T) {
 	assertIPEquals(t, expectedIPs[2], ip21)
 	assertIPEquals(t, expectedIPs[3], ip22)
 }
+func TestRegisterBadTwice(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 1, 1},
+		Mask: []byte{255, 255, 255, 0},
+	}
+	subnet := &net.IPNet{
+		IP:   []byte{192, 168, 1, 8},
+		Mask: []byte{255, 255, 255, 248},
+	}
+
+	if err := RegisterSubnet(network, subnet); err != nil {
+		t.Fatal(err)
+	}
+	subnet = &net.IPNet{
+		IP:   []byte{192, 168, 1, 16},
+		Mask: []byte{255, 255, 255, 248},
+	}
+	if err := RegisterSubnet(network, subnet); err != ErrNetworkAlreadyRegistered {
+		t.Fatalf("Expecteded ErrNetworkAlreadyRegistered error, got %v", err)
+	}
+}
+
+func TestRegisterBadRange(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 1, 1},
+		Mask: []byte{255, 255, 255, 0},
+	}
+	subnet := &net.IPNet{
+		IP:   []byte{192, 168, 1, 1},
+		Mask: []byte{255, 255, 0, 0},
+	}
+	if err := RegisterSubnet(network, subnet); err != ErrBadSubnet {
+		t.Fatalf("Expected ErrBadSubnet error, got %v", err)
+	}
+}
+
+func TestAllocateFromRange(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 0, 1},
+		Mask: []byte{255, 255, 255, 0},
+	}
+	// 192.168.1.9 - 192.168.1.14
+	subnet := &net.IPNet{
+		IP:   []byte{192, 168, 0, 8},
+		Mask: []byte{255, 255, 255, 248},
+	}
+	if err := RegisterSubnet(network, subnet); err != nil {
+		t.Fatal(err)
+	}
+	expectedIPs := []net.IP{
+		0: net.IPv4(192, 168, 0, 9),
+		1: net.IPv4(192, 168, 0, 10),
+		2: net.IPv4(192, 168, 0, 11),
+		3: net.IPv4(192, 168, 0, 12),
+		4: net.IPv4(192, 168, 0, 13),
+		5: net.IPv4(192, 168, 0, 14),
+	}
+	for _, ip := range expectedIPs {
+		rip, err := RequestIP(network, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertIPEquals(t, ip, rip)
+	}
+
+	if _, err := RequestIP(network, nil); err != ErrNoAvailableIPs {
+		t.Fatalf("Expected ErrNoAvailableIPs error, got %v", err)
+	}
+	for _, ip := range expectedIPs {
+		ReleaseIP(network, ip)
+		rip, err := RequestIP(network, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertIPEquals(t, ip, rip)
+	}
+}
 
 func assertIPEquals(t *testing.T, ip1, ip2 net.IP) {
 	if !ip1.Equal(ip2) {

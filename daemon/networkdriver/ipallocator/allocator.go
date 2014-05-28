@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/dotcloud/docker/daemon/networkdriver"
+	"github.com/docker/docker/daemon/networkdriver"
 )
 
 // allocatedMap is thread-unsafe set of allocated IP
@@ -23,8 +23,8 @@ func newAllocatedMap(network *net.IPNet) *allocatedMap {
 	end := ipToInt(lastIP) - 1
 	return &allocatedMap{
 		p:     make(map[uint32]struct{}),
-		begin: begin,     // - network
-		end:   end,       // - broadcast
+		begin: begin,
+		end:   end,
 		last:  begin - 1, // so first allocated will be begin
 	}
 }
@@ -32,14 +32,39 @@ func newAllocatedMap(network *net.IPNet) *allocatedMap {
 type networkSet map[string]*allocatedMap
 
 var (
-	ErrNoAvailableIPs     = errors.New("no available ip addresses on network")
-	ErrIPAlreadyAllocated = errors.New("ip already allocated")
+	ErrNoAvailableIPs           = errors.New("no available ip addresses on network")
+	ErrIPAlreadyAllocated       = errors.New("ip already allocated")
+	ErrNetworkAlreadyRegistered = errors.New("network already registered")
+	ErrBadSubnet                = errors.New("network not contains specified subnet")
 )
 
 var (
 	lock         = sync.Mutex{}
 	allocatedIPs = networkSet{}
 )
+
+// RegisterSubnet registers network in global allocator with bounds
+// defined by subnet. If you want to use network range you must call
+// this method before first RequestIP, otherwise full network range will be used
+func RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
+	lock.Lock()
+	defer lock.Unlock()
+	key := network.String()
+	if _, ok := allocatedIPs[key]; ok {
+		return ErrNetworkAlreadyRegistered
+	}
+	n := newAllocatedMap(network)
+	beginIP, endIP := networkdriver.NetworkRange(subnet)
+	begin, end := ipToInt(beginIP)+1, ipToInt(endIP)-1
+	if !(begin >= n.begin && end <= n.end && begin < end) {
+		return ErrBadSubnet
+	}
+	n.begin = begin
+	n.end = end
+	n.last = begin - 1
+	allocatedIPs[key] = n
+	return nil
+}
 
 // RequestIP requests an available ip from the given network.  It
 // will return the next available ip if the ip provided is nil.  If the

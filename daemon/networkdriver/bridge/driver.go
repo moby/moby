@@ -83,6 +83,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		icc            = job.GetenvBool("InterContainerCommunication")
 		ipForward      = job.GetenvBool("EnableIpForward")
 		bridgeIP       = job.Getenv("BridgeIP")
+		fixedCIDR      = job.Getenv("FixedCIDR")
 	)
 
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
@@ -157,6 +158,16 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	bridgeNetwork = network
+	if fixedCIDR != "" {
+		_, subnet, err := net.ParseCIDR(fixedCIDR)
+		if err != nil {
+			return job.Error(err)
+		}
+		log.Debugf("Subnet: %v", subnet)
+		if err := ipallocator.RegisterSubnet(bridgeNetwork, subnet); err != nil {
+			return job.Error(err)
+		}
+	}
 
 	// https://github.com/docker/docker/issues/2768
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeNetwork.IP)
