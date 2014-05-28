@@ -163,26 +163,12 @@ func (container *Container) WriteHostConfig() error {
 
 func (container *Container) getResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
-	fullPath := filepath.Join(container.basefs, cleanPath)
-
-	result, err := symlink.FollowSymlinkInScope(fullPath, container.basefs)
-	if err != nil {
-		return "", err
-	}
-
-	return result, nil
+	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
 }
 
 func (container *Container) getRootResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
-	fullPath := filepath.Join(container.root, cleanPath)
-
-	result, err := symlink.FollowSymlinkInScope(fullPath, container.basefs)
-	if err != nil {
-		return "", err
-	}
-
-	return result, nil
+	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
 func populateCommand(c *Container, env []string) error {
