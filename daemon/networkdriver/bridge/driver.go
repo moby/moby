@@ -317,14 +317,14 @@ func createBridgeIface(name string) error {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip          *net.IP
+		ip          net.IP
 		err         error
 		id          = job.Args[0]
 		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
 	)
 
 	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, &requestedIP)
+		ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
 	} else {
 		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
 	}
@@ -342,7 +342,7 @@ func Allocate(job *engine.Job) engine.Status {
 	out.SetInt("IPPrefixLen", size)
 
 	currentInterfaces.Set(id, &networkInterface{
-		IP: *ip,
+		IP: ip,
 	})
 
 	out.WriteTo(job.Stdout)
@@ -367,7 +367,7 @@ func Release(job *engine.Job) engine.Status {
 		}
 	}
 
-	if err := ipallocator.ReleaseIP(bridgeNetwork, &containerInterface.IP); err != nil {
+	if err := ipallocator.ReleaseIP(bridgeNetwork, containerInterface.IP); err != nil {
 		log.Infof("Unable to release ip %s", err)
 	}
 	return engine.StatusOK
