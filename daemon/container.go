@@ -383,6 +383,13 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 		extraContent[alias] = child.NetworkSettings.IPAddress
 	}
 
+	for _, e := range container.Config.Env {
+		parts := strings.SplitN(e, "=", 2)
+		if parts[0] == "HOSTNAME" {
+			extraContent[parts[1]] = container.NetworkSettings.IPAddress
+		}
+	}
+
 	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
 }
 
