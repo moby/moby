@@ -34,7 +34,7 @@ A Dockerfile is similar to a Makefile.
     The path to the source repository defines where to find the context of the
     build. The build is run by the docker daemon, not the CLI. The whole 
     context must be transferred to the daemon. The Docker CLI reports 
-    "Uploading context" when the context is sent to the daemon.
+    "Sending build context to Docker daemon" when the context is sent to the daemon.
     
 **sudo docker build -t repository/tag .**
  -- specifies a repository and tag at which to save the new image if the build 
