@@ -76,7 +76,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"run", "Run a command in a new container"},
 		{"save", "Save an image to a tar archive"},
 		{"search", "Search for an image in the docker index"},
-		{"secret", "Maintain secrets database"},
+		{"secret", "Maintain a database of secrets"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},

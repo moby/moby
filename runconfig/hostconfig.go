@@ -30,6 +30,7 @@ type HostConfig struct {
 	Dns             []string
 	DnsSearch       []string
 	VolumesFrom     []string
+	GrantSecrets    []string
 	NetworkMode     NetworkMode
 }
 
@@ -56,6 +57,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
 		hostConfig.VolumesFrom = VolumesFrom
+	}
+	if GrantSecrets := job.GetenvList("GrantSecrets"); GrantSecrets != nil {
+		hostConfig.GrantSecrets = GrantSecrets
 	}
 	return hostConfig
 }

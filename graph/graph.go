@@ -257,6 +257,7 @@ func SetupInitLayer(initLayer string) error {
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",
 		"/proc":            "dir",
+		"/run/secrets":     "dir",
 		"/sys":             "dir",
 		"/.dockerinit":     "file",
 		"/.dockerenv":      "file",

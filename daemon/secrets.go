@@ -25,6 +25,17 @@ type SecretData struct {
 	Data []byte
 }
 
+func (s SecretData) SaveTo(dir string) error {
+	path := filepath.Join(dir, s.Name)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if err := ioutil.WriteFile(path, s.Data, 0755); err != nil {
+		return err
+	}
+	return nil
+}
+
 func NewSecrets(root, hostDir string) (*Secrets, error) {
 	s := &Secrets{root: filepath.Join(root, "secrets"), hostDir: hostDir}
 
