@@ -77,13 +77,8 @@ well as a clean documentation build. See ``docs/README.md`` for more
 information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
-and maintenance. Always run `go fmt` before committing your changes. Most
-editors have plugins that do this automatically, and there's also a git
-pre-commit hook:
-
-```
-curl -o .git/hooks/pre-commit https://raw.githubusercontent.com/edsrzf/gofmt-git-hook/master/fmt-check && chmod +x .git/hooks/pre-commit
-```
+and maintenance. Always run `gofmt -s -w file.go` on each changed file before
+committing your changes. Most editors have plugins that do this automatically.
 
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
