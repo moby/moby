@@ -135,6 +135,22 @@ func GetParentDeathSignal() (int, error) {
 	return sig, nil
 }
 
+func SetKeepCaps() error {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_KEEPCAPS, 1, 0); err != 0 {
+		return err
+	}
+
+	return nil
+}
+
+func ClearKeepCaps() error {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_KEEPCAPS, 0, 0); err != 0 {
+		return err
+	}
+
+	return nil
+}
+
 func Setctty() error {
 	if _, _, err := syscall.RawSyscall(syscall.SYS_IOCTL, 0, uintptr(syscall.TIOCSCTTY), 0); err != 0 {
 		return err
