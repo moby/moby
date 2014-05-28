@@ -237,6 +237,181 @@ func TestAddEtcToRoot(t *testing.T) {
 	logDone("build - add etc directory to root")
 }
 
+func TestCopySingleFileToRoot(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", "SingleFileToRoot")
+	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", ".")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - copy single file to root")
+}
+
+// Issue #3960: "ADD src ." hangs - adapted for COPY
+func TestCopySingleFileToWorkdir(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", "SingleFileToWorkdir")
+	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", ".")
+	buildCmd.Dir = buildDirectory
+	done := make(chan error)
+	go func() {
+		out, exitCode, err := runCommandWithOutput(buildCmd)
+		if err != nil || exitCode != 0 {
+			done <- fmt.Errorf("build failed to complete: %s %v", out, err)
+			return
+		}
+		done <- nil
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		if err := buildCmd.Process.Kill(); err != nil {
+			fmt.Printf("could not kill build (pid=%d): %v\n", buildCmd.Process.Pid, err)
+		}
+		t.Fatal("build timed out")
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - copy single file to workdir")
+}
+
+func TestCopySingleFileToExistDir(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "SingleFileToExistDir")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - add single file to existing dir")
+}
+
+func TestCopySingleFileToNonExistDir(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "SingleFileToNonExistDir")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - copy single file to non-existing dir")
+}
+
+func TestCopyDirContentToRoot(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DirContentToRoot")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - copy directory contents to root")
+}
+
+func TestCopyDirContentToExistDir(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DirContentToExistDir")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - copy directory contents to existing dir")
+}
+
+func TestCopyWholeDirToRoot(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", "WholeDirToRoot")
+	test_dir := filepath.Join(buildDirectory, "test_dir")
+	if err := os.MkdirAll(test_dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(filepath.Join(test_dir, "test_file"), os.O_CREATE, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", ".")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+
+	logDone("build - copy whole directory to root")
+}
+
+func TestCopyEtcToRoot(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "EtcToRoot")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testcopyimg")
+	logDone("build - copy etc directory to root")
+}
+
+func TestCopyDisallowRemote(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DisallowRemote")
+	buildCmd.Dir = buildDirectory
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+
+	if err == nil || exitCode == 0 {
+		t.Fatalf("building the image should've failed; output: %s", out)
+	}
+
+	deleteImages("testcopyimg")
+	logDone("build - copy - disallow copy from remote")
+}
+
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {

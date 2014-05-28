@@ -340,7 +340,7 @@ func (b *buildFile) CmdInsert(args string) error {
 }
 
 func (b *buildFile) CmdCopy(args string) error {
-	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
+	return b.runContextCommand(args, false, false, "COPY")
 }
 
 func (b *buildFile) CmdWorkdir(workdir string) error {
@@ -399,7 +399,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *daemon.Container, orig, dest string, remote bool) error {
+func (b *buildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
 	var (
 		err        error
 		destExists = true
@@ -439,8 +439,8 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return copyAsDirectory(origPath, destPath, destExists)
 	}
 
-	// If we are adding a remote file, do not try to untar it
-	if !remote {
+	// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
+	if decompress {
 		// First try to unpack the source as an archive
 		// to support the untar feature we need to clean up the path a little bit
 		// because tar is very forgiving.  First we need to strip off the archive's
@@ -473,13 +473,13 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 	return fixPermissions(resPath, 0, 0)
 }
 
-func (b *buildFile) CmdAdd(args string) error {
+func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
-		return fmt.Errorf("No context given. Impossible to use ADD")
+		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ADD format")
+		return fmt.Errorf("Invalid %s format", cmdName)
 	}
 
 	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
@@ -493,7 +493,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 
 	cmd := b.config.Cmd
-	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, orig, dest)}
 	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 	b.config.Image = b.image
 
@@ -502,11 +502,14 @@ func (b *buildFile) CmdAdd(args string) error {
 		destPath   = dest
 		remoteHash string
 		isRemote   bool
+		decompress = true
 	)
 
-	if utils.IsURL(orig) {
+	isRemote = utils.IsURL(orig)
+	if isRemote && !allowRemote {
+		return fmt.Errorf("Source can't be an URL for %s", cmdName)
+	} else if utils.IsURL(orig) {
 		// Initiate the download
-		isRemote = true
 		resp, err := utils.Download(orig)
 		if err != nil {
 			return err
@@ -608,7 +611,7 @@ func (b *buildFile) CmdAdd(args string) error {
 				hash = "file:" + h
 			}
 		}
-		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", hash, dest)}
+		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, hash, dest)}
 		hit, err := b.probeCache()
 		if err != nil {
 			return err
@@ -631,14 +634,21 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	defer container.Unmount()
 
-	if err := b.addContext(container, origPath, destPath, isRemote); err != nil {
+	if !allowDecompression || isRemote {
+		decompress = false
+	}
+	if err := b.addContext(container, origPath, destPath, decompress); err != nil {
 		return err
 	}
 
-	if err := b.commit(container.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, orig, dest)); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (b *buildFile) CmdAdd(args string) error {
+	return b.runContextCommand(args, true, true, "ADD")
 }
 
 func (b *buildFile) create() (*daemon.Container, error) {
