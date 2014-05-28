@@ -1,14 +1,8 @@
 page_title: Installation on Amazon EC2
-page_description: Please note this project is currently under heavy development. It should not be used in production. 
+page_description: Installation instructions for Docker on Amazon EC2.
 page_keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
 
 # Amazon EC2
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 There are several ways to install Docker on AWS EC2:
 
