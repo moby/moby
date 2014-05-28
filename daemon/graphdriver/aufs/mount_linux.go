@@ -1,5 +1,4 @@
 // +build amd64 arm
-// +build linux
 
 package aufs
 
