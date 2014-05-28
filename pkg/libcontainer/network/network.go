@@ -53,8 +53,8 @@ func SetInterfaceMaster(name, master string) error {
 	return netlink.AddToBridge(iface, masterIface)
 }
 
-func SetDefaultGateway(ip string) error {
-	return netlink.AddDefaultGw(net.ParseIP(ip))
+func SetDefaultGateway(ip, ifaceName string) error {
+	return netlink.AddDefaultGw(ip, ifaceName)
 }
 
 func SetInterfaceIp(name string, rawIp string) error {

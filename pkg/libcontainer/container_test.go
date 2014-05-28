@@ -39,6 +39,11 @@ func TestContainerJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
+	if len(container.Routes) != 2 {
+		t.Log("should have found 2 routes")
+		t.Fail()
+	}
+
 	if !container.Namespaces["NEWNET"] {
 		t.Log("namespaces should contain NEWNET")
 		t.Fail()

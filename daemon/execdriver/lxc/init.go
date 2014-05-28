@@ -88,7 +88,7 @@ func setupNetworking(args *execdriver.InitArgs) error {
 			return fmt.Errorf("Unable to set up networking, %s is not a valid gateway IP", args.Gateway)
 		}
 
-		if err := netlink.AddDefaultGw(gw); err != nil {
+		if err := netlink.AddDefaultGw(gw.String(), "eth0"); err != nil {
 			return fmt.Errorf("Unable to set up networking: %v", err)
 		}
 	}
