@@ -280,8 +280,8 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 		delete(container.VolumesRW, volPath)
 	}
 
-	container.Volumes[newVolPath] = destination
-	container.VolumesRW[newVolPath] = srcRW
+	container.Volumes[volPath] = destination
+	container.VolumesRW[volPath] = srcRW
 
 	if err := createIfNotExists(source, volIsDir); err != nil {
 		return err

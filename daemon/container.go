@@ -139,7 +139,11 @@ func (container *Container) WriteHostConfig() (err error) {
 
 func (container *Container) getResourcePath(path string) string {
 	cleanPath := filepath.Join("/", path)
-	return filepath.Join(container.basefs, cleanPath)
+	result, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
+	if err != nil {
+		utils.Errorf("getResourcePath failed: %v", err)
+	}
+	return result
 }
 
 func (container *Container) getRootResourcePath(path string) string {
