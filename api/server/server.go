@@ -256,6 +256,25 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 	return nil
 }
 
+func getSecretsJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var (
+		err error
+		job = eng.Job("secrets_list")
+	)
+
+	job.Setenv("all", r.Form.Get("all"))
+
+	streamJSON(job, w, false)
+
+	if err = job.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getImagesViz(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if version.GreaterThan("1.6") {
 		w.WriteHeader(http.StatusNotFound)
@@ -502,6 +521,28 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 	return nil
 }
 
+func postSecrets(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	var (
+		env  engine.Env
+		name = vars["name"]
+		job  *engine.Job
+	)
+	job = eng.Job("secret_add", name)
+	job.Stdin.Add(r.Body)
+
+	streamJSON(job, w, true)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	env.Set("Name", name)
+	return writeJSON(w, http.StatusCreated, env)
+}
+
 func getImagesSearch(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -680,6 +721,19 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 	streamJSON(job, w, false)
 	job.Setenv("force", r.Form.Get("force"))
 	job.Setenv("noprune", r.Form.Get("noprune"))
+
+	return job.Run()
+}
+
+func deleteSecrets(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	var job = eng.Job("secret_delete", vars["name"])
+	streamJSON(job, w, false)
 
 	return job.Run()
 }
@@ -1079,6 +1133,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/secrets/json":                   getSecretsJSON,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -1099,10 +1154,12 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/secrets/{name:.*}":            postSecrets,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
 			"/images/{name:.*}":     deleteImages,
+			"/secrets/{name:.*}":    deleteSecrets,
 		},
 		"OPTIONS": {
 			"": optionsHandler,

@@ -76,6 +76,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"run", "Run a command in a new container"},
 		{"save", "Save an image to a tar archive"},
 		{"search", "Search for an image in the docker index"},
+		{"secret", "Maintain secrets database"},
 		{"start", "Start a stopped container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
@@ -2232,4 +2233,129 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		return err
 	}
 	return nil
+}
+
+func (cli *DockerCli) CmdSecret(_ bool, args ...string) error {
+	help := fmt.Sprintf("Usage: docker secret COMMAND [arg...]\n\nMaintain secrets database.\n\nCommands:\n")
+	for _, command := range [][]string{
+		{"add", "Add a secret"},
+		{"list", "List known secrets"},
+		{"rm", "Remove secret"},
+	} {
+		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
+	}
+	fmt.Fprintf(cli.err, "%s\n", help)
+	return nil
+}
+
+func (cli *DockerCli) CmdSecretList(args ...string) error {
+	cmd := cli.Subcmd("secret list", "[OPTIONS]", "List images")
+	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show names")
+	all := cmd.Bool([]string{"a", "-all"}, false, "Show all secrets (not only toplevel)")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() > 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	if *all {
+		v.Set("all", "1")
+	}
+	body, _, err := readBody(cli.call("GET", "/secrets/json?"+v.Encode(), nil, false))
+	if err != nil {
+		return err
+	}
+
+	outs := engine.NewTable("Name", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	if !*quiet {
+		fmt.Fprint(w, "SECRET NAME\tFROM HOST\n")
+	}
+
+	for _, out := range outs.Data {
+		name := out.Get("Name")
+		if out.GetBool("IsDir") {
+			name = name + "/"
+		}
+		if *quiet {
+			fmt.Fprintf(w, "%s\n", name)
+		} else {
+			hostBased := ""
+			if out.GetBool("HostBased") {
+				hostBased = "*"
+			}
+			fmt.Fprintf(w, "%s\t%s\n", name, hostBased)
+		}
+	}
+	w.Flush()
+	return nil
+}
+
+func (cli *DockerCli) CmdSecretRm(args ...string) error {
+	cmd := cli.Subcmd("secret rm", "[OPTIONS] SECRET [SECRET...]", "Remove secret")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() == 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+
+	var encounteredError error
+	for _, name := range cmd.Args() {
+		_, _, err := readBody(cli.call("DELETE", "/secrets/"+name+"?"+v.Encode(), nil, false))
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to remove one or more secrets")
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+	return encounteredError
+}
+
+func (cli *DockerCli) CmdSecretAdd(args ...string) error {
+	cmd := cli.Subcmd("secret add", "[OPTIONS] SECRET FILE", "Add secret")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+
+	name := cmd.Arg(0)
+	source := cmd.Arg(1)
+
+	var in io.Reader
+
+	if source == "-" {
+		in = cli.in
+	} else {
+		file, err := os.Open(source)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		in = file
+	}
+
+	v := url.Values{}
+
+	return cli.stream("POST", "/secrets/"+name+"?"+v.Encode(), in, cli.out, nil)
 }

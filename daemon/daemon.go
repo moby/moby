@@ -96,11 +96,20 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+	secrets        *Secrets
 }
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	return eng.Register("container_inspect", daemon.ContainerInspect)
+	if err := eng.Register("container_inspect", daemon.ContainerInspect); err != nil {
+		return err
+	}
+
+	if err := daemon.secrets.Install(eng); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // List returns an array of all containers registered in the daemon.
@@ -864,6 +873,11 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		return nil, err
 	}
 
+	secrets, err := NewSecrets(config.Root, "/etc/docker/secrets")
+	if err != nil {
+		return nil, err
+	}
+
 	daemon := &Daemon{
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
@@ -878,6 +892,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+		secrets:        secrets,
 	}
 
 	if err := daemon.checkLocaldns(); err != nil {
