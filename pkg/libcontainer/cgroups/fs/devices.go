@@ -1,5 +1,7 @@
 package fs
 
+import "github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+
 type devicesGroup struct {
 }
 
@@ -55,6 +57,6 @@ func (s *devicesGroup) Remove(d *data) error {
 	return removePath(d.path("devices"))
 }
 
-func (s *devicesGroup) Stats(d *data) (map[string]int64, error) {
-	return nil, ErrNotSupportStat
+func (s *devicesGroup) GetStats(d *data, stats *cgroups.Stats) error {
+	return nil
 }

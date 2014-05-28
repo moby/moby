@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 type cpusetGroup struct {
@@ -38,8 +40,8 @@ func (s *cpusetGroup) Remove(d *data) error {
 	return removePath(d.path("cpuset"))
 }
 
-func (s *cpusetGroup) Stats(d *data) (map[string]int64, error) {
-	return nil, ErrNotSupportStat
+func (s *cpusetGroup) GetStats(d *data, stats *cgroups.Stats) error {
+	return nil
 }
 
 func (s *cpusetGroup) getSubsystemSettings(parent string) (cpus []byte, mems []byte, err error) {

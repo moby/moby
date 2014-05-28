@@ -3,7 +3,6 @@ package fs
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -57,65 +56,87 @@ examples:
     8:0 Total 0
     Total 0
 */
-func (s *blkioGroup) Stats(d *data) (map[string]int64, error) {
-	var (
-		paramData = make(map[string]int64)
-		params    = []string{
-			"io_service_bytes_recursive",
-			"io_serviced_recursive",
-			"io_queued_recursive",
-		}
-	)
 
-	path, err := d.path("blkio")
-	if err != nil {
-		return nil, err
-	}
-
-	k, v, err := s.getSectors(path)
-	if err != nil {
-		return nil, err
-	}
-	paramData[fmt.Sprintf("blkio.sectors_recursive:%s", k)] = v
-
-	for _, param := range params {
-		f, err := os.Open(filepath.Join(path, fmt.Sprintf("blkio.%s", param)))
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-
-		sc := bufio.NewScanner(f)
-		for sc.Scan() {
-			// format: dev type amount
-			fields := strings.Fields(sc.Text())
-			switch len(fields) {
-			case 3:
-				v, err := strconv.ParseInt(fields[2], 10, 64)
-				if err != nil {
-					return nil, err
-				}
-				paramData[fmt.Sprintf("%s:%s:%s", param, fields[0], fields[1])] = v
-			case 2:
-				// this is the total line, skip
-			default:
-				return nil, ErrNotValidFormat
-			}
-		}
-	}
-	return paramData, nil
+func splitBlkioStatLine(r rune) bool {
+	return r == ' ' || r == ':'
 }
 
-func (s *blkioGroup) getSectors(path string) (string, int64, error) {
-	f, err := os.Open(filepath.Join(path, "blkio.sectors_recursive"))
+func getBlkioStat(path string) ([]cgroups.BlkioStatEntry, error) {
+	var blkioStats []cgroups.BlkioStatEntry
+	f, err := os.Open(path)
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
 	defer f.Close()
 
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		return "", 0, err
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		// format: dev type amount
+		fields := strings.FieldsFunc(sc.Text(), splitBlkioStatLine)
+		if len(fields) < 3 {
+			if len(fields) == 2 && fields[0] == "Total" {
+				// skip total line
+				continue
+			} else {
+				return nil, fmt.Errorf("Invalid line found while parsing %s: %s", path, sc.Text())
+			}
+		}
+
+		v, err := strconv.ParseUint(fields[0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		major := v
+
+		v, err = strconv.ParseUint(fields[1], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		minor := v
+
+		op := ""
+		valueField := 2
+		if len(fields) == 4 {
+			op = fields[2]
+			valueField = 3
+		}
+		v, err = strconv.ParseUint(fields[valueField], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		blkioStats = append(blkioStats, cgroups.BlkioStatEntry{Major: major, Minor: minor, Op: op, Value: v})
 	}
-	return getCgroupParamKeyValue(string(data))
+
+	return blkioStats, nil
+}
+
+func (s *blkioGroup) GetStats(d *data, stats *cgroups.Stats) error {
+	var blkioStats []cgroups.BlkioStatEntry
+	var err error
+	path, err := d.path("blkio")
+	if err != nil {
+		return err
+	}
+
+	if blkioStats, err = getBlkioStat(filepath.Join(path, "blkio.sectors_recursive")); err != nil {
+		return err
+	}
+	stats.BlkioStats.SectorsRecursive = blkioStats
+
+	if blkioStats, err = getBlkioStat(filepath.Join(path, "blkio.io_service_bytes_recursive")); err != nil {
+		return err
+	}
+	stats.BlkioStats.IoServiceBytesRecursive = blkioStats
+
+	if blkioStats, err = getBlkioStat(filepath.Join(path, "blkio.io_serviced_recursive")); err != nil {
+		return err
+	}
+	stats.BlkioStats.IoServicedRecursive = blkioStats
+
+	if blkioStats, err = getBlkioStat(filepath.Join(path, "blkio.io_queued_recursive")); err != nil {
+		return err
+	}
+	stats.BlkioStats.IoQueuedRecursive = blkioStats
+
+	return nil
 }

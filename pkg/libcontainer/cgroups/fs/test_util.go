@@ -8,7 +8,6 @@ package fs
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"testing"
 )
@@ -56,20 +55,6 @@ func (c *cgroupTestUtil) writeFileContents(fileContents map[string]string) {
 		err := writeFile(c.CgroupPath, file, contents)
 		if err != nil {
 			c.t.Fatal(err)
-		}
-	}
-}
-
-// Expect the specified stats.
-func expectStats(t *testing.T, expected, actual map[string]int64) {
-	for stat, expectedValue := range expected {
-		actualValue, ok := actual[stat]
-		if !ok {
-			log.Printf("Expected stat %s to exist: %s", stat, actual)
-			t.Fail()
-		} else if actualValue != expectedValue {
-			log.Printf("Expected stats %s to have value %f but had %f instead", stat, expectedValue, actualValue)
-			t.Fail()
 		}
 	}
 }

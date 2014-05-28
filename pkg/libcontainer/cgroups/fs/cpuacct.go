@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	cpuCount   = int64(runtime.NumCPU())
-	clockTicks = int64(system.GetClockTicks())
+	cpuCount   = uint64(runtime.NumCPU())
+	clockTicks = uint64(system.GetClockTicks())
 )
 
 type cpuacctGroup struct {
@@ -34,34 +34,33 @@ func (s *cpuacctGroup) Remove(d *data) error {
 	return removePath(d.path("cpuacct"))
 }
 
-func (s *cpuacctGroup) Stats(d *data) (map[string]int64, error) {
+func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	var (
-		startCpu, lastCpu, startSystem, lastSystem, startUsage, lastUsage int64
-		percentage                                                        int64
-		paramData                                                         = make(map[string]int64)
+		startCpu, lastCpu, startSystem, lastSystem, startUsage, lastUsage uint64
+		percentage                                                        uint64
 	)
 	path, err := d.path("cpuacct")
 	if startCpu, err = s.getCpuUsage(d, path); err != nil {
-		return nil, err
+		return err
 	}
 	if startSystem, err = s.getSystemCpuUsage(d); err != nil {
-		return nil, err
+		return err
 	}
 	startUsageTime := time.Now()
 	if startUsage, err = getCgroupParamInt(path, "cpuacct.usage"); err != nil {
-		return nil, err
+		return err
 	}
 	// sample for 100ms
 	time.Sleep(100 * time.Millisecond)
 	if lastCpu, err = s.getCpuUsage(d, path); err != nil {
-		return nil, err
+		return err
 	}
 	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
-		return nil, err
+		return err
 	}
 	usageSampleDuration := time.Since(startUsageTime)
 	if lastUsage, err = getCgroupParamInt(path, "cpuacct.usage"); err != nil {
-		return nil, err
+		return err
 	}
 
 	var (
@@ -74,15 +73,14 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]int64, error) {
 	}
 	// NOTE: a percentage over 100% is valid for POSIX because that means the
 	// processes is using multiple cores
-	paramData["percentage"] = percentage
-
+	stats.CpuStats.CpuUsage.PercentUsage = percentage
 	// Delta usage is in nanoseconds of CPU time so get the usage (in cores) over the sample time.
-	paramData["usage"] = deltaUsage / usageSampleDuration.Nanoseconds()
-	return paramData, nil
+	stats.CpuStats.CpuUsage.CurrentUsage = deltaUsage / uint64(usageSampleDuration.Nanoseconds())
+	return nil
 }
 
 // TODO(vmarmol): Use cgroups stats.
-func (s *cpuacctGroup) getSystemCpuUsage(d *data) (int64, error) {
+func (s *cpuacctGroup) getSystemCpuUsage(d *data) (uint64, error) {
 
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -99,9 +97,9 @@ func (s *cpuacctGroup) getSystemCpuUsage(d *data) (int64, error) {
 				return 0, fmt.Errorf("invalid number of cpu fields")
 			}
 
-			var total int64
+			var total uint64
 			for _, i := range parts[1:8] {
-				v, err := strconv.ParseInt(i, 10, 64)
+				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
 					return 0.0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
 				}
@@ -115,8 +113,8 @@ func (s *cpuacctGroup) getSystemCpuUsage(d *data) (int64, error) {
 	return 0, fmt.Errorf("invalid stat format")
 }
 
-func (s *cpuacctGroup) getCpuUsage(d *data, path string) (int64, error) {
-	cpuTotal := int64(0)
+func (s *cpuacctGroup) getCpuUsage(d *data, path string) (uint64, error) {
+	cpuTotal := uint64(0)
 	f, err := os.Open(filepath.Join(path, "cpuacct.stat"))
 	if err != nil {
 		return 0, err

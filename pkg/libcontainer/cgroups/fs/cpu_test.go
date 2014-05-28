@@ -1,31 +1,40 @@
 package fs
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 func TestCpuStats(t *testing.T) {
 	helper := NewCgroupTestUtil("cpu", t)
 	defer helper.cleanup()
-	cpuStatContent := `nr_periods 2000
-	nr_throttled 200
-	throttled_time 42424242424`
+
+	const (
+		kNrPeriods     = 2000
+		kNrThrottled   = 200
+		kThrottledTime = uint64(18446744073709551615)
+	)
+
+	cpuStatContent := fmt.Sprintf("nr_periods %d\n nr_throttled %d\n throttled_time %d\n",
+		kNrPeriods, kNrThrottled, kThrottledTime)
 	helper.writeFileContents(map[string]string{
 		"cpu.stat": cpuStatContent,
 	})
 
 	cpu := &cpuGroup{}
-	stats, err := cpu.Stats(helper.CgroupData)
+	err := cpu.GetStats(helper.CgroupData, &actualStats)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expected_stats := map[string]int64{
-		"nr_periods":     2000,
-		"nr_throttled":   200,
-		"throttled_time": 42424242424,
-	}
-	expectStats(t, expected_stats, stats)
+	expectedStats := cgroups.ThrottlingData{
+		Periods:          kNrPeriods,
+		ThrottledPeriods: kNrThrottled,
+		ThrottledTime:    kThrottledTime}
+
+	expectThrottlingDataEquals(t, expectedStats, actualStats.CpuStats.ThrottlingData)
 }
 
 func TestNoCpuStatFile(t *testing.T) {
@@ -33,7 +42,7 @@ func TestNoCpuStatFile(t *testing.T) {
 	defer helper.cleanup()
 
 	cpu := &cpuGroup{}
-	_, err := cpu.Stats(helper.CgroupData)
+	err := cpu.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not.")
 	}
@@ -50,7 +59,7 @@ func TestInvalidCpuStat(t *testing.T) {
 	})
 
 	cpu := &cpuGroup{}
-	_, err := cpu.Stats(helper.CgroupData)
+	err := cpu.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failed stat parsing.")
 	}

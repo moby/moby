@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 type cpuGroup struct {
@@ -39,16 +41,15 @@ func (s *cpuGroup) Remove(d *data) error {
 	return removePath(d.path("cpu"))
 }
 
-func (s *cpuGroup) Stats(d *data) (map[string]int64, error) {
-	paramData := make(map[string]int64)
+func (s *cpuGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	path, err := d.path("cpu")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	f, err := os.Open(filepath.Join(path, "cpu.stat"))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 
@@ -56,9 +57,18 @@ func (s *cpuGroup) Stats(d *data) (map[string]int64, error) {
 	for sc.Scan() {
 		t, v, err := getCgroupParamKeyValue(sc.Text())
 		if err != nil {
-			return nil, err
+			return err
 		}
-		paramData[t] = v
+		switch t {
+		case "nr_periods":
+			stats.CpuStats.ThrottlingData.Periods = v
+
+		case "nr_throttled":
+			stats.CpuStats.ThrottlingData.ThrottledPeriods = v
+
+		case "throttled_time":
+			stats.CpuStats.ThrottlingData.ThrottledTime = v
+		}
 	}
-	return paramData, nil
+	return nil
 }

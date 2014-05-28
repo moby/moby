@@ -2,6 +2,8 @@ package fs
 
 import (
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 const (
@@ -21,12 +23,12 @@ func TestMemoryStats(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	stats, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedStats := map[string]int64{"cache": 512, "rss": 1024, "usage_in_bytes": 2048, "max_usage_in_bytes": 4096}
-	expectStats(t, expectedStats, stats)
+	expectedStats := cgroups.MemoryStats{Usage: 2048, MaxUsage: 4096, Stats: map[string]uint64{"cache": 512, "rss": 1024}}
+	expectMemoryStatEquals(t, expectedStats, actualStats.MemoryStats)
 }
 
 func TestMemoryStatsNoStatFile(t *testing.T) {
@@ -38,7 +40,7 @@ func TestMemoryStatsNoStatFile(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	_, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -53,7 +55,7 @@ func TestMemoryStatsNoUsageFile(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	_, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -68,7 +70,7 @@ func TestMemoryStatsNoMaxUsageFile(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	_, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -84,7 +86,7 @@ func TestMemoryStatsBadStatFile(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	_, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -100,7 +102,7 @@ func TestMemoryStatsBadUsageFile(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	_, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -116,7 +118,7 @@ func TestMemoryStatsBadMaxUsageFile(t *testing.T) {
 	})
 
 	memory := &memoryGroup{}
-	_, err := memory.Stats(helper.CgroupData)
+	err := memory.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
