@@ -166,5 +166,10 @@ func Raw(args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
 
+	// ignore iptables' message about xtables lock
+	if strings.Contains(string(output), "waiting for it to exit") {
+		output = []byte("")
+	}
+
 	return output, err
 }
