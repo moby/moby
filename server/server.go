@@ -27,6 +27,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -1134,17 +1135,38 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 				}
 			}
 
-			// Get the layer
-			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling fs layer", nil))
-			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
-			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-				return err
-			}
-			defer layer.Close()
-			if err := srv.daemon.Graph().Register(imgJSON, utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"), img); err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
-				return err
+			for j := 1; j <= retries; j++ {
+				// Get the layer
+				status := "Pulling fs layer"
+				if j > 1 {
+					status = fmt.Sprintf("Pulling fs layer [retries: %d]", j)
+				}
+				out.Write(sf.FormatProgress(utils.TruncateID(id), status, nil))
+				layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token)
+				if uerr, ok := err.(*url.Error); ok {
+					err = uerr.Err
+				}
+				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
+					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+					continue
+				} else if err != nil {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+					return err
+				}
+				defer layer.Close()
+
+				err = srv.daemon.Graph().Register(imgJSON,
+					utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"),
+					img)
+				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
+					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+					continue
+				} else if err != nil {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
+					return err
+				} else {
+					break
+				}
 			}
 		}
 		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download complete", nil))

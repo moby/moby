@@ -726,7 +726,17 @@ type Registry struct {
 }
 
 func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
+	httpDial := func(proto string, addr string) (net.Conn, error) {
+		conn, err := net.Dial(proto, addr)
+		if err != nil {
+			return nil, err
+		}
+		conn = utils.NewTimeoutConn(conn, time.Duration(1)*time.Minute)
+		return conn, nil
+	}
+
 	httpTransport := &http.Transport{
+		Dial:              httpDial,
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
 	}
@@ -738,6 +748,7 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 		},
 		indexEndpoint: indexEndpoint,
 	}
+
 	r.client.Jar, err = cookiejar.New(nil)
 	if err != nil {
 		return nil, err
