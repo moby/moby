@@ -23,20 +23,23 @@ package aufs
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/label"
-	mountpk "github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"sync"
+	"syscall"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/pkg/label"
+	mountpk "github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
+	IncompatibleFSMagic = []int64{0x9123683E /*btrfs*/, 0x61756673 /*AUFS*/}
 )
 
 func init() {
@@ -56,6 +59,20 @@ func Init(root string) (graphdriver.Driver, error) {
 	if err := supportsAufs(); err != nil {
 		return nil, graphdriver.ErrNotSupported
 	}
+
+	rootdir := path.Dir(root)
+
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(rootdir, &buf); err != nil {
+		return nil, fmt.Errorf("Couldn't stat the root directory: %s", err)
+	}
+
+	for _, magic := range IncompatibleFSMagic {
+		if int64(buf.Type) == magic {
+			return nil, graphdriver.ErrIncompatibleFS
+		}
+	}
+
 	paths := []string{
 		"mnt",
 		"diff",
