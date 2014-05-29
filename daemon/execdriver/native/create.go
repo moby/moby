@@ -47,9 +47,11 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		return nil, err
 	}
 	cmds := make(map[string]*exec.Cmd)
+	d.Lock()
 	for k, v := range d.activeContainers {
 		cmds[k] = v.cmd
 	}
+	d.Unlock()
 	if err := configuration.ParseConfiguration(container, cmds, c.Config["native"]); err != nil {
 		return nil, err
 	}
@@ -86,7 +88,9 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 	}
 
 	if c.Network.ContainerID != "" {
+		d.Lock()
 		active := d.activeContainers[c.Network.ContainerID]
+		d.Unlock()
 		if active == nil || active.cmd.Process == nil {
 			return fmt.Errorf("%s is not a valid running container to join", c.Network.ContainerID)
 		}

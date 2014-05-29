@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
@@ -62,6 +63,7 @@ type driver struct {
 	root             string
 	initPath         string
 	activeContainers map[string]*activeContainer
+	sync.Mutex
 }
 
 func NewDriver(root, initPath string) (*driver, error) {
@@ -87,10 +89,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		return -1, err
 	}
+	d.Lock()
 	d.activeContainers[c.ID] = &activeContainer{
 		container: container,
 		cmd:       &c.Cmd,
 	}
+	d.Unlock()
 
 	var (
 		dataPath = filepath.Join(d.root, c.ID)
@@ -186,7 +190,9 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
+	d.Lock()
 	active := d.activeContainers[id]
+	d.Unlock()
 
 	if active == nil {
 		return nil, fmt.Errorf("active container for %s does not exist", id)
@@ -212,7 +218,9 @@ func (d *driver) createContainerRoot(id string) error {
 }
 
 func (d *driver) removeContainerRoot(id string) error {
+	d.Lock()
 	delete(d.activeContainers, id)
+	d.Unlock()
 
 	return os.RemoveAll(filepath.Join(d.root, id))
 }
