@@ -44,7 +44,8 @@ var (
 		"vfs",
 	}
 
-	ErrNotSupported = errors.New("driver not supported")
+	ErrNotSupported  = errors.New("driver not supported")
+	ErrPrerequisites = errors.New("Prerequisites for driver not satisfied (wrong filesystem?)")
 )
 
 func init() {
@@ -78,7 +79,7 @@ func New(root string) (driver Driver, err error) {
 	for _, name := range priority {
 		driver, err = GetDriver(name, root)
 		if err != nil {
-			if err == ErrNotSupported {
+			if err == ErrNotSupported || err == ErrPrerequisites {
 				continue
 			}
 			return nil, err
@@ -89,7 +90,7 @@ func New(root string) (driver Driver, err error) {
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
 		if driver, err = initFunc(root); err != nil {
-			if err == ErrNotSupported {
+			if err == ErrNotSupported || err == ErrPrerequisites {
 				continue
 			}
 			return nil, err
