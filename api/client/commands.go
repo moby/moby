@@ -912,11 +912,12 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated to the container")
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of running container")
+	allContainers := cmd.Bool([]string{"a", "-all"}, false, "Remove all containers")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if cmd.NArg() < 1 && !*allContainers {
 		cmd.Usage()
 		return nil
 	}
@@ -931,14 +932,50 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		val.Set("force", "1")
 	}
 
+	if *allContainers {
+		return rmAllContainers(cli, val.Encode())
+	} else {
+		var encounteredError error
+		for _, name := range cmd.Args() {
+			if name == "*" {
+
+			} else {
+				_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, false))
+				if err != nil {
+					fmt.Fprintf(cli.err, "%s\n", err)
+					encounteredError = fmt.Errorf("Error: failed to remove one or more containers")
+				} else {
+					fmt.Fprintf(cli.out, "%s\n", name)
+				}
+			}
+
+		}
+		return encounteredError
+	}
+
+}
+
+func rmAllContainers(cli *DockerCli, options string) error {
+	body, _, err := readBody(cli.call("GET", "/containers/json?all=1", nil, false))
+	if err != nil {
+		return err
+	}
+
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
+		return err
+	}
+
 	var encounteredError error
-	for _, name := range cmd.Args() {
-		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, false))
+	for _, out := range outs.Data {
+		outID := out.Get("Id")
+		truncID := utils.TruncateID(outID)
+		_, _, err := readBody(cli.call("DELETE", "/containers/"+outID+"?"+options, nil, false))
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
+			fmt.Fprintf(cli.err, "%s Container ID: %s\n", err, truncID)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more containers")
 		} else {
-			fmt.Fprintf(cli.out, "%s\n", name)
+			fmt.Fprintf(cli.out, "%s\n", truncID)
 		}
 	}
 	return encounteredError
