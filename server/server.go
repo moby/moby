@@ -39,6 +39,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -87,17 +88,17 @@ func InitServer(job *engine.Job) engine.Status {
 	c := make(chan os.Signal, 1)
 	gosignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
-		interruptCount := 0
+		interruptCount := uint32(0)
 		for sig := range c {
-			go func() {
+			go func(sig os.Signal) {
 				log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
 				switch sig {
 				case os.Interrupt, syscall.SIGTERM:
 					// If the user really wants to interrupt, let him do so.
-					if interruptCount < 3 {
-						interruptCount++
+					if atomic.LoadUint32(&interruptCount) < 3 {
+						atomic.AddUint32(&interruptCount, 1)
 						// Initiate the cleanup only once
-						if interruptCount == 1 {
+						if atomic.LoadUint32(&interruptCount) == 1 {
 							utils.RemovePidFile(srv.daemon.Config().Pidfile)
 							srv.Close()
 						} else {
@@ -109,7 +110,7 @@ func InitServer(job *engine.Job) engine.Status {
 				case syscall.SIGQUIT:
 				}
 				os.Exit(128 + int(sig.(syscall.Signal)))
-			}()
+			}(sig)
 		}
 	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
