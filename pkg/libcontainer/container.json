@@ -54,12 +54,54 @@
       "type": "devtmpfs"
     }
   ],
-  "required_device_nodes": [
-      "/dev/null",
-      "/dev/zero",
-      "/dev/full",
-      "/dev/random",
-      "/dev/urandom",
-      "/dev/tty"
+  "device_nodes": [
+		{
+			"path":  "/dev/null",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 3,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/zero",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 5,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/full",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 7,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/tty",
+			"type":        99,
+			"major_number": 5,
+			"minor_number": 0,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/urandom",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 9,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/random",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 8,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		}
   ]
 }

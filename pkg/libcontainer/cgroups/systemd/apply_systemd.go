@@ -13,17 +13,13 @@ import (
 
 	systemd1 "github.com/coreos/go-systemd/dbus"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/godbus/dbus"
 )
 
 type systemdCgroup struct {
 	cleanupDirs []string
-}
-
-type DeviceAllow struct {
-	Node        string
-	Permissions string
 }
 
 var (
@@ -116,24 +112,9 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 		systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})},
 	)
 
-	if !c.DeviceAccess {
+	if !c.UnlimitedDeviceAccess {
 		properties = append(properties,
-			systemd1.Property{"DevicePolicy", dbus.MakeVariant("strict")},
-			systemd1.Property{"DeviceAllow", dbus.MakeVariant([]DeviceAllow{
-				{"/dev/null", "rwm"},
-				{"/dev/zero", "rwm"},
-				{"/dev/full", "rwm"},
-				{"/dev/random", "rwm"},
-				{"/dev/urandom", "rwm"},
-				{"/dev/tty", "rwm"},
-				{"/dev/console", "rwm"},
-				{"/dev/tty0", "rwm"},
-				{"/dev/tty1", "rwm"},
-				{"/dev/pts/ptmx", "rwm"},
-				// There is no way to add /dev/pts/* here atm, so we hack this manually below
-				// /dev/pts/* (how to add this?)
-				// Same with tuntap, which doesn't exist as a node most of the time
-			})})
+			systemd1.Property{"DevicePolicy", dbus.MakeVariant("strict")})
 	}
 
 	// Always enable accounting, this gets us the same behaviour as the fs implementation,
@@ -167,28 +148,17 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 
 	cgroup := props["ControlGroup"].(string)
 
-	if !c.DeviceAccess {
+	if !c.UnlimitedDeviceAccess {
 		mountpoint, err := cgroups.FindCgroupMountpoint("devices")
 		if err != nil {
 			return nil, err
 		}
 
-		path := filepath.Join(mountpoint, cgroup)
-
-		allow := []string{
-			// allow mknod for any device
-			"c *:* m",
-			"b *:* m",
-
-			// /dev/pts/ - pts namespaces are "coming soon"
-			"c 136:* rwm",
-
-			// tuntap
-			"c 10:200 rwm",
-		}
-
-		for _, val := range allow {
-			if err := ioutil.WriteFile(filepath.Join(path, "devices.allow"), []byte(val), 0700); err != nil {
+		dir := filepath.Join(mountpoint, cgroup)
+		// We use the same method of allowing devices as in the fs backend.  This needs to be changed to use DBUS as soon as possible.  However, that change has to wait untill http://cgit.freedesktop.org/systemd/systemd/commit/?id=90060676c442604780634c0a993e3f9c3733f8e6 has been applied in most commonly used systemd versions.
+		for _, dev := range c.AllowedDevices {
+			deviceAllowString := fmt.Sprintf("%c %s:%s %s", dev.Type, devices.GetDeviceNumberString(dev.MajorNumber), devices.GetDeviceNumberString(dev.MinorNumber), dev.CgroupPermissions)
+			if err := writeFile(dir, "devices.allow", deviceAllowString); err != nil {
 				return nil, err
 			}
 		}
@@ -293,6 +263,10 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	}
 
 	return &res, nil
+}
+
+func writeFile(dir, file, data string) error {
+	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
 
 func (c *systemdCgroup) Cleanup() error {

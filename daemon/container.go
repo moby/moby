@@ -23,6 +23,7 @@ import (
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/symlink"
@@ -220,6 +221,25 @@ func populateCommand(c *Container, env []string) error {
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
+	// Build lists of devices allowed and created within the container.
+	userSpecifiedDevices := make([]devices.Device, len(c.hostConfig.Devices))
+	for i, thisDevice := range c.hostConfig.Devices {
+		src, dest, permissions, err := utils.ParseDevice(thisDevice)
+		if err != nil {
+			return err
+		}
+		device, err := devices.GetDevice(src, permissions)
+		device.Path = dest
+
+		if err != nil {
+			return err
+		}
+		userSpecifiedDevices[i] = device
+	}
+	allowedDevices := append(devices.DefaultAllowedDevices, userSpecifiedDevices...)
+
+	autoCreatedDevices := append(devices.DefaultAutoCreatedDevices, userSpecifiedDevices...)
+
 	// TODO: this can be removed after lxc-conf is fully deprecated
 	mergeLxcConfIntoOptions(c.hostConfig, context)
 
@@ -230,18 +250,20 @@ func populateCommand(c *Container, env []string) error {
 		Cpuset:     c.Config.Cpuset,
 	}
 	c.command = &execdriver.Command{
-		ID:         c.ID,
-		Privileged: c.hostConfig.Privileged,
-		Rootfs:     c.RootfsPath(),
-		InitPath:   "/.dockerinit",
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		WorkingDir: c.Config.WorkingDir,
-		Network:    en,
-		Tty:        c.Config.Tty,
-		User:       c.Config.User,
-		Config:     context,
-		Resources:  resources,
+		ID:                 c.ID,
+		Privileged:         c.hostConfig.Privileged,
+		Rootfs:             c.RootfsPath(),
+		InitPath:           "/.dockerinit",
+		Entrypoint:         c.Path,
+		Arguments:          c.Args,
+		WorkingDir:         c.Config.WorkingDir,
+		Network:            en,
+		Tty:                c.Config.Tty,
+		User:               c.Config.User,
+		Config:             context,
+		Resources:          resources,
+		AllowedDevices:     allowedDevices,
+		AutoCreatedDevices: autoCreatedDevices,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env

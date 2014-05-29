@@ -9,47 +9,27 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/system"
 )
 
-// Default list of device nodes to copy
-var DefaultNodes = []string{
-	"/dev/null",
-	"/dev/zero",
-	"/dev/full",
-	"/dev/random",
-	"/dev/urandom",
-	"/dev/tty",
-}
-
-// CopyN copies the device node from the host into the rootfs
-func CopyN(rootfs string, nodesToCopy []string, shouldExist bool) error {
+// Create the device nodes in the container.
+func CreateDeviceNodes(rootfs string, nodesToCreate []devices.Device) error {
 	oldMask := system.Umask(0000)
 	defer system.Umask(oldMask)
 
-	for _, node := range nodesToCopy {
-		if err := Copy(rootfs, node, shouldExist); err != nil {
+	for _, node := range nodesToCreate {
+		if err := CreateDeviceNode(rootfs, node); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// Copy copies the device node into the rootfs.  If the node
-// on the host system does not exist and the boolean flag is passed
-// an error will be returned
-func Copy(rootfs, node string, shouldExist bool) error {
-	stat, err := os.Stat(node)
-	if err != nil {
-		if os.IsNotExist(err) && !shouldExist {
-			return nil
-		}
-		return err
-	}
-
+// Creates the device node in the rootfs of the container.
+func CreateDeviceNode(rootfs string, node devices.Device) error {
 	var (
-		dest   = filepath.Join(rootfs, node)
-		st     = stat.Sys().(*syscall.Stat_t)
+		dest   = filepath.Join(rootfs, node.Path)
 		parent = filepath.Dir(dest)
 	)
 
@@ -57,13 +37,23 @@ func Copy(rootfs, node string, shouldExist bool) error {
 		return err
 	}
 
-	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("mknod %s %s", node, err)
+	fileMode := node.FileMode
+	switch node.Type {
+	case 'c':
+		fileMode |= syscall.S_IFCHR
+	case 'b':
+		fileMode |= syscall.S_IFBLK
+	default:
+		return fmt.Errorf("%c is not a valid device type for device %s", node.Type, node.Path)
+	}
+
+	if err := system.Mknod(dest, uint32(fileMode), devices.Mkdev(node.MajorNumber, node.MinorNumber)); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("mknod %s %s", node.Path, err)
 	}
 	return nil
 }
 
-func getNodes(path string) ([]string, error) {
+func getDeviceNodes(path string) ([]string, error) {
 	out := []string{}
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -71,7 +61,7 @@ func getNodes(path string) ([]string, error) {
 	}
 	for _, f := range files {
 		if f.IsDir() && f.Name() != "pts" && f.Name() != "shm" {
-			sub, err := getNodes(filepath.Join(path, f.Name()))
+			sub, err := getDeviceNodes(filepath.Join(path, f.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -84,5 +74,5 @@ func getNodes(path string) ([]string, error) {
 }
 
 func GetHostDeviceNodes() ([]string, error) {
-	return getNodes("/dev")
+	return getDeviceNodes("/dev")
 }
