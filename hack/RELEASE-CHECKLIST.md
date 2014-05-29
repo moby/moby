@@ -70,7 +70,7 @@ EXAMPLES:
 
 #### Builder
 
-+ 'docker build -t FOO .' applies the tag FOO to the newly built container
++ 'docker build -t FOO .' applies the tag FOO to the newly built image
 
 #### Remote API
 
