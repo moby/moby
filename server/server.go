@@ -684,15 +684,7 @@ func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
 		}
 	}
 
-	reporefs := make(map[string][]string)
-
-	for name, repository := range srv.daemon.Repositories().Repositories {
-		for tag, id := range repository {
-			reporefs[utils.TruncateID(id)] = append(reporefs[utils.TruncateID(id)], fmt.Sprintf("%s:%s", name, tag))
-		}
-	}
-
-	for id, repos := range reporefs {
+	for id, repos := range srv.daemon.Repositories().GetRepoRefs() {
 		job.Stdout.Write([]byte(" \"" + id + "\" [label=\"" + id + "\\n" + strings.Join(repos, "\\n") + "\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n"))
 	}
 	job.Stdout.Write([]byte(" base [style=invisible]\n}\n"))
@@ -713,6 +705,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	lookup := make(map[string]*engine.Env)
+	srv.daemon.Repositories().Lock()
 	for name, repository := range srv.daemon.Repositories().Repositories {
 		if job.Getenv("filter") != "" {
 			if match, _ := path.Match(job.Getenv("filter"), name); !match {
@@ -742,6 +735,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 
 		}
 	}
+	srv.daemon.Repositories().Unlock()
 
 	outs := engine.NewTable("Created", len(lookup))
 	for _, value := range lookup {
@@ -1302,9 +1296,6 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 		if err := srv.daemon.Repositories().Set(localName, tag, id, true); err != nil {
 			return err
 		}
-	}
-	if err := srv.daemon.Repositories().Save(); err != nil {
-		return err
 	}
 
 	return nil
