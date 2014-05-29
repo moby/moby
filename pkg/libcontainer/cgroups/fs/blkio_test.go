@@ -2,14 +2,16 @@ package fs
 
 import (
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
 
 const (
 	sectorsRecursiveContents      = `8:0 1024`
 	serviceBytesRecursiveContents = `8:0 Read 100
-8:0 Write 400
-8:0 Sync 200
-8:0 Async 300
+8:0 Write 200
+8:0 Sync 300
+8:0 Async 500
 8:0 Total 500
 Total 500`
 	servicedRecursiveContents = `8:0 Read 10
@@ -26,6 +28,12 @@ Total 50`
 Total 5`
 )
 
+var actualStats = *cgroups.NewStats()
+
+func appendBlkioStatEntry(blkioStatEntries *[]cgroups.BlkioStatEntry, major, minor, value uint64, op string) {
+	*blkioStatEntries = append(*blkioStatEntries, cgroups.BlkioStatEntry{Major: major, Minor: minor, Value: value, Op: op})
+}
+
 func TestBlkioStats(t *testing.T) {
 	helper := NewCgroupTestUtil("blkio", t)
 	defer helper.cleanup()
@@ -37,37 +45,34 @@ func TestBlkioStats(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	stats, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Verify expected stats.
-	expectedStats := map[string]int64{
-		"blkio.sectors_recursive:8:0": 1024,
+	expectedStats := cgroups.BlkioStats{}
+	appendBlkioStatEntry(&expectedStats.SectorsRecursive, 8, 0, 1024, "")
 
-		// Serviced bytes.
-		"io_service_bytes_recursive:8:0:Read":  100,
-		"io_service_bytes_recursive:8:0:Write": 400,
-		"io_service_bytes_recursive:8:0:Sync":  200,
-		"io_service_bytes_recursive:8:0:Async": 300,
-		"io_service_bytes_recursive:8:0:Total": 500,
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 100, "Read")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 200, "Write")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 300, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 500, "Async")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 500, "Total")
 
-		// Serviced requests.
-		"io_serviced_recursive:8:0:Read":  10,
-		"io_serviced_recursive:8:0:Write": 40,
-		"io_serviced_recursive:8:0:Sync":  20,
-		"io_serviced_recursive:8:0:Async": 30,
-		"io_serviced_recursive:8:0:Total": 50,
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 10, "Read")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 40, "Write")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 20, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 30, "Async")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 50, "Total")
 
-		// Queued requests.
-		"io_queued_recursive:8:0:Read":  1,
-		"io_queued_recursive:8:0:Write": 4,
-		"io_queued_recursive:8:0:Sync":  2,
-		"io_queued_recursive:8:0:Async": 3,
-		"io_queued_recursive:8:0:Total": 5,
-	}
-	expectStats(t, expectedStats, stats)
+	appendBlkioStatEntry(&expectedStats.IoQueuedRecursive, 8, 0, 1, "Read")
+	appendBlkioStatEntry(&expectedStats.IoQueuedRecursive, 8, 0, 4, "Write")
+	appendBlkioStatEntry(&expectedStats.IoQueuedRecursive, 8, 0, 2, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoQueuedRecursive, 8, 0, 3, "Async")
+	appendBlkioStatEntry(&expectedStats.IoQueuedRecursive, 8, 0, 5, "Total")
+
+	expectBlkioStatsEquals(t, expectedStats, actualStats.BlkioStats)
 }
 
 func TestBlkioStatsNoSectorsFile(t *testing.T) {
@@ -80,7 +85,7 @@ func TestBlkioStatsNoSectorsFile(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	_, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
@@ -96,7 +101,7 @@ func TestBlkioStatsNoServiceBytesFile(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	_, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
@@ -112,7 +117,7 @@ func TestBlkioStatsNoServicedFile(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	_, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
@@ -128,7 +133,7 @@ func TestBlkioStatsNoQueuedFile(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	_, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
@@ -145,7 +150,7 @@ func TestBlkioStatsUnexpectedNumberOfFields(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	_, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
@@ -162,7 +167,7 @@ func TestBlkioStatsUnexpectedFieldType(t *testing.T) {
 	})
 
 	blkio := &blkioGroup{}
-	_, err := blkio.Stats(helper.CgroupData)
+	err := blkio.GetStats(helper.CgroupData, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}

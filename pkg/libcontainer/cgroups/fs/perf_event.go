@@ -19,6 +19,6 @@ func (s *perfEventGroup) Remove(d *data) error {
 	return removePath(d.path("perf_event"))
 }
 
-func (s *perfEventGroup) Stats(d *data) (map[string]int64, error) {
-	return nil, ErrNotSupportStat
+func (s *perfEventGroup) GetStats(d *data, stats *cgroups.Stats) error {
+	return nil
 }

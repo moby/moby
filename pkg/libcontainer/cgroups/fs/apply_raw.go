@@ -26,7 +26,7 @@ var (
 type subsystem interface {
 	Set(*data) error
 	Remove(*data) error
-	Stats(*data) (map[string]int64, error)
+	GetStats(*data, *cgroups.Stats) error
 }
 
 type data struct {
@@ -74,7 +74,8 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	return d, nil
 }
 
-func GetStats(c *cgroups.Cgroup, subsystem string, pid int) (map[string]int64, error) {
+func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
+	stats := cgroups.NewStats()
 	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
 	if err != nil {
 		return nil, err
@@ -94,13 +95,15 @@ func GetStats(c *cgroups.Cgroup, subsystem string, pid int) (map[string]int64, e
 		root:   cgroupRoot,
 		cgroup: cgroup,
 		c:      c,
-		pid:    pid,
 	}
-	sys, exists := subsystems[subsystem]
-	if !exists {
-		return nil, fmt.Errorf("subsystem %s does not exist", subsystem)
+
+	for _, sys := range subsystems {
+		if err := sys.GetStats(d, stats); err != nil {
+			return nil, err
+		}
 	}
-	return sys.Stats(d)
+
+	return stats, nil
 }
 
 func GetPids(c *cgroups.Cgroup) ([]int, error) {
