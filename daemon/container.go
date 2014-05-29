@@ -23,6 +23,8 @@ import (
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/symlink"
@@ -81,6 +83,11 @@ type Container struct {
 	hostConfig *runconfig.HostConfig
 
 	activeLinks map[string]*links.Link
+}
+
+type Stat struct {
+	Name  string
+	Stats map[string]int64
 }
 
 // Inject the io.Reader at the given path. Note: do not close the reader
@@ -1136,4 +1143,28 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	default:
 		return nil, fmt.Errorf("network mode not set to container")
 	}
+}
+
+func (container *Container) Stats() (*[]Stat, error) {
+	cgs := []string{
+		"cpuacct",
+		"memory",
+	}
+	stats := []Stat{}
+	for _, cgName := range cgs {
+		group := &cgroups.Cgroup{
+			Name:   container.ID,
+			Parent: "docker",
+		}
+		cgStats, err := fs.GetStats(group, cgName, container.State.Pid)
+		if err != nil {
+			return nil, err
+		}
+		stat := Stat{
+			Name:  cgName,
+			Stats: cgStats,
+		}
+		stats = append(stats, stat)
+	}
+	return &stats, nil
 }

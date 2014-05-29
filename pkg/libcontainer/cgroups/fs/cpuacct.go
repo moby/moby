@@ -42,10 +42,10 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]int64, error) {
 	)
 	path, err := d.path("cpuacct")
 	if startCpu, err = s.getCpuUsage(d, path); err != nil {
-		return nil, err
+		return nil, cgroups.ErrStatsNotFound
 	}
 	if startSystem, err = s.getSystemCpuUsage(d); err != nil {
-		return nil, err
+		return nil, cgroups.ErrStatsNotFound
 	}
 	startUsageTime := time.Now()
 	if startUsage, err = getCgroupParamInt(path, "cpuacct.usage"); err != nil {
@@ -54,10 +54,10 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]int64, error) {
 	// sample for 100ms
 	time.Sleep(100 * time.Millisecond)
 	if lastCpu, err = s.getCpuUsage(d, path); err != nil {
-		return nil, err
+		return nil, cgroups.ErrStatsNotFound
 	}
 	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
-		return nil, err
+		return nil, cgroups.ErrStatsNotFound
 	}
 	usageSampleDuration := time.Since(startUsageTime)
 	if lastUsage, err = getCgroupParamInt(path, "cpuacct.usage"); err != nil {
@@ -82,6 +82,18 @@ func (s *cpuacctGroup) Stats(d *data) (map[string]int64, error) {
 }
 
 // TODO(vmarmol): Use cgroups stats.
+func (s *cpuacctGroup) getProcStarttime(d *data) (int64, error) {
+	rawStart, err := system.GetProcessStartTime(d.pid)
+	if err != nil {
+		return 0, err
+	}
+	v, err := strconv.Atoi(rawStart)
+	if err != nil {
+		return 0, err
+	}
+	return int64(v), nil
+}
+
 func (s *cpuacctGroup) getSystemCpuUsage(d *data) (int64, error) {
 
 	f, err := os.Open("/proc/stat")
@@ -105,7 +117,7 @@ func (s *cpuacctGroup) getSystemCpuUsage(d *data) (int64, error) {
 				if err != nil {
 					return 0.0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
 				}
-				total += v
+				total += int64(v)
 			}
 			return total, nil
 		default:
@@ -130,7 +142,7 @@ func (s *cpuacctGroup) getCpuUsage(d *data, path string) (int64, error) {
 			return 0, err
 		}
 		// set the raw data in map
-		cpuTotal += v
+		cpuTotal += int64(v)
 	}
 	return cpuTotal, nil
 }

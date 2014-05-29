@@ -369,6 +369,7 @@ For example:
       --since=""         Show all events created since timestamp
       --until=""         Stream events until this timestamp
 
+
 ### Examples
 
 You'll need two shells for this example.
@@ -1108,6 +1109,12 @@ more details on finding shared images from the commandline.
 
       -a, --attach=false         Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false    Attach container's stdin
+
+## stats
+
+Get stats of a container
+
+    Usage: docker stats CONTAINER
 
 ## stop
 

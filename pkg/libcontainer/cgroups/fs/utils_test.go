@@ -9,8 +9,8 @@ import (
 
 const (
 	cgroupFile  = "cgroup.file"
-	floatValue  = 2048.0
-	floatString = "2048"
+	int64Value  = 2048
+	int64String = "2048"
 )
 
 func TestGetCgroupParamsInt(t *testing.T) {
@@ -23,27 +23,27 @@ func TestGetCgroupParamsInt(t *testing.T) {
 	tempFile := filepath.Join(tempDir, cgroupFile)
 
 	// Success.
-	err = ioutil.WriteFile(tempFile, []byte(floatString), 0755)
+	err = ioutil.WriteFile(tempFile, []byte(int64String), 0755)
 	if err != nil {
 		t.Fatal(err)
 	}
 	value, err := getCgroupParamInt(tempDir, cgroupFile)
 	if err != nil {
 		t.Fatal(err)
-	} else if value != floatValue {
-		t.Fatalf("Expected %f to equal %f", value, floatValue)
+	} else if value != int64Value {
+		t.Fatalf("Expected %f to equal %f", value, int64String)
 	}
 
 	// Success with new line.
-	err = ioutil.WriteFile(tempFile, []byte(floatString+"\n"), 0755)
+	err = ioutil.WriteFile(tempFile, []byte(int64String+"\n"), 0755)
 	if err != nil {
 		t.Fatal(err)
 	}
 	value, err = getCgroupParamInt(tempDir, cgroupFile)
 	if err != nil {
 		t.Fatal(err)
-	} else if value != floatValue {
-		t.Fatalf("Expected %f to equal %f", value, floatValue)
+	} else if value != int64Value {
+		t.Fatalf("Expected %f to equal %f", value, int64Value)
 	}
 
 	// Not a float.

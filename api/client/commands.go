@@ -73,6 +73,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"save", "Save an image to a tar archive"},
 		{"search", "Search for an image in the docker index"},
 		{"start", "Start a stopped container"},
+		{"stats", "Get stats of a container"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
 		{"top", "Lookup the running processes of a container"},
@@ -1619,6 +1620,38 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	if err := cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdStats(args ...string) error {
+	cmd := cli.Subcmd("stats", "CONTAINER", "Get stats for a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() == 0 {
+		cmd.Usage()
+		return nil
+	}
+	var v = url.Values{}
+	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/stats?"+v.Encode(), nil, true))
+
+	if err != nil {
+		return err
+	}
+	outs := engine.NewTable("stats", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 5, 6, 6, ' ', 0)
+	fmt.Fprintf(w, "CPU\tRSS\tCACHE\tACTIVE FILE\tUSAGE IN BYTES\n")
+	if len(outs.Data) != 2 {
+		return fmt.Errorf("Invalid stat data, please check logs")
+	}
+	cpu := outs.Data[0].GetSubEnv("Stats")
+	mem := outs.Data[1].GetSubEnv("Stats")
+	fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t\n", cpu.GetInt("percentage"), mem.GetInt("total_rss"), mem.GetInt("total_cache"), mem.GetInt("total_active_file"), mem.GetInt("usage_in_bytes"))
+	w.Flush()
 	return nil
 }
 
