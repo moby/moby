@@ -80,6 +80,9 @@ func main() {
 		defaultHost := os.Getenv("DOCKER_HOST")
 
 		if defaultHost == "" || *flDaemon {
+			if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+				log.Fatalf("The Docker daemon is not supported on this platform.\nPlease specify a remote Docker daemon socket to connect to using tcp://host:port")
+			}
 			// If we do not have a host, default to unix socket
 			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
 		}
