@@ -1088,3 +1088,14 @@ func ValidateContextDirectory(srcPath string) error {
 	})
 	return finalError
 }
+
+// HasSuffixFromArray checks if a string has a suffix from an array and
+// returns true if it does
+func HasSuffixFromArray(s string, suffixes []string) bool {
+	for _, val := range suffixes {
+		if strings.HasSuffix(s, val) {
+			return true
+		}
+	}
+	return false
+}

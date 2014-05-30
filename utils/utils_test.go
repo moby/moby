@@ -493,3 +493,14 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Errorf("failed to remove symlink: %s", err)
 	}
 }
+
+func TestHasSuffixFromArray(t *testing.T) {
+	suffixes := []string{".foo", ".bar.baz", ".boo"}
+	if !HasSuffixFromArray("blah.foo", suffixes) {
+		t.Fatalf("HasSuffixArray should have returned true")
+	}
+	if HasSuffixFromArray("blah.baz", suffixes) {
+		t.Fatalf("HasSuffixArray shouldn't have returned false")
+	}
+
+}
