@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -22,7 +23,7 @@ const (
 	SIOC_BRADDIF   = 0x89a2
 )
 
-var nextSeqNr int
+var nextSeqNr uint32
 
 type ifreqHwaddr struct {
 	IfrnName   [16]byte
@@ -40,11 +41,6 @@ func nativeEndian() binary.ByteOrder {
 		return binary.BigEndian
 	}
 	return binary.LittleEndian
-}
-
-func getSeq() int {
-	nextSeqNr = nextSeqNr + 1
-	return nextSeqNr
 }
 
 func getIpFamily(ip net.IP) int {
@@ -266,7 +262,7 @@ func newNetlinkRequest(proto, flags int) *NetlinkRequest {
 			Len:   uint32(syscall.NLMSG_HDRLEN),
 			Type:  uint16(proto),
 			Flags: syscall.NLM_F_REQUEST | uint16(flags),
-			Seq:   uint32(getSeq()),
+			Seq:   atomic.AddUint32(&nextSeqNr, 1),
 		},
 	}
 }
