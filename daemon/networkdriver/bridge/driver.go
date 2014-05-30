@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/dotcloud/docker/daemon/networkdriver"
 	"github.com/dotcloud/docker/daemon/networkdriver/ipallocator"
@@ -26,6 +27,24 @@ const (
 type networkInterface struct {
 	IP           net.IP
 	PortMappings []net.Addr // there are mappings to the host interfaces
+}
+
+type ifaces struct {
+	c map[string]*networkInterface
+	sync.Mutex
+}
+
+func (i *ifaces) Set(key string, n *networkInterface) {
+	i.Lock()
+	i.c[key] = n
+	i.Unlock()
+}
+
+func (i *ifaces) Get(key string) *networkInterface {
+	i.Lock()
+	res := i.c[key]
+	i.Unlock()
+	return res
 }
 
 var (
@@ -53,7 +72,7 @@ var (
 	bridgeNetwork *net.IPNet
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
-	currentInterfaces = make(map[string]*networkInterface)
+	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
 )
 
 func InitDriver(job *engine.Job) engine.Status {
@@ -321,9 +340,9 @@ func Allocate(job *engine.Job) engine.Status {
 	size, _ := bridgeNetwork.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
 
-	currentInterfaces[id] = &networkInterface{
+	currentInterfaces.Set(id, &networkInterface{
 		IP: *ip,
-	}
+	})
 
 	out.WriteTo(job.Stdout)
 
@@ -334,7 +353,7 @@ func Allocate(job *engine.Job) engine.Status {
 func Release(job *engine.Job) engine.Status {
 	var (
 		id                 = job.Args[0]
-		containerInterface = currentInterfaces[id]
+		containerInterface = currentInterfaces.Get(id)
 		ip                 net.IP
 		port               int
 		proto              string
@@ -383,7 +402,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 		origHostPort  = job.GetenvInt("HostPort")
 		containerPort = job.GetenvInt("ContainerPort")
 		proto         = job.Getenv("Proto")
-		network       = currentInterfaces[id]
+		network       = currentInterfaces.Get(id)
 	)
 
 	if hostIP != "" {

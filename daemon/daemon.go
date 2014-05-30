@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"container/list"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -48,10 +47,43 @@ var (
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
+type contStore struct {
+	s map[string]*Container
+	sync.Mutex
+}
+
+func (c *contStore) Add(id string, cont *Container) {
+	c.Lock()
+	c.s[id] = cont
+	c.Unlock()
+}
+
+func (c *contStore) Get(id string) *Container {
+	c.Lock()
+	res := c.s[id]
+	c.Unlock()
+	return res
+}
+
+func (c *contStore) Delete(id string) {
+	c.Lock()
+	delete(c.s, id)
+	c.Unlock()
+}
+
+func (c *contStore) List() []*Container {
+	containers := new(History)
+	for _, cont := range c.s {
+		containers.Add(cont)
+	}
+	containers.Sort()
+	return *containers
+}
+
 type Daemon struct {
 	repository     string
 	sysInitPath    string
-	containers     *list.List
+	containers     *contStore
 	graph          *graph.Graph
 	repositories   *graph.TagStore
 	idIndex        *utils.TruncIndex
@@ -87,22 +119,7 @@ func remountPrivate(mountPoint string) error {
 
 // List returns an array of all containers registered in the daemon.
 func (daemon *Daemon) List() []*Container {
-	containers := new(History)
-	for e := daemon.containers.Front(); e != nil; e = e.Next() {
-		containers.Add(e.Value.(*Container))
-	}
-	containers.Sort()
-	return *containers
-}
-
-func (daemon *Daemon) getContainerElement(id string) *list.Element {
-	for e := daemon.containers.Front(); e != nil; e = e.Next() {
-		container := e.Value.(*Container)
-		if container.ID == id {
-			return e
-		}
-	}
-	return nil
+	return daemon.containers.List()
 }
 
 // Get looks for a container by the specified ID or name, and returns it.
@@ -117,11 +134,7 @@ func (daemon *Daemon) Get(name string) *Container {
 		return nil
 	}
 
-	e := daemon.getContainerElement(id)
-	if e == nil {
-		return nil
-	}
-	return e.Value.(*Container)
+	return daemon.containers.Get(id)
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
@@ -177,7 +190,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		container.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// done
-	daemon.containers.PushBack(container)
+	daemon.containers.Add(container.ID, container)
 
 	// don't update the Suffixarray if we're starting up
 	// we'll waste time if we update it for every container
@@ -279,7 +292,7 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return fmt.Errorf("The given container is <nil>")
 	}
 
-	element := daemon.getContainerElement(container.ID)
+	element := daemon.containers.Get(container.ID)
 	if element == nil {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
 	}
@@ -290,7 +303,7 @@ func (daemon *Daemon) Destroy(container *Container) error {
 
 	// Deregister the container before removing its directory, to avoid race conditions
 	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Remove(element)
+	daemon.containers.Delete(container.ID)
 
 	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
 		utils.Debugf("Unable to remove container from link graph: %s", err)
@@ -677,11 +690,11 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
-	e := daemon.getContainerElement(entity.ID())
+	e := daemon.containers.Get(entity.ID())
 	if e == nil {
 		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
 	}
-	return e.Value.(*Container), nil
+	return e, nil
 }
 
 func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
@@ -860,7 +873,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	daemon := &Daemon{
 		repository:     daemonRepo,
-		containers:     list.New(),
+		containers:     &contStore{s: make(map[string]*Container)},
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex([]string{}),
