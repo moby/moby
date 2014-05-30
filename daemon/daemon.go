@@ -327,7 +327,9 @@ func (daemon *Daemon) Destroy(container *Container) error {
 }
 
 func (daemon *Daemon) restore() error {
-	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+	debug := (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
+
+	if !debug {
 		fmt.Printf("Loading containers: ")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
@@ -340,7 +342,7 @@ func (daemon *Daemon) restore() error {
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
-		if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+		if !debug {
 			fmt.Print(".")
 		}
 		if err != nil {
@@ -357,20 +359,16 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	registerContainer := func(container *Container) {
-		if err := daemon.register(container, false); err != nil {
-			utils.Debugf("Failed to register container %s: %s", container.ID, err)
-		}
-	}
-
 	if entities := daemon.containerGraph.List("/", -1); entities != nil {
 		for _, p := range entities.Paths() {
-			if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+			if !debug {
 				fmt.Print(".")
 			}
 			e := entities[p]
 			if container, ok := containers[e.ID()]; ok {
-				registerContainer(container)
+				if err := daemon.register(container, false); err != nil {
+					utils.Debugf("Failed to register container %s: %s", container.ID, err)
+				}
 				delete(containers, e.ID())
 			}
 		}
@@ -383,11 +381,13 @@ func (daemon *Daemon) restore() error {
 		if err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
-		registerContainer(container)
+		if err := daemon.register(container, false); err != nil {
+			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+		}
 	}
 
 	daemon.idIndex.UpdateSuffixarray()
-	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+	if !debug {
 		fmt.Printf(": done.\n")
 	}
 
