@@ -158,7 +158,7 @@ func Raw(args ...string) ([]byte, error) {
 	}
 
 	if os.Getenv("DEBUG") != "" {
-		fmt.Printf("[DEBUG] [iptables]: %s, %v\n", path, args)
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s, %v\n", path, args))
 	}
 
 	output, err := exec.Command(path, args...).CombinedOutput()
