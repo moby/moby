@@ -524,7 +524,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 
 func (daemon *Daemon) generateNewName(id string) (string, error) {
 	var name string
-	for i := 1; i < 6; i++ {
+	for i := 0; i < 6; i++ {
 		name = namesgenerator.GetRandomName(i)
 		if name[0] != '/' {
 			name = "/" + name
