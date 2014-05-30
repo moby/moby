@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 )
@@ -49,6 +50,9 @@ func (s *cpuGroup) GetStats(d *data, stats *cgroups.Stats) error {
 
 	f, err := os.Open(filepath.Join(path, "cpu.stat"))
 	if err != nil {
+		if pathErr, ok := err.(*os.PathError); ok && pathErr.Err == syscall.ENOENT {
+			return nil
+		}
 		return err
 	}
 	defer f.Close()
