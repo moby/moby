@@ -468,6 +468,20 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		utils.Errorf("Error running container: %s", err)
 	}
 
+	// Cleanup
+	container.cleanup()
+
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	if container.daemon != nil && container.daemon.srv != nil {
+		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
+	}
+
+	close(container.waitLock)
+
 	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
 		container.State.SetStopped(exitCode)
 
@@ -482,20 +496,6 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 			utils.Errorf("Error dumping container state to disk: %s\n", err)
 		}
 	}
-
-	// Cleanup
-	container.cleanup()
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-
-	if container.daemon != nil && container.daemon.srv != nil {
-		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
-	}
-
-	close(container.waitLock)
 
 	return err
 }
