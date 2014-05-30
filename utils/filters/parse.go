@@ -1,8 +1,8 @@
 package filters
 
 import (
+	"encoding/json"
 	"errors"
-	"github.com/dotcloud/docker/pkg/beam/data"
 	"strings"
 )
 
@@ -40,13 +40,22 @@ var ErrorBadFormat = errors.New("bad format of filter (expected name=value)")
 /*
 packs the Args into an string for easy transport from client to server
 */
-func ToParam(a Args) string {
-	return data.Encode(a)
+func ToParam(a Args) (string, error) {
+	buf, err := json.Marshal(a)
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
 }
 
 /*
 unpacks the filter Args
 */
 func FromParam(p string) (Args, error) {
-	return data.Decode(p)
+	args := Args{}
+	err := json.Unmarshal([]byte(p), &args)
+	if err != nil {
+		return nil, err
+	}
+	return args, nil
 }

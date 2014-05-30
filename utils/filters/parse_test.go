@@ -36,7 +36,10 @@ func TestParam(t *testing.T) {
 		"image.name": []string{"ubuntu*", "*untu"},
 	}
 
-	v := ToParam(a)
+	v, err := ToParam(a)
+	if err != nil {
+		t.Errorf("failed to marshal the filters: %s", err)
+	}
 	v1, err := FromParam(v)
 	if err != nil {
 		t.Errorf("%s", err)
