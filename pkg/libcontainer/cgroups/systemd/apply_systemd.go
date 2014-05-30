@@ -218,6 +218,14 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 		}
 	}
 
+	// we need to manually join the freezer cgroup in systemd because it does not currently support it
+	// via the dbus api
+	freezerPath, err := joinFreezer(c, pid)
+	if err != nil {
+		return nil, err
+	}
+	res.cleanupDirs = append(res.cleanupDirs, freezerPath)
+
 	if len(cpusetArgs) != 0 {
 		// systemd does not atm set up the cpuset controller, so we must manually
 		// join it. Additionally that is a very finicky controller where each
@@ -227,23 +235,25 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		initPath, err := cgroups.GetInitCgroupDir("cpuset")
 		if err != nil {
 			return nil, err
 		}
 
-		rootPath := filepath.Join(mountpoint, initPath)
+		var (
+			foundCpus bool
+			foundMems bool
 
-		path := filepath.Join(mountpoint, initPath, c.Parent+"-"+c.Name)
+			rootPath = filepath.Join(mountpoint, initPath)
+			path     = filepath.Join(mountpoint, initPath, c.Parent+"-"+c.Name)
+		)
 
 		res.cleanupDirs = append(res.cleanupDirs, path)
 
 		if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
-
-		foundCpus := false
-		foundMems := false
 
 		for _, arg := range cpusetArgs {
 			if arg.File == "cpuset.cpus" {
@@ -301,6 +311,47 @@ func (c *systemdCgroup) Cleanup() error {
 	}
 
 	return nil
+}
+
+func joinFreezer(c *cgroups.Cgroup, pid int) (string, error) {
+	path, err := getFreezerPath(c)
+	if err != nil {
+		return "", err
+	}
+
+	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"), []byte(strconv.Itoa(pid)), 0700); err != nil {
+		return "", err
+	}
+
+	return path, nil
+}
+
+func getFreezerPath(c *cgroups.Cgroup) (string, error) {
+	mountpoint, err := cgroups.FindCgroupMountpoint("freezer")
+	if err != nil {
+		return "", err
+	}
+
+	initPath, err := cgroups.GetInitCgroupDir("freezer")
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(mountpoint, initPath, fmt.Sprintf("%s-%s", c.Parent, c.Name)), nil
+
+}
+
+func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
+	path, err := getFreezerPath(c)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filepath.Join(path, "freezer.state"), []byte(state), 0)
 }
 
 func GetPids(c *cgroups.Cgroup) ([]int, error) {

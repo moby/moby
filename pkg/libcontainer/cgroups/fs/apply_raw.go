@@ -37,64 +37,27 @@ type data struct {
 }
 
 func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
-	// We have two implementation of cgroups support, one is based on
-	// systemd and the dbus api, and one is based on raw cgroup fs operations
-	// following the pre-single-writer model docs at:
-	// http://www.freedesktop.org/wiki/Software/systemd/PaxControlGroups/
-	//
-	// we can pick any subsystem to find the root
-
-	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
+	d, err := getCgroupData(c, pid)
 	if err != nil {
 		return nil, err
 	}
-	cgroupRoot = filepath.Dir(cgroupRoot)
 
-	if _, err := os.Stat(cgroupRoot); err != nil {
-		return nil, fmt.Errorf("cgroups fs not found")
-	}
-
-	cgroup := c.Name
-	if c.Parent != "" {
-		cgroup = filepath.Join(c.Parent, cgroup)
-	}
-
-	d := &data{
-		root:   cgroupRoot,
-		cgroup: cgroup,
-		c:      c,
-		pid:    pid,
-	}
 	for _, sys := range subsystems {
 		if err := sys.Set(d); err != nil {
 			d.Cleanup()
 			return nil, err
 		}
 	}
+
 	return d, nil
 }
 
 func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 	stats := cgroups.NewStats()
-	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
+
+	d, err := getCgroupData(c, 0)
 	if err != nil {
 		return nil, err
-	}
-	cgroupRoot = filepath.Dir(cgroupRoot)
-
-	if _, err := os.Stat(cgroupRoot); err != nil {
-		return nil, fmt.Errorf("cgroups fs not found")
-	}
-
-	cgroup := c.Name
-	if c.Parent != "" {
-		cgroup = filepath.Join(c.Parent, cgroup)
-	}
-
-	d := &data{
-		root:   cgroupRoot,
-		cgroup: cgroup,
-		c:      c,
 	}
 
 	for _, sys := range subsystems {
@@ -106,26 +69,25 @@ func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 	return stats, nil
 }
 
+// Freeze toggles the container's freezer cgroup depending on the state
+// provided
+func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
+	d, err := getCgroupData(c, 0)
+	if err != nil {
+		return err
+	}
+
+	c.Freezer = state
+
+	freezer := subsystems["freezer"]
+
+	return freezer.Set(d)
+}
+
 func GetPids(c *cgroups.Cgroup) ([]int, error) {
-	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
+	d, err := getCgroupData(c, 0)
 	if err != nil {
 		return nil, err
-	}
-	cgroupRoot = filepath.Dir(cgroupRoot)
-
-	if _, err := os.Stat(cgroupRoot); err != nil {
-		return nil, fmt.Errorf("cgroup root %s not found", cgroupRoot)
-	}
-
-	cgroup := c.Name
-	if c.Parent != "" {
-		cgroup = filepath.Join(c.Parent, cgroup)
-	}
-
-	d := &data{
-		root:   cgroupRoot,
-		cgroup: cgroup,
-		c:      c,
 	}
 
 	dir, err := d.path("devices")
@@ -134,6 +96,31 @@ func GetPids(c *cgroups.Cgroup) ([]int, error) {
 	}
 
 	return cgroups.ReadProcsFile(dir)
+}
+
+func getCgroupData(c *cgroups.Cgroup, pid int) (*data, error) {
+	// we can pick any subsystem to find the root
+	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
+	if err != nil {
+		return nil, err
+	}
+	cgroupRoot = filepath.Dir(cgroupRoot)
+
+	if _, err := os.Stat(cgroupRoot); err != nil {
+		return nil, fmt.Errorf("cgroups fs not found")
+	}
+
+	cgroup := c.Name
+	if c.Parent != "" {
+		cgroup = filepath.Join(c.Parent, cgroup)
+	}
+
+	return &data{
+		root:   cgroupRoot,
+		cgroup: cgroup,
+		c:      c,
+		pid:    pid,
+	}, nil
 }
 
 func (raw *data) parent(subsystem string) (string, error) {

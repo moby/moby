@@ -10,6 +10,14 @@ var (
 	ErrNotFound = errors.New("mountpoint not found")
 )
 
+type FreezerState string
+
+const (
+	Undefined FreezerState = ""
+	Frozen    FreezerState = "FROZEN"
+	Thawed    FreezerState = "THAWED"
+)
+
 type Cgroup struct {
 	Name   string `json:"name,omitempty"`
 	Parent string `json:"parent,omitempty"` // name of parent cgroup or slice
@@ -23,9 +31,8 @@ type Cgroup struct {
 	CpuQuota          int64             `json:"cpu_quota,omitempty"`          // CPU hardcap limit (in usecs). Allowed cpu time in a given period.
 	CpuPeriod         int64             `json:"cpu_period,omitempty"`         // CPU period to be used for hardcapping (in usecs). 0 to use system default.
 	CpusetCpus        string            `json:"cpuset_cpus,omitempty"`        // CPU to use
-	Freezer           string            `json:"freezer,omitempty"`            // set the freeze value for the process
-
-	Slice string `json:"slice,omitempty"` // Parent slice to use for systemd
+	Freezer           FreezerState      `json:"freezer,omitempty"`            // set the freeze value for the process
+	Slice             string            `json:"slice,omitempty"`              // Parent slice to use for systemd
 }
 
 type ActiveCgroup interface {
