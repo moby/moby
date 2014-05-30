@@ -61,3 +61,18 @@ func TestParam(t *testing.T) {
 		}
 	}
 }
+
+func TestEmpty(t *testing.T) {
+	a := Args{}
+	v, err := ToParam(a)
+	if err != nil {
+		t.Errorf("failed to marshal the filters: %s", err)
+	}
+	v1, err := FromParam(v)
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if len(a) != len(v1) {
+		t.Errorf("these should both be empty sets")
+	}
+}
