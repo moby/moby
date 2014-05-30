@@ -70,6 +70,24 @@ type Container struct {
 	// OptionalDeviceNodes are a list of device nodes that will be mknod into the container's rootfs at /dev
 	// If the host system does not support the device that the container requests the error is ignored
 	OptionalDeviceNodes []string `json:"optional_device_nodes,omitempty"`
+
+	// MapDockerRoot is a boolean that specifies whether we need to map docker-root to root in the container
+	MapDockerRoot bool `json:"map_docker_root,omitempty"`
+
+	// DockerRootUser is the username of the docker root user on the host
+	DockerRootUser string `json:"docker_root_user,omitempty"`
+
+	// DockerRootUid is the uid of the docker root user on the host
+	DockerRootUid int `json:"docker_root_uid,omitempty"`
+
+	// DockerRootGid is the gid of the docker root user on the host
+	DockerRootGid int `json:"docker_root_gid,omitempty"`
+
+	// UidMappings is a string array of uid mappings for user namespaces
+	UidMappings []string `json:"uid_mappings,omitempty"`
+
+	// GidMappings is a string array of gid mappings for user namespaces
+	GidMappings []string `json:"gid_mappings,omitempty"`
 }
 
 // Network defines configuration for a container's networking stack
