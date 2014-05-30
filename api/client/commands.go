@@ -1172,13 +1172,15 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	matchName := cmd.Arg(0)
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	if *flViz || *flTree {
-		filterJson, err := filters.ToParam(imageFilterArgs)
-		if err != nil {
-			return err
-		}
 		v := url.Values{
-			"all":     []string{"1"},
-			"filters": []string{filterJson},
+			"all": []string{"1"},
+		}
+		if len(imageFilterArgs) > 0 {
+			filterJson, err := filters.ToParam(imageFilterArgs)
+			if err != nil {
+				return err
+			}
+			v.Set("filters", filterJson)
 		}
 
 		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
@@ -1242,12 +1244,13 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")
 		}
 	} else {
-		filterJson, err := filters.ToParam(imageFilterArgs)
-		if err != nil {
-			return err
-		}
-		v := url.Values{
-			"filters": []string{filterJson},
+		v := url.Values{}
+		if len(imageFilterArgs) > 0 {
+			filterJson, err := filters.ToParam(imageFilterArgs)
+			if err != nil {
+				return err
+			}
+			v.Set("filters", filterJson)
 		}
 
 		if cmd.NArg() == 1 {

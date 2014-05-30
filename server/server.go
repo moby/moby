@@ -712,7 +712,7 @@ func (srv *Server) Images(job *engine.Job) engine.Status {
 		}
 	}
 
-	if job.GetenvBool("all") && !filt_tagged {
+	if job.GetenvBool("all") && filt_tagged {
 		allImages, err = srv.daemon.Graph().Map()
 	} else {
 		allImages, err = srv.daemon.Graph().Heads()
