@@ -771,6 +771,14 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 		return err
 	}
 
+	if !c.GetSubEnv("State").GetBool("Running") {
+		http.Error(w, "Cannot attach to a non-running container", 409)
+		return nil
+	}
+
+	w.Header().Add("Content-Type", "application/vnd.docker.raw-stream")
+	w.WriteHeader(200)
+
 	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
@@ -792,8 +800,6 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 
 	var errStream io.Writer
 
-	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-
 	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
 		errStream = utils.NewStdWriter(outStream, utils.Stderr)
 		outStream = utils.NewStdWriter(outStream, utils.Stdout)
@@ -812,7 +818,6 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	job.Stderr.Set(errStream)
 	if err := job.Run(); err != nil {
 		fmt.Fprintf(outStream, "Error: %s\n", err)
-
 	}
 	return nil
 }

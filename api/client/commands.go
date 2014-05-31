@@ -1740,10 +1740,6 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	if !env.GetSubEnv("State").GetBool("Running") {
-		return fmt.Errorf("You cannot attach to a stopped container, start it first")
-	}
-
 	var (
 		config = env.GetSubEnv("Config")
 		tty    = config.GetBool("Tty")
@@ -2000,6 +1996,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		defer signal.StopCatch(sigc)
 	}
 
+	//start the container
+	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/start", hostConfig, false)); err != nil {
+		return err
+	}
+
 	var (
 		waitDisplayId chan struct{}
 		errCh         chan error
@@ -2071,11 +2072,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			utils.Debugf("Error hijack: %s", err)
 			return err
 		}
-	}
-
-	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/start", hostConfig, false)); err != nil {
-		return err
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
