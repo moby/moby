@@ -4,7 +4,6 @@ package nodes
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -14,7 +13,7 @@ import (
 )
 
 // Create the device nodes in the container.
-func CreateDeviceNodes(rootfs string, nodesToCreate []devices.Device) error {
+func CreateDeviceNodes(rootfs string, nodesToCreate []*devices.Device) error {
 	oldMask := system.Umask(0000)
 	defer system.Umask(oldMask)
 
@@ -27,7 +26,7 @@ func CreateDeviceNodes(rootfs string, nodesToCreate []devices.Device) error {
 }
 
 // Creates the device node in the rootfs of the container.
-func CreateDeviceNode(rootfs string, node devices.Device) error {
+func CreateDeviceNode(rootfs string, node *devices.Device) error {
 	var (
 		dest   = filepath.Join(rootfs, node.Path)
 		parent = filepath.Dir(dest)
@@ -51,28 +50,4 @@ func CreateDeviceNode(rootfs string, node devices.Device) error {
 		return fmt.Errorf("mknod %s %s", node.Path, err)
 	}
 	return nil
-}
-
-func getDeviceNodes(path string) ([]string, error) {
-	out := []string{}
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	for _, f := range files {
-		if f.IsDir() && f.Name() != "pts" && f.Name() != "shm" {
-			sub, err := getDeviceNodes(filepath.Join(path, f.Name()))
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub...)
-		} else if f.Mode()&os.ModeDevice == os.ModeDevice {
-			out = append(out, filepath.Join(path, f.Name()))
-		}
-	}
-	return out, nil
-}
-
-func GetHostDeviceNodes() ([]string, error) {
-	return getDeviceNodes("/dev")
 }

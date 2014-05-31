@@ -136,8 +136,8 @@ type Command struct {
 	Config             map[string][]string `json:"config"` //  generic values that specific drivers can consume
 	Resources          *Resources          `json:"resources"`
 	Mounts             []Mount             `json:"mounts"`
-	AllowedDevices     []devices.Device    `json:"allowed_devices"`
-	AutoCreatedDevices []devices.Device    `json:"autocreated_devices"`
+	AllowedDevices     []*devices.Device   `json:"allowed_devices"`
+	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
 
 	Terminal     Terminal `json:"-"`             // standard or tty terminal
 	Console      string   `json:"-"`             // dev/console path

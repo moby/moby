@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 // createContainer populates and configures the container type with the
@@ -111,6 +112,12 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 func (d *driver) setPrivileged(container *libcontainer.Container) (err error) {
 	container.Capabilities = libcontainer.GetAllCapabilities()
 	container.Cgroups.AllowAllDevices = true
+
+	hostDeviceNodes, err := devices.GetHostDeviceNodes()
+	if err != nil {
+		return err
+	}
+	container.DeviceNodes = hostDeviceNodes
 
 	delete(container.Context, "restrictions")
 
