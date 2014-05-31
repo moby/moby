@@ -946,6 +946,7 @@ removed before the image is removed.
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc[:/dev/xvdc[:rwm]])
       -w, --workdir=""           Working directory inside the container
 
 The `docker run` command first `creates` a writeable container layer over the
@@ -1121,6 +1122,20 @@ The container's ID will be printed after the build is done and the build
 logs could be retrieved using `docker logs`. This is
 useful if you need to pipe a file or something else into a container and
 retrieve the container's ID once the container has finished running.
+
+   $ sudo docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
+   brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
+   brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
+   crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
+
+It is often necessary to directly expose devices to a container.  ``--device``
+option enables that.  For example, a specific block storage device or loop
+device or audio device can be added to an otherwise unprivileged container
+(without the ``--privileged`` flag) and have the application directly access it.
+
+** Security note: **
+
+``--device`` cannot be safely used with ephemeral devices.  Block devices that may be removed should not be added to untrusted containers with ``--device``!
 
 **A complete example:**
 

@@ -41,6 +41,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flVolumes = opts.NewListOpts(opts.ValidatePath)
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flDevices = opts.NewListOpts(opts.ValidatePath)
 
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
@@ -74,6 +75,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
+	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
 
@@ -191,6 +193,16 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		}
 	}
 
+	// parse device mappings
+	deviceMappings := []DeviceMapping{}
+	for _, device := range flDevices.GetAll() {
+		deviceMapping, err := ParseDevice(device)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		deviceMappings = append(deviceMappings, deviceMapping)
+	}
+
 	// collect all the environment variables for the container
 	envVariables := []string{}
 	for _, ef := range flEnvFile.GetAll() {
@@ -245,6 +257,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		DnsSearch:       flDnsSearch.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
+		Devices:         deviceMappings,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -302,4 +315,34 @@ func parseNetMode(netMode string) (NetworkMode, error) {
 		return "", fmt.Errorf("invalid --net: %s", netMode)
 	}
 	return NetworkMode(netMode), nil
+}
+
+func ParseDevice(device string) (DeviceMapping, error) {
+	src := ""
+	dst := ""
+	permissions := "rwm"
+	arr := strings.Split(device, ":")
+	switch len(arr) {
+	case 3:
+		permissions = arr[2]
+		fallthrough
+	case 2:
+		dst = arr[1]
+		fallthrough
+	case 1:
+		src = arr[0]
+	default:
+		return DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
+	}
+
+	if dst == "" {
+		dst = src
+	}
+
+	deviceMapping := DeviceMapping{
+		PathOnHost:        src,
+		PathInContainer:   dst,
+		CgroupPermissions: permissions,
+	}
+	return deviceMapping, nil
 }
