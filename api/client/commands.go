@@ -600,7 +600,6 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		var in io.ReadCloser
 
 		v := url.Values{}
-		v.Set("stream", "1")
 		if *openStdin && container.Config.OpenStdin {
 			v.Set("stdin", "1")
 			in = cli.in
