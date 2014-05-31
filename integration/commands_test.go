@@ -267,7 +267,7 @@ func TestRunWorkdirExistsAndIsFile(t *testing.T) {
 		}
 	}()
 
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
+	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
 		<-c
 	})
 }
