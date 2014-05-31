@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-
-	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 )
 
 // Checks whether the expected capability is specified in the capabilities.
@@ -67,12 +65,5 @@ func TestContainerJsonFormat(t *testing.T) {
 	if contains("SYS_CHROOT", container.Capabilities) {
 		t.Log("capabilities mask should not contain SYS_CHROOT")
 		t.Fail()
-	}
-
-	for _, n := range nodes.DefaultNodes {
-		if !contains(n, container.RequiredDeviceNodes) {
-			t.Logf("devices should contain %s", n)
-			t.Fail()
-		}
 	}
 }
