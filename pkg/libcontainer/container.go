@@ -65,7 +65,7 @@ type Container struct {
 	Mounts Mounts `json:"mounts,omitempty"`
 
 	// The device nodes that should be automatically created within the container upon container start.  Note, make sure that the node is marked as allowed in the cgroup as well!
-	DeviceNodes []devices.Device `json:"device_nodes,omitempty"`
+	DeviceNodes []*devices.Device `json:"device_nodes,omitempty"`
 }
 
 // Network defines configuration for a container's networking stack
