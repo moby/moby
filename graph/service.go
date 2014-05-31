@@ -2,7 +2,6 @@ package graph
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 
 	"github.com/dotcloud/docker/engine"
@@ -117,12 +116,12 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 		//	- Comment: initially created to fulfill the "every image is a git commit"
 		//		metaphor, in practice people either ignore it or use it as a
 		//		generic description field which it isn't. On deprecation shortlist.
-		res.Set("created", fmt.Sprintf("%v", img.Created))
-		res.Set("author", img.Author)
-		res.Set("os", img.OS)
-		res.Set("architecture", img.Architecture)
-		res.Set("docker_version", img.DockerVersion)
-		res.Set("ID", img.ID)
+		res.SetAuto("Created", img.Created)
+		res.Set("Author", img.Author)
+		res.Set("Os", img.OS)
+		res.Set("Architecture", img.Architecture)
+		res.Set("DockerVersion", img.DockerVersion)
+		res.Set("Id", img.ID)
 		res.Set("Parent", img.Parent)
 	}
 	res.WriteTo(job.Stdout)
@@ -136,11 +135,31 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if image, err := s.LookupImage(name); err == nil && image != nil {
-		b, err := json.Marshal(image)
-		if err != nil {
+		if job.GetenvBool("dirty") {
+			b, err := json.Marshal(image)
+			if err != nil {
+				return job.Error(err)
+			}
+			job.Stdout.Write(b)
+			return engine.StatusOK
+		}
+
+		out := &engine.Env{}
+		out.Set("Id", image.ID)
+		out.Set("Parent", image.Parent)
+		out.Set("Comment", image.Comment)
+		out.SetAuto("Created", image.Created)
+		out.Set("Container", image.Container)
+		out.SetJson("ContainerConfig", image.ContainerConfig)
+		out.Set("DockerVersion", image.DockerVersion)
+		out.Set("Author", image.Author)
+		out.SetJson("Config", image.Config)
+		out.Set("Architecture", image.Architecture)
+		out.Set("Os", image.OS)
+		out.SetInt64("Size", image.Size)
+		if _, err = out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}
-		job.Stdout.Write(b)
 		return engine.StatusOK
 	}
 	return job.Errorf("No such image: %s", name)

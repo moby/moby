@@ -439,7 +439,7 @@ func TestBuildWithVolume(t *testing.T) {
 		VOLUME /test
 		`,
 		"testbuildimg",
-		"{{json .config.Volumes}}",
+		"{{json .Config.Volumes}}",
 		`{"/test":{}}`)
 
 	deleteImages("testbuildimg")
@@ -453,7 +453,7 @@ func TestBuildMaintainer(t *testing.T) {
         MAINTAINER dockerio
 		`,
 		"testbuildimg",
-		"{{json .author}}",
+		"{{json .Author}}",
 		`"dockerio"`)
 
 	deleteImages("testbuildimg")
@@ -469,7 +469,7 @@ func TestBuildUser(t *testing.T) {
 		RUN [ $(whoami) = 'dockerio' ]
 		`,
 		"testbuildimg",
-		"{{json .config.User}}",
+		"{{json .Config.User}}",
 		`"dockerio"`)
 
 	deleteImages("testbuildimg")
@@ -489,7 +489,7 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 		RUN [ "$PWD" = '/test2/test3' ]
 		`,
 		"testbuildimg",
-		"{{json .config.WorkingDir}}",
+		"{{json .Config.WorkingDir}}",
 		`"/test2/test3"`)
 
 	deleteImages("testbuildimg")
@@ -504,7 +504,7 @@ func TestBuildEnv(t *testing.T) {
 		RUN [ $(env | grep PORT) = 'PORT=4243' ]
         `,
 		"testbuildimg",
-		"{{json .config.Env}}",
+		"{{json .Config.Env}}",
 		`["HOME=/","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","PORT=4243"]`)
 
 	deleteImages("testbuildimg")
@@ -518,7 +518,7 @@ func TestBuildCmd(t *testing.T) {
         CMD ["/bin/echo", "Hello World"]
         `,
 		"testbuildimg",
-		"{{json .config.Cmd}}",
+		"{{json .Config.Cmd}}",
 		`["/bin/echo","Hello World"]`)
 
 	deleteImages("testbuildimg")
@@ -533,7 +533,7 @@ func TestBuildExpose(t *testing.T) {
         `,
 
 		"testbuildimg",
-		"{{json .config.ExposedPorts}}",
+		"{{json .Config.ExposedPorts}}",
 		`{"4243/tcp":{}}`)
 
 	deleteImages("testbuildimg")
@@ -547,7 +547,7 @@ func TestBuildEntrypoint(t *testing.T) {
         ENTRYPOINT ["/bin/echo"]
         `,
 		"testbuildimg",
-		"{{json .config.Entrypoint}}",
+		"{{json .Config.Entrypoint}}",
 		`["/bin/echo"]`)
 
 	deleteImages("testbuildimg")
