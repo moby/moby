@@ -9,6 +9,8 @@ usage() {
 	echo >&2 "       $mkimg -t someuser/ubuntu debootstrap --include=ubuntu-minimal trusty"
 	echo >&2 "       $mkimg -t someuser/busybox busybox-static"
 	echo >&2 "       $mkimg -t someuser/centos:5 rinse --distribution centos-5"
+	echo >&2 "       $mkimg -t someuser/mageia:4 mageia-urpmi --version=4"
+	echo >&2 "       $mkimg -t someuser/mageia:4 mageia-urpmi --version=4 --mirror=http://somemirror/"
 	exit 1
 }
 
