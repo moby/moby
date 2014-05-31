@@ -9,7 +9,7 @@ docker-tag - Tag an image in the repository
 IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
 # DESCRIPTION
-This will rename an image in the repository. "Tag" is this context means the 
+This will rename an image in the repository. This refers to the
 entire image name including the optional TAG after the ':'. 
 
 # "OPTIONS"
@@ -27,15 +27,16 @@ separated by a ':'
    The image name.
 
 **TAG**
-   The tag you are assigning to the image. This is often a version or other
-'tag' to distinguish from other similarly named images. 
+   The tag you are assigning to the image.  Though this is arbitrary it is
+recommended to be used for a version to disinguish images with the same name.
+Note that here TAG is a part of the overall name or "tag".
 
 # EXAMPLES
 
 ## Tagging an image
 
-Here is an example of renaming an image with the repository 'fedora', name 
-'httpd', and tag version1.0 :
+Here is an example of renaming an image (e.g. 0e5574283393) as "httpd" and 
+tagging it into the "fedora" repository with "version1.0":
 
     docker tag 0e5574283393 fedora/httpd:version1.0
 

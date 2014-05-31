@@ -70,29 +70,31 @@ specified within the `ADD` instruction into the specified target.
 ## Building an image and naming that image
 
 A good practice is to give a name to the image you are building. There are
-not hard rules here but it is best to give the names consideration. 
+no hard rules here but it is best to give the names consideration. 
 
 The **-t**/**--tag** flag is used to rename an image. Here are some examples:
 
-Though t is not good practice, image names can be aribtrary:
+Though it is not a good practice, image names can be arbtrary:
 
     docker build -t myimage .
 
-A better approach is provide a fully qualified and meaningful repository 
-name, name, and tag (where tag in this context means the qualifier after 
-the ":"). In this example we build a Jboss image for the Fedora repository 
-and give it a version 1.0:
+A better approach is to provide a fully qualified and meaningful repository,
+name, and tag (where the tag in this context means the qualifier after 
+the ":"). In this example we build a JBoss image for the Fedora repository 
+and give it the version 1.0:
 
     docker build -t fedora/jboss:1.0
 
 The next example is for the "whenry" user repository and uses Fedora and
-JBoss and gives it a version 2.1 :
+JBoss and gives it the version 2.1 :
 
     docker build -t whenry/fedora-jboss:V2.1
 
-Or:
+If you do not provide a version tag then Docker will assign `latest`:
 
-    docker build -t whenry/fedora-jboss:latest
+    docker build -t whenry/fedora-jboss
+
+When you list the images, the image above will have the tag `latest`.
 
 So renaming an image is arbitrary but consideration should be given to 
 a useful convention that makes sense for consumers and should also take

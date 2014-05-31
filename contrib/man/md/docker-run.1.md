@@ -64,8 +64,8 @@ the other shell to view a list of the running containers. You can reattach to a
 detached container with **docker attach**. If you choose to run a container in
 the detached mode, then you cannot use the **-rm** option.
 
-   When attached in tty mode, you can detach from a running container by pressing
-the keys ctrl+p ctrl+q.
+   When attached in the tty mode, you can detach from a running container without
+stopping the process by pressing the keys CTRL-P CTRL-Q.
 
 
 **--dns**=*IP-address*
