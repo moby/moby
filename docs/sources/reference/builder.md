@@ -290,6 +290,46 @@ The copy obeys the following rules:
 - If `<dest>` doesn't exist, it is created along with all missing directories
   in its path.
 
+## COPY
+
+    COPY <src> <dest>
+
+The `COPY` instruction will copy new files from `<src>` and add them to the
+container's filesystem at path `<dest>`.
+
+`<src>` must be the path to a file or directory relative to the source directory
+being built (also called the *context* of the build).
+
+`<dest>` is the absolute path to which the source will be copied inside the
+destination container.
+
+All new files and directories are created with a uid and gid of 0.
+
+> **Note**:
+> If you build using STDIN (`docker build - < somefile`), there is no
+> build context, so `COPY` can't be used.
+
+The copy obeys the following rules:
+
+- The `<src>` path must be inside the *context* of the build;
+  you cannot `COPY ../something /something`, because the first step of a
+  `docker build` is to send the context directory (and subdirectories) to the
+  docker daemon.
+
+- If `<src>` is a directory, the entire directory is copied, including
+  filesystem metadata.
+
+- If `<src>` is any other kind of file, it is copied individually along with
+  its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
+  will be considered a directory and the contents of `<src>` will be written
+  at `<dest>/base(<src>)`.
+
+- If `<dest>` does not end with a trailing slash, it will be considered a
+  regular file and the contents of `<src>` will be written at `<dest>`.
+
+- If `<dest>` doesn't exist, it is created along with all missing directories
+  in its path.
+
 ## ENTRYPOINT
 
 ENTRYPOINT has two forms:
