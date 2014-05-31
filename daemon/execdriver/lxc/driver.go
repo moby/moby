@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -26,6 +27,7 @@ const DriverName = "lxc"
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
+		runtime.LockOSThread()
 		if err := setupEnv(args); err != nil {
 			return err
 		}
