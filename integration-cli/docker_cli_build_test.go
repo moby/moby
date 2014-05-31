@@ -10,25 +10,6 @@ import (
 	"time"
 )
 
-func checkSimpleBuild(t *testing.T, dockerfile, name, inspectFormat, expected string) {
-	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
-	buildCmd.Stdin = strings.NewReader(dockerfile)
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
-	}
-	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", inspectFormat, name)
-	out, exitCode, err = runCommandWithOutput(inspectCmd)
-	if err != nil || exitCode != 0 {
-		t.Fatalf("failed to inspect the image: %s", out)
-	}
-	out = strings.TrimSpace(out)
-	if out != expected {
-		t.Fatalf("From format %s expected %s, got %s", inspectFormat, expected, out)
-	}
-}
-
 func TestBuildCacheADD(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
@@ -606,126 +587,181 @@ func TestBuildRm(t *testing.T) {
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
 	logDone("build - ensure --rm=false overrides the default")
 }
-
-func TestBuildWithVolume(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-		FROM scratch
-		VOLUME /test
-		`,
-		"testbuildimg",
-		"{{json .Config.Volumes}}",
-		`{"/test":{}}`)
-
-	deleteImages("testbuildimg")
-	logDone("build - with volume")
+func TestBuildWithVolumes(t *testing.T) {
+	name := "testbuildvolumes"
+	expected := "map[/test1:map[] /test2:map[]]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+		VOLUME /test1
+		VOLUME /test2`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Volumes %s, expected %s", res, expected)
+	}
+	logDone("build - with volumes")
 }
 
 func TestBuildMaintainer(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-        FROM scratch
-        MAINTAINER dockerio
-		`,
-		"testbuildimg",
-		"{{json .Author}}",
-		`"dockerio"`)
-
-	deleteImages("testbuildimg")
+	name := "testbuildmaintainer"
+	expected := "dockerio"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        MAINTAINER dockerio`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Author")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Maintainer %s, expected %s", res, expected)
+	}
 	logDone("build - maintainer")
 }
 
 func TestBuildUser(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-		FROM busybox
+	name := "testbuilduser"
+	expected := "dockerio"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		USER dockerio
-		RUN [ $(whoami) = 'dockerio' ]
-		`,
-		"testbuildimg",
-		"{{json .Config.User}}",
-		`"dockerio"`)
-
-	deleteImages("testbuildimg")
+		RUN [ $(whoami) = 'dockerio' ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.User")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("User %s, expected %s", res, expected)
+	}
 	logDone("build - user")
 }
 
 func TestBuildRelativeWorkdir(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-		FROM busybox
+	name := "testbuildrelativeworkdir"
+	expected := "/test2/test3"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
 		RUN [ "$PWD" = '/' ]
 		WORKDIR test1
 		RUN [ "$PWD" = '/test1' ]
 		WORKDIR /test2
 		RUN [ "$PWD" = '/test2' ]
 		WORKDIR test3
-		RUN [ "$PWD" = '/test2/test3' ]
-		`,
-		"testbuildimg",
-		"{{json .Config.WorkingDir}}",
-		`"/test2/test3"`)
-
-	deleteImages("testbuildimg")
+		RUN [ "$PWD" = '/test2/test3' ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.WorkingDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Workdir %s, expected %s", res, expected)
+	}
 	logDone("build - relative workdir")
 }
 
 func TestBuildEnv(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-        FROM busybox
+	name := "testbuildenv"
+	expected := "[HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=4243]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
         ENV PORT 4243
-		RUN [ $(env | grep PORT) = 'PORT=4243' ]
-        `,
-		"testbuildimg",
-		"{{json .Config.Env}}",
-		`["HOME=/","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","PORT=4243"]`)
-
-	deleteImages("testbuildimg")
+		RUN [ $(env | grep PORT) = 'PORT=4243' ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Env %s, expected %s", res, expected)
+	}
 	logDone("build - env")
 }
 
 func TestBuildCmd(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-        FROM scratch
-        CMD ["/bin/echo", "Hello World"]
-        `,
-		"testbuildimg",
-		"{{json .Config.Cmd}}",
-		`["/bin/echo","Hello World"]`)
-
-	deleteImages("testbuildimg")
+	name := "testbuildcmd"
+	expected := "[/bin/echo Hello World]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        CMD ["/bin/echo", "Hello World"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Cmd %s, expected %s", res, expected)
+	}
 	logDone("build - cmd")
 }
 
 func TestBuildExpose(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-        FROM scratch
-        EXPOSE 4243
-        `,
-
-		"testbuildimg",
-		"{{json .Config.ExposedPorts}}",
-		`{"4243/tcp":{}}`)
-
-	deleteImages("testbuildimg")
+	name := "testbuildexpose"
+	expected := "map[4243/tcp:map[]]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        EXPOSE 4243`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Exposed ports %s, expected %s", res, expected)
+	}
 	logDone("build - expose")
 }
 
 func TestBuildEntrypoint(t *testing.T) {
-	checkSimpleBuild(t,
-		`
-        FROM scratch
-        ENTRYPOINT ["/bin/echo"]
-        `,
-		"testbuildimg",
-		"{{json .Config.Entrypoint}}",
-		`["/bin/echo"]`)
-
-	deleteImages("testbuildimg")
+	name := "testbuildentrypoint"
+	expected := "[/bin/echo]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        ENTRYPOINT ["/bin/echo"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
 	logDone("build - entrypoint")
 }
 
