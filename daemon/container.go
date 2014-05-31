@@ -209,6 +209,20 @@ func populateCommand(c *Container, env []string) error {
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
+	// Build lists of devices allowed and created within the container.
+	userSpecifiedDevices := make([]*devices.Device, len(c.hostConfig.Devices))
+	for i, deviceMapping := range c.hostConfig.Devices {
+		device, err := devices.GetDevice(deviceMapping.PathOnHost, deviceMapping.CgroupPermissions)
+		device.Path = deviceMapping.PathInContainer
+		if err != nil {
+			return fmt.Errorf("error gathering device information while adding custom device %s", err)
+		}
+		userSpecifiedDevices[i] = device
+	}
+	allowedDevices := append(devices.DefaultAllowedDevices, userSpecifiedDevices...)
+
+	autoCreatedDevices := append(devices.DefaultAutoCreatedDevices, userSpecifiedDevices...)
+
 	// TODO: this can be removed after lxc-conf is fully deprecated
 	mergeLxcConfIntoOptions(c.hostConfig, context)
 
@@ -231,8 +245,8 @@ func populateCommand(c *Container, env []string) error {
 		User:               c.Config.User,
 		Config:             context,
 		Resources:          resources,
-		AllowedDevices:     devices.DefaultAllowedDevices,
-		AutoCreatedDevices: devices.DefaultAutoCreatedDevices,
+		AllowedDevices:     allowedDevices,
+		AutoCreatedDevices: autoCreatedDevices,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env
