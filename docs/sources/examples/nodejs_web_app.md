@@ -16,7 +16,7 @@ The goal of this example is to show you how you can build your own
 Docker images from a parent image using a `Dockerfile`
 . We will do that by making a simple Node.js hello world web
 application running on CentOS. You can get the full source code at
-[https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
+[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).
 
 ## Create Node.js app
 
