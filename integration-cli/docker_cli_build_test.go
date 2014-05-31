@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -765,6 +766,338 @@ func TestBuildEntrypoint(t *testing.T) {
 	logDone("build - entrypoint")
 }
 
-// TODO: TestCaching
+func TestBuildWithCache(t *testing.T) {
+	name := "testbuildwithcache"
+	defer deleteImages(name)
+	id1, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER dockerio
+		EXPOSE 5432
+        ENTRYPOINT ["/bin/echo"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER dockerio
+		EXPOSE 5432
+        ENTRYPOINT ["/bin/echo"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+	logDone("build - with cache")
+}
 
-// TODO: TestADDCacheInvalidation
+func TestBuildWithoutCache(t *testing.T) {
+	name := "testbuildwithoutcache"
+	defer deleteImages(name)
+	id1, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER dockerio
+		EXPOSE 5432
+        ENTRYPOINT ["/bin/echo"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER dockerio
+		EXPOSE 5432
+        ENTRYPOINT ["/bin/echo"]`,
+		false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id2 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	logDone("build - without cache")
+}
+
+func TestBuildADDLocalFileWithCache(t *testing.T) {
+	name := "testbuildaddlocalfilewithcache"
+	defer deleteImages(name)
+	dockerfile := `
+		FROM busybox
+        MAINTAINER dockerio
+        ADD foo /usr/lib/bla/bar
+		RUN [ "$(cat /usr/lib/bla/bar)" = "hello" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+	logDone("build - add local file with cache")
+}
+
+func TestBuildADDLocalFileWithoutCache(t *testing.T) {
+	name := "testbuildaddlocalfilewithoutcache"
+	defer deleteImages(name)
+	dockerfile := `
+		FROM busybox
+        MAINTAINER dockerio
+        ADD foo /usr/lib/bla/bar
+		RUN [ "$(cat /usr/lib/bla/bar)" = "hello" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id2 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	logDone("build - add local file without cache")
+}
+
+func TestBuildADDCurrentDirWithCache(t *testing.T) {
+	name := "testbuildaddcurrentdirwithcache"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM scratch
+        MAINTAINER dockerio
+        ADD . /usr/lib/bla`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Check that adding file invalidate cache of "ADD ."
+	if err := ctx.Add("bar", "hello2"); err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id2 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	// Check that changing file invalidate cache of "ADD ."
+	if err := ctx.Add("foo", "hello1"); err != nil {
+		t.Fatal(err)
+	}
+	id3, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id2 == id3 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	// Check that changing file to same content invalidate cache of "ADD ."
+	time.Sleep(1 * time.Second) // wait second because of mtime precision
+	if err := ctx.Add("foo", "hello1"); err != nil {
+		t.Fatal(err)
+	}
+	id4, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id3 == id4 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	id5, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id4 != id5 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+	logDone("build - add current directory with cache")
+}
+
+func TestBuildADDCurrentDirWithoutCache(t *testing.T) {
+	name := "testbuildaddcurrentdirwithoutcache"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM scratch
+        MAINTAINER dockerio
+        ADD . /usr/lib/bla`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id2 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	logDone("build - add current directory without cache")
+}
+
+func TestBuildADDRemoteFileWithCache(t *testing.T) {
+	name := "testbuildaddremotefilewithcache"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"baz": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	id1, err := buildImage(name,
+		fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImage(name,
+		fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+	logDone("build - add remote file with cache")
+}
+
+func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
+	name := "testbuildaddremotefilewithoutcache"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"baz": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	id1, err := buildImage(name,
+		fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImage(name,
+		fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+		false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id2 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	logDone("build - add remote file without cache")
+}
+
+func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
+	name := "testbuildaddlocalandremotefilewithcache"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"baz": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD foo /usr/lib/bla/bar
+        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+		map[string]string{
+			"foo": "hello world",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+	logDone("build - add local and remote file with cache")
+}
+
+func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
+	name := "testbuildaddlocalandremotefilewithoutcache"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"baz": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD foo /usr/lib/bla/bar
+        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+		map[string]string{
+			"foo": "hello world",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id2 {
+		t.Fatal("The cache should have been invalided but hasn't.")
+	}
+	logDone("build - add local and remote file without cache")
+}
