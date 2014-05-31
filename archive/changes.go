@@ -352,12 +352,13 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 				whiteOutDir := filepath.Dir(change.Path)
 				whiteOutBase := filepath.Base(change.Path)
 				whiteOut := filepath.Join(whiteOutDir, ".wh."+whiteOutBase)
+				timestamp := time.Now()
 				hdr := &tar.Header{
 					Name:       whiteOut[1:],
 					Size:       0,
-					ModTime:    time.Now(),
-					AccessTime: time.Now(),
-					ChangeTime: time.Now(),
+					ModTime:    timestamp,
+					AccessTime: timestamp,
+					ChangeTime: timestamp,
 				}
 				if err := tw.WriteHeader(hdr); err != nil {
 					utils.Debugf("Can't write whiteout header: %s\n", err)
