@@ -309,7 +309,7 @@ And now our container is stopped and deleted.
 # Next steps
 
 Until now we've only used images that we've downloaded from
-[Docker.io](https://index.docker.io) now let's get introduced to
+[Docker Hub](https://hub.docker.com) now let's get introduced to
 building and sharing our own images.
 
 Go to [Working with Docker Images](/userguide/dockerimages).
