@@ -70,7 +70,7 @@ resources you have.
 Docker has two major components:
 
 * Docker: the open source container virtualization platform.
-* [Docker.io](https://index.docker.io): our Software-as-a-Service
+* [Docker Hub](https://hub.docker.com): our Software-as-a-Service
   platform for sharing and managing Docker containers.
 
 **Note:** Docker is licensed with the open source Apache 2.0 license.
@@ -119,7 +119,7 @@ portion of Docker.
 
 Docker registries hold images. These are public (or private!) stores
 that you can upload or download images to and from. The public Docker
-registry is called [Docker.io](http://index.docker.io). It provides a
+registry is called [Docker Hub](https://hub.docker.com). It provides a
 huge collection of existing images that you can use. These images can be
 images you create yourself or you can make use of images that others
 have previously created. You can consider Docker registries the
@@ -142,7 +142,7 @@ We've learned so far that:
 2. You can create Docker containers from those Docker images to run your
    applications.
 3. You can share those Docker images via
-   [Docker.io](https://index.docker.io) or your own registry.
+   [Docker Hub](https://hub.docker.com) or your own registry.
 
 Let's look at how these elements combine together to make Docker work.
 
@@ -169,7 +169,7 @@ own as the basis for a new image, for example if you have a base Apache
 image you could use this as the base of all your web application images.
 
 > **Note:**  
-> Docker usually gets these base images from [Docker.io](https://index.docker.io).
+> Docker usually gets these base images from [Docker Hub](https://hub.docker.com).
 
 Docker images are then built from these base images using a simple
 descriptive set of steps we call *instructions*. Each instruction
@@ -187,19 +187,19 @@ instructions and returns a final image.
 ### How does a Docker registry work?
 
 The Docker registry is the store for your Docker images. Once you build
-a Docker image you can *push* it to a public registry [Docker.io](
-https://index.docker.io) or to your own registry running behind your
+a Docker image you can *push* it to a public registry [Docker
+Hub](https://hub.docker.com) or to your own registry running behind your
 firewall.
 
 Using the Docker client, you can search for already published images and
 then pull them down to your Docker host to build containers from them.
 
-[Docker.io](https://index.docker.io) provides both public and
+[Docker Hub](https://hub.docker.com) provides both public and
 private storage for images. Public storage is searchable and can be
 downloaded by anyone. Private storage is excluded from search
 results and only you and your users can pull them down and use them to
 build containers. You can [sign up for a plan
-here](https://index.docker.io/plans).
+here](https://registry.hub.docker.com/plans/).
 
 ### How does a container work?
 
@@ -236,7 +236,7 @@ Docker begins with:
 - **Pulling the `ubuntu` image:**  
   Docker checks for the presence of the `ubuntu` image and if it doesn't
   exist locally on the host, then Docker downloads it from
-  [Docker.io](https://index.docker.io). If the image already exists then
+  [Docker Hub](https://hub.docker.com). If the image already exists then
   Docker uses it for the new container.
 - **Creates a new container:**  
   Once Docker has the image it creates a container from it:
