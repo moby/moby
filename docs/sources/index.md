@@ -12,7 +12,7 @@ sysadmins to develop, ship, and run applications.  Docker consists of:
 * The Docker Engine - our lightweight and powerful open source container
   virtualization technology combined with a work flow to help you build
   and containerize your applications.
-* [Docker.io](https://index.docker.io) - our SAAS service that helps you
+* [Docker Hub](https://hub.docker.com) - our SAAS service that helps you
   share and manage your applications stacks.
 
 Docker enables applications to be quickly assembled from components and
