@@ -42,7 +42,7 @@ interfaces:
 
     - [3 Authorization](registry_api/#authorization)
 
- - [Docker.io API](index_api/)
+ - [Docker Hub API](index_api/)
     - [1. Brief introduction](index_api/#brief-introduction)
     - [2. Endpoints](index_api/#endpoints)
         - [2.1 Repository](index_api/#repository)

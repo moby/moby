@@ -734,7 +734,7 @@ Remove the image `name` from the filesystem
 
 `GET /images/search`
 
-Search for an image on [Docker.io](https://index.docker.io)
+Search for an image on [Docker Hub](https://hub.docker.com)
 
     **Example request**:
 
