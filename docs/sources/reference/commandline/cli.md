@@ -794,6 +794,7 @@ further details.
 
       -a, --all=false       Show all containers. Only running containers are shown by default.
       --before=""           Show only container created before Id or Name, include non-running ones.
+      -f, --filter=[]       Provide filter values (i.e. 'exited=0')
       -l, --latest=false    Show only the latest created container, include non-running ones.
       -n=-1                 Show n last created containers, include non-running ones.
       --no-trunc=false      Don't truncate output
@@ -810,6 +811,25 @@ Running `docker ps` showing 2 linked containers.
 
 `docker ps` will show only running containers by default. To see all containers:
 `docker ps -a`
+
+### Filtering
+
+The filtering flag (-f or --filter) format is a "key=value" pair. If there is more
+than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
+
+Current filters:
+ * exited (int - the code of exited containers. Only useful with '--all')
+
+
+#### Successfully exited containers
+
+    $ sudo docker ps -a --filter 'exited=0'
+    CONTAINER ID        IMAGE             COMMAND                CREATED             STATUS                   PORTS                      NAMES
+    ea09c3c82f6e        registry:latest   /srv/run.sh            2 weeks ago         Exited (0) 2 weeks ago   127.0.0.1:5000->5000/tcp   desperate_leakey       
+    106ea823fe4e        fedora:latest     /bin/sh -c 'bash -l'   2 weeks ago         Exited (0) 2 weeks ago                              determined_albattani   
+    48ee228c9464        fedora:20         bash                   2 weeks ago         Exited (0) 2 weeks ago                              tender_torvalds
+
+This shows all the containers that have exited with status of '0'
 
 ## pull
 

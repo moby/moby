@@ -3,11 +3,13 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/graphdb"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/parsers/filters"
 )
 
 // List returns an array of all containers registered in the daemon.
@@ -24,8 +26,24 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		before      = job.Getenv("before")
 		n           = job.GetenvInt("limit")
 		size        = job.GetenvBool("size")
+		psFilters   filters.Args
+		filt_exited []int
 	)
 	outs := engine.NewTable("Created", 0)
+
+	psFilters, err := filters.FromParam(job.Getenv("filters"))
+	if err != nil {
+		return job.Error(err)
+	}
+	if i, ok := psFilters["exited"]; ok {
+		for _, value := range i {
+			code, err := strconv.Atoi(value)
+			if err != nil {
+				return job.Error(err)
+			}
+			filt_exited = append(filt_exited, code)
+		}
+	}
 
 	names := map[string][]string{}
 	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
@@ -67,6 +85,18 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if since != "" {
 			if container.ID == sinceCont.ID {
 				return errLast
+			}
+		}
+		if len(filt_exited) > 0 && !container.State.IsRunning() {
+			should_skip := true
+			for _, code := range filt_exited {
+				if code == container.State.GetExitCode() {
+					should_skip = false
+					break
+				}
+			}
+			if should_skip {
+				return nil
 			}
 		}
 		displayed++
