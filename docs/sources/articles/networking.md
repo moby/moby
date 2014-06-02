@@ -615,7 +615,7 @@ Before diving into the following sections on custom network topologies,
 you might be interested in glancing at a few external tools or examples
 of the same kinds of configuration.  Here are two:
 
- *  Jérôme Petazzoni has create a `pipework` shell script to help you
+ *  Jérôme Petazzoni has created a `pipework` shell script to help you
     connect together containers in arbitrarily complex scenarios:
     <https://github.com/jpetazzo/pipework>
 
