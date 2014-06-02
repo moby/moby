@@ -43,8 +43,8 @@ func TestNoCpuStatFile(t *testing.T) {
 
 	cpu := &cpuGroup{}
 	err := cpu.GetStats(helper.CgroupData, &actualStats)
-	if err == nil {
-		t.Fatal("Expected to fail, but did not.")
+	if err != nil {
+		t.Fatal("Expected not to fail, but did")
 	}
 }
 
