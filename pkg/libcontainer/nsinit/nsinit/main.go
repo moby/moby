@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
 )
 
@@ -67,6 +69,26 @@ func main() {
 		if err := nsinit.Init(container, rootfs, console, syncPipe, os.Args[2:]); err != nil {
 			log.Fatalf("unable to initialize for container: %s", err)
 		}
+	case "stats":
+		// returns the stats of the current container.
+		stats, err := getContainerStats(container)
+		if err != nil {
+			log.Printf("Failed to get stats - %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Stats:\n%v\n", stats)
+		os.Exit(0)
+
+	case "spec":
+		// returns the spec of the current container.
+		spec, err := getContainerSpec(container)
+		if err != nil {
+			log.Printf("Failed to get spec - %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Spec:\n%v\n", spec)
+		os.Exit(0)
+
 	default:
 		log.Fatalf("command not supported for nsinit %s", os.Args[0])
 	}
@@ -124,4 +146,26 @@ func startContainer(container *libcontainer.Container, term nsinit.Terminal, dat
 	}
 
 	return nsinit.Exec(container, term, "", dataPath, args, createCommand, startCallback)
+}
+
+// returns the container stats in json format.
+func getContainerStats(container *libcontainer.Container) (string, error) {
+	stats, err := fs.GetStats(container.Cgroups)
+	if err != nil {
+		return "", err
+	}
+	out, err := json.MarshalIndent(stats, "", "\t")
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+// returns the container spec in json format.
+func getContainerSpec(container *libcontainer.Container) (string, error) {
+	spec, err := json.MarshalIndent(container, "", "\t")
+	if err != nil {
+		return "", err
+	}
+	return string(spec), nil
 }
