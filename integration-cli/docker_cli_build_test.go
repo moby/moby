@@ -1067,6 +1067,7 @@ func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
 	logDone("build - add local and remote file with cache")
 }
 
+// TODO: TestCaching
 func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	defer deleteImages(name)
@@ -1100,4 +1101,35 @@ func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 		t.Fatal("The cache should have been invalided but hasn't.")
 	}
 	logDone("build - add local and remote file without cache")
+}
+
+func TestBuildWithVolumeOwnership(t *testing.T) {
+	name := "testbuildimg"
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`FROM busybox:latest
+        RUN mkdir /test && chown daemon:daemon /test && chmod 0600 /test
+        VOLUME /test`,
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--rm", "testbuildimg", "ls", "-la", "/test")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "drw-------"; !strings.Contains(out, expected) {
+		t.Fatalf("expected %s received %s", expected, out)
+	}
+
+	if expected := "daemon   daemon"; !strings.Contains(out, expected) {
+		t.Fatalf("expected %s received %s", expected, out)
+	}
+
+	logDone("build - volume ownership")
 }
