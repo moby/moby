@@ -18,7 +18,7 @@
     { "Condition": { "KeyPrefixEquals": "use/working_with_links_names/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerlinks/" } },
     { "Condition": { "KeyPrefixEquals": "use/workingwithrepository/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerrepos/" } },
     { "Condition": { "KeyPrefixEquals": "use/port_redirection" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "userguide/dockerlinks/" } },
-    { "Condition": { "KeyPrefixEquals": "use/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "examples/" } },
+    { "Condition": { "KeyPrefixEquals": "use/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "examples/" } }
   ]
 }
 
