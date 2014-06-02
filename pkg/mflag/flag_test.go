@@ -173,6 +173,12 @@ func testParse(f *FlagSet, t *testing.T) {
 	uintFlag := f.Uint([]string{"uint"}, 0, "uint value")
 	uint64Flag := f.Uint64([]string{"-uint64"}, 0, "uint64 value")
 	stringFlag := f.String([]string{"string"}, "0", "string value")
+	singleQuoteFlag := f.String([]string{"squote"}, "", "single quoted value")
+	doubleQuoteFlag := f.String([]string{"dquote"}, "", "double quoted value")
+	mixedQuoteFlag := f.String([]string{"mquote"}, "", "mixed quoted value")
+	mixed2QuoteFlag := f.String([]string{"mquote2"}, "", "mixed2 quoted value")
+	nestedQuoteFlag := f.String([]string{"nquote"}, "", "nested quoted value")
+	nested2QuoteFlag := f.String([]string{"nquote2"}, "", "nested2 quoted value")
 	float64Flag := f.Float64([]string{"float64"}, 0, "float64 value")
 	durationFlag := f.Duration([]string{"duration"}, 5*time.Second, "time.Duration value")
 	extra := "one-extra-argument"
@@ -184,6 +190,12 @@ func testParse(f *FlagSet, t *testing.T) {
 		"-uint", "24",
 		"--uint64", "25",
 		"-string", "hello",
+		"-squote='single'",
+		`-dquote="double"`,
+		`-mquote='mixed"`,
+		`-mquote2="mixed2'`,
+		`-nquote="'single nested'"`,
+		`-nquote2='"double nested"'`,
 		"-float64", "2718e28",
 		"-duration", "2m",
 		extra,
@@ -214,6 +226,24 @@ func testParse(f *FlagSet, t *testing.T) {
 	}
 	if *stringFlag != "hello" {
 		t.Error("string flag should be `hello`, is ", *stringFlag)
+	}
+	if *singleQuoteFlag != "single" {
+		t.Error("single quote string flag should be `single`, is ", *singleQuoteFlag)
+	}
+	if *doubleQuoteFlag != "double" {
+		t.Error("double quote string flag should be `double`, is ", *doubleQuoteFlag)
+	}
+	if *mixedQuoteFlag != `'mixed"` {
+		t.Error("mixed quote string flag should be `'mixed\"`, is ", *mixedQuoteFlag)
+	}
+	if *mixed2QuoteFlag != `"mixed2'` {
+		t.Error("mixed2 quote string flag should be `\"mixed2'`, is ", *mixed2QuoteFlag)
+	}
+	if *nestedQuoteFlag != "'single nested'" {
+		t.Error("nested quote string flag should be `'single nested'`, is ", *nestedQuoteFlag)
+	}
+	if *nested2QuoteFlag != `"double nested"` {
+		t.Error("double quote string flag should be `\"double nested\"`, is ", *nested2QuoteFlag)
 	}
 	if *float64Flag != 2718e28 {
 		t.Error("float64 flag should be 2718e28, is ", *float64Flag)
