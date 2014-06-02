@@ -81,7 +81,7 @@ with a JSON payload similar to the example shown below.
        "repository":{
           "status":"Active",
           "description":"my docker repo that does cool things",
-          "is_trusted":false,
+          "is_automated":false,
           "full_description":"This is my full description",
           "repo_url":"https://index.docker.io/u/username/reponame/",
           "owner":"username",

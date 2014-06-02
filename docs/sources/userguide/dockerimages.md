@@ -116,7 +116,7 @@ by using the `docker search` command to find all the images that contain the
 term `sinatra`.
 
     $ sudo docker search sinatra
-    NAME                                   DESCRIPTION                                     STARS     OFFICIAL   TRUSTED
+    NAME                                   DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     training/sinatra                       Sinatra training image                          0                    [OK]
     marceldegraaf/sinatra                  Sinatra test app                                0
     mattwarren/docker-sinatra-demo                                                         0                    [OK]
@@ -129,9 +129,11 @@ term `sinatra`.
 We can see we've returned a lot of images that use the term `sinatra`. We've
 returned a list of image names, descriptions, Stars (which measure the social
 popularity of images - if a user likes an image then they can "star" it), and
-the Official and Trusted statuses. Official repositories are XXX and Trusted
-repositories are [Trusted Build](/userguide/dockerrepos/) that allow you to
-validate the source and content of an image.
+the Official and Automated build statuses. Official repositories are built and
+maintained by the [Stackbrew](https://github.com/dotcloud/stackbrew) project,
+and Automated repositories are [Automated Builds](
+/userguide/dockerrepos/#automated-builds) that allow you to validate the source
+and content of an image.
 
 We've reviewed the images available to use and we decided to use the
 `training/sinatra` image. So far we've seen two types of images repositories,

@@ -1002,21 +1002,21 @@ Search for an image on [Docker.io](https://index.docker.io).
                 {
                     "description": "",
                     "is_official": false,
-                    "is_trusted": false,
+                    "is_automated": false,
                     "name": "wma55/u1210sshd",
                     "star_count": 0
                 },
                 {
                     "description": "",
                     "is_official": false,
-                    "is_trusted": false,
+                    "is_automated": false,
                     "name": "jdswinbank/sshd",
                     "star_count": 0
                 },
                 {
                     "description": "",
                     "is_official": false,
-                    "is_trusted": false,
+                    "is_automated": false,
                     "name": "vgauthier/sshd",
                     "star_count": 0
                 }

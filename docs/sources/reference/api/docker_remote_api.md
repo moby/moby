@@ -47,6 +47,9 @@ Build now has support for the `forcerm` parameter to always remove containers
 **New!**
 All the JSON keys are now in CamelCase
 
+**New!**
+Trusted builds are now Automated Builds - `is_trusted` is now `is_automated`.
+
 ## v1.11
 
 ### Full Documentation
