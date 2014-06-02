@@ -5,9 +5,10 @@ package nat
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"strconv"
 	"strings"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 const (
@@ -72,6 +73,15 @@ func SplitProtoPort(rawPort string) (string, string) {
 	return parts[1], parts[0]
 }
 
+func validateProto(proto string) bool {
+	for _, availableProto := range []string{"tcp", "udp"} {
+		if availableProto == proto {
+			return true
+		}
+	}
+	return false
+}
+
 // We will receive port specs in the format of ip:public:private/proto and these need to be
 // parsed in the internal types
 func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
@@ -112,6 +122,9 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		}
 		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
 			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+		}
+		if !validateProto(proto) {
+			return nil, nil, fmt.Errorf("Invalid proto: %s", proto)
 		}
 
 		port := NewPort(proto, containerPort)
