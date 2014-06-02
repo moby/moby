@@ -5,10 +5,6 @@ page_keywords: docker, supervisor, process management
 # Using Supervisor with Docker
 
 > **Note**:
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#dockergroup)
 
@@ -16,8 +12,8 @@ Traditionally a Docker container runs a single process when it is
 launched, for example an Apache daemon or a SSH server daemon. Often
 though you want to run more than one process in a container. There are a
 number of ways you can achieve this ranging from using a simple Bash
-script as the value of your container's `CMD`
-instruction to installing a process management tool.
+script as the value of your container's `CMD` instruction to installing
+a process management tool.
 
 In this example we're going to make use of the process management tool,
 [Supervisor](http://supervisord.org/), to manage multiple processes in

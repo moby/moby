@@ -28,7 +28,6 @@ pages:
 - ['index.md', 'About', 'Docker']
 - ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
-- ['introduction/working-with-docker.md', 'About', 'Working with Docker']
 
 # Installation:
 - ['installation/index.md', '**HIDDEN**']
@@ -50,44 +49,47 @@ pages:
 - ['installation/windows.md', 'Installation', 'Microsoft Windows']
 - ['installation/binaries.md', 'Installation', 'Binaries']
 
-# Examples:
-- ['use/index.md', '**HIDDEN**']
-- ['use/basics.md', 'Examples', 'First steps with Docker']
-- ['examples/index.md', '**HIDDEN**']
-- ['examples/hello_world.md', 'Examples', 'Hello World']
-- ['examples/nodejs_web_app.md', 'Examples', 'Node.js web application']
-- ['examples/python_web_app.md', 'Examples', 'Python web application']
-- ['examples/mongodb.md', 'Examples', 'Dockerizing MongoDB']
-- ['examples/running_redis_service.md', 'Examples', 'Redis service']
-- ['examples/postgresql_service.md', 'Examples', 'PostgreSQL service']
-- ['examples/running_riak_service.md', 'Examples', 'Running a Riak service']
-- ['examples/running_ssh_service.md', 'Examples', 'Running an SSH service']
-- ['examples/couchdb_data_volumes.md', 'Examples', 'CouchDB service']
-- ['examples/apt-cacher-ng.md', 'Examples', 'Apt-Cacher-ng service']
-- ['examples/https.md', 'Examples', 'Running Docker with HTTPS']
-- ['examples/using_supervisord.md', 'Examples', 'Using Supervisor']
-- ['examples/cfengine_process_management.md', 'Examples', 'Process management with CFEngine']
-- ['use/working_with_links_names.md', 'Examples', 'Linking containers together']
-- ['use/working_with_volumes.md', 'Examples', 'Sharing Directories using volumes']
-- ['use/puppet.md', 'Examples', 'Using Puppet']
-- ['use/chef.md', 'Examples', 'Using Chef']
-- ['use/workingwithrepository.md', 'Examples', 'Working with a Docker Repository']
-- ['use/port_redirection.md', 'Examples', 'Redirect ports']
-- ['use/ambassador_pattern_linking.md', 'Examples', 'Cross-Host linking using Ambassador Containers']
-- ['use/host_integration.md', 'Examples', 'Automatically starting Containers']
-
-#- ['user-guide/index.md', '**HIDDEN**']
-# - ['user-guide/writing-your-docs.md', 'User Guide', 'Writing your docs']
-# - ['user-guide/styling-your-docs.md', 'User Guide', 'Styling your docs']
-# - ['user-guide/configuration.md', 'User Guide', 'Configuration']
-# ./faq.md
+# User Guide:
+- ['userguide/index.md', 'User Guide', 'The Docker User Guide' ]
+- ['userguide/dockerio.md', 'User Guide', 'Getting Started with Docker.io' ]
+- ['userguide/dockerizing.md', 'User Guide', 'Dockerizing Applications' ]
+- ['userguide/usingdocker.md', 'User Guide', 'Working with Containers' ]
+- ['userguide/dockerimages.md', 'User Guide', 'Working with Docker Images' ]
+- ['userguide/dockerlinks.md', 'User Guide', 'Linking containers together' ]
+- ['userguide/dockervolumes.md', 'User Guide', 'Managing data in containers' ]
+- ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker.io' ]
 
 # Docker.io docs:
-- ['docker-io/index.md', '**HIDDEN**']
-# - ['index/home.md', 'Docker Index', 'Help']
+- ['docker-io/index.md', 'Docker.io', 'Docker.io' ]
 - ['docker-io/accounts.md', 'Docker.io', 'Accounts']
 - ['docker-io/repos.md', 'Docker.io', 'Repositories']
-- ['docker-io/builds.md', 'Docker.io', 'Trusted Builds']
+- ['docker-io/builds.md', 'Docker.io', 'Automated Builds']
+
+# Examples:
+- ['examples/index.md', '**HIDDEN**']
+- ['examples/nodejs_web_app.md', 'Examples', 'Dockerizing a Node.js web application']
+- ['examples/mongodb.md', 'Examples', 'Dockerizing MongoDB']
+- ['examples/running_redis_service.md', 'Examples', 'Dockerizing a Redis service']
+- ['examples/postgresql_service.md', 'Examples', 'Dockerizing a PostgreSQL service']
+- ['examples/running_riak_service.md', 'Examples', 'Dockerizing a Riak service']
+- ['examples/running_ssh_service.md', 'Examples', 'Dockerizing an SSH service']
+- ['examples/couchdb_data_volumes.md', 'Examples', 'Dockerizing a CouchDB service']
+- ['examples/apt-cacher-ng.md', 'Examples', 'Dockerizing an Apt-Cacher-ng service']
+
+# Articles
+- ['articles/index.md', '**HIDDEN**']
+- ['articles/basics.md', 'Articles', 'Docker basics']
+- ['articles/networking.md', 'Articles', 'Advanced networking']
+- ['articles/security.md', 'Articles', 'Security']
+- ['articles/https.md', 'Articles', 'Running Docker with HTTPS']
+- ['articles/host_integration.md', 'Articles', 'Automatically starting Containers']
+- ['articles/using_supervisord.md', 'Articles', 'Using Supervisor']
+- ['articles/cfengine_process_management.md', 'Articles', 'Process management with CFEngine']
+- ['articles/puppet.md', 'Articles', 'Using Puppet']
+- ['articles/chef.md', 'Articles', 'Using Chef']
+- ['articles/ambassador_pattern_linking.md', 'Articles', 'Cross-Host linking using Ambassador Containers']
+- ['articles/runmetrics.md', 'Articles', 'Runtime metrics']
+- ['articles/baseimages.md', 'Articles', 'Creating a Base Image']
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']
@@ -96,11 +98,6 @@ pages:
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['faq.md', 'Reference', 'FAQ']
 - ['reference/run.md', 'Reference', 'Run Reference']
-- ['articles/index.md', '**HIDDEN**']
-- ['articles/runmetrics.md', 'Reference', 'Runtime metrics']
-- ['articles/security.md', 'Reference', 'Security']
-- ['articles/baseimages.md', 'Reference', 'Creating a Base Image']
-- ['use/networking.md', 'Reference', 'Advanced networking']
 - ['reference/api/index.md', '**HIDDEN**']
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker.io API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
@@ -133,9 +130,6 @@ pages:
 - ['terms/repository.md', '**HIDDEN**']
 - ['terms/filesystem.md', '**HIDDEN**']
 - ['terms/image.md', '**HIDDEN**']
-
-# TODO: our theme adds a dropdown even for sections that have no subsections.
-  #- ['faq.md', 'FAQ']
 
 # Contribute:
 - ['contributing/index.md', '**HIDDEN**']

@@ -111,8 +111,7 @@ Now verify that the installation has worked by downloading the
 
 Type `exit` to exit
 
-**Done!**, now continue with the [*Hello
-World*](/examples/hello_world/#hello-world) example.
+**Done!**, continue with the [User Guide](/userguide/).
 
 ## Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
 
@@ -159,8 +158,7 @@ Now verify that the installation has worked by downloading the
 
 Type `exit` to exit
 
-**Done!**, now continue with the [*Hello
-World*](/examples/hello_world/#hello-world) example.
+**Done!**, now continue with the [User Guide](/userguide/).
 
 ### Giving non-root access
 

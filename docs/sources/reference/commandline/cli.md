@@ -602,15 +602,6 @@ contains complex json object, so to grab it as JSON, you use
 The main process inside the container will be sent SIGKILL, or any
 signal specified with option `--signal`.
 
-### Known Issues (kill)
-
-- [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
-  that `docker kill` may leave directories behind
-  and make it difficult to remove the container.
-- [Issue 3844](https://github.com/dotcloud/docker/issues/3844) lxc
-  1.0.0 beta3 removed `lcx-kill` which is used by
-  Docker versions before 0.8.0; see the issue for a workaround.
-
 ## load
 
     Usage: docker load
@@ -864,11 +855,9 @@ of all containers.
 The `docker run` command can be used in combination with `docker commit` to
 [*change the command that a container runs*](#commit-an-existing-container).
 
-See [*Redirect Ports*](/use/port_redirection/#port-redirection)
-for more detailed information about the `--expose`, `-p`, `-P` and `--link`
-parameters, and [*Link Containers*](
-/use/working_with_links_names/#working-with-links-names) for specific
-examples using `--link`.
+See the [Docker User Guide](/userguide/dockerlinks/) for more detailed
+information about the `--expose`, `-p`, `-P` and `--link` parameters,
+and linking containers.
 
 ### Known Issues (run –volumes-from)
 
@@ -934,16 +923,16 @@ manipulate the host's docker daemon.
 
     $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
 
-This binds port `8080` of the container to port `80` on `127.0.0.1` of the host
-machine. [*Redirect Ports*](/use/port_redirection/#port-redirection)
+This binds port `8080` of the container to port `80` on `127.0.0.1` of
+the host machine. The [Docker User Guide](/userguide/dockerlinks/)
 explains in detail how to manipulate ports in Docker.
 
     $ sudo docker run --expose 80 ubuntu bash
 
-This exposes port `80` of the container for use within a link without publishing
-the port to the host system's interfaces. [*Redirect Ports*](
-/use/port_redirection/#port-redirection) explains in detail how to
-manipulate ports in Docker.
+This exposes port `80` of the container for use within a link without
+publishing the port to the host system's interfaces. The [Docker User
+Guide](/userguide/dockerlinks) explains in detail how to manipulate
+ports in Docker.
 
     $ sudo docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
 
@@ -1097,7 +1086,7 @@ Search [Docker.io](https://index.docker.io) for images
       -t, --trusted=false    Only show trusted builds
 
 See [*Find Public Images on Docker.io*](
-/use/workingwithrepository/#find-public-images-on-dockerio) for
+/userguide/dockerrepos/#find-public-images-on-dockerio) for
 more details on finding shared images from the commandline.
 
 ## start
@@ -1130,7 +1119,7 @@ grace period, SIGKILL
 
 You can group your images together using names and tags, and then upload
 them to [*Share Images via Repositories*](
-/use/workingwithrepository/#working-with-the-repository).
+/userguide/dockerrepos/#working-with-the-repository).
 
 ## top
 

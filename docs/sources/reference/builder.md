@@ -57,7 +57,7 @@ accelerating `docker build` significantly (indicated by `Using cache`):
 
 When you're done with your build, you're ready to look into
 [*Pushing a repository to its registry*](
-/use/workingwithrepository/#image-push).
+/userguide/dockerrepos/#image-push).
 
 ## Format
 
@@ -95,7 +95,7 @@ The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
 for subsequent instructions. As such, a valid Dockerfile must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
-/use/workingwithrepository/#using-public-repositories).
+/userguide/dockerrepos/#using-public-repositories).
 
 `FROM` must be the first non-comment instruction in the Dockerfile.
 
@@ -200,10 +200,8 @@ default specified in CMD.
 
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
-containers using links (see
-[*links*](/use/working_with_links_names/#working-with-links-names)),
-and to setup port redirection on the host system (see [*Redirect Ports*](
-/use/port_redirection/#port-redirection)).
+containers using links (see the [Docker User
+Guide](/userguide/dockerlinks)).
 
 ## ENV
 
@@ -380,7 +378,7 @@ and mark it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string, `VOLUME /var/log`. For more information/examples and mounting
 instructions via the Docker client, refer to [*Share Directories via Volumes*](
-/use/working_with_volumes/#volume-def) documentation.
+/userguide/dockervolumes/#volume-def) documentation.
 
 ## USER
 

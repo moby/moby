@@ -1,33 +1,32 @@
-page_title: Trusted Builds on Docker.io
-page_description: Docker.io Trusted Builds
-page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds
+page_title: Automated Builds on Docker.io
+page_description: Docker.io Automated Builds
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds, automated builds
+# Automated Builds on Docker.io
 
-# Trusted Builds on Docker.io
+## Automated Builds
 
-## Trusted Builds
-
-*Trusted Builds* is a special feature allowing you to specify a source
+*Automated Builds* is a special feature allowing you to specify a source
 repository with a `Dockerfile` to be built by the
 [Docker.io](https://index.docker.io) build clusters. The system will
 clone your repository and build the `Dockerfile` using the repository as
 the context. The resulting image will then be uploaded to the registry
-and marked as a *Trusted Build*.
+and marked as an *Automated Build*.
 
-Trusted Builds have a number of advantages. For example, users of *your* Trusted
-Build can be certain that the resulting image was built exactly how it claims
-to be.
+Automated Builds have a number of advantages. For example, users of
+*your* Automated Build can be certain that the resulting image was built
+exactly how it claims to be.
 
 Furthermore, the `Dockerfile` will be available to anyone browsing your repository
-on the registry. Another advantage of the Trusted Builds feature is the automated
+on the registry. Another advantage of the Automated Builds feature is the automated
 builds. This makes sure that your repository is always up to date.
 
-Trusted builds are supported for both public and private repositories on
-both [GitHub](http://github.com) and
+Automated Builds are supported for both public and private repositories
+on both [GitHub](http://github.com) and
 [BitBucket](https://bitbucket.org/).
 
-### Setting up Trusted Builds with GitHub
+### Setting up Automated Builds with GitHub
 
-In order to setup a Trusted Build, you need to first link your [Docker.io](
+In order to setup an Automated Build, you need to first link your [Docker.io](
 https://index.docker.io) account with a GitHub one. This will allow the registry
 to see your repositories.
 
@@ -35,7 +34,7 @@ to see your repositories.
 > https://index.docker.io) needs to setup a GitHub service hook. Although nothing
 > else is done with your account, this is how GitHub manages permissions, sorry!
 
-Click on the [Trusted Builds tab](https://index.docker.io/builds/) to
+Click on the [Automated Builds tab](https://index.docker.io/builds/) to
 get started and then select [+ Add
 New](https://index.docker.io/builds/add/).
 
@@ -45,9 +44,9 @@ service](https://index.docker.io/associate/github/).
 Then follow the instructions to authorize and link your GitHub account
 to Docker.io.
 
-#### Creating a Trusted Build
+#### Creating an Automated Build
 
-You can [create a Trusted Build](https://index.docker.io/builds/github/select/)
+You can [create an Automated Build](https://index.docker.io/builds/github/select/)
 from any of your public or private GitHub repositories with a `Dockerfile`.
 
 #### GitHub organizations
@@ -59,7 +58,7 @@ organization on GitHub.
 #### GitHub service hooks
 
 You can follow the below steps to configure the GitHub service hooks for your
-Trusted Build:
+Automated Build:
 
 <table class="table table-bordered">
   <thead>
@@ -84,13 +83,13 @@ Trusted Build:
   </tbody>
 </table>
 
-### Setting up Trusted Builds with BitBucket
+### Setting up Automated Builds with BitBucket
 
-In order to setup a Trusted Build, you need to first link your
+In order to setup an Automated Build, you need to first link your
 [Docker.io]( https://index.docker.io) account with a BitBucket one. This
 will allow the registry to see your repositories.
 
-Click on the [Trusted Builds tab](https://index.docker.io/builds/) to
+Click on the [Automated Builds tab](https://index.docker.io/builds/) to
 get started and then select [+ Add
 New](https://index.docker.io/builds/add/).
 
@@ -100,14 +99,14 @@ service](https://index.docker.io/associate/bitbucket/).
 Then follow the instructions to authorize and link your BitBucket account
 to Docker.io.
 
-#### Creating a Trusted Build
+#### Creating an Automated Build
 
 You can [create a Trusted
 Build](https://index.docker.io/builds/bitbucket/select/)
 from any of your public or private BitBucket repositories with a
 `Dockerfile`.
 
-### The Dockerfile and Trusted Builds
+### The Dockerfile and Automated Builds
 
 During the build process, we copy the contents of your `Dockerfile`. We also
 add it to the [Docker.io](https://index.docker.io) for the Docker community
@@ -120,20 +119,19 @@ repository's full description.
 
 > **Warning:**
 > If you change the full description after a build, it will be
-> rewritten the next time the Trusted Build has been built. To make changes,
+> rewritten the next time the Automated Build has been built. To make changes,
 > modify the README.md from the Git repository. We will look for a README.md
 > in the same directory as your `Dockerfile`.
 
 ### Build triggers
 
-If you need another way to trigger your Trusted Builds outside of GitHub
+If you need another way to trigger your Automated Builds outside of GitHub
 or BitBucket, you can setup a build trigger. When you turn on the build
-trigger for a Trusted Build, it will give you a URL to which you can
-send POST requests. This will trigger the Trusted Build process, which
-is similar to GitHub web hooks.
+trigger for an Automated Build, it will give you a URL to which you can
+send POST requests. This will trigger the Automated Build process, which
+is similar to GitHub webhooks.
 
-Build Triggers are available under the Settings tab of each Trusted
-Build.
+Build Triggers are available under the Settings tab of each Automated Build.
 
 > **Note:** 
 > You can only trigger one build at a time and no more than one
@@ -144,10 +142,10 @@ Build.
 
 ### Webhooks
 
-Also available for Trusted Builds are Webhooks. Webhooks can be called
+Also available for Automated Builds are Webhooks. Webhooks can be called
 after a successful repository push is made.
 
-The web hook call will generate a HTTP POST with the following JSON
+The webhook call will generate a HTTP POST with the following JSON
 payload:
 
 ```
@@ -181,7 +179,7 @@ payload:
 }
 ```
 
-Webhooks are available under the Settings tab of each Trusted
+Webhooks are available under the Settings tab of each Automated
 Build.
 
 > **Note:** If you want to test your webhook out then we recommend using
@@ -190,15 +188,15 @@ Build.
 
 ### Repository links
 
-Repository links are a way to associate one Trusted Build with another. If one
-gets updated, linking system also triggers a build for the other Trusted Build.
-This makes it easy to keep your Trusted Builds up to date.
+Repository links are a way to associate one Automated Build with another. If one
+gets updated, linking system also triggers a build for the other Automated Build.
+This makes it easy to keep your Automated Builds up to date.
 
-To add a link, go to the settings page of a Trusted Build and click on
+To add a link, go to the settings page of an Automated Build and click on
 *Repository Links*. Then enter the name of the repository that you want have
 linked.
 
 > **Warning:**
 > You can add more than one repository link, however, you should
-> be very careful. Creating a two way relationship between Trusted Builds will
+> be very careful. Creating a two way relationship between Automated Builds will
 > cause a never ending build loop.

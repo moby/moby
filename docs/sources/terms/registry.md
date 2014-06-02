@@ -6,9 +6,9 @@ page_keywords: containers, concepts, explanation, image, repository, container
 
 ## Introduction
 
-A Registry is a hosted service containing [*repositories*](
-../repository/#repository-def) of [*images*](../image/#image-def) which
-responds to the Registry API.
+A Registry is a hosted service containing
+[*repositories*](/terms/repository/#repository-def) of
+[*images*](/terms/image/#image-def) which responds to the Registry API.
 
 The default registry can be accessed using a browser at
 [Docker.io](http://index.docker.io) or using the
@@ -16,5 +16,5 @@ The default registry can be accessed using a browser at
 
 ## Further Reading
 
-For more information see [*Working with Repositories*](
-../use/workingwithrepository/#working-with-the-repository)
+For more information see [*Working with
+Repositories*](/userguide/dockerrepos/#working-with-the-repository)

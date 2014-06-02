@@ -53,8 +53,7 @@ add the *ubuntu* user to it so that you don't have to use
 `sudo` for every Docker command.
 
 Once you`ve got Docker installed, you're ready to try it out – head on
-over to the [*First steps with Docker*](/use/basics/) or
-[*Examples*](/examples/) section.
+over to the [User Guide](/userguide).
 
 ## Amazon QuickStart (Release Candidate - March 2014)
 
@@ -94,4 +93,4 @@ QuickStart*](#amazon-quickstart) to pick an image (or use one of your
 own) and skip the step with the *User Data*. Then continue with the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions.
 
-Continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
+Continue with the [User Guide](/userguide/).
