@@ -3,6 +3,7 @@ package fs
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,6 +77,11 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	stats.CpuStats.CpuUsage.PercentUsage = percentage
 	// Delta usage is in nanoseconds of CPU time so get the usage (in cores) over the sample time.
 	stats.CpuStats.CpuUsage.CurrentUsage = deltaUsage / uint64(usageSampleDuration.Nanoseconds())
+	percpuUsage, err := s.getPercpuUsage(path)
+	if err != nil {
+		return err
+	}
+	stats.CpuStats.CpuUsage.PercpuUsage = percpuUsage
 	return nil
 }
 
@@ -131,4 +137,20 @@ func (s *cpuacctGroup) getCpuUsage(d *data, path string) (uint64, error) {
 		cpuTotal += v
 	}
 	return cpuTotal, nil
+}
+
+func (s *cpuacctGroup) getPercpuUsage(path string) ([]uint64, error) {
+	percpuUsage := []uint64{}
+	data, err := ioutil.ReadFile(filepath.Join(path, "cpuacct.usage_percpu"))
+	if err != nil {
+		return percpuUsage, err
+	}
+	for _, value := range strings.Fields(string(data)) {
+		value, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return percpuUsage, fmt.Errorf("Unable to convert param value to uint64: %s", err)
+		}
+		percpuUsage = append(percpuUsage, value)
+	}
+	return percpuUsage, nil
 }

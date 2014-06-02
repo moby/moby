@@ -22,7 +22,7 @@ func getCgroupParamKeyValue(t string) (string, uint64, error) {
 	case 2:
 		value, err := strconv.ParseUint(parts[1], 10, 64)
 		if err != nil {
-			return "", 0, fmt.Errorf("Unable to convert param value to int: %s", err)
+			return "", 0, fmt.Errorf("Unable to convert param value to uint64: %s", err)
 		}
 		return parts[0], value, nil
 	default:
