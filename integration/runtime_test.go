@@ -133,10 +133,10 @@ func init() {
 
 func setupBaseImage() {
 	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
-	job := eng.Job("inspect", unitTestImageName, "image")
+	job := eng.Job("image_inspect", unitTestImageName)
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
-	if err := job.Run(); err != nil || img.Get("id") != unitTestImageID {
+	if err := job.Run(); err != nil || img.Get("Id") != unitTestImageID {
 		// Retrieve the Image
 		job = eng.Job("pull", unitTestImageName)
 		job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
