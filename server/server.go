@@ -1095,7 +1095,7 @@ func (srv *Server) pullImage(r *registry.Registry, out io.Writer, imgID, endpoin
 
 		// ensure no two downloads of the same layer happen at the same time
 		if c, err := srv.poolAdd("pull", "layer:"+id); err != nil {
-			utils.Errorf("Image (id: %s) pull is already running, skipping: %v", id, err)
+			utils.Debugf("Image (id: %s) pull is already running, skipping: %v", id, err)
 			<-c
 		}
 		defer srv.poolRemove("pull", "layer:"+id)
@@ -1234,7 +1234,7 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 					<-c
 					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
 				} else {
-					utils.Errorf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+					utils.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
 				}
 				if parallel {
 					errors <- nil
