@@ -1,4 +1,4 @@
-# Docker.io
+# Docker Hub
 
 ## Contents:
 

@@ -698,9 +698,9 @@ Running `docker ps` showing 2 linked containers.
     Pull an image or a repository from the registry
 
 Most of your images will be created on top of a base image from the
-[Docker.io](https://index.docker.io) registry.
+[Docker Hub](https://hub.docker.com) registry.
 
-[Docker.io](https://index.docker.io) contains many pre-built images that you
+[Docker Hub](https://hub.docker.com) contains many pre-built images that you
 can `pull` and try without needing to define and configure your own.
 
 To download a particular image, or set of images (i.e., a repository),
@@ -719,7 +719,7 @@ use `docker pull`:
 
     Push an image or a repository to the registry
 
-Use `docker push` to share your images to the [Docker.io](https://index.docker.io)
+Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.
 
 ## restart
@@ -1075,7 +1075,7 @@ It is used to create a backup that can then be used with
 
 ## search
 
-Search [Docker.io](https://index.docker.io) for images
+Search [Docker Hub](https://hub.docker.com) for images
 
     Usage: docker search TERM
 
@@ -1085,9 +1085,9 @@ Search [Docker.io](https://index.docker.io) for images
       -s, --stars=0          Only displays with at least xxx stars
       -t, --trusted=false    Only show trusted builds
 
-See [*Find Public Images on Docker.io*](
-/userguide/dockerrepos/#find-public-images-on-dockerio) for
-more details on finding shared images from the commandline.
+See [*Find Public Images on Docker Hub*](
+/userguide/dockerrepos/#find-public-images-on-docker-hub) for
+more details on finding shared images from the command line.
 
 ## start
 
