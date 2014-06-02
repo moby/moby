@@ -798,11 +798,9 @@ Return low-level information on the image `name`
         Content-Type: application/json
 
         {
-             "id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-             "parent":"27cf784147099545",
-             "created":"2013-03-23T22:24:18.818426-07:00",
-             "container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
-             "container_config":
+             "Created":"2013-03-23T22:24:18.818426-07:00",
+             "Container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+             "ContainerConfig":
                      {
                              "Hostname":"",
                              "User":"",
@@ -823,6 +821,8 @@ Return low-level information on the image `name`
                              "VolumesFrom":"",
                              "WorkingDir":""
                      },
+             "Id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+             "Parent":"27cf784147099545",
              "Size": 6824592
         }
 

@@ -1057,7 +1057,7 @@ func TestContainerOrphaning(t *testing.T) {
 		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
-		return info.Get("ID")
+		return info.Get("Id")
 	}
 
 	// build an image

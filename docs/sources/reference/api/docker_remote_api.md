@@ -36,7 +36,16 @@ You can still call an old version of the api using
 
 ### What's new
 
-docker build now has support for the `forcerm` parameter to always remove containers
+`POST /build`
+
+**New!**
+Build now has support for the `forcerm` parameter to always remove containers
+
+`GET /containers/(name)/json`
+`GET /images/(name)/json`
+
+**New!**
+All the JSON keys are now in CamelCase
 
 ## v1.11
 
