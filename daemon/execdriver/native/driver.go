@@ -147,28 +147,26 @@ func (d *driver) Kill(p *execdriver.Command, sig int) error {
 
 func (d *driver) Pause(c *execdriver.Command) error {
 	active := d.activeContainers[c.ID]
-	active.container.Cgroups.Freezer = "FROZEN"
-	pid := c.Process.Pid
-
-	if systemd.UseSystemd() {
-		_, err := systemd.Apply(active.container.Cgroups, pid)
-		return err
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
-	_, err := fs.Apply(active.container.Cgroups, pid)
-	return err
+	active.container.Cgroups.Freezer = "FROZEN"
+	if systemd.UseSystemd() {
+		return systemd.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
+	}
+	return fs.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
 	active := d.activeContainers[c.ID]
-	active.container.Cgroups.Freezer = "THAWED"
-	pid := c.Process.Pid
-
-	if systemd.UseSystemd() {
-		_, err := systemd.Apply(active.container.Cgroups, pid)
-		return err
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
-	_, err := fs.Apply(active.container.Cgroups, pid)
-	return err
+	active.container.Cgroups.Freezer = "THAWED"
+	if systemd.UseSystemd() {
+		return systemd.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
+	}
+	return fs.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
 }
 
 func (d *driver) Terminate(p *execdriver.Command) error {

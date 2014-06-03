@@ -538,6 +538,11 @@ func (container *Container) KillSig(sig int) error {
 	container.Lock()
 	defer container.Unlock()
 
+	// We could unpause the container for them rather than returning this error
+	if container.State.IsPaused() {
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
+	}
+
 	if !container.State.IsRunning() {
 		return nil
 	}
@@ -592,11 +597,6 @@ func (container *Container) Kill() error {
 func (container *Container) Stop(seconds int) error {
 	if !container.State.IsRunning() {
 		return nil
-	}
-
-	// We could unpause the container for them rather than returning this error
-	if container.State.IsPaused() {
-		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
 	}
 
 	// 1. Send a SIGTERM

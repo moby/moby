@@ -27,23 +27,12 @@ var actions = map[string]Action{
 	"cgroups.memory_reservation": memoryReservation, // set the memory reservation
 	"cgroups.memory_swap":        memorySwap,        // set the memory swap limit
 	"cgroups.cpuset.cpus":        cpusetCpus,        // set the cpus used
-	"cgroups.freezer":            freezer,           // set the frozen/thaw state
 
 	"systemd.slice": systemdSlice, // set parent Slice used for systemd unit
 
 	"apparmor_profile": apparmorProfile, // set the apparmor profile to apply
 
 	"fs.readonly": readonlyFs, // make the rootfs of the container read only
-}
-
-func freezer(container *libcontainer.Container, context interface{}, value string) error {
-	if container.Cgroups == nil {
-		return fmt.Errorf("cannot set cgroups when they are disabled")
-	}
-
-	container.Cgroups.Freezer = value
-
-	return nil
 }
 
 func cpusetCpus(container *libcontainer.Container, context interface{}, value string) error {
