@@ -2,7 +2,6 @@ package apparmor
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -12,40 +11,9 @@ const (
 	DefaultProfilePath = "/etc/apparmor.d/docker"
 )
 
-func InstallDefaultProfile(backupPath string) error {
+func InstallDefaultProfile() error {
 	if !IsEnabled() {
 		return nil
-	}
-
-	// If the profile already exists, check if we already have a backup
-	// if not, do the backup and override it. (docker 0.10 upgrade changed the apparmor profile)
-	// see gh#5049, apparmor blocks signals in ubuntu 14.04
-	if _, err := os.Stat(DefaultProfilePath); err == nil {
-		if _, err := os.Stat(backupPath); err == nil {
-			// If both the profile and the backup are present, do nothing
-			return nil
-		}
-		// Make sure the directory exists
-		if err := os.MkdirAll(path.Dir(backupPath), 0755); err != nil {
-			return err
-		}
-
-		// Create the backup file
-		f, err := os.Create(backupPath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		src, err := os.Open(DefaultProfilePath)
-		if err != nil {
-			return err
-		}
-		defer src.Close()
-
-		if _, err := io.Copy(f, src); err != nil {
-			return err
-		}
 	}
 
 	// Make sure /etc/apparmor.d exists
