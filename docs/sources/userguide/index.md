@@ -76,7 +76,7 @@ Go to [Managing Data in Containers](/userguide/dockervolumes).
 
 Now we've learned a bit more about how to use Docker we're going to see
 how to combine Docker with the services available on Docker.io including
-Trusted Builds and private repositories.
+Automated Builds and private repositories.
 
 Go to [Working with Docker.io](/userguide/dockerrepos).
 

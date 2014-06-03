@@ -229,7 +229,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from save' -a '(__fish_print
 complete -c docker -f -n '__fish_docker_no_subcommand' -a search -d 'Search for an image in the docker index'
 complete -c docker -A -f -n '__fish_seen_subcommand_from search' -l no-trunc -d "Don't truncate output"
 complete -c docker -A -f -n '__fish_seen_subcommand_from search' -s s -l stars -d 'Only displays with at least xxx stars'
-complete -c docker -A -f -n '__fish_seen_subcommand_from search' -s t -l trusted -d 'Only show trusted builds'
+complete -c docker -A -f -n '__fish_seen_subcommand_from search' -l automated -d 'Only show automated builds'
 
 # start
 complete -c docker -f -n '__fish_docker_no_subcommand' -a start -d 'Start a stopped container'

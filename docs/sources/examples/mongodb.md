@@ -151,4 +151,4 @@ as daemon process(es).
 
  - [Linking containers](/userguide/dockerlinks)
  - [Cross-host linking containers](/articles/ambassador_pattern_linking/)
- - [Creating a Trusted Build](/docker-io/builds/#trusted-builds)
+ - [Creating an Automated Build](/docker-io/builds/#automated-builds)

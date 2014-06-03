@@ -1124,7 +1124,7 @@ Search [Docker.io](https://index.docker.io) for images
 
       --no-trunc=false       Don't truncate output
       -s, --stars=0          Only displays with at least xxx stars
-      -t, --trusted=false    Only show trusted builds
+      --automated=false      Only show automated builds
 
 See [*Find Public Images on Docker.io*](
 /userguide/dockerrepos/#find-public-images-on-dockerio) for

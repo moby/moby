@@ -1,6 +1,6 @@
 page_title: Automated Builds on Docker.io
 page_description: Docker.io Automated Builds
-page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds, automated builds
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds, automated, automated builds
 # Automated Builds on Docker.io
 
 ## Automated Builds
@@ -101,10 +101,9 @@ to Docker.io.
 
 #### Creating an Automated Build
 
-You can [create a Trusted
-Build](https://index.docker.io/builds/bitbucket/select/)
-from any of your public or private BitBucket repositories with a
-`Dockerfile`.
+You can [create an Automated
+Build](https://index.docker.io/builds/bitbucket/select/) from any of
+your public or private BitBucket repositories with a `Dockerfile`.
 
 ### The Dockerfile and Automated Builds
 
@@ -162,7 +161,7 @@ payload:
    "repository":{
       "status":"Active",
       "description":"my docker repo that does cool things",
-      "is_trusted":false,
+      "is_automated":false,
       "full_description":"This is my full description",
       "repo_url":"https://index.docker.io/u/username/reponame/",
       "owner":"username",
