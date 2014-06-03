@@ -103,8 +103,8 @@ container can be started with the **--link**.
 **-m**, **-memory**=*memory-limit*
    Allows you to constrain the memory available to a container. If the host
 supports swap memory, then the -m memory setting can be larger than physical
-RAM. The memory limit format: <number><optional unit>, where unit = b, k, m or
-g.
+RAM. If a limit of 0 is specified, the container's memory is not limited. The 
+memory limit format: <number><optional unit>, where unit = b, k, m or g.
 
 **-P**, **-publish-all**=*true*|*false*
    When set to true publish all exposed ports to the host interfaces. The
