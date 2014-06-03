@@ -20,11 +20,12 @@ func (s *freezerGroup) Set(d *data) error {
 		return nil
 	}
 
-	if d.c.Freezer != "" {
-		if err := writeFile(dir, "freezer.state", d.c.Freezer); err != nil {
+	if d.c.Freezer != cgroups.Undefined {
+		if err := writeFile(dir, "freezer.state", string(d.c.Freezer)); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
