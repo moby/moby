@@ -8,6 +8,13 @@ import (
 	"path"
 )
 
+type FsMagic uint64
+
+const (
+	FsMagicBtrfs = FsMagic(0x9123683E)
+	FsMagicAufs  = FsMagic(0x61756673)
+)
+
 type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
