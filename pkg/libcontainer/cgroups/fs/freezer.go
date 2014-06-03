@@ -12,16 +12,18 @@ type freezerGroup struct {
 }
 
 func (s *freezerGroup) Set(d *data) error {
-	dir, err := d.join("freezer")
-	if err != nil {
-		if err != cgroups.ErrNotFound {
+	switch d.c.Freezer {
+	case cgroups.Frozen, cgroups.Thawed:
+		dir, err := d.path("freezer")
+		if err != nil {
 			return err
 		}
-		return nil
-	}
 
-	if d.c.Freezer != cgroups.Undefined {
 		if err := writeFile(dir, "freezer.state", string(d.c.Freezer)); err != nil {
+			return err
+		}
+	default:
+		if _, err := d.join("freezer"); err != nil && err != cgroups.ErrNotFound {
 			return err
 		}
 	}
