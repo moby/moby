@@ -873,3 +873,15 @@ func TestThatCharacterDevicesActLikeCharacterDevices(t *testing.T) {
 
 	logDone("run - test that character devices work.")
 }
+
+func TestRunUnprivilegedWithChroot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "chroot", "/", "true")
+
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - unprivileged with chroot")
+}
