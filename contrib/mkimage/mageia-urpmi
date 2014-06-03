@@ -53,25 +53,7 @@ fi
 		--root "$rootfsDir"
 )
 
-(
-	# Clean cruft to reduce image size - stolen and modifed from .febootstrap-minimize
-	set -x
-	cd "$rootfsDir"
-	#  locales
-	rm -rf usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
-	#  docs
-	rm -rf usr/share/{man,doc,info,gnome/help}
-	#  cracklib
-	rm -rf usr/share/cracklib
-	#  i18n
-	rm -rf usr/share/i18n
-	#  sln
-	rm -rf sbin/sln
-	#  ldconfig
-	#rm -rf sbin/ldconfig
-	rm -rf etc/ld.so.cache var/cache/ldconfig
-	mkdir -p --mode=0755 var/cache/ldconfig
-)
+"$(dirname "$BASH_SOURCE")/.febootstrap-minimize" "$rootfsDir"
 
 if [ -d "$rootfsDir/etc/sysconfig" ]; then
 	# allow networking init scripts inside the container to work without extra steps
