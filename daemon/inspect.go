@@ -42,6 +42,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.Set("ExecDriver", container.ExecDriver)
 		out.Set("MountLabel", container.MountLabel)
 		out.Set("ProcessLabel", container.ProcessLabel)
+		out.SetJson("Volumes", container.Volumes)
 		out.SetJson("VolumesRW", container.VolumesRW)
 		out.SetJson("HostConfig", container.hostConfig)
 		if _, err := out.WriteTo(job.Stdout); err != nil {
