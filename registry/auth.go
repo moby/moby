@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 // Where we store the config file
@@ -152,10 +153,16 @@ func SaveConfig(configFile *ConfigFile) error {
 // try to register/login to the registry server
 func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
 	var (
-		status        string
-		reqBody       []byte
-		err           error
-		client        = &http.Client{}
+		status  string
+		reqBody []byte
+		err     error
+		client  = &http.Client{
+			Transport: &http.Transport{
+				DisableKeepAlives: true,
+				Proxy:             http.ProxyFromEnvironment,
+			},
+			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+		}
 		reqStatusCode = 0
 		serverAddress = authConfig.ServerAddress
 	)
