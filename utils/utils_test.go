@@ -302,7 +302,7 @@ func TestParseHost(t *testing.T) {
 	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1:4243"); err == nil {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1:2375"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
 }

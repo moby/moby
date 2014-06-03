@@ -67,13 +67,13 @@ Now you can make the Docker daemon only accept connections from clients
 providing a certificate trusted by our CA:
 
     $ sudo docker -d --tlsverify --tlscacert=ca.pem --tlscert=server-cert.pem --tlskey=server-key.pem \
-      -H=0.0.0.0:4243
+      -H=0.0.0.0:2375
 
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
     $ docker --tlsverify --tlscacert=ca.pem --tlscert=client-cert.pem --tlskey=client-key.pem \
-      -H=dns-name-of-docker-host:4243
+      -H=dns-name-of-docker-host:2375
 
 > **Warning**: 
 > As shown in the example above, you don't have to run the

@@ -33,7 +33,7 @@ virtual machine and run the Docker daemon.
 ```
 	boot2docker init
 	boot2docker start
-	export DOCKER_HOST=tcp://localhost:4243
+	export DOCKER_HOST=tcp://localhost:2375
 ```
 
 `boot2docker init` will ask you to enter an ssh key passphrase - the simplest

@@ -61,7 +61,7 @@ image cache.
 With `-H` it is possible to make the Docker daemon to listen on a
 specific IP and port. By default, it will listen on
 `unix:///var/run/docker.sock` to allow only local connections by the
-*root* user. You *could* set it to `0.0.0.0:4243` or a specific host IP
+*root* user. You *could* set it to `0.0.0.0:2375` or a specific host IP
 to give access to everybody, but that is **not recommended** because
 then it is trivial for someone to gain root access to the host where the
 daemon is running.
@@ -74,8 +74,8 @@ Similarly, the Docker client can use `-H` to connect to a custom port.
 
 For example:
 
--   `tcp://host:4243` -> TCP connection on
-    host:4243
+-   `tcp://host:2375` -> TCP connection on
+    host:2375
 -   `unix://path/to/socket` -> Unix socket located
     at `path/to/socket`
 
@@ -98,11 +98,11 @@ You can use multiple `-H`, for example, if you want to listen on both
 TCP and a Unix socket
 
     # Run docker in daemon mode
-    $ sudo <path to>/docker -H tcp://127.0.0.1:4243 -H unix:///var/run/docker.sock -d &
+    $ sudo <path to>/docker -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock -d &
     # Download an ubuntu image, use default Unix socket
     $ sudo docker pull ubuntu
     # OR use the TCP port
-    $ sudo docker -H tcp://127.0.0.1:4243 pull ubuntu
+    $ sudo docker -H tcp://127.0.0.1:2375 pull ubuntu
 
 ## Starting a long-running worker process
 

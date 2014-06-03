@@ -103,9 +103,9 @@ To use lxc as the execution driver, use `docker -d -e lxc`.
 The docker client will also honor the `DOCKER_HOST` environment variable to set
 the `-H` flag for the client.
 
-    $ docker -H tcp://0.0.0.0:4243 ps
+    $ docker -H tcp://0.0.0.0:2375 ps
     # or
-    $ export DOCKER_HOST="tcp://0.0.0.0:4243"
+    $ export DOCKER_HOST="tcp://0.0.0.0:2375"
     $ docker ps
     # both are equal
 

@@ -683,12 +683,12 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 
 func TestBuildEnv(t *testing.T) {
 	name := "testbuildenv"
-	expected := "[HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=4243]"
+	expected := "[HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
-        ENV PORT 4243
-		RUN [ $(env | grep PORT) = 'PORT=4243' ]`,
+        ENV PORT 2375
+		RUN [ $(env | grep PORT) = 'PORT=2375' ]`,
 		true)
 	if err != nil {
 		t.Fatal(err)
@@ -726,11 +726,11 @@ func TestBuildCmd(t *testing.T) {
 
 func TestBuildExpose(t *testing.T) {
 	name := "testbuildexpose"
-	expected := "map[4243/tcp:map[]]"
+	expected := "map[2375/tcp:map[]]"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
-        EXPOSE 4243`,
+        EXPOSE 2375`,
 		true)
 	if err != nil {
 		t.Fatal(err)
