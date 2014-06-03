@@ -111,11 +111,6 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 		systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})},
 	)
 
-	if !c.AllowAllDevices {
-		properties = append(properties,
-			systemd1.Property{"DevicePolicy", dbus.MakeVariant("strict")})
-	}
-
 	// Always enable accounting, this gets us the same behaviour as the fs implementation,
 	// plus the kernel has some problems with joining the memory cgroup at a later time.
 	properties = append(properties,
@@ -148,13 +143,44 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	cgroup := props["ControlGroup"].(string)
 
 	if !c.AllowAllDevices {
+		// Atm we can't use the systemd device support because of two missing things:
+		// * Support for wildcards to allow mknod on any device
+		// * Support for wildcards to allow /dev/pts support
+		//
+		// The second is available in more recent systemd as "char-pts", but not in e.g. v208 which is
+		// in wide use. When both these are availalable we will be able to switch, but need to keep the old
+		// implementation for backwards compat.
+		//
+		// Note: we can't use systemd to set up the initial limits, and then change the cgroup
+		// because systemd will re-write the device settings if it needs to re-apply the cgroup context.
+		// This happens at least for v208 when any sibling unit is started.
+
 		mountpoint, err := cgroups.FindCgroupMountpoint("devices")
 		if err != nil {
 			return nil, err
 		}
 
-		dir := filepath.Join(mountpoint, cgroup)
-		// We use the same method of allowing devices as in the fs backend.  This needs to be changed to use DBUS as soon as possible.  However, that change has to wait untill http://cgit.freedesktop.org/systemd/systemd/commit/?id=90060676c442604780634c0a993e3f9c3733f8e6 has been applied in most commonly used systemd versions.
+		initPath, err := cgroups.GetInitCgroupDir("devices")
+		if err != nil {
+			return nil, err
+		}
+
+		dir := filepath.Join(mountpoint, initPath, c.Parent, c.Name)
+
+		res.cleanupDirs = append(res.cleanupDirs, dir)
+
+		if err := os.MkdirAll(dir, 0755); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(dir, "cgroup.procs"), []byte(strconv.Itoa(pid)), 0700); err != nil {
+			return nil, err
+		}
+
+		if err := writeFile(dir, "devices.deny", "a"); err != nil {
+			return nil, err
+		}
+
 		for _, dev := range c.AllowedDevices {
 			if err := writeFile(dir, "devices.allow", dev.GetCgroupAllowString()); err != nil {
 				return nil, err
