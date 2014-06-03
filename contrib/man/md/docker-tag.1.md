@@ -9,11 +9,12 @@ docker-tag - Tag an image in the repository
 IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
 # DESCRIPTION
-This will tag an image in the repository.
+This will give a new alias to an image in the repository. This refers to the
+entire image name including the optional TAG after the ':'. 
 
 # "OPTIONS"
 **-f**, **--force**=*true*|*false*
-   When set to true, force the tag name. The default is *false*.
+   When set to true, force the alias. The default is *false*.
 
 **REGISTRYHOST**
    The hostname of the registry if required. This may also include the port
@@ -26,13 +27,16 @@ separated by a ':'
    The image name.
 
 **TAG**
-   The tag you are assigning to the image.
+   The tag you are assigning to the image.  Though this is arbitrary it is
+recommended to be used for a version to disinguish images with the same name.
+Note that here TAG is a part of the overall name or "tag".
 
 # EXAMPLES
 
-## Tagging an image
+## Giving an image a new alias
 
-Here is an example of tagging an image with the tag version1.0 :
+Here is an example of aliasing an image (e.g. 0e5574283393) as "httpd" and 
+tagging it into the "fedora" repository with "version1.0":
 
     docker tag 0e5574283393 fedora/httpd:version1.0
 
