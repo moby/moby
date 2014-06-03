@@ -2,7 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -96,4 +101,121 @@ func getContainerCount() (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("couldn't find the Container count in the output")
+}
+
+type FakeContext struct {
+	Dir string
+}
+
+func (f *FakeContext) Add(file, content string) error {
+	filepath := path.Join(f.Dir, file)
+	dirpath := path.Dir(filepath)
+	if dirpath != "." {
+		if err := os.MkdirAll(dirpath, 0755); err != nil {
+			return err
+		}
+	}
+	return ioutil.WriteFile(filepath, []byte(content), 0644)
+}
+
+func (f *FakeContext) Delete(file string) error {
+	filepath := path.Join(f.Dir, file)
+	return os.RemoveAll(filepath)
+}
+
+func (f *FakeContext) Close() error {
+	return os.RemoveAll(f.Dir)
+}
+
+func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
+	tmp, err := ioutil.TempDir("", "fake-context")
+	if err != nil {
+		return nil, err
+	}
+	ctx := &FakeContext{tmp}
+	for file, content := range files {
+		if err := ctx.Add(file, content); err != nil {
+			ctx.Close()
+			return nil, err
+		}
+	}
+	if err := ctx.Add("Dockerfile", dockerfile); err != nil {
+		ctx.Close()
+		return nil, err
+	}
+	return ctx, nil
+}
+
+type FakeStorage struct {
+	*FakeContext
+	*httptest.Server
+}
+
+func (f *FakeStorage) Close() error {
+	f.Server.Close()
+	return f.FakeContext.Close()
+}
+
+func fakeStorage(files map[string]string) (*FakeStorage, error) {
+	tmp, err := ioutil.TempDir("", "fake-storage")
+	if err != nil {
+		return nil, err
+	}
+	ctx := &FakeContext{tmp}
+	for file, content := range files {
+		if err := ctx.Add(file, content); err != nil {
+			ctx.Close()
+			return nil, err
+		}
+	}
+	handler := http.FileServer(http.Dir(ctx.Dir))
+	server := httptest.NewServer(handler)
+	return &FakeStorage{
+		FakeContext: ctx,
+		Server:      server,
+	}, nil
+}
+
+func inspectField(name, field string) (string, error) {
+	format := fmt.Sprintf("{{.%s}}", field)
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func getIDByName(name string) (string, error) {
+	return inspectField(name, "Id")
+}
+
+func buildImage(name, dockerfile string, useCache bool) (string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, "-")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Stdin = strings.NewReader(dockerfile)
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to build the image: %s", out)
+	}
+	return getIDByName(name)
+}
+
+func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, ".")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Dir = ctx.Dir
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to build the image: %s", out)
+	}
+	return getIDByName(name)
 }
