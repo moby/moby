@@ -259,9 +259,9 @@ Then reload UFW:
 
 UFW's default set of rules denies all incoming traffic. If you want to
 be able to reach your containers from another host then you should allow
-incoming connections on the Docker port (default 4243):
+incoming connections on the Docker port (default 2375):
 
-    $ sudo ufw allow 4243/tcp
+    $ sudo ufw allow 2375/tcp
 
 ## Docker and local DNS server warnings
 

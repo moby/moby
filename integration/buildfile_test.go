@@ -545,7 +545,7 @@ func TestBuildInheritance(t *testing.T) {
 
 	img, err := buildImage(testContextTemplate{`
             from {IMAGE}
-            expose 4243
+            expose 2375
             `,
 		nil, nil}, t, eng, true)
 
@@ -569,7 +569,7 @@ func TestBuildInheritance(t *testing.T) {
 	}
 
 	// from parent
-	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "4243")]; !exists {
+	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "2375")]; !exists {
 		t.Fail()
 	}
 }
