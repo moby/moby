@@ -47,7 +47,27 @@ If we want Docker to start at boot, we should also:
 Now let's verify that Docker is working.
 
     $ sudo docker run -i -t fedora /bin/bash
+    
+## Enabling a user to use docker
 
+    $ usermod -a -G docker login_name
+
+## Proxy
+
+If you are behind a proxy you will need to set in docker **systemd service file** rather than provide the proxy via environment variable or a command line switch.
+
+Edit `/lib/systemd/system/docker.service`. Add the following like to section `[Service]` :
+
+    Environment="HTTP_PROXY=http://proxy.example.com:80/"
+
+Flush changes:
+
+    $ systemctl daemon-reload
+    
+Restart docker:
+
+    $ systemctl start docker
+    
 ## What next?
 
 Continue with the [User Guide](/userguide/).
