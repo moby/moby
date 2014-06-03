@@ -7,7 +7,7 @@ aufs driver directory structure
 │   ├── 1
 │   ├── 2
 │   └── 3
-├── diffs  // Content of the layer
+├── diff  // Content of the layer
 │   ├── 1  // Contains layers that need to be mounted for the id
 │   ├── 2
 │   └── 3
