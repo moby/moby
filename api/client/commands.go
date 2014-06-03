@@ -26,12 +26,14 @@ import (
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/opts"
 	"github.com/dotcloud/docker/pkg/signal"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/pkg/units"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/filters"
 )
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
@@ -1145,6 +1147,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
+	var flFilter opts.ListOpts
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1153,11 +1158,32 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		return nil
 	}
 
-	filter := cmd.Arg(0)
+	// Consolidate all filter flags, and sanity check them early.
+	// They'll get process in the daemon/server.
+	imageFilterArgs := filters.Args{}
+	for _, f := range flFilter.GetAll() {
+		var err error
+		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
+		if err != nil {
+			return err
+		}
+	}
 
+	matchName := cmd.Arg(0)
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	if *flViz || *flTree {
-		body, _, err := readBody(cli.call("GET", "/images/json?all=1", nil, false))
+		v := url.Values{
+			"all": []string{"1"},
+		}
+		if len(imageFilterArgs) > 0 {
+			filterJson, err := filters.ToParam(imageFilterArgs)
+			if err != nil {
+				return err
+			}
+			v.Set("filters", filterJson)
+		}
+
+		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
 		if err != nil {
 			return err
 		}
@@ -1187,13 +1213,13 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 			}
 
-			if filter != "" {
-				if filter == image.Get("Id") || filter == utils.TruncateID(image.Get("Id")) {
+			if matchName != "" {
+				if matchName == image.Get("Id") || matchName == utils.TruncateID(image.Get("Id")) {
 					startImage = image
 				}
 
 				for _, repotag := range image.GetList("RepoTags") {
-					if repotag == filter {
+					if repotag == matchName {
 						startImage = image
 					}
 				}
@@ -1211,7 +1237,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			root := engine.NewTable("Created", 1)
 			root.Add(startImage)
 			cli.WalkTree(*noTrunc, root, byParent, "", printNode)
-		} else if filter == "" {
+		} else if matchName == "" {
 			cli.WalkTree(*noTrunc, roots, byParent, "", printNode)
 		}
 		if *flViz {
@@ -1219,8 +1245,17 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	} else {
 		v := url.Values{}
+		if len(imageFilterArgs) > 0 {
+			filterJson, err := filters.ToParam(imageFilterArgs)
+			if err != nil {
+				return err
+			}
+			v.Set("filters", filterJson)
+		}
+
 		if cmd.NArg() == 1 {
-			v.Set("filter", filter)
+			// FIXME rename this parameter, to not be confused with the filters flag
+			v.Set("filter", matchName)
 		}
 		if *all {
 			v.Set("all", "1")
