@@ -20,6 +20,7 @@ func New() *libcontainer.Container {
 			"SETFCAP",
 			"SETPCAP",
 			"NET_BIND_SERVICE",
+			"SYS_CHROOT",
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,
