@@ -65,6 +65,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"pause", "Pause all processes within a container"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
 		{"push", "Push an image or a repository to the docker registry server"},
@@ -78,6 +79,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
 		{"top", "Lookup the running processes of a container"},
+		{"unpause", "Unpause a paused container"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
@@ -646,6 +648,52 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		return <-cErr
 	}
 	return nil
+}
+
+func (cli *DockerCli) CmdUnpause(args ...string) error {
+	cmd := cli.Subcmd("unpause", "CONTAINER", "Unpause all processes within a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var encounteredError error
+	for _, name := range cmd.Args() {
+		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/unpause", name), nil, false)); err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to unpause container named %s", name)
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+	return encounteredError
+}
+
+func (cli *DockerCli) CmdPause(args ...string) error {
+	cmd := cli.Subcmd("pause", "CONTAINER", "Pause all processes within a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var encounteredError error
+	for _, name := range cmd.Args() {
+		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/pause", name), nil, false)); err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to pause container named %s", name)
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+	return encounteredError
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
