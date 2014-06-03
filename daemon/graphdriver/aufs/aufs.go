@@ -39,7 +39,10 @@ import (
 
 var (
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
-	IncompatibleFSMagic = []int64{0x9123683E /*btrfs*/, 0x61756673 /*AUFS*/}
+	incompatibleFsMagic = []graphdriver.FsMagic{
+		graphdriver.FsMagicBtrfs,
+		graphdriver.FsMagicAufs,
+	}
 )
 
 func init() {
@@ -67,8 +70,8 @@ func Init(root string) (graphdriver.Driver, error) {
 		return nil, fmt.Errorf("Couldn't stat the root directory: %s", err)
 	}
 
-	for _, magic := range IncompatibleFSMagic {
-		if int64(buf.Type) == magic {
+	for _, magic := range incompatibleFsMagic {
+		if graphdriver.FsMagic(buf.Type) == magic {
 			return nil, graphdriver.ErrIncompatibleFS
 		}
 	}

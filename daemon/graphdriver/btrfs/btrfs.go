@@ -18,10 +18,6 @@ import (
 	"unsafe"
 )
 
-const (
-	btrfsSuperMagic = 0x9123683E
-)
-
 func init() {
 	graphdriver.Register("btrfs", Init)
 }
@@ -34,7 +30,7 @@ func Init(home string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if buf.Type != btrfsSuperMagic {
+	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicBtrfs {
 		return nil, graphdriver.ErrPrerequisites
 	}
 
