@@ -560,10 +560,14 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 
 func (cli *DockerCli) CmdStart(args ...string) error {
 	var (
+		cErr chan error
+		tty  bool
+
 		cmd       = cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 		attach    = cmd.Bool([]string{"a", "-attach"}, false, "Attach container's stdout/stderr and forward all signals to the process")
 		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's stdin")
 	)
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -572,29 +576,24 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		return nil
 	}
 
-	var (
-		cErr chan error
-		tty  bool
-	)
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false))
+		steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
 		if err != nil {
 			return err
 		}
 
-		container := &api.Container{}
-		err = json.Unmarshal(body, container)
-		if err != nil {
+		env := engine.Env{}
+		if err := env.Decode(steam); err != nil {
 			return err
 		}
+		config := env.GetSubEnv("Config")
+		tty = config.GetBool("Tty")
 
-		tty = container.Config.Tty
-
-		if !container.Config.Tty {
+		if !tty {
 			sigc := cli.forwardAllSignals(cmd.Arg(0))
 			defer signal.StopCatch(sigc)
 		}
@@ -603,15 +602,17 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 		v := url.Values{}
 		v.Set("stream", "1")
-		if *openStdin && container.Config.OpenStdin {
+
+		if *openStdin && config.GetBool("OpenStdin") {
 			v.Set("stdin", "1")
 			in = cli.in
 		}
+
 		v.Set("stdout", "1")
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil)
 		})
 	}
 
@@ -774,34 +775,38 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	}
 
 	var (
-		port      = cmd.Arg(1)
-		proto     = "tcp"
-		parts     = strings.SplitN(port, "/", 2)
-		container api.Container
+		port  = cmd.Arg(1)
+		proto = "tcp"
+		parts = strings.SplitN(port, "/", 2)
 	)
 
 	if len(parts) == 2 && len(parts[1]) != 0 {
 		port = parts[0]
 		proto = parts[1]
 	}
-	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false))
+
+	steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
 	if err != nil {
 		return err
 	}
 
-	err = json.Unmarshal(body, &container)
-	if err != nil {
+	env := engine.Env{}
+	if err := env.Decode(steam); err != nil {
+		return err
+	}
+	ports := nat.PortMap{}
+	if err := env.GetSubEnv("NetworkSettings").GetJson("Ports", &ports); err != nil {
 		return err
 	}
 
-	if frontends, exists := container.NetworkSettings.Ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
+	if frontends, exists := ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
 		for _, frontend := range frontends {
 			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
 		}
-	} else {
-		return fmt.Errorf("Error: No public port '%s' published for %s", cmd.Arg(1), cmd.Arg(0))
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("Error: No public port '%s' published for %s", cmd.Arg(1), cmd.Arg(0))
 }
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE
@@ -1619,72 +1624,84 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
-	cmd := cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
-	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
-	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+	var (
+		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
+		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+	)
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
 	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
 	name := cmd.Arg(0)
-	body, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, false))
+
+	steam, _, err := cli.call("GET", "/containers/"+name+"/json", nil, false)
 	if err != nil {
 		return err
 	}
 
-	container := &api.Container{}
-	err = json.Unmarshal(body, container)
-	if err != nil {
+	env := engine.Env{}
+	if err := env.Decode(steam); err != nil {
 		return err
 	}
 
 	v := url.Values{}
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
+
 	if *times {
 		v.Set("timestamps", "1")
 	}
-	if *follow && container.State.Running {
+
+	if *follow {
 		v.Set("follow", "1")
 	}
 
-	if err := cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), container.Config.Tty, nil, cli.out, cli.err, nil); err != nil {
-		return err
-	}
-	return nil
+	return cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), env.GetSubEnv("Config").GetBool("Tty"), nil, cli.out, cli.err, nil)
 }
 
 func (cli *DockerCli) CmdAttach(args ...string) error {
-	cmd := cli.Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
-	noStdin := cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach stdin")
-	proxy := cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
+	var (
+		cmd     = cli.Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
+		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach stdin")
+		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
+	)
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+
 	if cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
 	name := cmd.Arg(0)
-	body, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, false))
+
+	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, false)
 	if err != nil {
 		return err
 	}
 
-	container := &api.Container{}
-	err = json.Unmarshal(body, container)
-	if err != nil {
+	env := engine.Env{}
+	if err := env.Decode(stream); err != nil {
 		return err
 	}
 
-	if !container.State.Running {
+	if !env.GetSubEnv("State").GetBool("Running") {
 		return fmt.Errorf("You cannot attach to a stopped container, start it first")
 	}
 
-	if container.Config.Tty && cli.isTerminal {
+	var (
+		config = env.GetSubEnv("Config")
+		tty    = config.GetBool("Tty")
+	)
+
+	if tty && cli.isTerminal {
 		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
 			utils.Debugf("Error monitoring TTY size: %s", err)
 		}
@@ -1694,19 +1711,20 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	v := url.Values{}
 	v.Set("stream", "1")
-	if !*noStdin && container.Config.OpenStdin {
+	if !*noStdin && config.GetBool("OpenStdin") {
 		v.Set("stdin", "1")
 		in = cli.in
 	}
+
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if *proxy && !container.Config.Tty {
+	if *proxy && !tty {
 		sigc := cli.forwardAllSignals(cmd.Arg(0))
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), container.Config.Tty, in, cli.out, cli.err, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil); err != nil {
 		return err
 	}
 

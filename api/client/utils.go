@@ -200,7 +200,7 @@ func waitForExit(cli *DockerCli, containerId string) (int, error) {
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
-	body, _, err := readBody(cli.call("GET", "/containers/"+containerId+"/json", nil, false))
+	steam, _, err := cli.call("GET", "/containers/"+containerId+"/json", nil, false)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != ErrConnectionRefused {
@@ -208,11 +208,14 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 		}
 		return false, -1, nil
 	}
-	c := &api.Container{}
-	if err := json.Unmarshal(body, c); err != nil {
+
+	var result engine.Env
+	if err := result.Decode(steam); err != nil {
 		return false, -1, err
 	}
-	return c.State.Running, c.State.ExitCode, nil
+
+	state := result.GetSubEnv("State")
+	return state.GetBool("Running"), state.GetInt("ExitCode"), nil
 }
 
 func (cli *DockerCli) monitorTtySize(id string) error {
