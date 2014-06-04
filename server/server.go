@@ -125,6 +125,8 @@ func InitServer(job *engine.Job) engine.Status {
 		"restart":          srv.ContainerRestart,
 		"start":            srv.ContainerStart,
 		"kill":             srv.ContainerKill,
+		"pause":            srv.ContainerPause,
+		"unpause":          srv.ContainerUnpause,
 		"wait":             srv.ContainerWait,
 		"tag":              srv.ImageTag, // FIXME merge with "image_tag"
 		"resize":           srv.ContainerResize,
@@ -165,6 +167,36 @@ func InitServer(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	srv.SetRunning(true)
+	return engine.StatusOK
+}
+
+func (srv *Server) ContainerPause(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER", job.Name)
+	}
+	name := job.Args[0]
+	container := srv.daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	if err := container.Pause(); err != nil {
+		return job.Errorf("Cannot pause container %s: %s", name, err)
+	}
+	return engine.StatusOK
+}
+
+func (srv *Server) ContainerUnpause(job *engine.Job) engine.Status {
+	if n := len(job.Args); n < 1 || n > 2 {
+		return job.Errorf("Usage: %s CONTAINER", job.Name)
+	}
+	name := job.Args[0]
+	container := srv.daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	if err := container.Unpause(); err != nil {
+		return job.Errorf("Cannot unpause container %s: %s", name, err)
+	}
 	return engine.StatusOK
 }
 

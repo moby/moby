@@ -538,10 +538,35 @@ func (container *Container) KillSig(sig int) error {
 	container.Lock()
 	defer container.Unlock()
 
+	// We could unpause the container for them rather than returning this error
+	if container.State.IsPaused() {
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
+	}
+
 	if !container.State.IsRunning() {
 		return nil
 	}
 	return container.daemon.Kill(container, sig)
+}
+
+func (container *Container) Pause() error {
+	if container.State.IsPaused() {
+		return fmt.Errorf("Container %s is already paused", container.ID)
+	}
+	if !container.State.IsRunning() {
+		return fmt.Errorf("Container %s is not running", container.ID)
+	}
+	return container.daemon.Pause(container)
+}
+
+func (container *Container) Unpause() error {
+	if !container.State.IsPaused() {
+		return fmt.Errorf("Container %s is not paused", container.ID)
+	}
+	if !container.State.IsRunning() {
+		return fmt.Errorf("Container %s is not running", container.ID)
+	}
+	return container.daemon.Unpause(container)
 }
 
 func (container *Container) Kill() error {
