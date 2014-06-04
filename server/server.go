@@ -1611,7 +1611,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 
 	tag := job.Getenv("tag")
 	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", metaHeaders)
+	job.GetenvJson("metaHeaders", &metaHeaders)
 	if _, err := srv.poolAdd("push", localName); err != nil {
 		return job.Error(err)
 	}
