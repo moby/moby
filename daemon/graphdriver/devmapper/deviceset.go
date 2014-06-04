@@ -989,10 +989,17 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 		options = joinMountOptions(options, "nouuid")
 	}
 
+	if fstype == "ext4" {
+		// ext4 needs to enable explicit support user xattrs
+		// user_xattr - support 'user.<namespace>' extended attributes
+		options = joinMountOptions(options, "user_xattr")
+	}
+
 	options = joinMountOptions(options, devices.mountOptions)
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
 	err = syscall.Mount(info.DevName(), path, fstype, flags, joinMountOptions("discard", options))
+
 	if err != nil && err == syscall.EINVAL {
 		err = syscall.Mount(info.DevName(), path, fstype, flags, options)
 	}
