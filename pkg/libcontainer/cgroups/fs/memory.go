@@ -84,6 +84,11 @@ func (s *memoryGroup) GetStats(d *data, stats *cgroups.Stats) error {
 		return err
 	}
 	stats.MemoryStats.MaxUsage = value
+	value, err = getCgroupParamInt(path, "memory.failcnt")
+	if err != nil {
+		return err
+	}
+	stats.MemoryStats.Failcnt = value
 
 	return nil
 }

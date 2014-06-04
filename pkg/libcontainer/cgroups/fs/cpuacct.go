@@ -20,6 +20,8 @@ var (
 	clockTicks = uint64(system.GetClockTicks())
 )
 
+const nanosecondsInSecond = 1000000000
+
 type cpuacctGroup struct {
 }
 
@@ -37,13 +39,13 @@ func (s *cpuacctGroup) Remove(d *data) error {
 
 func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	var (
-		startCpu, lastCpu, startSystem, lastSystem, startUsage, lastUsage uint64
-		percentage                                                        uint64
+		startCpu, lastCpu, startSystem, lastSystem, startUsage, lastUsage, kernelModeUsage, userModeUsage, percentage uint64
 	)
 	path, err := d.path("cpuacct")
-	if startCpu, err = s.getCpuUsage(d, path); err != nil {
+	if kernelModeUsage, userModeUsage, err = s.getCpuUsage(d, path); err != nil {
 		return err
 	}
+	startCpu = kernelModeUsage + userModeUsage
 	if startSystem, err = s.getSystemCpuUsage(d); err != nil {
 		return err
 	}
@@ -53,9 +55,10 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	}
 	// sample for 100ms
 	time.Sleep(100 * time.Millisecond)
-	if lastCpu, err = s.getCpuUsage(d, path); err != nil {
+	if kernelModeUsage, userModeUsage, err = s.getCpuUsage(d, path); err != nil {
 		return err
 	}
+	lastCpu = kernelModeUsage + userModeUsage
 	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
 		return err
 	}
@@ -82,6 +85,8 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 		return err
 	}
 	stats.CpuStats.CpuUsage.PercpuUsage = percpuUsage
+	stats.CpuStats.CpuUsage.UsageInKernelmode = (kernelModeUsage * nanosecondsInSecond) / clockTicks
+	stats.CpuStats.CpuUsage.UsageInUsermode = (userModeUsage * nanosecondsInSecond) / clockTicks
 	return nil
 }
 
@@ -119,24 +124,25 @@ func (s *cpuacctGroup) getSystemCpuUsage(d *data) (uint64, error) {
 	return 0, fmt.Errorf("invalid stat format")
 }
 
-func (s *cpuacctGroup) getCpuUsage(d *data, path string) (uint64, error) {
-	cpuTotal := uint64(0)
-	f, err := os.Open(filepath.Join(path, "cpuacct.stat"))
+func (s *cpuacctGroup) getCpuUsage(d *data, path string) (uint64, uint64, error) {
+	kernelModeUsage := uint64(0)
+	userModeUsage := uint64(0)
+	data, err := ioutil.ReadFile(filepath.Join(path, "cpuacct.stat"))
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	defer f.Close()
+	fields := strings.Fields(string(data))
+	if len(fields) != 4 {
+		return 0, 0, fmt.Errorf("Failure - %s is expected to have 4 fields", filepath.Join(path, "cpuacct.stat"))
+	}
+	if userModeUsage, err = strconv.ParseUint(fields[1], 10, 64); err != nil {
+		return 0, 0, err
+	}
+	if kernelModeUsage, err = strconv.ParseUint(fields[3], 10, 64); err != nil {
+		return 0, 0, err
+	}
 
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		_, v, err := getCgroupParamKeyValue(sc.Text())
-		if err != nil {
-			return 0, err
-		}
-		// set the raw data in map
-		cpuTotal += v
-	}
-	return cpuTotal, nil
+	return kernelModeUsage, userModeUsage, nil
 }
 
 func (s *cpuacctGroup) getPercpuUsage(path string) ([]uint64, error) {
