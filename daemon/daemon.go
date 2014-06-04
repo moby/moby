@@ -778,6 +778,11 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	}
 	utils.Debugf("Using graph driver %s", driver)
 
+	// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
+	if config.EnableSelinuxSupport && driver.String() == "btrfs" {
+		return nil, fmt.Errorf("SELinux is not supported with the BTRFS graph driver!")
+	}
+
 	daemonRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(daemonRepo, 0700); err != nil && !os.IsExist(err) {
