@@ -15,6 +15,10 @@ type CpuUsage struct {
 	// nanoseconds of cpu time consumed over the last 100 ms.
 	CurrentUsage uint64   `json:"current_usage,omitempty"`
 	PercpuUsage  []uint64 `json:"percpu_usage,omitempty"`
+	// Time spent by tasks of the cgroup in kernel mode. Units: nanoseconds.
+	UsageInKernelmode uint64 `json:"usage_in_kernelmode"`
+	// Time spent by tasks of the cgroup in user mode. Units: nanoseconds.
+	UsageInUsermode uint64 `json:"usage_in_usermode"`
 }
 
 type CpuStats struct {
@@ -30,6 +34,8 @@ type MemoryStats struct {
 	// TODO(vishh): Export these as stronger types.
 	// all the stats exported via memory.stat.
 	Stats map[string]uint64 `json:"stats,omitempty"`
+	// number of times memory usage hits limits.
+	Failcnt uint64 `json:"failcnt"`
 }
 
 type BlkioStatEntry struct {
