@@ -1381,7 +1381,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 	}
 
 	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", metaHeaders)
+	job.GetenvJson("metaHeaders", &metaHeaders)
 
 	c, err := srv.poolAdd("pull", localName+":"+tag)
 	if err != nil {
