@@ -154,7 +154,7 @@ have changed. This will also invalidate the cache for `RUN` instructions.
 
 CMD has three forms:
 
-- `CMD ["executable","param1","param2"]` (like an *exec*, preferred form)
+- `CMD ["executable","param1","param2"]` (like an *exec*, this is the preferred form)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
 - `CMD command param1 param2` (as a *shell*)
 
