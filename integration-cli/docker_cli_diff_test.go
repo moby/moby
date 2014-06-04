@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ensure that an added file shows up in docker diff
@@ -70,6 +71,8 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 	cid, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, fmt.Sprintf("%s", err))
 	cleanCID := stripTrailingCharacters(cid)
+
+	time.Sleep(300 * time.Millisecond)
 
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
 	out, _, err := runCommandWithOutput(diffCmd)
