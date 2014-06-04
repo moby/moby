@@ -259,7 +259,7 @@ happens at the client side (where you're running
 
 The transfer of context from the local machine to the Docker daemon is
 what the `docker` client means when you see the
-"Uploading context" message.
+"Sending build context" message.
 
 If you wish to keep the intermediate containers after the build is
 complete, you must use `--rm=false`. This does not

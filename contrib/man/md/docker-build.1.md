@@ -17,7 +17,7 @@ be used by **ADD** commands found within the Dockerfile.
 Warning, this will send a lot of data to the Docker daemon depending
 on the contents of the current directory. The build is run by the Docker 
 daemon, not by the CLI, so the whole context must be transferred to the daemon. 
-The Docker CLI reports "Uploading context" when the context is sent to 
+The Docker CLI reports "Sending build context to Docker daemon" when the context is sent to 
 the daemon.
 
 When a single Dockerfile is given as the URL, then no context is set.
