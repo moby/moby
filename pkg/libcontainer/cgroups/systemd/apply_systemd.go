@@ -3,6 +3,7 @@
 package systemd
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	systemd1 "github.com/coreos/go-systemd/dbus"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
@@ -351,7 +353,20 @@ func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filepath.Join(path, "freezer.state"), []byte(state), 0)
+	if err := ioutil.WriteFile(filepath.Join(path, "freezer.state"), []byte(state), 0); err != nil {
+		return err
+	}
+	for {
+		state_, err := ioutil.ReadFile(filepath.Join(path, "freezer.state"))
+		if err != nil {
+			return err
+		}
+		if string(state) == string(bytes.TrimSpace(state_)) {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	return nil
 }
 
 func GetPids(c *cgroups.Cgroup) ([]int, error) {

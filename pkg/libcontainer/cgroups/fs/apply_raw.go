@@ -164,6 +164,11 @@ func writeFile(dir, file, data string) error {
 	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
 
+func readFile(dir, file string) (string, error) {
+	data, err := ioutil.ReadFile(filepath.Join(dir, file))
+	return string(data), err
+}
+
 func removePath(p string, err error) error {
 	if err != nil {
 		return err
