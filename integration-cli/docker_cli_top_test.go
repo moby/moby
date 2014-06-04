@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTopNonPrivileged(t *testing.T) {
@@ -13,6 +14,8 @@ func TestTopNonPrivileged(t *testing.T) {
 	errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
 
 	cleanedContainerID := stripTrailingCharacters(out)
+
+	time.Sleep(300 * time.Millisecond)
 
 	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID)
 	out, _, err = runCommandWithOutput(topCmd)
@@ -45,6 +48,8 @@ func TestTopPrivileged(t *testing.T) {
 	errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
 
 	cleanedContainerID := stripTrailingCharacters(out)
+
+	time.Sleep(300 * time.Millisecond)
 
 	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID)
 	out, _, err = runCommandWithOutput(topCmd)
