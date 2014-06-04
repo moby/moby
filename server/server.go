@@ -2313,8 +2313,6 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 
 	var (
 		name   = job.Args[0]
-		logs   = job.GetenvBool("logs")
-		stream = job.GetenvBool("stream")
 		stdin  = job.GetenvBool("stdin")
 		stdout = job.GetenvBool("stdout")
 		stderr = job.GetenvBool("stderr")
@@ -2325,83 +2323,35 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 		return job.Errorf("No such container: %s", name)
 	}
 
-	//logs
-	if logs {
-		cLog, err := container.ReadLog("json")
-		if err != nil && os.IsNotExist(err) {
-			// Legacy logs
-			utils.Debugf("Old logs format")
-			if stdout {
-				cLog, err := container.ReadLog("stdout")
-				if err != nil {
-					utils.Errorf("Error reading logs (stdout): %s", err)
-				} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
-					utils.Errorf("Error streaming logs (stdout): %s", err)
-				}
-			}
-			if stderr {
-				cLog, err := container.ReadLog("stderr")
-				if err != nil {
-					utils.Errorf("Error reading logs (stderr): %s", err)
-				} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
-					utils.Errorf("Error streaming logs (stderr): %s", err)
-				}
-			}
-		} else if err != nil {
-			utils.Errorf("Error reading logs (json): %s", err)
-		} else {
-			dec := json.NewDecoder(cLog)
-			for {
-				l := &utils.JSONLog{}
+	var (
+		cStdin           io.ReadCloser
+		cStdout, cStderr io.Writer
+		cStdinCloser     io.Closer
+	)
 
-				if err := dec.Decode(l); err == io.EOF {
-					break
-				} else if err != nil {
-					utils.Errorf("Error streaming logs: %s", err)
-					break
-				}
-				if l.Stream == "stdout" && stdout {
-					fmt.Fprintf(job.Stdout, "%s", l.Log)
-				}
-				if l.Stream == "stderr" && stderr {
-					fmt.Fprintf(job.Stderr, "%s", l.Log)
-				}
-			}
-		}
+	if stdin {
+		r, w := io.Pipe()
+		go func() {
+			defer w.Close()
+			defer utils.Debugf("Closing buffered stdin pipe")
+			io.Copy(w, job.Stdin)
+		}()
+		cStdin = r
+		cStdinCloser = job.Stdin
+	}
+	if stdout {
+		cStdout = job.Stdout
+	}
+	if stderr {
+		cStderr = job.Stderr
 	}
 
-	//stream
-	if stream {
-		var (
-			cStdin           io.ReadCloser
-			cStdout, cStderr io.Writer
-			cStdinCloser     io.Closer
-		)
+	<-srv.daemon.Attach(container, cStdin, cStdinCloser, cStdout, cStderr)
 
-		if stdin {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer utils.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, job.Stdin)
-			}()
-			cStdin = r
-			cStdinCloser = job.Stdin
-		}
-		if stdout {
-			cStdout = job.Stdout
-		}
-		if stderr {
-			cStderr = job.Stderr
-		}
-
-		<-srv.daemon.Attach(container, cStdin, cStdinCloser, cStdout, cStderr)
-
-		// If we are in stdinonce mode, wait for the process to end
-		// otherwise, simply return
-		if container.Config.StdinOnce && !container.Config.Tty {
-			container.Wait()
-		}
+	// If we are in stdinonce mode, wait for the process to end
+	// otherwise, simply return
+	if container.Config.StdinOnce && !container.Config.Tty {
+		container.Wait()
 	}
 	return engine.StatusOK
 }

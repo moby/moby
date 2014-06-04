@@ -858,8 +858,6 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 		job := eng.Job("attach", vars["name"])
-		job.Setenv("logs", r.Form.Get("logs"))
-		job.Setenv("stream", r.Form.Get("stream"))
 		job.Setenv("stdin", r.Form.Get("stdin"))
 		job.Setenv("stdout", r.Form.Get("stdout"))
 		job.Setenv("stderr", r.Form.Get("stderr"))
