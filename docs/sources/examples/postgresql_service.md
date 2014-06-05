@@ -11,7 +11,7 @@ page_keywords: docker, example, package installation, postgresql
 ## Installing PostgreSQL on Docker
 
 Assuming there is no Docker image that suits your needs on the [Docker
-Hub](http://hub.docker.com), you can create one yourself.
+Hub]( http://index.docker.io), you can create one yourself.
 
 Start by creating a new `Dockerfile`:
 

@@ -51,19 +51,19 @@ pages:
 
 # User Guide:
 - ['userguide/index.md', 'User Guide', 'The Docker User Guide' ]
-- ['userguide/dockerhub.md', 'User Guide', 'Getting Started with Docker Hub' ]
+- ['userguide/dockerio.md', 'User Guide', 'Getting Started with Docker.io' ]
 - ['userguide/dockerizing.md', 'User Guide', 'Dockerizing Applications' ]
 - ['userguide/usingdocker.md', 'User Guide', 'Working with Containers' ]
 - ['userguide/dockerimages.md', 'User Guide', 'Working with Docker Images' ]
 - ['userguide/dockerlinks.md', 'User Guide', 'Linking containers together' ]
 - ['userguide/dockervolumes.md', 'User Guide', 'Managing data in containers' ]
-- ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
+- ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker.io' ]
 
-# Docker Hub docs:
-- ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
-- ['docker-hub/accounts.md', 'Docker Hub', 'Accounts']
-- ['docker-hub/repos.md', 'Docker Hub', 'Repositories']
-- ['docker-hub/builds.md', 'Docker Hub', 'Automated Builds']
+# Docker.io docs:
+- ['docker-io/index.md', 'Docker.io', 'Docker.io' ]
+- ['docker-io/accounts.md', 'Docker.io', 'Accounts']
+- ['docker-io/repos.md', 'Docker.io', 'Repositories']
+- ['docker-io/builds.md', 'Docker.io', 'Automated Builds']
 
 # Examples:
 - ['examples/index.md', '**HIDDEN**']
@@ -99,7 +99,7 @@ pages:
 - ['faq.md', 'Reference', 'FAQ']
 - ['reference/run.md', 'Reference', 'Run Reference']
 - ['reference/api/index.md', '**HIDDEN**']
-- ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
+- ['reference/api/docker-io_api.md', 'Reference', 'Docker.io API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/registry_index_spec.md', 'Reference', 'Registry & Index Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']

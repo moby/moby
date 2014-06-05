@@ -135,8 +135,8 @@ restore testing using your preferred tools.
 
 Now we've learned a bit more about how to use Docker we're going to see how to
 combine Docker with the services available on
-[Docker Hub](https://hub.docker.com) including Automated Builds and private
+[Docker.io](https://index.docker.io) including Automated Builds and private
 repositories.
 
-Go to [Working with Docker Hub](/userguide/dockerrepos).
+Go to [Working with Docker.io](/userguide/dockerrepos).
 
