@@ -65,9 +65,9 @@ requires to build (this example uses Docker 0.3.4):
     # DOCKER-VERSION 0.3.4
 
 Next, define the parent image you want to use to build your own image on
-top of. Here, we'll use [CentOS](https://index.docker.io/_/centos/)
-(tag: `6.4`) available on the [Docker
-index](https://index.docker.io/):
+top of. Here, we'll use
+[CentOS](https://registry.hub.docker.com/_/centos/) (tag: `6.4`)
+available on the [Docker Hub](https://hub.docker.com/):
 
     FROM    centos:6.4
 

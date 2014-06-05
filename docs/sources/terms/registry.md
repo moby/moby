@@ -11,7 +11,7 @@ A Registry is a hosted service containing
 [*images*](/terms/image/#image-def) which responds to the Registry API.
 
 The default registry can be accessed using a browser at
-[Docker.io](http://index.docker.io) or using the
+[Docker Hub](https://hub.docker.com) or using the
 `sudo docker search` command.
 
 ## Further Reading

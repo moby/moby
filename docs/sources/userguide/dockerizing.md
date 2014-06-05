@@ -30,7 +30,7 @@ operating system image.
 
 When you specify an image, Docker looks first for the image on your
 Docker host. If it can't find it then it downloads the image from the public
-image registry: [Docker.io](https://index.docker.io).
+image registry: [Docker Hub](https://hub.docker.com).
 
 Next we told Docker what command to run inside our new container:
 

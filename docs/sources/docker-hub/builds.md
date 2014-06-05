@@ -1,13 +1,13 @@
-page_title: Automated Builds on Docker.io
-page_description: Docker.io Automated Builds
-page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation, trusted, builds, trusted builds, automated, automated builds
-# Automated Builds on Docker.io
+page_title: Automated Builds on Docker Hub
+page_description: Docker Hub Automated Builds
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation, trusted, builds, trusted builds, automated builds
+# Automated Builds on Docker Hub
 
 ## Automated Builds
 
 *Automated Builds* is a special feature allowing you to specify a source
 repository with a `Dockerfile` to be built by the
-[Docker.io](https://index.docker.io) build clusters. The system will
+[Docker Hub](https://hub.docker.com) build clusters. The system will
 clone your repository and build the `Dockerfile` using the repository as
 the context. The resulting image will then be uploaded to the registry
 and marked as an *Automated Build*.
@@ -26,27 +26,28 @@ on both [GitHub](http://github.com) and
 
 ### Setting up Automated Builds with GitHub
 
-In order to setup an Automated Build, you need to first link your [Docker.io](
-https://index.docker.io) account with a GitHub one. This will allow the registry
-to see your repositories.
+In order to setup an Automated Build, you need to first link your
+[Docker Hub](https://hub.docker.com) account with a GitHub one. This
+will allow the registry to see your repositories.
 
-> *Note:* We currently request access for *read* and *write* since [Docker.io](
-> https://index.docker.io) needs to setup a GitHub service hook. Although nothing
-> else is done with your account, this is how GitHub manages permissions, sorry!
+> *Note:* 
+> We currently request access for *read* and *write* since
+> [Docker Hub](https://hub.docker.com) needs to setup a GitHub service
+> hook. Although nothing else is done with your account, this is how
+> GitHub manages permissions, sorry!
 
-Click on the [Automated Builds tab](https://index.docker.io/builds/) to
-get started and then select [+ Add
-New](https://index.docker.io/builds/add/).
+Click on the [Automated Builds
+tab](https://registry.hub.docker.com/builds/) to get started and then
+select [+ Add New](https://registry.hub.docker.com/builds/add/).
 
-Select the [GitHub
-service](https://index.docker.io/associate/github/).
+Select the [GitHub service](https://registry.hub.docker.com/associate/github/).
 
 Then follow the instructions to authorize and link your GitHub account
-to Docker.io.
+to Docker Hub.
 
 #### Creating an Automated Build
 
-You can [create an Automated Build](https://index.docker.io/builds/github/select/)
+You can [create an Automated Build](https://registry.hub.docker.com/builds/github/select/)
 from any of your public or private GitHub repositories with a `Dockerfile`.
 
 #### GitHub organizations
@@ -86,29 +87,36 @@ Automated Build:
 ### Setting up Automated Builds with BitBucket
 
 In order to setup an Automated Build, you need to first link your
-[Docker.io]( https://index.docker.io) account with a BitBucket one. This
+[Docker Hub](https://hub.docker.com) account with a BitBucket one. This
 will allow the registry to see your repositories.
 
-Click on the [Automated Builds tab](https://index.docker.io/builds/) to
+Click on the [Automated Builds tab](https://registry.hub.docker.com/builds/) to
 get started and then select [+ Add
-New](https://index.docker.io/builds/add/).
+New](https://registry.hub.docker.com/builds/add/).
 
 Select the [BitBucket
-service](https://index.docker.io/associate/bitbucket/).
+service](https://registry.hub.docker.com/associate/bitbucket/).
 
 Then follow the instructions to authorize and link your BitBucket account
-to Docker.io.
+to Docker Hub.
 
 #### Creating an Automated Build
 
+<<<<<<< HEAD:docs/sources/docker-io/builds.md
 You can [create an Automated
 Build](https://index.docker.io/builds/bitbucket/select/) from any of
 your public or private BitBucket repositories with a `Dockerfile`.
+=======
+You can [create a Trusted
+Build](https://registry.hub.docker.com/builds/bitbucket/select/)
+from any of your public or private BitBucket repositories with a
+`Dockerfile`.
+>>>>>>> Initial links for Docker Hub rename:docs/sources/docker-hub/builds.md
 
 ### The Dockerfile and Automated Builds
 
 During the build process, we copy the contents of your `Dockerfile`. We also
-add it to the [Docker.io](https://index.docker.io) for the Docker community
+add it to the [Docker Hub](https://hub.docker.com) for the Docker community
 to see on the repository page.
 
 ### README.md
@@ -163,7 +171,7 @@ payload:
       "description":"my docker repo that does cool things",
       "is_automated":false,
       "full_description":"This is my full description",
-      "repo_url":"https://index.docker.io/u/username/reponame/",
+      "repo_url":"https://registry.hub.docker.com/u/username/reponame/",
       "owner":"username",
       "is_official":false,
       "is_private":false,
