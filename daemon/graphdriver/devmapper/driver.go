@@ -26,7 +26,7 @@ type Driver struct {
 	home string
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (graphdriver.Driver, error) {
 	deviceSet, err := NewDeviceSet(home, true)
 	if err != nil {
 		return nil, err

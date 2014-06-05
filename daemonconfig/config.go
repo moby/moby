@@ -25,6 +25,7 @@ type Config struct {
 	BridgeIP                    string
 	InterContainerCommunication bool
 	GraphDriver                 string
+	GraphOptions                []string
 	ExecDriver                  string
 	Mtu                         int
 	DisableNetwork              bool
@@ -49,6 +50,10 @@ func ConfigFromJob(job *engine.Job) *Config {
 		ExecDriver:                  job.Getenv("ExecDriver"),
 		EnableSelinuxSupport:        job.GetenvBool("EnableSelinuxSupport"),
 	}
+	if graphOpts := job.GetenvList("GraphOptions"); graphOpts != nil {
+		config.GraphOptions = graphOpts
+	}
+
 	if dns := job.GetenvList("Dns"); dns != nil {
 		config.Dns = dns
 	}
