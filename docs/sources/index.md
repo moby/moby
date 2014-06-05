@@ -6,8 +6,11 @@ page_keywords: docker, introduction, documentation, about, technology, understan
 
 **Develop, Ship and Run Any Application, Anywhere**
 
-[**Docker**](https://www.docker.io) is a platform for developers and
-sysadmins to develop, ship, and run applications.  Docker lets you quickly assemble applications from components and eliminates the friction that can come when shipping code. Docker lets you get your code tested and deployed into production as fast as possible.
+[**Docker**](https://www.docker.io) is a platform for developers and sysadmins
+to develop, ship, and run applications.  Docker lets you quickly assemble
+applications from components and eliminates the friction that can come when
+shipping code. Docker lets you get your code tested and deployed into production
+as fast as possible.
 
 Docker consists of:
 
@@ -26,8 +29,8 @@ Docker consists of:
       into production and make it useful. We've created a standard
       container format that lets developers care about their applications
       inside containers while sysadmins and operators can work on running the
-      container in your deployment. This separation of duties streamlines and simplifies the management and
-      deployment of code.
+      container in your deployment. This separation of duties streamlines and
+      simplifies the management and deployment of code.
     * We make it easy to build new containers, enable rapid iteration of
       your applications, and increase the visibility of changes. This
       helps everyone in your organization understand how an application works
@@ -44,7 +47,8 @@ Docker consists of:
       appications around. You can easily move an application from a
       testing environment into the cloud and back whenever you need.
     * Docker's lightweight containers Docker also make scaling up and
-      down fast and easy. You can quickly launch more containers when needed and then shut them down easily when they're no longer needed.
+      down fast and easy. You can quickly launch more containers when
+      needed and then shut them down easily when they're no longer needed.
 
 - **Get higher density and run more workloads**  
     * Docker containers don't need a hypervisor, so you can pack more of
@@ -81,7 +85,9 @@ Next, we'll show you how to install Docker on a variety of platforms in the
 
 ### Docker User Guide
 
-Once you've gotten Docker installed we recommend you work through the [Docker User Guide](/userguide/), to learn about Docker in more detail and answer questions about usage and implementation.
+Once you've gotten Docker installed we recommend you work through the
+[Docker User Guide](/userguide/), to learn about Docker in more detail and
+answer questions about usage and implementation.
 
 > [Click here to go to the Docker User Guide](/userguide/).
 
