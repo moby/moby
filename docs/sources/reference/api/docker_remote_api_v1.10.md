@@ -371,7 +371,7 @@ Start the container `id`
              "PublishAllPorts":false,
              "Privileged":false
              "Dns": ["8.8.8.8"],
-             "VolumesFrom: ["parent", "other:ro"]
+             "VolumesFrom": ["parent", "other:ro"]
         }
 
     **Example response**:
