@@ -50,3 +50,13 @@ func openLog(name string) error {
 
 	return nil
 }
+
+func loadContainerFromJson(rawData string) (*libcontainer.Container, error) {
+	var container *libcontainer.Container
+
+	if err := json.Unmarshal([]byte(rawData), &container); err != nil {
+		return nil, err
+	}
+
+	return container, nil
+}

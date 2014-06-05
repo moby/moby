@@ -22,6 +22,11 @@ var (
 )
 
 func initAction(context *cli.Context) {
+	container, err := loadContainer()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	rootfs, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)

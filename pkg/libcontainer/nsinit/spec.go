@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/codegangsta/cli"
 	"github.com/dotcloud/docker/pkg/libcontainer"
@@ -17,15 +16,17 @@ var specCommand = cli.Command{
 }
 
 func specAction(context *cli.Context) {
-	// returns the spec of the current container.
+	container, err := loadContainer()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	spec, err := getContainerSpec(container)
 	if err != nil {
-		log.Printf("Failed to get spec - %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to get spec - %v\n", err)
 	}
-	fmt.Printf("Spec:\n%v\n", spec)
-	os.Exit(0)
 
+	fmt.Printf("Spec:\n%v\n", spec)
 }
 
 // returns the container spec in json format.
@@ -34,5 +35,6 @@ func getContainerSpec(container *libcontainer.Container) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(spec), nil
 }

@@ -5,21 +5,15 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
-	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
-var (
-	container *libcontainer.Container
-	logPath   = os.Getenv("log")
-)
+var logPath = os.Getenv("log")
 
-func preload(context *cli.Context) (err error) {
-	container, err = loadContainer()
-	if err != nil {
-		return err
-	}
-
+func preload(context *cli.Context) error {
 	if logPath != "" {
+		if err := openLog(logPath); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -37,6 +31,7 @@ func main() {
 		initCommand,
 		statsCommand,
 		specCommand,
+		nsenterCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

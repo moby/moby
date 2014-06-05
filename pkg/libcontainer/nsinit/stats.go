@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/codegangsta/cli"
 	"github.com/dotcloud/docker/pkg/libcontainer"
@@ -18,14 +17,17 @@ var statsCommand = cli.Command{
 }
 
 func statsAction(context *cli.Context) {
-	// returns the stats of the current container.
+	container, err := loadContainer()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	stats, err := getContainerStats(container)
 	if err != nil {
-		log.Printf("Failed to get stats - %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to get stats - %v\n", err)
 	}
+
 	fmt.Printf("Stats:\n%v\n", stats)
-	os.Exit(0)
 }
 
 // returns the container stats in json format.
@@ -34,9 +36,11 @@ func getContainerStats(container *libcontainer.Container) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	out, err := json.MarshalIndent(stats, "", "\t")
 	if err != nil {
 		return "", err
 	}
+
 	return string(out), nil
 }

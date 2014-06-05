@@ -19,17 +19,19 @@ var execCommand = cli.Command{
 }
 
 func execAction(context *cli.Context) {
-	var (
-		err             error
-		nspid, exitCode int
-	)
+	var nspid, exitCode int
+
+	container, err := loadContainer()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if nspid, err = readPid(); err != nil && !os.IsNotExist(err) {
 		log.Fatalf("unable to read pid: %s", err)
 	}
 
 	if nspid > 0 {
-		exitCode, err = namespaces.ExecIn(container, nspid, []string(context.Args()))
+		err = namespaces.ExecIn(container, nspid, []string(context.Args()))
 	} else {
 		term := namespaces.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
 		exitCode, err = startContainer(container, term, dataPath, []string(context.Args()))
