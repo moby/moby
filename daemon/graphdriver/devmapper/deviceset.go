@@ -307,7 +307,6 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -317,12 +316,10 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 func (devices *DeviceSet) initMetaData() error {
 	_, _, _, params, err := getStatus(devices.getPoolName())
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if _, err := fmt.Sscanf(params, "%d", &devices.TransactionId); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	devices.NewTransactionId = devices.TransactionId
@@ -331,7 +328,6 @@ func (devices *DeviceSet) initMetaData() error {
 
 	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -339,7 +335,6 @@ func (devices *DeviceSet) initMetaData() error {
 		m := MetaData{Devices: make(map[string]*DevInfo)}
 
 		if err := json.Unmarshal(jsonData, &m); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 
@@ -389,7 +384,6 @@ func (devices *DeviceSet) setupBaseImage() error {
 	if oldInfo != nil && !oldInfo.Initialized {
 		utils.Debugf("Removing uninitialized base image")
 		if err := devices.deleteDevice(oldInfo); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -400,7 +394,6 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	// Create initial device
 	if err := createDevice(devices.getPoolDevName(), &id); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -411,26 +404,22 @@ func (devices *DeviceSet) setupBaseImage() error {
 	info, err := devices.registerDevice(id, "", devices.baseFsSize)
 	if err != nil {
 		_ = deleteDevice(devices.getPoolDevName(), id)
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
 	if err = devices.activateDeviceIfNeeded(info); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if err := devices.createFilesystem(info); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	info.Initialized = true
 	if err = devices.saveMetadata(info); err != nil {
 		info.Initialized = false
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -610,16 +599,15 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 			dataFile, err = attachLoopDevice(data)
 			if err != nil {
-				utils.Debugf("\n--->Err: %s\n", err)
 				return err
 			}
-			defer dataFile.Close()
 		} else {
 			dataFile, err = os.OpenFile(devices.dataDevice, os.O_RDWR, 0600)
 			if err != nil {
 				return err
 			}
 		}
+		defer dataFile.Close()
 
 		if devices.metadataDevice == "" {
 			// Make sure the sparse images exist in <root>/devicemapper/metadata
@@ -642,19 +630,17 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 			metadataFile, err = attachLoopDevice(metadata)
 			if err != nil {
-				utils.Debugf("\n--->Err: %s\n", err)
 				return err
 			}
-			defer metadataFile.Close()
 		} else {
 			metadataFile, err = os.OpenFile(devices.metadataDevice, os.O_RDWR, 0600)
 			if err != nil {
 				return err
 			}
 		}
+		defer metadataFile.Close()
 
 		if err := createPool(devices.getPoolName(), dataFile, metadataFile); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -663,7 +649,6 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// load the transaction id and migrate old metadata
 	if !createdLoopback {
 		if err = devices.initMetaData(); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -775,7 +760,6 @@ func (devices *DeviceSet) deactivatePool() error {
 	devname := devices.getPoolDevName()
 	devinfo, err := getInfo(devname)
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
@@ -797,12 +781,10 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 
 	devinfo, err := getInfo(info.Name())
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
 		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -1032,7 +1014,6 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 
 	utils.Debugf("[devmapper] Unmount(%s)", info.mountPath)
 	if err := syscall.Unmount(info.mountPath, 0); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	utils.Debugf("[devmapper] Unmount done")
