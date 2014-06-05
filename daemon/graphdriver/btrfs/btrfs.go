@@ -22,7 +22,7 @@ func init() {
 	graphdriver.Register("btrfs", Init)
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (graphdriver.Driver, error) {
 	rootdir := path.Dir(home)
 
 	var buf syscall.Statfs_t

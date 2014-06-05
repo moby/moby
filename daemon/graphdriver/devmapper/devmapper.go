@@ -52,6 +52,7 @@ var (
 	ErrTaskAddTarget          = errors.New("dm_task_add_target failed")
 	ErrTaskSetSector          = errors.New("dm_task_set_sector failed")
 	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
+	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
 	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
 	ErrNilCookie              = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
@@ -176,6 +177,14 @@ func (t *Task) GetInfo() (*Info, error) {
 		return nil, ErrTaskGetInfo
 	}
 	return info, nil
+}
+
+func (t *Task) GetDriverVersion() (string, error) {
+	res := DmTaskGetDriverVersion(t.unmanaged)
+	if res == "" {
+		return "", ErrTaskGetDriverVersion
+	}
+	return res, nil
 }
 
 func (t *Task) GetNextTarget(next uintptr) (nextPtr uintptr, start uint64,
@@ -392,6 +401,17 @@ func getInfo(name string) (*Info, error) {
 		return nil, err
 	}
 	return task.GetInfo()
+}
+
+func getDriverVersion() (string, error) {
+	task := TaskCreate(DeviceVersion)
+	if task == nil {
+		return "", fmt.Errorf("Can't create DeviceVersion task")
+	}
+	if err := task.Run(); err != nil {
+		return "", err
+	}
+	return task.GetDriverVersion()
 }
 
 func getStatus(name string) (uint64, uint64, string, string, error) {
