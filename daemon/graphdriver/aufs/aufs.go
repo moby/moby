@@ -97,6 +97,10 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
+	if err := graphdriver.MakePrivate(root); err != nil {
+		return nil, err
+	}
+
 	for _, p := range paths {
 		if err := os.MkdirAll(path.Join(root, p), 0755); err != nil {
 			return nil, err
@@ -371,12 +375,14 @@ func (a *Driver) Cleanup() error {
 	if err != nil {
 		return err
 	}
+
 	for _, id := range ids {
 		if err := a.unmount(id); err != nil {
 			utils.Errorf("Unmounting %s: %s", utils.TruncateID(id), err)
 		}
 	}
-	return nil
+
+	return mountpk.Unmount(a.root)
 }
 
 func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {
