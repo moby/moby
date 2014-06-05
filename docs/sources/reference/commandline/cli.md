@@ -1139,6 +1139,9 @@ more details on finding shared images from the commandline.
       -a, --attach=false         Attach container's stdout/stderr and forward all signals to the process
       -i, --interactive=false    Attach container's stdin
 
+When run on a container that has already been started, 
+takes no action and succeeds unconditionally.
+
 ## stop
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
