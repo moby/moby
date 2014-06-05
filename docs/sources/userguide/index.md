@@ -19,15 +19,15 @@ We’ll teach you how to use Docker to:
 We've broken this guide into major sections that take you through
 the Docker life cycle:
 
-## Getting Started with Docker Hub
+## Getting Started with Docker.io
 
-*How do I use Docker Hub?*
+*How do I use Docker.io?*
 
-Docker Hub is the central hub for Docker. It hosts public Docker images
+Docker.io is the central hub for Docker. It hosts public Docker images
 and provides services to help you build and manage your Docker
 environment. To learn more;
 
-Go to [Using Docker Hub](/userguide/dockerhub).
+Go to [Using Docker.io](/userguide/dockerio).
 
 ## Dockerizing Applications: A "Hello World!"
 
@@ -72,21 +72,21 @@ learning how to manage data, volumes and mounts inside our containers.
 
 Go to [Managing Data in Containers](/userguide/dockervolumes).
 
-## Working with Docker Hub
+## Working with Docker.io
 
 Now we've learned a bit more about how to use Docker we're going to see
-how to combine Docker with the services available on Docker Hub including
-Trusted Builds and private repositories.
+how to combine Docker with the services available on Docker.io including
+Automated Builds and private repositories.
 
-Go to [Working with Docker Hub](/userguide/dockerrepos).
+Go to [Working with Docker.io](/userguide/dockerrepos).
 
 ## Getting help
 
-* [Docker homepage](http://www.docker.com/)
-* [Docker Hub](https://hub.docker.com/)
-* [Docker blog](http://blog.docker.com/)
-* [Docker documentation](http://docs.docker.com/)
-* [Docker Getting Started Guide](http://www.docker.com/gettingstarted/)
+* [Docker homepage](http://www.docker.io/)
+* [Docker.io](http://index.docker.io)
+* [Docker blog](http://blog.docker.io/)
+* [Docker documentation](http://docs.docker.io/)
+* [Docker Getting Started Guide](http://www.docker.io/gettingstarted/)
 * [Docker code on GitHub](https://github.com/dotcloud/docker)
 * [Docker mailing
   list](https://groups.google.com/forum/#!forum/docker-user)

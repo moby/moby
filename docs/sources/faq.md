@@ -96,7 +96,7 @@ functionalities:
    all your future projects. And so on.
 
  - *Sharing.*
-   Docker has access to a [public registry](https://hub.docker.com) where
+   Docker has access to a [public registry](http://index.docker.io) where
    thousands of people have uploaded useful containers: anything from Redis,
    CouchDB, Postgres to IRC bouncers to Rails app servers to Hadoop to
    base images for various Linux distros. The

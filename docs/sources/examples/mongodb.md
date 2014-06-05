@@ -1,14 +1,15 @@
 page_title: Dockerizing MongoDB
-page_description: Creating a Docker image with MongoDB pre-installed using a Dockerfile and sharing the image on Docker Hub
+page_description: Creating a Docker image with MongoDB pre-installed using a Dockerfile and sharing the image on Docker.io
 page_keywords: docker, dockerize, dockerizing, article, example, docker.io, platform, package, installation, networking, mongodb, containers, images, image, sharing, dockerfile, build, auto-building, virtualization, framework
 
 # Dockerizing MongoDB
 
 ## Introduction
 
-In this example, we are going to learn how to build a Docker image with
-MongoDB pre-installed.  We'll also see how to `push` that image to the
-[Docker Hub registry](https://hub.docker.com) and share it with others!
+In this example, we are going to learn how to build a Docker image
+with MongoDB pre-installed.
+We'll also see how to `push` that image to the [Docker.io registry](
+https://index.docker.io) and share it with others!
 
 Using Docker and containers for deploying [MongoDB](https://www.mongodb.org/)
 instances will bring several benefits, such as:
@@ -40,7 +41,7 @@ Although optional, it is handy to have comments at the beginning of a
 > the *parent* of your *Dockerized MongoDB* image.
 
 We will build our image using the latest version of Ubuntu from the
-[Docker Hub Ubuntu](https://registry.hub.docker.com/_/ubuntu/) repository.
+[Docker.io Ubuntu](https://index.docker.io/_/ubuntu/) repository.
 
     # Format: FROM    repository[:version]
     FROM       ubuntu:latest
@@ -108,10 +109,10 @@ experimenting, it is always a good practice to tag Docker images by passing the
 Once this command is issued, Docker will go through the `Dockerfile` and build
 the image. The final image will be tagged `my/repo`.
 
-## Pushing the MongoDB image to Docker Hub
+## Pushing the MongoDB image to Docker.io
 
 All Docker image repositories can be hosted and shared on
-[Docker Hub](https://hub.docker.com) with the `docker push` command. For this,
+[Docker.io](https://index.docker.io) with the `docker push` command. For this,
 you need to be logged-in.
 
     # Log-in

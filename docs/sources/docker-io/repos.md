@@ -1,15 +1,16 @@
-page_title: Repositories and Images on Docker Hub
-page_description: Repositories and Images on Docker Hub
-page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation
+page_title: Repositories and Images on Docker.io
+page_description: Repositories and Images on Docker.io
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker.io, docs, documentation
 
-# Repositories and Images on Docker Hub
+# Repositories and Images on Docker.io
 
 ## Searching for repositories and images
 
 You can `search` for all the publicly available repositories and images using
 Docker. If a repository is not public (i.e., private), it won't be listed on
 the repository search results. To see repository statuses, you can look at your
-[profile page](https://hub.docker.com) on [Docker Hub](https://hub.docker.com).
+[profile page](https://index.docker.io/account/) on [Docker.io](
+https://index.docker.io).
 
 ## Repositories
 
@@ -26,8 +27,8 @@ appropriate, you can flag them for the admins' review.
 
 ### Private Docker Repositories
 
-To work with a private repository on [Docker Hub](https://hub.docker.com), you
-will need to add one via the [Add Repository](https://registry.hub.docker.com/account/repositories/add/)
+To work with a private repository on [Docker.io](https://index.docker.io), you
+will need to add one via the [Add Repository](https://index.docker.io/account/repositories/add)
 link. Once the private repository is created, you can `push` and `pull` images
 to and from it using Docker.
 
@@ -44,7 +45,7 @@ designate (i.e., collaborators) from its settings page.
 From there, you can also switch repository status (*public* to *private*, or
 viceversa). You will need to have an available private repository slot open
 before you can do such a switch. If you don't have any, you can always upgrade
-your [Docker Hub](https://registry.hub.docker.com/plans/) plan.
+your [Docker.io](https://index.docker.io/plans/) plan.
 
 ### Collaborators and their role
 
@@ -82,7 +83,7 @@ with a JSON payload similar to the example shown below.
           "description":"my docker repo that does cool things",
           "is_automated":false,
           "full_description":"This is my full description",
-          "repo_url":"https://registry.hub.docker.com/u/username/reponame/",
+          "repo_url":"https://index.docker.io/u/username/reponame/",
           "owner":"username",
           "is_official":false,
           "is_private":false,
