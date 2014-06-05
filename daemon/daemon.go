@@ -780,7 +780,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	graphdriver.DefaultDriver = config.GraphDriver
 
 	// Load storage driver
-	driver, err := graphdriver.New(config.Root)
+	driver, err := graphdriver.New(config.Root, config.GraphOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +809,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	// We don't want to use a complex driver like aufs or devmapper
 	// for volumes, just a plain filesystem
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root)
+	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
 	if err != nil {
 		return nil, err
 	}

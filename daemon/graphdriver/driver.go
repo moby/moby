@@ -15,7 +15,7 @@ const (
 	FsMagicAufs  = FsMagic(0x61756673)
 )
 
-type InitFunc func(root string) (Driver, error)
+type InitFunc func(root string, options []string) (Driver, error)
 
 type Driver interface {
 	String() string
@@ -69,23 +69,23 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetDriver(name, home string) (Driver, error) {
+func GetDriver(name, home string, options []string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(path.Join(home, name))
+		return initFunc(path.Join(home, name), options)
 	}
 	return nil, ErrNotSupported
 }
 
-func New(root string) (driver Driver, err error) {
+func New(root string, options []string) (driver Driver, err error) {
 	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
 		if name != "" {
-			return GetDriver(name, root)
+			return GetDriver(name, root, options)
 		}
 	}
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, err = GetDriver(name, root)
+		driver, err = GetDriver(name, root, options)
 		if err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
@@ -97,7 +97,7 @@ func New(root string) (driver Driver, err error) {
 
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
-		if driver, err = initFunc(root); err != nil {
+		if driver, err = initFunc(root, options); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
 			}

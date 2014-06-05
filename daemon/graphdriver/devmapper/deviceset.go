@@ -13,11 +13,14 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/dotcloud/docker/daemon/graphdriver"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/units"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -64,6 +67,17 @@ type DeviceSet struct {
 	TransactionId    uint64
 	NewTransactionId uint64
 	nextDeviceId     int
+
+	// Options
+	dataLoopbackSize     int64
+	metaDataLoopbackSize int64
+	baseFsSize           uint64
+	filesystem           string
+	mountOptions         string
+	mkfsArgs             []string
+	dataDevice           string
+	metadataDevice       string
+	doBlkDiscard         bool
 }
 
 type DiskUsage struct {
@@ -273,26 +287,39 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	devname := info.DevName()
 
-	err := exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0", devname).Run()
-	if err != nil {
-		err = exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0", devname).Run()
+	args := []string{}
+	for _, arg := range devices.mkfsArgs {
+		args = append(args, arg)
+	}
+
+	args = append(args, devname)
+
+	var err error
+	switch devices.filesystem {
+	case "xfs":
+		err = exec.Command("mkfs.xfs", args...).Run()
+	case "ext4":
+		err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0"}, args...)...).Run()
+		if err != nil {
+			err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
+		}
+	default:
+		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
+
 	return nil
 }
 
 func (devices *DeviceSet) initMetaData() error {
 	_, _, _, params, err := getStatus(devices.getPoolName())
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if _, err := fmt.Sscanf(params, "%d", &devices.TransactionId); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	devices.NewTransactionId = devices.TransactionId
@@ -301,7 +328,6 @@ func (devices *DeviceSet) initMetaData() error {
 
 	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -309,7 +335,6 @@ func (devices *DeviceSet) initMetaData() error {
 		m := MetaData{Devices: make(map[string]*DevInfo)}
 
 		if err := json.Unmarshal(jsonData, &m); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 
@@ -359,7 +384,6 @@ func (devices *DeviceSet) setupBaseImage() error {
 	if oldInfo != nil && !oldInfo.Initialized {
 		utils.Debugf("Removing uninitialized base image")
 		if err := devices.deleteDevice(oldInfo); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -370,37 +394,32 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	// Create initial device
 	if err := createDevice(devices.getPoolDevName(), &id); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	// Ids are 24bit, so wrap around
 	devices.nextDeviceId = (id + 1) & 0xffffff
 
-	utils.Debugf("Registering base device (id %v) with FS size %v", id, DefaultBaseFsSize)
-	info, err := devices.registerDevice(id, "", DefaultBaseFsSize)
+	utils.Debugf("Registering base device (id %v) with FS size %v", id, devices.baseFsSize)
+	info, err := devices.registerDevice(id, "", devices.baseFsSize)
 	if err != nil {
 		_ = deleteDevice(devices.getPoolDevName(), id)
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	utils.Debugf("Creating filesystem on base device-manager snapshot")
 
 	if err = devices.activateDeviceIfNeeded(info); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	if err := devices.createFilesystem(info); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
 	info.Initialized = true
 	if err = devices.saveMetadata(info); err != nil {
 		info.Initialized = false
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 
@@ -506,6 +525,12 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logInit(devices)
 
+	_, err := getDriverVersion()
+	if err != nil {
+		// Can't even get driver version, assume not supported
+		return graphdriver.ErrNotSupported
+	}
+
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -548,45 +573,74 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	if info.Exists == 0 {
 		utils.Debugf("Pool doesn't exist. Creating it.")
 
-		hasData := devices.hasImage("data")
-		hasMetadata := devices.hasImage("metadata")
+		var (
+			dataFile     *os.File
+			metadataFile *os.File
+		)
 
-		if !doInit && !hasData {
-			return errors.New("Loopback data file not found")
-		}
+		if devices.dataDevice == "" {
+			// Make sure the sparse images exist in <root>/devicemapper/data
 
-		if !doInit && !hasMetadata {
-			return errors.New("Loopback metadata file not found")
-		}
+			hasData := devices.hasImage("data")
 
-		createdLoopback = !hasData || !hasMetadata
-		data, err := devices.ensureImage("data", DefaultDataLoopbackSize)
-		if err != nil {
-			utils.Debugf("Error device ensureImage (data): %s\n", err)
-			return err
-		}
-		metadata, err := devices.ensureImage("metadata", DefaultMetaDataLoopbackSize)
-		if err != nil {
-			utils.Debugf("Error device ensureImage (metadata): %s\n", err)
-			return err
-		}
+			if !doInit && !hasData {
+				return errors.New("Loopback data file not found")
+			}
 
-		dataFile, err := attachLoopDevice(data)
-		if err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
+			if !hasData {
+				createdLoopback = true
+			}
+
+			data, err := devices.ensureImage("data", devices.dataLoopbackSize)
+			if err != nil {
+				utils.Debugf("Error device ensureImage (data): %s\n", err)
+				return err
+			}
+
+			dataFile, err = attachLoopDevice(data)
+			if err != nil {
+				return err
+			}
+		} else {
+			dataFile, err = os.OpenFile(devices.dataDevice, os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
 		}
 		defer dataFile.Close()
 
-		metadataFile, err := attachLoopDevice(metadata)
-		if err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
-			return err
+		if devices.metadataDevice == "" {
+			// Make sure the sparse images exist in <root>/devicemapper/metadata
+
+			hasMetadata := devices.hasImage("metadata")
+
+			if !doInit && !hasMetadata {
+				return errors.New("Loopback metadata file not found")
+			}
+
+			if !hasMetadata {
+				createdLoopback = true
+			}
+
+			metadata, err := devices.ensureImage("metadata", devices.metaDataLoopbackSize)
+			if err != nil {
+				utils.Debugf("Error device ensureImage (metadata): %s\n", err)
+				return err
+			}
+
+			metadataFile, err = attachLoopDevice(metadata)
+			if err != nil {
+				return err
+			}
+		} else {
+			metadataFile, err = os.OpenFile(devices.metadataDevice, os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
 		}
 		defer metadataFile.Close()
 
 		if err := createPool(devices.getPoolName(), dataFile, metadataFile); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -595,7 +649,6 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// load the transaction id and migrate old metadata
 	if !createdLoopback {
 		if err = devices.initMetaData(); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -646,12 +699,14 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 }
 
 func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
-	// This is a workaround for the kernel not discarding block so
-	// on the thin pool when we remove a thinp device, so we do it
-	// manually
-	if err := devices.activateDeviceIfNeeded(info); err == nil {
-		if err := BlockDeviceDiscard(info.DevName()); err != nil {
-			utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
+	if devices.doBlkDiscard {
+		// This is a workaround for the kernel not discarding block so
+		// on the thin pool when we remove a thinp device, so we do it
+		// manually
+		if err := devices.activateDeviceIfNeeded(info); err == nil {
+			if err := BlockDeviceDiscard(info.DevName()); err != nil {
+				utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
+			}
 		}
 	}
 
@@ -705,7 +760,6 @@ func (devices *DeviceSet) deactivatePool() error {
 	devname := devices.getPoolDevName()
 	devinfo, err := getInfo(devname)
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
@@ -727,12 +781,10 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 
 	devinfo, err := getInfo(info.Name())
 	if err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	if devinfo.Exists != 0 {
 		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
-			utils.Debugf("\n--->Err: %s\n", err)
 			return err
 		}
 	}
@@ -907,11 +959,24 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	var flags uintptr = syscall.MS_MGC_VAL
 
-	mountOptions := label.FormatMountLabel("discard", mountLabel)
-	err = syscall.Mount(info.DevName(), path, "ext4", flags, mountOptions)
+	fstype, err := ProbeFsType(info.DevName())
+	if err != nil {
+		return err
+	}
+
+	options := ""
+
+	if fstype == "xfs" {
+		// XFS needs nouuid or it can't mount filesystems with the same fs
+		options = joinMountOptions(options, "nouuid")
+	}
+
+	options = joinMountOptions(options, devices.mountOptions)
+	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
+
+	err = syscall.Mount(info.DevName(), path, fstype, flags, joinMountOptions("discard", options))
 	if err != nil && err == syscall.EINVAL {
-		mountOptions = label.FormatMountLabel("", mountLabel)
-		err = syscall.Mount(info.DevName(), path, "ext4", flags, mountOptions)
+		err = syscall.Mount(info.DevName(), path, fstype, flags, options)
 	}
 	if err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
@@ -949,7 +1014,6 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 
 	utils.Debugf("[devmapper] Unmount(%s)", info.mountPath)
 	if err := syscall.Unmount(info.mountPath, 0); err != nil {
-		utils.Debugf("\n--->Err: %s\n", err)
 		return err
 	}
 	utils.Debugf("[devmapper] Unmount done")
@@ -1084,12 +1148,72 @@ func (devices *DeviceSet) Status() *Status {
 	return status
 }
 
-func NewDeviceSet(root string, doInit bool) (*DeviceSet, error) {
+func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {
 	SetDevDir("/dev")
 
 	devices := &DeviceSet{
-		root:     root,
-		MetaData: MetaData{Devices: make(map[string]*DevInfo)},
+		root:                 root,
+		MetaData:             MetaData{Devices: make(map[string]*DevInfo)},
+		dataLoopbackSize:     DefaultDataLoopbackSize,
+		metaDataLoopbackSize: DefaultMetaDataLoopbackSize,
+		baseFsSize:           DefaultBaseFsSize,
+		filesystem:           "ext4",
+		doBlkDiscard:         true,
+	}
+
+	foundBlkDiscard := false
+	for _, option := range options {
+		key, val, err := utils.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "dm.basesize":
+			size, err := units.FromHumanSize(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.baseFsSize = uint64(size)
+		case "dm.loopdatasize":
+			size, err := units.FromHumanSize(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.dataLoopbackSize = size
+		case "dm.loopmetadatasize":
+			size, err := units.FromHumanSize(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.metaDataLoopbackSize = size
+		case "dm.fs":
+			if val != "ext4" && val != "xfs" {
+				return nil, fmt.Errorf("Unsupported filesystem %s\n", val)
+			}
+			devices.filesystem = val
+		case "dm.mkfsarg":
+			devices.mkfsArgs = append(devices.mkfsArgs, val)
+		case "dm.mountopt":
+			devices.mountOptions = joinMountOptions(devices.mountOptions, val)
+		case "dm.metadatadev":
+			devices.metadataDevice = val
+		case "dm.datadev":
+			devices.dataDevice = val
+		case "dm.blkdiscard":
+			foundBlkDiscard = true
+			devices.doBlkDiscard, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("Unknown option %s\n", key)
+		}
+	}
+
+	// By default, don't do blk discard hack on raw devices, its rarely useful and is expensive
+	if !foundBlkDiscard && devices.dataDevice != "" {
+		devices.doBlkDiscard = false
 	}
 
 	if err := devices.initDevmapper(doInit); err != nil {

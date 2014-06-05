@@ -12,7 +12,7 @@ func init() {
 	graphdriver.Register("vfs", Init)
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
