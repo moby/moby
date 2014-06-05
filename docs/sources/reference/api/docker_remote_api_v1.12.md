@@ -124,12 +124,10 @@ Create a container
              "Cmd":[
                      "date"
              ],
-             "Dns":null,
              "Image":"base",
              "Volumes":{
                      "/tmp": {}
              },
-             "VolumesFrom":"",
              "WorkingDir":"",
              "DisableNetwork": false,
              "ExposedPorts":{
@@ -411,7 +409,9 @@ Start the container `id`
              "LxcConf":{"lxc.utsname":"docker"},
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
-             "Privileged":false
+             "Privileged":false,
+             "Dns": ["8.8.8.8"],
+             "VolumesFrom": ["parent", "other:ro"]
         }
 
     **Example response**:
