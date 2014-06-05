@@ -122,4 +122,6 @@ fi
 	set -x
 	chroot "$rootfsDir" apt-get update
 	chroot "$rootfsDir" apt-get dist-upgrade -y
+	#use find because globs expand on the host, not in chroot
+	chroot "$rootfsDir" find /var/lib/apt/lists/ -type f -delete
 )
