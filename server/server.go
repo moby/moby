@@ -138,7 +138,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"history":          srv.ImageHistory,
 		"viz":              srv.ImagesViz,
 		"container_copy":   srv.ContainerCopy,
-		"insert":           srv.ImageInsert,
 		"attach":           srv.ContainerAttach,
 		"logs":             srv.ContainerLogs,
 		"changes":          srv.ContainerChanges,
@@ -643,56 +642,6 @@ func (srv *Server) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 	utils.Debugf("Completed processing %s", address)
 
 	return nil
-}
-
-// FIXME: 'insert' is deprecated and should be removed in a future version.
-func (srv *Server) ImageInsert(job *engine.Job) engine.Status {
-	fmt.Fprintf(job.Stderr, "Warning: '%s' is deprecated and will be removed in a future version. Please use 'build' and 'ADD' instead.\n", job.Name)
-	if len(job.Args) != 3 {
-		return job.Errorf("Usage: %s IMAGE URL PATH\n", job.Name)
-	}
-
-	var (
-		name = job.Args[0]
-		url  = job.Args[1]
-		path = job.Args[2]
-	)
-
-	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
-
-	out := utils.NewWriteFlusher(job.Stdout)
-	img, err := srv.daemon.Repositories().LookupImage(name)
-	if err != nil {
-		return job.Error(err)
-	}
-
-	file, err := utils.Download(url)
-	if err != nil {
-		return job.Error(err)
-	}
-	defer file.Body.Close()
-
-	config, _, _, err := runconfig.Parse([]string{img.ID, "echo", "insert", url, path}, srv.daemon.SystemConfig())
-	if err != nil {
-		return job.Error(err)
-	}
-
-	c, _, err := srv.daemon.Create(config, "")
-	if err != nil {
-		return job.Error(err)
-	}
-
-	if err := c.Inject(utils.ProgressReader(file.Body, int(file.ContentLength), out, sf, false, utils.TruncateID(img.ID), "Downloading"), path); err != nil {
-		return job.Error(err)
-	}
-	// FIXME: Handle custom repo, tag comment, author
-	img, err = srv.daemon.Commit(c, "", "", img.Comment, img.Author, nil)
-	if err != nil {
-		out.Write(sf.FormatError(err))
-		return engine.StatusErr
-	}
-	out.Write(sf.FormatStatus("", img.ID))
-	return engine.StatusOK
 }
 
 func (srv *Server) ImagesViz(job *engine.Job) engine.Status {

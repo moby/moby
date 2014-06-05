@@ -534,32 +534,6 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 	return job.Run()
 }
 
-// FIXME: 'insert' is deprecated as of 0.10, and should be removed in a future version.
-func postImagesInsert(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
-		return err
-	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	job := eng.Job("insert", vars["name"], r.Form.Get("url"), r.Form.Get("path"))
-	if version.GreaterThan("1.0") {
-		job.SetenvBool("json", true)
-		streamJSON(job, w, false)
-	} else {
-		job.Stdout.Add(w)
-	}
-	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
-			return err
-		}
-		sf := utils.NewStreamFormatter(version.GreaterThan("1.0"))
-		w.Write(sf.FormatError(err))
-	}
-
-	return nil
-}
-
 func postImagesPush(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1111,7 +1085,6 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/commit":                       postCommit,
 			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
-			"/images/{name:.*}/insert":      postImagesInsert,
 			"/images/load":                  postImagesLoad,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
