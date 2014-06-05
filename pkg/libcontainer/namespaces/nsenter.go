@@ -85,8 +85,9 @@ void nsenter() {
 		fprintf(stderr, "nsenter: Failed to open directory \"%s\" with error: \"%s\"\n", ns_dir, strerror(errno));
 		exit(1);
 	}
+
 	while((dent = readdir(dir)) != NULL) {
-		if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0) {
+		if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0 || strcmp(dent->d_name, "user") == 0) {
 			continue;
 		}
 
