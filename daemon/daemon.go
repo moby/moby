@@ -27,7 +27,6 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/selinux"
@@ -100,21 +99,6 @@ type Daemon struct {
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
 	return eng.Register("container_inspect", daemon.ContainerInspect)
-}
-
-// Mountpoints should be private to the container
-func remountPrivate(mountPoint string) error {
-	mounted, err := mount.Mounted(mountPoint)
-	if err != nil {
-		return err
-	}
-
-	if !mounted {
-		if err := mount.Mount(mountPoint, mountPoint, "none", "bind,rw"); err != nil {
-			return err
-		}
-	}
-	return mount.ForceMount("", mountPoint, "none", "private")
 }
 
 // List returns an array of all containers registered in the daemon.
@@ -786,10 +770,6 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	}
 	utils.Debugf("Using graph driver %s", driver)
 
-	if err := remountPrivate(config.Root); err != nil {
-		return nil, err
-	}
-
 	daemonRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(daemonRepo, 0700); err != nil && !os.IsExist(err) {
@@ -936,10 +916,6 @@ func (daemon *Daemon) Close() error {
 	}
 	if err := daemon.containerGraph.Close(); err != nil {
 		utils.Errorf("daemon.containerGraph.Close(): %s", err.Error())
-		errorsStrings = append(errorsStrings, err.Error())
-	}
-	if err := mount.Unmount(daemon.config.Root); err != nil {
-		utils.Errorf("daemon.Umount(%s): %s", daemon.config.Root, err.Error())
 		errorsStrings = append(errorsStrings, err.Error())
 	}
 	if len(errorsStrings) > 0 {

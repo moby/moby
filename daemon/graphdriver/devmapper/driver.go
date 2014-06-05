@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -31,10 +32,16 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err := graphdriver.MakePrivate(home); err != nil {
+		return nil, err
+	}
+
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
 	}
+
 	return d, nil
 }
 
@@ -58,7 +65,13 @@ func (d *Driver) Status() [][2]string {
 }
 
 func (d *Driver) Cleanup() error {
-	return d.DeviceSet.Shutdown()
+	err := d.DeviceSet.Shutdown()
+
+	if err2 := mount.Unmount(d.home); err == nil {
+		err = err2
+	}
+
+	return err
 }
 
 func (d *Driver) Create(id, parent string) error {
