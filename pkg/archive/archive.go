@@ -47,6 +47,7 @@ const (
 	Bzip2
 	Gzip
 	Xz
+	UserXattr = "user." // user xattr namespace
 )
 
 func IsArchive(header []byte) bool {
@@ -57,6 +58,26 @@ func IsArchive(header []byte) bool {
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
 	return err == nil
+}
+
+func stringsfromByte(buf []byte) (result []string) {
+	offset := 0
+	for index, b := range buf {
+		if b == 0 {
+			result = append(result, string(buf[offset:index]))
+			offset = index + 1
+		}
+	}
+	return
+}
+
+func filterXattrs(str []string, AttrNS string) (result []string) {
+	for _, value := range str {
+		if strings.HasPrefix(value, AttrNS) {
+			result = append(result, value)
+		}
+	}
+	return
 }
 
 func DetectCompression(source []byte) Compression {
@@ -216,7 +237,28 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		hdr.Xattrs["security.capability"] = string(capability)
 	}
 
-	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
+	size, _ := system.Llistxattr(path, nil)
+	if size > 0 {
+		buf := make([]byte, size)
+		read, _ := system.Llistxattr(path, buf)
+		/*
+		 Grab only "user." xattrs ignore rest
+		*/
+		names := filterXattrs(stringsfromByte(buf[:read]), UserXattr)
+		for _, name := range names {
+			userattr, _ := system.Lgetxattr(path, name)
+			if userattr != nil {
+				if hdr.Xattrs != nil {
+					hdr.Xattrs[name] = string(userattr)
+				} else {
+					hdr.Xattrs = make(map[string]string)
+					hdr.Xattrs[name] = string(userattr)
+				}
+			}
+		}
+	}
+
+	if err := tw.WriteHeader(hdr); err != nil {
 		return err
 	}
 

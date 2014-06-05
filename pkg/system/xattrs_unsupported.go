@@ -2,6 +2,10 @@
 
 package system
 
+func Llistxattr(path string, dest []byte) (size int, err error) {
+	return -1, ErrNotSupportedPlatform
+}
+
 func Lgetxattr(path string, attr string) ([]byte, error) {
 	return nil, ErrNotSupportedPlatform
 }
