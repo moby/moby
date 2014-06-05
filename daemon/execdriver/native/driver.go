@@ -16,7 +16,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/systemd"
-	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
+	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
 	"github.com/dotcloud/docker/pkg/system"
 )
 
@@ -42,11 +42,11 @@ func init() {
 		if err != nil {
 			return err
 		}
-		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(args.Pipe))
+		syncPipe, err := namespaces.NewSyncPipeFromFd(0, uintptr(args.Pipe))
 		if err != nil {
 			return err
 		}
-		if err := nsinit.Init(container, rootfs, args.Console, syncPipe, args.Args); err != nil {
+		if err := namespaces.Init(container, rootfs, args.Console, syncPipe, args.Args); err != nil {
 			return err
 		}
 		return nil
@@ -110,8 +110,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	term := getTerminal(c, pipes)
 
-	return nsinit.Exec(container, term, c.Rootfs, dataPath, args, func(container *libcontainer.Container, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
-		// we need to join the rootfs because nsinit will setup the rootfs and chroot
+	return namespaces.Exec(container, term, c.Rootfs, dataPath, args, func(container *libcontainer.Container, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
+		// we need to join the rootfs because namespaces will setup the rootfs and chroot
 		initPath := filepath.Join(c.Rootfs, c.InitPath)
 
 		c.Path = d.initPath
@@ -126,7 +126,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 		// set this to nil so that when we set the clone flags anything else is reset
 		c.SysProcAttr = nil
-		system.SetCloneFlags(&c.Cmd, uintptr(nsinit.GetNamespaceFlags(container.Namespaces)))
+		system.SetCloneFlags(&c.Cmd, uintptr(namespaces.GetNamespaceFlags(container.Namespaces)))
 		c.ExtraFiles = []*os.File{child}
 
 		c.Env = container.Env
@@ -258,8 +258,8 @@ func getEnv(key string, env []string) string {
 	return ""
 }
 
-func getTerminal(c *execdriver.Command, pipes *execdriver.Pipes) nsinit.Terminal {
-	var term nsinit.Terminal
+func getTerminal(c *execdriver.Command, pipes *execdriver.Pipes) namespaces.Terminal {
+	var term namespaces.Terminal
 	if c.Tty {
 		term = &dockerTtyTerm{
 			pipes: pipes,

@@ -1,4 +1,4 @@
-package nsinit
+package namespaces
 
 import (
 	"io"

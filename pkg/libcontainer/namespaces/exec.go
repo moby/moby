@@ -1,6 +1,6 @@
 // +build linux
 
-package nsinit
+package namespaces
 
 import (
 	"os"

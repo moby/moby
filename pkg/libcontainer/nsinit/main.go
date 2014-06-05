@@ -13,7 +13,7 @@ import (
 
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
-	"github.com/dotcloud/docker/pkg/libcontainer/nsinit"
+	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
 )
 
 var (
@@ -40,9 +40,9 @@ func main() {
 		}
 
 		if nspid > 0 {
-			exitCode, err = nsinit.ExecIn(container, nspid, os.Args[2:])
+			exitCode, err = namespaces.ExecIn(container, nspid, os.Args[2:])
 		} else {
-			term := nsinit.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
+			term := namespaces.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
 			exitCode, err = startContainer(container, term, dataPath, os.Args[2:])
 		}
 
@@ -61,12 +61,12 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		syncPipe, err := nsinit.NewSyncPipeFromFd(0, uintptr(pipeFd))
+		syncPipe, err := namespaces.NewSyncPipeFromFd(0, uintptr(pipeFd))
 		if err != nil {
 			log.Fatalf("unable to create sync pipe: %s", err)
 		}
 
-		if err := nsinit.Init(container, rootfs, console, syncPipe, os.Args[2:]); err != nil {
+		if err := namespaces.Init(container, rootfs, console, syncPipe, os.Args[2:]); err != nil {
 			log.Fatalf("unable to initialize for container: %s", err)
 		}
 	case "stats":
@@ -124,7 +124,7 @@ func readPid() (int, error) {
 // error.
 //
 // Signals sent to the current process will be forwarded to container.
-func startContainer(container *libcontainer.Container, term nsinit.Terminal, dataPath string, args []string) (int, error) {
+func startContainer(container *libcontainer.Container, term namespaces.Terminal, dataPath string, args []string) (int, error) {
 	var (
 		cmd  *exec.Cmd
 		sigc = make(chan os.Signal, 10)
@@ -133,7 +133,7 @@ func startContainer(container *libcontainer.Container, term nsinit.Terminal, dat
 	signal.Notify(sigc)
 
 	createCommand := func(container *libcontainer.Container, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
-		cmd = nsinit.DefaultCreateCommand(container, console, rootfs, dataPath, init, pipe, args)
+		cmd = namespaces.DefaultCreateCommand(container, console, rootfs, dataPath, init, pipe, args)
 		return cmd
 	}
 
@@ -145,7 +145,7 @@ func startContainer(container *libcontainer.Container, term nsinit.Terminal, dat
 		}()
 	}
 
-	return nsinit.Exec(container, term, "", dataPath, args, createCommand, startCallback)
+	return namespaces.Exec(container, term, "", dataPath, args, createCommand, startCallback)
 }
 
 // returns the container stats in json format.
