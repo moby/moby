@@ -30,7 +30,7 @@ An existing Fedora based container has had Apache installed while running
 in interactive mode with the bash shell. Apache is also running. To
 create a new image run docker ps to find the container's ID and then run:
 
-    # docker commit -m= "Added Apache to Fedora base image" \
+    # docker commit -m="Added Apache to Fedora base image" \
       -a="A D Ministrator" 98bd7fc99854 fedora/fedora_httpd:20
 
 # HISTORY
