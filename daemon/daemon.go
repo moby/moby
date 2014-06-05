@@ -72,9 +72,11 @@ func (c *contStore) Delete(id string) {
 
 func (c *contStore) List() []*Container {
 	containers := new(History)
+	c.Lock()
 	for _, cont := range c.s {
 		containers.Add(cont)
 	}
+	c.Unlock()
 	containers.Sort()
 	return *containers
 }
