@@ -3,6 +3,7 @@ package native
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
@@ -10,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"github.com/dotcloud/docker/pkg/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 // createContainer populates and configures the container type with the
@@ -23,6 +25,8 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	container.WorkingDir = c.WorkingDir
 	container.Env = c.Env
 	container.Cgroups.Name = c.ID
+	container.Cgroups.AllowedDevices = c.AllowedDevices
+	container.DeviceNodes = c.AutoCreatedDevices
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 	container.Context["restrictions"] = "true"
@@ -34,8 +38,6 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
-	} else {
-		container.Mounts = append(container.Mounts, libcontainer.Mount{Type: "devtmpfs"})
 	}
 	if err := d.setupCgroups(container, c); err != nil {
 		return nil, err
@@ -46,7 +48,13 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	if err := d.setupLabels(container, c); err != nil {
 		return nil, err
 	}
-	if err := configuration.ParseConfiguration(container, d.activeContainers, c.Config["native"]); err != nil {
+	cmds := make(map[string]*exec.Cmd)
+	d.Lock()
+	for k, v := range d.activeContainers {
+		cmds[k] = v.cmd
+	}
+	d.Unlock()
+	if err := configuration.ParseConfiguration(container, cmds, c.Config["native"]); err != nil {
 		return nil, err
 	}
 	return container, nil
@@ -82,10 +90,14 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 	}
 
 	if c.Network.ContainerID != "" {
-		cmd := d.activeContainers[c.Network.ContainerID]
-		if cmd == nil || cmd.Process == nil {
+		d.Lock()
+		active := d.activeContainers[c.Network.ContainerID]
+		d.Unlock()
+		if active == nil || active.cmd.Process == nil {
 			return fmt.Errorf("%s is not a valid running container to join", c.Network.ContainerID)
 		}
+		cmd := active.cmd
+
 		nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
 		container.Networks = append(container.Networks, &libcontainer.Network{
 			Type: "netns",
@@ -97,11 +109,15 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 	return nil
 }
 
-func (d *driver) setPrivileged(container *libcontainer.Container) error {
-	for key := range container.CapabilitiesMask {
-		container.CapabilitiesMask[key] = true
+func (d *driver) setPrivileged(container *libcontainer.Container) (err error) {
+	container.Capabilities = libcontainer.GetAllCapabilities()
+	container.Cgroups.AllowAllDevices = true
+
+	hostDeviceNodes, err := devices.GetHostDeviceNodes()
+	if err != nil {
+		return err
 	}
-	container.Cgroups.DeviceAccess = true
+	container.DeviceNodes = hostDeviceNodes
 
 	delete(container.Context, "restrictions")
 
@@ -117,6 +133,7 @@ func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.C
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemoryReservation = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
+		container.Cgroups.CpusetCpus = c.Resources.Cpuset
 	}
 	return nil
 }

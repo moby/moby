@@ -24,24 +24,19 @@
       "mtu": 1500
     }
   ],
-  "capabilities_mask": {
-    "SYSLOG": false,
-    "MKNOD": true,
-    "NET_ADMIN": false,
-    "MAC_ADMIN": false,
-    "MAC_OVERRIDE": false,
-    "AUDIT_CONTROL": false,
-    "AUDIT_WRITE": false,
-    "SYS_TTY_CONFIG": false,
-    "SETPCAP": false,
-    "SYS_MODULE": false,
-    "SYS_RAWIO": false,
-    "SYS_PACCT": false,
-    "SYS_ADMIN": false,
-    "SYS_NICE": false,
-    "SYS_RESOURCE": false,
-    "SYS_TIME": false
-  },
+  "routes": [
+    {
+      "gateway": "172.17.42.1",
+      "interface_name": "eth0"
+    },
+    {
+      "destination": "192.168.0.0/24",
+      "interface_name": "eth0"
+    }
+  ],
+  "capabilities": [
+    "MKNOD"
+  ],
   "cgroups": {
     "name": "docker-koye",
     "parent": "docker"
@@ -58,5 +53,55 @@
     {
       "type": "devtmpfs"
     }
+  ],
+  "device_nodes": [
+		{
+			"path":  "/dev/null",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 3,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/zero",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 5,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/full",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 7,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/tty",
+			"type":        99,
+			"major_number": 5,
+			"minor_number": 0,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/urandom",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 9,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		},
+		{
+			"path":  "/dev/random",
+			"type":        99,
+			"major_number": 1,
+			"minor_number": 8,
+			"cgroup_permissions": "rwm",
+			"file_mode": 438
+		}
   ]
 }

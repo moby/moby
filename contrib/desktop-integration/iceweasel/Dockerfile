@@ -7,7 +7,7 @@
 #   sound devices. Tested on Debian 7.2
 # USAGE:
 #   # Download Iceweasel Dockerfile
-#   wget http://raw.github.com/dotcloud/docker/master/contrib/desktop-integration/iceweasel/Dockerfile
+#   wget http://raw.githubusercontent.com/dotcloud/docker/master/contrib/desktop-integration/iceweasel/Dockerfile
 #
 #   # Build iceweasel image
 #   docker build -t iceweasel .

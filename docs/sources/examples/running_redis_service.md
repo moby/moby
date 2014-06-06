@@ -1,16 +1,8 @@
-page_title: Running a Redis service
+page_title: Dockerizing a Redis service
 page_description: Installing and running an redis service
 page_keywords: docker, example, package installation, networking, redis
 
-# Redis Service
-
-> **Note**:
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#dockergroup)
+# Dockerizing a Redis Service
 
 Very simple, no frills, Redis service attached to a web application
 using a link.

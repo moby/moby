@@ -17,9 +17,9 @@ var (
 )
 
 func testInit(dir string, t *testing.T) graphdriver.Driver {
-	d, err := Init(dir)
+	d, err := Init(dir, nil)
 	if err != nil {
-		if err == ErrAufsNotSupported {
+		if err == graphdriver.ErrNotSupported {
 			t.Skip(err)
 		} else {
 			t.Fatal(err)

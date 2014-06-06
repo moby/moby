@@ -2,12 +2,6 @@ package graph
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,6 +11,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/dockerversion"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/utils"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
@@ -141,11 +142,13 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 		Architecture:  runtime.GOARCH,
 		OS:            runtime.GOOS,
 	}
+
 	if containerID != "" {
 		img.Parent = containerImage
 		img.Container = containerID
 		img.ContainerConfig = *containerConfig
 	}
+
 	if err := graph.Register(nil, layerData, img); err != nil {
 		return nil, err
 	}
@@ -262,8 +265,6 @@ func SetupInitLayer(initLayer string) error {
 		"/etc/hostname":    "file",
 		"/dev/console":     "file",
 		"/etc/mtab":        "/proc/mounts",
-		// "var/run": "dir",
-		// "var/lock": "dir",
 	} {
 		parts := strings.Split(pth, "/")
 		prev := "/"

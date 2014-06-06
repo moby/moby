@@ -7,9 +7,8 @@ page_keywords: API, Docker, rcli, REST, documentation
 # 1. Brief introduction
 
  - The Remote API has replaced rcli
- - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [*Bind Docker to another host/port or a Unix socket*](
-   /use/basics/#bind-docker).
+ - The daemon listens on `unix:///var/run/docker.sock` but you can bind
+   Docker to another host/port or a Unix socket.
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout, stdin`
    and `stderr`
@@ -1236,4 +1235,4 @@ stdout and stderr on the same socket. This might change in the future.
 To enable cross origin requests to the remote api add the flag
 "–api-enable-cors" when running docker in daemon mode.
 
-    $ docker -d -H="192.168.1.9:4243" --api-enable-cors
+    $ docker -d -H="192.168.1.9:2375" --api-enable-cors

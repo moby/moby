@@ -4,12 +4,21 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/dotcloud/docker/daemon/networkdriver"
-	"github.com/dotcloud/docker/pkg/collections"
 	"net"
 	"sync"
 )
 
-type networkSet map[string]*collections.OrderedIntSet
+// allocatedMap is thread-unsafe set of allocated IP
+type allocatedMap struct {
+	p    map[int32]struct{}
+	last int32
+}
+
+func newAllocatedMap() *allocatedMap {
+	return &allocatedMap{p: make(map[int32]struct{})}
+}
+
+type networkSet map[string]*allocatedMap
 
 var (
 	ErrNoAvailableIPs     = errors.New("no available ip addresses on network")
@@ -19,92 +28,74 @@ var (
 var (
 	lock         = sync.Mutex{}
 	allocatedIPs = networkSet{}
-	availableIPS = networkSet{}
 )
 
 // RequestIP requests an available ip from the given network.  It
 // will return the next available ip if the ip provided is nil.  If the
 // ip provided is not nil it will validate that the provided ip is available
 // for use or return an error
-func RequestIP(address *net.IPNet, ip *net.IP) (*net.IP, error) {
+func RequestIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
 	lock.Lock()
 	defer lock.Unlock()
-
-	checkAddress(address)
+	key := network.String()
+	allocated, ok := allocatedIPs[key]
+	if !ok {
+		allocated = newAllocatedMap()
+		allocatedIPs[key] = allocated
+	}
 
 	if ip == nil {
-		next, err := getNextIp(address)
-		if err != nil {
-			return nil, err
-		}
-		return next, nil
+		return allocated.getNextIP(network)
 	}
-
-	if err := registerIP(address, ip); err != nil {
-		return nil, err
-	}
-	return ip, nil
+	return allocated.checkIP(network, ip)
 }
 
 // ReleaseIP adds the provided ip back into the pool of
 // available ips to be returned for use.
-func ReleaseIP(address *net.IPNet, ip *net.IP) error {
+func ReleaseIP(network *net.IPNet, ip *net.IP) error {
 	lock.Lock()
 	defer lock.Unlock()
-
-	checkAddress(address)
-
-	var (
-		existing  = allocatedIPs[address.String()]
-		available = availableIPS[address.String()]
-		pos       = getPosition(address, ip)
-	)
-
-	existing.Remove(int(pos))
-	available.Push(int(pos))
-
+	if allocated, exists := allocatedIPs[network.String()]; exists {
+		pos := getPosition(network, ip)
+		delete(allocated.p, pos)
+	}
 	return nil
 }
 
 // convert the ip into the position in the subnet.  Only
 // position are saved in the set
-func getPosition(address *net.IPNet, ip *net.IP) int32 {
-	var (
-		first, _ = networkdriver.NetworkRange(address)
-		base     = ipToInt(&first)
-		i        = ipToInt(ip)
-	)
-	return i - base
+func getPosition(network *net.IPNet, ip *net.IP) int32 {
+	first, _ := networkdriver.NetworkRange(network)
+	return ipToInt(ip) - ipToInt(&first)
+}
+
+func (allocated *allocatedMap) checkIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
+	pos := getPosition(network, ip)
+	if _, ok := allocated.p[pos]; ok {
+		return nil, ErrIPAlreadyAllocated
+	}
+	allocated.p[pos] = struct{}{}
+	allocated.last = pos
+	return ip, nil
 }
 
 // return an available ip if one is currently available.  If not,
 // return the next available ip for the nextwork
-func getNextIp(address *net.IPNet) (*net.IP, error) {
+func (allocated *allocatedMap) getNextIP(network *net.IPNet) (*net.IP, error) {
 	var (
-		ownIP     = ipToInt(&address.IP)
-		available = availableIPS[address.String()]
-		allocated = allocatedIPs[address.String()]
-		first, _  = networkdriver.NetworkRange(address)
-		base      = ipToInt(&first)
-		size      = int(networkdriver.NetworkSize(address.Mask))
-		max       = int32(size - 2) // size -1 for the broadcast address, -1 for the gateway address
-		pos       = int32(available.Pop())
+		ownIP    = ipToInt(&network.IP)
+		first, _ = networkdriver.NetworkRange(network)
+		base     = ipToInt(&first)
+		size     = int(networkdriver.NetworkSize(network.Mask))
+		max      = int32(size - 2) // size -1 for the broadcast network, -1 for the gateway network
+		pos      = allocated.last
 	)
 
-	// We pop and push the position not the ip
-	if pos != 0 {
-		ip := intToIP(int32(base + pos))
-		allocated.Push(int(pos))
-
-		return ip, nil
-	}
-
 	var (
-		firstNetIP = address.IP.To4().Mask(address.Mask)
+		firstNetIP = network.IP.To4().Mask(network.Mask)
 		firstAsInt = ipToInt(&firstNetIP) + 1
 	)
 
-	pos = int32(allocated.PullBack())
 	for i := int32(0); i < max; i++ {
 		pos = pos%max + 1
 		next := int32(base + pos)
@@ -112,29 +103,14 @@ func getNextIp(address *net.IPNet) (*net.IP, error) {
 		if next == ownIP || next == firstAsInt {
 			continue
 		}
-
-		if !allocated.Exists(int(pos)) {
-			ip := intToIP(next)
-			allocated.Push(int(pos))
-			return ip, nil
+		if _, ok := allocated.p[pos]; ok {
+			continue
 		}
+		allocated.p[pos] = struct{}{}
+		allocated.last = pos
+		return intToIP(next), nil
 	}
 	return nil, ErrNoAvailableIPs
-}
-
-func registerIP(address *net.IPNet, ip *net.IP) error {
-	var (
-		existing  = allocatedIPs[address.String()]
-		available = availableIPS[address.String()]
-		pos       = getPosition(address, ip)
-	)
-
-	if existing.Exists(int(pos)) {
-		return ErrIPAlreadyAllocated
-	}
-	available.Remove(int(pos))
-
-	return nil
 }
 
 // Converts a 4 bytes IP into a 32 bit integer
@@ -148,12 +124,4 @@ func intToIP(n int32) *net.IP {
 	binary.BigEndian.PutUint32(b, uint32(n))
 	ip := net.IP(b)
 	return &ip
-}
-
-func checkAddress(address *net.IPNet) {
-	key := address.String()
-	if _, exists := allocatedIPs[key]; !exists {
-		allocatedIPs[key] = collections.NewOrderedIntSet()
-		availableIPS[key] = collections.NewOrderedIntSet()
-	}
 }

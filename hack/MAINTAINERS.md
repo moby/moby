@@ -53,14 +53,17 @@ All decisions affecting docker, big and small, follow the same 3 steps:
 
 * Step 2: Discuss the pull request. Anyone can do this.
 
-* Step 3: Accept or refuse a pull request. The relevant maintainer does this (see below "Who decides what?")
+* Step 3: Accept (`LGTM`) or refuse a pull request. The relevant maintainers do 
+this (see below "Who decides what?")
 
 
 ## Who decides what?
 
-So all decisions are pull requests, and the relevant maintainer makes
-the decision by accepting or refusing the pull request.  But how do we
-identify the relevant maintainer for a given pull request?
+All decisions are pull requests, and the relevant maintainers make
+decisions by accepting or refusing the pull request. Review and acceptance
+by anyone is denoted by adding a comment in the pull request: `LGTM`. 
+However, only currently listed `MAINTAINERS` are counted towards the required
+majority.
 
 Docker follows the timeless, highly efficient and totally unfair system
 known as [Benevolent dictator for
@@ -70,19 +73,22 @@ decisions are made by default by Solomon. Since making every decision
 myself would be highly un-scalable, in practice decisions are spread
 across multiple maintainers.
 
-The relevant maintainer for a pull request is assigned in 3 steps:
+The relevant maintainers for a pull request can be worked out in 2 steps:
 
-* Step 1: Determine the subdirectory affected by the pull request. This
+* Step 1: Determine the subdirectories affected by the pull request. This
   might be `src/registry`, `docs/source/api`, or any other part of the repo.
 
 * Step 2: Find the `MAINTAINERS` file which affects this directory. If the
   directory itself does not have a `MAINTAINERS` file, work your way up
   the repo hierarchy until you find one.
 
-* Step 3: The first maintainer listed is the primary maintainer. The
-  pull request is assigned to him. He may assign it to other listed
-  maintainers, at his discretion.
+There is also a `hacks/getmaintainers.sh` script that will print out the 
+maintainers for a specified directory.
 
+### I'm a maintainer, and I'm going on holiday
+
+Please let your co-maintainers and other contributors know by raising a pull
+request that comments out your `MAINTAINERS` file entry using a `#`.
 
 ### I'm a maintainer, should I make pull requests too?
 
@@ -91,7 +97,7 @@ made through a pull request.
 
 ### Who assigns maintainers?
 
-Solomon.
+Solomon has final `LGTM` approval for all pull requests to `MAINTAINERS` files.
 
 ### How is this process changed?
 

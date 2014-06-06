@@ -23,7 +23,7 @@ Then call `docker build` with the path of you source repository as argument
 The path to the source repository defines where to find the *context* of
 the build. The build is run by the Docker daemon, not by the CLI, so the
 whole context must be transferred to the daemon. The Docker CLI reports
-"Uploading context" when the context is sent to the daemon.
+"Sending build context to Docker daemon" when the context is sent to the daemon.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
@@ -57,7 +57,7 @@ accelerating `docker build` significantly (indicated by `Using cache`):
 
 When you're done with your build, you're ready to look into
 [*Pushing a repository to its registry*](
-/use/workingwithrepository/#image-push).
+/userguide/dockerrepos/#image-push).
 
 ## Format
 
@@ -95,7 +95,7 @@ The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
 for subsequent instructions. As such, a valid Dockerfile must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
-/use/workingwithrepository/#using-public-repositories).
+/userguide/dockerrepos/#using-public-repositories).
 
 `FROM` must be the first non-comment instruction in the Dockerfile.
 
@@ -131,6 +131,16 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+The cache for `RUN` instructions isn't invalidated automatically during the
+next build. The cache for an instruction like `RUN apt-get dist-upgrade -y`
+will be reused during the next build.
+The cache for `RUN` instructions can be invalidated by using the `--no-cache`
+flag, for example `docker build --no-cache`.
+
+The first encountered `ADD` instruction will invalidate the cache for all
+following instructions from the 'Dockerfile' if the contents of the context
+have changed. This will also invalidate the cache for `RUN` instructions.
+
 ### Known Issues (RUN)
 
 - [Issue 783](https://github.com/dotcloud/docker/issues/783) is about file
@@ -144,7 +154,7 @@ commands using a base image that does not contain `/bin/sh`.
 
 CMD has three forms:
 
-- `CMD ["executable","param1","param2"]` (like an *exec*, preferred form)
+- `CMD ["executable","param1","param2"]` (like an *exec*, this is the preferred form)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
 - `CMD command param1 param2` (as a *shell*)
 
@@ -190,10 +200,8 @@ default specified in CMD.
 
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
-containers using links (see
-[*links*](/use/working_with_links_names/#working-with-links-names)),
-and to setup port redirection on the host system (see [*Redirect Ports*](
-/use/port_redirection/#port-redirection)).
+containers using links (see the [Docker User
+Guide](/userguide/dockerlinks)).
 
 ## ENV
 
@@ -225,7 +233,9 @@ being built (also called the *context* of the build) or a remote file URL.
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
-All new files and directories are created with mode 0755, uid and gid 0.
+All new files and directories are created with a uid and gid of 0.
+
+In the case where `<src>` is a remote file URL, the destination will have permissions 600.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
@@ -266,6 +276,46 @@ The copy obeys the following rules:
     1. whatever existed at the destination path and
     2. the contents of the source tree, with conflicts resolved in favor of 
        "2." on a file-by-file basis.
+
+- If `<src>` is any other kind of file, it is copied individually along with
+  its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
+  will be considered a directory and the contents of `<src>` will be written
+  at `<dest>/base(<src>)`.
+
+- If `<dest>` does not end with a trailing slash, it will be considered a
+  regular file and the contents of `<src>` will be written at `<dest>`.
+
+- If `<dest>` doesn't exist, it is created along with all missing directories
+  in its path.
+
+## COPY
+
+    COPY <src> <dest>
+
+The `COPY` instruction will copy new files from `<src>` and add them to the
+container's filesystem at path `<dest>`.
+
+`<src>` must be the path to a file or directory relative to the source directory
+being built (also called the *context* of the build).
+
+`<dest>` is the absolute path to which the source will be copied inside the
+destination container.
+
+All new files and directories are created with a uid and gid of 0.
+
+> **Note**:
+> If you build using STDIN (`docker build - < somefile`), there is no
+> build context, so `COPY` can't be used.
+
+The copy obeys the following rules:
+
+- The `<src>` path must be inside the *context* of the build;
+  you cannot `COPY ../something /something`, because the first step of a
+  `docker build` is to send the context directory (and subdirectories) to the
+  docker daemon.
+
+- If `<src>` is a directory, the entire directory is copied, including
+  filesystem metadata.
 
 - If `<src>` is any other kind of file, it is copied individually along with
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
@@ -325,15 +375,17 @@ optional but default, you could use a CMD:
 
 The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
-containers. For more information/examples and mounting instructions via docker
-client, refer to [*Share Directories via Volumes*](
-/use/working_with_volumes/#volume-def) documentation.
+containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
+string, `VOLUME /var/log`. For more information/examples and mounting
+instructions via the Docker client, refer to [*Share Directories via Volumes*](
+/userguide/dockervolumes/#volume-def) documentation.
 
 ## USER
 
     USER daemon
 
-The `USER` instruction sets the username or UID to use when running the image.
+The `USER` instruction sets the username or UID to use when running the image
+and for any following `RUN` directives.
 
 ## WORKDIR
 

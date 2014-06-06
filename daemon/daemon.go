@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"container/list"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,7 +27,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
@@ -47,10 +46,43 @@ var (
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
+type contStore struct {
+	s map[string]*Container
+	sync.Mutex
+}
+
+func (c *contStore) Add(id string, cont *Container) {
+	c.Lock()
+	c.s[id] = cont
+	c.Unlock()
+}
+
+func (c *contStore) Get(id string) *Container {
+	c.Lock()
+	res := c.s[id]
+	c.Unlock()
+	return res
+}
+
+func (c *contStore) Delete(id string) {
+	c.Lock()
+	delete(c.s, id)
+	c.Unlock()
+}
+
+func (c *contStore) List() []*Container {
+	containers := new(History)
+	for _, cont := range c.s {
+		containers.Add(cont)
+	}
+	containers.Sort()
+	return *containers
+}
+
 type Daemon struct {
 	repository     string
 	sysInitPath    string
-	containers     *list.List
+	containers     *contStore
 	graph          *graph.Graph
 	repositories   *graph.TagStore
 	idIndex        *utils.TruncIndex
@@ -64,38 +96,14 @@ type Daemon struct {
 	execDriver     execdriver.Driver
 }
 
-// Mountpoints should be private to the container
-func remountPrivate(mountPoint string) error {
-	mounted, err := mount.Mounted(mountPoint)
-	if err != nil {
-		return err
-	}
-
-	if !mounted {
-		if err := mount.Mount(mountPoint, mountPoint, "none", "bind,rw"); err != nil {
-			return err
-		}
-	}
-	return mount.ForceMount("", mountPoint, "none", "private")
+// Install installs daemon capabilities to eng.
+func (daemon *Daemon) Install(eng *engine.Engine) error {
+	return eng.Register("container_inspect", daemon.ContainerInspect)
 }
 
 // List returns an array of all containers registered in the daemon.
 func (daemon *Daemon) List() []*Container {
-	containers := new(History)
-	for e := daemon.containers.Front(); e != nil; e = e.Next() {
-		containers.Add(e.Value.(*Container))
-	}
-	return *containers
-}
-
-func (daemon *Daemon) getContainerElement(id string) *list.Element {
-	for e := daemon.containers.Front(); e != nil; e = e.Next() {
-		container := e.Value.(*Container)
-		if container.ID == id {
-			return e
-		}
-	}
-	return nil
+	return daemon.containers.List()
 }
 
 // Get looks for a container by the specified ID or name, and returns it.
@@ -110,11 +118,7 @@ func (daemon *Daemon) Get(name string) *Container {
 		return nil
 	}
 
-	e := daemon.getContainerElement(id)
-	if e == nil {
-		return nil
-	}
-	return e.Value.(*Container)
+	return daemon.containers.Get(id)
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
@@ -141,7 +145,13 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
+// This is a wrapper for register
 func (daemon *Daemon) Register(container *Container) error {
+	return daemon.register(container, true, nil)
+}
+
+// register makes a container object usable by the daemon as <container.ID>
+func (daemon *Daemon) register(container *Container, updateSuffixarray bool, containersToStart *[]*Container) error {
 	if container.daemon != nil || daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
@@ -164,8 +174,15 @@ func (daemon *Daemon) Register(container *Container) error {
 		container.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// done
-	daemon.containers.PushBack(container)
-	daemon.idIndex.Add(container.ID)
+	daemon.containers.Add(container.ID, container)
+
+	// don't update the Suffixarray if we're starting up
+	// we'll waste time if we update it for every container
+	if updateSuffixarray {
+		daemon.idIndex.Add(container.ID)
+	} else {
+		daemon.idIndex.AddWithoutSuffixarrayUpdate(container.ID)
+	}
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
@@ -203,13 +220,13 @@ func (daemon *Daemon) Register(container *Container) error {
 		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if daemon.config.AutoRestart {
-				utils.Debugf("Restarting")
+				utils.Debugf("Marking as restarting")
 				if err := container.Unmount(); err != nil {
 					utils.Debugf("restart unmount error %s", err)
 				}
 
-				if err := container.Start(); err != nil {
-					return err
+				if containersToStart != nil {
+					*containersToStart = append(*containersToStart, container)
 				}
 			} else {
 				utils.Debugf("Marking as stopped")
@@ -231,19 +248,14 @@ func (daemon *Daemon) Register(container *Container) error {
 
 func (daemon *Daemon) ensureName(container *Container) error {
 	if container.Name == "" {
-		name, err := generateRandomName(daemon)
+		name, err := daemon.generateNewName(container.ID)
 		if err != nil {
-			name = utils.TruncateID(container.ID)
+			return err
 		}
 		container.Name = name
 
 		if err := container.ToDisk(); err != nil {
 			utils.Debugf("Error saving container name %s", err)
-		}
-		if !daemon.containerGraph.Exists(name) {
-			if _, err := daemon.containerGraph.Set(name, container.ID); err != nil {
-				utils.Debugf("Setting default id - %s", err)
-			}
 		}
 	}
 	return nil
@@ -264,7 +276,7 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return fmt.Errorf("The given container is <nil>")
 	}
 
-	element := daemon.getContainerElement(container.ID)
+	element := daemon.containers.Get(container.ID)
 	if element == nil {
 		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
 	}
@@ -275,7 +287,11 @@ func (daemon *Daemon) Destroy(container *Container) error {
 
 	// Deregister the container before removing its directory, to avoid race conditions
 	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Remove(element)
+	daemon.containers.Delete(container.ID)
+
+	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
+		utils.Debugf("Unable to remove container from link graph: %s", err)
+	}
 
 	if err := daemon.driver.Remove(container.ID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
@@ -284,10 +300,6 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	if err := daemon.driver.Remove(initID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
-	}
-
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		utils.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
 	if err := os.RemoveAll(container.root); err != nil {
@@ -299,20 +311,25 @@ func (daemon *Daemon) Destroy(container *Container) error {
 }
 
 func (daemon *Daemon) restore() error {
-	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+	var (
+		debug             = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
+		containers        = make(map[string]*Container)
+		currentDriver     = daemon.driver.String()
+		containersToStart = []*Container{}
+	)
+
+	if !debug {
 		fmt.Printf("Loading containers: ")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
 	if err != nil {
 		return err
 	}
-	containers := make(map[string]*Container)
-	currentDriver := daemon.driver.String()
 
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
-		if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+		if !debug {
 			fmt.Print(".")
 		}
 		if err != nil {
@@ -329,20 +346,16 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	register := func(container *Container) {
-		if err := daemon.Register(container); err != nil {
-			utils.Debugf("Failed to register container %s: %s", container.ID, err)
-		}
-	}
-
 	if entities := daemon.containerGraph.List("/", -1); entities != nil {
 		for _, p := range entities.Paths() {
-			if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+			if !debug {
 				fmt.Print(".")
 			}
 			e := entities[p]
 			if container, ok := containers[e.ID()]; ok {
-				register(container)
+				if err := daemon.register(container, false, &containersToStart); err != nil {
+					utils.Debugf("Failed to register container %s: %s", container.ID, err)
+				}
 				delete(containers, e.ID())
 			}
 		}
@@ -351,18 +364,25 @@ func (daemon *Daemon) restore() error {
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
 		// Try to set the default name for a container if it exists prior to links
-		container.Name, err = generateRandomName(daemon)
+		container.Name, err = daemon.generateNewName(container.ID)
 		if err != nil {
-			container.Name = utils.TruncateID(container.ID)
-		}
-
-		if _, err := daemon.containerGraph.Set(container.Name, container.ID); err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
-		register(container)
+		if err := daemon.register(container, false, &containersToStart); err != nil {
+			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+		}
 	}
 
-	if os.Getenv("DEBUG") == "" && os.Getenv("TEST") == "" {
+	daemon.idIndex.UpdateSuffixarray()
+
+	for _, container := range containersToStart {
+		utils.Debugf("Starting container %d", container.ID)
+		if err := container.Start(); err != nil {
+			utils.Debugf("Failed to start container %s: %s", container.ID, err)
+		}
+	}
+
+	if !debug {
 		fmt.Printf(": done.\n")
 	}
 
@@ -450,42 +470,75 @@ func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
 	)
 
 	if name == "" {
-		name, err = generateRandomName(daemon)
-		if err != nil {
-			name = utils.TruncateID(id)
+		if name, err = daemon.generateNewName(id); err != nil {
+			return "", "", err
 		}
-	} else {
-		if !validContainerNamePattern.MatchString(name) {
-			return "", "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
-		}
+		return id, name, nil
 	}
+
+	if name, err = daemon.reserveName(id, name); err != nil {
+		return "", "", err
+	}
+
+	return id, name, nil
+}
+
+func (daemon *Daemon) reserveName(id, name string) (string, error) {
+	if !validContainerNamePattern.MatchString(name) {
+		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
+	}
+
 	if name[0] != '/' {
 		name = "/" + name
 	}
-	// Set the enitity in the graph using the default name specified
+
 	if _, err := daemon.containerGraph.Set(name, id); err != nil {
 		if !graphdb.IsNonUniqueNameError(err) {
-			return "", "", err
+			return "", err
 		}
 
 		conflictingContainer, err := daemon.GetByName(name)
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find entity") {
-				return "", "", err
+				return "", err
 			}
 
 			// Remove name and continue starting the container
 			if err := daemon.containerGraph.Delete(name); err != nil {
-				return "", "", err
+				return "", err
 			}
 		} else {
 			nameAsKnownByUser := strings.TrimPrefix(name, "/")
-			return "", "", fmt.Errorf(
+			return "", fmt.Errorf(
 				"Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser,
 				utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
 		}
 	}
-	return id, name, nil
+	return name, nil
+}
+
+func (daemon *Daemon) generateNewName(id string) (string, error) {
+	var name string
+	for i := 0; i < 6; i++ {
+		name = namesgenerator.GetRandomName(i)
+		if name[0] != '/' {
+			name = "/" + name
+		}
+
+		if _, err := daemon.containerGraph.Set(name, id); err != nil {
+			if !graphdb.IsNonUniqueNameError(err) {
+				return "", err
+			}
+			continue
+		}
+		return name, nil
+	}
+
+	name = "/" + utils.TruncateID(id)
+	if _, err := daemon.containerGraph.Set(name, id); err != nil {
+		return "", err
+	}
+	return name, nil
 }
 
 func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
@@ -592,15 +645,18 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 		containerID, containerImage string
 		containerConfig             *runconfig.Config
 	)
+
 	if container != nil {
 		containerID = container.ID
 		containerImage = container.Image
 		containerConfig = container.Config
 	}
+
 	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}
+
 	// Register the image if needed
 	if repository != "" {
 		if err := daemon.repositories.Set(repository, tag, img.ID, true); err != nil {
@@ -629,11 +685,11 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 	if entity == nil {
 		return nil, fmt.Errorf("Could not find entity for %s", name)
 	}
-	e := daemon.getContainerElement(entity.ID())
+	e := daemon.containers.Get(entity.ID())
 	if e == nil {
 		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
 	}
-	return e.Value.(*Container), nil
+	return e, nil
 }
 
 func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
@@ -667,6 +723,35 @@ func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error
 	return nil
 }
 
+func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+	if hostConfig != nil && hostConfig.Links != nil {
+		for _, l := range hostConfig.Links {
+			parts, err := utils.PartParser("name:alias", l)
+			if err != nil {
+				return err
+			}
+			child, err := daemon.GetByName(parts["name"])
+			if err != nil {
+				return err
+			}
+			if child == nil {
+				return fmt.Errorf("Could not get container for %s", parts["name"])
+			}
+			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
+				return err
+			}
+		}
+
+		// After we load all the links into the daemon
+		// set them to nil on the hostconfig
+		hostConfig.Links = nil
+		if err := container.WriteHostConfig(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // FIXME: harmonize with NewGraph()
 func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
 	daemon, err := NewDaemonFromDirectory(config, eng)
@@ -680,19 +765,21 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if !config.EnableSelinuxSupport {
 		selinux.SetDisabled()
 	}
+
+	// Create the root directory if it doesn't exists
+	if err := os.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
 	// Set the default driver
 	graphdriver.DefaultDriver = config.GraphDriver
 
 	// Load storage driver
-	driver, err := graphdriver.New(config.Root)
+	driver, err := graphdriver.New(config.Root, config.GraphOptions)
 	if err != nil {
 		return nil, err
 	}
 	utils.Debugf("Using graph driver %s", driver)
-
-	if err := remountPrivate(config.Root); err != nil {
-		return nil, err
-	}
 
 	daemonRepo := path.Join(config.Root, "containers")
 
@@ -713,7 +800,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	// We don't want to use a complex driver like aufs or devmapper
 	// for volumes, just a plain filesystem
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root)
+	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +864,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	daemon := &Daemon{
 		repository:     daemonRepo,
-		containers:     list.New(),
+		containers:     &contStore{s: make(map[string]*Container)},
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        utils.NewTruncIndex([]string{}),
@@ -912,6 +999,22 @@ func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
 
 func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	return daemon.execDriver.Run(c.command, pipes, startCallback)
+}
+
+func (daemon *Daemon) Pause(c *Container) error {
+	if err := daemon.execDriver.Pause(c.command); err != nil {
+		return err
+	}
+	c.State.SetPaused()
+	return nil
+}
+
+func (daemon *Daemon) Unpause(c *Container) error {
+	if err := daemon.execDriver.Unpause(c.command); err != nil {
+		return err
+	}
+	c.State.SetUnpaused()
+	return nil
 }
 
 func (daemon *Daemon) Kill(c *Container, sig int) error {

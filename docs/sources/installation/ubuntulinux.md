@@ -1,14 +1,8 @@
 page_title: Installation on Ubuntu
-page_description: Please note this project is currently under heavy development. It should not be used in production.
-page_keywords: Docker, Docker documentation, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
+page_description: Instructions for installing Docker on Ubuntu.
+page_keywords: Docker, Docker documentation, requirements, virtualbox, installation, ubuntu
 
 # Ubuntu
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 Docker is supported on the following versions of Ubuntu:
 
@@ -36,6 +30,7 @@ To install the latest Ubuntu package (may not be the latest Docker release):
     $ sudo apt-get update
     $ sudo apt-get install docker.io
     $ sudo ln -sf /usr/bin/docker.io /usr/local/bin/docker
+    $ sudo sed -i '$acomplete -F _docker docker' /etc/bash_completion.d/docker.io
 
 To verify that everything has worked as expected:
 
@@ -116,8 +111,7 @@ Now verify that the installation has worked by downloading the
 
 Type `exit` to exit
 
-**Done!**, now continue with the [*Hello
-World*](/examples/hello_world/#hello-world) example.
+**Done!**, continue with the [User Guide](/userguide/).
 
 ## Ubuntu Raring 13.04 and Saucy 13.10 (64 bit)
 
@@ -164,31 +158,27 @@ Now verify that the installation has worked by downloading the
 
 Type `exit` to exit
 
-**Done!**, now continue with the [*Hello
-World*](/examples/hello_world/#hello-world) example.
+**Done!**, now continue with the [User Guide](/userguide/).
 
 ### Giving non-root access
 
-The `docker` daemon always runs as the root user,
-and since Docker version 0.5.2, the `docker` daemon
-binds to a Unix socket instead of a TCP port. By default that Unix
-socket is owned by the user *root*, and so, by default, you can access
-it with `sudo`.
+The `docker` daemon always runs as the `root` user, and since Docker
+version 0.5.2, the `docker` daemon binds to a Unix socket instead of a
+TCP port. By default that Unix socket is owned by the user `root`, and
+so, by default, you can access it with `sudo`.
 
 Starting in version 0.5.3, if you (or your Docker installer) create a
-Unix group called *docker* and add users to it, then the
-`docker` daemon will make the ownership of the Unix
-socket read/writable by the *docker* group when the daemon starts. The
-`docker` daemon must always run as the root user,
-but if you run the `docker` client as a user in the
-*docker* group then you don't need to add `sudo` to
-all the client commands. As of 0.9.0, you can specify that a group other
-than `docker` should own the Unix socket with the
-`-G` option.
+Unix group called `docker` and add users to it, then the `docker` daemon
+will make the ownership of the Unix socket read/writable by the `docker`
+group when the daemon starts. The `docker` daemon must always run as the
+`root` user, but if you run the `docker` client as a user in the
+`docker` group then you don't need to add `sudo` to all the client
+commands.  From Docker 0.9.0 you can use the `-G` flag to specify an
+alternative group.
 
 > **Warning**: 
-> The *docker* group (or the group specified with `-G`) is
-> root-equivalent; see [*Docker Daemon Attack Surface*](
+> The `docker` group (or the group specified with the `-G` flag) is
+> `root`-equivalent; see [*Docker Daemon Attack Surface*](
 > /articles/security/#dockersecurity-daemon) details.
 
 **Example:**
@@ -203,6 +193,7 @@ than `docker` should own the Unix socket with the
     $ sudo gpasswd -a ${USER} docker
 
     # Restart the Docker daemon.
+    # If you are in Ubuntu 14.04, use docker.io instead of docker
     $ sudo service docker restart
 
 ### Upgrade
@@ -268,9 +259,9 @@ Then reload UFW:
 
 UFW's default set of rules denies all incoming traffic. If you want to
 be able to reach your containers from another host then you should allow
-incoming connections on the Docker port (default 4243):
+incoming connections on the Docker port (default 2375):
 
-    $ sudo ufw allow 4243/tcp
+    $ sudo ufw allow 2375/tcp
 
 ## Docker and local DNS server warnings
 

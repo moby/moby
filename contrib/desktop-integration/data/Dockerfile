@@ -6,7 +6,7 @@
 #   /data volume is owned by sysadmin.
 # USAGE:
 #   # Download data Dockerfile
-#   wget http://raw.github.com/dotcloud/docker/master/contrib/desktop-integration/data/Dockerfile
+#   wget http://raw.githubusercontent.com/dotcloud/docker/master/contrib/desktop-integration/data/Dockerfile
 #
 #   # Build data image
 #   docker build -t data .

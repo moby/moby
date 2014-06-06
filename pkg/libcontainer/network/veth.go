@@ -12,6 +12,8 @@ import (
 type Veth struct {
 }
 
+const defaultDevice = "eth0"
+
 func (v *Veth) Create(n *libcontainer.Network, nspid int, context libcontainer.Context) error {
 	var (
 		bridge string
@@ -56,21 +58,21 @@ func (v *Veth) Initialize(config *libcontainer.Network, context libcontainer.Con
 	if err := InterfaceDown(vethChild); err != nil {
 		return fmt.Errorf("interface down %s %s", vethChild, err)
 	}
-	if err := ChangeInterfaceName(vethChild, "eth0"); err != nil {
-		return fmt.Errorf("change %s to eth0 %s", vethChild, err)
+	if err := ChangeInterfaceName(vethChild, defaultDevice); err != nil {
+		return fmt.Errorf("change %s to %s %s", vethChild, defaultDevice, err)
 	}
-	if err := SetInterfaceIp("eth0", config.Address); err != nil {
-		return fmt.Errorf("set eth0 ip %s", err)
+	if err := SetInterfaceIp(defaultDevice, config.Address); err != nil {
+		return fmt.Errorf("set %s ip %s", defaultDevice, err)
 	}
-	if err := SetMtu("eth0", config.Mtu); err != nil {
-		return fmt.Errorf("set eth0 mtu to %d %s", config.Mtu, err)
+	if err := SetMtu(defaultDevice, config.Mtu); err != nil {
+		return fmt.Errorf("set %s mtu to %d %s", defaultDevice, config.Mtu, err)
 	}
-	if err := InterfaceUp("eth0"); err != nil {
-		return fmt.Errorf("eth0 up %s", err)
+	if err := InterfaceUp(defaultDevice); err != nil {
+		return fmt.Errorf("%s up %s", defaultDevice, err)
 	}
 	if config.Gateway != "" {
-		if err := SetDefaultGateway(config.Gateway); err != nil {
-			return fmt.Errorf("set gateway to %s %s", config.Gateway, err)
+		if err := SetDefaultGateway(config.Gateway, defaultDevice); err != nil {
+			return fmt.Errorf("set gateway to %s on device %s failed with %s", config.Gateway, defaultDevice, err)
 		}
 	}
 	return nil

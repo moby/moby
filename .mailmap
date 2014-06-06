@@ -6,14 +6,16 @@ Guillaume J. Charmes <guillaume.charmes@docker.com> <charmes.guillaume@gmail.com
 <guillaume.charmes@docker.com> <guillaume@dotcloud.com>
 <guillaume.charmes@docker.com> <guillaume@docker.com>
 <guillaume.charmes@docker.com> <guillaume.charmes@dotcloud.com>
+<guillaume.charmes@docker.com> <guillaume@charmes.net>
 <kencochrane@gmail.com> <KenCochrane@gmail.com>
-<sridharr@activestate.com> <github@srid.name>
-Thatcher Peskens <thatcher@dotcloud.com> dhrp <thatcher@dotcloud.com>
-Thatcher Peskens <thatcher@dotcloud.com> dhrp <thatcher@gmx.net>
+Thatcher Peskens <thatcher@docker.com>
+Thatcher Peskens <thatcher@docker.com> <thatcher@dotcloud.com>
+Thatcher Peskens <thatcher@docker.com> dhrp <thatcher@gmx.net>
 Jérôme Petazzoni <jerome.petazzoni@dotcloud.com> jpetazzo <jerome.petazzoni@dotcloud.com>
 Jérôme Petazzoni <jerome.petazzoni@dotcloud.com> <jp@enix.org>
-Joffrey F <joffrey@dotcloud.com>
-<joffrey@dotcloud.com> <f.joffrey@gmail.com>
+Joffrey F <joffrey@docker.com>
+Joffrey F <joffrey@docker.com> <joffrey@dotcloud.com>
+Joffrey F <joffrey@docker.com> <f.joffrey@gmail.com>
 Tim Terhorst <mynamewastaken+git@gmail.com>
 Andy Smith <github@anarkystic.com>
 <kalessin@kalessin.fr> <louis@dotcloud.com>
@@ -23,7 +25,6 @@ Andy Smith <github@anarkystic.com>
 <victor.vieux@docker.com> <victor@docker.com>
 <victor.vieux@docker.com> <vieux@docker.com>
 <dominik@honnef.co> <dominikh@fork-bomb.org>
-Thatcher Peskens <thatcher@dotcloud.com>
 <ehanchrow@ine.com> <eric.hanchrow@gmail.com>
 Walter Stanish <walter@pratyeka.org>
 <daniel@gasienica.ch> <dgasienica@zynga.com>
@@ -54,7 +55,26 @@ Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
 <gurjeet@singh.im> <singh.gurjeet@gmail.com>
 <shawn@churchofgit.com> <shawnlandden@gmail.com>
 <sjoerd-github@linuxonly.nl> <sjoerd@byte.nl>
-<solomon@dotcloud.com> <solomon.hykes@dotcloud.com>
-<SvenDowideit@home.org.au> <SvenDowideit@fosiki.com>
-Sven Dowideit <SvenDowideit@home.org.au> ¨Sven <¨SvenDowideit@home.org.au¨>
+<solomon@docker.com> <solomon.hykes@dotcloud.com>
+<solomon@docker.com> <solomon@dotcloud.com>
+Sven Dowideit <SvenDowideit@home.org.au>
+Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@fosiki.com>
+Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@docker.com>
+Sven Dowideit <SvenDowideit@home.org.au> <¨SvenDowideit@home.org.au¨>
 unclejack <unclejacksons@gmail.com> <unclejack@users.noreply.github.com>
+<alexl@redhat.com> <alexander.larsson@gmail.com>
+Alexandr Morozov <lk4d4math@gmail.com>
+<git.nivoc@neverbox.com> <kuehnle@online.de>
+O.S. Tezer <ostezer@gmail.com>
+<ostezer@gmail.com> <ostezer@users.noreply.github.com>
+Roberto G. Hashioka <roberto.hashioka@docker.com> <roberto_hashioka@hotmail.com>
+<justin.p.simonelis@gmail.com> <justin.simonelis@PTS-JSIMON2.toronto.exclamation.com>
+<taim@bosboot.org> <maztaim@users.noreply.github.com>
+<viktor.vojnovski@amadeus.com> <vojnovski@gmail.com>
+<vbatts@redhat.com> <vbatts@hashbangbash.com>
+<altsysrq@gmail.com> <iamironbob@gmail.com>
+Sridhar Ratnakumar <sridharr@activestate.com>
+Sridhar Ratnakumar <sridharr@activestate.com> <github@srid.name>
+Liang-Chi Hsieh <viirya@gmail.com>
+Aleksa Sarai <cyphar@cyphar.com>
+Will Weaver <monkey@buildingbananas.com>

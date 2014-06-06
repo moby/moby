@@ -2,10 +2,12 @@ package registry
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -70,7 +72,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 
 func TestGetRemoteImageLayer(t *testing.T) {
 	r := spawnTestRegistry(t)
-	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +80,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 		t.Fatal("Expected non-nil data result")
 	}
 
-	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), TOKEN)
+	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), TOKEN, 0)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -229,5 +231,72 @@ func TestValidRepositoryName(t *testing.T) {
 	if err := validateRepositoryName("docker///docker"); err == nil {
 		t.Log("Repository name should be invalid")
 		t.Fail()
+	}
+}
+
+func TestTrustedLocation(t *testing.T) {
+	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.io"} {
+		req, _ := http.NewRequest("GET", url, nil)
+		if trustedLocation(req) == true {
+			t.Fatalf("'%s' shouldn't be detected as a trusted location", url)
+		}
+	}
+
+	for _, url := range []string{"https://docker.io", "https://test.docker.io:80"} {
+		req, _ := http.NewRequest("GET", url, nil)
+		if trustedLocation(req) == false {
+			t.Fatalf("'%s' should be detected as a trusted location", url)
+		}
+	}
+}
+
+func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
+	for _, urls := range [][]string{
+		{"http://docker.io", "https://docker.com"},
+		{"https://foo.docker.io:7777", "http://bar.docker.com"},
+		{"https://foo.docker.io", "https://example.com"},
+	} {
+		reqFrom, _ := http.NewRequest("GET", urls[0], nil)
+		reqFrom.Header.Add("Content-Type", "application/json")
+		reqFrom.Header.Add("Authorization", "super_secret")
+		reqTo, _ := http.NewRequest("GET", urls[1], nil)
+
+		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+
+		if len(reqTo.Header) != 1 {
+			t.Fatal("Expected 1 headers, got %d", len(reqTo.Header))
+		}
+
+		if reqTo.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("'Content-Type' should be 'application/json'")
+		}
+
+		if reqTo.Header.Get("Authorization") != "" {
+			t.Fatal("'Authorization' should be empty")
+		}
+	}
+
+	for _, urls := range [][]string{
+		{"https://docker.io", "https://docker.com"},
+		{"https://foo.docker.io:7777", "https://bar.docker.com"},
+	} {
+		reqFrom, _ := http.NewRequest("GET", urls[0], nil)
+		reqFrom.Header.Add("Content-Type", "application/json")
+		reqFrom.Header.Add("Authorization", "super_secret")
+		reqTo, _ := http.NewRequest("GET", urls[1], nil)
+
+		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+
+		if len(reqTo.Header) != 2 {
+			t.Fatal("Expected 2 headers, got %d", len(reqTo.Header))
+		}
+
+		if reqTo.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("'Content-Type' should be 'application/json'")
+		}
+
+		if reqTo.Header.Get("Authorization") != "super_secret" {
+			t.Fatal("'Authorization' should be 'super_secret'")
+		}
 	}
 }

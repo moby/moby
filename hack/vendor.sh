@@ -39,13 +39,13 @@ clone() {
 	echo done
 }
 
-clone git github.com/kr/pty 98c7b80083
+clone git github.com/kr/pty 67e2db24c8
 
-clone git github.com/gorilla/context 708054d61e5
+clone git github.com/gorilla/context b06ed15e1c
 
-clone git github.com/gorilla/mux 9b36453141c
+clone git github.com/gorilla/mux 136d54f81f
 
-clone git github.com/syndtr/gocapability 3454319be2
+clone git github.com/syndtr/gocapability 3c85049eae
 
 clone hg code.google.com/p/go.net 84a4013f96e0
 
@@ -53,11 +53,11 @@ clone hg code.google.com/p/gosqlite 74691fb6f837
 
 # get Go tip's archive/tar, for xattr support
 # TODO after Go 1.3 drops, bump our minimum supported version and drop this vendored dep
-clone hg code.google.com/p/go a15f344a9efa
+clone hg code.google.com/p/go 3458ba248590
 mv src/code.google.com/p/go/src/pkg/archive/tar tmp-tar
 rm -rf src/code.google.com/p/go
 mkdir -p src/code.google.com/p/go/src/pkg/archive
 mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 
 clone git github.com/godbus/dbus v1
-clone git github.com/coreos/go-systemd v1
+clone git github.com/coreos/go-systemd v2

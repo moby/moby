@@ -134,7 +134,7 @@ the inner routes use it as base for their paths:
 	// "/products/{key}/"
 	s.HandleFunc("/{key}/", ProductHandler)
 	// "/products/{key}/details"
-	s.HandleFunc("/{key}/details"), ProductDetailsHandler)
+	s.HandleFunc("/{key}/details", ProductDetailsHandler)
 
 Now let's see how to build registered URLs.
 

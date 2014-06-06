@@ -77,13 +77,8 @@ well as a clean documentation build. See ``docs/README.md`` for more
 information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
-and maintenance. Always run `go fmt` before committing your changes. Most
-editors have plugins that do this automatically, and there's also a git
-pre-commit hook:
-
-```
-curl -o .git/hooks/pre-commit https://raw.githubusercontent.com/edsrzf/gofmt-git-hook/master/fmt-check && chmod +x .git/hooks/pre-commit
-```
+and maintenance. Always run `gofmt -s -w file.go` on each changed file before
+committing your changes. Most editors have plugins that do this automatically.
 
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
@@ -108,10 +103,8 @@ same commit so that a revert would remove all traces of the feature or fix.
 Commits that fix or close an issue should include a reference like `Closes #XXX`
 or `Fixes #XXX`, which will automatically close the issue when merged.
 
-Add your name to the AUTHORS file, but make sure the list is sorted and your
-name and email address match your git configuration. The AUTHORS file is
-regenerated occasionally from the git commit history, so a mismatch may result
-in your changes being overwritten.
+Please do not add yourself to the AUTHORS file, as it is regenerated
+regularly from the Git history.
 
 ### Merge approval
 
@@ -182,7 +175,7 @@ One way to automate this, is customise your get ``commit.template`` by adding
 a ``prepare-commit-msg`` hook to your docker checkout:
 
 ```
-curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
+curl -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
 ```
 
 * Note: the above script expects to find your GitHub user name in ``git config --get github.user``
@@ -192,7 +185,10 @@ curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/mas
 There are several exceptions to the signing requirement. Currently these are:
 
 * Your patch fixes spelling or grammar errors.
-* Your patch is a single line change to documentation.
+* Your patch is a single line change to documentation contained in the
+  `docs` directory.
+* Your patch fixes Markdown formatting or syntax errors in the
+  documentation contained in the `docs` directory.
 
 If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.io)
 

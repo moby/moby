@@ -10,7 +10,7 @@ import (
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/symlink"
 )
 
 type BindMap struct {
@@ -40,8 +40,11 @@ func setupMountsForContainer(container *Container) error {
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
-	if container.HostnamePath != "" && container.HostsPath != "" {
+	if container.HostnamePath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
+	}
+
+	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
 	}
 
@@ -94,13 +97,16 @@ func applyVolumesFrom(container *Container) error {
 				if _, exists := container.Volumes[volPath]; exists {
 					continue
 				}
-				stat, err := os.Stat(filepath.Join(c.basefs, volPath))
+
+				stat, err := os.Stat(c.getResourcePath(volPath))
 				if err != nil {
 					return err
 				}
-				if err := createIfNotExists(filepath.Join(container.basefs, volPath), stat.IsDir()); err != nil {
+
+				if err := createIfNotExists(container.getResourcePath(volPath), stat.IsDir()); err != nil {
 					return err
 				}
+
 				container.Volumes[volPath] = id
 				if isRW, exists := c.VolumesRW[volPath]; exists {
 					container.VolumesRW[volPath] = isRW && mountRW
@@ -162,137 +168,169 @@ func createVolumes(container *Container) error {
 		return err
 	}
 
-	volumesDriver := container.daemon.volumes.Driver()
 	// Create the requested volumes if they don't exist
 	for volPath := range container.Config.Volumes {
-		volPath = filepath.Clean(volPath)
-		volIsDir := true
-		// Skip existing volumes
-		if _, exists := container.Volumes[volPath]; exists {
-			continue
-		}
-		var srcPath string
-		var isBindMount bool
-		srcRW := false
-		// If an external bind is defined for this volume, use that as a source
-		if bindMap, exists := binds[volPath]; exists {
-			isBindMount = true
-			srcPath = bindMap.SrcPath
-			if !filepath.IsAbs(srcPath) {
-				return fmt.Errorf("%s must be an absolute path", srcPath)
-			}
-			if strings.ToLower(bindMap.Mode) == "rw" {
-				srcRW = true
-			}
-			if stat, err := os.Stat(bindMap.SrcPath); err != nil {
-				return err
-			} else {
-				volIsDir = stat.IsDir()
-			}
-			// Otherwise create an directory in $ROOT/volumes/ and use that
-		} else {
-
-			// Do not pass a container as the parameter for the volume creation.
-			// The graph driver using the container's information ( Image ) to
-			// create the parent.
-			c, err := container.daemon.volumes.Create(nil, "", "", "", "", nil, nil)
-			if err != nil {
-				return err
-			}
-			srcPath, err = volumesDriver.Get(c.ID, "")
-			if err != nil {
-				return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
-			}
-			srcRW = true // RW by default
-		}
-
-		if p, err := filepath.EvalSymlinks(srcPath); err != nil {
-			return err
-		} else {
-			srcPath = p
-		}
-
-		// Create the mountpoint
-		rootVolPath, err := utils.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
-		if err != nil {
+		if err := initializeVolume(container, volPath, binds); err != nil {
 			return err
 		}
+	}
 
-		newVolPath, err := filepath.Rel(container.basefs, rootVolPath)
-		if err != nil {
+	for volPath := range binds {
+		if err := initializeVolume(container, volPath, binds); err != nil {
 			return err
-		}
-		newVolPath = "/" + newVolPath
-
-		if volPath != newVolPath {
-			delete(container.Volumes, volPath)
-			delete(container.VolumesRW, volPath)
-		}
-
-		container.Volumes[newVolPath] = srcPath
-		container.VolumesRW[newVolPath] = srcRW
-
-		if err := createIfNotExists(rootVolPath, volIsDir); err != nil {
-			return err
-		}
-
-		// Do not copy or change permissions if we are mounting from the host
-		if srcRW && !isBindMount {
-			volList, err := ioutil.ReadDir(rootVolPath)
-			if err != nil {
-				return err
-			}
-			if len(volList) > 0 {
-				srcList, err := ioutil.ReadDir(srcPath)
-				if err != nil {
-					return err
-				}
-				if len(srcList) == 0 {
-					// If the source volume is empty copy files from the root into the volume
-					if err := archive.CopyWithTar(rootVolPath, srcPath); err != nil {
-						return err
-					}
-				}
-			}
-
-			var stat syscall.Stat_t
-			if err := syscall.Stat(rootVolPath, &stat); err != nil {
-				return err
-			}
-			var srcStat syscall.Stat_t
-			if err := syscall.Stat(srcPath, &srcStat); err != nil {
-				return err
-			}
-			// Change the source volume's ownership if it differs from the root
-			// files that were just copied
-			if stat.Uid != srcStat.Uid || stat.Gid != srcStat.Gid {
-				if err := os.Chown(srcPath, int(stat.Uid), int(stat.Gid)); err != nil {
-					return err
-				}
-			}
 		}
 	}
 	return nil
 }
 
-func createIfNotExists(path string, isDir bool) error {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			if isDir {
-				if err := os.MkdirAll(path, 0755); err != nil {
-					return err
-				}
-			} else {
-				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-					return err
-				}
-				f, err := os.OpenFile(path, os.O_CREATE, 0755)
-				if err != nil {
-					return err
-				}
-				defer f.Close()
+func createIfNotExists(destination string, isDir bool) error {
+	if _, err := os.Stat(destination); err != nil && os.IsNotExist(err) {
+		if isDir {
+			if err := os.MkdirAll(destination, 0755); err != nil {
+				return err
 			}
+		} else {
+			if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+				return err
+			}
+
+			f, err := os.OpenFile(destination, os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			f.Close()
+		}
+	}
+
+	return nil
+}
+
+func initializeVolume(container *Container, volPath string, binds map[string]BindMap) error {
+	volumesDriver := container.daemon.volumes.Driver()
+	volPath = filepath.Clean(volPath)
+
+	// Skip existing volumes
+	if _, exists := container.Volumes[volPath]; exists {
+		return nil
+	}
+
+	var (
+		destination string
+		isBindMount bool
+		volIsDir    = true
+
+		srcRW = false
+	)
+
+	// If an external bind is defined for this volume, use that as a source
+	if bindMap, exists := binds[volPath]; exists {
+		isBindMount = true
+		destination = bindMap.SrcPath
+
+		if !filepath.IsAbs(destination) {
+			return fmt.Errorf("%s must be an absolute path", destination)
+		}
+
+		if strings.ToLower(bindMap.Mode) == "rw" {
+			srcRW = true
+		}
+
+		if stat, err := os.Stat(bindMap.SrcPath); err != nil {
+			return err
+		} else {
+			volIsDir = stat.IsDir()
+		}
+	} else {
+		// Do not pass a container as the parameter for the volume creation.
+		// The graph driver using the container's information ( Image ) to
+		// create the parent.
+		c, err := container.daemon.volumes.Create(nil, "", "", "", "", nil, nil)
+		if err != nil {
+			return err
+		}
+
+		destination, err = volumesDriver.Get(c.ID, "")
+		if err != nil {
+			return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
+		}
+
+		srcRW = true
+	}
+
+	if p, err := filepath.EvalSymlinks(destination); err != nil {
+		return err
+	} else {
+		destination = p
+	}
+
+	// Create the mountpoint
+	source, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
+	if err != nil {
+		return err
+	}
+
+	newVolPath, err := filepath.Rel(container.basefs, source)
+	if err != nil {
+		return err
+	}
+	newVolPath = "/" + newVolPath
+
+	if volPath != newVolPath {
+		delete(container.Volumes, volPath)
+		delete(container.VolumesRW, volPath)
+	}
+
+	container.Volumes[newVolPath] = destination
+	container.VolumesRW[newVolPath] = srcRW
+
+	if err := createIfNotExists(source, volIsDir); err != nil {
+		return err
+	}
+
+	// Do not copy or change permissions if we are mounting from the host
+	if srcRW && !isBindMount {
+		if err := copyExistingContents(source, destination); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func copyExistingContents(source, destination string) error {
+	volList, err := ioutil.ReadDir(source)
+	if err != nil {
+		return err
+	}
+
+	if len(volList) > 0 {
+		srcList, err := ioutil.ReadDir(destination)
+		if err != nil {
+			return err
+		}
+
+		if len(srcList) == 0 {
+			// If the source volume is empty copy files from the root into the volume
+			if err := archive.CopyWithTar(source, destination); err != nil {
+				return err
+			}
+		}
+	}
+
+	return copyOwnership(source, destination)
+}
+
+// copyOwnership copies the permissions and uid:gid of the source file
+// into the destination file
+func copyOwnership(source, destination string) error {
+	var stat syscall.Stat_t
+
+	if err := syscall.Stat(source, &stat); err != nil {
+		return err
+	}
+
+	if err := os.Chown(destination, int(stat.Uid), int(stat.Gid)); err != nil {
+		return err
+	}
+
+	return os.Chmod(destination, os.FileMode(stat.Mode))
 }

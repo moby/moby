@@ -51,6 +51,8 @@
 	Command line flag syntax:
 		-flag
 		-flag=x
+		-flag="x"
+		-flag='x'
 		-flag x  // non-boolean flags only
 	One or two minus signs may be used; they are equivalent.
 	The last form is not permitted for boolean flags because the
@@ -775,6 +777,37 @@ func (f *FlagSet) usage() {
 	}
 }
 
+func trimQuotes(str string) string {
+	type quote struct {
+		start, end byte
+	}
+
+	// All valid quote types.
+	quotes := []quote{
+		// Double quotes
+		{
+			start: '"',
+			end:   '"',
+		},
+
+		// Single quotes
+		{
+			start: '\'',
+			end:   '\'',
+		},
+	}
+
+	for _, quote := range quotes {
+		// Only strip if outermost match.
+		if str[0] == quote.start && str[len(str)-1] == quote.end {
+			str = str[1 : len(str)-1]
+			break
+		}
+	}
+
+	return str
+}
+
 // parseOne parses one flag. It reports whether a flag was seen.
 func (f *FlagSet) parseOne() (bool, string, error) {
 	if len(f.args) == 0 {
@@ -799,7 +832,7 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 	value := ""
 	for i := 1; i < len(name); i++ { // equals cannot be first
 		if name[i] == '=' {
-			value = name[i+1:]
+			value = trimQuotes(name[i+1:])
 			has_value = true
 			name = name[0:i]
 			break

@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 // Context is a generic key value pair that allows
@@ -81,6 +83,8 @@ type TtyTerminal interface {
 type Driver interface {
 	Run(c *Command, pipes *Pipes, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
 	Kill(c *Command, sig int) error
+	Pause(c *Command) error
+	Unpause(c *Command) error
 	Name() string                                 // Driver name
 	Info(id string) Info                          // "temporary" hack (until we move state from core to plugins)
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
@@ -103,9 +107,10 @@ type NetworkInterface struct {
 }
 
 type Resources struct {
-	Memory     int64 `json:"memory"`
-	MemorySwap int64 `json:"memory_swap"`
-	CpuShares  int64 `json:"cpu_shares"`
+	Memory     int64  `json:"memory"`
+	MemorySwap int64  `json:"memory_swap"`
+	CpuShares  int64  `json:"cpu_shares"`
+	Cpuset     string `json:"cpuset"`
 }
 
 type Mount struct {
@@ -119,20 +124,22 @@ type Mount struct {
 type Command struct {
 	exec.Cmd `json:"-"`
 
-	ID         string              `json:"id"`
-	Privileged bool                `json:"privileged"`
-	User       string              `json:"user"`
-	Rootfs     string              `json:"rootfs"`   // root fs of the container
-	InitPath   string              `json:"initpath"` // dockerinit
-	Entrypoint string              `json:"entrypoint"`
-	Arguments  []string            `json:"arguments"`
-	WorkingDir string              `json:"working_dir"`
-	ConfigPath string              `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Tty        bool                `json:"tty"`
-	Network    *Network            `json:"network"`
-	Config     map[string][]string `json:"config"` //  generic values that specific drivers can consume
-	Resources  *Resources          `json:"resources"`
-	Mounts     []Mount             `json:"mounts"`
+	ID                 string              `json:"id"`
+	Privileged         bool                `json:"privileged"`
+	User               string              `json:"user"`
+	Rootfs             string              `json:"rootfs"`   // root fs of the container
+	InitPath           string              `json:"initpath"` // dockerinit
+	Entrypoint         string              `json:"entrypoint"`
+	Arguments          []string            `json:"arguments"`
+	WorkingDir         string              `json:"working_dir"`
+	ConfigPath         string              `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
+	Tty                bool                `json:"tty"`
+	Network            *Network            `json:"network"`
+	Config             map[string][]string `json:"config"` //  generic values that specific drivers can consume
+	Resources          *Resources          `json:"resources"`
+	Mounts             []Mount             `json:"mounts"`
+	AllowedDevices     []*devices.Device   `json:"allowed_devices"`
+	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
 
 	Terminal     Terminal `json:"-"`             // standard or tty terminal
 	Console      string   `json:"-"`             // dev/console path

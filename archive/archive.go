@@ -1,14 +1,12 @@
 package archive
 
 import (
+	"bufio"
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,6 +15,10 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type (
@@ -26,6 +28,7 @@ type (
 	TarOptions    struct {
 		Includes    []string
 		Compression Compression
+		NoLchown    bool
 	}
 )
 
@@ -41,26 +44,16 @@ const (
 )
 
 func DetectCompression(source []byte) Compression {
-	sourceLen := len(source)
 	for compression, m := range map[Compression][]byte{
 		Bzip2: {0x42, 0x5A, 0x68},
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
 	} {
-		fail := false
-		if len(m) > sourceLen {
+		if len(source) < len(m) {
 			utils.Debugf("Len too short")
 			continue
 		}
-		i := 0
-		for _, b := range m {
-			if b != source[i] {
-				fail = true
-				break
-			}
-			i++
-		}
-		if !fail {
+		if bytes.Compare(m, source[:len(m)]) == 0 {
 			return compression
 		}
 	}
@@ -74,31 +67,24 @@ func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
 }
 
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	buf := make([]byte, 10)
-	totalN := 0
-	for totalN < 10 {
-		n, err := archive.Read(buf[totalN:])
-		if err != nil {
-			if err == io.EOF {
-				return nil, fmt.Errorf("Tarball too short")
-			}
-			return nil, err
-		}
-		totalN += n
-		utils.Debugf("[tar autodetect] n: %d", n)
+	buf := bufio.NewReader(archive)
+	bs, err := buf.Peek(10)
+	if err != nil {
+		return nil, err
 	}
-	compression := DetectCompression(buf)
-	wrap := io.MultiReader(bytes.NewReader(buf), archive)
+	utils.Debugf("[tar autodetect] n: %v", bs)
+
+	compression := DetectCompression(bs)
 
 	switch compression {
 	case Uncompressed:
-		return ioutil.NopCloser(wrap), nil
+		return ioutil.NopCloser(buf), nil
 	case Gzip:
-		return gzip.NewReader(wrap)
+		return gzip.NewReader(buf)
 	case Bzip2:
-		return ioutil.NopCloser(bzip2.NewReader(wrap)), nil
+		return ioutil.NopCloser(bzip2.NewReader(buf)), nil
 	case Xz:
-		return xzDecompress(wrap)
+		return xzDecompress(buf)
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -194,7 +180,7 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -255,7 +241,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
 
-	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
+	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil && Lchown {
 		return err
 	}
 
@@ -309,8 +295,11 @@ func escapeName(name string) string {
 	return string(escaped)
 }
 
-// Tar creates an archive from the directory at `path`, only including files whose relative
-// paths are included in `filter`. If `filter` is nil, then all files are included.
+// TarFilter creates an archive from the directory at `srcPath` with `options`, and returns it as a
+// stream of bytes.
+//
+// Files are included according to `options.Includes`, default to including all files.
+// Stream is compressed according to `options.Compression', default to Uncompressed.
 func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
@@ -418,14 +407,16 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		// the layer is also a directory. Then we want to merge them (i.e.
 		// just apply the metadata from the layer).
 		if fi, err := os.Lstat(path); err == nil {
+			if fi.IsDir() && hdr.Name == "." {
+				continue
+			}
 			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
 				if err := os.RemoveAll(path); err != nil {
 					return err
 				}
 			}
 		}
-
-		if err := createTarFile(path, dest, hdr, tr); err != nil {
+		if err := createTarFile(path, dest, hdr, tr, options == nil || !options.NoLchown); err != nil {
 			return err
 		}
 

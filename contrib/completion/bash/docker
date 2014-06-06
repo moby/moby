@@ -539,7 +539,7 @@ _docker_search()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--no-trunc -t --trusted -s --stars" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--no-trunc --automated -s --stars" -- "$cur" ) )
 			;;
 		*)
 			;;

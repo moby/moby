@@ -3,22 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/daemon"
 	"net"
 	"os/exec"
-	"path/filepath"
 	"testing"
+
+	"github.com/dotcloud/docker/daemon"
 )
 
 func TestNetworkNat(t *testing.T) {
-	ncPath, err := exec.LookPath("nc")
-	if err != nil {
-		t.Skip("Test not running with `make test`. Netcat not found: %s", err)
-	}
-	ncPath, err = filepath.EvalSymlinks(ncPath)
-	if err != nil {
-		t.Fatalf("Error resolving netcat symlink: %s", err)
-	}
 	iface, err := net.InterfaceByName("eth0")
 	if err != nil {
 		t.Skip("Test not running with `make test`. Interface eth0 not found: %s", err)
@@ -34,10 +26,7 @@ func TestNetworkNat(t *testing.T) {
 		t.Fatalf("Error retrieving the up for eth0: %s", err)
 	}
 
-	runCmd := exec.Command(dockerBinary, "run", "-d",
-		"-v", ncPath+":/bin/nc",
-		"-v", "/lib/x86_64-linux-gnu/libc.so.6:/lib/libc.so.6", "-v", "/lib/x86_64-linux-gnu/libresolv.so.2:/lib/libresolv.so.2", "-v", "/lib/x86_64-linux-gnu/libbsd.so.0:/lib/libbsd.so.0", "-v", "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2:/lib/ld-linux-x86-64.so.2",
-		"-p", "8080", "busybox", "/bin/nc", "-lp", "8080")
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "8080", "busybox", "nc", "-lp", "8080")
 	out, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, fmt.Sprintf("run1 failed with errors: %v (%s)", err, out))
 
@@ -60,10 +49,7 @@ func TestNetworkNat(t *testing.T) {
 		t.Fatal("Port 8080/tcp not found in NetworkSettings")
 	}
 
-	runCmd = exec.Command(dockerBinary, "run",
-		"-v", ncPath+":/bin/nc",
-		"-v", "/lib/x86_64-linux-gnu/libc.so.6:/lib/libc.so.6", "-v", "/lib/x86_64-linux-gnu/libresolv.so.2:/lib/libresolv.so.2", "-v", "/lib/x86_64-linux-gnu/libbsd.so.0:/lib/libbsd.so.0", "-v", "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2:/lib/ld-linux-x86-64.so.2",
-		"-p", "8080", "busybox", "sh", "-c", fmt.Sprintf("echo hello world | /bin/nc -w 30 %s %s", ifaceIp, port8080[0].HostPort))
+	runCmd = exec.Command(dockerBinary, "run", "-p", "8080", "busybox", "sh", "-c", fmt.Sprintf("echo hello world | nc -w 30 %s %s", ifaceIp, port8080[0].HostPort))
 	out, _, err = runCommandWithOutput(runCmd)
 	errorOut(err, t, fmt.Sprintf("run2 failed with errors: %v (%s)", err, out))
 

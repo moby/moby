@@ -12,6 +12,7 @@ techniques for installing Docker all the time.
  - [Ubuntu](ubuntulinux/)
  - [Red Hat Enterprise Linux](rhel/)
  - [Fedora](fedora/)
+ - [Debian](debian/)
  - [Arch Linux](archlinux/)
  - [CRUX Linux](cruxlinux/)
  - [Gentoo](gentoolinux/)

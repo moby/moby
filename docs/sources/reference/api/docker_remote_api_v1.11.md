@@ -7,9 +7,8 @@ page_keywords: API, Docker, rcli, REST, documentation
 ## 1. Brief introduction
 
  - The Remote API has replaced rcli
- - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [*Bind Docker to another host/port or a Unix socket*](
-   /use/basics/#bind-docker).
+ - The daemon listens on `unix:///var/run/docker.sock` but you can bind
+   Docker to another host/port or a Unix socket.
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout, stdin`
    and `stderr`
@@ -124,7 +123,6 @@ Create a container
              "Cmd":[
                      "date"
              ],
-             "Dns":null,
              "Image":"base",
              "Volumes":{
                      "/tmp": {}
@@ -411,7 +409,9 @@ Start the container `id`
              "LxcConf":{"lxc.utsname":"docker"},
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
-             "Privileged":false
+             "Privileged":false,
+             "Dns": ["8.8.8.8"],
+             "VolumesFrom": ["parent", "other:ro"]
         }
 
     **Example response**:
@@ -757,31 +757,6 @@ Create an image, either by pull it from the registry or by importing it
     -   **200** – no error
     -   **500** – server error
 
-### Insert a file in an image
-
-`POST /images/(name)/insert`
-
-Insert a file from `url` in the image `name` at `path`
-
-    **Example request**:
-
-        POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
-
-    **Example response**:
-
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {"status":"Inserting..."}
-        {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
-        {"error":"Invalid..."}
-        ...
-
-    Status Codes:
-
-    -   **200** – no error
-    -   **500** – server error
-
 ### Inspect an image
 
 `GET /images/(name)/json`
@@ -1063,6 +1038,7 @@ Build an image from Dockerfile via stdin
         the resulting image in case of success
     -   **q** – suppress verbose build output
     -   **nocache** – do not use the cache when building the image
+    -   **rm** - remove intermediate containers after a successful build
 
     Request Headers:
 
@@ -1358,4 +1334,4 @@ stdout and stderr on the same socket. This might change in the future.
 To enable cross origin requests to the remote api add the flag
 "–api-enable-cors" when running docker in daemon mode.
 
-    $ docker -d -H="192.168.1.9:4243" --api-enable-cors
+    $ docker -d -H="192.168.1.9:2375" --api-enable-cors

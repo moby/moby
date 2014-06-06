@@ -7,32 +7,51 @@ import (
 	"github.com/syndtr/gocapability/capability"
 )
 
-// DropCapabilities drops capabilities for the current process based
-// on the container's configuration.
-func DropCapabilities(container *libcontainer.Container) error {
-	if drop := getCapabilitiesMask(container); len(drop) > 0 {
-		c, err := capability.NewPid(os.Getpid())
-		if err != nil {
-			return err
-		}
-		c.Unset(capability.CAPS|capability.BOUNDS, drop...)
+const allCapabilityTypes = capability.CAPS | capability.BOUNDS
 
-		if err := c.Apply(capability.CAPS | capability.BOUNDS); err != nil {
-			return err
-		}
+// DropBoundingSet drops the capability bounding set to those specified in the
+// container configuration.
+func DropBoundingSet(container *libcontainer.Container) error {
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	keep := getEnabledCapabilities(container)
+	c.Clear(capability.BOUNDS)
+	c.Set(capability.BOUNDS, keep...)
+
+	if err := c.Apply(capability.BOUNDS); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DropCapabilities drops all capabilities for the current process expect those specified in the container configuration.
+func DropCapabilities(container *libcontainer.Container) error {
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	keep := getEnabledCapabilities(container)
+	c.Clear(allCapabilityTypes)
+	c.Set(allCapabilityTypes, keep...)
+
+	if err := c.Apply(allCapabilityTypes); err != nil {
+		return err
 	}
 	return nil
 }
 
-// getCapabilitiesMask returns the specific cap mask values for the libcontainer types
-func getCapabilitiesMask(container *libcontainer.Container) []capability.Cap {
-	drop := []capability.Cap{}
-	for key, enabled := range container.CapabilitiesMask {
-		if !enabled {
-			if c := libcontainer.GetCapability(key); c != nil {
-				drop = append(drop, c.Value)
-			}
+// getEnabledCapabilities returns the capabilities that should not be dropped by the container.
+func getEnabledCapabilities(container *libcontainer.Container) []capability.Cap {
+	keep := []capability.Cap{}
+	for _, capability := range container.Capabilities {
+		if c := libcontainer.GetCapability(capability); c != nil {
+			keep = append(keep, c.Value)
 		}
 	}
-	return drop
+	return keep
 }

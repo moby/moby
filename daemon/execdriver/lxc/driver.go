@@ -9,14 +9,16 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 )
@@ -25,6 +27,7 @@ const DriverName = "lxc"
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
+		runtime.LockOSThread()
 		if err := setupEnv(args); err != nil {
 			return err
 		}
@@ -159,6 +162,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.Path = aname
 	c.Args = append([]string{name}, arg...)
 
+	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
+		return -1, err
+	}
+
 	if err := c.Start(); err != nil {
 		return -1, err
 	}
@@ -167,6 +174,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		waitErr  error
 		waitLock = make(chan struct{})
 	)
+
 	go func() {
 		if err := c.Wait(); err != nil {
 			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
@@ -181,9 +189,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		if c.Process != nil {
 			c.Process.Kill()
+			c.Wait()
 		}
 		return -1, err
 	}
+
 	c.ContainerPid = pid
 
 	if startCallback != nil {
@@ -206,6 +216,30 @@ func getExitCode(c *execdriver.Command) int {
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return KillLxc(c.ID, sig)
+}
+
+func (d *driver) Pause(c *execdriver.Command) error {
+	_, err := exec.LookPath("lxc-freeze")
+	if err == nil {
+		output, errExec := exec.Command("lxc-freeze", "-n", c.ID).CombinedOutput()
+		if errExec != nil {
+			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+		}
+	}
+
+	return err
+}
+
+func (d *driver) Unpause(c *execdriver.Command) error {
+	_, err := exec.LookPath("lxc-unfreeze")
+	if err == nil {
+		output, errExec := exec.Command("lxc-unfreeze", "-n", c.ID).CombinedOutput()
+		if errExec != nil {
+			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+		}
+	}
+
+	return err
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
@@ -268,18 +302,14 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (in
 		}
 
 		output, err = d.getInfo(c.ID)
-		if err != nil {
-			output, err = d.getInfo(c.ID)
+		if err == nil {
+			info, err := parseLxcInfo(string(output))
 			if err != nil {
 				return -1, err
 			}
-		}
-		info, err := parseLxcInfo(string(output))
-		if err != nil {
-			return -1, err
-		}
-		if info.Running {
-			return info.Pid, nil
+			if info.Running {
+				return info.Pid, nil
+			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
