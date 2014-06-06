@@ -26,10 +26,10 @@ To see the man page for a command run **man docker <command>**.
 **-D**=*true*|*false*
    Enable debug mode. Default is false.
 
-**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host[:port]] to bind or
+**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
-   Enable both the socket support and TCP on localhost. When host=[0.0.0.0],
-port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
+   The socket(s) to bind to in daemon mode specified using one or more
+   tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
 **--api-enable-cors**=*true*|*false*
   Enable CORS headers in the remote API. Default is false.
@@ -73,7 +73,7 @@ port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
 
-**--selinux-enabled=*true*|*false*
+**--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false.
 
 # COMMANDS
@@ -81,7 +81,7 @@ port=[4243] or path =[/var/run/docker.sock] is omitted, default values are used.
   Attach to a running container
 
 **docker-build(1)**
-  Build a container from a Dockerfile
+  Build an image from a Dockerfile
 
 **docker-commit(1)**
   Create a new image from a container's changes

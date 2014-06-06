@@ -3,13 +3,15 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/utils"
 )
 
 const DEFAULTTAG = "latest"
@@ -18,6 +20,7 @@ type TagStore struct {
 	path         string
 	graph        *Graph
 	Repositories map[string]Repository
+	sync.Mutex
 }
 
 type Repository map[string]string
@@ -33,8 +36,8 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 		Repositories: make(map[string]Repository),
 	}
 	// Load the json file if it exists, otherwise create it.
-	if err := store.Reload(); os.IsNotExist(err) {
-		if err := store.Save(); err != nil {
+	if err := store.reload(); os.IsNotExist(err) {
+		if err := store.save(); err != nil {
 			return nil, err
 		}
 	} else if err != nil {
@@ -43,7 +46,7 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	return store, nil
 }
 
-func (store *TagStore) Save() error {
+func (store *TagStore) save() error {
 	// Store the json ball
 	jsonData, err := json.Marshal(store)
 	if err != nil {
@@ -55,7 +58,7 @@ func (store *TagStore) Save() error {
 	return nil
 }
 
-func (store *TagStore) Reload() error {
+func (store *TagStore) reload() error {
 	jsonData, err := ioutil.ReadFile(store.path)
 	if err != nil {
 		return err
@@ -74,6 +77,8 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 		tag = DEFAULTTAG
 	}
 	img, err := store.GetImage(repos, tag)
+	store.Lock()
+	defer store.Unlock()
 	if err != nil {
 		return nil, err
 	} else if img == nil {
@@ -87,6 +92,8 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 // Return a reverse-lookup table of all the names which refer to each image
 // Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
 func (store *TagStore) ByID() map[string][]string {
+	store.Lock()
+	defer store.Unlock()
 	byID := make(map[string][]string)
 	for repoName, repository := range store.Repositories {
 		for tag, id := range repository {
@@ -130,8 +137,10 @@ func (store *TagStore) DeleteAll(id string) error {
 }
 
 func (store *TagStore) Delete(repoName, tag string) (bool, error) {
+	store.Lock()
+	defer store.Unlock()
 	deleted := false
-	if err := store.Reload(); err != nil {
+	if err := store.reload(); err != nil {
 		return false, err
 	}
 	if r, exists := store.Repositories[repoName]; exists {
@@ -150,13 +159,15 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 			deleted = true
 		}
 	} else {
-		fmt.Errorf("No such repository: %s", repoName)
+		return false, fmt.Errorf("No such repository: %s", repoName)
 	}
-	return deleted, store.Save()
+	return deleted, store.save()
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	img, err := store.LookupImage(imageName)
+	store.Lock()
+	defer store.Unlock()
 	if err != nil {
 		return err
 	}
@@ -169,7 +180,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	if err := validateTagName(tag); err != nil {
 		return err
 	}
-	if err := store.Reload(); err != nil {
+	if err := store.reload(); err != nil {
 		return err
 	}
 	var repo Repository
@@ -183,11 +194,13 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		store.Repositories[repoName] = repo
 	}
 	repo[tag] = img.ID
-	return store.Save()
+	return store.save()
 }
 
 func (store *TagStore) Get(repoName string) (Repository, error) {
-	if err := store.Reload(); err != nil {
+	store.Lock()
+	defer store.Unlock()
+	if err := store.reload(); err != nil {
 		return nil, err
 	}
 	if r, exists := store.Repositories[repoName]; exists {
@@ -198,6 +211,8 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 
 func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) {
 	repo, err := store.Get(repoName)
+	store.Lock()
+	defer store.Unlock()
 	if err != nil {
 		return nil, err
 	} else if repo == nil {
@@ -213,6 +228,20 @@ func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) 
 		}
 	}
 	return nil, nil
+}
+
+func (store *TagStore) GetRepoRefs() map[string][]string {
+	store.Lock()
+	reporefs := make(map[string][]string)
+
+	for name, repository := range store.Repositories {
+		for tag, id := range repository {
+			shortID := utils.TruncateID(id)
+			reporefs[shortID] = append(reporefs[shortID], fmt.Sprintf("%s:%s", name, tag))
+		}
+	}
+	store.Unlock()
+	return reporefs
 }
 
 // Validate the name of a repository

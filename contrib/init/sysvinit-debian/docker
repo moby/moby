@@ -4,6 +4,8 @@
 # Provides:           docker
 # Required-Start:     $syslog $remote_fs
 # Required-Stop:      $syslog $remote_fs
+# Should-Start:       cgroupfs-mount cgroup-lite
+# Should-Stop:        cgroupfs-mount cgroup-lite
 # Default-Start:      2 3 4 5
 # Default-Stop:       0 1 6
 # Short-Description:  Create lightweight, portable, self-sufficient containers.

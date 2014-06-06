@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/dotcloud/docker/daemon/networkdriver"
 	"github.com/dotcloud/docker/daemon/networkdriver/ipallocator"
@@ -26,6 +27,24 @@ const (
 type networkInterface struct {
 	IP           net.IP
 	PortMappings []net.Addr // there are mappings to the host interfaces
+}
+
+type ifaces struct {
+	c map[string]*networkInterface
+	sync.Mutex
+}
+
+func (i *ifaces) Set(key string, n *networkInterface) {
+	i.Lock()
+	i.c[key] = n
+	i.Unlock()
+}
+
+func (i *ifaces) Get(key string) *networkInterface {
+	i.Lock()
+	res := i.c[key]
+	i.Unlock()
+	return res
 }
 
 var (
@@ -53,7 +72,7 @@ var (
 	bridgeNetwork *net.IPNet
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
-	currentInterfaces = make(map[string]*networkInterface)
+	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
 )
 
 func InitDriver(job *engine.Job) engine.Status {
@@ -321,9 +340,9 @@ func Allocate(job *engine.Job) engine.Status {
 	size, _ := bridgeNetwork.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
 
-	currentInterfaces[id] = &networkInterface{
+	currentInterfaces.Set(id, &networkInterface{
 		IP: *ip,
-	}
+	})
 
 	out.WriteTo(job.Stdout)
 
@@ -334,7 +353,7 @@ func Allocate(job *engine.Job) engine.Status {
 func Release(job *engine.Job) engine.Status {
 	var (
 		id                 = job.Args[0]
-		containerInterface = currentInterfaces[id]
+		containerInterface = currentInterfaces.Get(id)
 		ip                 net.IP
 		port               int
 		proto              string
@@ -380,39 +399,55 @@ func AllocatePort(job *engine.Job) engine.Status {
 		ip            = defaultBindingIP
 		id            = job.Args[0]
 		hostIP        = job.Getenv("HostIP")
-		hostPort      = job.GetenvInt("HostPort")
+		origHostPort  = job.GetenvInt("HostPort")
 		containerPort = job.GetenvInt("ContainerPort")
 		proto         = job.Getenv("Proto")
-		network       = currentInterfaces[id]
+		network       = currentInterfaces.Get(id)
 	)
 
 	if hostIP != "" {
 		ip = net.ParseIP(hostIP)
 	}
 
-	// host ip, proto, and host port
-	hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
-	if err != nil {
-		return job.Error(err)
-	}
-
 	var (
+		hostPort  int
 		container net.Addr
 		host      net.Addr
 	)
 
-	if proto == "tcp" {
-		host = &net.TCPAddr{IP: ip, Port: hostPort}
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
-	} else {
-		host = &net.UDPAddr{IP: ip, Port: hostPort}
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+	/*
+	 Try up to 10 times to get a port that's not already allocated.
+
+	 In the event of failure to bind, return the error that portmapper.Map
+	 yields.
+	*/
+	for i := 0; i < 10; i++ {
+		// host ip, proto, and host port
+		hostPort, err = portallocator.RequestPort(ip, proto, origHostPort)
+
+		if err != nil {
+			return job.Error(err)
+		}
+
+		if proto == "tcp" {
+			host = &net.TCPAddr{IP: ip, Port: hostPort}
+			container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			host = &net.UDPAddr{IP: ip, Port: hostPort}
+			container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		}
+
+		if err = portmapper.Map(container, ip, hostPort); err == nil {
+			break
+		}
+
+		job.Logf("Failed to bind %s:%d for container address %s:%d. Trying another port.", ip.String(), hostPort, network.IP.String(), containerPort)
 	}
 
-	if err := portmapper.Map(container, ip, hostPort); err != nil {
-		portallocator.ReleasePort(ip, proto, hostPort)
+	if err != nil {
 		return job.Error(err)
 	}
+
 	network.PortMappings = append(network.PortMappings, host)
 
 	out := engine.Env{}

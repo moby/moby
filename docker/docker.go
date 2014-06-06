@@ -41,6 +41,7 @@ func main() {
 	var (
 		flVersion            = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 		flDaemon             = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+		flGraphOpts          opts.ListOpts
 		flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 		flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
 		bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge\nuse 'none' to disable container networking")
@@ -69,6 +70,7 @@ func main() {
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
 	flag.Var(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode\nspecified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
+	flag.Var(&flGraphOpts, []string{"-storage-opt"}, "Set storage driver options")
 
 	flag.Parse()
 
@@ -98,6 +100,9 @@ func main() {
 	}
 
 	if *flDaemon {
+		if runtime.GOOS != "linux" {
+			log.Fatalf("The Docker daemon is only supported on linux")
+		}
 		if os.Geteuid() != 0 {
 			log.Fatalf("The Docker daemon needs to be run as root")
 		}
@@ -153,6 +158,7 @@ func main() {
 			job.Setenv("DefaultIp", *flDefaultIp)
 			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
 			job.Setenv("GraphDriver", *flGraphDriver)
+			job.SetenvList("GraphOptions", flGraphOpts.GetAll())
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
 			job.SetenvBool("EnableSelinuxSupport", *flSelinuxEnabled)
@@ -185,6 +191,7 @@ func main() {
 		job.Setenv("TlsCa", *flCa)
 		job.Setenv("TlsCert", *flCert)
 		job.Setenv("TlsKey", *flKey)
+		job.SetenvBool("BufferRequests", true)
 		if err := job.Run(); err != nil {
 			log.Fatal(err)
 		}

@@ -1,12 +1,14 @@
 package docker
 
 import (
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/server"
+	"bytes"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/server"
 )
 
 func TestCreateNumberHostname(t *testing.T) {
@@ -70,22 +72,22 @@ func TestMergeConfigOnCommit(t *testing.T) {
 	job.Setenv("repo", "testrepo")
 	job.Setenv("tag", "testtag")
 	job.SetenvJson("config", config)
-	var newId string
-	job.Stdout.AddString(&newId)
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		t.Error(err)
 	}
 
-	container2, _, _ := mkContainer(runtime, []string{newId}, t)
+	container2, _, _ := mkContainer(runtime, []string{engine.Tail(outputBuffer, 1)}, t)
 	defer runtime.Destroy(container2)
 
-	job = eng.Job("inspect", container1.Name, "container")
+	job = eng.Job("container_inspect", container1.Name)
 	baseContainer, _ := job.Stdout.AddEnv()
 	if err := job.Run(); err != nil {
 		t.Error(err)
 	}
 
-	job = eng.Job("inspect", container2.Name, "container")
+	job = eng.Job("container_inspect", container2.Name)
 	commitContainer, _ := job.Stdout.AddEnv()
 	if err := job.Run(); err != nil {
 		t.Error(err)
@@ -168,8 +170,6 @@ func TestRestartKillWait(t *testing.T) {
 
 	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
 		job = srv.Eng.Job("wait", outs.Data[0].Get("Id"))
-		var statusStr string
-		job.Stdout.AddString(&statusStr)
 		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
@@ -266,8 +266,6 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	job.Setenv("Memory", "524287")
 	job.Setenv("CpuShares", "1000")
 	job.SetenvList("Cmd", []string{"/bin/cat"})
-	var id string
-	job.Stdout.AddString(&id)
 	if err := job.Run(); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
 	}
@@ -302,13 +300,13 @@ func TestRmi(t *testing.T) {
 
 	job = eng.Job("commit", containerID)
 	job.Setenv("repo", "test")
-	var imageID string
-	job.Stdout.AddString(&imageID)
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := eng.Job("tag", imageID, "test", "0.1").Run(); err != nil {
+	if err := eng.Job("tag", engine.Tail(outputBuffer, 1), "test", "0.1").Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -339,7 +337,7 @@ func TestRmi(t *testing.T) {
 		t.Fatalf("Expected 2 new images, found %d.", images.Len()-initialImages.Len())
 	}
 
-	if err = srv.DeleteImage(imageID, engine.NewTable("", 0), true, false, false); err != nil {
+	if err = srv.DeleteImage(engine.Tail(outputBuffer, 1), engine.NewTable("", 0), true, false, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -397,28 +395,6 @@ func TestImagesFilter(t *testing.T) {
 
 	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
-	}
-}
-
-// FIXE: 'insert' is deprecated and should be removed in a future version.
-func TestImageInsert(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
-
-	// bad image name fails
-	if err := srv.Eng.Job("insert", "foo", "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err == nil {
-		t.Fatal("expected an error and got none")
-	}
-
-	// bad url fails
-	if err := srv.Eng.Job("insert", unitTestImageID, "http://bad_host_name_that_will_totally_fail.com/", "/foo").Run(); err == nil {
-		t.Fatal("expected an error and got none")
-	}
-
-	// success returns nil
-	if err := srv.Eng.Job("insert", unitTestImageID, "https://www.docker.io/static/img/docker-top-logo.png", "/foo").Run(); err != nil {
-		t.Fatalf("expected no error, but got %v", err)
 	}
 }
 

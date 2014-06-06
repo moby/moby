@@ -3,10 +3,12 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/term"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/dotcloud/docker/pkg/term"
+	"github.com/dotcloud/docker/pkg/units"
 )
 
 type JSONError struct {
@@ -41,11 +43,11 @@ func (p *JSONProgress) String() string {
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
-	current := HumanSize(int64(p.Current))
+	current := units.HumanSize(int64(p.Current))
 	if p.Total <= 0 {
 		return fmt.Sprintf("%8v", current)
 	}
-	total := HumanSize(int64(p.Total))
+	total := units.HumanSize(int64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
 	if width > 110 {
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage))

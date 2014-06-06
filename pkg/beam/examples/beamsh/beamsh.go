@@ -257,12 +257,12 @@ func Handlers(sink beam.Sender) (*beam.UnixConn, error) {
 				if handler == nil {
 					return
 				}
-				stdout, err := beam.SendPipe(conn, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", cmd...).Bytes())
+				stdout, err := beam.SendRPipe(conn, data.Empty().Set("cmd", "log", "stdout").Set("fromcmd", cmd...).Bytes())
 				if err != nil {
 					return
 				}
 				defer stdout.Close()
-				stderr, err := beam.SendPipe(conn, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", cmd...).Bytes())
+				stderr, err := beam.SendRPipe(conn, data.Empty().Set("cmd", "log", "stderr").Set("fromcmd", cmd...).Bytes())
 				if err != nil {
 					return
 				}

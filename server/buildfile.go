@@ -16,10 +16,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -49,6 +52,7 @@ type buildFile struct {
 	verbose      bool
 	utilizeCache bool
 	rm           bool
+	forceRm      bool
 
 	authConfig *registry.AuthConfig
 	configFile *registry.ConfigFile
@@ -336,7 +340,7 @@ func (b *buildFile) CmdInsert(args string) error {
 }
 
 func (b *buildFile) CmdCopy(args string) error {
-	return fmt.Errorf("COPY has been deprecated. Please use ADD instead")
+	return b.runContextCommand(args, false, false, "COPY")
 }
 
 func (b *buildFile) CmdWorkdir(workdir string) error {
@@ -395,24 +399,34 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *daemon.Container, orig, dest string, remote bool) error {
+func (b *buildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
 	var (
-		err      error
-		origPath = path.Join(b.contextPath, orig)
-		destPath = path.Join(container.RootfsPath(), dest)
+		err        error
+		destExists = true
+		origPath   = path.Join(b.contextPath, orig)
+		destPath   = path.Join(container.RootfsPath(), dest)
 	)
 
 	if destPath != container.RootfsPath() {
-		destPath, err = utils.FollowSymlinkInScope(destPath, container.RootfsPath())
+		destPath, err = symlink.FollowSymlinkInScope(destPath, container.RootfsPath())
 		if err != nil {
 			return err
 		}
 	}
 
 	// Preserve the trailing '/'
-	if strings.HasSuffix(dest, "/") {
+	if strings.HasSuffix(dest, "/") || dest == "." {
 		destPath = destPath + "/"
 	}
+
+	destStat, err := os.Stat(destPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		destExists = false
+	}
+
 	fi, err := os.Stat(origPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -421,45 +435,29 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return err
 	}
 
-	chownR := func(destPath string, uid, gid int) error {
-		return filepath.Walk(destPath, func(path string, info os.FileInfo, err error) error {
-			if err := os.Lchown(path, uid, gid); err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-
 	if fi.IsDir() {
-		if err := archive.CopyWithTar(origPath, destPath); err != nil {
-			return err
-		}
-		if err := chownR(destPath, 0, 0); err != nil {
-			return err
-		}
-		return nil
+		return copyAsDirectory(origPath, destPath, destExists)
 	}
 
-	// First try to unpack the source as an archive
-	// to support the untar feature we need to clean up the path a little bit
-	// because tar is very forgiving.  First we need to strip off the archive's
-	// filename from the path but this is only added if it does not end in / .
-	tarDest := destPath
-	if strings.HasSuffix(tarDest, "/") {
-		tarDest = filepath.Dir(destPath)
-	}
+	// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
+	if decompress {
+		// First try to unpack the source as an archive
+		// to support the untar feature we need to clean up the path a little bit
+		// because tar is very forgiving.  First we need to strip off the archive's
+		// filename from the path but this is only added if it does not end in / .
+		tarDest := destPath
+		if strings.HasSuffix(tarDest, "/") {
+			tarDest = filepath.Dir(destPath)
+		}
 
-	// If we are adding a remote file, do not try to untar it
-	if !remote {
 		// try to successfully untar the orig
 		if err := archive.UntarPath(origPath, tarDest); err == nil {
 			return nil
+		} else if err != io.EOF {
+			utils.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
 		}
-		utils.Debugf("Couldn't untar %s to %s: %s", origPath, destPath, err)
 	}
 
-	// If that fails, just copy it as a regular file
-	// but do not use all the magic path handling for the tar path
 	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 		return err
 	}
@@ -467,19 +465,21 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return err
 	}
 
-	if err := chownR(destPath, 0, 0); err != nil {
-		return err
+	resPath := destPath
+	if destExists && destStat.IsDir() {
+		resPath = path.Join(destPath, path.Base(origPath))
 	}
-	return nil
+
+	return fixPermissions(resPath, 0, 0)
 }
 
-func (b *buildFile) CmdAdd(args string) error {
+func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
-		return fmt.Errorf("No context given. Impossible to use ADD")
+		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid ADD format")
+		return fmt.Errorf("Invalid %s format", cmdName)
 	}
 
 	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
@@ -493,7 +493,8 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 
 	cmd := b.config.Cmd
-	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", orig, dest)}
+	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, orig, dest)}
+	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 	b.config.Image = b.image
 
 	var (
@@ -501,11 +502,14 @@ func (b *buildFile) CmdAdd(args string) error {
 		destPath   = dest
 		remoteHash string
 		isRemote   bool
+		decompress = true
 	)
 
-	if utils.IsURL(orig) {
+	isRemote = utils.IsURL(orig)
+	if isRemote && !allowRemote {
+		return fmt.Errorf("Source can't be an URL for %s", cmdName)
+	} else if utils.IsURL(orig) {
 		// Initiate the download
-		isRemote = true
 		resp, err := utils.Download(orig)
 		if err != nil {
 			return err
@@ -532,6 +536,11 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 		tmpFile.Close()
 
+		// Remove the mtime of the newly created tmp file
+		if err := system.UtimesNano(tmpFileName, make([]syscall.Timespec, 2)); err != nil {
+			return err
+		}
+
 		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// Process the checksum
@@ -539,7 +548,10 @@ func (b *buildFile) CmdAdd(args string) error {
 		if err != nil {
 			return err
 		}
-		tarSum := utils.TarSum{Reader: r, DisableCompression: true}
+		tarSum := &utils.TarSum{Reader: r, DisableCompression: true}
+		if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
+			return err
+		}
 		remoteHash = tarSum.Sum(nil)
 		r.Close()
 
@@ -599,7 +611,7 @@ func (b *buildFile) CmdAdd(args string) error {
 				hash = "file:" + h
 			}
 		}
-		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) ADD %s in %s", hash, dest)}
+		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, hash, dest)}
 		hit, err := b.probeCache()
 		if err != nil {
 			return err
@@ -610,7 +622,7 @@ func (b *buildFile) CmdAdd(args string) error {
 		}
 	}
 
-	// Create the container and start it
+	// Create the container
 	container, _, err := b.daemon.Create(b.config, "")
 	if err != nil {
 		return err
@@ -622,15 +634,21 @@ func (b *buildFile) CmdAdd(args string) error {
 	}
 	defer container.Unmount()
 
-	if err := b.addContext(container, origPath, destPath, isRemote); err != nil {
+	if !allowDecompression || isRemote {
+		decompress = false
+	}
+	if err := b.addContext(container, origPath, destPath, decompress); err != nil {
 		return err
 	}
 
-	if err := b.commit(container.ID, cmd, fmt.Sprintf("ADD %s in %s", orig, dest)); err != nil {
+	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, orig, dest)); err != nil {
 		return err
 	}
-	b.config.Cmd = cmd
 	return nil
+}
+
+func (b *buildFile) CmdAdd(args string) error {
+	return b.runContextCommand(args, true, true, "ADD")
 }
 
 func (b *buildFile) create() (*daemon.Container, error) {
@@ -639,7 +657,7 @@ func (b *buildFile) create() (*daemon.Container, error) {
 	}
 	b.config.Image = b.image
 
-	// Create the container and start it
+	// Create the container
 	c, _, err := b.daemon.Create(b.config, "")
 	if err != nil {
 		return nil, err
@@ -780,6 +798,9 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 			continue
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
+			if b.forceRm {
+				b.clearTmp(b.tmpContainers)
+			}
 			return "", err
 		} else if b.rm {
 			b.clearTmp(b.tmpContainers)
@@ -832,7 +853,38 @@ func stripComments(raw []byte) string {
 	return strings.Join(out, "\n")
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func copyAsDirectory(source, destination string, destinationExists bool) error {
+	if err := archive.CopyWithTar(source, destination); err != nil {
+		return err
+	}
+
+	if destinationExists {
+		files, err := ioutil.ReadDir(source)
+		if err != nil {
+			return err
+		}
+
+		for _, file := range files {
+			if err := fixPermissions(filepath.Join(destination, file.Name()), 0, 0); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return fixPermissions(destination, 0, 0)
+}
+
+func fixPermissions(destination string, uid, gid int) error {
+	return filepath.Walk(destination, func(path string, info os.FileInfo, err error) error {
+		if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	})
+}
+
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
@@ -844,6 +896,7 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		verbose:       verbose,
 		utilizeCache:  utilizeCache,
 		rm:            rm,
+		forceRm:       forceRm,
 		sf:            sf,
 		authConfig:    auth,
 		configFile:    authConfigFile,

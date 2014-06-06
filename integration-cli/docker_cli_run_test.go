@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -251,13 +252,13 @@ func TestDockerRunWorkingDirectory(t *testing.T) {
 
 // pinging Google's DNS resolver should fail when we disable the networking
 func TestDockerRunWithoutNetworking(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ping", "-c", "1", "8.8.8.8")
+	runCmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ping", "-c", "1", "8.8.8.8")
 	out, _, exitCode, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil && exitCode != 1 {
 		t.Fatal(out, err)
 	}
 	if exitCode != 1 {
-		t.Errorf("--networking=false should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
+		t.Errorf("--net=none should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
 	}
 
 	runCmd = exec.Command(dockerBinary, "run", "-n=false", "busybox", "ping", "-c", "1", "8.8.8.8")
@@ -271,7 +272,7 @@ func TestDockerRunWithoutNetworking(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - disable networking with --networking=false")
+	logDone("run - disable networking with --net=none")
 	logDone("run - disable networking with -n=false")
 }
 
@@ -438,7 +439,7 @@ func TestCreateVolume(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - create docker mangaed volume")
+	logDone("run - create docker managed volume")
 }
 
 // Test that creating a volume with a symlink in its path works correctly. Test for #5152.
@@ -544,6 +545,51 @@ func TestUserByID(t *testing.T) {
 	logDone("run - user by id")
 }
 
+func TestUserByIDBig(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "2147483648", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("No error, but must be.", out)
+	}
+	if !strings.Contains(out, "Uids and gids must be in range") {
+		t.Fatalf("expected error about uids range, got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id, id too big")
+}
+
+func TestUserByIDNegative(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "-1", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("No error, but must be.", out)
+	}
+	if !strings.Contains(out, "Uids and gids must be in range") {
+		t.Fatalf("expected error about uids range, got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id, id negative")
+}
+
+func TestUserByIDZero(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-u", "0", "busybox", "id")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root) groups=10(wheel)") {
+		t.Fatalf("expected daemon user got %s", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - user by id, zero uid")
+}
+
 func TestUserNotFound(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-u", "notme", "busybox", "id")
 
@@ -633,7 +679,7 @@ func TestContainerNetwork(t *testing.T) {
 
 // Issue #4681
 func TestLoopbackWhenNetworkDisabled(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ping", "-c", "1", "127.0.0.1")
+	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ping", "-c", "1", "127.0.0.1")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
@@ -644,18 +690,29 @@ func TestLoopbackWhenNetworkDisabled(t *testing.T) {
 }
 
 func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--networking=false", "busybox", "ip", "a", "show", "up")
+	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ip", "-o", "-4", "a", "show", "up")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
-	interfaces := regexp.MustCompile(`(?m)^[0-9]+: [a-zA-Z0-9]+`).FindAllString(out, -1)
-	if len(interfaces) != 1 {
-		t.Fatalf("Wrong interface count in test container: expected [*: lo], got %s", interfaces)
+	var (
+		count = 0
+		parts = strings.Split(out, "\n")
+	)
+
+	for _, l := range parts {
+		if l != "" {
+			count++
+		}
 	}
-	if !strings.HasSuffix(interfaces[0], ": lo") {
-		t.Fatalf("Wrong interface in test container: expected [*: lo], got %s", interfaces)
+
+	if count != 1 {
+		t.Fatalf("Wrong interface count in container %d", count)
+	}
+
+	if !strings.HasPrefix(out, "1: lo") {
+		t.Fatalf("Wrong interface in test container: expected [1: lo], got %s", out)
 	}
 
 	deleteAllContainers()
@@ -767,4 +824,64 @@ func TestProcWritableInPrivilegedContainers(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - proc writable in privileged container")
+}
+
+func TestRunWithCpuset(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cpuset", "0", "busybox", "true")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("container should run successfuly with cpuset of 0: %s", err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - cpuset 0")
+}
+
+func TestDeviceNumbers(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "ls -l /dev/null")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	deviceLineFields := strings.Fields(out)
+	deviceLineFields[6] = ""
+	deviceLineFields[7] = ""
+	deviceLineFields[8] = ""
+	expected := []string{"crw-rw-rw-", "1", "root", "root", "1,", "3", "", "", "", "/dev/null"}
+
+	if !(reflect.DeepEqual(deviceLineFields, expected)) {
+		t.Fatalf("expected output\ncrw-rw-rw- 1 root root 1, 3 May 24 13:29 /dev/null\n received\n %s\n", out)
+	}
+	deleteAllContainers()
+
+	logDone("run - test device numbers")
+}
+
+func TestThatCharacterDevicesActLikeCharacterDevices(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "dd if=/dev/zero of=/zero bs=1k count=5 2> /dev/null ; du -h /zero")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual[0] == '0' {
+		t.Fatalf("expected a new file called /zero to be create that is greater than 0 bytes long, but du says: %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test that character devices work.")
+}
+
+func TestRunUnprivilegedWithChroot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "chroot", "/", "true")
+
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - unprivileged with chroot")
 }

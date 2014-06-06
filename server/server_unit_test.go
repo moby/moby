@@ -1,9 +1,10 @@
 package server
 
 import (
-	"github.com/dotcloud/docker/utils"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 func TestPools(t *testing.T) {
@@ -47,14 +48,14 @@ func TestPools(t *testing.T) {
 func TestLogEvent(t *testing.T) {
 	srv := &Server{
 		events:    make([]utils.JSONMessage, 0, 64),
-		listeners: make(map[string]chan utils.JSONMessage),
+		listeners: make(map[int64]chan utils.JSONMessage),
 	}
 
 	srv.LogEvent("fakeaction", "fakeid", "fakeimage")
 
 	listener := make(chan utils.JSONMessage)
 	srv.Lock()
-	srv.listeners["test"] = listener
+	srv.listeners[1337] = listener
 	srv.Unlock()
 
 	srv.LogEvent("fakeaction2", "fakeid", "fakeimage")

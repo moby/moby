@@ -256,12 +256,43 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 	return jsonString, imageSize, nil
 }
 
-func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string) (io.ReadCloser, error) {
-	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/layer", nil)
+func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string, imgSize int64) (io.ReadCloser, error) {
+	var (
+		retries   = 5
+		headRes   *http.Response
+		hasResume bool = false
+		imageURL       = fmt.Sprintf("%simages/%s/layer", registry, imgID)
+	)
+	headReq, err := r.reqFactory.NewRequest("HEAD", imageURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
+	}
+	setTokenAuth(headReq, token)
+	for i := 1; i <= retries; i++ {
+		headRes, err = r.client.Do(headReq)
+		if err != nil && i == retries {
+			return nil, fmt.Errorf("Eror while making head request: %s\n", err)
+		} else if err != nil {
+			time.Sleep(time.Duration(i) * 5 * time.Second)
+			continue
+		}
+		break
+	}
+
+	if headRes.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
+		hasResume = true
+	}
+
+	req, err := r.reqFactory.NewRequest("GET", imageURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	setTokenAuth(req, token)
+	if hasResume {
+		utils.Debugf("server supports resume")
+		return utils.ResumableRequestReader(r.client, req, 5, imgSize), nil
+	}
+	utils.Debugf("server doesn't support resume")
 	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -725,8 +756,52 @@ type Registry struct {
 	indexEndpoint string
 }
 
+func trustedLocation(req *http.Request) bool {
+	var (
+		trusteds = []string{"docker.com", "docker.io"}
+		hostname = strings.SplitN(req.Host, ":", 2)[0]
+	)
+	if req.URL.Scheme != "https" {
+		return false
+	}
+
+	for _, trusted := range trusteds {
+		if strings.HasSuffix(hostname, trusted) {
+			return true
+		}
+	}
+	return false
+}
+
+func AddRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Request) error {
+	if via != nil && via[0] != nil {
+		if trustedLocation(req) && trustedLocation(via[0]) {
+			req.Header = via[0].Header
+		} else {
+			for k, v := range via[0].Header {
+				if k != "Authorization" {
+					for _, vv := range v {
+						req.Header.Add(k, vv)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
+	httpDial := func(proto string, addr string) (net.Conn, error) {
+		conn, err := net.Dial(proto, addr)
+		if err != nil {
+			return nil, err
+		}
+		conn = utils.NewTimeoutConn(conn, time.Duration(1)*time.Minute)
+		return conn, nil
+	}
+
 	httpTransport := &http.Transport{
+		Dial:              httpDial,
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
 	}
@@ -734,10 +809,12 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 	r = &Registry{
 		authConfig: authConfig,
 		client: &http.Client{
-			Transport: httpTransport,
+			Transport:     httpTransport,
+			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
 		},
 		indexEndpoint: indexEndpoint,
 	}
+
 	r.client.Jar, err = cookiejar.New(nil)
 	if err != nil {
 		return nil, err

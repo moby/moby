@@ -3,7 +3,6 @@ package lxc
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/daemon/execdriver"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -11,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 func TestLXCConfig(t *testing.T) {
@@ -47,6 +49,7 @@ func TestLXCConfig(t *testing.T) {
 			Mtu:       1500,
 			Interface: nil,
 		},
+		AllowedDevices: make([]*devices.Device, 0),
 	}
 	p, err := driver.generateLXCConfig(command)
 	if err != nil {

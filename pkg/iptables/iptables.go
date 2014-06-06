@@ -20,11 +20,16 @@ const (
 var (
 	ErrIptablesNotFound = errors.New("Iptables not found")
 	nat                 = []string{"-t", "nat"}
+	supportsXlock       = false
 )
 
 type Chain struct {
 	Name   string
 	Bridge string
+}
+
+func init() {
+	supportsXlock = exec.Command("iptables", "--wait", "-L", "-n").Run() == nil
 }
 
 func NewChain(name, bridge string) (*Chain, error) {
@@ -147,12 +152,24 @@ func Raw(args ...string) ([]byte, error) {
 	if err != nil {
 		return nil, ErrIptablesNotFound
 	}
-	if os.Getenv("DEBUG") != "" {
-		fmt.Printf("[DEBUG] [iptables]: %s, %v\n", path, args)
+
+	if supportsXlock {
+		args = append([]string{"--wait"}, args...)
 	}
+
+	if os.Getenv("DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s, %v\n", path, args))
+	}
+
 	output, err := exec.Command(path, args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
+
+	// ignore iptables' message about xtables lock
+	if strings.Contains(string(output), "waiting for it to exit") {
+		output = []byte("")
+	}
+
 	return output, err
 }

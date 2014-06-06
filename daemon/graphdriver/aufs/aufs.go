@@ -7,7 +7,7 @@ aufs driver directory structure
 │   ├── 1
 │   ├── 2
 │   └── 3
-├── diffs  // Content of the layer
+├── diff  // Content of the layer
 │   ├── 1  // Contains layers that need to be mounted for the id
 │   ├── 2
 │   └── 3
@@ -23,20 +23,26 @@ package aufs
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/label"
-	mountpk "github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/utils"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"sync"
+	"syscall"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/pkg/label"
+	mountpk "github.com/dotcloud/docker/pkg/mount"
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
+	incompatibleFsMagic = []graphdriver.FsMagic{
+		graphdriver.FsMagicBtrfs,
+		graphdriver.FsMagicAufs,
+	}
 )
 
 func init() {
@@ -51,11 +57,25 @@ type Driver struct {
 
 // New returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func Init(root string) (graphdriver.Driver, error) {
+func Init(root string, options []string) (graphdriver.Driver, error) {
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
-		return nil, err
+		return nil, graphdriver.ErrNotSupported
 	}
+
+	rootdir := path.Dir(root)
+
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(rootdir, &buf); err != nil {
+		return nil, fmt.Errorf("Couldn't stat the root directory: %s", err)
+	}
+
+	for _, magic := range incompatibleFsMagic {
+		if graphdriver.FsMagic(buf.Type) == magic {
+			return nil, graphdriver.ErrIncompatibleFS
+		}
+	}
+
 	paths := []string{
 		"mnt",
 		"diff",
@@ -74,6 +94,10 @@ func Init(root string) (graphdriver.Driver, error) {
 		if os.IsExist(err) {
 			return a, nil
 		}
+		return nil, err
+	}
+
+	if err := graphdriver.MakePrivate(root); err != nil {
 		return nil, err
 	}
 
@@ -351,12 +375,14 @@ func (a *Driver) Cleanup() error {
 	if err != nil {
 		return err
 	}
+
 	for _, id := range ids {
 		if err := a.unmount(id); err != nil {
 			utils.Errorf("Unmounting %s: %s", utils.TruncateID(id), err)
 		}
 	}
-	return nil
+
+	return mountpk.Unmount(a.root)
 }
 
 func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {

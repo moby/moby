@@ -123,3 +123,23 @@ func TestEnviron(t *testing.T) {
 		t.Fatalf("bar not found in the environ")
 	}
 }
+
+func TestMultiMap(t *testing.T) {
+	e := &Env{}
+	e.Set("foo", "bar")
+	e.Set("bar", "baz")
+	e.Set("hello", "world")
+	m := e.MultiMap()
+	e2 := &Env{}
+	e2.Set("old_key", "something something something")
+	e2.InitMultiMap(m)
+	if v := e2.Get("old_key"); v != "" {
+		t.Fatalf("%#v", v)
+	}
+	if v := e2.Get("bar"); v != "baz" {
+		t.Fatalf("%#v", v)
+	}
+	if v := e2.Get("hello"); v != "world" {
+		t.Fatalf("%#v", v)
+	}
+}

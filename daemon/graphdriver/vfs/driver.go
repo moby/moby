@@ -12,7 +12,7 @@ func init() {
 	graphdriver.Register("vfs", Init)
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
@@ -47,7 +47,7 @@ func (d *Driver) Create(id, parent string) error {
 	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
 		return err
 	}
-	if err := os.Mkdir(dir, 0700); err != nil {
+	if err := os.Mkdir(dir, 0755); err != nil {
 		return err
 	}
 	if parent == "" {

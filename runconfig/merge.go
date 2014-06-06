@@ -1,9 +1,10 @@
 package runconfig
 
 import (
+	"strings"
+
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/utils"
-	"strings"
 )
 
 func Merge(userConf, imageConf *Config) error {
@@ -65,15 +66,6 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if !userConf.Tty {
-		userConf.Tty = imageConf.Tty
-	}
-	if !userConf.OpenStdin {
-		userConf.OpenStdin = imageConf.OpenStdin
-	}
-	if !userConf.StdinOnce {
-		userConf.StdinOnce = imageConf.StdinOnce
-	}
 	if userConf.Env == nil || len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
@@ -91,6 +83,7 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
+
 	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
 		userConf.Cmd = imageConf.Cmd
 	}

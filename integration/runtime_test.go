@@ -3,6 +3,19 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"log"
+	"net"
+	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
@@ -10,18 +23,6 @@ import (
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
-	"io"
-	"log"
-	"net"
-	"net/url"
-	"os"
-	"path/filepath"
-	goruntime "runtime"
-	"strconv"
-	"strings"
-	"syscall"
-	"testing"
-	"time"
 )
 
 const (
@@ -127,15 +128,15 @@ func init() {
 	spawnGlobalDaemon()
 	spawnLegitHttpsDaemon()
 	spawnRogueHttpsDaemon()
-	startFds, startGoroutines = utils.GetTotalUsedFds(), goruntime.NumGoroutine()
+	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
 func setupBaseImage() {
 	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
-	job := eng.Job("inspect", unitTestImageName, "image")
+	job := eng.Job("image_inspect", unitTestImageName)
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
-	if err := job.Run(); err != nil || img.Get("id") != unitTestImageID {
+	if err := job.Run(); err != nil || img.Get("Id") != unitTestImageID {
 		// Retrieve the Image
 		job = eng.Job("pull", unitTestImageName)
 		job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
@@ -421,13 +422,14 @@ func TestGet(t *testing.T) {
 
 func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daemon.Container, string) {
 	var (
-		err     error
-		id      string
-		strPort string
-		eng     = NewTestEngine(t)
-		daemon  = mkDaemonFromEngine(eng, t)
-		port    = 5554
-		p       nat.Port
+		err          error
+		id           string
+		outputBuffer = bytes.NewBuffer(nil)
+		strPort      string
+		eng          = NewTestEngine(t)
+		daemon       = mkDaemonFromEngine(eng, t)
+		port         = 5554
+		p            nat.Port
 	)
 	defer func() {
 		if err != nil {
@@ -455,10 +457,11 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 		jobCreate.SetenvList("Cmd", []string{"sh", "-c", cmd})
 		jobCreate.SetenvList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
 		jobCreate.SetenvJson("ExposedPorts", ep)
-		jobCreate.Stdout.AddString(&id)
+		jobCreate.Stdout.Add(outputBuffer)
 		if err := jobCreate.Run(); err != nil {
 			t.Fatal(err)
 		}
+		id = engine.Tail(outputBuffer, 1)
 		// FIXME: this relies on the undocumented behavior of daemon.Create
 		// which will return a nil error AND container if the exposed ports
 		// are invalid. That behavior should be fixed!
@@ -720,12 +723,12 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var shortID string
+		var outputBuffer = bytes.NewBuffer(nil)
 		job := eng.Job("create", test.Name)
 		if err := job.ImportEnv(config); err != nil {
 			t.Fatal(err)
 		}
-		job.Stdout.AddString(&shortID)
+		job.Stdout.Add(outputBuffer)
 		if err := job.Run(); err != nil {
 			if !test.Valid {
 				continue
@@ -733,7 +736,7 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		container := daemon.Get(shortID)
+		container := daemon.Get(engine.Tail(outputBuffer, 1))
 
 		if container.Name != "/"+test.Name {
 			t.Fatalf("Expect /%s got %s", test.Name, container.Name)

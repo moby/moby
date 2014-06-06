@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,8 +23,10 @@ import (
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
+	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
@@ -81,42 +84,6 @@ type Container struct {
 	activeLinks map[string]*links.Link
 }
 
-// Inject the io.Reader at the given path. Note: do not close the reader
-func (container *Container) Inject(file io.Reader, pth string) error {
-	if err := container.Mount(); err != nil {
-		return fmt.Errorf("inject: error mounting container %s: %s", container.ID, err)
-	}
-	defer container.Unmount()
-
-	// Return error if path exists
-	destPath := path.Join(container.basefs, pth)
-	if _, err := os.Stat(destPath); err == nil {
-		// Since err is nil, the path could be stat'd and it exists
-		return fmt.Errorf("%s exists", pth)
-	} else if !os.IsNotExist(err) {
-		// Expect err might be that the file doesn't exist, so
-		// if it's some other error, return that.
-
-		return err
-	}
-
-	// Make sure the directory exists
-	if err := os.MkdirAll(path.Join(container.basefs, path.Dir(pth)), 0755); err != nil {
-		return err
-	}
-
-	dest, err := os.Create(destPath)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-
-	if _, err := io.Copy(dest, file); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (container *Container) FromDisk() error {
 	data, err := ioutil.ReadFile(container.jsonPath())
 	if err != nil {
@@ -170,6 +137,16 @@ func (container *Container) WriteHostConfig() (err error) {
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
 
+func (container *Container) getResourcePath(path string) string {
+	cleanPath := filepath.Join("/", path)
+	return filepath.Join(container.basefs, cleanPath)
+}
+
+func (container *Container) getRootResourcePath(path string) string {
+	cleanPath := filepath.Join("/", path)
+	return filepath.Join(container.root, cleanPath)
+}
+
 func populateCommand(c *Container, env []string) error {
 	var (
 		en      *execdriver.Network
@@ -215,20 +192,23 @@ func populateCommand(c *Container, env []string) error {
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
 		CpuShares:  c.Config.CpuShares,
+		Cpuset:     c.Config.Cpuset,
 	}
 	c.command = &execdriver.Command{
-		ID:         c.ID,
-		Privileged: c.hostConfig.Privileged,
-		Rootfs:     c.RootfsPath(),
-		InitPath:   "/.dockerinit",
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		WorkingDir: c.Config.WorkingDir,
-		Network:    en,
-		Tty:        c.Config.Tty,
-		User:       c.Config.User,
-		Config:     context,
-		Resources:  resources,
+		ID:                 c.ID,
+		Privileged:         c.hostConfig.Privileged,
+		Rootfs:             c.RootfsPath(),
+		InitPath:           "/.dockerinit",
+		Entrypoint:         c.Path,
+		Arguments:          c.Args,
+		WorkingDir:         c.Config.WorkingDir,
+		Network:            en,
+		Tty:                c.Config.Tty,
+		User:               c.Config.User,
+		Config:             context,
+		Resources:          resources,
+		AllowedDevices:     devices.DefaultAllowedDevices,
+		AutoCreatedDevices: devices.DefaultAutoCreatedDevices,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env
@@ -344,7 +324,7 @@ func (container *Container) StderrLogPipe() io.ReadCloser {
 }
 
 func (container *Container) buildHostnameFile() error {
-	container.HostnamePath = path.Join(container.root, "hostname")
+	container.HostnamePath = container.getRootResourcePath("hostname")
 	if container.Config.Domainname != "" {
 		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
 	}
@@ -356,7 +336,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 		return err
 	}
 
-	container.HostsPath = path.Join(container.root, "hosts")
+	container.HostsPath = container.getRootResourcePath("hosts")
 
 	extraContent := make(map[string]string)
 
@@ -455,6 +435,20 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		utils.Errorf("Error running container: %s", err)
 	}
 
+	// Cleanup
+	container.cleanup()
+
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	if container.daemon != nil && container.daemon.srv != nil {
+		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
+	}
+
+	close(container.waitLock)
+
 	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
 		container.State.SetStopped(exitCode)
 
@@ -469,20 +463,6 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 			utils.Errorf("Error dumping container state to disk: %s\n", err)
 		}
 	}
-
-	// Cleanup
-	container.cleanup()
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-
-	if container.daemon != nil && container.daemon.srv != nil {
-		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
-	}
-
-	close(container.waitLock)
 
 	return err
 }
@@ -522,10 +502,35 @@ func (container *Container) KillSig(sig int) error {
 	container.Lock()
 	defer container.Unlock()
 
+	// We could unpause the container for them rather than returning this error
+	if container.State.IsPaused() {
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
+	}
+
 	if !container.State.IsRunning() {
 		return nil
 	}
 	return container.daemon.Kill(container, sig)
+}
+
+func (container *Container) Pause() error {
+	if container.State.IsPaused() {
+		return fmt.Errorf("Container %s is already paused", container.ID)
+	}
+	if !container.State.IsRunning() {
+		return fmt.Errorf("Container %s is not running", container.ID)
+	}
+	return container.daemon.Pause(container)
+}
+
+func (container *Container) Unpause() error {
+	if !container.State.IsPaused() {
+		return fmt.Errorf("Container %s is not paused", container.ID)
+	}
+	if !container.State.IsRunning() {
+		return fmt.Errorf("Container %s is not running", container.ID)
+	}
+	return container.daemon.Unpause(container)
 }
 
 func (container *Container) Kill() error {
@@ -571,6 +576,7 @@ func (container *Container) Stop(seconds int) error {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
+			container.Wait()
 			return err
 		}
 	}
@@ -640,7 +646,7 @@ func (container *Container) Export() (archive.Archive, error) {
 }
 
 func (container *Container) WaitTimeout(timeout time.Duration) error {
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		container.Wait()
 		done <- true
@@ -659,6 +665,8 @@ func (container *Container) Mount() error {
 }
 
 func (container *Container) Changes() ([]archive.Change, error) {
+	container.Lock()
+	defer container.Unlock()
 	return container.daemon.Changes(container)
 }
 
@@ -674,7 +682,7 @@ func (container *Container) Unmount() error {
 }
 
 func (container *Container) logPath(name string) string {
-	return path.Join(container.root, fmt.Sprintf("%s-%s.log", container.ID, name))
+	return container.getRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
 }
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
@@ -682,11 +690,11 @@ func (container *Container) ReadLog(name string) (io.Reader, error) {
 }
 
 func (container *Container) hostConfigPath() string {
-	return path.Join(container.root, "hostconfig.json")
+	return container.getRootResourcePath("hostconfig.json")
 }
 
 func (container *Container) jsonPath() string {
-	return path.Join(container.root, "config.json")
+	return container.getRootResourcePath("config.json")
 }
 
 // This method must be exported to be used from the lxc template
@@ -745,8 +753,16 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+
 	var filter []string
-	basePath := path.Join(container.basefs, resource)
+
+	resPath := container.getResourcePath(resource)
+	basePath, err := symlink.FollowSymlinkInScope(resPath, container.basefs)
+	if err != nil {
+		container.Unmount()
+		return nil, err
+	}
+
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		container.Unmount()
@@ -766,6 +782,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		Includes:    filter,
 	})
 	if err != nil {
+		container.Unmount()
 		return nil, err
 	}
 	return utils.NewReadCloserWrapper(archive, func() error {
@@ -844,7 +861,7 @@ func (container *Container) setupContainerDns() error {
 		} else if len(daemon.config.DnsSearch) > 0 {
 			dnsSearch = daemon.config.DnsSearch
 		}
-		container.ResolvConfPath = path.Join(container.root, "resolv.conf")
+		container.ResolvConfPath = container.getRootResourcePath("resolv.conf")
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
@@ -865,9 +882,17 @@ func (container *Container) initializeNetworking() error {
 			container.Config.Hostname = parts[0]
 			container.Config.Domainname = parts[1]
 		}
-		container.HostsPath = "/etc/hosts"
 
-		return container.buildHostnameFile()
+		content, err := ioutil.ReadFile("/etc/hosts")
+		if os.IsNotExist(err) {
+			return container.buildHostnameAndHostsFiles("")
+		}
+		if err != nil {
+			return err
+		}
+
+		container.HostsPath = container.getRootResourcePath("hosts")
+		return ioutil.WriteFile(container.HostsPath, content, 0644)
 	} else if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()
@@ -982,12 +1007,12 @@ func (container *Container) setupWorkingDirectory() error {
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
 
-		pthInfo, err := os.Stat(path.Join(container.basefs, container.Config.WorkingDir))
+		pthInfo, err := os.Stat(container.getResourcePath(container.Config.WorkingDir))
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-			if err := os.MkdirAll(path.Join(container.basefs, container.Config.WorkingDir), 0755); err != nil {
+			if err := os.MkdirAll(container.getResourcePath(container.Config.WorkingDir), 0755); err != nil {
 				return err
 			}
 		}

@@ -14,8 +14,8 @@ docker-run - Run a process in an isolated container
 [**-e**|**--env**=*environment*] [**--entrypoint**=*command*]
 [**--expose**=*port*] [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**=*port-mappping*] [**-h**|**--hostname**=*hostname*]
-[**--rm**[=*false*]] [**--priviledged**[=*false*]
-[**-i**|**--interactive**[=*false*]
+[**--rm**[=*false*]] [**--privileged**[=*false*]]
+[**-i**|**--interactive**[=*false*]]
 [**-t**|**--tty**[=*false*]] [**--lxc-conf**=*options*]
 [**-n**|**--networking**[=*true*]]
 [**-v**|**--volume**=*volume*] [**--volumes-from**=*container-id*]
@@ -64,6 +64,9 @@ the other shell to view a list of the running containers. You can reattach to a
 detached container with **docker attach**. If you choose to run a container in
 the detached mode, then you cannot use the **-rm** option.
 
+   When attached in the tty mode, you can detach from a running container without
+stopping the process by pressing the keys CTRL-P CTRL-Q.
+
 
 **--dns**=*IP-address*
    Set custom DNS servers. This option can be used to override the DNS
@@ -100,8 +103,8 @@ container can be started with the **--link**.
 **-m**, **-memory**=*memory-limit*
    Allows you to constrain the memory available to a container. If the host
 supports swap memory, then the -m memory setting can be larger than physical
-RAM. The memory limit format: <number><optional unit>, where unit = b, k, m or
-g.
+RAM. If a limit of 0 is specified, the container's memory is not limited. The 
+memory limit format: <number><optional unit>, where unit = b, k, m or g.
 
 **-P**, **-publish-all**=*true*|*false*
    When set to true publish all exposed ports to the host interfaces. The
@@ -164,7 +167,7 @@ and foreground Docker containers.
 Docker container. This is because by default a container is not allowed to
 access any devices. A “privileged” container is given access to all devices.
 
-When the operator executes **docker run -privileged**, Docker will enable access
+When the operator executes **docker run --privileged**, Docker will enable access
 to all devices on the host as well as set some configuration in AppArmor to
 allow the container nearly all the same access to the host as processes running
 outside of a container on the host.
@@ -190,18 +193,28 @@ interactive shell. The default is value is false.
    Set a username or UID for the container.
 
 
-**-v**, **-volume**=*volume*
-   Bind mount a volume to the container. The **-v** option can be used one or
+**-v**, **-volume**=*volume*[:ro|:rw]
+   Bind mount a volume to the container. 
+
+The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
-used in other containers using the **--volumes-from** option. See examples.
+used in other containers using the **--volumes-from** option. 
 
+The volume may be optionally suffixed with :ro or :rw to mount the volumes in
+read-only or read-write mode, respectively. By default, the volumes are mounted
+read-write. See examples.
 
-**--volumes-from**=*container-id*
+**--volumes-from**=*container-id*[:ro|:rw]
    Will mount volumes from the specified container identified by container-id.
 Once a volume is mounted in a one container it can be shared with other
 containers using the **--volumes-from** option when running those other
 containers. The volumes can be shared even if the original container with the
-mount is not running.
+mount is not running. 
+
+The container ID may be optionally suffixed with :ro or 
+:rw to mount the volumes in read-only or read-write mode, respectively. By 
+default, the volumes are mounted in the same mode (read write or read only) as 
+the reference container.
 
 
 **-w**, **-workdir**=*directory*
@@ -227,7 +240,7 @@ can override the working directory by using the **-w** option.
 ## Exposing log messages from the container to the host's log
 
 If you want messages that are logged in your container to show up in the host's
-syslog/journal then you should bind mount the /var/log directory as follows.
+syslog/journal then you should bind mount the /dev/log directory as follows.
 
     # docker run -v /dev/log:/dev/log -i -t fedora /bin/bash
 
@@ -307,7 +320,7 @@ fedora-data image:
     # docker run --name=data -v /var/volume1 -v /tmp/volume2 -i -t fedora-data true
     # docker run --volumes-from=data --name=fedora-container1 -i -t fedora bash
 
-Multiple -volumes-from parameters will bring together multiple data volumes from
+Multiple --volumes-from parameters will bring together multiple data volumes from
 multiple containers. And it's possible to mount the volumes that came from the
 DATA container in yet another container via the fedora-container1 intermidiery
 container, allowing to abstract the actual data source from users of that data:

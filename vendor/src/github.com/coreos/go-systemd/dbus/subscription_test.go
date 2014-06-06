@@ -47,6 +47,7 @@ func TestSubscribeUnit(t *testing.T) {
 	evChan, errChan := conn.SubscribeUnits(time.Second)
 
 	setupUnit(target, conn, t)
+	linkUnit(target, conn, t)
 
 	job, err := conn.StartUnit(target, "replace")
 	if err != nil {

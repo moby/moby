@@ -18,7 +18,7 @@ set -e
 # - The right way to call this script is to invoke "make" from
 #   your checkout of the Docker repository.
 #   the Makefile will do a "docker build -t docker ." and then
-#   "docker run hack/make.sh" in the resulting container image.
+#   "docker run hack/make.sh" in the resulting image.
 #
 
 set -o pipefail
@@ -170,6 +170,7 @@ find_dirs() {
 			-o -wholename './.git' \
 			-o -wholename './bundles' \
 			-o -wholename './docs' \
+			-o -wholename './pkg/libcontainer/nsinit' \
 		\) \
 		-prune \
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u

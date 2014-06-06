@@ -3,11 +3,12 @@ package engine
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 // Installer is a standard interface for objects which can "install" themselves

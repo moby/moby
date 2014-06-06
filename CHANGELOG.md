@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.0 (2014-06-05)
+
+#### Notable features since 0.11.0
+* New `COPY` Dockerfile instruction to allow copying a local file from the context into the container without ever extracting if the file is a tar file
+* Inherit file permissions from the host on `ADD`
+* New `pause` and `unpause` commands to allow pausing and unpausing of containers using cgroup freezer
+* The `images` command has a `-f`/`--filter` option to filter the list of images
+* Add `--force-rm` to clean up after a failed build
+* Standardize JSON keys in Remote API to CamelCase
+* Pull from a docker run now assumes `latest` tag if not specified
+* Enhance security on Linux capabilities and device nodes
+
 ## 0.11.1 (2014-05-07)
 
 #### Registry

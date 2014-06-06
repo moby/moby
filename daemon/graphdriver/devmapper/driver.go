@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -26,15 +27,21 @@ type Driver struct {
 	home string
 }
 
-var Init = func(home string) (graphdriver.Driver, error) {
-	deviceSet, err := NewDeviceSet(home, true)
+func Init(home string, options []string) (graphdriver.Driver, error) {
+	deviceSet, err := NewDeviceSet(home, true, options)
 	if err != nil {
 		return nil, err
 	}
+
+	if err := graphdriver.MakePrivate(home); err != nil {
+		return nil, err
+	}
+
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
 	}
+
 	return d, nil
 }
 
@@ -58,7 +65,13 @@ func (d *Driver) Status() [][2]string {
 }
 
 func (d *Driver) Cleanup() error {
-	return d.DeviceSet.Shutdown()
+	err := d.DeviceSet.Shutdown()
+
+	if err2 := mount.Unmount(d.home); err == nil {
+		err = err2
+	}
+
+	return err
 }
 
 func (d *Driver) Create(id, parent string) error {
@@ -94,7 +107,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
 
 	// Create the target directories if they don't exist
-	if err := osMkdirAll(mp, 0755); err != nil && !osIsExist(err) {
+	if err := os.MkdirAll(mp, 0755); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 
@@ -104,13 +117,13 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	rootFs := path.Join(mp, "rootfs")
-	if err := osMkdirAll(rootFs, 0755); err != nil && !osIsExist(err) {
+	if err := os.MkdirAll(rootFs, 0755); err != nil && !os.IsExist(err) {
 		d.DeviceSet.UnmountDevice(id)
 		return "", err
 	}
 
 	idFile := path.Join(mp, "id")
-	if _, err := osStat(idFile); err != nil && osIsNotExist(err) {
+	if _, err := os.Stat(idFile); err != nil && os.IsNotExist(err) {
 		// Create an "id" file with the container/image id in it to help reconscruct this in case
 		// of later problems
 		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {

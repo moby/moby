@@ -4,46 +4,50 @@ package nodes
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
+	"github.com/dotcloud/docker/pkg/system"
 )
 
-// Default list of device nodes to copy
-var DefaultNodes = []string{
-	"null",
-	"zero",
-	"full",
-	"random",
-	"urandom",
-	"tty",
-}
-
-// CopyN copies the device node from the host into the rootfs
-func CopyN(rootfs string, nodesToCopy []string) error {
+// Create the device nodes in the container.
+func CreateDeviceNodes(rootfs string, nodesToCreate []*devices.Device) error {
 	oldMask := system.Umask(0000)
 	defer system.Umask(oldMask)
 
-	for _, node := range nodesToCopy {
-		if err := Copy(rootfs, node); err != nil {
+	for _, node := range nodesToCreate {
+		if err := CreateDeviceNode(rootfs, node); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func Copy(rootfs, node string) error {
-	stat, err := os.Stat(filepath.Join("/dev", node))
-	if err != nil {
+// Creates the device node in the rootfs of the container.
+func CreateDeviceNode(rootfs string, node *devices.Device) error {
+	var (
+		dest   = filepath.Join(rootfs, node.Path)
+		parent = filepath.Dir(dest)
+	)
+
+	if err := os.MkdirAll(parent, 0755); err != nil {
 		return err
 	}
-	var (
-		dest = filepath.Join(rootfs, "dev", node)
-		st   = stat.Sys().(*syscall.Stat_t)
-	)
-	if err := system.Mknod(dest, st.Mode, int(st.Rdev)); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("copy %s %s", node, err)
+
+	fileMode := node.FileMode
+	switch node.Type {
+	case 'c':
+		fileMode |= syscall.S_IFCHR
+	case 'b':
+		fileMode |= syscall.S_IFBLK
+	default:
+		return fmt.Errorf("%c is not a valid device type for device %s", node.Type, node.Path)
+	}
+
+	if err := system.Mknod(dest, uint32(fileMode), devices.Mkdev(node.MajorNumber, node.MinorNumber)); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("mknod %s %s", node.Path, err)
 	}
 	return nil
 }

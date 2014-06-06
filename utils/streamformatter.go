@@ -8,11 +8,10 @@ import (
 
 type StreamFormatter struct {
 	json bool
-	used bool
 }
 
 func NewStreamFormatter(json bool) *StreamFormatter {
-	return &StreamFormatter{json, false}
+	return &StreamFormatter{json}
 }
 
 const streamNewline = "\r\n"
@@ -20,7 +19,6 @@ const streamNewline = "\r\n"
 var streamNewlineBytes = []byte(streamNewline)
 
 func (sf *StreamFormatter) FormatStream(str string) []byte {
-	sf.used = true
 	if sf.json {
 		b, err := json.Marshal(&JSONMessage{Stream: str})
 		if err != nil {
@@ -32,7 +30,6 @@ func (sf *StreamFormatter) FormatStream(str string) []byte {
 }
 
 func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
-	sf.used = true
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
 		b, err := json.Marshal(&JSONMessage{ID: id, Status: str})
@@ -45,7 +42,6 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 }
 
 func (sf *StreamFormatter) FormatError(err error) []byte {
-	sf.used = true
 	if sf.json {
 		jsonError, ok := err.(*JSONError)
 		if !ok {
@@ -63,7 +59,6 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgr
 	if progress == nil {
 		progress = &JSONProgress{}
 	}
-	sf.used = true
 	if sf.json {
 
 		b, err := json.Marshal(&JSONMessage{
@@ -82,10 +77,6 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgr
 		endl += "\n"
 	}
 	return []byte(action + " " + progress.String() + endl)
-}
-
-func (sf *StreamFormatter) Used() bool {
-	return sf.used
 }
 
 func (sf *StreamFormatter) Json() bool {

@@ -8,7 +8,7 @@ import (
 
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
-	pullCmd := exec.Command(dockerBinary, "pull", "busybox")
+	pullCmd := exec.Command(dockerBinary, "pull", "busybox:latest")
 	out, exitCode, err := runCommandWithOutput(pullCmd)
 	errorOut(err, t, fmt.Sprintf("%s %s", out, err))
 

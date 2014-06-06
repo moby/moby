@@ -16,11 +16,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/dotcloud/docker/dockerversion"
@@ -81,79 +81,6 @@ func Debugf(format string, a ...interface{}) {
 
 func Errorf(format string, a ...interface{}) {
 	logf("error", format, a...)
-}
-
-// HumanDuration returns a human-readable approximation of a duration
-// (eg. "About a minute", "4 hours ago", etc.)
-func HumanDuration(d time.Duration) string {
-	if seconds := int(d.Seconds()); seconds < 1 {
-		return "Less than a second"
-	} else if seconds < 60 {
-		return fmt.Sprintf("%d seconds", seconds)
-	} else if minutes := int(d.Minutes()); minutes == 1 {
-		return "About a minute"
-	} else if minutes < 60 {
-		return fmt.Sprintf("%d minutes", minutes)
-	} else if hours := int(d.Hours()); hours == 1 {
-		return "About an hour"
-	} else if hours < 48 {
-		return fmt.Sprintf("%d hours", hours)
-	} else if hours < 24*7*2 {
-		return fmt.Sprintf("%d days", hours/24)
-	} else if hours < 24*30*3 {
-		return fmt.Sprintf("%d weeks", hours/24/7)
-	} else if hours < 24*365*2 {
-		return fmt.Sprintf("%d months", hours/24/30)
-	}
-	return fmt.Sprintf("%f years", d.Hours()/24/365)
-}
-
-// HumanSize returns a human-readable approximation of a size
-// using SI standard (eg. "44kB", "17MB")
-func HumanSize(size int64) string {
-	i := 0
-	var sizef float64
-	sizef = float64(size)
-	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
-	for sizef >= 1000.0 {
-		sizef = sizef / 1000.0
-		i++
-	}
-	return fmt.Sprintf("%.4g %s", sizef, units[i])
-}
-
-// Parses a human-readable string representing an amount of RAM
-// in bytes, kibibytes, mebibytes or gibibytes, and returns the
-// number of bytes, or -1 if the string is unparseable.
-// Units are case-insensitive, and the 'b' suffix is optional.
-func RAMInBytes(size string) (bytes int64, err error) {
-	re, error := regexp.Compile("^(\\d+)([kKmMgG])?[bB]?$")
-	if error != nil {
-		return -1, error
-	}
-
-	matches := re.FindStringSubmatch(size)
-
-	if len(matches) != 3 {
-		return -1, fmt.Errorf("Invalid size: '%s'", size)
-	}
-
-	memLimit, error := strconv.ParseInt(matches[1], 10, 0)
-	if error != nil {
-		return -1, error
-	}
-
-	unit := strings.ToLower(matches[2])
-
-	if unit == "k" {
-		memLimit *= 1024
-	} else if unit == "m" {
-		memLimit *= 1024 * 1024
-	} else if unit == "g" {
-		memLimit *= 1024 * 1024 * 1024
-	}
-
-	return memLimit, nil
 }
 
 func Trunc(s string, maxlen int) string {
@@ -492,9 +419,7 @@ func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	return
 }
 
-func (idx *TruncIndex) Add(id string) error {
-	idx.Lock()
-	defer idx.Unlock()
+func (idx *TruncIndex) addId(id string) error {
 	if strings.Contains(id, " ") {
 		return fmt.Errorf("Illegal character: ' '")
 	}
@@ -503,8 +428,29 @@ func (idx *TruncIndex) Add(id string) error {
 	}
 	idx.ids[id] = true
 	idx.bytes = append(idx.bytes, []byte(id+" ")...)
+	return nil
+}
+
+func (idx *TruncIndex) Add(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
+	if err := idx.addId(id); err != nil {
+		return err
+	}
 	idx.index = suffixarray.New(idx.bytes)
 	return nil
+}
+
+func (idx *TruncIndex) AddWithoutSuffixarrayUpdate(id string) error {
+	idx.Lock()
+	defer idx.Unlock()
+	return idx.addId(id)
+}
+
+func (idx *TruncIndex) UpdateSuffixarray() {
+	idx.Lock()
+	defer idx.Unlock()
+	idx.index = suffixarray.New(idx.bytes)
 }
 
 func (idx *TruncIndex) Delete(id string) error {
@@ -568,7 +514,7 @@ func GenerateRandomID() string {
 		// if we try to parse the truncated for as an int and we don't have
 		// an error then the value is all numberic and causes issues when
 		// used as a hostname. ref #3869
-		if _, err := strconv.Atoi(TruncateID(value)); err == nil {
+		if _, err := strconv.ParseInt(TruncateID(value), 10, 64); err == nil {
 			continue
 		}
 		return value
@@ -875,22 +821,6 @@ func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
 	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
 }
 
-func GetReleaseVersion() string {
-	resp, err := http.Get("https://get.docker.io/latest")
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	if resp.ContentLength > 24 || resp.StatusCode != 200 {
-		return ""
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(body))
-}
-
 // Get a repos name and returns the right reposName + tag
 // The tag can be confusing because of a port in a repository name.
 //     Ex: localhost.localdomain:5000/samalba/hipache:latest
@@ -1090,4 +1020,71 @@ func ParseKeyValueOpt(opt string) (string, string, error) {
 		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
 	}
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
+}
+
+// TreeSize walks a directory tree and returns its total size in bytes.
+func TreeSize(dir string) (size int64, err error) {
+	data := make(map[uint64]struct{})
+	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, e error) error {
+		// Ignore directory sizes
+		if fileInfo == nil {
+			return nil
+		}
+
+		s := fileInfo.Size()
+		if fileInfo.IsDir() || s == 0 {
+			return nil
+		}
+
+		// Check inode to handle hard links correctly
+		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
+		// inode is not a uint64 on all platforms. Cast it to avoid issues.
+		if _, exists := data[uint64(inode)]; exists {
+			return nil
+		}
+		// inode is not a uint64 on all platforms. Cast it to avoid issues.
+		data[uint64(inode)] = struct{}{}
+
+		size += s
+
+		return nil
+	})
+	return
+}
+
+// ValidateContextDirectory checks if all the contents of the directory
+// can be read and returns an error if some files can't be read
+// symlinks which point to non-existing files don't trigger an error
+func ValidateContextDirectory(srcPath string) error {
+	var finalError error
+
+	filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
+		// skip this directory/file if it's not in the path, it won't get added to the context
+		_, err = filepath.Rel(srcPath, filePath)
+		if err != nil && os.IsPermission(err) {
+			return nil
+		}
+
+		if _, err := os.Stat(filePath); err != nil && os.IsPermission(err) {
+			finalError = fmt.Errorf("can't stat '%s'", filePath)
+			return err
+		}
+		// skip checking if symlinks point to non-existing files, such symlinks can be useful
+		lstat, _ := os.Lstat(filePath)
+		if lstat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return err
+		}
+
+		if !f.IsDir() {
+			currentFile, err := os.Open(filePath)
+			if err != nil && os.IsPermission(err) {
+				finalError = fmt.Errorf("no permission to read from '%s'", filePath)
+				return err
+			} else {
+				currentFile.Close()
+			}
+		}
+		return nil
+	})
+	return finalError
 }

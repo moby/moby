@@ -1,14 +1,10 @@
-page_title: Running a Node.js app on CentOS
-page_description: Installing and running a Node.js app on CentOS
+page_title: Dockerizing a Node.js Web App
+page_description: Installing and running a Node.js app with Docker
 page_keywords: docker, example, package installation, node, centos
 
-# Node.js Web App
+# Dockerizing a Node.js Web App
 
 > **Note**: 
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#dockergroup)
 
@@ -16,7 +12,7 @@ The goal of this example is to show you how you can build your own
 Docker images from a parent image using a `Dockerfile`
 . We will do that by making a simple Node.js hello world web
 application running on CentOS. You can get the full source code at
-[https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
+[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).
 
 ## Create Node.js app
 
@@ -187,11 +183,10 @@ Now you can call your app using `curl` (install if needed via:
     Content-Length: 12
     Date: Sun, 02 Jun 2013 03:53:22 GMT
     Connection: keep-alive
-    
+
     Hello World
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at
 [https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
 
-Continue to [*Redis Service*](../running_redis_service/#running-redis-service).

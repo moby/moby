@@ -39,7 +39,7 @@ CPU shares in relative weight. You can increase the priority of a container with
 
 .TP
 .B -m, --memory=\fImemory-limit\fR: 
-Allows you to constrain the memory available to a container. If the host supports swap memory, then the -m memory setting can be larger than physical RAM. The memory limit format: <number><optional unit>, where unit = b, k, m or g.
+Allows you to constrain the memory available to a container. If the host supports swap memory, then the -m memory setting can be larger than physical RAM. If a limit of 0 is specified, the container's memory is not limited. The memory limit format: <number><optional unit>, where unit = b, k, m or g.
 
 .TP
 .B --cidfile=\fIfile\fR: 
@@ -245,7 +245,7 @@ docker run --volumes-from=data --name=fedora-container1 -i -t fedora bash
 .RE
 .sp
 .TP
-Multiple -volumes-from parameters will bring together multiple data volumes from multiple containers. And it's possible to mount the volumes that came from the DATA container in yet another container via the fedora-container1 intermidiery container, allowing to abstract the actual data source from users of that data:
+Multiple --volumes-from parameters will bring together multiple data volumes from multiple containers. And it's possible to mount the volumes that came from the DATA container in yet another container via the fedora-container1 intermidiery container, allowing to abstract the actual data source from users of that data:
 .sp
 .RS
 docker run --volumes-from=fedora-container1 --name=fedora-container2 -i -t fedora bash

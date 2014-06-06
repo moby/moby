@@ -536,7 +536,6 @@ func TestGetContainersByName(t *testing.T) {
 func TestPostCommit(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
-	srv := mkServerFromEngine(eng, t)
 
 	// Create a container and remove a file
 	containerID := createTestContainer(eng,
@@ -567,7 +566,7 @@ func TestPostCommit(t *testing.T) {
 	if err := env.Decode(r.Body); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := srv.ImageInspect(env.Get("Id")); err != nil {
+	if err := eng.Job("image_inspect", env.Get("Id")).Run(); err != nil {
 		t.Fatalf("The image has not been committed")
 	}
 }

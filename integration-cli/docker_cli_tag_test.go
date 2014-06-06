@@ -27,7 +27,7 @@ func TestTagUnprefixedRepoByName(t *testing.T) {
 
 // tagging an image by ID in a new unprefixed repo should work
 func TestTagUnprefixedRepoByID(t *testing.T) {
-	getIDCmd := exec.Command(dockerBinary, "inspect", "-f", "{{.id}}", "busybox")
+	getIDCmd := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox")
 	out, _, err := runCommandWithOutput(getIDCmd)
 	errorOut(err, t, fmt.Sprintf("failed to get the image ID of busybox: %v", err))
 
