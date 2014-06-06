@@ -16,6 +16,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/systemd"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/libcontainer/namespaces"
 	"github.com/dotcloud/docker/pkg/system"
 )
@@ -82,7 +83,19 @@ func NewDriver(root, initPath string) (*driver, error) {
 	}, nil
 }
 
-func (d *driver) AddDevice(c *execdriver.Command, devType rune, devMajor int64, devMinor int64) error {
+func (d *driver) AddDevice(c *execdriver.Command, path string, devType rune, devMajor int64, devMinor int64) error {
+	device := &devices.Device{
+		Type:              devType,
+		Path:              path,
+		MajorNumber:       devMajor,
+		MinorNumber:       devMinor,
+		CgroupPermissions: "rwm",
+		FileMode:          0644,
+	}
+
+	c.AllowedDevices = append(c.AllowedDevices, device)
+	c.AutoCreatedDevices = append(c.AutoCreatedDevices, device)
+
 	return nil
 }
 

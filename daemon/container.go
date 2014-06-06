@@ -275,7 +275,6 @@ func (container *Container) createDevices() error {
 		if err != nil {
 			return err
 		}
-		dst = path.Join(container.RootfsPath(), dst)
 
 		stat, err := os.Stat(src)
 		if err != nil {
@@ -303,18 +302,9 @@ func (container *Container) createDevices() error {
 			return fmt.Errorf("Cannot determine the device major and minor numbers")
 		}
 
-		oldMask := syscall.Umask(int(0))
-		if err := os.MkdirAll(path.Dir(dst), 0755); err != nil {
-			return err
-		}
-		if err := syscall.Mknod(dst, uint32(perm), devNumber); err != nil {
-			return err
-		}
-		syscall.Umask(oldMask)
-
 		devMajor := int64((devNumber >> 8) & 0xfff)
 		devMinor := int64((devNumber & 0xff) | ((devNumber >> 12) & 0xfff00))
-		if err := container.daemon.execDriver.AddDevice(container.command, devType, devMajor, devMinor); err != nil {
+		if err := container.daemon.execDriver.AddDevice(container.command, dst, devType, devMajor, devMinor); err != nil {
 			return err
 		}
 	}

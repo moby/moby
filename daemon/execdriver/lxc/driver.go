@@ -18,6 +18,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
+	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
@@ -85,7 +86,17 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
-func (d *driver) AddDevice(c *execdriver.Command, devType rune, devMajor int64, devMinor int64) error {
+func (d *driver) AddDevice(c *execdriver.Command, path string, devType rune, devMajor int64, devMinor int64) error {
+	device := &devices.Device{
+		Type:              devType,
+		Path:              path,
+		MajorNumber:       devMajor,
+		MinorNumber:       devMinor,
+		CgroupPermissions: "rwm",
+		FileMode:          0644,
+	}
+	c.AutoCreatedDevices = append(c.AutoCreatedDevices, device)
+
 	c.Config["lxc"] = append(c.Config["lxc"], fmt.Sprintf("cgroup.devices.allow = %c %d:%d rwm",
 		devType, devMajor, devMinor))
 
