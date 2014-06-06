@@ -224,7 +224,7 @@ func TestRunDisconnect(t *testing.T) {
 	// cause /bin/cat to exit.
 	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
 		container := globalDaemon.List()[0]
-		container.Wait()
+		container.State.WaitStop(-1 * time.Second)
 		if container.State.IsRunning() {
 			t.Fatalf("/bin/cat is still running after closing stdin")
 		}
@@ -276,7 +276,7 @@ func TestRunDisconnectTty(t *testing.T) {
 	// In tty mode, we expect the process to stay alive even after client's stdin closes.
 
 	// Give some time to monitor to do his thing
-	container.WaitTimeout(500 * time.Millisecond)
+	container.State.WaitStop(500 * time.Millisecond)
 	if !container.State.IsRunning() {
 		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
 	}
@@ -535,7 +535,7 @@ func TestAttachDisconnect(t *testing.T) {
 
 	// We closed stdin, expect /bin/cat to still be running
 	// Wait a little bit to make sure container.monitor() did his thing
-	err := container.WaitTimeout(500 * time.Millisecond)
+	_, err := container.State.WaitStop(500 * time.Millisecond)
 	if err == nil || !container.State.IsRunning() {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
@@ -543,7 +543,7 @@ func TestAttachDisconnect(t *testing.T) {
 	// Try to avoid the timeout in destroy. Best effort, don't check error
 	cStdin, _ := container.StdinPipe()
 	cStdin.Close()
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 }
 
 // Expected behaviour: container gets deleted automatically after exit

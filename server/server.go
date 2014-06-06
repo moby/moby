@@ -2123,7 +2123,7 @@ func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := srv.daemon.Get(name); container != nil {
-		status := container.Wait()
+		status, _ := container.State.WaitStop(-1 * time.Second)
 		job.Printf("%d\n", status)
 		return engine.StatusOK
 	}
@@ -2336,7 +2336,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {
-			container.Wait()
+			container.State.WaitStop(-1 * time.Second)
 		}
 	}
 	return engine.StatusOK

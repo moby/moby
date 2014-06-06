@@ -75,7 +75,7 @@ func (s *State) WaitRunning(timeout time.Duration) (int, error) {
 
 // WaitStop waits until state is stopped. If state already stopped it returns
 // immediatly. If you want wait forever you must supply negative timeout.
-// Returns exit code, that was passed to SetRunning
+// Returns exit code, that was passed to SetStopped
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.RLock()
 	if !s.Running {

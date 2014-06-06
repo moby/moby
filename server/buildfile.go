@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
@@ -696,7 +697,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 	}
 
 	// Wait for it to finish
-	if ret := c.Wait(); ret != 0 {
+	if ret, _ := c.State.WaitStop(-1 * time.Second); ret != 0 {
 		err := &utils.JSONError{
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
 			Code:    ret,
