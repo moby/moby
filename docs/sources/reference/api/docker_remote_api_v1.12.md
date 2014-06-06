@@ -1164,6 +1164,7 @@ Show the docker version information
         Content-Type: application/json
 
         {
+             "ApiVersion":"1.12",
              "Version":"0.2.2",
              "GitCommit":"5a2a5cc+CHANGES",
              "GoVersion":"go1.0.3"
