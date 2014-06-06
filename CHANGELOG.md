@@ -9,6 +9,7 @@
 
 #### Notable features since 0.10.0
 
+* 40+ various improvements to stability, performance and usability
 * SELinux support for mount and process labels
 * Linked containers can be accessed by hostname
 * Use the net `--net` flag to allow advanced network configuration such as host networking so that containers can use the host's network interfaces
