@@ -187,6 +187,7 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 	}
 	if started == currentStartTime {
 		err = syscall.Kill(p.Process.Pid, 9)
+		syscall.Wait4(p.Process.Pid, nil, 0, nil)
 	}
 	d.removeContainerRoot(p.ID)
 	return err
