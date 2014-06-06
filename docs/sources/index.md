@@ -40,11 +40,11 @@ Docker consists of:
       time of development, testing, and deployment.
 
 - **Deploy and scale more easily**  
-    * Docker containers run (almost!) everywhere. You can deploy your
+    * Docker containers run (almost) everywhere. You can deploy
       containers on desktops, physical servers, virtual machines, into
       data centers, and up to public and private clouds.
     * Since Docker runs on so many platforms, it's easy to move your
-      appications around. You can easily move an application from a
+      applications around. You can easily move an application from a
       testing environment into the cloud and back whenever you need.
     * Docker's lightweight containers Docker also make scaling up and
       down fast and easy. You can quickly launch more containers when
