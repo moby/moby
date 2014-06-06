@@ -147,11 +147,11 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 // Register makes a container object usable by the daemon as <container.ID>
 // This is a wrapper for register
 func (daemon *Daemon) Register(container *Container) error {
-	return daemon.register(container, true)
+	return daemon.register(container, true, nil)
 }
 
 // register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) register(container *Container, updateSuffixarray bool) error {
+func (daemon *Daemon) register(container *Container, updateSuffixarray bool, containersToStart *[]*Container) error {
 	if container.daemon != nil || daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
@@ -220,13 +220,13 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
 			if daemon.config.AutoRestart {
-				utils.Debugf("Restarting")
+				utils.Debugf("Marking as restarting")
 				if err := container.Unmount(); err != nil {
 					utils.Debugf("restart unmount error %s", err)
 				}
 
-				if err := container.Start(); err != nil {
-					return err
+				if containersToStart != nil {
+					*containersToStart = append(*containersToStart, container)
 				}
 			} else {
 				utils.Debugf("Marking as stopped")
@@ -311,7 +311,12 @@ func (daemon *Daemon) Destroy(container *Container) error {
 }
 
 func (daemon *Daemon) restore() error {
-	debug := (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
+	var (
+		debug             = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
+		containers        = make(map[string]*Container)
+		currentDriver     = daemon.driver.String()
+		containersToStart = []*Container{}
+	)
 
 	if !debug {
 		fmt.Printf("Loading containers: ")
@@ -320,8 +325,6 @@ func (daemon *Daemon) restore() error {
 	if err != nil {
 		return err
 	}
-	containers := make(map[string]*Container)
-	currentDriver := daemon.driver.String()
 
 	for _, v := range dir {
 		id := v.Name()
@@ -350,7 +353,7 @@ func (daemon *Daemon) restore() error {
 			}
 			e := entities[p]
 			if container, ok := containers[e.ID()]; ok {
-				if err := daemon.register(container, false); err != nil {
+				if err := daemon.register(container, false, &containersToStart); err != nil {
 					utils.Debugf("Failed to register container %s: %s", container.ID, err)
 				}
 				delete(containers, e.ID())
@@ -365,12 +368,20 @@ func (daemon *Daemon) restore() error {
 		if err != nil {
 			utils.Debugf("Setting default id - %s", err)
 		}
-		if err := daemon.register(container, false); err != nil {
+		if err := daemon.register(container, false, &containersToStart); err != nil {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 		}
 	}
 
 	daemon.idIndex.UpdateSuffixarray()
+
+	for _, container := range containersToStart {
+		utils.Debugf("Starting container %d", container.ID)
+		if err := container.Start(); err != nil {
+			utils.Debugf("Failed to start container %s: %s", container.ID, err)
+		}
+	}
+
 	if !debug {
 		fmt.Printf(": done.\n")
 	}
