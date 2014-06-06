@@ -170,6 +170,7 @@ find_dirs() {
 			-o -wholename './.git' \
 			-o -wholename './bundles' \
 			-o -wholename './docs' \
+			-o -wholename './pkg/libcontainer/nsinit' \
 		\) \
 		-prune \
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
