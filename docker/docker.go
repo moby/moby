@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"runtime"
 	"strings"
@@ -97,6 +98,10 @@ func main() {
 
 	if !*flEnableIptables && !*flInterContainerComm {
 		log.Fatal("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+	}
+
+	if net.ParseIP(*flDefaultIp) == nil {
+		log.Fatalf("Specified --ip=%s is not in correct format \"0.0.0.0\".", *flDefaultIp)
 	}
 
 	if *flDebug {
