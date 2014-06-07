@@ -766,7 +766,7 @@ func trustedLocation(req *http.Request) bool {
 	}
 
 	for _, trusted := range trusteds {
-		if strings.HasSuffix(hostname, trusted) {
+		if hostname == trusted || strings.HasSuffix(hostname, "."+trusted) {
 			return true
 		}
 	}
