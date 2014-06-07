@@ -791,17 +791,7 @@ func AddRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 }
 
 func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
-	httpDial := func(proto string, addr string) (net.Conn, error) {
-		conn, err := net.Dial(proto, addr)
-		if err != nil {
-			return nil, err
-		}
-		conn = utils.NewTimeoutConn(conn, time.Duration(1)*time.Minute)
-		return conn, nil
-	}
-
 	httpTransport := &http.Transport{
-		Dial:              httpDial,
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
 	}
