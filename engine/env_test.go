@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/dotcloud/docker/pkg/testutils"
@@ -267,5 +268,45 @@ func BenchmarkDecode(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.Seek(0, 0)
+	}
+}
+
+func TestLongNumbers(t *testing.T) {
+	type T struct {
+		TestNum int64
+	}
+	v := T{67108864}
+	var buf bytes.Buffer
+	e := &Env{}
+	e.SetJson("Test", v)
+	if err := e.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	res := make(map[string]T)
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res["Test"].TestNum != v.TestNum {
+		t.Fatalf("TestNum %d, expected %d", res["Test"].TestNum, v.TestNum)
+	}
+}
+
+func TestLongNumbersArray(t *testing.T) {
+	type T struct {
+		TestNum []int64
+	}
+	v := T{[]int64{67108864}}
+	var buf bytes.Buffer
+	e := &Env{}
+	e.SetJson("Test", v)
+	if err := e.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	res := make(map[string]T)
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res["Test"].TestNum[0] != v.TestNum[0] {
+		t.Fatalf("TestNum %d, expected %d", res["Test"].TestNum, v.TestNum)
 	}
 }
