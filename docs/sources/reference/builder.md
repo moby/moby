@@ -461,6 +461,15 @@ For example you might add something like this:
 
 > **Warning**: ONBUILD may not trigger FROM or MAINTAINER instructions.
 
+## NOCACHE
+
+    NOCACHE
+
+The `NOCACHE` instruction tells Docker to run all subsequent instructions
+without using the instruction cache. This can be used to ensure that certain
+build commands (such as package updates) happen on *EACH* build of the
+Dockerfile.
+
 ## Dockerfile Examples
 
     # Nginx
