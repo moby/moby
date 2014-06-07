@@ -21,6 +21,7 @@ func New() *libcontainer.Container {
 			"SETPCAP",
 			"NET_BIND_SERVICE",
 			"SYS_CHROOT",
+			"KILL",
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,
