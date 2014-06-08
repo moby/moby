@@ -1,44 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    {% if meta.page_description %}<meta name="description" content="{{ meta.page_description[0] }}">{% endif %}
-    {% if meta.page_keywords %}<meta name="keywords" content="{{ meta.page_keywords[0] }}">{% endif %}
-    {% if site_author %}<meta name="author" content="{{ site_author }}">{% endif %}
-    {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
-    <link href="/css/bootstrap-custom.min.css" rel="stylesheet">
-    <link href="/css/prettify-1.0.css" rel="stylesheet">
-    <link href="/css/base.css" rel="stylesheet">
-    <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
-    <link rel="shortcut icon" href="{{ site_favicon }}">
-    <link href='http://fonts.googleapis.com/css?family=Cabin:400,700,400italic' rel='stylesheet' type='text/css'>
-    <title>{% if page_title != '**HIDDEN** - '+site_name %}{{ page_title }}{% else %}{{ site_name }}{% endif %}</title>
-    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-      <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
-    <![endif]-->
-    {% if config.google_analytics %}
-    <script type="text/javascript">
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', '{{ config.google_analytics[0] }}']);
-    _gaq.push(['_trackPageview']);
-    _gaq.push(['_trackPageLoadTime']);
-    (function() {
-      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
-    </script>
-    {% endif %}
-  </head>
-  <body>
-    <div id="main" class="container-fluid">
-      <div class="row">
-        <div class="col-md-12">{% include "nav.html" %}</div>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  {% if meta.page_description %}<meta name="description" content="{{ meta.page_description[0] }}">{% endif %}
+  {% if meta.page_keywords %}<meta name="keywords" content="{{ meta.page_keywords[0] }}">{% endif %}
+  {% if site_author %}<meta name="author" content="{{ site_author }}">{% endif %}
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+  <link href="/css/bootstrap-custom.css" rel="stylesheet">
+  <link href="/css/main.css" rel="stylesheet">
+  <link href="/css/docs.css" rel="stylesheet">
+  <link href="/css/prettify-1.0.css" rel="stylesheet">
+  <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
+  <link rel="shortcut icon" href="{{ site_favicon }}">
+  <title>{% if page_title != '**HIDDEN** - '+site_name %}{{ page_title }}{% else %}{{ site_name }}{% endif %}</title>
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+  <![endif]-->
+  {% if config.google_analytics %}
+  <script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', '{{ config.google_analytics[0] }}']);
+  _gaq.push(['_trackPageview']);
+  _gaq.push(['_trackPageLoadTime']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+  </script>
+  {% endif %}
+</head>
+<body>
+
+{% include "header.html" %}
+
+<div id="wrap">
+  {% include "nav.html" %}
+  <div id="content" class="container">
+{% if current_page.title != '**HIDDEN**' %}
+    <div class="row" id="top-header">
+      <div class="span8">
+        <h1 class="header2">{{ current_page.title }}</h1>
       </div>
+      <div class="span4 text-right edit-on-github">
+        <a class="home-link3" href="https://github.com/dotcloud/docker/blob/master/docs/sources/{{ current_page.input_path }}" class="tertiary-nav">Edit on GitHub</a>
+      </div>
+    </div>
+{% endif %}
+    <div class="row">
+      <div class="span3" id="leftnav">
+        <div id="toc_table">
+          <ul class="nav nav-tabs nav-stacked">
+            {% include "toc.html" %}
+          </ul>
+        </div>
+      </div>
+      <div class="span9 content-body">
+        {% include "version.html" %}
+        {{ content }}
+      </div>
+    </div>
+  </div>
+
+  <div id="push"></div>
+
+</div>
+
+{#
       <div class="row">
         <div class="container container-better">
           <div class="row">
@@ -48,38 +80,63 @@
             <div class="col-sm-8" role="main">
               {% include "breadcrumbs.html" %}
               <main id="content" role="main">
-		{% include "version.html" %}
+  	            {% include "version.html" %}
                 {{ content }}
               </main>
             </div>
           </div>
         </div>
       </div>
-      <div class="row">
-        <div class="col-md-12">{% include "footer.html" %}</div>
-      </div>
-    </div>
-    {% include "prev_next.html" %}
-    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
-    <script src="/js/jquery-scrolltofixed-min.js"></script>
-    <script src="/js/bootstrap-3.0.3.min.js"></script>
-    <script src="/js/prettify-1.0.min.js"></script>
-    <script src="/js/base.js"></script>
-    <script src="/tipuesearch/tipuesearch_set.js"></script>
-    <script src="/tipuesearch/tipuesearch.min.js"></script>
-    <script type="text/javascript">
-    piAId = '45082';
-    piCId = '1482';
+{% include "prev_next.html" %}
+#}
 
-    (function() {
-      function async_load(){
-        var s = document.createElement('script'); s.type = 'text/javascript';
-        s.src = ('https:' == document.location.protocol ? 'https://pi' : 'http://cdn') + '.pardot.com/pd.js';
-        var c = document.getElementsByTagName('script')[0]; c.parentNode.insertBefore(s, c);
-      }
-      if(window.attachEvent) { window.attachEvent('onload', async_load); }
-      else { window.addEventListener('load', async_load, false); }
-    })();
-    </script>
-  </body>
+{% include "footer.html" %}
+
+<script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="/js/jquery-scrolltofixed-min.js"></script>
+<script src="/js/bootstrap-3.0.3.min.js"></script>
+<script src="/js/prettify-1.0.min.js"></script>
+<script src="/js/base.js"></script>
+<script src="/tipuesearch/tipuesearch_set.js"></script>
+<script src="/tipuesearch/tipuesearch.min.js"></script>
+<script type="text/javascript">
+piAId = '45082';
+piCId = '1482';
+
+(function() {
+  function async_load(){
+    var s = document.createElement('script'); s.type = 'text/javascript';
+    s.src = ('https:' == document.location.protocol ? 'https://pi' : 'http://cdn') + '.pardot.com/pd.js';
+    var c = document.getElementsByTagName('script')[0]; c.parentNode.insertBefore(s, c);
+  }
+  if(window.attachEvent) { window.attachEvent('onload', async_load); }
+  else { window.addEventListener('load', async_load, false); }
+})();
+</script>
+<script type="text/javascript">
+  // Function to make the sticky header possible
+  var shiftWindow = function() {
+    scrollBy(0, -80);
+  };
+
+  window.addEventListener("hashchange", shiftWindow);
+  $(window).load(function() {
+    if (window.location.hash) {
+      shiftWindow();
+    }
+  });
+  $(document).ready(function() {
+    $('#content').css("min-height", $(window).height() - 553 );
+  })
+  var userName = getCookie('docker_sso_username');
+  if (userName) {
+    $('.topmostnav_loggedout').hide();
+    $('.topmostnav_loggedin').show();
+    $('.navbar #usernav .nav li a').text(userName);
+  } else {
+    $('.topmostnav_loggedout').show();
+    $('.topmostnav_loggedin').hide();
+  }
+</script>
+</body>
 </html>
