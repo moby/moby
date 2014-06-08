@@ -229,7 +229,7 @@ Lastly, we can take a low-level dive into our Docker container using the
 `docker inspect` command. It returns a JSON hash of useful configuration
 and status information about Docker containers.
 
-    $ docker inspect nostalgic_morse
+    $ sudo docker inspect nostalgic_morse
 
 Let's see a sample of that JSON output.
 
