@@ -1,29 +1,29 @@
 page_title: Registry Documentation
 page_description: Documentation for docker Registry and Registry API
-page_keywords: docker, registry, api, index
+page_keywords: docker, registry, api, hub
 
-# Registry & Index Spec
+# The Docker Hub and the Registry spec
 
 ## The 3 roles
 
-### Index
+### Docker Hub
 
-The Index is responsible for centralizing information about:
+The Docker Hub is responsible for centralizing information about:
 
  - User accounts
  - Checksums of the images
  - Public namespaces
 
-The Index has different components:
+The Docker Hub has different components:
 
  - Web UI
  - Meta-data store (comments, stars, list public repositories)
  - Authentication service
  - Tokenization
 
-The index is authoritative for those information.
+The Docker Hub is authoritative for those information.
 
-We expect that there will be only one instance of the index, run and
+We expect that there will be only one instance of the Docker Hub, run and
 managed by Docker Inc.
 
 ### Registry
@@ -31,7 +31,7 @@ managed by Docker Inc.
  - It stores the images and the graph for a set of repositories
  - It does not have user accounts data
  - It has no notion of user accounts or authorization
- - It delegates authentication and authorization to the Index Auth
+ - It delegates authentication and authorization to the Docker Hub Auth
    service using tokens
  - It supports different storage backends (S3, cloud files, local FS)
  - It doesn't have a local database
@@ -45,7 +45,7 @@ grasp the context, here are some examples of registries:
    docker community as a whole. Its costs are supported by the third
    party, but the management and operation of the registry are
    supported by dotCloud. It features read/write access, and delegates
-   authentication and authorization to the Index.
+   authentication and authorization to the Docker Hub.
  - **mirror registry**: such a registry is provided by a third-party
    hosting infrastructure but is targeted at their customers only. Some
    mechanism (unspecified to date) ensures that public images are
@@ -57,7 +57,7 @@ grasp the context, here are some examples of registries:
    and managed by the vendor. Only users authorized by the vendor would
    be able to get write access. Some images would be public (accessible
    for anyone), others private (accessible only for authorized users).
-   Authentication and authorization would be delegated to the Index.
+   Authentication and authorization would be delegated to the Docker Hub.
    The goal of vendor registries is to let someone do “docker pull
    basho/riak1.3” and automatically push from the vendor registry
    (instead of a sponsor registry); i.e. get all the convenience of a
@@ -67,7 +67,7 @@ grasp the context, here are some examples of registries:
    SSL client-side certificates, IP address authorization...). The
    registry is operated by a private entity, outside of dotCloud's
    control. It can optionally delegate additional authorization to the
-   Index, but it is not mandatory.
+   Docker Hub, but it is not mandatory.
 
 > **Note:** The latter implies that while HTTP is the protocol
 > of choice for a registry, multiple schemes are possible (and
@@ -89,7 +89,7 @@ On top of being a runtime for LXC, Docker is the Registry client. It
 supports:
 
  - Push / Pull on the registry
- - Client authentication on the Index
+ - Client authentication on the Docker Hub
 
 ## Workflow
 
@@ -97,15 +97,15 @@ supports:
 
 ![](/static_files/docker_pull_chart.png)
 
-1.  Contact the Index to know where I should download “samalba/busybox”
-2.  Index replies: a. `samalba/busybox` is on Registry A b. here are the
+1.  Contact the Docker Hub to know where I should download “samalba/busybox”
+2.  Docker Hub replies: a. `samalba/busybox` is on Registry A b. here are the
     checksums for `samalba/busybox` (for all layers) c. token
 3.  Contact Registry A to receive the layers for `samalba/busybox` (all of
     them to the base image). Registry A is authoritative for “samalba/busybox”
     but keeps a copy of all inherited layers and serve them all from the same
     location.
-4.  registry contacts index to verify if token/user is allowed to download images
-5.  Index returns true/false lettings registry know if it should proceed or error
+4.  registry contacts Docker Hub to verify if token/user is allowed to download images
+5.  Docker Hub returns true/false lettings registry know if it should proceed or error
     out
 6.  Get the payload for all layers
 
@@ -113,7 +113,7 @@ It's possible to run:
 
     $ docker pull https://<registry>/repositories/samalba/busybox
 
-In this case, Docker bypasses the Index. However the security is not
+In this case, Docker bypasses the Docker Hub. However the security is not
 guaranteed (in case Registry A is corrupted) because there won't be any
 checksum checks.
 
@@ -131,7 +131,7 @@ and for an active account.
 
 **API (pulling repository foo/bar):**
 
-1.  (Docker -> Index) GET /v1/repositories/foo/bar/images:
+1.  (Docker -> Docker Hub) GET /v1/repositories/foo/bar/images:
 
         **Headers**:
         Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
@@ -142,7 +142,7 @@ and for an active account.
         for that repo (all if no tag is specified, if tag, only
         checksums for those tags) see part 4.4.1)
 
-2.  (Index -> Docker) HTTP 200 OK
+2.  (Docker Hub -> Docker) HTTP 200 OK
 
         **Headers**:
         Authorization: Token
@@ -158,7 +158,7 @@ and for an active account.
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
 
-4.  (Registry -> Index) GET /v1/repositories/foo/bar/images
+4.  (Registry -> Docker Hub) GET /v1/repositories/foo/bar/images
 
         **Headers**:
         Authorization: Token
@@ -171,7 +171,7 @@ and for an active account.
         (Lookup token see if they have access to pull.)
         
         If good:
-        HTTP 200 OK Index will invalidate the token
+        HTTP 200 OK Docker Hub will invalidate the token
         
         If bad:
         HTTP 401 Unauthorized
@@ -189,43 +189,43 @@ and for an active account.
 
 ![](/static_files/docker_push_chart.png)
 
-1.  Contact the index to allocate the repository name “samalba/busybox”
+1.  Contact the Docker Hub to allocate the repository name “samalba/busybox”
     (authentication required with user credentials)
 2.  If authentication works and namespace available, “samalba/busybox”
     is allocated and a temporary token is returned (namespace is marked
-    as initialized in index)
+    as initialized in Docker Hub)
 3.  Push the image on the registry (along with the token)
-4.  Registry A contacts the Index to verify the token (token must
+4.  Registry A contacts the Docker Hub to verify the token (token must
     corresponds to the repository name)
-5.  Index validates the token. Registry A starts reading the stream
+5.  Docker Hub validates the token. Registry A starts reading the stream
     pushed by docker and store the repository (with its images)
-6.  docker contacts the index to give checksums for upload images
+6.  docker contacts the Docker Hub to give checksums for upload images
 
 > **Note:**
-> **It's possible not to use the Index at all!** In this case, a deployed
+> **It's possible not to use the Docker Hub at all!** In this case, a deployed
 > version of the Registry is deployed to store and serve images. Those
 > images are not authenticated and the security is not guaranteed.
 
 > **Note:**
-> **Index can be replaced!** For a private Registry deployed, a custom
-> Index can be used to serve and validate token according to different
+> **Docker Hub can be replaced!** For a private Registry deployed, a custom
+> Docker Hub can be used to serve and validate token according to different
 > policies.
 
-Docker computes the checksums and submit them to the Index at the end of
-the push. When a repository name does not have checksums on the Index,
+Docker computes the checksums and submit them to the Docker Hub at the end of
+the push. When a repository name does not have checksums on the Docker Hub,
 it means that the push is in progress (since checksums are submitted at
 the end).
 
 **API (pushing repos foo/bar):**
 
-1.  (Docker -> Index) PUT /v1/repositories/foo/bar/
+1.  (Docker -> Docker Hub) PUT /v1/repositories/foo/bar/
 
         **Headers**:
         Authorization: Basic sdkjfskdjfhsdkjfh== X-Docker-Token:
         true
 
         **Action**:
-        - in index, we allocated a new repository, and set to
+        - in Docker Hub, we allocated a new repository, and set to
         initialized
 
         **Body**:
@@ -235,7 +235,7 @@ the end).
 
         [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”}]
 
-2.  (Index -> Docker) 200 Created
+2.  (Docker Hub -> Docker) 200 Created
 
         **Headers**:
         - WWW-Authenticate: Token
@@ -249,14 +249,14 @@ the end).
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
 
-4.  (Registry->Index) GET /v1/repositories/foo/bar/images
+4.  (Registry->Docker Hub) GET /v1/repositories/foo/bar/images
 
         **Headers**:
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
 
         **Action**:
-        - Index:
+        - Docker Hub:
         will invalidate the token.
         - Registry:
         grants a session (if token is approved) and fetches
@@ -292,7 +292,7 @@ the end).
         **Body**:
         “98765432”
 
-10. (Docker -> Index) PUT /v1/repositories/foo/bar/images
+10. (Docker -> Docker Hub) PUT /v1/repositories/foo/bar/images
 
         **Headers**:
         Authorization: Basic 123oislifjsldfj== X-Docker-Endpoints:
@@ -307,33 +307,33 @@ the end).
 
         **Return**: HTTP 204
 
-> **Note:** If push fails and they need to start again, what happens in the index,
+> **Note:** If push fails and they need to start again, what happens in the Docker Hub,
 > there will already be a record for the namespace/name, but it will be
 > initialized. Should we allow it, or mark as name already used? One edge
 > case could be if someone pushes the same thing at the same time with two
 > different shells.
 
 If it's a retry on the Registry, Docker has a cookie (provided by the
-registry after token validation). So the Index won't have to provide a
+registry after token validation). So the Docker Hub won't have to provide a
 new token.
 
 ### Delete
 
-If you need to delete something from the index or registry, we need a
+If you need to delete something from the Docker Hub or registry, we need a
 nice clean way to do that. Here is the workflow.
 
-1.  Docker contacts the index to request a delete of a repository
+1.  Docker contacts the Docker Hub to request a delete of a repository
     `samalba/busybox` (authentication required with user credentials)
 2.  If authentication works and repository is valid, `samalba/busybox`
     is marked as deleted and a temporary token is returned
 3.  Send a delete request to the registry for the repository (along with
     the token)
-4.  Registry A contacts the Index to verify the token (token must
+4.  Registry A contacts the Docker Hub to verify the token (token must
     corresponds to the repository name)
-5.  Index validates the token. Registry A deletes the repository and
+5.  Docker Hub validates the token. Registry A deletes the repository and
     everything associated to it.
-6.  docker contacts the index to let it know it was removed from the
-    registry, the index removes all records from the database.
+6.  docker contacts the Docker Hub to let it know it was removed from the
+    registry, the Docker Hub removes all records from the database.
 
 > **Note**:
 > The Docker client should present an "Are you sure?" prompt to confirm
@@ -342,20 +342,20 @@ nice clean way to do that. Here is the workflow.
 
 **API (deleting repository foo/bar):**
 
-1.  (Docker -> Index) DELETE /v1/repositories/foo/bar/
+1.  (Docker -> Docker Hub) DELETE /v1/repositories/foo/bar/
 
         **Headers**:
         Authorization: Basic sdkjfskdjfhsdkjfh== X-Docker-Token:
         true
 
         **Action**:
-        - in index, we make sure it is a valid repository, and set
+        - in Docker Hub, we make sure it is a valid repository, and set
         to deleted (logically)
 
         **Body**:
         Empty
 
-2.  (Index -> Docker) 202 Accepted
+2.  (Docker Hub -> Docker) 202 Accepted
 
         **Headers**:
         - WWW-Authenticate: Token
@@ -370,14 +370,14 @@ nice clean way to do that. Here is the workflow.
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=delete
 
-4.  (Registry->Index) PUT /v1/repositories/foo/bar/auth
+4.  (Registry->Docker Hub) PUT /v1/repositories/foo/bar/auth
 
         **Headers**:
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=delete
 
         **Action**:
-        - Index:
+        - Docker Hub:
         will invalidate the token.
         - Registry:
         deletes the repository (if token is approved)
@@ -387,7 +387,7 @@ nice clean way to do that. Here is the workflow.
         200 If success 403 if forbidden 400 if bad request 404
         if repository isn't found
 
-6.  (Docker -> Index) DELETE /v1/repositories/foo/bar/
+6.  (Docker -> Docker Hub) DELETE /v1/repositories/foo/bar/
 
         **Headers**:
         Authorization: Basic 123oislifjsldfj== X-Docker-Endpoints:
@@ -400,7 +400,7 @@ nice clean way to do that. Here is the workflow.
 
 ## How to use the Registry in standalone mode
 
-The Index has two main purposes (along with its fancy social features):
+The Docker Hub has two main purposes (along with its fancy social features):
 
  - Resolve short names (to avoid passing absolute URLs all the time):
 
@@ -412,15 +412,15 @@ The Index has two main purposes (along with its fancy social features):
  - Authenticate a user as a repos owner (for a central referenced
     repository)
 
-### Without an Index
+### Without an Docker Hub
 
-Using the Registry without the Index can be useful to store the images
+Using the Registry without the Docker Hub can be useful to store the images
 on a private network without having to rely on an external entity
 controlled by Docker Inc.
 
 In this case, the registry will be launched in a special mode
-(–standalone? –no-index?). In this mode, the only thing which changes is
-that Registry will never contact the Index to verify a token. It will be
+(–standalone? ne? –no-index?). In this mode, the only thing which changes is
+that Registry will never contact the Docker Hub to verify a token. It will be
 the Registry owner responsibility to authenticate the user who pushes
 (or even pulls) an image using any mechanism (HTTP auth, IP based,
 etc...).
@@ -433,21 +433,21 @@ As hinted previously, a standalone registry can also be implemented by
 any HTTP server handling GET/PUT requests (or even only GET requests if
 no write access is necessary).
 
-### With an Index
+### With an Docker Hub
 
-The Index data needed by the Registry are simple:
+The Docker Hub data needed by the Registry are simple:
 
  - Serve the checksums
  - Provide and authorize a Token
 
 In the scenario of a Registry running on a private network with the need
-of centralizing and authorizing, it's easy to use a custom Index.
+of centralizing and authorizing, it's easy to use a custom Docker Hub.
 
 The only challenge will be to tell Docker to contact (and trust) this
-custom Index. Docker will be configurable at some point to use a
-specific Index, it'll be the private entity responsibility (basically
+custom Docker Hub. Docker will be configurable at some point to use a
+specific Docker Hub, it'll be the private entity responsibility (basically
 the organization who uses Docker in a private environment) to maintain
-the Index and the Docker's configuration among its consumers.
+the Docker Hub and the Docker's configuration among its consumers.
 
 ## The API
 
@@ -474,7 +474,7 @@ file is empty.
 
 ### Users
 
-### Create a user (Index)
+### Create a user (Docker Hub)
 
     POST /v1/users:
 
@@ -497,7 +497,7 @@ etc) - forbidden name - name already exists
 > A user account will be valid only if the email has been validated (a
 > validation link is sent to the email address).
 
-### Update a user (Index)
+### Update a user (Docker Hub)
 
     PUT /v1/users/<username>
 
@@ -508,7 +508,7 @@ etc) - forbidden name - name already exists
 > We can also update email address, if they do, they will need to reverify
 > their new email address.
 
-### Login (Index)
+### Login (Docker Hub)
 
 Does nothing else but asking for a user authentication. Can be used to
 validate credentials. HTTP Basic Auth for now, maybe change in future.
@@ -554,9 +554,9 @@ GET /v1/repositories/<namespace>/<repository_name>/tags
 
     DELETE /v1/repositories/<namespace>/<repo_name>/tags/<tag>
 
-### 4.4 Images (Index)
+### 4.4 Images (Docker Hub)
 
-For the Index to “resolve” the repository name to a Registry location,
+For the Docker Hub to “resolve” the repository name to a Registry location,
 it uses the X-Docker-Endpoints header. In other terms, this requests
 always add a `X-Docker-Endpoints` to indicate the
 location of the registry which hosts this repository.
@@ -594,7 +594,7 @@ DELETE /v1/repositories/<namespace>/<repo_name>
 
 Return 200 OK
 
-### Remove a Repository (Index)
+### Remove a Repository (Docker Hub)
 
 This starts the delete process. see 2.3 for more details.
 
@@ -613,7 +613,7 @@ When a Registry is a reference for a repository, it should host the
 entire images chain in order to avoid breaking the chain during the
 download.
 
-The Index and Registry use this mechanism to redirect on one or the
+The Docker Hub and Registry use this mechanism to redirect on one or the
 other.
 
 Example with an image download:
@@ -627,10 +627,10 @@ list.
 
 ## Authentication & Authorization
 
-### On the Index
+### On the Docker Hub
 
-The Index supports both “Basic” and “Token” challenges. Usually when
-there is a `401 Unauthorized`, the Index replies
+The Docker Hub supports both “Basic” and “Token” challenges. Usually when
+there is a `401 Unauthorized`, the Docker Hub replies
 this:
 
     401 Unauthorized
