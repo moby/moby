@@ -32,12 +32,14 @@ virtual machine and run the Docker daemon.
 2. Run the installer, which will install VirtualBox and the Boot2Docker management
    tool.
    ![](/installation/images/osx-installer.png)
-3. Open a terminal and run:
+3. Run the `Boot2Docker` app in the `Applications` folder:
+   ![](/installation/images/osx-Boot2Docker-Start-app.png)
+   OR to do it manually, open a terminal and run:
 
 ```
 	boot2docker init
 	boot2docker start
-	export DOCKER_HOST=tcp://localhost:2375
+	export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
 ```
 
 `boot2docker init` will ask you to enter an ssh key passphrase - the simplest
