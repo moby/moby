@@ -26,10 +26,12 @@ appropriate, you can flag them for the admins' review.
 
 ### Private Docker Repositories
 
-To work with a private repository on [Docker Hub](https://hub.docker.com), you
-will need to add one via the [Add Repository](https://registry.hub.docker.com/account/repositories/add/)
-link. Once the private repository is created, you can `push` and `pull` images
-to and from it using Docker.
+When you create an account on the [Docker Hub](https://hub.docker.com),
+you get access to a free private repository. You can add a private repository
+via the [Add Repository](
+https://registry.hub.docker.com/account/repositories/add/) link. Once the
+private repository is created, you can `push` and `pull` images
+to and from it using the Docker Engine.
 
 > *Note:* You need to be signed in and have access to work with a private
 > repository.
