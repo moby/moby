@@ -179,7 +179,7 @@ has just stopped.
 
 Let's check it worked with the `docker ps` command.
 
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
 
 Excellent. Our container has been stopped.
