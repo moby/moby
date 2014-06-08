@@ -421,7 +421,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", nil)
+	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -447,7 +447,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img2, err := r.Commit(container2, "", "", "unit test commited image", "", nil)
+	img2, err := r.Commit(container2, "", "", "unit test commited image", "", true, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -481,7 +481,7 @@ func TestCopyVolumeContent(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", nil)
+	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
 	if err != nil {
 		t.Error(err)
 	}

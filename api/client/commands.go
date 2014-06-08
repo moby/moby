@@ -1538,6 +1538,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := cli.Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
+	flPause := cmd.Bool([]string{"p", "-pause"}, true, "Pause container during commit")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\")")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
@@ -1569,6 +1570,11 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
 	v.Set("author", *flAuthor)
+
+	if *flPause != true {
+		v.Set("pause", "0")
+	}
+
 	var (
 		config *runconfig.Config
 		env    engine.Env
