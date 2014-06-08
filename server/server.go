@@ -1387,7 +1387,7 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	r, err := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, true)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1610,7 +1610,7 @@ func (srv *Server) ImagePush(job *engine.Job) engine.Status {
 	}
 
 	img, err := srv.daemon.Graph().Get(localName)
-	r, err2 := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint)
+	r, err2 := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
 	if err2 != nil {
 		return job.Error(err2)
 	}

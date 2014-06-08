@@ -18,7 +18,7 @@ var (
 
 func spawnTestRegistry(t *testing.T) *Registry {
 	authConfig := &AuthConfig{}
-	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"))
+	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
