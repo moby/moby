@@ -55,6 +55,7 @@ Let's try the “hello world” example. Run
 
 This will download the small busybox image and print hello world.
 
+
 # Further Details
 
 The Boot2Docker management tool provides some commands:
@@ -62,11 +63,11 @@ The Boot2Docker management tool provides some commands:
     $ ./boot2docker
     Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version} [<args>]
 
-## Container port redirection 
 
-The latest version of `boot2docker` sets up two network adaptors: one using NAT
-to allow the VM to download images and files from the Internet, and one host only
-network adaptor to which the container's ports will be exposed on.
+## Container port redirection
+
+The latest version of `boot2docker` sets up a host only
+network adaptor on which the container's ports will be exposed.
 
 If you run a container with an exposed port:
 
@@ -75,12 +76,8 @@ If you run a container with an exposed port:
 Then you should be able to access that Apache server using the IP address reported
 to you using:
 
-    boot2docker ssh ip addr show dev eth1
+    boot2docker ip
 
-Typically, it is 192.168.59.103, but at this point it can change.
-
-If you want to share container ports with other computers on your LAN, you will
-need to set up [NAT adaptor based port forwarding](
-https://github.com/boot2docker/boot2docker/blob/master/doc/WORKAROUNDS.md)
+Typically, it is `192.168.59.103`, but it can change.
 
 For further information or to report issues, please see the [Boot2Docker site](http://boot2docker.io)
