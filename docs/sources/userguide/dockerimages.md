@@ -312,7 +312,7 @@ and given it the tag `v2`.
 We've also specified the location of our `Dockerfile` using the `.` to
 indicate a `Dockerfile` in the current directory.
 
-> **Note::**
+> **Note:**
 > You can also specify a path to a `Dockerfile`.
 
 Now we can see the build process at work. The first thing Docker does is
