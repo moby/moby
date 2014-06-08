@@ -1,31 +1,8 @@
-{% if aws_bucket != "docs.docker.io" %}
-<style>
-.bs-callout {
-  padding: 20px;
-  border-left: 3px solid rgb(238, 238, 238);
-  width: 100% !important;
-}
-.bs-callout p {
-  margin-bottom: 0 !important;
-}
-.bs-callout h4 span {
-  font-style: italic;
-  font-weight: bold;
-}
-.bs-callout-danger {
-  background-color: rgb(253, 247, 247);
-  border-color: rgb(217, 83, 79);
-}
-.bs-callout h4 {
-  margin-top: 0;
-  margin-bottom: 5px;
-  color: rgb(217, 83, 79);
-}
-</style>
-<div class="bs-callout bs-callout-danger">
-	<h4>This is the
-		<span>{% if docker_version != docker_version|replace("-dev", "bingo") %}{{ docker_branch }} development branch{% else %}beta{% endif %}</span>
-		documentation for Docker version {{ docker_version }}.</h4>
-	Please go to <a href="http://docs.docker.io">http://docs.docker.io</a> for the current Docker release documentation.
+{% if aws_bucket != "docs.docker.com" %}
+<div class="box alert-red-body alert-red-block">
+	This is the
+  <span>{% if docker_version != docker_version|replace("-dev", "bingo") %}{{ docker_branch }} development branch{% else %}beta{% endif %}</span>
+	documentation for Docker version {{ docker_version }}.
+	Please go to <a class="alert-red-link" href="http://docs.docker.com">http://docs.docker.com</a> for the current Docker release documentation.
 </div>
 {% endif %}

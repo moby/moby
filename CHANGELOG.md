@@ -3,6 +3,7 @@
 ## 0.12.0 (2014-06-05)
 
 #### Notable features since 0.11.0
+* 40+ various improvements to stability, performance and usability
 * New `COPY` Dockerfile instruction to allow copying a local file from the context into the container without ever extracting if the file is a tar file
 * Inherit file permissions from the host on `ADD`
 * New `pause` and `unpause` commands to allow pausing and unpausing of containers using cgroup freezer

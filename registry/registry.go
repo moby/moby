@@ -766,7 +766,7 @@ func trustedLocation(req *http.Request) bool {
 	}
 
 	for _, trusted := range trusteds {
-		if strings.HasSuffix(hostname, trusted) {
+		if hostname == trusted || strings.HasSuffix(hostname, "."+trusted) {
 			return true
 		}
 	}
@@ -790,22 +790,21 @@ func AddRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 	return nil
 }
 
-func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string) (r *Registry, err error) {
-	httpDial := func(proto string, addr string) (net.Conn, error) {
-		conn, err := net.Dial(proto, addr)
-		if err != nil {
-			return nil, err
-		}
-		conn = utils.NewTimeoutConn(conn, time.Duration(1)*time.Minute)
-		return conn, nil
-	}
-
+func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string, timeout bool) (r *Registry, err error) {
 	httpTransport := &http.Transport{
-		Dial:              httpDial,
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
 	}
-
+	if timeout {
+		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
+			conn, err := net.Dial(proto, addr)
+			if err != nil {
+				return nil, err
+			}
+			conn = utils.NewTimeoutConn(conn, time.Duration(1)*time.Minute)
+			return conn, nil
+		}
+	}
 	r = &Registry{
 		authConfig: authConfig,
 		client: &http.Client{
