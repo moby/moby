@@ -102,16 +102,9 @@ to Docker Hub.
 
 #### Creating an Automated Build
 
-<<<<<<< HEAD:docs/sources/docker-io/builds.md
-You can [create an Automated
-Build](https://index.docker.io/builds/bitbucket/select/) from any of
-your public or private BitBucket repositories with a `Dockerfile`.
-=======
-You can [create a Trusted
-Build](https://registry.hub.docker.com/builds/bitbucket/select/)
-from any of your public or private BitBucket repositories with a
-`Dockerfile`.
->>>>>>> Initial links:docs/sources/docker-hub/builds.md
+You can [create an Automated Build](
+https://registry.hub.docker.com/builds/bitbucket/select/) from any of your
+public or private BitBucket repositories with a `Dockerfile`.
 
 ### The Dockerfile and Automated Builds
 
