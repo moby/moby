@@ -146,7 +146,7 @@ We can also see the image we used to build it, `ubuntu:14.04`, the command it
 is running, its status and an automatically assigned name,
 `insane_babbage`. 
 
-> **NoteL** 
+> **Note:** 
 > Docker automatically names any containers you start, a
 > little later on we'll see how you can specify your own names.
 
