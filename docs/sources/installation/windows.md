@@ -18,6 +18,9 @@ To make this process easier we designed a helper application called
 [boot2docker](https://github.com/boot2docker/boot2docker) to install the
 virtual machine and run the Docker daemon.
 
+## Demonstration
+
+<iframe width="640" height="480" src="//www.youtube.com/embed/oSHN8_uiZd4?rel=0" frameborder="0" allowfullscreen></iframe>
 
 ## Installation
 
