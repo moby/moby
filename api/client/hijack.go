@@ -109,7 +109,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 					utils.Debugf("Couldn't send EOF: %s\n", err)
 				}
 			} else {
-			       utils.Debugf("[hijack] Skipped CloseWrite");
+				utils.Debugf("[hijack] Skipped CloseWrite")
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
