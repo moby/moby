@@ -37,12 +37,12 @@ func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
 	}
 	httpDial := func(proto string, addr string) (net.Conn, error) {
 		// Set the connect timeout to 5 seconds
-		conn, err := net.DialTimeout(proto, addr, time.Duration(5)*time.Second)
+		conn, err := net.DialTimeout(proto, addr, 5*time.Second)
 		if err != nil {
 			return nil, err
 		}
 		// Set the recv timeout to 10 seconds
-		conn.SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
+		conn.SetDeadline(time.Now().Add(10 * time.Second))
 		return conn, nil
 	}
 	httpTransport := &http.Transport{
@@ -801,7 +801,7 @@ func NewRegistry(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, inde
 			if err != nil {
 				return nil, err
 			}
-			conn = utils.NewTimeoutConn(conn, time.Duration(1)*time.Minute)
+			conn = utils.NewTimeoutConn(conn, 1*time.Minute)
 			return conn, nil
 		}
 	}
