@@ -334,7 +334,7 @@ func TestDaemonCreate(t *testing.T) {
 	}
 	container, _, err = daemon.Create(config, "")
 
-	_, err = daemon.Commit(container, "testrepo", "testtag", "", "", config)
+	_, err = daemon.Commit(container, "testrepo", "testtag", "", "", true, config)
 	if err != nil {
 		t.Error(err)
 	}
