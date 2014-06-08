@@ -249,7 +249,7 @@ Let's see a sample of that JSON output.
 We can also narrow down the information we want to return by requesting a
 specific element, for example to return the container's IP address we would:
 
-    $ sudo docker inspect -f '{{ .NetworkSettings.IPAddress }}'
+    $ sudo docker inspect -f '{{ .NetworkSettings.IPAddress }}' nostalgic_morse
     172.17.0.5
 
 ## Stopping our Web Application Container
