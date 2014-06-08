@@ -59,7 +59,7 @@ func daemon(eng *engine.Engine) error {
 // builtins jobs independent of any subsystem
 func dockerVersion(job *engine.Job) engine.Status {
 	v := &engine.Env{}
-	v.Set("Version", dockerversion.VERSION)
+	v.SetJson("Version", dockerversion.VERSION)
 	v.SetJson("ApiVersion", api.APIVERSION)
 	v.Set("GitCommit", dockerversion.GITCOMMIT)
 	v.Set("GoVersion", runtime.Version())
