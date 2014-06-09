@@ -104,8 +104,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			utils.Debugf("[hijack] End of stdin")
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
-			if err := tcpc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+			if os.Getenv("DOCKER_DO_NOT_CLOSE_WRITE") == "" {
+				if err := tcpc.CloseWrite(); err != nil {
+					utils.Debugf("Couldn't send EOF: %s\n", err)
+				}
+			} else {
+				utils.Debugf("[hijack] Skipped CloseWrite")
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
