@@ -7,8 +7,8 @@ page_keywords: Docker, Docker documentation, Windows, requirements, virtualbox, 
 > Docker has been tested on Windows 7.1 and 8; it may also run on older versions.
 
 
-The Docker Engine uses Linux-specific kernel features, so to run it on OS X
-we need to use a lightweight virtual machine (vm).  You use the OS X Docker client to
+The Docker Engine uses Linux-specific kernel features, so to run it on Windows
+we need to use a lightweight virtual machine (vm).  You use the Windows Docker client to
 control the virtualized Docker Engine to build, run, and manage Docker containers.
 
 To make this process easier, we've designed a helper application called
