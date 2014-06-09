@@ -9,7 +9,7 @@ page_keywords: documentation, docs, the docker guide, docker guide, docker, dock
 In this section we're going to introduce you, very quickly!, to
 [Docker Hub](https://hub.docker.com) and create an account.
 
-[Docker Hub](https://www.docker.io) is the central hub for Docker. It
+[Docker Hub](https://hub.docker.com) is the central hub for Docker. It
 helps you to manage Docker and its components. It provides services such
 as:
 
