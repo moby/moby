@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/pkg/system"
@@ -92,6 +94,69 @@ func mountSystem(rootfs string, container *libcontainer.Container) error {
 			return fmt.Errorf("mounting %s into %s %s", m.source, m.path, err)
 		}
 	}
+
+	// Mount all cgroup subsystems into the container, read-only. Create symlinks for each
+	// subsystem if any subsystems are merged
+	cgroupMounts, err := cgroups.GetMounts()
+	if err != nil {
+		return err
+	}
+
+	cgroupsDir := filepath.Join(rootfs, "/sys/fs/cgroup")
+
+	for _, m := range cgroupMounts {
+		dir := filepath.Base(m.Mountpoint)
+		mountpoint := filepath.Join(cgroupsDir, dir)
+
+		if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("mkdirall %s %s", mountpoint, err)
+		}
+
+		// Bind-mount the cgroup to /sys/fs/cgroup with the same name as the outer mount
+		if err := system.Mount(m.Mountpoint, mountpoint, "bind", uintptr(syscall.MS_BIND|defaultMountFlags), ""); err != nil {
+			return fmt.Errorf("mounting %s into %s %s", m.Mountpoint, mountpoint, err)
+		}
+		// Make it read-only
+		if err := system.Mount(mountpoint, mountpoint, "bind", uintptr(syscall.MS_BIND|syscall.MS_REMOUNT|syscall.MS_RDONLY|defaultMountFlags), ""); err != nil {
+			return fmt.Errorf("remounting %s into %s %s", mountpoint, mountpoint, err)
+		}
+
+		hasName := false
+		for _, subsys := range m.Subsystems {
+			isName := strings.HasPrefix(subsys, "name=")
+			canonicalName := subsys
+			if isName {
+				hasName = true
+				canonicalName = subsys[5:]
+			}
+
+			// For the merged case dir will be something like "cpu,cpuacct", so
+			// we make symlinks for all the pure subsystem names "cpu -> cpu,cpuacct", etc
+			if canonicalName != dir {
+				if err := os.Symlink(dir, filepath.Join(cgroupsDir, canonicalName)); err != nil {
+					return fmt.Errorf("creating cgroup symlink for %s: %s", dir, err)
+				}
+			}
+		}
+
+		// For named cgroups, such as name=systemd we mount a read-write subset at the
+		// current cgroup path. This lets e.g. systemd work inside a container, as it can create subcgroups inside the
+		// current cgroup, while not being able to do anything dangerous in the real cgroups
+		if hasName {
+			cgroupPath, _ := m.GetThisCgroupDir()
+			if cgroupPath != "" && cgroupPath != "/" {
+				if err := system.Mount(filepath.Join(m.Mountpoint, cgroupPath), filepath.Join(mountpoint, cgroupPath), "bind", uintptr(syscall.MS_BIND|defaultMountFlags), ""); err != nil {
+					return fmt.Errorf("mounting %s into %s %s", filepath.Join(m.Mountpoint, cgroupPath), filepath.Join(mountpoint, cgroupPath), err)
+				}
+			}
+		}
+	}
+
+	// Make /sys/fs/cgroup read-only
+	if err := system.Mount(cgroupsDir, cgroupsDir, "bind", uintptr(syscall.MS_REMOUNT|syscall.MS_RDONLY|defaultMountFlags), ""); err != nil {
+		return fmt.Errorf("remounting %s read-only %s", cgroupsDir, err)
+	}
+
 	return nil
 }
 
@@ -193,6 +258,7 @@ func newSystemMounts(rootfs, mountLabel string, mounts libcontainer.Mounts) []mo
 		{source: "proc", path: filepath.Join(rootfs, "proc"), device: "proc", flags: defaultMountFlags},
 		{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags},
 		{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: label.FormatMountLabel("mode=755", mountLabel)},
+		{source: "tmpfs", path: filepath.Join(rootfs, "sys/fs/cgroup"), device: "tmpfs", flags: defaultMountFlags},
 		{source: "shm", path: filepath.Join(rootfs, "dev", "shm"), device: "tmpfs", flags: defaultMountFlags, data: label.FormatMountLabel("mode=1777,size=65536k", mountLabel)},
 		{source: "devpts", path: filepath.Join(rootfs, "dev", "pts"), device: "devpts", flags: syscall.MS_NOSUID | syscall.MS_NOEXEC, data: label.FormatMountLabel("newinstance,ptmxmode=0666,mode=620,gid=5", mountLabel)},
 	}
