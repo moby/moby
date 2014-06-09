@@ -456,6 +456,96 @@ func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
+func (devices *DeviceSet) getBlockDevice(name string) (*os.File, error) {
+	dirname := devices.loopbackDir()
+	filename := path.Join(dirname, name)
+
+	file, err := os.OpenFile(filename, os.O_RDWR, 0)
+	if file == nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	loopback := FindLoopDeviceFor(file)
+	if loopback == nil {
+		return nil, fmt.Errorf("Unable to find loopback mount for: %s", filename)
+	}
+	return loopback, nil
+}
+
+func (devices *DeviceSet) TrimPool() error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	totalSizeInSectors, _, _, dataTotal, _, _, err := devices.poolStatus()
+	if err != nil {
+		return err
+	}
+	blockSizeInSectors := totalSizeInSectors / dataTotal
+	SectorSize := blockSizeInSectors * 512
+
+	data, err := devices.getBlockDevice("data")
+	if err != nil {
+		return err
+	}
+	defer data.Close()
+
+	dataSize, err := GetBlockDeviceSize(data)
+	if err != nil {
+		return err
+	}
+
+	metadata, err := devices.getBlockDevice("metadata")
+	if err != nil {
+		return err
+	}
+	defer metadata.Close()
+
+	// Suspend the pool so the metadata doesn't change and new blocks
+	// are not loaded
+	if err := suspendDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to suspend pool: %s", err)
+	}
+
+	// Just in case, make sure everything is on disk
+	syscall.Sync()
+
+	ranges, err := readMetadataRanges(metadata.Name())
+	if err != nil {
+		resumeDevice(devices.getPoolName())
+		return err
+	}
+
+	lastEnd := uint64(0)
+
+	for e := ranges.Front(); e != nil; e = e.Next() {
+		r := e.Value.(*Range)
+		// Convert to bytes
+		rBegin := r.begin * SectorSize
+		rEnd := r.end * SectorSize
+
+		if rBegin > lastEnd {
+			if err := BlockDeviceDiscard(data, lastEnd, rBegin-lastEnd); err != nil {
+				return fmt.Errorf("Failing do discard block, leaving pool suspended: %v", err)
+			}
+		}
+		lastEnd = rEnd
+	}
+
+	if dataSize > lastEnd {
+		if err := BlockDeviceDiscard(data, lastEnd, dataSize-lastEnd); err != nil {
+			return fmt.Errorf("Failing do discard block, leaving pool suspended: %v", err)
+		}
+	}
+
+	// Resume the pool
+	if err := resumeDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to resume pool: %s", err)
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) ResizePool(size int64) error {
 	devices.Lock()
 	defer devices.Unlock()

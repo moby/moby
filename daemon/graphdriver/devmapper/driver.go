@@ -184,8 +184,24 @@ func (d *Driver) resizePool(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func (d *Driver) trimPool(job *engine.Job) engine.Status {
+	args := job.Args
+
+	if len(args) != 0 {
+		return job.Errorf("Usage: trim-pool")
+	}
+
+	err := d.DeviceSet.TrimPool()
+	if err != nil {
+		return job.Errorf("Error trimming pool: %s", err.Error())
+	}
+
+	return engine.StatusOK
+}
+
 func (d *Driver) Install(eng *engine.Engine) error {
 	eng.Register("dm:resize-pool", d.resizePool)
 	eng.Register("dm:resize", d.resize)
+	eng.Register("dm:trim-pool", d.trimPool)
 	return nil
 }
