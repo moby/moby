@@ -9,8 +9,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/dotcloud/docker/pkg/apparmor"
-	"github.com/dotcloud/docker/pkg/label"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
+	"github.com/dotcloud/docker/pkg/libcontainer/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/console"
 	"github.com/dotcloud/docker/pkg/libcontainer/mount"
@@ -18,7 +18,7 @@ import (
 	"github.com/dotcloud/docker/pkg/libcontainer/security/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/security/restrict"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
-	"github.com/dotcloud/docker/pkg/netlink"
+	"github.com/dotcloud/docker/pkg/libcontainer/netlink"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 )

@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/apparmor"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/pkg/libcontainer/cgroups/systemd"
