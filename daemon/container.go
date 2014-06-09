@@ -22,6 +22,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/pkg/arp"
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 	"github.com/dotcloud/docker/pkg/networkfs/etchosts"
@@ -1059,6 +1060,20 @@ func (container *Container) waitForStart() error {
 	// Start should not return until the process is actually running
 	select {
 	case <-callbackLock:
+		// Wait for the interface and send arp in the background
+		go func() {
+			a, err := arp.NewARP(container.NetworkSettings.Bridge)
+			if err != nil {
+				utils.Debugf("error NewARP: %s\n", err)
+				return
+			}
+			// Give some time for the interface to be up
+			time.Sleep(time.Second)
+			if err := a.Send(container.NetworkSettings.IPAddress); err != nil {
+				utils.Debugf("error Send ARP: %s\n", err)
+				return
+			}
+		}()
 	case err := <-cErr:
 		return err
 	}

@@ -133,13 +133,14 @@ func (proxy *UDPProxy) Run() {
 	}
 }
 
-func (proxy *UDPProxy) Close() {
+func (proxy *UDPProxy) Close() error {
 	proxy.listener.Close()
 	proxy.connTrackLock.Lock()
 	defer proxy.connTrackLock.Unlock()
 	for _, conn := range proxy.connTrackTable {
 		conn.Close()
 	}
+	return nil
 }
 
 func (proxy *UDPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
