@@ -1,9 +1,6 @@
 $(document).ready(function ()
 {
 
-  // Detect if the device is "touch" capable
-  var isTouchDevice = (('ontouchstart' in window) || (navigator.msMaxTouchPoints > 0));
-
   // Tipue Search activation
   $('#tipue_search_input').tipuesearch({
     'mode': 'json',
@@ -14,7 +11,7 @@ $(document).ready(function ()
 
   // Resizing
   resizeMenuDropdown();
-  checkToScrollTOC();
+  // checkToScrollTOC();
   $(window).resize(function() {
     if(this.resizeTO)
     {
@@ -23,44 +20,8 @@ $(document).ready(function ()
     this.resizeTO = setTimeout(function ()
     {
       resizeMenuDropdown();
-      checkToScrollTOC();
+      // checkToScrollTOC();
     }, 500);
-  });
-
-  /* Auto scroll */
-  $('#nav_menu').scrollToFixed({
-    dontSetWidth: true,
-  });
-
-  /* Toggle TOC view for Mobile */
-  $('#toc_table > h2').on('click', function ()
-  {
-    if ( $(window).width() <= 991 )
-    {
-      $('#toc_table > #toc_navigation').slideToggle();
-    }
-  });
-
-  // Submenu ensured drop-down functionality for desktops & mobiles
-  $('.dd_menu').on({
-    click: function ()
-    {
-      if (isTouchDevice)
-      {
-        $(this).toggleClass('dd_on_hover');
-      }
-    },
-    mouseenter: function ()
-    {
-      if (!isTouchDevice)
-      {
-        $(this).addClass('dd_on_hover');
-      }
-    },
-    mouseleave: function ()
-    {
-      $(this).removeClass('dd_on_hover');
-    },
   });
 
   /* Follow TOC links (ScrollSpy) */
@@ -72,6 +33,22 @@ $(document).ready(function ()
   $("li.disabled a").click(function ()
   {
     event.preventDefault();
+  });
+
+  // Submenu ensured drop-down functionality for desktops & mobiles
+  $('.dd_menu').on({
+    click: function ()
+    {
+      $(this).toggleClass('dd_on_hover');
+    },
+    mouseenter: function ()
+    {
+      $(this).addClass('dd_on_hover');
+    },
+    mouseleave: function ()
+    {
+      $(this).removeClass('dd_on_hover');
+    },
   });
 
 });
@@ -97,7 +74,7 @@ function checkToScrollTOC ()
     else
     {
       $('#toc_table').scrollToFixed({
-        marginTop: $('#nav_menu').height() + 14,
+        marginTop: $('#nav_menu').height(),
         limit: function () { return $('#footer').offset().top - 450; },
         zIndex: 1,
         minWidth: 768,
@@ -105,4 +82,14 @@ function checkToScrollTOC ()
       });
     }
   }
+}
+
+function getCookie(cname) {
+  var name = cname + "=";
+  var ca = document.cookie.split(';');
+  for(var i=0; i<ca.length; i++) {
+      var c = ca[i].trim();
+      if (c.indexOf(name) == 0) return c.substring(name.length,c.length);
+  }
+  return "";
 }

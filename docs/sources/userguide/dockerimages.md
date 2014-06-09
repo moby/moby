@@ -1,6 +1,6 @@
 page_title: Working with Docker Images
 page_description: How to work with Docker images.
-page_keywords: documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker.io, collaboration
+page_keywords: documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub, collaboration
 
 # Working with Docker Images
 
@@ -13,14 +13,14 @@ image and the `training/webapp` image.
 We've also discovered that Docker stores downloaded images on the Docker
 host. If an image isn't already present on the host then it'll be
 downloaded from a registry: by default the
-[Docker.io](https://index.docker.io) public registry.
+[Docker Hub](https://hub.docker.com) public registry.
 
 In this section we're going to explore Docker images a bit more
 including:
 
 * Managing and working with images locally on your Docker host;
 * Creating basic images;
-* Uploading images to [Docker.io](https://index.docker.io).
+* Uploading images to [Docker Hub](https://hub.docker.com).
 
 ## Listing images on the host
 
@@ -45,7 +45,7 @@ do this using the `docker images` command like so:
     ubuntu           lucid    3db9c44f4520  4 weeks ago  183 MB
 
 We can see the images we've previously used in our [user guide](/userguide/).
-Each has been downloaded from [Docker.io](https://index.docker.io) when we
+Each has been downloaded from [Docker Hub](https://hub.docker.com) when we
 launched a container using that image.
 
 We can see three crucial pieces of information about our images in the listing.
@@ -104,8 +104,8 @@ download the image.
 
 One of the features of Docker is that a lot of people have created Docker
 images for a variety of purposes. Many of these have been uploaded to
-[Docker.io](https://index.docker.io). We can search these images on the
-[Docker.io](https://index.docker.io) website.
+[Docker Hub](https://hub.docker.com). We can search these images on the
+[Docker Hub](https://hub.docker.com) website.
 
 ![indexsearch](/userguide/search.png)
 
@@ -312,7 +312,7 @@ and given it the tag `v2`.
 We've also specified the location of our `Dockerfile` using the `.` to
 indicate a `Dockerfile` in the current directory.
 
-> **Note::**
+> **Note:**
 > You can also specify a path to a `Dockerfile`.
 
 Now we can see the build process at work. The first thing Docker does is
@@ -359,12 +359,12 @@ Let's see our new tag using the `docker images` command.
     ouruser/sinatra     devel   5db5f8471261  11 hours ago   446.7 MB
     ouruser/sinatra     v2      5db5f8471261  11 hours ago   446.7 MB
 
-## Push an image to Docker.io
+## Push an image to Docker Hub
 
-Once you've built or created a new image you can push it to [Docker.io](
-https://index.docker.io) using the `docker push` command. This allows you to
-share it with others, either publicly, or push it into [a private
-repository](https://index.docker.io/plans/).
+Once you've built or created a new image you can push it to [Docker
+Hub](https://hub.docker.com) using the `docker push` command. This
+allows you to share it with others, either publicly, or push it into [a
+private repository](https://registry.hub.docker.com/plans/).
 
     $ sudo docker push ouruser/sinatra
     The push refers to a repository [ouruser/sinatra] (len: 1)

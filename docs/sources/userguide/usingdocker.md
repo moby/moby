@@ -229,7 +229,7 @@ Lastly, we can take a low-level dive into our Docker container using the
 `docker inspect` command. It returns a JSON hash of useful configuration
 and status information about Docker containers.
 
-    $ docker inspect nostalgic_morse
+    $ sudo docker inspect nostalgic_morse
 
 Let's see a sample of that JSON output.
 
@@ -249,7 +249,7 @@ Let's see a sample of that JSON output.
 We can also narrow down the information we want to return by requesting a
 specific element, for example to return the container's IP address we would:
 
-    $ sudo docker inspect -f '{{ .NetworkSettings.IPAddress }}'
+    $ sudo docker inspect -f '{{ .NetworkSettings.IPAddress }}' nostalgic_morse
     172.17.0.5
 
 ## Stopping our Web Application Container
@@ -309,7 +309,7 @@ And now our container is stopped and deleted.
 # Next steps
 
 Until now we've only used images that we've downloaded from
-[Docker.io](https://index.docker.io) now let's get introduced to
+[Docker Hub](https://hub.docker.com) now let's get introduced to
 building and sharing our own images.
 
 Go to [Working with Docker Images](/userguide/dockerimages).

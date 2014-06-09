@@ -58,7 +58,7 @@ we change the source code. The directory on the host must be specified as an
 absolute path and if the directory doesn't exist Docker will automatically
 create it for you.
 
-> **Note::** 
+> **Note:** 
 > This is not available from a `Dockerfile` due the portability
 > and sharing purpose of it. As the host directory is, by its nature,
 > host-dependent it might not work all hosts.
@@ -135,8 +135,8 @@ restore testing using your preferred tools.
 
 Now we've learned a bit more about how to use Docker we're going to see how to
 combine Docker with the services available on
-[Docker.io](https://index.docker.io) including Automated Builds and private
+[Docker Hub](https://hub.docker.com) including Automated Builds and private
 repositories.
 
-Go to [Working with Docker.io](/userguide/dockerrepos).
+Go to [Working with Docker Hub](/userguide/dockerrepos).
 

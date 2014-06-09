@@ -18,7 +18,7 @@ var (
 
 func spawnTestRegistry(t *testing.T) *Registry {
 	authConfig := &AuthConfig{}
-	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"))
+	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestValidRepositoryName(t *testing.T) {
 }
 
 func TestTrustedLocation(t *testing.T) {
-	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.io"} {
+	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.io", "https://fakedocker.com"} {
 		req, _ := http.NewRequest("GET", url, nil)
 		if trustedLocation(req) == true {
 			t.Fatalf("'%s' shouldn't be detected as a trusted location", url)
