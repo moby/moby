@@ -146,6 +146,25 @@ func (d *Driver) Exists(id string) bool {
 	return d.DeviceSet.HasDevice(id)
 }
 
+func (d *Driver) resize(job *engine.Job) engine.Status {
+	args := job.Args
+	if len(args) != 2 {
+		return job.Errorf("Usage: resize IMAGE/CONTAINER NEW_SIZE")
+	}
+
+	size, err := units.FromHumanSize(args[1])
+	if err != nil {
+		return job.Errorf("Invalid size: %s", args[0])
+	}
+
+	err = d.DeviceSet.ResizeDevice(args[0], size)
+	if err != nil {
+		return job.Errorf("Error resizing %s: %s", args[0], err.Error())
+	}
+
+	return engine.StatusOK
+}
+
 func (d *Driver) resizePool(job *engine.Job) engine.Status {
 	args := job.Args
 	if len(args) != 1 {
@@ -167,5 +186,6 @@ func (d *Driver) resizePool(job *engine.Job) engine.Status {
 
 func (d *Driver) Install(eng *engine.Engine) error {
 	eng.Register("dm:resize-pool", d.resizePool)
+	eng.Register("dm:resize", d.resize)
 	return nil
 }

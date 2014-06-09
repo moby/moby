@@ -1151,6 +1151,101 @@ func (devices *DeviceSet) Status() *Status {
 	return status
 }
 
+func (devices *DeviceSet) ResizeDevice(hash string, size int64) error {
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	if size < 0 || info.Size > uint64(size) {
+		return fmt.Errorf("Can't shrink devices")
+	}
+
+	devices.Lock()
+	defer devices.Unlock()
+
+	devinfo, err := getInfo(info.Name())
+	if info == nil {
+		return err
+	}
+
+	if devinfo.OpenCount != 0 {
+		return fmt.Errorf("Device in use")
+	}
+
+	if devinfo.Exists != 0 {
+		if err := devices.deactivateDevice(info); err != nil {
+			return err
+		}
+	}
+	oldSize := info.Size
+	info.Size = uint64(size)
+
+	if err := devices.saveMetadata(info); err != nil {
+		info.Size = oldSize
+		return err
+	}
+
+	// Activate with new size
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
+		return err
+	}
+
+	fstype, err := ProbeFsType(info.DevName())
+	if err != nil {
+		return err
+	}
+
+	switch fstype {
+	case "xfs":
+		dir, err := ioutil.TempDir(devices.root, "resizemnt")
+		if err != nil {
+			return err
+		}
+
+		defer os.Remove(dir)
+
+		err = syscall.Mount(info.DevName(), dir, "xfs", syscall.MS_MGC_VAL, "nouuid")
+		if err != nil {
+			return err
+		}
+
+		err = exec.Command("xfs_growfs", dir).Run()
+		if err != nil {
+			syscall.Unmount(dir, 0)
+			return fmt.Errorf("xfs_growfs failed: %v", err)
+		}
+
+		err = syscall.Unmount(dir, 0)
+		if err != nil {
+			return err
+		}
+
+	case "ext4":
+		err = exec.Command("e2fsck", "-f", "-y", info.DevName()).Run()
+		if err != nil {
+			return fmt.Errorf("e2fsck failed: %v", err)
+		}
+
+		err = exec.Command("resize2fs", info.DevName()).Run()
+		if err != nil {
+			return fmt.Errorf("resizee2fs failed: %v", err)
+		}
+
+	default:
+		return fmt.Errorf("Unsupported filesystem %s", fstype)
+	}
+
+	if err := devices.deactivateDevice(info); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {
 	SetDevDir("/dev")
 
