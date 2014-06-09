@@ -67,5 +67,6 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
 		config.Entrypoint = Entrypoint
 	}
+
 	return config
 }
