@@ -464,9 +464,9 @@ func TestDeleteTagWithExistingContainers(t *testing.T) {
 
 func TestReadCgroup(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := runconfig.Parse([]string{"-i", "-m", "100m", "-c", "1000", "-lxc-conf", "lxc.cgroup.cpuset.cpus=1", unitTestImageID, "/bin/cat"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"-i", "-m", "100m", "-c", "1000", unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -484,13 +484,12 @@ func TestReadCgroup(t *testing.T) {
 	raw := map[string]string{
 		"memory.limit_in_bytes": "104857600",
 		"cpu.shares":            "1000",
-		"cpuset.cpus":           "1",
 	}
 
 	var (
 		readSubsystem []string
 	)
-	readSubsystem = []string{"memory.limit_in_bytes", "cpu.shares", "cpuset.cpus"}
+	readSubsystem = []string{"memory.limit_in_bytes", "cpu.shares"}
 
 	job = eng.Job("cgroup", id)
 	job.SetenvList("readSubsystem", readSubsystem)
@@ -503,13 +502,13 @@ func TestReadCgroup(t *testing.T) {
 		t.Fatal("Unexpected error: %s", err)
 	}
 
-	if len(cgroupResponses.Data) != 3 {
-		t.Fatalf("Except length is 3, actual is %d", len(cgroupResponses.Data))
+	if len(cgroupResponses.Data) != 2 {
+		t.Fatalf("Except length is 2, actual is %d", len(cgroupResponses.Data))
 	}
 
 	for _, cgroupResponse := range cgroupResponses.Data {
 		if cgroupResponse.GetInt("Status") != 0 {
-			t.Fatalf("Unexcepted status %d for subsystem %s", cgroupResponse.GetInt("Status"), cgroupResponse.Get("Subsystem"))
+			t.Fatalf("Unexcepted status %d for subsystem %s, cause by %s", cgroupResponse.GetInt("Status"), cgroupResponse.Get("Subsystem"), cgroupResponse.Get("Err"))
 		}
 		value, exist := raw[cgroupResponse.Get("Subsystem")]
 		if exist {
@@ -524,9 +523,9 @@ func TestReadCgroup(t *testing.T) {
 
 func TestWriteCgroup(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkRuntimeFromEngine(eng, t).Nuke()
+	defer mkDaemonFromEngine(eng, t).Nuke()
 
-	config, hostConfig, _, err := runconfig.Parse([]string{"-i", "-m", "100m", "-c", "1000", "-lxc-conf", "lxc.cgroup.cpuset.cpus=1", unitTestImageID, "/bin/cat"}, nil)
+	config, hostConfig, _, err := runconfig.Parse([]string{"-i", "-m", "100m", "-c", "1000", unitTestImageID, "/bin/cat"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,10 +541,8 @@ func TestWriteCgroup(t *testing.T) {
 	}
 
 	raw := map[string]string{
-		"memory.memsw.limit_in_bytes": "524288000",
-		"memory.limit_in_bytes":       "209715200",
-		"cpu.shares":                  "500",
-		"cpuset.cpus":                 "0-1",
+		"memory.limit_in_bytes": "104857600",
+		"cpu.shares":            "500",
 	}
 
 	var (
@@ -572,17 +569,17 @@ func TestWriteCgroup(t *testing.T) {
 		t.Fatal("Unexpected error: %s", err)
 	}
 
-	if len(cgroupResponses.Data) != 4 {
-		t.Fatalf("Except length is 4, actual is %d", len(cgroupResponses.Data))
+	if len(cgroupResponses.Data) != 2 {
+		t.Fatalf("Except length is 2, actual is %d", len(cgroupResponses.Data))
 	}
 
 	for _, cgroupResponse := range cgroupResponses.Data {
 		if cgroupResponse.GetInt("Status") != 0 {
-			t.Fatalf("Unexcepted status %d for subsystem %s", cgroupResponse.GetInt("Status"), cgroupResponse.Get("Subsystem"))
+			t.Fatalf("Unexcepted status %d for subsystem %s, cause by %s", cgroupResponse.GetInt("Status"), cgroupResponse.Get("Subsystem"), cgroupResponse.Get("Err"))
 		}
-		_, exist := raw[cgroupResponse.Get("Subsystem")]
+		value, exist := raw[cgroupResponse.Get("Subsystem")]
 		if exist {
-			if cgroupResponse.Get("Out") != "" || cgroupResponse.Get("Err") != "" {
+			if cgroupResponse.Get("Out") != value || cgroupResponse.Get("Err") != "" {
 				t.Fatalf("Unexcepted stdout %s, stderr %s for subsystem %s", cgroupResponse.Get("Out"), cgroupResponse.Get("Err"), cgroupResponse.Get("Subsystem"))
 			}
 		} else {

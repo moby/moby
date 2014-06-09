@@ -52,9 +52,6 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
-	GetCgroupSubsystem(id, subsystem string) (string, error)
-	SetCgroupSubsystem(id, subsystem, value string) (string, error)
-	UpdateConfig(c *Command) error
 	Parent() string
 }
 

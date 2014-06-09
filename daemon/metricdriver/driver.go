@@ -1,30 +1,22 @@
 package metricdriver
 
 import (
-	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/pkg/cgroups/fs"
+	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/cgroups/fs"
 )
 
-var (
-	metricSubsystems = []string{"memory", "cpuacct"}
-)
-
-func Get(id, parent string, pid int) (map[string]map[string]float64, error) {
-
-	metric := make(map[string]map[string]float64)
+func Get(id, parent string) (*cgroups.Stats, error) {
 
 	c := &cgroups.Cgroup{
 		Name:   id,
 		Parent: parent,
 	}
 
-	for _, subsystem := range metricSubsystems {
-		stat, err := fs.GetStats(c, subsystem, pid)
-		if err != nil {
-			return nil, err
-		}
-		metric[subsystem] = stat
+	stats, err := fs.GetStats(c)
+
+	if err != nil {
+		return nil, err
 	}
 
-	return metric, nil
+	return stats, nil
 }

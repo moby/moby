@@ -44,6 +44,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/daemonconfig"
@@ -2398,7 +2399,6 @@ func (srv *Server) ContainerCgroup(job *engine.Job) engine.Status {
 
 	var (
 		name           = job.Args[0]
-		saveToFile     = job.GetenvBool("saveToFile")
 		readSubsystem  = job.GetenvList("readSubsystem")
 		writeSubsystem []struct {
 			Key   string
@@ -2408,7 +2408,7 @@ func (srv *Server) ContainerCgroup(job *engine.Job) engine.Status {
 
 	job.GetenvJson("writeSubsystem", &writeSubsystem)
 
-	utils.Debugf("name %s, saveToFile %s, readSubsystem %s, writeSubsystem %s", name, saveToFile, readSubsystem, writeSubsystem)
+	utils.Debugf("name %s, readSubsystem %s, writeSubsystem %s", name, readSubsystem, writeSubsystem)
 
 	if container := srv.daemon.Get(name); container != nil {
 		if !container.State.IsRunning() {
@@ -2427,9 +2427,9 @@ func (srv *Server) ContainerCgroup(job *engine.Job) engine.Status {
 			}
 
 			cgroupResponse.Subsystem = subsystem
-			output, err := srv.daemon.ExecutionDriver().GetCgroupSubsystem(container.ID, subsystem)
+			output, err := fs.Get(container.ID, srv.daemon.ExecutionDriver().Parent(), subsystem)
 			if err != nil {
-				cgroupResponse.Err = output
+				cgroupResponse.Err = fmt.Sprintf("%s", err)
 				cgroupResponse.Status = 255
 			} else {
 				cgroupResponse.Out = output
@@ -2448,29 +2448,15 @@ func (srv *Server) ContainerCgroup(job *engine.Job) engine.Status {
 			}
 
 			cgroupResponse.Subsystem = pair.Key
-			output, err := srv.daemon.ExecutionDriver().SetCgroupSubsystem(container.ID, pair.Key, pair.Value)
+			err := fs.Set(container.ID, srv.daemon.ExecutionDriver().Parent(), pair.Key, pair.Value)
 			if err != nil {
-				cgroupResponse.Err = output
+				cgroupResponse.Err = fmt.Sprintf("%s", err)
 				cgroupResponse.Status = 255
 			} else {
-				cgroupResponse.Out = output
+				cgroupResponse.Out = pair.Value
 				cgroupResponse.Status = 0
-				if saveToFile {
-					container.AddLXCConfig(pair.Key, pair.Value)
-				}
-
 			}
 			object = append(object, cgroupResponse)
-		}
-
-		if saveToFile {
-			if err := container.ToDisk(); err != nil {
-				return job.Error(err)
-			}
-
-			if err := container.GenerateLXCConfig(); err != nil {
-				return job.Error(err)
-			}
 		}
 
 		b, err := json.Marshal(object)

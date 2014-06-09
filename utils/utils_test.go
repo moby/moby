@@ -95,21 +95,5 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 
 	if err = os.Remove("/tmp/fileLinkTest"); err != nil {
 		t.Errorf("failed to remove symlink: %s", err)
-    }
-}
-
-func TestIsInBytesSubsystem(t *testing.T) {
-	if IsInBytesSubsystem("foo") {
-		t.Fatalf("Unexpected true result")
-	}
-
-	if !IsInBytesSubsystem("memory.limit_in_bytes") {
-		t.Fatalf("Unexpected false result")
-	}
-}
-
-func TestRemoveLXCCgroupPrefix(t *testing.T) {
-	if RemoveLXCCgroupPrefix("lxc.cgroup.cpuset.cpus") != "cpuset.cpus" {
-		t.Fatalf("Unexpected result")
 	}
 }

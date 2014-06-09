@@ -1165,11 +1165,6 @@ func postContainersCgroup(eng *engine.Engine, version version.Version, w http.Re
 		return fmt.Errorf("Missing parameter")
 	}
 
-	saveToFile, err := getBoolParam(r.FormValue("w"))
-	if err != nil {
-		return err
-	}
-
 	var (
 		cgroupData     engine.Env
 		readSubsystem  []string
@@ -1195,7 +1190,6 @@ func postContainersCgroup(eng *engine.Engine, version version.Version, w http.Re
 	job := eng.Job("cgroup", vars["name"])
 	job.SetenvList("readSubsystem", readSubsystem)
 	job.SetenvJson("writeSubsystem", writeSubsystem)
-	job.SetenvBool("saveToFile", saveToFile)
 
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
