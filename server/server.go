@@ -123,6 +123,7 @@ func InitServer(job *engine.Job) engine.Status {
 	for name, handler := range map[string]engine.Handler{
 		"export":           srv.ContainerExport,
 		"create":           srv.ContainerCreate,
+		"devadd":           srv.ContainerDevAdd,
 		"stop":             srv.ContainerStop,
 		"restart":          srv.ContainerRestart,
 		"start":            srv.ContainerStart,
@@ -168,6 +169,22 @@ func InitServer(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	srv.SetRunning(true)
+	return engine.StatusOK
+}
+
+func (srv *Server) ContainerDevAdd(job *engine.Job) engine.Status {
+	if len(job.Args) != 2 {
+		return job.Errorf("Usage: %s CONTAINER DEVICE", job.Name)
+	}
+	name := job.Args[0]
+	device := job.Args[1]
+	container := srv.daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	if err := container.DevAdd(device); err != nil {
+		return job.Errorf("Cannot add device %s to container %s: %s", device, name, err)
+	}
 	return engine.StatusOK
 }
 

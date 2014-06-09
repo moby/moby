@@ -232,6 +232,10 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return KillLxc(c.ID, sig)
 }
 
+func (d *driver) DevAdd(c *execdriver.Command, src string, dst string, perms string) error {
+	return nil
+}
+
 func (d *driver) Pause(c *execdriver.Command) error {
 	_, err := exec.LookPath("lxc-freeze")
 	if err == nil {

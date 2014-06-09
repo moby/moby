@@ -18,6 +18,7 @@ import (
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
+	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/syncpipe"
 	"github.com/dotcloud/docker/daemon/execdriver"
@@ -161,6 +162,27 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
 	return syscall.Kill(p.Process.Pid, syscall.Signal(sig))
+}
+
+func (d *driver) DevAdd(c *execdriver.Command, src string, dst string, perms string) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+	// Build lists of devices allowed and created within the container.
+	device, err := devices.GetDevice(src, perms)
+	device.Path = dst
+	if err != nil {
+		return err
+	}
+	active.container.Cgroups.AllowedDevices = append(active.container.Cgroups.AllowedDevices, device)
+	if systemd.UseSystemd() {
+		return systemd.UpdateAllowedDevices(active.container.Cgroups, c.Process.Pid)
+	}
+	if _, err := fs.Apply(active.container.Cgroups, c.Process.Pid); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
