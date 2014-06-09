@@ -82,13 +82,14 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		for nr < StdWriterPrefixLen {
 			var nr2 int
 			nr2, er = src.Read(buf[nr:])
-			if er == io.EOF {
-				return written, nil
-			}
-			if er != nil {
+			// Don't exit on EOF, because we can have some more input
+			if er != nil && er != io.EOF {
 				return 0, er
 			}
 			nr += nr2
+			if nr == 0 {
+				return written, nil
+			}
 		}
 
 		// Check the first byte to know where to write
