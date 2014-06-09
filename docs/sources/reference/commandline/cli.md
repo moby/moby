@@ -735,7 +735,7 @@ Running `docker ps` showing 2 linked containers.
 
 ## pull
 
-    Usage: docker pull NAME[:TAG]
+    Usage: docker pull [REGISTRY_PATH/]NAME[:TAG]
 
     Pull an image or a repository from the registry
 
@@ -745,6 +745,11 @@ Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) contains many pre-built images that you
 can `pull` and try without needing to define and configure your own.
 
+It is also possible to manually specify the path of a registry to pull from.
+For example, if you have set up a local registry, you can specify its path to
+pull from it. A repository path is similar to a URL, but does not contain
+a protocol specifier (https://, for example).
+
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
 
@@ -752,8 +757,11 @@ use `docker pull`:
     # will pull all the images in the debian repository
     $ docker pull debian:testing
     # will pull only the image named debian:testing and any intermediate layers
-    # it is based on. (typically the empty `scratch` image, a MAINTAINERs layer,
-    # and the un-tared base.
+    # it is based on. (Typically the empty `scratch` image, a MAINTAINERs layer,
+    # and the un-tarred base).
+    $ docker pull registry.hub.docker.com/debian
+    # manually specifies the path to the default Docker registry. This could
+    # be replaced with the path to a local registry to pull from another source.
 
 ## push
 
