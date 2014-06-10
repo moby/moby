@@ -59,6 +59,14 @@ RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local
 RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# Compile and install lvm2 for arm
+RUN apt-get install -yq gcc-arm-linux-gnueabi && cd /usr/local/lvm2 && export ac_cv_func_malloc_0_nonnull=yes && ./configure --enable-static_link --host=arm-linux-gnueabi --prefix=/usr/arm-linux-gnueabi/ && make device-mapper && make install_device-mapper
+
+# Compile and install sqlite3 for armhf
+RUN curl -s http://www.sqlite.org/2014/sqlite-autoconf-3080500.tar.gz | tar -v -C /usr/local -xz
+RUN cd /usr/local/sqlite-autoconf-3080500 && ./configure --host=arm-linux-gnueabi --prefix=/usr/arm-linux-gnueabi/ && make && make install
+
+
 # Install Go
 RUN	curl -s https://go.googlecode.com/files/go1.2.1.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:$PATH
