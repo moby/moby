@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -818,6 +819,124 @@ func TestBuildWithoutCache(t *testing.T) {
 		t.Fatal("The cache should have been invalided but hasn't.")
 	}
 	logDone("build - without cache")
+}
+
+func stripBuildLogs(rawOuput string) string {
+	forbiddenMatches := []*regexp.Regexp{
+		regexp.MustCompile(`^Sending build context to Docker daemon.*$`),
+		regexp.MustCompile(`^Step [0-9]+ :.*$`),
+		regexp.MustCompile(`^ ---> .*$`),
+		regexp.MustCompile(`^Removing intermediate container [0-9a-f]+$`),
+		regexp.MustCompile(`^Sucessfully built [0-9a-f]+$`),
+	}
+
+	lines := strings.Split(rawOuput, "\n")
+	filterLines := []string{}
+
+	for _, line := range lines {
+		filterLine := false
+		for _, match := range forbiddenMatches {
+			if match.Match([]byte(line)) {
+				filterLine = true
+				break
+			}
+		}
+
+		if !filterLine {
+			filterLines = append(filterLines, line)
+		}
+	}
+
+	return strings.Join(filterLines, "\n")
+}
+
+func TestBuildNoCache(t *testing.T) {
+	dockerfile := `
+		FROM busybox
+		RUN echo "cached"
+		NOCACHE
+		RUN echo "never uses cache"
+		RUN echo "waterfall cache death"
+	`
+	ctx, err := fakeContext(dockerfile, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testnocache1", ".")
+	buildCmd.Dir = ctx.Dir
+	rawOut1, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", rawOut1, err))
+
+	out1 := stripBuildLogs(rawOut1)
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+	defer deleteImages("testnocache1")
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", "testnocache2", ".")
+	buildCmd.Dir = ctx.Dir
+	rawOut2, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", rawOut2, err))
+
+	out2 := stripBuildLogs(rawOut2)
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+	defer deleteImages("testnocache2")
+
+	if !strings.Contains(out1, "cached") {
+		t.Fatal("1st build used cached version of RUN, it shouldn't have")
+	}
+
+	if strings.Contains(out2, "cached") {
+		t.Fatal("2nd build didn't use cached version of RUN, it should've")
+	}
+
+	if !strings.Contains(out2, "never uses cache") {
+		t.Fatal("2nd build used cached version of NOCACHE RUN, it shouldn't have")
+	}
+
+	if !strings.Contains(out2, "waterfall cache death") {
+		t.Fatal("2nd build used cached version of RUN after previous NOCACHE, it shouldn't have")
+	}
+
+	logDone("build - NOCACHE")
+}
+
+func TestBuildNoCacheADD(t *testing.T) {
+	name := "testnocacheadd"
+	defer deleteImages(name)
+
+	dockerfile := `
+		FROM busybox
+		NOCACHE
+		ADD foo /
+	`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "some content here",
+	})
+	defer ctx.Close()
+
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 == id2 {
+		t.Fatal("A cache was used but shouldn't have been with a NOCACHE ADD instruction.")
+	}
+
+	logDone("build - NOCACHE ADD")
 }
 
 func TestBuildADDLocalFileWithCache(t *testing.T) {
