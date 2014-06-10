@@ -305,7 +305,7 @@ body {
   margin: 0 auto -379px;
 }
 /* Set the fixed height of the footer here */
-#push,
+#push-footer,
 #footer {
   height: 379px;
   background: #253237;
