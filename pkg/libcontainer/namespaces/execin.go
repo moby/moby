@@ -7,8 +7,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/label"
 	"github.com/dotcloud/docker/pkg/system"
 )
 
