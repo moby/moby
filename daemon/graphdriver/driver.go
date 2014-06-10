@@ -10,7 +10,7 @@ import (
 	"github.com/dotcloud/docker/pkg/mount"
 )
 
-type FsMagic uint64
+type FsMagic uint
 
 const (
 	FsMagicBtrfs = FsMagic(0x9123683E)
