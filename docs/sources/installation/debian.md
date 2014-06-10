@@ -68,7 +68,7 @@ use the `-G` flag to specify an alternative group.
     $ sudo gpasswd -a ${USER} docker
 
     # Restart the Docker daemon.
-    $ sudo service docker restart
+    $ sudo service docker.io restart
 
 ## What next?
 
