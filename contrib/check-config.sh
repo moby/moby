@@ -100,7 +100,7 @@ echo
 echo 'Generally Necessary:'
 
 echo -n '- '
-cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)([, ]|$)/ && $8 == "cgroup" { print $5 }' /proc/$$/mountinfo | head -n1)"
+cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)[, ]/ && $3 == "cgroup" { print $2 }' /proc/mounts | head -n1)"
 cgroupDir="$(dirname "$cgroupSubsystemDir")"
 if [ -d "$cgroupDir/cpu" -o -d "$cgroupDir/cpuacct" -o -d "$cgroupDir/cpuset" -o -d "$cgroupDir/devices" -o -d "$cgroupDir/freezer" -o -d "$cgroupDir/memory" ]; then
 	echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
@@ -116,7 +116,7 @@ fi
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES
-	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_SCHED
+	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED
 	MACVLAN VETH BRIDGE
 	NF_NAT_IPV4 IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
