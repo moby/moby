@@ -13,7 +13,7 @@ application inside a container takes a single command: `docker run`.
 
 Let's try it now.
 
-    $ sudo docker run ubuntu:14.04 /bin/echo "Hello World!"
+    $ sudo docker run ubuntu:14.04 /bin/echo 'Hello World!'
     Hello World!
 
 And you just launched your first container!
@@ -34,7 +34,7 @@ image registry: [Docker Hub](https://hub.docker.com).
 
 Next we told Docker what command to run inside our new container:
 
-    /bin/echo "Hello World!"
+    /bin/echo 'Hello World!'
 
 When our container was launched Docker created a new Ubuntu 14.04
 environment and then executed the `/bin/echo` command inside it. We saw
