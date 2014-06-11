@@ -3,8 +3,8 @@ package configuration
 import (
 	"testing"
 
+	"github.com/docker/libcontainer"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
-	"github.com/dotcloud/docker/pkg/libcontainer"
 )
 
 // Checks whether the expected capability is specified in the capabilities.

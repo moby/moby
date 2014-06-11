@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/selinux"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/execdrivers"
@@ -26,8 +28,6 @@ import (
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/libcontainer/label"
-	"github.com/dotcloud/docker/pkg/libcontainer/selinux"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/sysinfo"
