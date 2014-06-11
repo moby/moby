@@ -16,7 +16,6 @@ import (
 
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/api/server"
-	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
@@ -499,37 +498,6 @@ func TestGetContainersTop(t *testing.T) {
 	}
 	if processes[1][10] != "/bin/sh -c cat" {
 		t.Fatalf("Expected `/bin/sh -c cat`, found %s.", processes[1][10])
-	}
-}
-
-func TestGetContainersByName(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	// Create a container and remove a file
-	containerID := createTestContainer(eng,
-		&runconfig.Config{
-			Image: unitTestImageID,
-			Cmd:   []string{"echo", "test"},
-		},
-		t,
-	)
-
-	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/containers/"+containerID+"/json", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-	outContainer := &daemon.Container{}
-	if err := json.Unmarshal(r.Body.Bytes(), outContainer); err != nil {
-		t.Fatal(err)
-	}
-	if outContainer.ID != containerID {
-		t.Fatalf("Wrong containers retrieved. Expected %s, received %s", containerID, outContainer.ID)
 	}
 }
 
