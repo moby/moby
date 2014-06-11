@@ -50,6 +50,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build an image from a Dockerfile"},
+		{"cat", "Run cat on a file in a container's filesystem"},
 		{"commit", "Create a new image from a container's changes"},
 		{"cp", "Copy files/folders from the containers filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
@@ -61,6 +62,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
+		{"ls", "Run ls in a container's filesystem"},
 		{"load", "Load an image from a tar archive"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
@@ -2171,6 +2173,64 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdLs(args ...string) error {
+	cmd := cli.Subcmd("ls", "CONTAINER:PATH", "Run ls on PATH in the container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var shexecData engine.Env
+	info := strings.Split(cmd.Arg(0), ":")
+
+	if len(info) != 2 {
+		return fmt.Errorf("Error: Path not specified")
+	}
+
+	shexecData.Set("Resource", info[1])
+
+	stream, _, err := cli.call("POST", "/containers/"+info[0]+"/ls", shexecData, false)
+	if err != nil {
+		return err
+	}
+
+	_, err = utils.StdCopy(cli.out, cli.err, stream)
+	return nil
+}
+
+func (cli *DockerCli) CmdCat(args ...string) error {
+	cmd := cli.Subcmd("cat", "CONTAINER:PATH", "Run ls on PATH in the container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var shexecData engine.Env
+	info := strings.Split(cmd.Arg(0), ":")
+
+	if len(info) != 2 {
+		return fmt.Errorf("Error: Path not specified")
+	}
+
+	shexecData.Set("Resource", info[1])
+
+	stream, _, err := cli.call("POST", "/containers/"+info[0]+"/cat", shexecData, false)
+	if err != nil {
+		return err
+	}
+
+	_, err = utils.StdCopy(cli.out, cli.err, stream)
 	return nil
 }
 
