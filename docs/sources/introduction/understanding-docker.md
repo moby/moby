@@ -162,8 +162,10 @@ Docker images are then built from these base images using a simple, descriptive
 set of steps we call *instructions*. Each instruction creates a new layer in our
 image. Instructions include actions like:
 
-* Run a command. * Add a file or directory. * Create an environment variable. *
-What process to run when launching a container from this image.
+* Run a command. 
+* Add a file or directory. 
+* Create an environment variable.
+* What process to run when launching a container from this image.
 
 These instructions are stored in a file called a `Dockerfile`. Docker reads this
 `Dockerfile` when you request a build of an image, executes the instructions, and
