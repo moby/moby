@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,6 +60,7 @@ type Container struct {
 	NetworkSettings *NetworkSettings
 
 	ResolvConfPath string
+	MachineIDPath  string
 	HostnamePath   string
 	HostsPath      string
 	Name           string
@@ -229,6 +231,10 @@ func (container *Container) Start() (err error) {
 			container.cleanup()
 		}
 	}()
+
+	if err := container.setMachineID(); err != nil {
+		return err
+	}
 
 	if err := container.setupContainerDns(); err != nil {
 		return err
@@ -1032,6 +1038,24 @@ func (container *Container) startLoggingToDisk() error {
 		return err
 	}
 	return nil
+}
+
+func (container *Container) setMachineID() error {
+	container.MachineIDPath = container.getRootResourcePath("machine-id")
+
+	if _, err := os.Stat(container.MachineIDPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		// File exists but we can't stat it
+		return err
+	}
+
+	content := bytes.NewBuffer(nil)
+
+	content.WriteString(container.ID[:32])
+	content.WriteString("\n")
+
+	return ioutil.WriteFile(container.MachineIDPath, content.Bytes(), 0444)
 }
 
 func (container *Container) waitForStart() error {
