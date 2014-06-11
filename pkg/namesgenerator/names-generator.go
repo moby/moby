@@ -78,14 +78,20 @@ var (
 func GetRandomName(retry int) string {
 	rand.Seed(time.Now().UnixNano())
 
-begin:
-	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
-	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
-		goto begin
+	badNames := map[string]struct{}{
+		// Wozniak is never boring.
+		"boring_wozniak": {},
+	}
+
+	// Make sure that the generated name isn't a "badName".
+	var name string
+	for bad := true; bad; _, bad = badNames[name] {
+		name = fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
 	}
 
 	if retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
 	}
+
 	return name
 }

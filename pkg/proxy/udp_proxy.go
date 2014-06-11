@@ -72,19 +72,27 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 	readBuf := make([]byte, UDPBufSize)
 	for {
 		proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
-	again:
-		read, err := proxyConn.Read(readBuf)
-		if err != nil {
-			if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
-				// This will happen if the last write failed
-				// (e.g: nothing is actually listening on the
-				// proxied port on the container), ignore it
-				// and continue until UDPConnTrackTimeout
-				// expires:
-				goto again
+
+		var read int
+		var err error
+
+		for {
+			read, err = proxyConn.Read(readBuf)
+			if err != nil {
+				if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
+
+					// This will happen if the last write failed
+					// (e.g: nothing is actually listening on the
+					// proxied port on the container), ignore it
+					// and continue until UDPConnTrackTimeout
+					// expires:
+					continue
+				}
+				return
 			}
-			return
+			break
 		}
+
 		for i := 0; i != read; {
 			written, err := proxy.listener.WriteToUDP(readBuf[i:read], clientAddr)
 			if err != nil {

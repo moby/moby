@@ -528,93 +528,103 @@ func (s *Scanner) scanComment(ch rune) rune {
 // token errors) by calling s.Error, if not nil; otherwise it prints an error
 // message to os.Stderr.
 func (s *Scanner) Scan() rune {
+	var tok rune
 	ch := s.Peek()
 
 	// reset token text position
 	s.tokPos = -1
 	s.Line = 0
 
-redo:
-	// skip white space
-	for s.Whitespace&(1<<uint(ch)) != 0 {
-		ch = s.next()
-	}
+	for {
+		redo := false
 
-	// start collecting token text
-	s.tokBuf.Reset()
-	s.tokPos = s.srcPos - s.lastCharLen
-
-	// set token position
-	// (this is a slightly optimized version of the code in Pos())
-	s.Offset = s.srcBufOffset + s.tokPos
-	if s.column > 0 {
-		// common case: last character was not a '\n'
-		s.Line = s.line
-		s.Column = s.column
-	} else {
-		// last character was a '\n'
-		// (we cannot be at the beginning of the source
-		// since we have called next() at least once)
-		s.Line = s.line - 1
-		s.Column = s.lastLineLen
-	}
-
-	// determine token value
-	tok := ch
-	switch {
-	case detectIdent(ch):
-		if s.Mode&ScanIdents != 0 {
-			tok = Ident
-			ch = s.scanIdentifier()
-		} else {
+		// skip white space
+		for s.Whitespace&(1<<uint(ch)) != 0 {
 			ch = s.next()
 		}
-	case isDecimal(ch):
-		if s.Mode&(ScanInts|ScanFloats) != 0 {
-			tok, ch = s.scanNumber(ch)
+
+		// start collecting token text
+		s.tokBuf.Reset()
+		s.tokPos = s.srcPos - s.lastCharLen
+
+		// set token position
+		// (this is a slightly optimized version of the code in Pos())
+		s.Offset = s.srcBufOffset + s.tokPos
+		if s.column > 0 {
+			// common case: last character was not a '\n'
+			s.Line = s.line
+			s.Column = s.column
 		} else {
-			ch = s.next()
+			// last character was a '\n'
+			// (we cannot be at the beginning of the source
+			// since we have called next() at least once)
+			s.Line = s.line - 1
+			s.Column = s.lastLineLen
 		}
-	default:
-		switch ch {
-		case '"':
-			if s.Mode&ScanStrings != 0 {
-				s.scanString('"')
-				tok = String
+
+		// determine token value
+		tok = ch
+		switch {
+		case detectIdent(ch):
+			if s.Mode&ScanIdents != 0 {
+				tok = Ident
+				ch = s.scanIdentifier()
+			} else {
+				ch = s.next()
 			}
-			ch = s.next()
-		case '\'':
-			if s.Mode&ScanChars != 0 {
-				s.scanChar()
-				tok = Char
+		case isDecimal(ch):
+			if s.Mode&(ScanInts|ScanFloats) != 0 {
+				tok, ch = s.scanNumber(ch)
+			} else {
+				ch = s.next()
 			}
-			ch = s.next()
-		case '.':
-			ch = s.next()
-			if isDecimal(ch) && s.Mode&ScanFloats != 0 {
-				tok = Float
-				ch = s.scanMantissa(ch)
-				ch = s.scanExponent(ch)
-			}
-		case '/':
-			ch = s.next()
-			if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
-				if s.Mode&SkipComments != 0 {
-					s.tokPos = -1 // don't collect token text
-					ch = s.scanComment(ch)
-					goto redo
-				}
-				ch = s.scanComment(ch)
-				tok = Comment
-			}
-		case '`':
-			if s.Mode&ScanRawStrings != 0 {
-				s.scanRawString()
-				tok = String
-			}
-			ch = s.next()
 		default:
-			ch = s.next()
+			switch ch {
+			case '"':
+				if s.Mode&ScanStrings != 0 {
+					s.scanString('"')
+					tok = String
+				}
+				ch = s.next()
+			case '\'':
+				if s.Mode&ScanChars != 0 {
+					s.scanChar()
+					tok = Char
+				}
+				ch = s.next()
+			case '.':
+				ch = s.next()
+				if isDecimal(ch) && s.Mode&ScanFloats != 0 {
+					tok = Float
+					ch = s.scanMantissa(ch)
+					ch = s.scanExponent(ch)
+				}
+			case '/':
+				ch = s.next()
+				if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
+					if s.Mode&SkipComments != 0 {
+						s.tokPos = -1 // don't collect token text
+						ch = s.scanComment(ch)
+						redo = true
+						break
+					}
+
+					ch = s.scanComment(ch)
+					tok = Comment
+				}
+			case '`':
+				if s.Mode&ScanRawStrings != 0 {
+					s.scanRawString()
+					tok = String
+				}
+				ch = s.next()
+			default:
+				ch = s.next()
+			}
+		}
+
+		if !redo {
+			break
 		}
 	}
 

@@ -327,13 +327,15 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 
 	bufin = bufio.NewReader(in)
 
+	var quit = false
 	for done := false; !done; {
 		var line string
 		if line, err = bufin.ReadString('\n'); err != nil {
 			if err == io.EOF {
 				done = true
 			} else {
-				goto exit
+				quit = true
+				break
 			}
 		}
 		line = strings.TrimSpace(line)
@@ -356,12 +358,10 @@ func GetLxcContexts() (processLabel string, fileLabel string) {
 		}
 	}
 
-	if processLabel == "" || fileLabel == "" {
+	if !quit && (processLabel == "" || fileLabel == "") {
 		return "", ""
 	}
 
-exit:
-	//	mcs := IntToMcs(os.Getpid(), 1024)
 	mcs := uniqMcs(1024)
 	scon := NewContext(processLabel)
 	scon["level"] = mcs
@@ -369,6 +369,7 @@ exit:
 	scon = NewContext(fileLabel)
 	scon["level"] = mcs
 	fileLabel = scon.Get()
+
 	return processLabel, fileLabel
 }
 
