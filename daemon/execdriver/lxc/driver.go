@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
-	"github.com/dotcloud/docker/pkg/libcontainer/label"
-	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 )

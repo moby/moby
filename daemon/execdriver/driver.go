@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/dotcloud/docker/pkg/libcontainer/devices"
+	"github.com/docker/libcontainer/devices"
 )
 
 // Context is a generic key value pair that allows

@@ -6,12 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/apparmor"
+	"github.com/docker/libcontainer/devices"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/native/configuration"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
-	"github.com/dotcloud/docker/pkg/libcontainer"
-	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
-	"github.com/dotcloud/docker/pkg/libcontainer/devices"
 )
 
 // createContainer populates and configures the container type with the
