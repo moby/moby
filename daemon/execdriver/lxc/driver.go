@@ -17,8 +17,10 @@ import (
 	"time"
 
 	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
+	"github.com/docker/libcontainer/namespaces"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
@@ -233,6 +235,29 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 }
 
 func (d *driver) DevAdd(c *execdriver.Command, src string, dst string, perms string) error {
+	device, err := devices.GetDevice(src, perms)
+	if err != nil {
+		return err
+	}
+	device.Path = dst
+
+	if _, err := exec.LookPath("lxc-cgroup"); err != nil {
+		return fmt.Errorf("Err: Cannot find lxc-cgroup: %s", err)
+	}
+
+	// Update lxc cgroups to allow this device.
+	output, err := exec.Command("lxc-cgroup", "-n", c.ID, "devices.allow", device.GetCgroupAllowString()).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Err: %s Output: %s", err, output)
+	}
+
+	// You could do this with lxc-attach but then you have to run the mknod command in the container.
+	// This is a better solution as it does not require anything special in the container.
+	// Set up the filename for mount namespace.
+	ns_file := fmt.Sprintf("/proc/%d/ns/mnt", c.ContainerPid)
+	// Create the device node in the container.
+	namespaces.NsEnterMknod(ns_file, dst, uint64(device.FileMode), uint(device.MajorNumber), uint(device.MinorNumber))
+
 	return nil
 }
 

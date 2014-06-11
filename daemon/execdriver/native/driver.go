@@ -169,19 +169,33 @@ func (d *driver) DevAdd(c *execdriver.Command, src string, dst string, perms str
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
-	// Build lists of devices allowed and created within the container.
+
+	// Build a device from our info.
 	device, err := devices.GetDevice(src, perms)
-	device.Path = dst
 	if err != nil {
 		return err
 	}
+	device.Path = dst
+
+	// Update allowed devices in cgroups
 	active.container.Cgroups.AllowedDevices = append(active.container.Cgroups.AllowedDevices, device)
+
+	// Apply changes to live container.
 	if systemd.UseSystemd() {
-		return systemd.UpdateAllowedDevices(active.container.Cgroups, c.Process.Pid)
+		if err := systemd.UpdateAllowedDevices(active.container.Cgroups, c.Process.Pid); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fs.Apply(active.container.Cgroups, c.Process.Pid); err != nil {
+			return err
+		}
 	}
-	if _, err := fs.Apply(active.container.Cgroups, c.Process.Pid); err != nil {
-		return err
-	}
+
+	// Set up the filename for mount namespace.
+	ns_file := fmt.Sprintf("/proc/%d/ns/mnt", c.Process.Pid)
+	// Create the device node in the container.
+	namespaces.NsEnterMknod(ns_file, dst, uint64(device.FileMode), uint(device.MajorNumber), uint(device.MinorNumber))
+
 	return nil
 }
 
