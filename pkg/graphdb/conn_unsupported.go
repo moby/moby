@@ -1,4 +1,4 @@
-// +build !cgo
+// +build !linux,!freebsd linux,!amd64,!arm freebsd,!cgo
 
 package graphdb
 
