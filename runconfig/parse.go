@@ -18,7 +18,7 @@ var (
 	ErrInvalidWorkingDirectory  = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
-	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and --net")
+	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 )
 
 //FIXME Only used in tests
@@ -104,7 +104,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
 	}
 
-	if *flNetMode != "bridge" && *flHostname != "" {
+	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
 	}
 
