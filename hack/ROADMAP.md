@@ -39,7 +39,3 @@ Expanding Docker’s kernel support is a priority. This includes running on olde
 ## Cross-architecture support
 
 Our goal is to make Docker run everywhere. However currently Docker only runs on x86_64 systems. We plan on expanding architecture support, so that Docker containers can be created and used on more architectures.
-
-## Production-ready
-
-Docker is still beta software, and not suited for production. We are working hard to get there, and we are confident that it will be possible within a few months. Stay tuned for a more detailed roadmap soon.
