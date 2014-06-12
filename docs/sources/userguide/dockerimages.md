@@ -180,6 +180,7 @@ we'd like to update.
 
 Inside our running container let's add the `json` gem.
 
+    root@0b2616b0e5a8:/# apt-get install build-essential
     root@0b2616b0e5a8:/# gem install json
 
 Once this has completed let's exit our container using the `exit`
