@@ -326,7 +326,6 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 			return engine.StatusOK
 		}
 	}
-	return engine.StatusOK
 }
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {

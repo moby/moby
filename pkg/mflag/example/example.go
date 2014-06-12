@@ -28,8 +28,8 @@ func main() {
 		flag.PrintDefaults()
 	} else {
 		fmt.Printf("s/#hidden/-string: %s\n", str)
-		fmt.Printf("b: %b\n", b)
-		fmt.Printf("-bool: %b\n", b2)
+		fmt.Printf("b: %t\n", b)
+		fmt.Printf("-bool: %t\n", b2)
 		fmt.Printf("s/#hidden/-string(via lookup): %s\n", flag.Lookup("s").Value.String())
 		fmt.Printf("ARGS: %v\n", flag.Args())
 	}
