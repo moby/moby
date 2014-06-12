@@ -406,6 +406,7 @@ Start the container `id`
 
         {
              "Binds":["/tmp:/tmp"],
+             "Links":["redis3:redis"],
              "LxcConf":{"lxc.utsname":"docker"},
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
