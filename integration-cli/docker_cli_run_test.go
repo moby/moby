@@ -885,3 +885,34 @@ func TestRunUnprivilegedWithChroot(t *testing.T) {
 
 	logDone("run - unprivileged with chroot")
 }
+
+func TestModeHostname(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-h=testhostname", "busybox", "cat", "/etc/hostname")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "testhostname" {
+		t.Fatalf("expected 'testhostname', but says: '%s'", actual)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hostname")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual := strings.Trim(out, "\r\n"); actual != hostname {
+		t.Fatalf("expected '%s', but says: '%s'", hostname, actual)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - hostname and several network modes")
+}
