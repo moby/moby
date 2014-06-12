@@ -2177,24 +2177,26 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLs(args ...string) error {
-	cmd := cli.Subcmd("ls", "CONTAINER:PATH", "Run ls on PATH in the container")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
+	cmd := cli.Subcmd("ls", " [LS_OPTIONS] CONTAINER:PATH", "Run ls on PATH in the container")
 
-	if cmd.NArg() != 1 {
+	argsLen := len(args)
+
+	if argsLen < 1 {
 		cmd.Usage()
 		return nil
 	}
 
+	resource := args[argsLen-1]
+
 	var shexecData engine.Env
-	info := strings.Split(cmd.Arg(0), ":")
+	info := strings.Split(resource, ":")
 
 	if len(info) != 2 {
 		return fmt.Errorf("Error: Path not specified")
 	}
 
 	shexecData.Set("Resource", info[1])
+	shexecData.Set("Options", strings.Join(args[:argsLen-1], " "))
 
 	stream, _, err := cli.call("POST", "/containers/"+info[0]+"/ls", shexecData, false)
 	if err != nil {
@@ -2206,7 +2208,7 @@ func (cli *DockerCli) CmdLs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCat(args ...string) error {
-	cmd := cli.Subcmd("cat", "CONTAINER:PATH", "Run ls on PATH in the container")
+	cmd := cli.Subcmd("cat", "CONTAINER:PATH", "Run cat on PATH in the container")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
