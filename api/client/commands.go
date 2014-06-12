@@ -91,7 +91,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 
 // FIXME: 'insert' is deprecated.
 func (cli *DockerCli) CmdInsert(args ...string) error {
-	fmt.Fprintf(os.Stderr, "Warning: '%s' is deprecated and will be removed in a future version. Please use 'docker build' and 'ADD' instead.\n")
+	fmt.Fprintf(os.Stderr, "Warning: 'insert' is deprecated and will be removed in a future version. Please use 'docker build' and 'ADD' instead.\n")
 	cmd := cli.Subcmd("insert", "IMAGE URL PATH", "Insert a file from URL in the IMAGE at PATH")
 	if err := cmd.Parse(args); err != nil {
 		return nil

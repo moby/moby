@@ -141,7 +141,7 @@ func TestOutputAdd(t *testing.T) {
 		t.Fatalf("Expected %d, got %d", len(input), n)
 	}
 	if output := b.String(); output != input {
-		t.Fatal("Received wrong data from Add.\nExpected: '%s'\nGot:     '%s'", input, output)
+		t.Fatalf("Received wrong data from Add.\nExpected: '%s'\nGot:     '%s'", input, output)
 	}
 }
 
