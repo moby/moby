@@ -175,7 +175,7 @@ func InitDriver(job *engine.Job) engine.Status {
 
 func setupIPTables(addr net.Addr, icc bool) error {
 	// Enable NAT
-	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-d", addr.String(), "-j", "MASQUERADE"}
+	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
 	if !iptables.Exists(natArgs...) {
 		if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
