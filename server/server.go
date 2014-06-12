@@ -138,6 +138,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"history":          srv.ImageHistory,
 		"viz":              srv.ImagesViz,
 		"container_copy":   srv.ContainerCopy,
+		"container_shexec": srv.ContainerShexec,
 		"attach":           srv.ContainerAttach,
 		"logs":             srv.ContainerLogs,
 		"changes":          srv.ContainerChanges,
@@ -2374,6 +2375,36 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 		defer data.Close()
 
 		if _, err := io.Copy(job.Stdout, data); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
+	}
+	return job.Errorf("No such container: %s", name)
+}
+
+func (srv *Server) ContainerShexec(job *engine.Job) engine.Status {
+	if len(job.Args) != 2 {
+		return job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
+	}
+
+	var (
+		name     = job.Args[0]
+		command  = job.Args[1]
+	)
+
+  commandArray := strings.Split(command, " ")
+
+	if container := srv.daemon.Get(name); container != nil {
+
+		stdout, stderr, err := container.Shexec(commandArray)
+		if err != nil {
+			return job.Error(err)
+		}
+
+		if _, err := io.WriteString(job.Stdout, stdout); err != nil {
+			return job.Error(err)
+		}
+		if _, err := io.WriteString(job.Stderr, stderr); err != nil {
 			return job.Error(err)
 		}
 		return engine.StatusOK

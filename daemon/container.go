@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -791,6 +792,73 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			return err
 		}),
 		nil
+}
+
+func (container *Container) Shexec(command []string) (string, string, error) {
+	var err error
+
+	if err = container.Mount(); err != nil {
+		return "", "", err
+	}
+
+	cmdLength := len(command)
+	resource := command[cmdLength-1]
+
+	resPath := container.getResourcePath(resource)
+	basePath := resPath
+	if resPath == "" {
+		basePath, err = symlink.FollowSymlinkInScope(resPath, container.basefs)
+		if err != nil {
+			container.Unmount()
+			return "", "", err
+		}
+	}
+
+	_, err = os.Stat(basePath)
+	if err != nil {
+		container.Unmount()
+		return "", "", err
+	}
+
+	command[cmdLength-1] = basePath
+
+	cmd := exec.Command(command[0], command[1:]...)
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		container.Unmount()
+		return "", "", err
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		container.Unmount()
+		return "", "", err
+	}
+
+	if err = cmd.Start(); err != nil {
+		container.Unmount()
+		return "", "", err
+	}
+
+	stdout, err := ioutil.ReadAll(stdoutPipe)
+	if err != nil {
+		return "", "", err
+	}
+
+	containerBase := container.basefs
+	if !strings.HasSuffix(containerBase, "/") {
+		containerBase = containerBase + "/"
+	}
+
+	stdoutStr := strings.Replace(string(stdout), containerBase, "", -1)
+
+	stderr, err := ioutil.ReadAll(stderrPipe)
+	if err != nil {
+		return "", "", err
+	}
+	stderrStr := strings.Replace(string(stderr), containerBase, "", -1)
+
+	return stdoutStr, stderrStr, cmd.Wait()
 }
 
 // Returns true if the container exposes a certain port

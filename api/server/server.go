@@ -978,6 +978,104 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
+func postContainersLs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var lsData engine.Env
+
+	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
+		if err := lsData.Decode(r.Body); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	if lsData.Get("Resource") == "" {
+		return fmt.Errorf("Path cannot be empty")
+	}
+
+	origResource := lsData.Get("Resource")
+
+	if lsData.Get("Resource")[0] == '/' {
+		lsData.Set("Resource", lsData.Get("Resource")[1:])
+	}
+
+  commandOptions := lsData.GetList("Options")
+  command := append([]string{"ls"}, commandOptions...)
+
+	var outStream, errStream io.Writer
+	outStream = utils.NewWriteFlusher(w)
+
+	errStream = utils.NewStdWriter(outStream, utils.Stderr)
+	outStream = utils.NewStdWriter(outStream, utils.Stdout)
+
+	job := eng.Job("container_shexec", vars["name"], strings.Join(command, " ") + " " + lsData.Get("Resource"))
+	job.Stdout.Add(outStream)
+	job.Stderr.Set(errStream)
+
+	if err := job.Run(); err != nil {
+		utils.Errorf("%s", err.Error())
+		if strings.Contains(err.Error(), "No such container") {
+		  fmt.Fprintf(outStream, "Error: %s\n", err)
+		} else if strings.Contains(err.Error(), "no such file or directory") {
+			fmt.Fprintf(outStream, "Could not find the file %s in container %s", origResource, vars["name"])
+		}
+	}
+	return nil
+}
+
+func postContainersCat(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var lsData engine.Env
+
+	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
+		if err := lsData.Decode(r.Body); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	if lsData.Get("Resource") == "" {
+		return fmt.Errorf("Path cannot be empty")
+	}
+
+	origResource := lsData.Get("Resource")
+
+	if lsData.Get("Resource")[0] == '/' {
+		lsData.Set("Resource", lsData.Get("Resource")[1:])
+	}
+
+  commandOptions := lsData.GetList("Options")
+  command := append([]string{"cat"}, commandOptions...)
+
+	var outStream, errStream io.Writer
+	outStream = utils.NewWriteFlusher(w)
+
+	errStream = utils.NewStdWriter(outStream, utils.Stderr)
+	outStream = utils.NewStdWriter(outStream, utils.Stdout)
+
+	job := eng.Job("container_shexec", vars["name"], strings.Join(command, " ") + " " + lsData.Get("Resource"))
+	job.Stdout.Add(outStream)
+	job.Stderr.Set(errStream)
+
+	if err := job.Run(); err != nil {
+		utils.Errorf("%s", err.Error())
+		if strings.Contains(err.Error(), "No such container") {
+		  fmt.Fprintf(outStream, "Error: %s\n", err)
+		} else if strings.Contains(err.Error(), "no such file or directory") {
+			fmt.Fprintf(outStream, "Could not find the file %s in container %s", origResource, vars["name"])
+		}
+	}
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1099,6 +1197,8 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/containers/{name:.*}/ls":      postContainersLs,
+			"/containers/{name:.*}/cat":     postContainersCat,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
