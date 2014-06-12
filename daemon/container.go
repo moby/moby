@@ -886,8 +886,11 @@ func (container *Container) initializeNetworking() error {
 		content, err := ioutil.ReadFile("/etc/hosts")
 		if os.IsNotExist(err) {
 			return container.buildHostnameAndHostsFiles("")
+		} else if err != nil {
+			return err
 		}
-		if err != nil {
+
+		if err := container.buildHostnameFile(); err != nil {
 			return err
 		}
 
