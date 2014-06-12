@@ -238,6 +238,14 @@ ol li {
   color: #394d54;
 }
 
+.content-body blockquote a {
+  color: #008BB8;
+}
+
+.content-body blockquote a:hover {
+  color: #2F55CD;
+}
+
 .content-body ul {
   margin-top: 0px !important;
 }
