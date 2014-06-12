@@ -2402,12 +2402,14 @@ func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	now := time.Now().UTC().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
 	srv.AddEvent(jm)
+	srv.Lock()
 	for _, c := range srv.listeners {
 		select { // non blocking channel
 		case c <- jm:
 		default:
 		}
 	}
+	srv.Unlock()
 	return &jm
 }
 

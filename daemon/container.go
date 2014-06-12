@@ -808,11 +808,16 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 }
 
 func (container *Container) HostConfig() *runconfig.HostConfig {
-	return container.hostConfig
+	container.Lock()
+	res := container.hostConfig
+	container.Unlock()
+	return res
 }
 
 func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
+	container.Lock()
 	container.hostConfig = hostConfig
+	container.Unlock()
 }
 
 func (container *Container) DisableLink(name string) {
