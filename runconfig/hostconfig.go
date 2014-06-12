@@ -31,6 +31,7 @@ type HostConfig struct {
 	DnsSearch       []string
 	VolumesFrom     []string
 	NetworkMode     NetworkMode
+	NoRunFs         bool
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {

@@ -10,7 +10,9 @@ import (
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 type BindMap struct {
@@ -46,6 +48,14 @@ func setupMountsForContainer(container *Container) error {
 
 	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
+	}
+
+	if !container.hostConfig.NoRunFs {
+		runMount, err := setupRun(container)
+		if err != nil {
+			return err
+		}
+		mounts = append(mounts, *runMount)
 	}
 
 	// Mount user specified volumes
@@ -333,4 +343,26 @@ func copyOwnership(source, destination string) error {
 	}
 
 	return os.Chmod(destination, os.FileMode(stat.Mode))
+}
+
+func setupRun(container *Container) (*execdriver.Mount, error) {
+	runPath := container.runPath()
+	if err := os.MkdirAll(runPath, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	if err := system.Mount("tmpfs", runPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("", container.GetMountLabel())); err != nil {
+		return nil, fmt.Errorf("mounting run tmpfs: %s", err)
+	}
+
+	runSource, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, "/run"), container.basefs)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := archive.CopyWithTar(runSource, runPath); err != nil {
+		return nil, err
+	}
+
+	return &execdriver.Mount{runPath, "/run", true, true}, nil
 }

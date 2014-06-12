@@ -662,6 +662,9 @@ func (b *buildFile) create() (*daemon.Container, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	c.SetHostConfig(&runconfig.HostConfig{NoRunFs: true})
+
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
