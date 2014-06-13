@@ -74,9 +74,9 @@ access to the container's ports.
 
 If you run a container with an exposed port,
 
-    $ docker run --rm -i -t -p 80:80 apache
+    $ docker run --rm -i -t -p 80:80 nginx
 
-then you should be able to access that Apache server using the IP address reported by:
+then you should be able to access that Nginx server using the IP address reported by:
 
     $ boot2docker ssh ip addr show dev eth1
 
