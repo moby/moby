@@ -216,7 +216,7 @@ from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
 
 > **Note**:
-> One example where this can cause unexpected consequenses, is setting
+> One example where this can cause unexpected consequences, is setting
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
