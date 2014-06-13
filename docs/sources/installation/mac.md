@@ -85,6 +85,8 @@ implementation.
 
 # Further details
 
+If you are curious, the username for the boot2docker default user is `docker` and the password is `tcuser`.
+
 The Boot2Docker management tool provides several commands:
 
     $ ./boot2docker

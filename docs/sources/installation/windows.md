@@ -68,6 +68,8 @@ The Boot2Docker management tool provides several commands:
 
 ## Container port redirection
 
+If you are curious, the username for the boot2docker default user is `docker` and the password is `tcuser`.
+
 The latest version of `boot2docker` sets up a host only network adaptor which provides access to the container's ports.
 
 If you run a container with an exposed port:
