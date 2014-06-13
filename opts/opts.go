@@ -3,6 +3,7 @@ package opts
 import (
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -128,13 +129,12 @@ func ValidateEnv(val string) (string, error) {
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
 }
 
-func ValidateIp4Address(val string) (string, error) {
-	re := regexp.MustCompile(`^(([0-9]+\.){3}([0-9]+))\s*$`)
-	var ns = re.FindSubmatch([]byte(val))
-	if len(ns) > 0 {
-		return string(ns[1]), nil
+func ValidateIpAddress(val string) (string, error) {
+	var ip = net.ParseIP(strings.TrimSpace(val))
+	if ip != nil {
+		return ip.String(), nil
 	}
-	return "", fmt.Errorf("%s is not an ip4 address", val)
+	return "", fmt.Errorf("%s is not an ip address", val)
 }
 
 // Validates domain for resolvconf search configuration.
