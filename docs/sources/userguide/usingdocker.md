@@ -181,6 +181,9 @@ see the application.
 
 ![Viewing the web application](/userguide/webapp1.png).
 
+If you're running this on Mac OS X or Windows, use 192.168.59.103:49155
+(or whatever IP address `boot2docker ip` tells you).
+
 Our Python application is live!
 
 ## A Network Port Shortcut
