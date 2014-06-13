@@ -25,6 +25,15 @@ installs Docker 0.9.1 and all its prerequisites from Ubuntu's repository.
 
 ### Installation
 
+
+For most people, it should be possible to get the latest Docker release from the Docker PPA.
+
+    $ sudo add-apt-repository ppa:dotcloud/lxc-docker
+    $ sudo apt-get update
+    $ sudo apt-get install lxc-docker
+
+If the steps above work for you, then you can skip the rest of the instructions.
+
 To install the latest Ubuntu package (may not be the latest Docker release):
 
     $ sudo apt-get update
