@@ -122,10 +122,16 @@ will add the libraries here.
       <td><a class="reference external" href="https://github.com/alambike/eixo-docker">https://github.com/alambike/eixo-docker</a></td>
       <td>Active</td>
     </tr>
-    <tr class="row-odd">
+    <tr class="row-even">
       <td>Scala</td>
       <td>reactive-docker</td>
       <td><a class="reference external" href="https://github.com/almoehi/reactive-docker">https://github.com/almoehi/reactive-docker</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Java</td>
+      <td>docker-client</td>
+      <td><a class="reference external" href="https://github.com/spotify/docker-client">https://github.com/spotify/docker-client</a></td>
       <td>Active</td>
     </tr>
   </tbody>
