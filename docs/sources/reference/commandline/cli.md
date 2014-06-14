@@ -448,7 +448,7 @@ To see how the `docker:latest` image was built:
 The default `docker images` will show all top level
 images, their repository and tags, and their virtual size.
 
-Docker images have intermediate layers that increase reuseability,
+Docker images have intermediate layers that increase reusability,
 decrease disk usage, and speed up `docker build` by
 allowing each step to be cached. These intermediate layers are not shown
 by default.
@@ -873,7 +873,7 @@ removed before the image is removed.
                                    'bridge': creates a new network stack for the container on the docker bridge
                                    'none': no networking for this container
                                    'container:<name|id>': reuses another container network stack
-                                   'host': use the host network stack inside the contaner
+                                   'host': use the host network stack inside the container
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)

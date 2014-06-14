@@ -160,7 +160,7 @@ Four different options affect container domain name services.
     when a bare unqualified hostname is used inside of the container, by
     writing `search` lines into the container’s `/etc/resolv.conf`.
     When a container process attempts to access `host` and the search
-    domain `exmaple.com` is set, for instance, the DNS logic will not
+    domain `example.com` is set, for instance, the DNS logic will not
     only look up `host` but also `host.example.com`.
 
 Note that Docker, in the absence of either of the last two options
@@ -683,7 +683,7 @@ the previous section to go something like this:
     $ sudo ip netns exec 3004 ip route add 10.1.1.1/32 dev B
 
 The two containers should now be able to ping each other and make
-connections sucessfully.  Point-to-point links like this do not depend
+connections successfully.  Point-to-point links like this do not depend
 on a subnet nor a netmask, but on the bare assertion made by `ip route`
 that some other single IP address is connected to a particular network
 interface.
