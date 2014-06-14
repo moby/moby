@@ -175,6 +175,18 @@ Let's look first at the environment variables Docker sets. Inside the `web`
 container let's run the `env` command to list the container's environment
 variables.
 
+To do this you will need to stop the web container
+
+    $ docker stop web
+    $ docker rm web
+    
+Now that it is stopped we need to connect back to it using bash with -i and -t
+on to be able to run interactive commands via the terminal while inside the container
+
+    $ docker run -i -t -P --name web --link db:db training/webapp:latest /bin/bash
+    
+You will now be connected to the container via bash and can run commands to look around
+
     root@aed84ee21bde:/opt/webapp# env
     HOSTNAME=aed84ee21bde
     . . .
