@@ -53,12 +53,12 @@ run `mkdocs serve`
 
 ## Style guide
 
-The documentation is written with paragraphs wrapped at 80 colum lines to make
+The documentation is written with paragraphs wrapped at 80 column lines to make
 it easier for terminal use.
 
 ### Examples
 
-When writing examples give the user hints by making them resemble what they see
+When writing examples, give the user hints by making them resemble what they see
 in their shell:
 
 - Indent shell examples by 4 spaces so they get rendered as code.
@@ -76,7 +76,7 @@ references them, or in a subdirectory if one already exists.
 
 ## Working using GitHub's file editor
 
-Alternatively, for small changes and typos you might want to use GitHub's built
+Alternatively, for small changes and typos you might want to use GitHub's built-
 in file editor. It allows you to preview your changes right on-line (though
 there can be some differences between GitHub Markdown and [MkDocs
 Markdown](http://www.mkdocs.org/user-guide/writing-your-docs/)).  Just be
@@ -85,8 +85,8 @@ work!](../CONTRIBUTING.md#sign-your-work)
 
 ## Publishing Documentation
 
-To publish a copy of the documentation you need a `docs/awsconfig` To make life
-easier for file containing AWS settings to deploy to. The release script will
+To publish a copy of the documentation you need a `docs/awsconfig`
+file containing AWS settings to deploy to. The release script will
 create an s3 if needed, and will then push the files to it.
 
     [profile dowideit-docs] aws_access_key_id = IHOIUAHSIDH234rwf....
