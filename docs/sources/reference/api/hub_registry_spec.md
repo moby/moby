@@ -525,7 +525,7 @@ GET /v1/users
 The Registry does not know anything about users. Even though
 repositories are under usernames, it's just a namespace for the
 registry. Allowing us to implement organizations or different namespaces
-per user later, without modifying the Registry'sAPI.
+per user later, without modifying the Registry's API.
 
 The following naming restrictions apply:
 

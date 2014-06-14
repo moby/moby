@@ -94,7 +94,7 @@ You can now use the force parameter to force delete of an
 `DELETE /containers/(id)`
 
 **New!**
-You can now use the force paramter to force delete a
+You can now use the force parameter to force delete a
     container, even if it is currently running
 
 ## v1.9
