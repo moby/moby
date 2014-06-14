@@ -22,7 +22,7 @@ Docker consists of:
 
 ## Why Docker?
 
-- **Faster delivery of your applications**  
+- **Faster delivery of your applications**
     * We want your environment to work better. Docker containers,
       and the work flow that comes with them, help your developers,
       sysadmins, QA folks, and release engineers work together to get your code
@@ -39,7 +39,7 @@ Docker consists of:
       sub-second launch times, reducing the cycle
       time of development, testing, and deployment.
 
-- **Deploy and scale more easily**  
+- **Deploy and scale more easily**
     * Docker containers run (almost) everywhere. You can deploy
       containers on desktops, physical servers, virtual machines, into
       data centers, and up to public and private clouds.
@@ -50,13 +50,13 @@ Docker consists of:
       down fast and easy. You can quickly launch more containers when
       needed and then shut them down easily when they're no longer needed.
 
-- **Get higher density and run more workloads**  
+- **Get higher density and run more workloads**
     * Docker containers don't need a hypervisor, so you can pack more of
       them onto your hosts. This means you get more value out of every
       server and can potentially reduce what you spend on equipment and
       licenses.
 
-- **Faster deployment makes for easier management**  
+- **Faster deployment makes for easier management**
     * As Docker speeds up your work flow, it gets easier to make lots
       of small changes instead of huge, big bang updates. Smaller
       changes mean reduced risk and more uptime.
