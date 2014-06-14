@@ -313,16 +313,16 @@ nameserver and Docker will default to using an external nameserver.
 This can be worked around by specifying a DNS server to be used by the
 Docker daemon for the containers:
 
-    $ sudo nano /etc/default/docker
+    $ sudo nano /etc/default/docker.io
     ---
     # Add:
-    $ docker_OPTS="--dns 8.8.8.8"
+    DOCKER_OPTS="--dns 8.8.8.8"
     # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
     # multiple DNS servers can be specified: --dns 8.8.8.8 --dns 192.168.1.1
 
 The Docker daemon has to be restarted:
 
-    $ sudo restart docker
+    $ sudo restart docker.io
 
 > **Warning**: 
 > If you're doing this on a laptop which connects to various networks,
