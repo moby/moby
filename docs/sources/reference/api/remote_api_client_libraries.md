@@ -77,7 +77,7 @@ will add the libraries here.
     <tr class="row-even">
       <td>Java</td>
       <td>docker-java</td>
-      <td><a class="reference external" href="https://github.com/kpelykh/docker-java">https://github.com/kpelykh/docker-java</a></td>
+      <td><a class="reference external" href="https://github.com/docker-java/docker-java">https://github.com/docker-java/docker-java</a></td>
       <td>Active</td>
     </tr>
     <tr class="row-odd">
