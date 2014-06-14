@@ -208,7 +208,7 @@ is:
 * What Docker image to build the container from, here `ubuntu`, a base Ubuntu
 image; 
 * The command you want to run inside the container when it is launched,
-here `bin/bash`, to start the Bash shell inside the new container.
+here `/bin/bash`, to start the Bash shell inside the new container.
 
 So what happens under the hood when we run this command?
 
