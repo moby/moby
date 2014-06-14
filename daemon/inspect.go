@@ -13,11 +13,13 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := daemon.Get(name); container != nil {
+		container.Lock()
+		defer container.Unlock()
 		if job.GetenvBool("dirty") {
 			b, err := json.Marshal(&struct {
 				*Container
 				HostConfig *runconfig.HostConfig
-			}{container, container.HostConfig()})
+			}{container, container.hostConfig})
 			if err != nil {
 				return job.Error(err)
 			}
