@@ -137,7 +137,7 @@ PID files):
                                  'bridge': creates a new network stack for the container on the docker bridge
                                  'none': no networking for this container
                                  'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the contaner
+                                 'host': use the host network stack inside the container
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
