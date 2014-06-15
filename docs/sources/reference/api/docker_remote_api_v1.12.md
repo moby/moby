@@ -198,15 +198,21 @@ Return low-level information on the container `id`
                              "Tty": false,
                              "OpenStdin": false,
                              "StdinOnce": false,
-                             "Env": null,
+                             "Env": ['HOME=/root',
+                                     'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' ],
                              "Cmd": [
                                      "date"
                              ],
-                             "Dns": null,
                              "Image": "base",
                              "Volumes": {},
-                             "VolumesFrom": "",
-                             "WorkingDir":""
+                             "WorkingDir":"",
+                             "CpuShares": 0,
+                             "Cpuset": '',
+                             "Domainname": '',
+                             "Entrypoint": null,
+                             "ExposedPorts": { '8000/tcp': {} },
+                             "NetworkDisabled": false,
+                             "OnBuild": null,
 
                      },
                      "State": {
@@ -214,15 +220,24 @@ Return low-level information on the container `id`
                              "Pid": 0,
                              "ExitCode": 0,
                              "StartedAt": "2013-05-07T14:51:42.087658+02:01360",
-                             "Ghost": false
+                             "FinishedAt": '0001-01-01T00:00:00Z',
+                             "Paused": false
                      },
                      "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
                      "NetworkSettings": {
-                             "IpAddress": "",
-                             "IpPrefixLen": 0,
-                             "Gateway": "",
-                             "Bridge": "",
-                             "PortMapping": null
+                             "IPAddress": "172.17.0.43",
+                             "IPPrefixLen": 16,
+                             "Gateway": "172.17.42.1",
+                             "Bridge": "docker0",
+                             "PortMapping": null,
+                             "Ports": {
+                                 "80/tcp": [
+                                    {
+                                        "HostIp": "0.0.0.0",
+                                        "HostPort": "49153"
+                                    }
+                                ]
+                             }
                      },
                      "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
@@ -230,7 +245,10 @@ Return low-level information on the container `id`
                      "HostConfig": {
                          "Binds": null,
                          "ContainerIDFile": "",
+                         "Dns": null,
+                         "DnsSearch": null,
                          "LxcConf": [],
+                         "NetworkMode", "",
                          "Privileged": false,
                          "PortBindings": {
                             "80/tcp": [
@@ -241,8 +259,17 @@ Return low-level information on the container `id`
                             ]
                          },
                          "Links": null,
-                         "PublishAllPorts": false
-                     }
+                         "PublishAllPorts": false,
+                         "VolumesFrom": ""
+                     },
+                     "Driver": 'aufs',
+                     "ExecDriver": 'native-0.2',
+                     "HostnamePath": '/mnt/sda1/var/lib/docker/containers/fc472027619725...',
+                     "HostsPath": '/mnt/sda1/var/lib/docker/containers/fc472027619725068d1cba..',
+                     "MountLabel": '',
+                     "Name": "naughty_feynman",
+                     "ProcessLabel": '',
+                     "VolumesRW": { '/data': true }
         }
 
     Status Codes:
