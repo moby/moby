@@ -50,6 +50,13 @@ This command will take some time to complete when you first execute it.
 If the build is successful, congratulations! You have produced a clean
 build of docker, neatly encapsulated in a standard build environment.
 
+> **Note**:
+> On Mac OS X, make targets such as `build`, `binary`, and `test`
+> must **not** be built under root. So, for example, instead of the above
+> command, issue:
+> 
+>     $ make build
+
 ## Build the Docker Binary
 
 To create the Docker binary, run this command:
