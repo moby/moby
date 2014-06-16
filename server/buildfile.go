@@ -123,7 +123,12 @@ func (b *buildFile) CmdFrom(name string) error {
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
 		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
 	}
-	for n, step := range b.config.OnBuild {
+
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be commited.
+	onBuildTriggers := b.config.OnBuild
+	b.config.OnBuild = []string{}
+
+	for n, step := range onBuildTriggers {
 		splitStep := strings.Split(step, " ")
 		stepInstruction := strings.ToUpper(strings.Trim(splitStep[0], " "))
 		switch stepInstruction {
@@ -136,7 +141,6 @@ func (b *buildFile) CmdFrom(name string) error {
 			return err
 		}
 	}
-	b.config.OnBuild = []string{}
 	return nil
 }
 
