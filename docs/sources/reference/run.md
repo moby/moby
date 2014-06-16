@@ -152,7 +152,7 @@ Supported networking modes are:
 
 * none - no networking in the container
 * bridge - (default) connect the container to the bridge via veth interfaces
-* host - use the host's network stack inside the container
+* host - use the host's network stack inside the container.  Note: This gives the container full access to local system services such as D-bus and is therefore considered insecure.
 * container - use another container's network stack
 
 #### Mode: none
