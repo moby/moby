@@ -249,6 +249,11 @@ ol li {
   border-radius: 4px;
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
+  overflow-x: auto;
+}
+.content-body pre code {
+  overflow-wrap: normal;
+  white-space: pre;
 }
 
 #leftnav .nav.nav-tabs li a {
