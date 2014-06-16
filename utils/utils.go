@@ -532,21 +532,24 @@ func ValidateID(id string) error {
 }
 
 // Code c/c from io.Copy() modified to handle escape sequence
-func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
+func CopyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
 	buf := make([]byte, 32*1024)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			// ---- Docker addition
-			// char 16 is C-p
-			if nr == 1 && buf[0] == 16 {
-				nr, er = src.Read(buf)
-				// char 17 is C-q
-				if nr == 1 && buf[0] == 17 {
-					if err := src.Close(); err != nil {
-						return 0, err
+			for i, key := range keys {
+				if nr == 1 && buf[0] == key {
+					if i == len(keys)-1 {
+						if err := src.Close(); err != nil {
+							return 0, err
+						}
+						return 0, nil
+					} else {
+						nr, er = src.Read(buf)
 					}
-					return 0, nil
+				} else {
+					break
 				}
 			}
 			// ---- End of docker

@@ -74,7 +74,11 @@ func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
+	config, err := daemonconfig.ConfigFromJob(job)
+	if err != nil {
+		return job.Error(err)
+	}
+	srv, err := NewServer(job.Eng, config)
 	if err != nil {
 		return job.Error(err)
 	}

@@ -35,7 +35,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 					}()
 				}
 				if container.Config.Tty {
-					_, err = utils.CopyEscapable(cStdin, stdin)
+					_, err = utils.CopyEscapable(cStdin, stdin, daemon.config.DetachKeys)
 				} else {
 					_, err = io.Copy(cStdin, stdin)
 				}
