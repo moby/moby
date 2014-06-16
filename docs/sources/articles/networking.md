@@ -536,6 +536,11 @@ values.
     **not** let the container reconfigure the host network stack — that
     would require `--privileged=true` — but it does let container
     processes open low-numbered ports like any other root process.
+    It also allows the container to access local network services
+    like D-bus.  This can lead to processes in the container being
+    able to do unexpected things like
+    [restart your computer](https://github.com/dotcloud/docker/issues/6401).
+    You should use this option with caution.
 
  *  `--net=container:NAME_or_ID` — Tells Docker to put this container's
     processes inside of the network stack that has already been created
