@@ -49,6 +49,12 @@ ol li {
   margin: 0px;
   padding: 0em;
 }
+#nav_menu > #docsnav > #main-nav > li > a {
+  color: #253237;
+}
+#nav_menu > #docsnav > #main-nav > li.dd_on_hover > a {
+  color: #5992a3;
+}
 #nav_menu > #docsnav > #main-nav > li.dd_on_hover {
   background: #b1d5df;
   color: #5992a3;
