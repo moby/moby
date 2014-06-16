@@ -4,7 +4,7 @@ page_keywords: Examples, Usage, volume, docker, documentation, user guide, data,
 
 # Managing Data in Containers
 
-So far we've been introduced some [basic Docker
+So far we've been introduced to some [basic Docker
 concepts](/userguide/usingdocker/), seen how to work with [Docker
 images](/userguide/dockerimages/) as well as learned about [networking
 and links between containers](/userguide/dockerlinks/). In this section
