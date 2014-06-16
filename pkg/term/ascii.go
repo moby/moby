@@ -51,7 +51,11 @@ next:
 					continue next
 				}
 			}
-			return nil, fmt.Errorf("Unknown character: '%s'", key)
+			if key == "DEL" {
+				codes = append(codes, 127)
+			} else {
+				return nil, fmt.Errorf("Unknown character: '%s'", key)
+			}
 		} else {
 			codes = append(codes, byte(key[0]))
 		}

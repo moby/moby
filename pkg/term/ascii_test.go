@@ -29,4 +29,15 @@ func TestToBytes(t *testing.T) {
 	if codes[0] != 0 || codes[1] != 27 || codes[2] != 126 || codes[3] != 15 {
 		t.Fatalf("Expected '0' '27' '126', '15', got '%d' '%d' '%d' '%d'", codes[0], codes[1], codes[2], codes[3])
 	}
+
+	codes, err = ToBytes("DEL,+")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(codes) != 2 {
+		t.Fatalf("Expected 2 codes, got %d", len(codes))
+	}
+	if codes[0] != 127 || codes[1] != 43 {
+		t.Fatalf("Expected '127 '43'', got '%d' '%d'", codes[0], codes[1])
+	}
 }
