@@ -20,7 +20,7 @@ seconds since epoch, or date string.
 ## Listening for Docker events
 
 After running docker events a container 786d698004576 is started and stopped
-(The container name has been shortened in the ouput below):
+(The container name has been shortened in the output below):
 
     # docker events
     [2014-04-12 18:23:04 -0400 EDT] 786d69800457: (from whenry/testimage:latest) start

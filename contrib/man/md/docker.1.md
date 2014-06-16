@@ -10,15 +10,15 @@ docker \- Docker image and container command line interface
 # DESCRIPTION
 **docker** has two distinct functions. It is used for starting the Docker
 daemon and to run the CLI (i.e., to command the daemon to manage images,
-containers etc.) So **docker** is both a server, as a deamon, and a client
+containers etc.) So **docker** is both a server, as a daemon, and a client
 to the daemon, through the CLI.
 
-To run the Docker deamon you do not specify any of the commands listed below but
+To run the Docker daemon you do not specify any of the commands listed below but
 must specify the **-d** option.  The other options listed below are for the
 daemon only.
 
 The Docker CLI has over 30 commands. The commands are listed below and each has
-its own man page which explain usage and arguements.
+its own man page which explain usage and arguments.
 
 To see the man page for a command run **man docker <command>**.
 
