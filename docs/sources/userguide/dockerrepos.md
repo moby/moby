@@ -147,7 +147,7 @@ It will stay in sync with your GitHub and BitBucket repository until you
 deactivate the Automated Build.
 
 If you want to see the status of your Automated Builds you can go to your
-[Automated Builds page](https://registry.hub.docker.io/builds/) on the Docker Hub,
+[Automated Builds page](https://registry.hub.docker.com/builds/) on the Docker Hub,
 and it will show you the status of your builds, and the build history.
 
 Once you've created an Automated Build you can deactivate or delete it. You
