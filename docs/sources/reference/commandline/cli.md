@@ -1074,7 +1074,7 @@ retrieve the container's ID once the container has finished running.
     $ sudo docker run -d --name static static-web-files sh
     $ sudo docker run -d --expose=8098 --name riak riakserver
     $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-    $ sudo docker run -d -p 1443:443 --dns=dns.dev.org --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+    $ sudo docker run -d -p 1443:443 --dns=10.0.0.1 --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
     $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows 5 containers that might be set up to test a web
@@ -1089,7 +1089,7 @@ application change:
    two environment variables `DEVELOPMENT` and `BRANCH` and bind-mounting the
    current directory (`$(pwd)`) in the container in read-only mode as `/app/bin`;
 4. Start the `webserver`, mapping port `443` in the container to port `1443` on
-   the Docker server, setting the DNS server to `dns.dev.org` and DNS search
+   the Docker server, setting the DNS server to `10.0.0.1` and DNS search
    domain to `dev.org`, creating a volume to put the log files into (so we can
    access it from another container), then importing the files from the volume
    exposed by the `static` container, and linking to all exposed ports from
