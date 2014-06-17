@@ -1256,3 +1256,20 @@ func TestBuildInheritance(t *testing.T) {
 	}
 	logDone("build - inheritance")
 }
+
+func TestBuildFails(t *testing.T) {
+	name := "testbuildfails"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN sh -c "exit 23"`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "returned a non-zero code: 23") {
+			t.Fatalf("Wrong error %v, must be about non-zero code 23", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - fails")
+}

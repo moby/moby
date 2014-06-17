@@ -413,26 +413,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildFails(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        run sh -c "exit 23"
-        `,
-		nil, nil}, t, nil, true)
-
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
-
-	sterr, ok := err.(*utils.JSONError)
-	if !ok {
-		t.Fatalf("Error should be utils.JSONError")
-	}
-	if sterr.Code != 23 {
-		t.Fatalf("StatusCode %d unexpected, should be 23", sterr.Code)
-	}
-}
-
 func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	_, err := buildImage(testContextTemplate{``, nil, nil}, t, nil, true)
 
