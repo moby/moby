@@ -48,7 +48,7 @@ Now let's verify that Docker is working.
 
     $ sudo docker run -i -t fedora /bin/bash
     
-## Granting users rights to use docker
+## Granting rights to users to use docker
 
 Do this *only* if you are using the 0.11 series.
 
@@ -66,7 +66,7 @@ Edit file `/lib/systemd/system/docker.service`. Add the following like to sectio
 
     Environment="HTTP_PROXY=http://proxy.example.com:80/"
 
-If you have internall docker registries that you contact without proxying - provide them via the `NO_PROXY` environment variable:
+If you have internal docker registries that you contact without proxying - provide them via the `NO_PROXY` environment variable:
 
     Environment="HTTP_PROXY=http://proxy.example.com:80/" "NO_PROXY=localhost,127.0.0.0/8,docker-registry.somecorporation.com"
 
