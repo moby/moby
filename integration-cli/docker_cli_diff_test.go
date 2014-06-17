@@ -77,10 +77,12 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 	deleteContainer(cleanCID)
 
 	expected := map[string]bool{
-		"C /dev":      true,
-		"A /dev/full": true, // busybox
-		"C /dev/ptmx": true, // libcontainer
-		"A /dev/kmsg": true, // lxc
+		"C /dev":            true,
+		"A /dev/full":       true, // busybox
+		"C /dev/ptmx":       true, // libcontainer
+		"A /dev/kmsg":       true, // lxc
+		"C /etc":            true,
+		"A /etc/machine-id": true, // container UUID
 	}
 
 	for _, line := range strings.Split(out, "\n") {
