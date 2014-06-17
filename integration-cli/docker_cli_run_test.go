@@ -450,32 +450,32 @@ func TestVolumeWithSymlink(t *testing.T) {
 	buildCmd.Dir = buildDirectory
 	err := buildCmd.Run()
 	if err != nil {
-		t.Fatal("could not build 'docker-test-volumewithsymlink': %v", err)
+		t.Fatalf("could not build 'docker-test-volumewithsymlink': %v", err)
 	}
 
 	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-volumewithsymlink", "docker-test-volumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
 	exitCode, err := runCommand(cmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("[run] err: %v, exitcode: %d", err, exitCode)
+		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
 	var volPath string
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-volumewithsymlink")
 	volPath, exitCode, err = runCommandWithOutput(cmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("[inspect] err: %v, exitcode: %d", err, exitCode)
+		t.Fatalf("[inspect] err: %v, exitcode: %d", err, exitCode)
 	}
 
 	cmd = exec.Command(dockerBinary, "rm", "-v", "test-volumewithsymlink")
 	exitCode, err = runCommand(cmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("[rm] err: %v, exitcode: %d", err, exitCode)
+		t.Fatalf("[rm] err: %v, exitcode: %d", err, exitCode)
 	}
 
 	f, err := os.Open(volPath)
 	defer f.Close()
 	if !os.IsNotExist(err) {
-		t.Fatal("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
+		t.Fatalf("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
 	}
 
 	deleteImages("docker-test-volumewithsymlink")

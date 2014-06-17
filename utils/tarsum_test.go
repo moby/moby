@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type testLayer struct {
@@ -109,7 +110,7 @@ func TestTarSums(t *testing.T) {
 			fh = sizedTar(*layer.options)
 		} else {
 			// What else is there to test?
-			t.Errorf("what to do with %#V", layer)
+			t.Errorf("what to do with %#v", layer)
 			continue
 		}
 		if file, ok := fh.(*os.File); ok {
