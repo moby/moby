@@ -74,9 +74,9 @@ The latest version of `boot2docker` sets up a host only network adaptor which pr
 
 If you run a container with an exposed port:
 
-    docker run --rm -i -t -p 80:80 apache
+    docker run --rm -i -t -p 80:80 nginx
 
-Then you should be able to access that Apache server using the IP address reported
+Then you should be able to access that nginx server using the IP address reported
 to you using:
 
     boot2docker ip
