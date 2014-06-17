@@ -588,6 +588,7 @@ func TestBuildRm(t *testing.T) {
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
 	logDone("build - ensure --rm=false overrides the default")
 }
+
 func TestBuildWithVolumes(t *testing.T) {
 	name := "testbuildvolumes"
 	expected := "map[/test1:map[] /test2:map[]]"
@@ -764,6 +765,68 @@ func TestBuildEntrypoint(t *testing.T) {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	logDone("build - entrypoint")
+}
+
+// #6445 ensure ONBUILD triggers aren't committed to grandchildren
+func TestBuildOnBuildLimitedInheritence(t *testing.T) {
+	name1 := "testonbuildtrigger1"
+	dockerfile1 := `
+		FROM busybox
+		RUN echo "GRANDPARENT"
+		ONBUILD RUN echo "ONBUILD PARENT"
+	`
+	ctx1, err := fakeContext(dockerfile1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name1, ".")
+	buildCmd.Dir = ctx1.Dir
+	out1, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out1, err))
+	defer deleteImages(name1)
+
+	name2 := "testonbuildtrigger2"
+	dockerfile2 := `
+		FROM testonbuildtrigger1
+	`
+	ctx2, err := fakeContext(dockerfile2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", name2, ".")
+	buildCmd.Dir = ctx2.Dir
+	out2, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out2, err))
+	defer deleteImages(name2)
+
+	name3 := "testonbuildtrigger3"
+	dockerfile3 := `
+		FROM testonbuildtrigger2
+	`
+	ctx3, err := fakeContext(dockerfile3, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", name3, ".")
+	buildCmd.Dir = ctx3.Dir
+	out3, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out3, err))
+	defer deleteImages(name3)
+
+	// ONBUILD should be run in second build.
+	if !strings.Contains(out2, "ONBUILD PARENT") {
+		t.Fatalf("ONBUILD instruction did not run in child of ONBUILD parent")
+	}
+
+	// ONBUILD should *not* be run in third build.
+	if strings.Contains(out3, "ONBUILD PARENT") {
+		t.Fatalf("ONBUILD instruction ran in grandchild of ONBUILD parent")
+	}
+
+	logDone("build - onbuild")
 }
 
 func TestBuildWithCache(t *testing.T) {
