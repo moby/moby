@@ -414,37 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-// testing #1405 - config.Cmd does not get cleaned up if
-// utilizing cache
-func TestBuildEntrypointRunCleanup(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkDaemonFromEngine(eng, t))
-
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        run echo "hello"
-        `,
-		nil, nil}, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	img, err = buildImage(testContextTemplate{`
-        from {IMAGE}
-        run echo "hello"
-        add foo /foo
-        entrypoint ["/bin/echo"]
-        `,
-		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(img.Config.Cmd) != 0 {
-		t.Fail()
-	}
-}
-
 func TestForbiddenContextPath(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkDaemonFromEngine(eng, t))

@@ -1133,3 +1133,40 @@ func TestBuildWithVolumeOwnership(t *testing.T) {
 
 	logDone("build - volume ownership")
 }
+
+// testing #1405 - config.Cmd does not get cleaned up if
+// utilizing cache
+func TestBuildEntrypointRunCleanup(t *testing.T) {
+	name := "testbuildcmdcleanup"
+	defer deleteImages(name)
+	if _, err := buildImage(name,
+		`FROM busybox
+        RUN echo "hello"`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, err := fakeContext(`FROM busybox
+        RUN echo "hello"
+        ADD foo /foo
+        ENTRYPOINT ["/bin/echo"]`,
+		map[string]string{
+			"foo": "hello",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Cmd inherited from busybox, maybe will be fixed in #5147
+	if expected := "[/bin/sh]"; res != expected {
+		t.Fatalf("Cmd %s, expected %s", res, expected)
+	}
+	logDone("build - cleanup cmd after RUN")
+}
