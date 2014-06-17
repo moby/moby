@@ -1170,3 +1170,28 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 	}
 	logDone("build - cleanup cmd after RUN")
 }
+
+func TestBuldForbiddenContextPath(t *testing.T) {
+	name := "testbuildforbidpath"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+        ADD ../../ test/
+        `,
+		map[string]string{
+			"test.txt":  "test1",
+			"other.txt": "other",
+		})
+
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "Forbidden path outside the build context: ../../ (/)") {
+			t.Fatal("Wrong error, must be about forbidden ../../ path")
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - forbidden context path")
+}

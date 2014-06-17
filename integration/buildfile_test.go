@@ -414,54 +414,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestForbiddenContextPath(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkDaemonFromEngine(eng, t))
-	srv := mkServerFromEngine(eng, t)
-
-	context := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        add ../../ test/
-        `,
-		[][2]string{{"test.txt", "test1"}, {"other.txt", "other"}}, nil}
-
-	httpServer, err := mkTestingFileServer(context.remoteFiles)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer httpServer.Close()
-
-	idx := strings.LastIndex(httpServer.URL, ":")
-	if idx < 0 {
-		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
-	}
-	port := httpServer.URL[idx+1:]
-
-	iIP := eng.Hack_GetGlobalVar("httpapi.bridgeIP")
-	if iIP == nil {
-		t.Fatal("Legacy bridgeIP field not set in engine")
-	}
-	ip, ok := iIP.(net.IP)
-	if !ok {
-		panic("Legacy bridgeIP field in engine does not cast to net.IP")
-	}
-	dockerfile := constructDockerfile(context.dockerfile, ip, port)
-
-	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
-	_, err = buildfile.Build(context.Archive(dockerfile, t))
-
-	if err == nil {
-		t.Log("Error should not be nil")
-		t.Fail()
-	}
-
-	if err.Error() != "Forbidden path outside the build context: ../../ (/)" {
-		t.Logf("Error message is not expected: %s", err.Error())
-		t.Fail()
-	}
-}
-
 func TestBuildADDFileNotFound(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkDaemonFromEngine(eng, t))
