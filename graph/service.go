@@ -135,7 +135,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if image, err := s.LookupImage(name); err == nil && image != nil {
-		if job.GetenvBool("dirty") {
+		if job.GetenvBool("raw") {
 			b, err := json.Marshal(image)
 			if err != nil {
 				return job.Error(err)
