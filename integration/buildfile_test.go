@@ -413,14 +413,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildFailsDockerfileEmpty(t *testing.T) {
-	_, err := buildImage(testContextTemplate{``, nil, nil}, t, nil, true)
-
-	if err != server.ErrDockerfileEmpty {
-		t.Fatal("Expected: %v, got: %v", server.ErrDockerfileEmpty, err)
-	}
-}
-
 func TestBuildOnBuildTrigger(t *testing.T) {
 	_, err := buildImage(testContextTemplate{`
 	from {IMAGE}

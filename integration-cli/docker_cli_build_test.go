@@ -1273,3 +1273,17 @@ func TestBuildFails(t *testing.T) {
 	}
 	logDone("build - fails")
 }
+
+func TestBuildFailsDockerfileEmpty(t *testing.T) {
+	name := "testbuildfails"
+	defer deleteImages(name)
+	_, err := buildImage(name, ``, true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Dockerfile cannot be empty") {
+			t.Fatalf("Wrong error %v, must be about empty Dockerfile", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - fails with empty dockerfile")
+}
