@@ -1195,3 +1195,23 @@ func TestBuldForbiddenContextPath(t *testing.T) {
 	}
 	logDone("build - forbidden context path")
 }
+
+func TestBuildADDFileNotFound(t *testing.T) {
+	name := "testbuildaddnotfound"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+        ADD foo /usr/local/bar`,
+		map[string]string{"bar": "hello"})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "foo: no such file or directory") {
+			t.Fatalf("Wrong error %v, must be about missing foo file or directory", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - add file not found")
+}
