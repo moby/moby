@@ -118,6 +118,47 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
+func getCmdOperation(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	var args []string
+
+	if v, ok := r.Form["args"]; ok {
+		args = v
+	}
+
+	job := eng.Job(vars["jobname"], args...)
+
+	for key, value := range r.Form {
+		if key != "args" {
+			job.Setenv(key, value[0])
+		}
+	}
+
+	if r.Form.Get("stdout") == "1" {
+		job.Stdout.Add(w)
+	}
+
+	if r.Form.Get("stderr") == "1" {
+		job.Stderr.Add(w)
+	}
+
+	if r.Form.Get("stdin") == "1" {
+		job.Stdin.Add(r.Body)
+	}
+
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		authConfig, err = ioutil.ReadAll(r.Body)
@@ -1079,6 +1120,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/cmd/{jobname:.*}":               getCmdOperation,
 		},
 		"POST": {
 			"/auth":                         postAuth,
