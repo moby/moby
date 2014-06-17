@@ -413,20 +413,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildOnBuildForbiddenFromTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild from {IMAGE}
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
-}
-
 func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
 	_, err := buildImage(testContextTemplate{`
 	from {IMAGE}

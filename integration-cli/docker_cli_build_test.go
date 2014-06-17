@@ -1324,3 +1324,20 @@ func TestBuildOnBuildForbiddenChained(t *testing.T) {
 	}
 	logDone("build - onbuild forbidden chained")
 }
+
+func TestBuildOnBuildForbiddenFrom(t *testing.T) {
+	name := "testbuildonbuildforbiddenfrom"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD FROM scratch`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "FROM isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about FROM forbidden", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden from")
+}
