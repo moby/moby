@@ -1307,3 +1307,20 @@ func TestBuildOnBuild(t *testing.T) {
 	}
 	logDone("build - onbuild")
 }
+
+func TestBuildOnBuildForbiddenChained(t *testing.T) {
+	name := "testbuildonbuildforbiddenchained"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD ONBUILD RUN touch foobar`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed") {
+			t.Fatalf("Wrong error %v, must be about chaining ONBUILD", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden chained")
+}
