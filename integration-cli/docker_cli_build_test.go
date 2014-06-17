@@ -1215,3 +1215,44 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	logDone("build - add file not found")
 }
+
+func TestBuildInheritance(t *testing.T) {
+	name := "testbuildinheritance"
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`FROM scratch
+		EXPOSE 2375`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ports1, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM %s
+		ENTRYPOINT ["/bin/echo"]`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := "[/bin/echo]"; res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+	ports2, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ports1 != ports2 {
+		t.Fatalf("Ports must be same: %s != %s", ports1, ports2)
+	}
+	logDone("build - inheritance")
+}

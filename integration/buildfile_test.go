@@ -14,7 +14,6 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/server"
 	"github.com/dotcloud/docker/utils"
 )
@@ -412,41 +411,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	err = json.NewDecoder(buffer).Decode(image)
 	return image, err
-}
-
-func TestBuildInheritance(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkDaemonFromEngine(eng, t))
-
-	img, err := buildImage(testContextTemplate{`
-            from {IMAGE}
-            expose 2375
-            `,
-		nil, nil}, t, eng, true)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	img2, _ := buildImage(testContextTemplate{fmt.Sprintf(`
-            from %s
-            entrypoint ["/bin/echo"]
-            `, img.ID),
-		nil, nil}, t, eng, true)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// from child
-	if img2.Config.Entrypoint[0] != "/bin/echo" {
-		t.Fail()
-	}
-
-	// from parent
-	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "2375")]; !exists {
-		t.Fail()
-	}
 }
 
 func TestBuildFails(t *testing.T) {
