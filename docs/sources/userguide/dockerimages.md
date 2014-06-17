@@ -330,7 +330,7 @@ containers will get removed to clean things up.
 
 We can then create a container from our new image.
 
-    $ sudo docker run -t -i ouruser/sinatra /bin/bash
+    $ sudo docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@8196968dac35:/#
 
 > **Note:** 
