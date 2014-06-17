@@ -1358,3 +1358,26 @@ func TestBuildOnBuildForbiddenMaintainer(t *testing.T) {
 	}
 	logDone("build - onbuild forbidden maintainer")
 }
+
+// gh #2446
+func TestBuildAddToSymlinkDest(t *testing.T) {
+	name := "testbuildaddtosymlinkdest"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+        RUN mkdir /foo
+        RUN ln -s /foo /bar
+        ADD foo /bar/
+        RUN [ -f /bar/foo ]
+        RUN [ -f /foo/foo ]`,
+		map[string]string{
+			"foo": "hello",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add to symlink destination")
+}

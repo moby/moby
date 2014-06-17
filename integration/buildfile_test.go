@@ -412,21 +412,3 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	err = json.NewDecoder(buffer).Decode(image)
 	return image, err
 }
-
-// gh #2446
-func TestBuildAddToSymlinkDest(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkDaemonFromEngine(eng, t))
-
-	_, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        run mkdir /foo
-        run ln -s /foo /bar
-        add foo /bar/
-        run stat /bar/foo
-        `,
-		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
