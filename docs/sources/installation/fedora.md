@@ -48,6 +48,36 @@ Now let's verify that Docker is working.
 
     $ sudo docker run -i -t fedora /bin/bash
 
+## Granting rights to users to use docker
+
+Do this *only* if you are using the 0.11 series.
+
+The `docker` command line tool contacts the `docker` daemon process via a socket file `/var/run/docker.sock` owned by group `docker`. One must be member of that group in order to contact the `docker -d` process.
+
+    $ usermod -a -G docker login_name
+
+This is *not* necessary for docker versions 1.0 and above.
+
+## HTTP Proxy
+
+If you are behind HTTP proxy server, for example in corporate settings, you will need to set this configuration in docker *systemd service file*.
+
+Edit file `/lib/systemd/system/docker.service`. Add the following like to section `[Service]` :
+
+    Environment="HTTP_PROXY=http://proxy.example.com:80/"
+
+If you have internal docker registries that you contact without proxying - provide them via the `NO_PROXY` environment variable:
+
+    Environment="HTTP_PROXY=http://proxy.example.com:80/" "NO_PROXY=localhost,127.0.0.0/8,docker-registry.somecorporation.com"
+
+Flush changes:
+
+    $ systemctl daemon-reload
+
+Restart docker:
+
+    $ systemctl start docker
+
 ## What next?
 
 Continue with the [User Guide](/userguide/).
