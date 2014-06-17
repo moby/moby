@@ -25,6 +25,10 @@ func TestSaveAndLoadRepo(t *testing.T) {
 	out, _, err = runCommandWithOutput(commitCmd)
 	errorOut(err, t, fmt.Sprintf("failed to commit container: %v %v", out, err))
 
+	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	before, _, err := runCommandWithOutput(inspectCmd)
+	errorOut(err, t, fmt.Sprintf("the repo should exist before saving it: %v %v", before, err))
+
 	saveCmdTemplate := `%v save %v > /tmp/foobar-save-load-test.tar`
 	saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, repoName)
 	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
@@ -39,8 +43,12 @@ func TestSaveAndLoadRepo(t *testing.T) {
 	errorOut(err, t, fmt.Sprintf("failed to load repo: %v %v", out, err))
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("the repo should exist after loading it: %v %v", out, err))
+	after, _, err := runCommandWithOutput(inspectCmd)
+	errorOut(err, t, fmt.Sprintf("the repo should exist after loading it: %v %v", after, err))
+
+	if before != after {
+		t.Fatalf("inspect is not the same after a save / load")
+	}
 
 	deleteContainer(cleanedContainerID)
 	deleteImages(repoName)
