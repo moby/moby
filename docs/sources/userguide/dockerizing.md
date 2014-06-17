@@ -13,7 +13,7 @@ application inside a container takes a single command: `docker run`.
 
 Let's try it now.
 
-    $ sudo docker run ubuntu:14.04 /bin/echo 'Hello World!'
+    $ sudo docker run ubuntu:14.04 /bin/echo 'Hello World'
     Hello World!
 
 And you just launched your first container!
