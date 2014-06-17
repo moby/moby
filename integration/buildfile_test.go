@@ -413,22 +413,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildOnBuildTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild run echo here is the trigger
-	onbuild run touch foobar
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: test that the 'foobar' file was created in the final build.
-}
-
 func TestBuildOnBuildForbiddenChainedTrigger(t *testing.T) {
 	_, err := buildImage(testContextTemplate{`
 	from {IMAGE}

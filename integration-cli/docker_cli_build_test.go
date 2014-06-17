@@ -1287,3 +1287,23 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	}
 	logDone("build - fails with empty dockerfile")
 }
+
+func TestBuildOnBuild(t *testing.T) {
+	name := "testbuildonbuild"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD RUN touch foobar`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM %s
+		RUN [ -f foobar ]`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - onbuild")
+}
