@@ -1,9 +1,12 @@
+// +build linux
+
 package namespaces
 
 /*
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <linux/sched.h>
 #include <signal.h>
 #include <stdio.h>
@@ -49,6 +52,18 @@ void get_args(int *argc, char ***argv) {
 	(*argv)[*argc] = NULL;
 }
 
+// Use raw setns syscall for versions of glibc that don't include it (namely glibc-2.12)
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ < 14
+#define _GNU_SOURCE
+#include <sched.h>
+#include "syscall.h"
+#ifdef SYS_setns
+int setns(int fd, int nstype) {
+  return syscall(SYS_setns, fd, nstype);
+}
+#endif
+#endif
+
 void nsenter() {
 	int argc;
 	char **argv;
@@ -73,12 +88,9 @@ void nsenter() {
 	argv += 3;
 
 	// Setns on all supported namespaces.
-	char ns_dir[kBufSize];
-	memset(ns_dir, 0, kBufSize);
-	if (snprintf(ns_dir, kBufSize - 1, "/proc/%d/ns/", init_pid) < 0) {
-		fprintf(stderr, "nsenter: Error getting ns dir path with error: \"%s\"\n", strerror(errno));
-		exit(1);
-	}
+	char ns_dir[PATH_MAX];
+	memset(ns_dir, 0, PATH_MAX);
+	snprintf(ns_dir, PATH_MAX - 1, "/proc/%d/ns/", init_pid);
 	struct dirent *dent;
 	DIR *dir = opendir(ns_dir);
 	if (dir == NULL) {
@@ -92,10 +104,9 @@ void nsenter() {
 		}
 
 		// Get and open the namespace for the init we are joining..
-		char buf[kBufSize];
-		memset(buf, 0, kBufSize);
-		strncat(buf, ns_dir, kBufSize - 1);
-		strncat(buf, dent->d_name, kBufSize - 1);
+		char buf[PATH_MAX];
+		memset(buf, 0, PATH_MAX);
+		snprintf(buf, PATH_MAX - 1, "%s%s", ns_dir, dent->d_name);
 		int fd = open(buf, O_RDONLY);
 		if (fd == -1) {
 			fprintf(stderr, "nsenter: Failed to open ns file \"%s\" for ns \"%s\" with error: \"%s\"\n", buf, dent->d_name, strerror(errno));

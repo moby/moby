@@ -1,16 +1,16 @@
 ## libcontainer - reference implementation for containers
 
-#### background
+#### Background
 
 libcontainer specifies configuration options for what a container is.  It provides a native Go implementation 
 for using Linux namespaces with no external dependencies.  libcontainer provides many convenience functions for working with namespaces, networking, and management.  
 
 
-#### container
+#### Container
 A container is a self contained directory that is able to run one or more processes without 
 affecting the host system.  The directory is usually a full system tree.  Inside the directory
 a `container.json` file is placed with the runtime configuration for how the processes 
-should be contained and ran.  Environment, networking, and different capabilities for the 
+should be contained and run.  Environment, networking, and different capabilities for the 
 process are specified in this file.  The configuration is used for each process executed inside the container.
 
 See the `container.json` file for what the configuration should look like.
@@ -35,8 +35,19 @@ If you wish to spawn another process inside the container while your current bas
 running just run the exact same command again to get another bash shell or change the command.  If the original process dies, PID 1, all other processes spawned inside the container will also be killed and the namespace will be removed. 
 
 You can identify if a process is running in a container by looking to see if `pid` is in the root of the directory.   
+#### Future
+See the [roadmap](ROADMAP.md).
 
 ## Copyright and license
 
 Code and documentation copyright 2014 Docker, inc. Code released under the Apache 2.0 license.
 Docs released under Creative commons.
+
+## Hacking on libcontainer
+
+First of all, please familiarise yourself with the [libcontainer Principles](PRINCIPLES.md).
+
+If you're a *contributor* or aspiring contributor, you should read the [Contributors' Guide](CONTRIBUTORS_GUIDE.md).
+
+If you're a *maintainer* or aspiring maintainer, you should read the [Maintainers' Guide](MAINTAINERS_GUIDE.md) and
+"How can I become a maintainer?" in the Contributors' Guide.

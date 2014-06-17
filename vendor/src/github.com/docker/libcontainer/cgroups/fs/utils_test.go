@@ -31,7 +31,7 @@ func TestGetCgroupParamsInt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if value != floatValue {
-		t.Fatalf("Expected %f to equal %f", value, floatValue)
+		t.Fatalf("Expected %d to equal %f", value, floatValue)
 	}
 
 	// Success with new line.
@@ -43,7 +43,7 @@ func TestGetCgroupParamsInt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if value != floatValue {
-		t.Fatalf("Expected %f to equal %f", value, floatValue)
+		t.Fatalf("Expected %d to equal %f", value, floatValue)
 	}
 
 	// Not a float.

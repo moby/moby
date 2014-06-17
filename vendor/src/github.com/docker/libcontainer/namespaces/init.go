@@ -185,7 +185,10 @@ func setupRoute(container *libcontainer.Container) error {
 // and working dir, and closes any leaky file descriptors
 // before execing the command inside the namespace
 func FinalizeNamespace(container *libcontainer.Container) error {
-	if err := system.CloseFdsFrom(3); err != nil {
+	// Ensure that all non-standard fds we may have accidentally
+	// inherited are marked close-on-exec so they stay out of the
+	// container
+	if err := utils.CloseExecFrom(3); err != nil {
 		return fmt.Errorf("close open file descriptors %s", err)
 	}
 
@@ -217,6 +220,7 @@ func FinalizeNamespace(container *libcontainer.Container) error {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
+
 	return nil
 }
 

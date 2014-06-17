@@ -4,17 +4,18 @@ package mount
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/dotcloud/docker/pkg/system"
 )
 
 func PivotRoot(rootfs string) error {
 	pivotDir, err := ioutil.TempDir(rootfs, ".pivot_root")
 	if err != nil {
-		return fmt.Errorf("can't create pivot_root dir %s", pivotDir, err)
+		return fmt.Errorf("can't create pivot_root dir %s, error %v", pivotDir, err)
 	}
 	if err := system.Pivotroot(rootfs, pivotDir); err != nil {
 		return fmt.Errorf("pivot_root %s", err)
