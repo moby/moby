@@ -10,10 +10,18 @@ import (
 
 func TestMultipleAttachRestart(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "attacher", "-d", "busybox",
-		"/bin/sh", "-c", "sleep 1 && echo hello")
+		"/bin/sh", "-c", "sleep 2 && echo hello")
 
 	group := sync.WaitGroup{}
 	group.Add(4)
+
+	defer func() {
+		cmd = exec.Command(dockerBinary, "kill", "attacher")
+		if _, err := runCommand(cmd); err != nil {
+			t.Fatal(err)
+		}
+		deleteAllContainers()
+	}()
 
 	go func() {
 		defer group.Done()
@@ -41,11 +49,5 @@ func TestMultipleAttachRestart(t *testing.T) {
 
 	group.Wait()
 
-	cmd = exec.Command(dockerBinary, "kill", "attacher")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
-	deleteAllContainers()
-
-	logDone("run - multiple attach")
+	logDone("attach - multiple attach")
 }
