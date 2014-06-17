@@ -1,5 +1,3 @@
-// +build !linux,!freebsd,!darwin
-
 package system
 
 import "syscall"
@@ -9,5 +7,5 @@ func LUtimesNano(path string, ts []syscall.Timespec) error {
 }
 
 func UtimesNano(path string, ts []syscall.Timespec) error {
-	return ErrNotSupportedPlatform
+	return syscall.UtimesNano(path, ts)
 }
