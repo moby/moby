@@ -63,7 +63,7 @@ This is *not* necessary for Docker versions 1.0 and above.
 ## HTTP Proxy
 
 If you are behind HTTP proxy server, for example in corporate settings, 
-you will need to add this configuration in docker *systemd service file*.
+you will need to add this configuration in Docker *systemd service file*.
 
 Edit file `/lib/systemd/system/docker.service`. Add the following to
 section `[Service]` :
