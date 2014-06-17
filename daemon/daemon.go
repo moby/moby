@@ -630,18 +630,6 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
 func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
-	// FIXME: freeze the container before copying it to avoid data corruption?
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-	defer container.Unmount()
-
-	rwTar, err := container.ExportRw()
-	if err != nil {
-		return nil, err
-	}
-	defer rwTar.Close()
-
 	// Create a new image from the container's base layers + a new layer from container changes
 	var (
 		containerID, containerImage string
@@ -654,7 +642,7 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 		containerConfig = container.Config
 	}
 
-	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
+	img, err := daemon.graph.Create(nil, containerID, containerImage, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}
@@ -971,32 +959,6 @@ func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	}
 	defer daemon.driver.Put(container.ID + "-init")
 	return archive.ChangesDirs(cDir, initDir)
-}
-
-func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
-	if differ, ok := daemon.driver.(graphdriver.Differ); ok {
-		return differ.Diff(container.ID)
-	}
-
-	changes, err := daemon.Changes(container)
-	if err != nil {
-		return nil, err
-	}
-
-	cDir, err := daemon.driver.Get(container.ID, "")
-	if err != nil {
-		return nil, fmt.Errorf("Error getting container rootfs %s from driver %s: %s", container.ID, container.daemon.driver, err)
-	}
-
-	archive, err := archive.ExportChanges(cDir, changes)
-	if err != nil {
-		return nil, err
-	}
-	return utils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		daemon.driver.Put(container.ID)
-		return err
-	}), nil
 }
 
 func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {

@@ -2,10 +2,12 @@ package vfs
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 func init() {
@@ -60,6 +62,50 @@ func (d *Driver) Create(id, parent string) error {
 	if err := copyDir(parentDir, dir); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (d *Driver) CreateWithParent(newID, parentID, startID, endID string) error {
+	var (
+		layerData archive.Archive
+		err       error
+	)
+	cDir, err := d.Get(endID, "")
+	if err != nil {
+		return fmt.Errorf("Error getting container rootfs %s from driver %s: %s", endID, d, err)
+	}
+	defer d.Put(endID)
+
+	initDir, err := d.Get(startID, "")
+	if err != nil {
+		return fmt.Errorf("Error getting container init rootfs %s from driver %s: %s", startID, d, err)
+	}
+	defer d.Put(startID)
+
+	changes, err := archive.ChangesDirs(cDir, initDir)
+	if err != nil {
+		return fmt.Errorf("Error getting changes between %s and %s from driver %s: %s", initDir, cDir, d, err)
+	}
+
+	layerData, err = archive.ExportChanges(cDir, changes)
+	if err != nil {
+		return fmt.Errorf("Error getting the archive with changes from %s from driver %s: %s", cDir, d, err)
+	}
+
+	defer layerData.Close()
+	if err := d.Create(newID, parentID); err != nil {
+		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", d, newID, err)
+	}
+	newImagePath, err := d.Get(newID, "")
+	if err != nil {
+		return fmt.Errorf("Error getting image rootfs %s from driver %s: %s", newID, d, err)
+	}
+	defer d.Put(newID)
+
+	if err = archive.ApplyLayer(newImagePath, layerData); err != nil {
+		return fmt.Errorf("Error applying changes from %s to %s from driver %s: %s", cDir, newID, d, err)
+	}
+
 	return nil
 }
 

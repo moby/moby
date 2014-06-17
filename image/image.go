@@ -67,48 +67,55 @@ func LoadImage(root string) (*Image, error) {
 func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, root, layer string) error {
 	// Store the layer
 	var (
-		size   int64
-		err    error
-		driver = img.graph.Driver()
+		size            int64
+		err             error
+		driver          = img.graph.Driver()
+		containerExists = driver.Exists(img.Container)
+		hasLayerData    = layerData != nil
 	)
 	if err := os.MkdirAll(layer, 0755); err != nil {
 		return err
 	}
 
-	// If layerData is not nil, unpack it into the new layer
-	if layerData != nil {
-		if differ, ok := driver.(graphdriver.Differ); ok {
+	// attempt to use the optimized Differ first
+	if differ, ok := driver.(graphdriver.Differ); ok && (hasLayerData || containerExists) {
+		// we need to extract the layer data because there's no existing container
+		// otherwise the final image layer has been created by the driver already
+		if !containerExists && hasLayerData {
 			if err := differ.ApplyDiff(img.ID, layerData); err != nil {
 				return err
 			}
-
-			if size, err = differ.DiffSize(img.ID); err != nil {
-				return err
-			}
-		} else {
+		}
+		if size, err = differ.DiffSize(img.ID); err != nil {
+			return err
+		}
+		// the driver might not support optimized Differ, so fall back
+	} else if hasLayerData || containerExists {
+		// we need to extract the layer data because there's no existing container
+		// otherwise the final image layer has been created by the driver already
+		if !containerExists && hasLayerData {
 			start := time.Now().UTC()
 			utils.Debugf("Start untar layer")
 			if err := archive.ApplyLayer(layer, layerData); err != nil {
 				return err
 			}
 			utils.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
-
-			if img.Parent == "" {
-				if size, err = utils.TreeSize(layer); err != nil {
-					return err
-				}
-			} else {
-				parent, err := driver.Get(img.Parent, "")
-				if err != nil {
-					return err
-				}
-				defer driver.Put(img.Parent)
-				changes, err := archive.ChangesDirs(layer, parent)
-				if err != nil {
-					return err
-				}
-				size = archive.ChangesSize(layer, changes)
+		}
+		if img.Parent == "" {
+			if size, err = utils.TreeSize(layer); err != nil {
+				return err
 			}
+		} else {
+			parent, err := driver.Get(img.Parent, "")
+			if err != nil {
+				return err
+			}
+			defer driver.Put(img.Parent)
+			changes, err := archive.ChangesDirs(layer, parent)
+			if err != nil {
+				return err
+			}
+			size = archive.ChangesSize(layer, changes)
 		}
 	}
 
