@@ -251,6 +251,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	env := container.createDaemonEnvironment(linkedEnv)
+	if err := container.setupMachineId(); err != nil {
+		return err
+	}
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
@@ -263,6 +266,21 @@ func (container *Container) Start() (err error) {
 	container.waitLock = make(chan struct{})
 
 	return container.waitForStart()
+}
+
+// some semblance of a UUID for the container runtime.
+func (container *Container) setupMachineId() error {
+	if err := os.MkdirAll(container.getResourcePath("/etc"), 0755); err != nil {
+		return err
+	}
+	fh, err := os.Create(container.getResourcePath("/etc/machine-id"))
+	if err != nil {
+		return err
+	}
+	// or perhaps container.Name?
+	_, err = fmt.Fprintln(fh, container.ID)
+	fh.Close()
+	return err
 }
 
 func (container *Container) Run() error {
