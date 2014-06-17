@@ -413,20 +413,6 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	return image, err
 }
 
-func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild maintainer test
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
-}
-
 // gh #2446
 func TestBuildAddToSymlinkDest(t *testing.T) {
 	eng := NewTestEngine(t)

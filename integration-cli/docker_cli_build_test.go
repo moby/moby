@@ -1341,3 +1341,20 @@ func TestBuildOnBuildForbiddenFrom(t *testing.T) {
 	}
 	logDone("build - onbuild forbidden from")
 }
+
+func TestBuildOnBuildForbiddenMaintainer(t *testing.T) {
+	name := "testbuildonbuildforbiddenmaintainer"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD MAINTAINER docker.io`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "MAINTAINER isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about MAINTAINER forbidden", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden maintainer")
+}
