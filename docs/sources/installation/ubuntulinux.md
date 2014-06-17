@@ -316,7 +316,7 @@ Docker daemon for the containers:
     $ sudo nano /etc/default/docker
     ---
     # Add:
-    $ docker_OPTS="--dns 8.8.8.8"
+    $ DOCKER_OPTS="--dns 8.8.8.8"
     # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
     # multiple DNS servers can be specified: --dns 8.8.8.8 --dns 192.168.1.1
 
