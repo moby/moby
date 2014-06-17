@@ -251,7 +251,7 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	env := container.createDaemonEnvironment(linkedEnv)
-	if err := container.setupMachineId(); err != nil {
+	if err := container.setupIdFiles(); err != nil {
 		return err
 	}
 	if err := populateCommand(container, env); err != nil {
@@ -268,19 +268,34 @@ func (container *Container) Start() (err error) {
 	return container.waitForStart()
 }
 
-// some semblance of a UUID for the container runtime.
-func (container *Container) setupMachineId() error {
+// some semblance of a UUID access for the container runtime.
+func (container *Container) setupIdFiles() error {
 	if err := os.MkdirAll(container.getResourcePath("/etc"), 0755); err != nil {
 		return err
 	}
+
+	// requirements and info on /etc/machine-id
+	// http://www.freedesktop.org/software/systemd/man/machine-id.html
+	// must be a 16-byte hex ID
 	fh, err := os.Create(container.getResourcePath("/etc/machine-id"))
 	if err != nil {
 		return err
 	}
-	// or perhaps container.Name?
-	_, err = fmt.Fprintln(fh, container.ID)
+	if _, err = fmt.Fprintln(fh, container.ID[:32]); err != nil {
+		return err
+	}
 	fh.Close()
-	return err
+
+	fh, err = os.Create(container.getResourcePath("/etc/container-id"))
+	if err != nil {
+		return err
+	}
+	if _, err = fmt.Fprintln(fh, container.ID); err != nil {
+		return nil
+	}
+	fh.Close()
+
+	return nil
 }
 
 func (container *Container) Run() error {
