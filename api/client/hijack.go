@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -50,7 +51,15 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	defer clientconn.Close()
 
 	// Server hijacks the connection, error 'connection closed' expected
-	clientconn.Do(req)
+	// But the status code can be returned before hijacking
+	resp, _ := clientconn.Do(req)
+	if resp.StatusCode != 200 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("%s", body)
+	}
 
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()

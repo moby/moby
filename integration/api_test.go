@@ -877,9 +877,8 @@ func TestPostContainersAttach(t *testing.T) {
 	}()
 
 	// Acknowledge hijack
-	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+	setTimeout(t, "hijack acknowledge timed out", 10*time.Second, func() {
 		stdout.Read([]byte{})
-		stdout.Read(make([]byte, 4096))
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
@@ -955,9 +954,8 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	}()
 
 	// Acknowledge hijack
-	setTimeout(t, "hijack acknowledge timed out", 2*time.Second, func() {
+	setTimeout(t, "hijack acknowledge timed out", 10*time.Second, func() {
 		stdout.Read([]byte{})
-		stdout.Read(make([]byte, 4096))
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
