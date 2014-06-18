@@ -20,6 +20,12 @@ applications and databases.
 
 ![Docker L](docs/theme/mkdocs/images/docker-logo-compressed.png "Docker")
 
+## Security Disclosure
+
+Security is very important to us.  If you have any issue regarding security, 
+please disclose the information responsibly by sending an email to 
+security@docker.com and not by creating a github issue.
+
 ## Better than VMs
 
 A common method for distributing applications and sandboxing their
