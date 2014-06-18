@@ -818,7 +818,6 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 		outs.Add(out)
 		return nil
 	})
-	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
