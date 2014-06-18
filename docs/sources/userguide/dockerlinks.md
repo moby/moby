@@ -68,7 +68,7 @@ configurations. For example if we've bound the container port to the
 `localhost` on the host machine this will be shown in the `docker port`
 output.
 
-    $ docker port nostalgic_morse
+    $ docker port nostalgic_morse 5000
     127.0.0.1:49155
 
 > **Note:** 
