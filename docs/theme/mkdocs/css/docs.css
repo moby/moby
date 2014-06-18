@@ -3,6 +3,10 @@
   margin-bottom: 10px;
 }
 
+#top-header .header2 {
+  font-weight: 400;
+}
+
 #usernav > ul {
   margin-top: 10px;
   z-index: 99999;
@@ -186,20 +190,42 @@ ol li {
   line-height: 1.7;
 }
 
+.content-body ul {
+  padding: 10px 0px 10px 20px;
+  list-style-position: inherit;
+  list-style: circle;
+}
+
+.content-body ul li {
+  padding-bottom: 5px;
+}
+
+.content-body ul ul {
+  padding: 10px 0px 10px 40px;
+}
+
 .content-body h1 {
   display: block !important;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 27px;
+  font-weight: 400;
   color: #394d54;
   line-height: 1.33;
-  font-weight: normal;
   margin-bottom: 8px;
   margin-top: 6px;
 }
 
-.content-body h2, .content-body h3 {
-  font-size: 14px;
-  font-weight: 500;
+.content-body h2 {
+  font-size: 21px;
+  font-weight: 400;
+  color: #394d54;
+  line-height: 1.7;
+  margin-bottom: 4px;
+  margin-top: 10px;
+}
+
+.content-body h3 {
+  font-size: 18px;
+  font-weight: 400;
   color: #394d54;
   line-height: 1.7;
   margin-bottom: 4px;
@@ -240,8 +266,16 @@ ol li {
   padding-left: 15px;
 }
 
-.content-body blockquote * {
-  color: #394d54;
+.content-body ul {
+  margin-top: 0px !important;
+}
+
+.content-body blockquote a {
+  color: #24b8eb;
+}
+
+.content-body blockquote a:hover {
+  color: #008bb8;
 }
 
 .content-body ul {
