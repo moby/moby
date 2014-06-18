@@ -950,6 +950,17 @@ func (daemon *Daemon) DevAdd(c *Container, device string) error {
 	return nil
 }
 
+func (daemon *Daemon) DevRm(c *Container, device string) error {
+	devmap, err := runconfig.ParseDevice(device)
+	if err != nil {
+		return err
+	}
+	if err := daemon.execDriver.DevRm(c.command, devmap.PathOnHost, devmap.PathInContainer, devmap.CgroupPermissions); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (daemon *Daemon) Mount(container *Container) error {
 	dir, err := daemon.driver.Get(container.ID, container.GetMountLabel())
 	if err != nil {

@@ -261,6 +261,33 @@ func (d *driver) DevAdd(c *execdriver.Command, src string, dst string, perms str
 	return nil
 }
 
+func (d *driver) DevRm(c *execdriver.Command, src string, dst string, perms string) error {
+	device, err := devices.GetDevice(src, perms)
+	if err != nil {
+		return err
+	}
+	device.Path = dst
+
+	if _, err := exec.LookPath("lxc-cgroup"); err != nil {
+		return fmt.Errorf("Err: Cannot find lxc-cgroup: %s", err)
+	}
+
+	// Update lxc cgroups to allow this device.
+	output, err := exec.Command("lxc-cgroup", "-n", c.ID, "devices.deny", device.GetCgroupAllowString()).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Err: %s Output: %s", err, output)
+	}
+
+	// You could do this with lxc-attach but then you have to run the mknod command in the container.
+	// This is a better solution as it does not require anything special in the container.
+	// Set up the filename for mount namespace.
+	ns_file := fmt.Sprintf("/proc/%d/ns/mnt", c.ContainerPid)
+	// Remove the device node from the container.
+	namespaces.NsEnterUnlink(ns_file, dst)
+
+	return nil
+}
+
 func (d *driver) Pause(c *execdriver.Command) error {
 	_, err := exec.LookPath("lxc-freeze")
 	if err == nil {

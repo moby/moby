@@ -92,6 +92,7 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	DevAdd(c *Command, src string, dst string, perms string) error
+	DevRm(c *Command, src string, dst string, perms string) error
 }
 
 // Network settings of the container
