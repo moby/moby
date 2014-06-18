@@ -370,13 +370,23 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	var (
-		job    = eng.Job("container_inspect", vars["name"])
-		c, err = job.Stdout.AddEnv()
+		inspectJob = eng.Job("container_inspect", vars["name"])
+		logsJob    = eng.Job("logs", vars["name"])
+		c, err     = inspectJob.Stdout.AddEnv()
 	)
 	if err != nil {
 		return err
 	}
-	if err = job.Run(); err != nil {
+	logsJob.Setenv("follow", r.Form.Get("follow"))
+	logsJob.Setenv("stdout", r.Form.Get("stdout"))
+	logsJob.Setenv("stderr", r.Form.Get("stderr"))
+	logsJob.Setenv("timestamps", r.Form.Get("timestamps"))
+	// Validate args here, because we can't return not StatusOK after job.Run() call
+	stdout, stderr := logsJob.GetenvBool("stdout"), logsJob.GetenvBool("stderr")
+	if !(stdout || stderr) {
+		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+	}
+	if err = inspectJob.Run(); err != nil {
 		return err
 	}
 
@@ -390,14 +400,9 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		errStream = outStream
 	}
 
-	job = eng.Job("logs", vars["name"])
-	job.Setenv("follow", r.Form.Get("follow"))
-	job.Setenv("stdout", r.Form.Get("stdout"))
-	job.Setenv("stderr", r.Form.Get("stderr"))
-	job.Setenv("timestamps", r.Form.Get("timestamps"))
-	job.Stdout.Add(outStream)
-	job.Stderr.Set(errStream)
-	if err := job.Run(); err != nil {
+	logsJob.Stdout.Add(outStream)
+	logsJob.Stderr.Set(errStream)
+	if err := logsJob.Run(); err != nil {
 		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
 	}
 	return nil
