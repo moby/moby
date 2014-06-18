@@ -34,6 +34,7 @@ type Config struct {
 	EnableSelinuxSupport        bool
 	Context                     map[string][]string
 	DetachKeys                  []byte
+	DetachKeysStr               string
 }
 
 // ConfigFromJob creates and returns a new DaemonConfig object
@@ -54,6 +55,7 @@ func ConfigFromJob(job *engine.Job) (*Config, error) {
 			GraphDriver:                 job.Getenv("GraphDriver"),
 			ExecDriver:                  job.Getenv("ExecDriver"),
 			EnableSelinuxSupport:        job.GetenvBool("EnableSelinuxSupport"),
+			DetachKeysStr:               job.Getenv("DetachKeys"),
 		}
 	)
 	if graphOpts := job.GetenvList("GraphOptions"); graphOpts != nil {
@@ -73,7 +75,7 @@ func ConfigFromJob(job *engine.Job) (*Config, error) {
 	}
 	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
 
-	config.DetachKeys, err = term.ToBytes(job.Getenv("DetachKeys"))
+	config.DetachKeys, err = term.ToBytes(config.DetachKeysStr)
 
 	return config, err
 }
