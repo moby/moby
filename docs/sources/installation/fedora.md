@@ -50,7 +50,9 @@ Now let's verify that Docker is working.
 
 ## Granting rights to users to use Docker
 
-Do this *only* if you are using the 0.11 series.
+Fedora 19 and 20 shipped with Docker 0.11. The package has already been updated
+to 1.0 in Fedora 20. If you are still using the 0.11 versions you will need to
+grant rights to users of Docker.
 
 The `docker` command line tool contacts the `docker` daemon process via a
 socket file `/var/run/docker.sock` owned by group `docker`. One must be 
@@ -58,7 +60,8 @@ member of that group in order to contact the `docker -d` process.
 
     $ usermod -a -G docker login_name
 
-This is *not* necessary for Docker versions 1.0 and above.
+Adding users to the `docker` group is *not* necessary for Docker versions 1.0
+and above.
 
 ## HTTP Proxy
 
