@@ -398,7 +398,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	job.Stdout.Add(outStream)
 	job.Stderr.Set(errStream)
 	if err := job.Run(); err != nil {
-		fmt.Fprintf(outStream, "Error: %s\n", err)
+		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
 	}
 	return nil
 }
@@ -811,7 +811,7 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	job.Stdout.Add(outStream)
 	job.Stderr.Set(errStream)
 	if err := job.Run(); err != nil {
-		fmt.Fprintf(outStream, "Error: %s\n", err)
+		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 
 	}
 	return nil
@@ -841,7 +841,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		job.Stdout.Add(ws)
 		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
-			utils.Errorf("Error: %s", err)
+			utils.Errorf("Error attaching websocket: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -1022,7 +1022,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
-			utils.Errorf("Error: %s", err)
+			utils.Errorf("Error making handler: %s", err)
 			httpError(w, err)
 		}
 	}
