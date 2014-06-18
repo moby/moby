@@ -85,7 +85,12 @@ type Container struct {
 }
 
 func (container *Container) FromDisk() error {
-	data, err := ioutil.ReadFile(container.jsonPath())
+	pth, err := container.jsonPath()
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadFile(pth)
 	if err != nil {
 		return err
 	}
@@ -101,15 +106,22 @@ func (container *Container) FromDisk() error {
 	return container.readHostConfig()
 }
 
-func (container *Container) ToDisk() (err error) {
+func (container *Container) ToDisk() error {
 	data, err := json.Marshal(container)
 	if err != nil {
-		return
+		return err
 	}
-	err = ioutil.WriteFile(container.jsonPath(), data, 0666)
+
+	pth, err := container.jsonPath()
 	if err != nil {
-		return
+		return err
 	}
+
+	err = ioutil.WriteFile(pth, data, 0666)
+	if err != nil {
+		return err
+	}
+
 	return container.WriteHostConfig()
 }
 
@@ -118,33 +130,45 @@ func (container *Container) readHostConfig() error {
 	// If the hostconfig file does not exist, do not read it.
 	// (We still have to initialize container.hostConfig,
 	// but that's OK, since we just did that above.)
-	_, err := os.Stat(container.hostConfigPath())
+	pth, err := container.hostConfigPath()
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stat(pth)
 	if os.IsNotExist(err) {
 		return nil
 	}
-	data, err := ioutil.ReadFile(container.hostConfigPath())
+
+	data, err := ioutil.ReadFile(pth)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(data, container.hostConfig)
 }
 
-func (container *Container) WriteHostConfig() (err error) {
+func (container *Container) WriteHostConfig() error {
 	data, err := json.Marshal(container.hostConfig)
 	if err != nil {
-		return
+		return err
 	}
-	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
+
+	pth, err := container.hostConfigPath()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(pth, data, 0666)
 }
 
-func (container *Container) getResourcePath(path string) string {
+func (container *Container) getResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
-	return filepath.Join(container.basefs, cleanPath)
+	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
 }
 
-func (container *Container) getRootResourcePath(path string) string {
+func (container *Container) getRootResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
-	return filepath.Join(container.root, cleanPath)
+	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
 func populateCommand(c *Container, env []string) error {
@@ -324,7 +348,12 @@ func (container *Container) StderrLogPipe() io.ReadCloser {
 }
 
 func (container *Container) buildHostnameFile() error {
-	container.HostnamePath = container.getRootResourcePath("hostname")
+	hostnamePath, err := container.getRootResourcePath("hostname")
+	if err != nil {
+		return err
+	}
+	container.HostnamePath = hostnamePath
+
 	if container.Config.Domainname != "" {
 		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
 	}
@@ -336,7 +365,11 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 		return err
 	}
 
-	container.HostsPath = container.getRootResourcePath("hosts")
+	hostsPath, err := container.getRootResourcePath("hosts")
+	if err != nil {
+		return err
+	}
+	container.HostsPath = hostsPath
 
 	extraContent := make(map[string]string)
 
@@ -681,19 +714,23 @@ func (container *Container) Unmount() error {
 	return container.daemon.Unmount(container)
 }
 
-func (container *Container) logPath(name string) string {
+func (container *Container) logPath(name string) (string, error) {
 	return container.getRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
 }
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
-	return os.Open(container.logPath(name))
+	pth, err := container.logPath(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(pth)
 }
 
-func (container *Container) hostConfigPath() string {
+func (container *Container) hostConfigPath() (string, error) {
 	return container.getRootResourcePath("hostconfig.json")
 }
 
-func (container *Container) jsonPath() string {
+func (container *Container) jsonPath() (string, error) {
 	return container.getRootResourcePath("config.json")
 }
 
@@ -756,8 +793,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	var filter []string
 
-	resPath := container.getResourcePath(resource)
-	basePath, err := symlink.FollowSymlinkInScope(resPath, container.basefs)
+	basePath, err := container.getResourcePath(resource)
 	if err != nil {
 		container.Unmount()
 		return nil, err
@@ -866,7 +902,13 @@ func (container *Container) setupContainerDns() error {
 		} else if len(daemon.config.DnsSearch) > 0 {
 			dnsSearch = daemon.config.DnsSearch
 		}
-		container.ResolvConfPath = container.getRootResourcePath("resolv.conf")
+
+		resolvConfPath, err := container.getRootResourcePath("resolv.conf")
+		if err != nil {
+			return err
+		}
+		container.ResolvConfPath = resolvConfPath
+
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
@@ -899,7 +941,12 @@ func (container *Container) initializeNetworking() error {
 			return err
 		}
 
-		container.HostsPath = container.getRootResourcePath("hosts")
+		hostsPath, err := container.getRootResourcePath("hosts")
+		if err != nil {
+			return err
+		}
+		container.HostsPath = hostsPath
+
 		return ioutil.WriteFile(container.HostsPath, content, 0644)
 	} else if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
@@ -1015,12 +1062,18 @@ func (container *Container) setupWorkingDirectory() error {
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
 
-		pthInfo, err := os.Stat(container.getResourcePath(container.Config.WorkingDir))
+		pth, err := container.getResourcePath(container.Config.WorkingDir)
+		if err != nil {
+			return err
+		}
+
+		pthInfo, err := os.Stat(pth)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-			if err := os.MkdirAll(container.getResourcePath(container.Config.WorkingDir), 0755); err != nil {
+
+			if err := os.MkdirAll(pth, 0755); err != nil {
 				return err
 			}
 		}
@@ -1033,12 +1086,19 @@ func (container *Container) setupWorkingDirectory() error {
 
 func (container *Container) startLoggingToDisk() error {
 	// Setup logging of stdout and stderr to disk
-	if err := container.daemon.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
+	pth, err := container.logPath("json")
+	if err != nil {
 		return err
 	}
-	if err := container.daemon.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
+
+	if err := container.daemon.LogToDisk(container.stdout, pth, "stdout"); err != nil {
 		return err
 	}
+
+	if err := container.daemon.LogToDisk(container.stderr, pth, "stderr"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
