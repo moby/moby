@@ -197,7 +197,16 @@ ol li {
   margin-top: 6px;
 }
 
-.content-body h2, .content-body h3 {
+.content-body h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #394d54;
+  line-height: 1.7;
+  margin-bottom: 4px;
+  margin-top: 10px;
+}
+
+.content-body h3 {
   font-size: 14px;
   font-weight: 500;
   color: #394d54;
