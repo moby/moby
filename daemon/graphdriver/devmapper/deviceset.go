@@ -55,7 +55,7 @@ type DevInfo struct {
 }
 
 type MetaData struct {
-	Devices     map[string]*DevInfo `json:devices`
+	Devices     map[string]*DevInfo `json:"Devices"`
 	devicesLock sync.Mutex          `json:"-"` // Protects all read/writes to Devices map
 }
 
