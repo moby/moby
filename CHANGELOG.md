@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.1 (2014-06-19)
+
+#### Notable features since 1.0.0
+* Enhance security for the LXC driver
+
+#### Builder
+* Fix `ONBUILD` instruction passed to grandchildren
+
+#### Runtime
+* Fix events subscription
+* Fix /etc/hostname file with host networking
+* Allow `-h` and `--net=none`
+* Fix issue with hotplug devices in `--privileged`
+
+#### Client
+* Fix artifacts with events
+* Fix a panic with empty flags
+* Fix `docker cp` on Mac OS X
+
+#### Miscellaneous
+* Fix compilation on Mac OS X
+* Fix several races
+
 ## 1.0.0 (2014-06-09)
 
 #### Notable features since 0.12.0
