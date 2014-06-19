@@ -37,16 +37,13 @@ func init() {
 		if err := setupNetworking(args); err != nil {
 			return err
 		}
-		if err := setupCapabilities(args); err != nil {
-			return err
-		}
 		if err := setupWorkingDirectory(args); err != nil {
 			return err
 		}
 		if err := system.CloseFdsFrom(3); err != nil {
 			return err
 		}
-		if err := changeUser(args); err != nil {
+		if err := finalizeNamespace(args); err != nil {
 			return err
 		}
 
