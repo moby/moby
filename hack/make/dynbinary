@@ -40,5 +40,6 @@ fi
 
 (
 	export LDFLAGS_STATIC_DOCKER="-X github.com/dotcloud/docker/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\" -X github.com/dotcloud/docker/dockerversion.INITPATH \"$DOCKER_INITPATH\""
+	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary
 	source "$(dirname "$BASH_SOURCE")/binary"
 )
