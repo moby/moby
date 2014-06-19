@@ -313,7 +313,7 @@ nameserver and Docker will default to using an external nameserver.
 This can be worked around by specifying a DNS server to be used by the
 Docker daemon for the containers:
 
-    $ sudo nano /etc/default/docker
+    $ sudo nano /etc/default/docker.io
     ---
     # Add:
     $ DOCKER_OPTS="--dns 8.8.8.8"
