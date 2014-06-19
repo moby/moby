@@ -21,14 +21,8 @@ func ExecIn(container *libcontainer.Container, nspid int, args []string) error {
 		return err
 	}
 
-	// TODO(vmarmol): Move this to the container JSON.
-	processLabel, err := label.GetPidCon(nspid)
-	if err != nil {
-		return err
-	}
-
 	// Enter the namespace and then finish setup
-	finalArgs := []string{os.Args[0], "nsenter", strconv.Itoa(nspid), processLabel, string(containerJson)}
+	finalArgs := []string{os.Args[0], "nsenter", "--nspid", strconv.Itoa(nspid), "--containerjson", string(containerJson), "--"}
 	finalArgs = append(finalArgs, args...)
 	if err := system.Execv(finalArgs[0], finalArgs[0:], os.Environ()); err != nil {
 		return err
@@ -37,7 +31,7 @@ func ExecIn(container *libcontainer.Container, nspid int, args []string) error {
 }
 
 // NsEnter is run after entering the namespace.
-func NsEnter(container *libcontainer.Container, processLabel string, nspid int, args []string) error {
+func NsEnter(container *libcontainer.Container, nspid int, args []string) error {
 	// clear the current processes env and replace it with the environment
 	// defined on the container
 	if err := LoadContainerEnvironment(container); err != nil {
@@ -46,9 +40,13 @@ func NsEnter(container *libcontainer.Container, processLabel string, nspid int, 
 	if err := FinalizeNamespace(container); err != nil {
 		return err
 	}
-	if err := label.SetProcessLabel(processLabel); err != nil {
-		return err
+
+	if process_label, ok := container.Context["process_label"]; ok {
+		if err := label.SetProcessLabel(process_label); err != nil {
+			return err
+		}
 	}
+
 	if err := system.Execv(args[0], args[0:], container.Env); err != nil {
 		return err
 	}

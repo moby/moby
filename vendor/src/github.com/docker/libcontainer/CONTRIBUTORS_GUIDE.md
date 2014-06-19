@@ -36,7 +36,7 @@ that feature *on top of* libcontainer.
 ### Discuss your design on the mailing list
 
 We recommend discussing your plans [on the mailing
-list](https://groups.google.com/forum/?fromgroups#!forum/docker-dev)
+list](https://groups.google.com/forum/?fromgroups#!forum/libcontainer)
 before starting to code - especially for more ambitious contributions.
 This gives other contributors a chance to point you in the right
 direction, give feedback on your design, and maybe point out if someone
@@ -112,12 +112,12 @@ and that all the tests pass.
 libcontainer maintainers use LGTM (looks good to me) in comments on the code review
 to indicate acceptance.
 
-A change requires LGTMs from at lease one maintainer of each
-component affected. For example, if a change affects `netlink/` and `security/`, it
-needs at least one LGTM from the maintainers of `netlink/` AND, separately, at
-least one LGTM from the maintainers of `security/`.
+A change requires LGTMs from at lease two maintainers. One of those must come from
+a maintainer of the component affected. For example, if a change affects `netlink/`
+and `security`, it needs at least one LGTM from a maintainer of each. Maintainers
+only need one LGTM as presumably they LGTM their own change.
 
-For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
+For more details see [MAINTAINERS.md](MAINTAINERS.md)
 
 ### Sign your work
 

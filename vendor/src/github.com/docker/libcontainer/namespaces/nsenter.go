@@ -15,6 +15,7 @@ package namespaces
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <getopt.h>
 
 static const kBufSize = 256;
 
@@ -64,6 +65,10 @@ int setns(int fd, int nstype) {
 #endif
 #endif
 
+void print_usage() {
+	fprintf(stderr, "<binary> nsenter --nspid <pid> --containerjson <container_json> -- cmd1 arg1 arg2...\n");
+}
+
 void nsenter() {
 	int argc;
 	char **argv;
@@ -79,11 +84,40 @@ void nsenter() {
 		fprintf(stderr, "nsenter: Incorrect usage, not enough arguments\n");
 		exit(1);
 	}
-	pid_t init_pid = strtol(argv[2], NULL, 10);
-	if (errno != 0 || init_pid <= 0) {
-		fprintf(stderr, "nsenter: Failed to parse PID from \"%s\" with error: \"%s\"\n", argv[2], strerror(errno));
+
+	static const struct option longopts[] = {
+		{ "nspid",         required_argument, NULL, 'n' },
+		{ "containerjson", required_argument, NULL, 'c' },
+		{ NULL,            0,                 NULL,  0  }
+	};
+
+	int c;
+	pid_t init_pid = -1;
+	char *init_pid_str = NULL;
+	char *container_json = NULL;
+	while ((c = getopt_long_only(argc, argv, "n:s:c:", longopts, NULL)) != -1) {
+		switch (c) {
+		case 'n':
+			init_pid_str = optarg;
+			break;
+		case 'c':
+			container_json = optarg;
+			break;
+		}
+	}
+
+	if (container_json == NULL || init_pid_str == NULL) {
+		print_usage();
 		exit(1);
 	}
+
+	init_pid = strtol(init_pid_str, NULL, 10);
+	if (errno != 0 || init_pid <= 0) {
+		fprintf(stderr, "nsenter: Failed to parse PID from \"%s\" with error: \"%s\"\n", init_pid_str, strerror(errno));
+		print_usage();
+		exit(1);
+	}
+
 	argc -= 3;
 	argv += 3;
 
