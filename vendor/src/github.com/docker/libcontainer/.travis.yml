@@ -9,3 +9,4 @@ install:
 script:
     - bash "$DOCKER_PATH/hack/make/validate-dco"
     - bash "$DOCKER_PATH/hack/make/validate-gofmt"
+    - go test

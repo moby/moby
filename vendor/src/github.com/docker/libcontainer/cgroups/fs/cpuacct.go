@@ -84,6 +84,7 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	if err != nil {
 		return err
 	}
+	stats.CpuStats.CpuUsage.TotalUsage = lastUsage
 	stats.CpuStats.CpuUsage.PercpuUsage = percpuUsage
 	stats.CpuStats.CpuUsage.UsageInKernelmode = (kernelModeUsage * nanosecondsInSecond) / clockTicks
 	stats.CpuStats.CpuUsage.UsageInUsermode = (userModeUsage * nanosecondsInSecond) / clockTicks

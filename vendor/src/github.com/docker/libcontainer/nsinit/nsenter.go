@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"strconv"
 
 	"github.com/codegangsta/cli"
 	"github.com/docker/libcontainer/namespaces"
@@ -12,29 +11,30 @@ var nsenterCommand = cli.Command{
 	Name:   "nsenter",
 	Usage:  "init process for entering an existing namespace",
 	Action: nsenterAction,
+	Flags: []cli.Flag{
+		cli.IntFlag{Name: "nspid"},
+		cli.StringFlag{Name: "containerjson"},
+	},
 }
 
 func nsenterAction(context *cli.Context) {
 	args := context.Args()
-	if len(args) < 4 {
-		log.Fatalf("incorrect usage: <pid> <process label> <container JSON> <cmd>...")
+
+	if len(args) == 0 {
+		args = []string{"/bin/bash"}
 	}
 
-	container, err := loadContainerFromJson(args.Get(2))
+	container, err := loadContainerFromJson(context.String("containerjson"))
 	if err != nil {
 		log.Fatalf("unable to load container: %s", err)
 	}
 
-	nspid, err := strconv.Atoi(args.Get(0))
-	if err != nil {
-		log.Fatalf("unable to read pid: %s from %q", err, args.Get(0))
-	}
-
+	nspid := context.Int("nspid")
 	if nspid <= 0 {
 		log.Fatalf("cannot enter into namespaces without valid pid: %q", nspid)
 	}
 
-	if err := namespaces.NsEnter(container, args.Get(1), nspid, args[3:]); err != nil {
+	if err := namespaces.NsEnter(container, nspid, args); err != nil {
 		log.Fatalf("failed to nsenter: %s", err)
 	}
 }

@@ -63,7 +63,7 @@ All decisions are pull requests, and the relevant maintainers make
 decisions by accepting or refusing the pull request. Review and acceptance
 by anyone is denoted by adding a comment in the pull request: `LGTM`. 
 However, only currently listed `MAINTAINERS` are counted towards the required
-majority.
+two LGTMs.
 
 libcontainer follows the timeless, highly efficient and totally unfair system
 known as [Benevolent dictator for life](http://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life), with Michael Crosby in the role of BDFL.
