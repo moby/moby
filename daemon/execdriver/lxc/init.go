@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/libcontainer/netlink"
 	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -130,39 +131,100 @@ func changeUser(args *execdriver.InitArgs) error {
 	return nil
 }
 
-func setupCapabilities(args *execdriver.InitArgs) error {
-	if args.Privileged {
-		return nil
-	}
+var whiteList = []capability.Cap{
+	capability.CAP_MKNOD,
+	capability.CAP_SETUID,
+	capability.CAP_SETGID,
+	capability.CAP_CHOWN,
+	capability.CAP_NET_RAW,
+	capability.CAP_DAC_OVERRIDE,
+	capability.CAP_FOWNER,
+	capability.CAP_FSETID,
+	capability.CAP_KILL,
+	capability.CAP_SETGID,
+	capability.CAP_SETUID,
+	capability.CAP_LINUX_IMMUTABLE,
+	capability.CAP_NET_BIND_SERVICE,
+	capability.CAP_NET_BROADCAST,
+	capability.CAP_IPC_LOCK,
+	capability.CAP_IPC_OWNER,
+	capability.CAP_SYS_CHROOT,
+	capability.CAP_SYS_PTRACE,
+	capability.CAP_SYS_BOOT,
+	capability.CAP_LEASE,
+	capability.CAP_SETFCAP,
+	capability.CAP_WAKE_ALARM,
+	capability.CAP_BLOCK_SUSPEND,
+}
 
-	drop := []capability.Cap{
-		capability.CAP_SETPCAP,
-		capability.CAP_SYS_MODULE,
-		capability.CAP_SYS_RAWIO,
-		capability.CAP_SYS_PACCT,
-		capability.CAP_SYS_ADMIN,
-		capability.CAP_SYS_NICE,
-		capability.CAP_SYS_RESOURCE,
-		capability.CAP_SYS_TIME,
-		capability.CAP_SYS_TTY_CONFIG,
-		capability.CAP_AUDIT_WRITE,
-		capability.CAP_AUDIT_CONTROL,
-		capability.CAP_MAC_OVERRIDE,
-		capability.CAP_MAC_ADMIN,
-		capability.CAP_NET_ADMIN,
-		capability.CAP_SYSLOG,
-	}
-
+func dropBoundingSet() error {
 	c, err := capability.NewPid(os.Getpid())
 	if err != nil {
 		return err
 	}
+	c.Clear(capability.BOUNDS)
+	c.Set(capability.BOUNDS, whiteList...)
 
-	c.Unset(capability.CAPS|capability.BOUNDS, drop...)
-
-	if err := c.Apply(capability.CAPS | capability.BOUNDS); err != nil {
+	if err := c.Apply(capability.BOUNDS); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+const allCapabilityTypes = capability.CAPS | capability.BOUNDS
+
+func dropCapabilities() error {
+	c, err := capability.NewPid(os.Getpid())
+	if err != nil {
+		return err
+	}
+	c.Clear(allCapabilityTypes)
+	c.Set(allCapabilityTypes, whiteList...)
+
+	if err := c.Apply(allCapabilityTypes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupCapabilities(args *execdriver.InitArgs) error {
+	if err := system.CloseFdsFrom(3); err != nil {
+		return err
+	}
+
+	if !args.Privileged {
+		// drop capabilities in bounding set before changing user
+		if err := dropBoundingSet(); err != nil {
+			return fmt.Errorf("drop bounding set %s", err)
+		}
+
+		// preserve existing capabilities while we change users
+		if err := system.SetKeepCaps(); err != nil {
+			return fmt.Errorf("set keep caps %s", err)
+		}
+	}
+
+	if err := changeUser(args); err != nil {
+		return err
+	}
+
+	if !args.Privileged {
+		if err := system.ClearKeepCaps(); err != nil {
+			return fmt.Errorf("clear keep caps %s", err)
+		}
+
+		// drop all other capabilities
+		if err := dropCapabilities(); err != nil {
+			return fmt.Errorf("drop capabilities %s", err)
+		}
+	}
+
+	if err := setupWorkingDirectory(args); err != nil {
+		return err
+	}
+
 	return nil
 }
 
