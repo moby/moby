@@ -63,7 +63,7 @@ This will download the small busybox image and print "hello world".
 The Boot2Docker management tool provides several commands:
 
     $ ./boot2docker
-    Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version} [<args>]
+    Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|delete|download|version} [<args>]
 
 
 ## Container port redirection
