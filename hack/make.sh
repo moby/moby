@@ -50,7 +50,7 @@ DEFAULT_BUNDLES=(
 	test-integration-cli
 	
 	dynbinary
-	dyntest
+	dyntest-unit
 	dyntest-integration
 	
 	cover
