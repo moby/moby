@@ -28,3 +28,11 @@ func GetClockTicks() int {
 func CreateMasterAndConsole() (*os.File, string, error) {
 	return nil, "", ErrNotSupportedPlatform
 }
+
+func SetKeepCaps() error {
+	return ErrNotSupportedPlatform
+}
+
+func ClearKeepCaps() error {
+	return ErrNotSupportedPlatform
+}
