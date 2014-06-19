@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/security/capabilities"
+	"github.com/docker/libcontainer/utils"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"github.com/dotcloud/docker/pkg/system"
@@ -18,6 +19,10 @@ func setHostname(hostname string) error {
 }
 
 func finalizeNamespace(args *execdriver.InitArgs) error {
+	if err := utils.CloseExecFrom(3); err != nil {
+		return err
+	}
+
 	// We use the native drivers default template so that things like caps are consistent
 	// across both drivers
 	container := template.New()
@@ -47,6 +52,10 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 		if err := capabilities.DropCapabilities(container); err != nil {
 			return fmt.Errorf("drop capabilities %s", err)
 		}
+	}
+
+	if err := setupWorkingDirectory(args); err != nil {
+		return err
 	}
 
 	return nil
