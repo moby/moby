@@ -179,8 +179,8 @@ default is *false*. This option is incompatible with **-d**.
 
 
 **--sig-proxy**=*true*|*false*
-   When set to true, proxify all received signals to the process (even in
-non-tty mode). The default is true.
+   When set to true, proxify received signals to the process (even in
+non-tty mode). SIGCHLD is not proxied. The default is *true*.
 
 
 **-t**, **-tty**=*true*|*false*

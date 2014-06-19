@@ -67,7 +67,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
 		// For documentation purpose
-		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
+		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
 	)
 
