@@ -134,7 +134,7 @@ do that with the `docker ps` command. The `docker ps` command queries
 the Docker daemon for information about all the container it knows
 about.
 
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
     1e5535038e28  ubuntu:14.04  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 
