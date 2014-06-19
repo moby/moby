@@ -19,7 +19,6 @@ import (
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -35,12 +34,6 @@ func init() {
 			return err
 		}
 		if err := setupNetworking(args); err != nil {
-			return err
-		}
-		if err := setupWorkingDirectory(args); err != nil {
-			return err
-		}
-		if err := system.CloseFdsFrom(3); err != nil {
 			return err
 		}
 		if err := finalizeNamespace(args); err != nil {
