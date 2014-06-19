@@ -5,7 +5,7 @@ DEST=$1
 INIT=$DEST/../dynbinary/dockerinit-$VERSION
 
 if [ ! -x "$INIT" ]; then
-	echo >&2 'error: dynbinary must be run before dyntest'
+	echo >&2 'error: dynbinary must be run before dyntest-unit'
 	false
 fi
 
@@ -14,5 +14,5 @@ fi
 	export LDFLAGS_STATIC_DOCKER="
 		-X github.com/dotcloud/docker/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"
 	"
-	source "$(dirname "$BASH_SOURCE")/test"
+	source "$(dirname "$BASH_SOURCE")/test-unit"
 )
