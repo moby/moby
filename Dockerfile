@@ -60,7 +60,7 @@ RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-RUN	curl -sSL https://go.googlecode.com/files/go1.2.1.src.tar.gz | tar -v -C /usr/local -xz
+RUN	curl -sSL https://golang.org/dl/go1.3.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:$PATH
 ENV	GOPATH	/go:/go/src/github.com/docker/docker/vendor
 RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
