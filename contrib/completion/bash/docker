@@ -309,14 +309,6 @@ _docker_info()
 	return
 }
 
-_docker_insert()
-{
-	local counter=$(__docker_pos_first_nonflag)
-	if [ $cword -eq $counter ]; then
-		__docker_image_repos_and_tags_and_ids
-	fi
-}
-
 _docker_inspect()
 {
 	case "$prev" in
