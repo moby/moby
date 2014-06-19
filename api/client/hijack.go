@@ -98,7 +98,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		})
 	}
 
-	sendStdin := utils.Go(func() error {
+	utils.Go(func() error {
 		if in != nil {
 			io.Copy(rwc, in)
 			utils.Debugf("[hijack] End of stdin")
@@ -122,12 +122,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			return err
 		}
 	}
+	
 
-	if !cli.isTerminal {
-		if err := <-sendStdin; err != nil {
-			utils.Debugf("Error sendStdin: %s", err)
-			return err
-		}
-	}
 	return nil
 }
