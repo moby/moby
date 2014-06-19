@@ -44,20 +44,36 @@ func TestMapPorts(t *testing.T) {
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
 	srcAddr2 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.2")}
 
-	if err := Map(srcAddr1, dstIp1, 80); err != nil {
+	addrEqual := func(addr1, addr2 net.Addr) bool {
+		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
+	}
+
+	if host, err := Map(srcAddr1, dstIp1, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
+	} else if !addrEqual(dstAddr1, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if Map(srcAddr1, dstIp1, 80) == nil {
+	if host, err := Map(srcAddr1, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
+	} else if !addrEqual(dstAddr1, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if Map(srcAddr2, dstIp1, 80) == nil {
+	if host, err := Map(srcAddr2, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
+	} else if !addrEqual(dstAddr1, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if err := Map(srcAddr2, dstIp2, 80); err != nil {
+	if host, err := Map(srcAddr2, dstIp2, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
+	} else if !addrEqual(dstAddr2, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
 	if Unmap(dstAddr1) != nil {
