@@ -385,7 +385,7 @@ _docker_ps()
 {
 	case "$prev" in
 		--since|--before)
- 			__docker_containers_all
+			__docker_containers_all
 			;;
 		-n)
 			return
@@ -430,9 +430,7 @@ _docker_push()
 {
 	local counter=$(__docker_pos_first_nonflag)
 	if [ $cword -eq $counter ]; then
-		__docker_image_repos
-		# TODO replace this with __docker_image_repos_and_tags
-		# see https://github.com/dotcloud/docker/issues/3411
+		__docker_image_repos_and_tags
 	fi
 }
 
