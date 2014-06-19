@@ -82,13 +82,17 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		for nr < StdWriterPrefixLen {
 			var nr2 int
 			nr2, er = src.Read(buf[nr:])
-			// Don't exit on EOF, because we can have some more input
-			if er != nil && er != io.EOF {
-				return 0, er
-			}
 			nr += nr2
-			if nr == 0 {
-				return written, nil
+			if er == io.EOF {
+				if nr < StdWriterPrefixLen {
+					Debugf("Corrupted prefix: %v", buf[:nr])
+					return written, nil
+				}
+				break
+			}
+			if er != nil {
+				Debugf("Error reading header: %s", er)
+				return 0, er
 			}
 		}
 
@@ -123,21 +127,22 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		for nr < frameSize+StdWriterPrefixLen {
 			var nr2 int
 			nr2, er = src.Read(buf[nr:])
+			nr += nr2
 			if er == io.EOF {
-				return written, nil
+				if nr < frameSize+StdWriterPrefixLen {
+					Debugf("Corrupted frame: %v", buf[StdWriterPrefixLen:nr])
+					return written, nil
+				}
+				break
 			}
 			if er != nil {
 				Debugf("Error reading frame: %s", er)
 				return 0, er
 			}
-			nr += nr2
 		}
 
 		// Write the retrieved frame (without header)
 		nw, ew = out.Write(buf[StdWriterPrefixLen : frameSize+StdWriterPrefixLen])
-		if nw > 0 {
-			written += int64(nw)
-		}
 		if ew != nil {
 			Debugf("Error writing frame: %s", ew)
 			return 0, ew
@@ -147,6 +152,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			Debugf("Error Short Write: (%d on %d)", nw, frameSize)
 			return 0, io.ErrShortWrite
 		}
+		written += int64(nw)
 
 		// Move the rest of the buffer to the beginning
 		copy(buf, buf[frameSize+StdWriterPrefixLen:])
