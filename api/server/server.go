@@ -855,7 +855,7 @@ func getContainersByName(eng *engine.Engine, version version.Version, w http.Res
 	}
 	var job = eng.Job("container_inspect", vars["name"])
 	if version.LessThan("1.12") {
-		job.SetenvBool("dirty", true)
+		job.SetenvBool("raw", true)
 	}
 	streamJSON(job, w, false)
 	return job.Run()
@@ -867,7 +867,7 @@ func getImagesByName(eng *engine.Engine, version version.Version, w http.Respons
 	}
 	var job = eng.Job("image_inspect", vars["name"])
 	if version.LessThan("1.12") {
-		job.SetenvBool("dirty", true)
+		job.SetenvBool("raw", true)
 	}
 	streamJSON(job, w, false)
 	return job.Run()
