@@ -239,13 +239,13 @@ In the case where `<src>` is a remote file URL, the destination will have permis
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
-> build context, so the Dockerfile can only contain an URL based ADD
+> build context, so the Dockerfile can only contain a URL based ADD
 > statement.
 
 > **Note**:
 > If your URL files are protected using authentication, you will need to
-> use an `RUN wget` , `RUN curl`
-> or other tool from within the container as ADD does not support
+> use `RUN wget` , `RUN curl`
+> or use another tool from within the container as ADD does not support
 > authentication.
 
 The copy obeys the following rules:
