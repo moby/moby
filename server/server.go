@@ -1236,9 +1236,10 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 				break
 			}
 			if !success {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, %s", img.Tag, localName, lastErr), nil))
+				err := fmt.Errorf("Error pulling image (%s) from %s, %v", img.Tag, localName, lastErr)
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), err.Error(), nil))
 				if parallel {
-					errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
+					errors <- err
 					return
 				}
 			}
