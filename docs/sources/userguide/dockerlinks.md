@@ -173,6 +173,7 @@ child container in two ways:
 
 Let's look first at the environment variables Docker sets. Let's run the `env`
 command to list the container's environment variables.
+
     $ sudo docker run --rm --name web2 --link db:db training/webapp env
     . . .
     DB_NAME=/web2/db
@@ -190,7 +191,7 @@ command to list the container's environment variables.
 
 We can see that Docker has created a series of environment variables with
 useful information about our `db` container. Each variables is prefixed with
-`DB` which is populated from the `alias` we specified above. If our `alias`
+`DB_` which is populated from the `alias` we specified above. If our `alias`
 were `db1` the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
 on the `db` container. The connection will be secure, private and only the
