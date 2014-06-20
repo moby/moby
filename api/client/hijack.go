@@ -122,7 +122,6 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			return err
 		}
 	}
-	
 
 	return nil
 }
