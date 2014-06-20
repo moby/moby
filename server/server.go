@@ -410,6 +410,7 @@ func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 			return err
 		}
 		job := eng.Job("image_inspect", n)
+		job.SetenvBool("raw", true)
 		job.Stdout.Add(json)
 		if err := job.Run(); err != nil {
 			return err
