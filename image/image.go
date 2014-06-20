@@ -20,8 +20,8 @@ type Image struct {
 	Comment         string            `json:"comment,omitempty"`
 	Created         time.Time         `json:"created"`
 	Container       string            `json:"container,omitempty"`
-	ContainerConfig runconfig.Config  `json:"container_config,omitempty"`
-	DockerVersion   string            `json:"docker_version,omitempty"`
+	ContainerConfig runconfig.Config  `json:"containerconfig,omitempty"`
+	DockerVersion   string            `json:"dockerversion,omitempty"`
 	Author          string            `json:"author,omitempty"`
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
