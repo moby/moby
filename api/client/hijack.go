@@ -96,6 +96,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			utils.Debugf("[hijack] End of stdout")
 			return err
 		})
+		//removed waiting terminal input
 	}
 
 	utils.Go(func() error {
