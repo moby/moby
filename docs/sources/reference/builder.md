@@ -15,7 +15,7 @@ To [*build*](../commandline/cli/#cli-build) an image from a source repository,
 create a description file called Dockerfile at the root of your repository.
 This file will describe the steps to assemble the image.
 
-Then call `docker build` with the path of you source repository as argument
+Then call `docker build` with the path of your source repository as the argument
 (for example, `.`):
 
     $ sudo docker build .
