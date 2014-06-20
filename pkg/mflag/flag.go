@@ -778,6 +778,9 @@ func (f *FlagSet) usage() {
 }
 
 func trimQuotes(str string) string {
+	if len(str) == 0 {
+		return str
+	}
 	type quote struct {
 		start, end byte
 	}

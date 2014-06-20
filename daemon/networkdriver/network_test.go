@@ -1,7 +1,7 @@
 package networkdriver
 
 import (
-	"github.com/dotcloud/docker/pkg/netlink"
+	"github.com/docker/libcontainer/netlink"
 	"net"
 	"testing"
 )

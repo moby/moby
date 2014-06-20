@@ -448,7 +448,7 @@ To see how the `docker:latest` image was built:
 The default `docker images` will show all top level
 images, their repository and tags, and their virtual size.
 
-Docker images have intermediate layers that increase reuseability,
+Docker images have intermediate layers that increase reusability,
 decrease disk usage, and speed up `docker build` by
 allowing each step to be cached. These intermediate layers are not shown
 by default.
@@ -735,7 +735,7 @@ Running `docker ps` showing 2 linked containers.
 
 ## pull
 
-    Usage: docker pull NAME[:TAG]
+    Usage: docker pull [REGISTRY_PATH/]NAME[:TAG]
 
     Pull an image or a repository from the registry
 
@@ -745,6 +745,11 @@ Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) contains many pre-built images that you
 can `pull` and try without needing to define and configure your own.
 
+It is also possible to manually specify the path of a registry to pull from.
+For example, if you have set up a local registry, you can specify its path to
+pull from it. A repository path is similar to a URL, but does not contain
+a protocol specifier (https://, for example).
+
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
 
@@ -752,8 +757,11 @@ use `docker pull`:
     # will pull all the images in the debian repository
     $ docker pull debian:testing
     # will pull only the image named debian:testing and any intermediate layers
-    # it is based on. (typically the empty `scratch` image, a MAINTAINERs layer,
-    # and the un-tared base.
+    # it is based on. (Typically the empty `scratch` image, a MAINTAINERs layer,
+    # and the un-tarred base).
+    $ docker pull registry.hub.docker.com/debian
+    # manually specifies the path to the default Docker registry. This could
+    # be replaced with the path to a local registry to pull from another source.
 
 ## push
 
@@ -873,7 +881,7 @@ removed before the image is removed.
                                    'bridge': creates a new network stack for the container on the docker bridge
                                    'none': no networking for this container
                                    'container:<name|id>': reuses another container network stack
-                                   'host': use the host network stack inside the contaner
+                                   'host': use the host network stack inside the container
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)
@@ -1066,7 +1074,7 @@ retrieve the container's ID once the container has finished running.
     $ sudo docker run -d --name static static-web-files sh
     $ sudo docker run -d --expose=8098 --name riak riakserver
     $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-    $ sudo docker run -d -p 1443:443 --dns=dns.dev.org --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+    $ sudo docker run -d -p 1443:443 --dns=10.0.0.1 --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
     $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows 5 containers that might be set up to test a web
@@ -1081,7 +1089,7 @@ application change:
    two environment variables `DEVELOPMENT` and `BRANCH` and bind-mounting the
    current directory (`$(pwd)`) in the container in read-only mode as `/app/bin`;
 4. Start the `webserver`, mapping port `443` in the container to port `1443` on
-   the Docker server, setting the DNS server to `dns.dev.org` and DNS search
+   the Docker server, setting the DNS server to `10.0.0.1` and DNS search
    domain to `dev.org`, creating a volume to put the log files into (so we can
    access it from another container), then importing the files from the volume
    exposed by the `static` container, and linking to all exposed ports from

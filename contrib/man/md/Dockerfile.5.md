@@ -38,7 +38,7 @@ A Dockerfile is similar to a Makefile.
     
 **sudo docker build -t repository/tag .**
  -- specifies a repository and tag at which to save the new image if the build 
-    succeeds. The Docker daemon runs the steps one-by-one, commiting the result 
+    succeeds. The Docker daemon runs the steps one-by-one, committing the result 
     to a new image if necessary before finally outputting the ID of the new 
     image. The Docker daemon automatically cleans up the context it is given.
 

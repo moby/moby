@@ -1,12 +1,13 @@
 package graphtest
 
 import (
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"io/ioutil"
 	"os"
 	"path"
 	"syscall"
 	"testing"
+
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 var (
@@ -94,10 +95,10 @@ func verifyFile(t *testing.T, path string, mode os.FileMode, uid, gid uint32) {
 
 	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
 		if stat.Uid != uid {
-			t.Fatal("%s no owned by uid %d", path, uid)
+			t.Fatalf("%s no owned by uid %d", path, uid)
 		}
 		if stat.Gid != gid {
-			t.Fatal("%s not owned by gid %d", path, gid)
+			t.Fatalf("%s not owned by gid %d", path, gid)
 		}
 	}
 

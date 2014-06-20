@@ -8,13 +8,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/libcontainer/netlink"
 	"github.com/dotcloud/docker/daemon/networkdriver"
 	"github.com/dotcloud/docker/daemon/networkdriver/ipallocator"
 	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
 	"github.com/dotcloud/docker/daemon/networkdriver/portmapper"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/netlink"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/utils"
 )

@@ -15,11 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/libcontainer/cgroups"
-	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
-	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 )
 
@@ -37,16 +36,7 @@ func init() {
 		if err := setupNetworking(args); err != nil {
 			return err
 		}
-		if err := setupCapabilities(args); err != nil {
-			return err
-		}
-		if err := setupWorkingDirectory(args); err != nil {
-			return err
-		}
-		if err := system.CloseFdsFrom(3); err != nil {
-			return err
-		}
-		if err := changeUser(args); err != nil {
+		if err := finalizeNamespace(args); err != nil {
 			return err
 		}
 

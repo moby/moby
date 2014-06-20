@@ -137,7 +137,7 @@ PID files):
                                  'bridge': creates a new network stack for the container on the docker bridge
                                  'none': no networking for this container
                                  'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the contaner
+                                 'host': use the host network stack inside the container
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -152,7 +152,7 @@ Supported networking modes are:
 
 * none - no networking in the container
 * bridge - (default) connect the container to the bridge via veth interfaces
-* host - use the host's network stack inside the container
+* host - use the host's network stack inside the container.  Note: This gives the container full access to local system services such as D-bus and is therefore considered insecure.
 * container - use another container's network stack
 
 #### Mode: none

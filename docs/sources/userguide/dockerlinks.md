@@ -68,7 +68,7 @@ configurations. For example if we've bound the container port to the
 `localhost` on the host machine this will be shown in the `docker port`
 output.
 
-    $ docker port nostalgic_morse
+    $ docker port nostalgic_morse 5000
     127.0.0.1:49155
 
 > **Note:** 
@@ -171,14 +171,11 @@ child container in two ways:
 * Environment variables,
 * Updating the `/etc/host` file.
 
-Let's look first at the environment variables Docker sets. Inside the `web`
-container let's run the `env` command to list the container's environment
-variables.
-
-    root@aed84ee21bde:/opt/webapp# env
-    HOSTNAME=aed84ee21bde
+Let's look first at the environment variables Docker sets. Let's run the `env`
+command to list the container's environment variables.
+    $ sudo docker run --rm --name web2 --link db:db training/webapp env
     . . .
-    DB_NAME=/web/db
+    DB_NAME=/web2/db
     DB_PORT=tcp://172.17.0.5:5432
     DB_PORT_5000_TCP=tcp://172.17.0.5:5432
     DB_PORT_5000_TCP_PROTO=tcp

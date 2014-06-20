@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/selinux"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/execdrivers"
@@ -26,10 +28,8 @@ import (
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
-	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
-	"github.com/dotcloud/docker/pkg/selinux"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -72,9 +72,11 @@ func (c *contStore) Delete(id string) {
 
 func (c *contStore) List() []*Container {
 	containers := new(History)
+	c.Lock()
 	for _, cont := range c.s {
 		containers.Add(cont)
 	}
+	c.Unlock()
 	containers.Sort()
 	return *containers
 }

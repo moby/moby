@@ -117,7 +117,7 @@ an Authorization Code.
 ## 3.2 Get an Access Token
 
 Once the user has authorized your application, a request will be made to
-your application'sspecified `redirect_uri` which
+your application's specified `redirect_uri` which
 includes a `code` parameter that you must then use
 to get an Access Token.
 

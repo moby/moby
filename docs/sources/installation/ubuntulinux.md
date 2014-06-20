@@ -17,7 +17,7 @@ Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 ## Ubuntu Trusty 14.04 (LTS) (64-bit)
 
 Ubuntu Trusty comes with a 3.13.0 Linux kernel, and a `docker.io` package which
-installs all its prerequisites from Ubuntu's repository.
+installs Docker 0.9.1 and all its prerequisites from Ubuntu's repository.
 
 > **Note**:
 > Ubuntu (and Debian) contain a much older KDE3/GNOME2 package called ``docker``, so the
@@ -32,12 +32,44 @@ To install the latest Ubuntu package (may not be the latest Docker release):
     $ sudo ln -sf /usr/bin/docker.io /usr/local/bin/docker
     $ sudo sed -i '$acomplete -F _docker docker' /etc/bash_completion.d/docker.io
 
+If you'd like to try the latest version of Docker:
+
+First, check that your APT system can deal with `https`
+URLs: the file `/usr/lib/apt/methods/https`
+should exist. If it doesn't, you need to install the package
+`apt-transport-https`.
+
+    [ -e /usr/lib/apt/methods/https ] || {
+      apt-get update
+      apt-get install apt-transport-https
+    }
+
+Then, add the Docker repository key to your local keychain.
+
+    $ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+
+Add the Docker repository to your apt sources list, update and install
+the `lxc-docker` package.
+
+*You may receive a warning that the package isn't trusted. Answer yes to
+continue installation.*
+
+    $ sudo sh -c "echo deb https://get.docker.io/ubuntu docker main\
+    > /etc/apt/sources.list.d/docker.list"
+    $ sudo apt-get update
+    $ sudo apt-get install lxc-docker
+
+> **Note**:
+>
+> There is also a simple `curl` script available to help with this process.
+>
+>     $ curl -s https://get.docker.io/ubuntu/ | sudo sh
+
 To verify that everything has worked as expected:
 
     $ sudo docker run -i -t ubuntu /bin/bash
 
 Which should download the `ubuntu` image, and then start `bash` in a container.
-
 
 ## Ubuntu Precise 12.04 (LTS) (64-bit)
 
@@ -284,7 +316,7 @@ Docker daemon for the containers:
     $ sudo nano /etc/default/docker
     ---
     # Add:
-    $ docker_OPTS="--dns 8.8.8.8"
+    $ DOCKER_OPTS="--dns 8.8.8.8"
     # 8.8.8.8 could be replaced with a local DNS server, such as 192.168.1.1
     # multiple DNS servers can be specified: --dns 8.8.8.8 --dns 192.168.1.1
 

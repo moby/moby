@@ -30,9 +30,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/docker/libcontainer/label"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/label"
 	mountpk "github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/utils"
 )

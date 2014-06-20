@@ -39,7 +39,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 		fi, err := os.Stat(target)
 		if err != nil {
 			if os.IsNotExist(err) {
-				utils.Errorf("There are no more loopback device available.")
+				utils.Errorf("There are no more loopback devices available.")
 			}
 			return nil, ErrAttachLoopbackDevice
 		}

@@ -117,7 +117,6 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
-	// FIXME: 'insert' is deprecated and should be removed in a future version.
 	for name, handler := range map[string]engine.Handler{
 		"export":           srv.ContainerExport,
 		"create":           srv.ContainerCreate,
@@ -248,85 +247,63 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) EvictListener(from int64) {
-	srv.Lock()
-	if old, ok := srv.listeners[from]; ok {
-		delete(srv.listeners, from)
-		close(old)
-	}
-	srv.Unlock()
-}
-
 func (srv *Server) Events(job *engine.Job) engine.Status {
 	if len(job.Args) != 0 {
 		return job.Errorf("Usage: %s", job.Name)
 	}
 
 	var (
-		from    = time.Now().UTC().UnixNano()
 		since   = job.GetenvInt64("since")
 		until   = job.GetenvInt64("until")
 		timeout = time.NewTimer(time.Unix(until, 0).Sub(time.Now()))
 	)
-	sendEvent := func(event *utils.JSONMessage) error {
-		b, err := json.Marshal(event)
-		if err != nil {
-			return fmt.Errorf("JSON error")
-		}
-		_, err = job.Stdout.Write(b)
-		return err
+
+	// If no until, disable timeout
+	if until == 0 {
+		timeout.Stop()
 	}
 
 	listener := make(chan utils.JSONMessage)
-	srv.Lock()
-	if old, ok := srv.listeners[from]; ok {
-		delete(srv.listeners, from)
-		close(old)
+	srv.eventPublisher.Subscribe(listener)
+	defer srv.eventPublisher.Unsubscribe(listener)
+
+	// When sending an event JSON serialization errors are ignored, but all
+	// other errors lead to the eviction of the listener.
+	sendEvent := func(event *utils.JSONMessage) error {
+		if b, err := json.Marshal(event); err == nil {
+			if _, err = job.Stdout.Write(b); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	srv.listeners[from] = listener
-	srv.Unlock()
-	job.Stdout.Write(nil) // flush
+
+	job.Stdout.Write(nil)
+
+	// Resend every event in the [since, until] time interval.
 	if since != 0 {
-		// If since, send previous events that happened after the timestamp and until timestamp
 		for _, event := range srv.GetEvents() {
 			if event.Time >= since && (event.Time <= until || until == 0) {
-				err := sendEvent(&event)
-				if err != nil && err.Error() == "JSON error" {
-					continue
-				}
-				if err != nil {
-					// On error, evict the listener
-					srv.EvictListener(from)
+				if err := sendEvent(&event); err != nil {
 					return job.Error(err)
 				}
 			}
 		}
 	}
 
-	// If no until, disable timeout
-	if until == 0 {
-		timeout.Stop()
-	}
 	for {
 		select {
 		case event, ok := <-listener:
-			if !ok { // Channel is closed: listener was evicted
+			if !ok {
 				return engine.StatusOK
 			}
-			err := sendEvent(&event)
-			if err != nil && err.Error() == "JSON error" {
-				continue
-			}
-			if err != nil {
-				// On error, evict the listener
-				srv.EvictListener(from)
+			if err := sendEvent(&event); err != nil {
 				return job.Error(err)
 			}
 		case <-timeout.C:
 			return engine.StatusOK
 		}
 	}
-	return engine.StatusOK
 }
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
@@ -797,7 +774,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.daemon.ExecutionDriver().Name())
-	v.SetInt("NEventsListener", len(srv.listeners))
+	v.SetInt("NEventsListener", srv.eventPublisher.SubscribersCount())
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
@@ -840,7 +817,6 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 		outs.Add(out)
 		return nil
 	})
-	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
@@ -2387,12 +2363,12 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		return nil, err
 	}
 	srv := &Server{
-		Eng:         eng,
-		daemon:      daemon,
-		pullingPool: make(map[string]chan struct{}),
-		pushingPool: make(map[string]chan struct{}),
-		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		listeners:   make(map[int64]chan utils.JSONMessage),
+		Eng:            eng,
+		daemon:         daemon,
+		pullingPool:    make(map[string]chan struct{}),
+		pushingPool:    make(map[string]chan struct{}),
+		events:         make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
+		eventPublisher: utils.NewJSONMessagePublisher(),
 	}
 	daemon.SetServer(srv)
 	return srv, nil
@@ -2402,12 +2378,7 @@ func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	now := time.Now().UTC().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
 	srv.AddEvent(jm)
-	for _, c := range srv.listeners {
-		select { // non blocking channel
-		case c <- jm:
-		default:
-		}
-	}
+	srv.eventPublisher.Publish(jm)
 	return &jm
 }
 
@@ -2459,12 +2430,12 @@ func (srv *Server) Close() error {
 
 type Server struct {
 	sync.RWMutex
-	daemon      *daemon.Daemon
-	pullingPool map[string]chan struct{}
-	pushingPool map[string]chan struct{}
-	events      []utils.JSONMessage
-	listeners   map[int64]chan utils.JSONMessage
-	Eng         *engine.Engine
-	running     bool
-	tasks       sync.WaitGroup
+	daemon         *daemon.Daemon
+	pullingPool    map[string]chan struct{}
+	pushingPool    map[string]chan struct{}
+	events         []utils.JSONMessage
+	eventPublisher *utils.JSONMessagePublisher
+	Eng            *engine.Engine
+	running        bool
+	tasks          sync.WaitGroup
 }

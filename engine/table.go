@@ -137,5 +137,4 @@ func (t *Table) ReadFrom(src io.Reader) (n int64, err error) {
 		}
 		t.Add(env)
 	}
-	return 0, nil
 }

@@ -120,10 +120,6 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -a import -d 'Create a ne
 # info
 complete -c docker -f -n '__fish_docker_no_subcommand' -a info -d 'Display system-wide information'
 
-# insert
-complete -c docker -f -n '__fish_docker_no_subcommand' -a insert -d 'Insert a file in an image'
-complete -c docker -A -f -n '__fish_seen_subcommand_from insert' -a '(__fish_print_docker_images)' -d "Image"
-
 # inspect
 complete -c docker -f -n '__fish_docker_no_subcommand' -a inspect -d 'Return low-level information on a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from inspect' -s f -l format -d 'Format the output using the given go template.'

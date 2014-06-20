@@ -588,6 +588,7 @@ func TestBuildRm(t *testing.T) {
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
 	logDone("build - ensure --rm=false overrides the default")
 }
+
 func TestBuildWithVolumes(t *testing.T) {
 	name := "testbuildvolumes"
 	expected := "map[/test1:map[] /test2:map[]]"
@@ -764,6 +765,68 @@ func TestBuildEntrypoint(t *testing.T) {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	logDone("build - entrypoint")
+}
+
+// #6445 ensure ONBUILD triggers aren't committed to grandchildren
+func TestBuildOnBuildLimitedInheritence(t *testing.T) {
+	name1 := "testonbuildtrigger1"
+	dockerfile1 := `
+		FROM busybox
+		RUN echo "GRANDPARENT"
+		ONBUILD RUN echo "ONBUILD PARENT"
+	`
+	ctx1, err := fakeContext(dockerfile1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name1, ".")
+	buildCmd.Dir = ctx1.Dir
+	out1, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out1, err))
+	defer deleteImages(name1)
+
+	name2 := "testonbuildtrigger2"
+	dockerfile2 := `
+		FROM testonbuildtrigger1
+	`
+	ctx2, err := fakeContext(dockerfile2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", name2, ".")
+	buildCmd.Dir = ctx2.Dir
+	out2, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out2, err))
+	defer deleteImages(name2)
+
+	name3 := "testonbuildtrigger3"
+	dockerfile3 := `
+		FROM testonbuildtrigger2
+	`
+	ctx3, err := fakeContext(dockerfile3, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", name3, ".")
+	buildCmd.Dir = ctx3.Dir
+	out3, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out3, err))
+	defer deleteImages(name3)
+
+	// ONBUILD should be run in second build.
+	if !strings.Contains(out2, "ONBUILD PARENT") {
+		t.Fatalf("ONBUILD instruction did not run in child of ONBUILD parent")
+	}
+
+	// ONBUILD should *not* be run in third build.
+	if strings.Contains(out3, "ONBUILD PARENT") {
+		t.Fatalf("ONBUILD instruction ran in grandchild of ONBUILD parent")
+	}
+
+	logDone("build - onbuild")
 }
 
 func TestBuildWithCache(t *testing.T) {
@@ -1132,4 +1195,252 @@ func TestBuildWithVolumeOwnership(t *testing.T) {
 	}
 
 	logDone("build - volume ownership")
+}
+
+// testing #1405 - config.Cmd does not get cleaned up if
+// utilizing cache
+func TestBuildEntrypointRunCleanup(t *testing.T) {
+	name := "testbuildcmdcleanup"
+	defer deleteImages(name)
+	if _, err := buildImage(name,
+		`FROM busybox
+        RUN echo "hello"`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, err := fakeContext(`FROM busybox
+        RUN echo "hello"
+        ADD foo /foo
+        ENTRYPOINT ["/bin/echo"]`,
+		map[string]string{
+			"foo": "hello",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Cmd inherited from busybox, maybe will be fixed in #5147
+	if expected := "[/bin/sh]"; res != expected {
+		t.Fatalf("Cmd %s, expected %s", res, expected)
+	}
+	logDone("build - cleanup cmd after RUN")
+}
+
+func TestBuldForbiddenContextPath(t *testing.T) {
+	name := "testbuildforbidpath"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+        ADD ../../ test/
+        `,
+		map[string]string{
+			"test.txt":  "test1",
+			"other.txt": "other",
+		})
+
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "Forbidden path outside the build context: ../../ (/)") {
+			t.Fatal("Wrong error, must be about forbidden ../../ path")
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - forbidden context path")
+}
+
+func TestBuildADDFileNotFound(t *testing.T) {
+	name := "testbuildaddnotfound"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+        ADD foo /usr/local/bar`,
+		map[string]string{"bar": "hello"})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "foo: no such file or directory") {
+			t.Fatalf("Wrong error %v, must be about missing foo file or directory", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - add file not found")
+}
+
+func TestBuildInheritance(t *testing.T) {
+	name := "testbuildinheritance"
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`FROM scratch
+		EXPOSE 2375`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ports1, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM %s
+		ENTRYPOINT ["/bin/echo"]`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := "[/bin/echo]"; res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+	ports2, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ports1 != ports2 {
+		t.Fatalf("Ports must be same: %s != %s", ports1, ports2)
+	}
+	logDone("build - inheritance")
+}
+
+func TestBuildFails(t *testing.T) {
+	name := "testbuildfails"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN sh -c "exit 23"`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "returned a non-zero code: 23") {
+			t.Fatalf("Wrong error %v, must be about non-zero code 23", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - fails")
+}
+
+func TestBuildFailsDockerfileEmpty(t *testing.T) {
+	name := "testbuildfails"
+	defer deleteImages(name)
+	_, err := buildImage(name, ``, true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Dockerfile cannot be empty") {
+			t.Fatalf("Wrong error %v, must be about empty Dockerfile", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - fails with empty dockerfile")
+}
+
+func TestBuildOnBuild(t *testing.T) {
+	name := "testbuildonbuild"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD RUN touch foobar`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM %s
+		RUN [ -f foobar ]`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - onbuild")
+}
+
+func TestBuildOnBuildForbiddenChained(t *testing.T) {
+	name := "testbuildonbuildforbiddenchained"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD ONBUILD RUN touch foobar`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed") {
+			t.Fatalf("Wrong error %v, must be about chaining ONBUILD", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden chained")
+}
+
+func TestBuildOnBuildForbiddenFrom(t *testing.T) {
+	name := "testbuildonbuildforbiddenfrom"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD FROM scratch`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "FROM isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about FROM forbidden", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden from")
+}
+
+func TestBuildOnBuildForbiddenMaintainer(t *testing.T) {
+	name := "testbuildonbuildforbiddenmaintainer"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD MAINTAINER docker.io`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "MAINTAINER isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about MAINTAINER forbidden", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden maintainer")
+}
+
+// gh #2446
+func TestBuildAddToSymlinkDest(t *testing.T) {
+	name := "testbuildaddtosymlinkdest"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+        RUN mkdir /foo
+        RUN ln -s /foo /bar
+        ADD foo /bar/
+        RUN [ -f /bar/foo ]
+        RUN [ -f /foo/foo ]`,
+		map[string]string{
+			"foo": "hello",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add to symlink destination")
 }

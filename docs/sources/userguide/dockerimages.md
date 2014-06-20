@@ -70,7 +70,7 @@ If instead we wanted to build an Ubuntu 12.04 image we'd use:
     $ sudo docker run -t -i ubuntu:12.04 /bin/bash
 
 If you don't specify a variant, for example you just use `ubuntu`, then Docker
-will default to using the `ubunut:latest` image.
+will default to using the `ubuntu:latest` image.
 
 > **Tip:** 
 > We recommend you always use a specific tagged image, for example
@@ -330,7 +330,7 @@ containers will get removed to clean things up.
 
 We can then create a container from our new image.
 
-    $ sudo docker run -t -i ouruser/sinatra /bin/bash
+    $ sudo docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@8196968dac35:/#
 
 > **Note:** 

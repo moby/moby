@@ -66,7 +66,7 @@
     </div>
   </div>
 
-  <div id="push"></div>
+  <div id="push-footer"></div>
 
 </div>
 
@@ -132,7 +132,7 @@ piCId = '1482';
   if (userName) {
     $('.topmostnav_loggedout').hide();
     $('.topmostnav_loggedin').show();
-    $('.navbar #usernav .nav li a').text(userName);
+    $('#logged-in-header-username').text(userName);
   } else {
     $('.topmostnav_loggedout').show();
     $('.topmostnav_loggedin').hide();

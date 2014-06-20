@@ -114,6 +114,43 @@ func TestGetInfo(t *testing.T) {
 	}
 }
 
+func TestGetContainersByName(t *testing.T) {
+	eng := engine.New()
+	name := "container_name"
+	var called bool
+	eng.Register("container_inspect", func(job *engine.Job) engine.Status {
+		called = true
+		if job.Args[0] != name {
+			t.Fatalf("name != '%s': %#v", name, job.Args[0])
+		}
+		if api.APIVERSION.LessThan("1.12") && !job.GetenvBool("dirty") {
+			t.Fatal("dirty env variable not set")
+		} else if api.APIVERSION.GreaterThanOrEqualTo("1.12") && job.GetenvBool("dirty") {
+			t.Fatal("dirty env variable set when it shouldn't")
+		}
+		v := &engine.Env{}
+		v.SetBool("dirty", true)
+		if _, err := v.WriteTo(job.Stdout); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
+	})
+	r := serveRequest("GET", "/containers/"+name+"/json", nil, eng, t)
+	if !called {
+		t.Fatal("handler was not called")
+	}
+	if r.HeaderMap.Get("Content-Type") != "application/json" {
+		t.Fatalf("%#v\n", r)
+	}
+	var stdoutJson interface{}
+	if err := json.Unmarshal(r.Body.Bytes(), &stdoutJson); err != nil {
+		t.Fatalf("%#v", err)
+	}
+	if stdoutJson.(map[string]interface{})["dirty"].(float64) != 1 {
+		t.Fatalf("%#v", stdoutJson)
+	}
+}
+
 func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *testing.T) *httptest.ResponseRecorder {
 	r := httptest.NewRecorder()
 	req, err := http.NewRequest(method, target, body)
