@@ -2,15 +2,35 @@ page_title: Installation on Red Hat Enterprise Linux
 page_description: Installation instructions for Docker on Red Hat Enterprise Linux.
 page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos
 
-# Red Hat Enterprise Linux
+# Red Hat Enterprise Linux 7
 
-Docker is available for **RHEL** on EPEL. These instructions should work
-for both RHEL and CentOS. They will likely work for other binary
-compatible EL6 distributions as well, but they haven't been tested.
+**Red Hat Enterprise Linux 7** has [shipped with
+Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
+An overview and some guidance can be found in the [Release
+Notes](https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/7.0_Release_Notes/chap-Red_Hat_Enterprise_Linux-7.0_Release_Notes-Linux_Containers_with_Docker_Format.html).
 
-Please note that this package is part of [Extra Packages for Enterprise
-Linux (EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort
-to create and maintain additional packages for the RHEL distribution.
+Docker is located in the *extras* channel. To install Docker:
+
+1. Enable the *extras* channel:
+
+        $ sudo subscription-manager repos --enable=rhel-7-server-extras-rpms
+
+2. Install Docker:
+
+        $ sudo yum install docker 
+
+Additional installation, configuration, and usage information,
+including a [Get Started with Docker Containers in Red Hat
+Enterprise Linux 7](https://access.redhat.com/site/articles/881893)
+guide, can be found by Red Hat customers on the [Red Hat Customer
+Portal](https://access.redhat.com/).
+
+# Red Hat Enterprise Linux 6
+
+Docker is available for **RHEL** on EPEL. Please note that
+this package is part of [Extra Packages for Enterprise Linux
+(EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
+create and maintain additional packages for the RHEL distribution.
 
 Also note that due to the current Docker limitations, Docker is able to
 run only on the **64 bit** architecture.
