@@ -78,7 +78,7 @@ If you run a container with an exposed port,
 
 then you should be able to access that Nginx server using the IP address reported by:
 
-    $ boot2docker ssh ip addr show dev eth1
+    $ boot2docker ip
 
 Typically, it is 192.168.59.103, but it could get changed by Virtualbox's DHCP
 implementation.
@@ -91,7 +91,7 @@ The Boot2Docker management tool provides several commands:
 
     $ ./boot2docker
     Usage: ./boot2docker [<options>]
-    {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version}
+    {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|delete|download|version} [<args>]
 
 Continue with the [User Guide](/userguide/).
 
