@@ -17,15 +17,10 @@ There are three major areas to consider when reviewing Docker security:
 
 ## Kernel Namespaces
 
-Docker containers are essentially LXC containers, and they come with the
-same security features. When you start a container with
-`docker run`, behind the scenes Docker uses
-`lxc-start` to execute the Docker container. This
-creates a set of namespaces and control groups for the container. Those
-namespaces and control groups are not created by Docker itself, but by
-`lxc-start`. This means that as the LXC userland
-tools evolve (and provide additional namespaces and isolation features),
-Docker will automatically make use of them.
+Docker containers are very similar to LXC containers, and they come with
+the similar security features. When you start a container with `docker
+run`, behind the scenes Docker creates a set of namespaces and control
+groups for the container.
 
 **Namespaces provide the first and most straightforward form of
 isolation**: processes running within a container cannot see, and even
@@ -55,10 +50,9 @@ ago), namespace code has been exercised and scrutinized on a large
 number of production systems. And there is more: the design and
 inspiration for the namespaces code are even older. Namespaces are
 actually an effort to reimplement the features of [OpenVZ](
-http://en.wikipedia.org/wiki/OpenVZ) in such a way that they
-could be merged within the mainstream kernel. And OpenVZ was initially
-released in 2005, so both the design and the implementation are pretty
-mature.
+http://en.wikipedia.org/wiki/OpenVZ) in such a way that they could be
+merged within the mainstream kernel. And OpenVZ was initially released
+in 2005, so both the design and the implementation are pretty mature.
 
 ## Control Groups
 
@@ -82,7 +76,7 @@ started in 2006, and initially merged in kernel 2.6.24.
 ## Docker Daemon Attack Surface
 
 Running containers (and applications) with Docker implies running the
-Docker daemon. This daemon currently requires root privileges, and you
+Docker daemon. This daemon currently requires `root` privileges, and you
 should therefore be aware of some important details.
 
 First of all, **only trusted users should be allowed to control your
@@ -114,8 +108,9 @@ socket.
 You can also expose the REST API over HTTP if you explicitly decide so.
 However, if you do that, being aware of the above mentioned security
 implication, you should ensure that it will be reachable only from a
-trusted network or VPN; or protected with e.g. `stunnel`
-and client SSL certificates.
+trusted network or VPN; or protected with e.g. `stunnel` and client SSL
+certificates. You can also secure them with [HTTPS and
+certificates](/articles/https/).
 
 Recent improvements in Linux namespaces will soon allow to run
 full-featured containers without root privileges, thanks to the new user
@@ -199,15 +194,18 @@ container, it will be much harder to do serious damage, or to escalate
 to the host.
 
 This won't affect regular web apps; but malicious users will find that
-the arsenal at their disposal has shrunk considerably! You can see [the
-list of dropped capabilities in the Docker
-code](https://github.com/dotcloud/docker/blob/v0.5.0/lxc_template.go#L97),
-and a full list of available capabilities in [Linux
+the arsenal at their disposal has shrunk considerably! By default Docker
+drops all capabilities except [those
+needed](https://github.com/dotcloud/docker/blob/master/daemon/execdriver/native/template/default_template.go),
+a whitelist instead of a blacklist approach. You can see a full list of
+available capabilities in [Linux
 manpages](http://man7.org/linux/man-pages/man7/capabilities.7.html).
 
 Of course, you can always enable extra capabilities if you really need
 them (for instance, if you want to use a FUSE-based filesystem), but by
-default, Docker containers will be locked down to ensure maximum safety.
+default, Docker containers use only a
+[whitelist](https://github.com/dotcloud/docker/blob/master/daemon/execdriver/native/template/default_template.go)
+of kernel capabilities by default.
 
 ## Other Kernel Security Features
 
@@ -222,17 +220,16 @@ harden a Docker host. Here are a few examples.
 
  - You can run a kernel with GRSEC and PAX. This will add many safety
    checks, both at compile-time and run-time; it will also defeat many
-   exploits, thanks to techniques like address randomization. It
-   doesn't require Docker-specific configuration, since those security
-   features apply system-wide, independently of containers.
- - If your distribution comes with security model templates for LXC
-   containers, you can use them out of the box. For instance, Ubuntu
-   comes with AppArmor templates for LXC, and those templates provide
-   an extra safety net (even though it overlaps greatly with
-   capabilities).
+   exploits, thanks to techniques like address randomization. It doesn't
+   require Docker-specific configuration, since those security features
+   apply system-wide, independently of containers.
+ - If your distribution comes with security model templates for
+   Docker containers, you can use them out of the box. For instance, we
+   ship a template that works with AppArmor and Red Hat comes with SELinux
+   policies for Docker. These templates provide an extra safety net (even
+   though it overlaps greatly with capabilities).
  - You can define your own policies using your favorite access control
-   mechanism. Since Docker containers are standard LXC containers,
-   there is nothing “magic” or specific to Docker.
+   mechanism.
 
 Just like there are many third-party tools to augment Docker containers
 with e.g. special network topologies or shared filesystems, you can
@@ -243,7 +240,7 @@ affecting Docker's core.
 
 Docker containers are, by default, quite secure; especially if you take
 care of running your processes inside the containers as non-privileged
-users (i.e. non root).
+users (i.e. non-`root`).
 
 You can add an extra layer of safety by enabling Apparmor, SELinux,
 GRSEC, or your favorite hardening solution.
