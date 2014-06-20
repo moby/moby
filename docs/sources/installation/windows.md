@@ -25,7 +25,7 @@ virtual machine and runs the Docker daemon.
 2. Run the installer, which will install VirtualBox, MSYS-git, the boot2docker Linux ISO,
 and the Boot2Docker management tool.
    ![](/installation/images/windows-installer.png)
-3. Run the `Boot2Docker Start` shell script from your Desktop or Program Files > Docker.
+3. Run the `Boot2Docker Start` shell script from your Desktop or Program Files > Boot2Docker for Windows.
    The Start script will ask you to enter an ssh key passphrase - the simplest
    (but least secure) is to just hit [Enter].
 
