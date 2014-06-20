@@ -126,6 +126,14 @@ Here is the list of supported options:
 
     ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
 
+ *  `dm.blocksize`
+
+    Specifies a custom blocksize to use for the thin pool.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.blocksize=64K``
+
  *  `dm.blkdiscard`
 
     Enables or disables the use of blkdiscard when removing
