@@ -24,6 +24,18 @@
   height: 100%;
 }
 
+#leftnav h3 {
+  font-size: 10px;
+  font-weight: 700;
+  color: #394d54;
+  line-height: 1;
+  margin: 0px 0 10px 0;
+  padding-left: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .content-body {
   padding: 0px 0px 0px 20px;
 }
