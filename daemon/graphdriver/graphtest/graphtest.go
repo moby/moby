@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"syscall"
 	"testing"
 
@@ -142,6 +143,24 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 
 }
 
+// TODO: upstream the shim to Go itself
+func mkdir(path string, mode os.FileMode) error {
+	err := os.Mkdir(path, mode)
+	if err != nil {
+		return err
+	}
+
+	// According to sticky(7), mkdir(2) ignores the sticky bit.
+	if runtime.GOOS == "freebsd" && mode&os.ModeSticky != 0 {
+		err := os.Chmod(path, mode)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 	// We need to be able to set any perms
 	oldmask := syscall.Umask(0)
@@ -158,7 +177,7 @@ func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 	defer driver.Put(name)
 
 	subdir := path.Join(dir, "a subdir")
-	if err := os.Mkdir(subdir, 0705|os.ModeSticky); err != nil {
+	if err := mkdir(subdir, 0705|os.ModeSticky); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chown(subdir, 1, 2); err != nil {
