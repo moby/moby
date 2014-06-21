@@ -1,6 +1,7 @@
 package vfs
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/dotcloud/docker/daemon/graphdriver"
 	"os"
@@ -35,8 +36,24 @@ func (d *Driver) Cleanup() error {
 	return nil
 }
 
+func isGNUcoreutils() bool {
+	if stdout, err := exec.Command("cp", "--version").Output(); err == nil {
+		return bytes.Contains(stdout, []byte("GNU coreutils"))
+	}
+
+	return false
+}
+
 func copyDir(src, dst string) error {
-	if output, err := exec.Command("cp", "-aT", "--reflink=auto", src, dst).CombinedOutput(); err != nil {
+	argv := make([]string, 0, 4)
+
+	if isGNUcoreutils() {
+		argv = append(argv, "-aT", "--reflink=auto", src, dst)
+	} else {
+		argv = append(argv, "-a", src+"/.", dst+"/.")
+	}
+
+	if output, err := exec.Command("cp", argv...).CombinedOutput(); err != nil {
 		return fmt.Errorf("Error VFS copying directory: %s (%s)", err, output)
 	}
 	return nil
