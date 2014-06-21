@@ -5,7 +5,7 @@ page_keywords: Docker, Docker documentation, Windows, requirements, virtualbox, 
 # Windows
 > **Note:**
 > Docker has been tested on Windows 7.1 and 8; it may also run on older versions.
-
+> Your processor needs to support hardware virtualization.
 
 The Docker Engine uses Linux-specific kernel features, so to run it on Windows
 we need to use a lightweight virtual machine (vm).  You use the Windows Docker client to
