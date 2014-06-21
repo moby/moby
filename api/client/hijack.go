@@ -121,6 +121,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			utils.Debugf("Error receiveStdout: %s", err)
 			return err
 		}
+
+		// cut waiting stdin when terminal is closed
+		if sendStdin != nil {
+			sendStdin <- nil
+		}
 	}
 
 	if !cli.isTerminal {
