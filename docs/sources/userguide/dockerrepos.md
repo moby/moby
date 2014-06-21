@@ -41,7 +41,7 @@ push your own images up to your repos on Docker Hub.
 
 ## Searching for images
 
-You can search the [Docker Hub](https://hub.docker.com) registry via it's search
+You can search the [Docker Hub](https://hub.docker.com) registry via its search
 interface or by using the command line interface. Searching can find images by image
 name, user name, or description:
 
