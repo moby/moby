@@ -16,7 +16,20 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
+	d.fixPermissions()
 	return d, nil
+}
+
+func (d *Driver) fixPermissions() error {
+	dir := d.dir("id")
+	if err := os.Chmod(path.Dir(dir), 0710); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Chmod(d.home, 0710); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }
 
 type Driver struct {
@@ -44,7 +57,7 @@ func copyDir(src, dst string) error {
 
 func (d *Driver) Create(id, parent string) error {
 	dir := d.dir(id)
-	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
+	if err := os.MkdirAll(path.Dir(dir), 0710); err != nil {
 		return err
 	}
 	if err := os.Mkdir(dir, 0755); err != nil {
