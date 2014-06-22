@@ -58,6 +58,17 @@ type driver struct {
 	sharedRoot bool
 }
 
+func (d *driver) AddUidMaps(c *execdriver.Command) error {
+	lxcConfig := c.Config["lxc"]
+	for _, uidMap := range c.UidMaps {
+		lxcConfig = append(lxcConfig, fmt.Sprintf("id_map = u %d %d %d", uidMap.ContainerUid, uidMap.HostUid, uidMap.Size))
+		lxcConfig = append(lxcConfig, fmt.Sprintf("id_map = g %d %d %d", uidMap.ContainerUid, uidMap.HostUid, uidMap.Size))
+	}
+	c.Config["lxc"] = lxcConfig
+
+	return nil
+}
+
 func NewDriver(root string, apparmor bool) (*driver, error) {
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
