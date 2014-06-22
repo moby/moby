@@ -756,6 +756,12 @@ value is set to `all` in that case. This behavior may change in the future.
 
     Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
 
+## pause
+
+    Usage: docker pause CONTAINER
+
+    Pause all processes within a container
+
 ## ps
 
     Usage: docker ps [OPTIONS]
@@ -1228,6 +1234,12 @@ them to [*Share Images via Repositories*](
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Display the running processes of a container
+
+## unpause
+
+    Usage: docker unpause CONTAINER
+
+    Pause all processes within a container
 
 ## version
 
