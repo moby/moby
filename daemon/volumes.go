@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/dotcloud/docker/utils"
 )
 
 type BindMap struct {
@@ -40,6 +41,12 @@ func setupMountsForContainer(container *Container) error {
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
+	// Remap UIDs of the image
+	if container.Config.XlateUids || container.Config.InvXlateUids {
+		if err := utils.XlateUids(container.RootfsPath(), container.Config.InvXlateUids); err != nil {
+			return err
+		}
+	}
 	if container.HostnamePath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
 	}
