@@ -82,6 +82,10 @@ func NewDriver(root, initPath string) (*driver, error) {
 	}, nil
 }
 
+func (d *driver) AddUidMaps(c *execdriver.Command) error {
+	return nil
+}
+
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	// take the Command and populate the libcontainer.Container from it
 	container, err := d.createContainer(c)

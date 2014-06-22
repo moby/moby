@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/dotcloud/docker/utils"
 )
 
 type BindMap struct {
@@ -46,6 +47,19 @@ func setupMountsForContainer(container *Container) error {
 
 	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
+	}
+
+	// Let root in the container own container.root and
+	// container.RootfsPath
+	cRootUid, err := utils.ContainerRootUid()
+	if err != nil {
+		return err
+	}
+	if err := os.Chown(container.root, int(cRootUid), int(cRootUid)); err != nil {
+		return err
+	}
+	if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
+		return err
 	}
 
 	// Mount user specified volumes
