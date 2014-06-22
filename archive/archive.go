@@ -138,6 +138,16 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 		return err
 	}
 
+	containerRoot, err := utils.ContainerRootUid()
+	if err != nil {
+		return err
+	}
+	if hdr.Uid == int(containerRoot) {
+		hdr.Uid = 0
+	}
+	if hdr.Gid == int(containerRoot) {
+		hdr.Gid = 0
+	}
 	if fi.IsDir() && !strings.HasSuffix(name, "/") {
 		name = name + "/"
 	}

@@ -207,6 +207,9 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, i
 	if err := image.StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
 		return err
 	}
+	if err := utils.XlateUids(rootfs, false); err != nil {
+		return err
+	}
 	// Commit
 	if err := os.Rename(tmp, graph.ImageRoot(img.ID)); err != nil {
 		return err
