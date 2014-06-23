@@ -803,11 +803,14 @@ func (container *Container) Insert(resource string, stream io.Reader) error {
 	}
 	defer container.Unmount()
 
+	if resource == "" {
+		return archive.Untar(stream, "/", nil)
+	}
+
 	basePath, err := container.getResourcePath(resource)
 	if err != nil {
 		return err
 	}
-
 	return archive.Untar(stream, basePath, nil)
 }
 
