@@ -2197,6 +2197,10 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		}
 	}
 	if len(infoDst) == 2 { // host to container
+		if _, err := os.Stat(pathSrc); err != nil {
+			return err
+		}
+
 		tar, err := archive.Tar(pathSrc, archive.Uncompressed)
 		if err != nil {
 			return err
