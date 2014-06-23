@@ -1040,11 +1040,17 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 }
 
 func (container *Container) createDaemonEnvironment(linkedEnv []string) []string {
+	user := "root"
+	if container.Config.User != "" {
+		user = container.Config.User
+	}
+
 	// Setup environment
 	env := []string{
 		"HOME=/",
 		"PATH=" + DefaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
+		"USER=" + user,
 	}
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
