@@ -3,6 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+{% set docker_version = "$VERSION" %}{% set docker_commit = "$GITCOMMIT" %}{% set docker_branch = "$GIT_BRANCH" %}{% set aws_bucket = "$AWS_S3_BUCKET" %}
+  <meta name="docker_version" content="{{ docker_version }}">
+  <meta name="docker_git_branch" content="{{ docker_branch }}">
+  <meta name="docker_git_commit" content="{{ docker_commit }}">
+
   {% if meta.page_description %}<meta name="description" content="{{ meta.page_description[0] }}">{% endif %}
   {% if meta.page_keywords %}<meta name="keywords" content="{{ meta.page_keywords[0] }}">{% endif %}
   {% if site_author %}<meta name="author" content="{{ site_author }}">{% endif %}
@@ -59,7 +65,7 @@
         </div>
       </div>
       <div class="span9 content-body">
-        {% include "version.html" %}
+        {% include "beta_warning.html" %}
         {{ content }}
       </div>
     </div>
