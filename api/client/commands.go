@@ -2163,7 +2163,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		pathDst  = cmd.Arg(1)
 	)
 	if len(infoSrc) != 2 && len(infoDst) != 2 {
-		return fmt.Errorf("Error: Path not specified")
+		return fmt.Errorf("Error: Wrong path format")
 	}
 	if len(infoSrc) == 2 && len(infoDst) == 2 { // container to container
 		tmpDir, err := ioutil.TempDir("", "")

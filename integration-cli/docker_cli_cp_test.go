@@ -448,7 +448,7 @@ func TestCpHostContainer(t *testing.T) {
 	cpCmd := exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/foo", cleanCID))
 	_, _, err = runCommandWithOutput(cpCmd)
 	if err != nil {
-		errorOut(err, t, fmt.Sprintf("failed to cp from the container: %v", err))
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %v", err))
 	}
 
 	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/etc/passwd", cleanCID))
