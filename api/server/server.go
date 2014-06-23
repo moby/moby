@@ -981,7 +981,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		copyData.Set("Resource", copyData.Get("Resource")[1:])
 	}
 
-	job := eng.Job("container_copy", vars["name"], "OUT", copyData.Get("Resource"))
+	job := eng.Job("container_extract", vars["name"], copyData.Get("Resource"))
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
@@ -1007,7 +1007,7 @@ func putContainersCopy(eng *engine.Engine, version version.Version, w http.Respo
 		resource = resource[1:]
 	}
 
-	job := eng.Job("container_copy", vars["name"], "IN", resource)
+	job := eng.Job("container_insert", vars["name"], resource)
 	job.Stdin.Add(r.Body)
 	return job.Run()
 }

@@ -754,7 +754,7 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) CopyGet(resource string) (io.ReadCloser, error) {
+func (container *Container) Extract(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
@@ -797,7 +797,7 @@ func (container *Container) CopyGet(resource string) (io.ReadCloser, error) {
 		nil
 }
 
-func (container *Container) CopyPut(resource string, stream io.Reader) error {
+func (container *Container) Insert(resource string, stream io.Reader) error {
 	if err := container.Mount(); err != nil {
 		return err
 	}
