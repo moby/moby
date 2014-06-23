@@ -351,7 +351,7 @@ indicate which interface and port to use.
 
 The operator can **set any environment variable** in the container by using one
 or more `-e` flags, even overriding those already defined by the developer with
-a Dockefile `ENV`:
+a Dockerfile `ENV`:
 
     $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
     declare -x HOME="/"
