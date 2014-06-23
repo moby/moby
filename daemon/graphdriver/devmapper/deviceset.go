@@ -1170,19 +1170,19 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		key = strings.ToLower(key)
 		switch key {
 		case "dm.basesize":
-			size, err := units.FromHumanSize(val)
+			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
 			devices.baseFsSize = uint64(size)
 		case "dm.loopdatasize":
-			size, err := units.FromHumanSize(val)
+			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
 			devices.dataLoopbackSize = size
 		case "dm.loopmetadatasize":
-			size, err := units.FromHumanSize(val)
+			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
