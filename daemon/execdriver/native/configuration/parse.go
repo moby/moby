@@ -138,9 +138,9 @@ func dropNamespace(container *libcontainer.Container, context interface{}, value
 func readonlyFs(container *libcontainer.Container, context interface{}, value string) error {
 	switch value {
 	case "1", "true":
-		container.ReadonlyFs = true
+		container.MountConfig.ReadonlyFs = true
 	default:
-		container.ReadonlyFs = false
+		container.MountConfig.ReadonlyFs = false
 	}
 	return nil
 }
@@ -154,28 +154,13 @@ func joinNetNamespace(container *libcontainer.Container, context interface{}, va
 	if cmd == nil || cmd.Process == nil {
 		return fmt.Errorf("%s is not a valid running container to join", value)
 	}
+
 	nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
 	container.Networks = append(container.Networks, &libcontainer.Network{
-		Type: "netns",
-		Context: libcontainer.Context{
-			"nspath": nspath,
-		},
+		Type:   "netns",
+		NsPath: nspath,
 	})
-	return nil
-}
 
-func vethMacAddress(container *libcontainer.Container, context interface{}, value string) error {
-	var veth *libcontainer.Network
-	for _, network := range container.Networks {
-		if network.Type == "veth" {
-			veth = network
-			break
-		}
-	}
-	if veth == nil {
-		return fmt.Errorf("not veth configured for container")
-	}
-	veth.Context["mac"] = value
 	return nil
 }
 

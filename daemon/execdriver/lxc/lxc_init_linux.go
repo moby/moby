@@ -29,7 +29,7 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 
 	if !args.Privileged {
 		// drop capabilities in bounding set before changing user
-		if err := capabilities.DropBoundingSet(container); err != nil {
+		if err := capabilities.DropBoundingSet(container.Capabilities); err != nil {
 			return fmt.Errorf("drop bounding set %s", err)
 		}
 
@@ -49,7 +49,7 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 		}
 
 		// drop all other capabilities
-		if err := capabilities.DropCapabilities(container); err != nil {
+		if err := capabilities.DropCapabilities(container.Capabilities); err != nil {
 			return fmt.Errorf("drop capabilities %s", err)
 		}
 	}

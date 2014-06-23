@@ -34,10 +34,13 @@ func New() *libcontainer.Container {
 			Parent:          "docker",
 			AllowAllDevices: false,
 		},
-		Context: libcontainer.Context{},
+		MountConfig: &libcontainer.MountConfig{},
+		Context:     make(map[string]string),
 	}
+
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "docker-default"
 	}
+
 	return container
 }
