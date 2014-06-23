@@ -471,6 +471,12 @@ func TestCpHostContainer(t *testing.T) {
 		t.Errorf("couldn't find the new file2 in docker diff's output: %v", out)
 	}
 
+	catCmd := exec.Command("cat", fmt.Sprintf("/var/lib/docker/vfs/dir/%s/foo", cleanCID))
+	out, _, err = runCommandWithOutput(catCmd)
+	if out != "test" {
+		t.Errorf("Expected 'test', got '%s'", out)
+	}
+
 	// cleanup
 	deleteContainer(cleanCID)
 
