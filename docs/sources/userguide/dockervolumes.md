@@ -90,7 +90,7 @@ And another:
 
     $ docker run -d --volumes-from dbdata --name db2 training/postgres
 
-You can use multiple `-volumes-from` parameters to bring together multiple data
+You can use multiple `--volumes-from` parameters to bring together multiple data
 volumes from multiple containers.
 
 You can also extend the chain by mounting the volume that came from the
