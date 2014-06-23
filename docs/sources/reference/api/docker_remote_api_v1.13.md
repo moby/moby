@@ -1,17 +1,18 @@
-page_title: Remote API v1.11
+page_title: Remote API v1.12
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
-# Docker Remote API v1.11
+# Docker Remote API v1.13
 
 ## 1. Brief introduction
 
  - The Remote API has replaced `rcli`.
- - The daemon listens on `unix:///var/run/docker.sock` but you can bind
-   Docker to another host/port or a Unix socket.
+ - The daemon listens on `unix:///var/run/docker.sock` but you can
+   [*Bind Docker to another host/port or a Unix socket*](
+   /use/basics/#bind-docker).
  - The API tends to be REST, but for some complex commands, like `attach`
-   or `pull`, the HTTP connection is hijacked to transport `STDOUT`, `STDIN`
-   and `STDERR`.
+   or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
+   `STDIN` and `STDERR`.
 
 # 2. Endpoints
 
@@ -127,7 +128,6 @@ Create a container
              "Volumes":{
                      "/tmp": {}
              },
-             "VolumesFrom":"",
              "WorkingDir":"",
              "DisableNetwork": false,
              "ExposedPorts":{
@@ -406,6 +406,7 @@ Start the container `id`
 
         {
              "Binds":["/tmp:/tmp"],
+             "Links":["redis3:redis"],
              "LxcConf":{"lxc.utsname":"docker"},
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
@@ -712,6 +713,16 @@ Copy files or folders of container `id`
           }
         ]
 
+
+    Query Parameters:
+
+     
+
+    -   **all** – 1/True/true or 0/False/false, default false
+    -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
+        
+
+
 ### Create an image
 
 `POST /images/create`
@@ -757,6 +768,31 @@ Create an image, either by pull it from the registry or by importing it
     -   **200** – no error
     -   **500** – server error
 
+### Insert a file in an image
+
+`POST /images/(name)/insert`
+
+Insert a file from `url` in the image `name` at `path`
+
+    **Example request**:
+
+        POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"status":"Inserting..."}
+        {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
+        {"error":"Invalid..."}
+        ...
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
 ### Inspect an image
 
 `GET /images/(name)/json`
@@ -773,11 +809,9 @@ Return low-level information on the image `name`
         Content-Type: application/json
 
         {
-             "id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-             "parent":"27cf784147099545",
-             "created":"2013-03-23T22:24:18.818426-07:00",
-             "container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
-             "container_config":
+             "Created":"2013-03-23T22:24:18.818426-07:00",
+             "Container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+             "ContainerConfig":
                      {
                              "Hostname":"",
                              "User":"",
@@ -798,6 +832,8 @@ Return low-level information on the image `name`
                              "VolumesFrom":"",
                              "WorkingDir":""
                      },
+             "Id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+             "Parent":"27cf784147099545",
              "Size": 6824592
         }
 
@@ -967,21 +1003,21 @@ Search for an image on [Docker Hub](https://hub.docker.com).
                 {
                     "description": "",
                     "is_official": false,
-                    "is_trusted": false,
+                    "is_automated": false,
                     "name": "wma55/u1210sshd",
                     "star_count": 0
                 },
                 {
                     "description": "",
                     "is_official": false,
-                    "is_trusted": false,
+                    "is_automated": false,
                     "name": "jdswinbank/sshd",
                     "star_count": 0
                 },
                 {
                     "description": "",
                     "is_official": false,
-                    "is_trusted": false,
+                    "is_automated": false,
                     "name": "vgauthier/sshd",
                     "star_count": 0
                 }
@@ -1038,7 +1074,8 @@ Build an image from Dockerfile via stdin
         the resulting image in case of success
     -   **q** – suppress verbose build output
     -   **nocache** – do not use the cache when building the image
-    -   **rm** - remove intermediate containers after a successful build
+    -   **rm** - remove intermediate containers after a successful build (default behavior)
+    -   **forcerm - always remove intermediate containers (includes rm)
 
     Request Headers:
 
@@ -1107,6 +1144,7 @@ Display system-wide information
              "NGoroutines":21,
              "NEventsListener":0,
              "InitPath":"/usr/bin/docker",
+             "Sockets":["unix:///var/run/docker.sock"],
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
@@ -1134,6 +1172,7 @@ Show the docker version information
         Content-Type: application/json
 
         {
+             "ApiVersion":"1.12",
              "Version":"0.2.2",
              "GitCommit":"5a2a5cc+CHANGES",
              "GoVersion":"go1.0.3"
