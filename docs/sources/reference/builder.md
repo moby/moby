@@ -238,10 +238,15 @@ All new files and directories are created with a uid and gid of 0.
 In the case where `<src>` is a remote file URL, the destination will have permissions 600.
 
 > **Note**:
-> If you build using STDIN (`docker build - < somefile`), there is no
-> build context, so the Dockerfile can only contain a URL based ADD
-> statement.
+> If you build by passing a Dockerfile through STDIN (`docker build - < somefile`),
+> there is no build context, so the Dockerfile can only contain a URL
+> based ADD statement.
 
+> You can also pass a compressed archive through STDIN:
+> (`docker build - < archive.tar.gz`), the `Dockerfile` at the root of
+> the archive and the rest of the archive will get used at the context
+> of the build.
+>
 > **Note**:
 > If your URL files are protected using authentication, you will need to
 > use `RUN wget` , `RUN curl`
@@ -361,7 +366,7 @@ execute in `/bin/sh -c`:
     FROM ubuntu
     ENTRYPOINT wc -l -
 
-For example, that Dockerfile's image will *always* take stdin as input
+For example, that Dockerfile's image will *always* take STDIN as input
 ("-") and print the number of lines ("-l"). If you wanted to make this
 optional but default, you could use a CMD:
 

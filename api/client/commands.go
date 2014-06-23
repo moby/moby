@@ -36,6 +36,10 @@ import (
 	"github.com/dotcloud/docker/utils/filters"
 )
 
+const (
+	tarHeaderSize = 512
+)
+
 func (cli *DockerCli) CmdHelp(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
@@ -113,13 +117,22 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	_, err = exec.LookPath("git")
 	hasGit := err == nil
 	if cmd.Arg(0) == "-" {
-		// As a special case, 'docker build -' will build from an empty context with the
-		// contents of stdin as a Dockerfile
-		dockerfile, err := ioutil.ReadAll(cli.in)
-		if err != nil {
-			return err
+		// As a special case, 'docker build -' will build from either an empty context with the
+		// contents of stdin as a Dockerfile, or a tar-ed context from stdin.
+		buf := bufio.NewReader(cli.in)
+		magic, err := buf.Peek(tarHeaderSize)
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("failed to peek context header from stdin: %v", err)
 		}
-		context, err = archive.Generate("Dockerfile", string(dockerfile))
+		if !archive.IsArchive(magic) {
+			dockerfile, err := ioutil.ReadAll(buf)
+			if err != nil {
+				return fmt.Errorf("failed to read Dockerfile from stdin: %v", err)
+			}
+			context, err = archive.Generate("Dockerfile", string(dockerfile))
+		} else {
+			context = ioutil.NopCloser(buf)
+		}
 	} else if utils.IsURL(cmd.Arg(0)) && (!utils.IsGIT(cmd.Arg(0)) || !hasGit) {
 		isRemote = true
 	} else {
