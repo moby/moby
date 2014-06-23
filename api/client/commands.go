@@ -1829,21 +1829,15 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 2 && cmd.NArg() != 3 {
+	if cmd.NArg() != 2 {
 		cmd.Usage()
 		return nil
 	}
 
-	var repository, tag string
-
-	if cmd.NArg() == 3 {
-		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'IMAGE [REPOSITORY [TAG]]' as been deprecated. Please use IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]]\n")
-		repository, tag = cmd.Arg(1), cmd.Arg(2)
-	} else {
+	var (
 		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
-	}
-
-	v := url.Values{}
+		v               = url.Values{}
+	)
 
 	//Check if the given image name can be resolved
 	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
