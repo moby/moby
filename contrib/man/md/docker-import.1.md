@@ -9,8 +9,8 @@ of the tarball into it.
 **docker import** URL|- [REPOSITORY[:TAG]]
 
 # DESCRIPTION
-Create a new filesystem image from the contents of a tarball (.tar,
-.tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
+Create a new filesystem image from the contents of a tarball (`.tar`,
+`.tar.gz`, `.tgz`, `.bzip`, `.tar.xz`, `.txz`) into it, then optionally tag it.
 
 # EXAMPLES
 
