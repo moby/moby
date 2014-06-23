@@ -999,7 +999,11 @@ func putContainersCopy(eng *engine.Engine, version version.Version, w http.Respo
 		return fmt.Errorf("Missing parameter")
 	}
 
-	resource := r.Header.Get("Resource")
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	resource := r.Form.Get("path")
 	if resource == "" {
 		return fmt.Errorf("Path cannot be empty")
 	}

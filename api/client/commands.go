@@ -2201,9 +2201,10 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		if err != nil {
 			return err
 		}
-		headers := http.Header(make(map[string][]string))
-		headers.Add("Resource", infoDst[1])
-		return cli.stream("PUT", "/containers/"+infoDst[0]+"/copy", tar, nil, headers)
+		v := url.Values{}
+		v.Set("path", infoDst[1])
+
+		return cli.stream("PUT", "/containers/"+infoDst[0]+"/copy?"+v.Encode(), tar, nil, nil)
 	}
 	return nil
 }
