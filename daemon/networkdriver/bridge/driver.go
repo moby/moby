@@ -69,6 +69,7 @@ var (
 	}
 
 	bridgeIface   string
+	deleteBridge  = false
 	bridgeNetwork *net.IPNet
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
@@ -107,6 +108,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		if err := createBridge(bridgeIP); err != nil {
 			return job.Error(err)
 		}
+		deleteBridge = true
 
 		job.Logf("getting iface addr")
 		addr, err = networkdriver.GetIfaceAddr(bridgeIface)
@@ -171,6 +173,14 @@ func InitDriver(job *engine.Job) engine.Status {
 		}
 	}
 	return engine.StatusOK
+}
+
+func TermDriver() {
+	if deleteBridge {
+		if err := deleteBridgeIface(bridgeIface); err != nil {
+			log.Printf("Unable to delete bridge %s %s\n", bridgeIface, err)
+		}
+	}
 }
 
 func setupIPTables(addr net.Addr, icc bool) error {
@@ -311,6 +321,10 @@ func createBridgeIface(name string) error {
 	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
 	utils.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
 	return netlink.CreateBridge(name, setBridgeMacAddr)
+}
+
+func deleteBridgeIface(name string) error {
+	return netlink.DeleteBridge(name)
 }
 
 // Allocate a network interface
