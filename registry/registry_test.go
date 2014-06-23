@@ -1,10 +1,13 @@
 package registry
 
 import (
-	"github.com/dotcloud/docker/auth"
-	"github.com/dotcloud/docker/utils"
+	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 var (
@@ -14,8 +17,8 @@ var (
 )
 
 func spawnTestRegistry(t *testing.T) *Registry {
-	authConfig := &auth.AuthConfig{}
-	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"))
+	authConfig := &AuthConfig{}
+	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,11 +26,11 @@ func spawnTestRegistry(t *testing.T) *Registry {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
-	standalone, err := pingRegistryEndpoint(makeURL("/v1/"))
+	regInfo, err := pingRegistryEndpoint(makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, standalone, true, "Expected standalone to be true (default)")
+	assertEqual(t, regInfo.Standalone, true, "Expected standalone to be true (default)")
 }
 
 func TestGetRemoteHistory(t *testing.T) {
@@ -69,7 +72,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 
 func TestGetRemoteImageLayer(t *testing.T) {
 	r := spawnTestRegistry(t)
-	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +80,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 		t.Fatal("Expected non-nil data result")
 	}
 
-	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), TOKEN)
+	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), TOKEN, 0)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -100,12 +103,23 @@ func TestGetRemoteTags(t *testing.T) {
 
 func TestGetRepositoryData(t *testing.T) {
 	r := spawnTestRegistry(t)
+	parsedUrl, err := url.Parse(makeURL("/v1/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := "http://" + parsedUrl.Host + "/v1/"
 	data, err := r.GetRepositoryData("foo42/bar")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(data.ImgList), 2, "Expected 2 images in ImgList")
-	assertEqual(t, len(data.Endpoints), 1, "Expected one endpoint in Endpoints")
+	assertEqual(t, len(data.Endpoints), 2,
+		fmt.Sprintf("Expected 2 endpoints in Endpoints, found %d instead", len(data.Endpoints)))
+	assertEqual(t, data.Endpoints[0], host,
+		fmt.Sprintf("Expected first endpoint to be %s but found %s instead", host, data.Endpoints[0]))
+	assertEqual(t, data.Endpoints[1], "http://test.example.com/v1/",
+		fmt.Sprintf("Expected first endpoint to be http://test.example.com/v1/ but found %s instead", data.Endpoints[1]))
+
 }
 
 func TestPushImageJSONRegistry(t *testing.T) {
@@ -137,7 +151,7 @@ func TestResolveRepositoryName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, ep, auth.IndexServerAddress(), "Expected endpoint to be index server address")
+	assertEqual(t, ep, IndexServerAddress(), "Expected endpoint to be index server address")
 	assertEqual(t, repo, "fooo/bar", "Expected resolved repo to be foo/bar")
 
 	u := makeURL("")[7:]
@@ -147,6 +161,13 @@ func TestResolveRepositoryName(t *testing.T) {
 	}
 	assertEqual(t, ep, u, "Expected endpoint to be "+u)
 	assertEqual(t, repo, "private/moonbase", "Expected endpoint to be private/moonbase")
+
+	ep, repo, err = ResolveRepositoryName("ubuntu-12.04-base")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, IndexServerAddress(), "Expected endpoint to be "+IndexServerAddress())
+	assertEqual(t, repo, "ubuntu-12.04-base", "Expected endpoint to be ubuntu-12.04-base")
 }
 
 func TestPushRegistryTag(t *testing.T) {
@@ -187,14 +208,16 @@ func TestPushImageJSONIndex(t *testing.T) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistry(t)
-	results, err := r.SearchRepositories("supercalifragilisticepsialidocious")
+	results, err := r.SearchRepositories("fakequery")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if results == nil {
 		t.Fatal("Expected non-nil SearchResults object")
 	}
-	assertEqual(t, results.NumResults, 0, "Expected 0 search results")
+	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
+	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
+	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' a ot hae 42 stars")
 }
 
 func TestValidRepositoryName(t *testing.T) {
@@ -204,5 +227,76 @@ func TestValidRepositoryName(t *testing.T) {
 	if err := validateRepositoryName("docker/Docker"); err == nil {
 		t.Log("Repository name should be invalid")
 		t.Fail()
+	}
+	if err := validateRepositoryName("docker///docker"); err == nil {
+		t.Log("Repository name should be invalid")
+		t.Fail()
+	}
+}
+
+func TestTrustedLocation(t *testing.T) {
+	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.io", "https://fakedocker.com"} {
+		req, _ := http.NewRequest("GET", url, nil)
+		if trustedLocation(req) == true {
+			t.Fatalf("'%s' shouldn't be detected as a trusted location", url)
+		}
+	}
+
+	for _, url := range []string{"https://docker.io", "https://test.docker.io:80"} {
+		req, _ := http.NewRequest("GET", url, nil)
+		if trustedLocation(req) == false {
+			t.Fatalf("'%s' should be detected as a trusted location", url)
+		}
+	}
+}
+
+func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
+	for _, urls := range [][]string{
+		{"http://docker.io", "https://docker.com"},
+		{"https://foo.docker.io:7777", "http://bar.docker.com"},
+		{"https://foo.docker.io", "https://example.com"},
+	} {
+		reqFrom, _ := http.NewRequest("GET", urls[0], nil)
+		reqFrom.Header.Add("Content-Type", "application/json")
+		reqFrom.Header.Add("Authorization", "super_secret")
+		reqTo, _ := http.NewRequest("GET", urls[1], nil)
+
+		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+
+		if len(reqTo.Header) != 1 {
+			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
+		}
+
+		if reqTo.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("'Content-Type' should be 'application/json'")
+		}
+
+		if reqTo.Header.Get("Authorization") != "" {
+			t.Fatal("'Authorization' should be empty")
+		}
+	}
+
+	for _, urls := range [][]string{
+		{"https://docker.io", "https://docker.com"},
+		{"https://foo.docker.io:7777", "https://bar.docker.com"},
+	} {
+		reqFrom, _ := http.NewRequest("GET", urls[0], nil)
+		reqFrom.Header.Add("Content-Type", "application/json")
+		reqFrom.Header.Add("Authorization", "super_secret")
+		reqTo, _ := http.NewRequest("GET", urls[1], nil)
+
+		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+
+		if len(reqTo.Header) != 2 {
+			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
+		}
+
+		if reqTo.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("'Content-Type' should be 'application/json'")
+		}
+
+		if reqTo.Header.Get("Authorization") != "super_secret" {
+			t.Fatal("'Authorization' should be 'super_secret'")
+		}
 	}
 }

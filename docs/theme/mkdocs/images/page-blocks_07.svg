@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 15.1.0, SVG Export Plug-In  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+	<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">
+]>
+<svg version="1.1"
+	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/"
+	 x="0px" y="0px" width="110px" height="110px" viewBox="12 12 110 110" overflow="visible" enable-background="new 12 12 110 110"
+	 xml:space="preserve">
+<defs>
+</defs>
+<rect x="0.5" y="0.5" display="none" fill="#004B95" stroke="#000000" stroke-miterlimit="10" width="300" height="140"/>
+<path fill="#FFFFFF" d="M20.464,79.442c0,11.663,9.437,17.089,21.099,17.089h49.874c11.663,0,21.101-5.426,21.101-17.089
+	c0-8.958-5.583-16.593-13.446-19.662l0.018-0.479c0-12.18-9.879-22.06-22.059-22.06c-7.711,0-14.483,3.953-18.435,9.938
+	c-2.13-1.439-4.7-2.265-7.461-2.265c-7.425,0-13.428,6.003-13.428,13.428v0.346C27.904,60.49,20.464,69.104,20.464,79.442z"/>
+<rect id="_x3C_Slice_x3E__3_" x="12" y="12" fill-rule="evenodd" clip-rule="evenodd" fill="none" width="110" height="110"/>
+</svg>

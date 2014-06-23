@@ -1,0 +1,56 @@
+.\" Process this file with
+.\" nroff -man -Tascii docker-attach.1
+.\"
+.TH "DOCKER" "1" "APRIL 2014" "0.1" "Docker"
+.SH NAME
+docker-attach \- Attach to a running container
+.SH SYNOPSIS
+.B docker attach
+\fB--no-stdin\fR[=\fIfalse\fR] 
+\fB--sig-proxy\fR[=\fItrue\fR] 
+container
+.SH DESCRIPTION
+If you \fBdocker run\fR a container in detached mode (\fB-d\fR), you can reattach to the detached container with \fBdocker attach\fR using the container's ID or name.
+.sp
+You can detach from the container again (and leave it running) with CTRL-c (for a quiet exit) or CTRL-\ to get a stacktrace of the Docker client when it quits. When you detach from the container the exit code will be returned to the client.
+.SH "OPTIONS"
+.TP
+.B --no-stdin=\fItrue\fR|\fIfalse\fR: 
+When set to true, do not attach to stdin. The default is \fIfalse\fR.
+.TP
+.B --sig-proxy=\fItrue\fR|\fIfalse\fR: 
+When set to true, proxify all received signal to the process (even in non-tty mode). The default is \fItrue\fR.
+.sp
+.SH EXAMPLES
+.sp
+.PP
+.B Attaching to a container
+.TP
+In this example the top command is run inside a container, from an image called fedora, in detached mode. The ID from the container is passed into the \fBdocker attach\fR command:
+.sp
+.nf
+.RS
+# ID=$(sudo docker run -d fedora /usr/bin/top -b)
+# sudo docker attach $ID
+top - 02:05:52 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
+Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+Cpu(s):  0.1%us,  0.2%sy,  0.0%ni, 99.7%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+Mem:    373572k total,   355560k used,    18012k free,    27872k buffers
+Swap:   786428k total,        0k used,   786428k free,   221740k cached
+
+PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+1 root      20   0 17200 1116  912 R    0  0.3   0:00.03 top
+
+top - 02:05:55 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
+Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+Cpu(s):  0.0%us,  0.2%sy,  0.0%ni, 99.8%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+Mem:    373572k total,   355244k used,    18328k free,    27872k buffers
+Swap:   786428k total,        0k used,   786428k free,   221776k cached
+
+PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
+.RE
+.fi
+.sp
+.SH HISTORY
+April 2014, Originally compiled by William Henry (whenry at redhat dot com) based on dockier.io source material and internal work.

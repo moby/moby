@@ -77,18 +77,17 @@ well as a clean documentation build. See ``docs/README.md`` for more
 information on building the docs and how docs get released.
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
-and maintenance. Always run `go fmt` before committing your changes. Most
-editors have plugins that do this automatically, and there's also a git
-pre-commit hook:
-
-```
-curl -o .git/hooks/pre-commit https://raw.github.com/edsrzf/gofmt-git-hook/master/fmt-check && chmod +x .git/hooks/pre-commit
-```
+and maintenance. Always run `gofmt -s -w file.go` on each changed file before
+committing your changes. Most editors have plugins that do this automatically.
 
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
 
 Pull requests must not contain commits from other users or branches.
+
+Commit messages must start with a capitalized and short summary (max. 50
+chars) written in the imperative, followed by an optional, more detailed
+explanatory text which is separated from the summary by an empty line.
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Be
@@ -104,10 +103,8 @@ same commit so that a revert would remove all traces of the feature or fix.
 Commits that fix or close an issue should include a reference like `Closes #XXX`
 or `Fixes #XXX`, which will automatically close the issue when merged.
 
-Add your name to the AUTHORS file, but make sure the list is sorted and your
-name and email address match your git configuration. The AUTHORS file is
-regenerated occasionally from the git commit history, so a mismatch may result
-in your changes being overwritten.
+Please do not add yourself to the AUTHORS file, as it is regenerated
+regularly from the Git history.
 
 ### Merge approval
 
@@ -126,33 +123,46 @@ For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
 The sign-off is a simple line at the end of the explanation for the
 patch, which certifies that you wrote it or otherwise have the right to
 pass it on as an open-source patch.  The rules are pretty simple: if you
-can certify the below:
+can certify the below (from
+[developercertificate.org](http://developercertificate.org/)):
 
 ```
-Docker Developer Certificate of Origin 1.1
+Developer Certificate of Origin
+Version 1.1
 
-By making a contribution to the Docker Project ("Project"), I represent and
-warrant that:
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+660 York Street, Suite 102,
+San Francisco, CA 94110 USA
 
-a. The contribution was created in whole or in part by me and I have the right
-to submit the contribution on my own behalf or on behalf of a third party who
-has authorized me to submit this contribution to the Project; or
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
 
-b. The contribution is based upon previous work that, to the best of my
-knowledge, is covered under an appropriate open source license and I have the
-right and authorization to submit that work with modifications, whether
-created in whole or in part by me, under the same open source license (unless
-I am permitted to submit under a different license) that I have identified in
-the contribution; or
 
-c. The contribution was provided directly to me by some other person who
-represented and warranted (a) or (b) and I have not modified it.
+Developer's Certificate of Origin 1.1
 
-d. I understand and agree that this Project and the contribution are publicly
-known and that a record of the contribution (including all personal
-information I submit with it, including my sign-off record) is maintained
-indefinitely and may be redistributed consistent with this Project or the open
-source license(s) involved.
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.
 ```
 
 then you just add a line to every git commit message:
@@ -165,7 +175,7 @@ One way to automate this, is customise your get ``commit.template`` by adding
 a ``prepare-commit-msg`` hook to your docker checkout:
 
 ```
-curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
+curl -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
 ```
 
 * Note: the above script expects to find your GitHub user name in ``git config --get github.user``
@@ -175,7 +185,10 @@ curl -o .git/hooks/prepare-commit-msg https://raw.github.com/dotcloud/docker/mas
 There are several exceptions to the signing requirement. Currently these are:
 
 * Your patch fixes spelling or grammar errors.
-* Your patch is a single line change to documentation.
+* Your patch is a single line change to documentation contained in the
+  `docs` directory.
+* Your patch fixes Markdown formatting or syntax errors in the
+  documentation contained in the `docs` directory.
 
 If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.io)
 

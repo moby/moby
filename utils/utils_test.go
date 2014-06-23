@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -138,7 +137,8 @@ func TestRaceWriteBroadcaster(t *testing.T) {
 
 // Test the behavior of TruncIndex, an index for querying IDs from a non-conflicting prefix.
 func TestTruncIndex(t *testing.T) {
-	index := NewTruncIndex()
+	ids := []string{}
+	index := NewTruncIndex(ids)
 	// Get on an empty index
 	if _, err := index.Get("foobar"); err == nil {
 		t.Fatal("Get on an empty index should return an error")
@@ -218,6 +218,25 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 	}
 }
 
+func BenchmarkTruncIndexAdd(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range ids {
+			index.Add(id)
+		}
+	}
+}
+
+func BenchmarkTruncIndexNew(b *testing.B) {
+	ids := []string{"banana", "bananaa", "bananab"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewTruncIndex(ids)
+	}
+}
+
 func assertKernelVersion(t *testing.T, a, b *KernelVersionInfo, result int) {
 	if r := CompareKernelVersion(a, b); r != result {
 		t.Fatalf("Unexpected kernel version comparison result. Found %d, expected %d", r, result)
@@ -249,54 +268,6 @@ func TestCompareKernelVersion(t *testing.T) {
 		&KernelVersionInfo{Kernel: 3, Major: 0, Minor: 20},
 		&KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0},
 		-1)
-}
-
-func TestHumanSize(t *testing.T) {
-
-	size := strings.Trim(HumanSize(1000), " \t")
-	expect := "1 kB"
-	if size != expect {
-		t.Errorf("1000 -> expected '%s', got '%s'", expect, size)
-	}
-
-	size = strings.Trim(HumanSize(1024), " \t")
-	expect = "1.024 kB"
-	if size != expect {
-		t.Errorf("1024 -> expected '%s', got '%s'", expect, size)
-	}
-}
-
-func TestRAMInBytes(t *testing.T) {
-	assertRAMInBytes(t, "32", false, 32)
-	assertRAMInBytes(t, "32b", false, 32)
-	assertRAMInBytes(t, "32B", false, 32)
-	assertRAMInBytes(t, "32k", false, 32*1024)
-	assertRAMInBytes(t, "32K", false, 32*1024)
-	assertRAMInBytes(t, "32kb", false, 32*1024)
-	assertRAMInBytes(t, "32Kb", false, 32*1024)
-	assertRAMInBytes(t, "32Mb", false, 32*1024*1024)
-	assertRAMInBytes(t, "32Gb", false, 32*1024*1024*1024)
-
-	assertRAMInBytes(t, "", true, -1)
-	assertRAMInBytes(t, "hello", true, -1)
-	assertRAMInBytes(t, "-32", true, -1)
-	assertRAMInBytes(t, " 32 ", true, -1)
-	assertRAMInBytes(t, "32 mb", true, -1)
-	assertRAMInBytes(t, "32m b", true, -1)
-	assertRAMInBytes(t, "32bm", true, -1)
-}
-
-func assertRAMInBytes(t *testing.T, size string, expectError bool, expectedBytes int64) {
-	actualBytes, err := RAMInBytes(size)
-	if (err != nil) && !expectError {
-		t.Errorf("Unexpected error parsing '%s': %s", size, err)
-	}
-	if (err == nil) && expectError {
-		t.Errorf("Expected to get an error parsing '%s', but got none (bytes=%d)", size, actualBytes)
-	}
-	if actualBytes != expectedBytes {
-		t.Errorf("Expected '%s' to parse as %d bytes, got %d", size, expectedBytes, actualBytes)
-	}
 }
 
 func TestParseHost(t *testing.T) {
@@ -331,7 +302,7 @@ func TestParseHost(t *testing.T) {
 	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
-	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1:4243"); err == nil {
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "udp://127.0.0.1:2375"); err == nil {
 		t.Errorf("udp protocol address expected error return, but err == nil. Got %s", addr)
 	}
 }
@@ -354,20 +325,6 @@ func TestParseRepositoryTag(t *testing.T) {
 	}
 	if repo, tag := ParseRepositoryTag("url:5000/repo:tag"); repo != "url:5000/repo" || tag != "tag" {
 		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "tag", repo, tag)
-	}
-}
-
-func TestGetResolvConf(t *testing.T) {
-	resolvConfUtils, err := GetResolvConf()
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(resolvConfUtils) != string(resolvConfSystem) {
-		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
 	}
 }
 
@@ -442,44 +399,6 @@ func TestParsePortMapping(t *testing.T) {
 	if data["private"] != "8080" {
 		t.Fail()
 	}
-}
-
-func TestGetNameserversAsCIDR(t *testing.T) {
-	for resolv, result := range map[string][]string{`
-nameserver 1.2.3.4
-nameserver 40.3.200.10
-search example.com`: {"1.2.3.4/32", "40.3.200.10/32"},
-		`search example.com`: {},
-		`nameserver 1.2.3.4
-search example.com
-nameserver 4.30.20.100`: {"1.2.3.4/32", "4.30.20.100/32"},
-		``: {},
-		`  nameserver 1.2.3.4   `: {"1.2.3.4/32"},
-		`search example.com
-nameserver 1.2.3.4
-#nameserver 4.3.2.1`: {"1.2.3.4/32"},
-		`search example.com
-nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
-	} {
-		test := GetNameserversAsCIDR([]byte(resolv))
-		if !StrSlicesEqual(test, result) {
-			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
-		}
-	}
-}
-
-func StrSlicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func TestReplaceAndAppendEnvVars(t *testing.T) {

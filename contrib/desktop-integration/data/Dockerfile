@@ -6,16 +6,16 @@
 #   /data volume is owned by sysadmin.
 # USAGE:
 #   # Download data Dockerfile
-#   wget http://raw.github.com/dotcloud/docker/master/contrib/desktop-integration/data/Dockerfile
+#   wget http://raw.githubusercontent.com/dotcloud/docker/master/contrib/desktop-integration/data/Dockerfile
 #
 #   # Build data image
-#   docker build -t data -rm .
+#   docker build -t data .
 #
 #   # Create a data container. (eg: iceweasel-data)
-#   docker run -name iceweasel-data data true
+#   docker run --name iceweasel-data data true
 #
 #   # List data from it
-#   docker run -volumes-from iceweasel-data busybox ls -al /data
+#   docker run --volumes-from iceweasel-data busybox ls -al /data
 
 docker-version 0.6.5
 

@@ -3,6 +3,7 @@ package system
 import (
 	"os/exec"
 	"syscall"
+	"unsafe"
 )
 
 func Chroot(dir string) error {
@@ -115,10 +116,45 @@ func Mknod(path string, mode uint32, dev int) error {
 	return syscall.Mknod(path, mode, dev)
 }
 
-func ParentDeathSignal() error {
-	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, uintptr(syscall.SIGKILL), 0); err != 0 {
+func Prctl(option int, arg2, arg3, arg4, arg5 uintptr) error {
+	if _, _, err := syscall.Syscall6(syscall.SYS_PRCTL, uintptr(option), arg2, arg3, arg4, arg5, 0); err != 0 {
 		return err
 	}
+	return nil
+}
+
+func ParentDeathSignal(sig uintptr) error {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, sig, 0); err != 0 {
+		return err
+	}
+	return nil
+}
+
+func GetParentDeathSignal() (int, error) {
+	var sig int
+
+	_, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_GET_PDEATHSIG, uintptr(unsafe.Pointer(&sig)), 0)
+
+	if err != 0 {
+		return -1, err
+	}
+
+	return sig, nil
+}
+
+func SetKeepCaps() error {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_KEEPCAPS, 1, 0); err != 0 {
+		return err
+	}
+
+	return nil
+}
+
+func ClearKeepCaps() error {
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_KEEPCAPS, 0, 0); err != 0 {
+		return err
+	}
+
 	return nil
 }
 
@@ -142,4 +178,8 @@ func SetCloneFlags(cmd *exec.Cmd, flag uintptr) {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Cloneflags = flag
+}
+
+func Gettid() int {
+	return syscall.Gettid()
 }

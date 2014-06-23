@@ -96,8 +96,8 @@ func TestRouteMatchers(t *testing.T) {
 		method = "GET"
 		headers = map[string]string{"X-Requested-With": "XMLHttpRequest"}
 		resultVars = map[bool]map[string]string{
-			true:  map[string]string{"var1": "www", "var2": "product", "var3": "42"},
-			false: map[string]string{},
+			true:  {"var1": "www", "var2": "product", "var3": "42"},
+			false: {},
 		}
 	}
 
@@ -110,8 +110,8 @@ func TestRouteMatchers(t *testing.T) {
 		method = "POST"
 		headers = map[string]string{"Content-Type": "application/json"}
 		resultVars = map[bool]map[string]string{
-			true:  map[string]string{"var4": "google", "var5": "product", "var6": "42"},
-			false: map[string]string{},
+			true:  {"var4": "google", "var5": "product", "var6": "42"},
+			false: {},
 		}
 	}
 

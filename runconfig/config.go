@@ -12,9 +12,10 @@ type Config struct {
 	Hostname        string
 	Domainname      string
 	User            string
-	Memory          int64 // Memory limit (in bytes)
-	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	Memory          int64  // Memory limit (in bytes)
+	MemorySwap      int64  // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares       int64  // CPU shares (relative weight vs. other containers)
+	Cpuset          string // Cpuset 0-2, 0,1
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
@@ -25,10 +26,8 @@ type Config struct {
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
 	Env             []string
 	Cmd             []string
-	Dns             []string
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
-	VolumesFrom     string
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
@@ -43,6 +42,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Memory:          job.GetenvInt64("Memory"),
 		MemorySwap:      job.GetenvInt64("MemorySwap"),
 		CpuShares:       job.GetenvInt64("CpuShares"),
+		Cpuset:          job.Getenv("Cpuset"),
 		AttachStdin:     job.GetenvBool("AttachStdin"),
 		AttachStdout:    job.GetenvBool("AttachStdout"),
 		AttachStderr:    job.GetenvBool("AttachStderr"),
@@ -50,7 +50,6 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		OpenStdin:       job.GetenvBool("OpenStdin"),
 		StdinOnce:       job.GetenvBool("StdinOnce"),
 		Image:           job.Getenv("Image"),
-		VolumesFrom:     job.Getenv("VolumesFrom"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
 	}
@@ -65,12 +64,8 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
 		config.Cmd = Cmd
 	}
-	if Dns := job.GetenvList("Dns"); Dns != nil {
-		config.Dns = Dns
-	}
 	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
 		config.Entrypoint = Entrypoint
 	}
-
 	return config
 }

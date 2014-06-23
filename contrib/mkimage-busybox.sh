@@ -2,6 +2,10 @@
 # Generate a very minimal filesystem based on busybox-static,
 # and load it into the local docker under the name "busybox".
 
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/busybox-static'
+echo >&2
+
 BUSYBOX=$(which busybox)
 [ "$BUSYBOX" ] || {
     echo "Sorry, I could not locate busybox."

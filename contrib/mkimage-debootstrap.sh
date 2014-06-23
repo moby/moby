@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/debootstrap'
+echo >&2
+
 variant='minbase'
 include='iproute,iputils-ping'
 arch='amd64' # intentionally undocumented for now
@@ -43,7 +47,7 @@ usage() {
 debianStable=wheezy
 debianUnstable=sid
 # this should match the name found at http://releases.ubuntu.com/
-ubuntuLatestLTS=precise
+ubuntuLatestLTS=trusty
 # this should match the name found at http://releases.tanglu.org/
 tangluLatest=aequorea
 
@@ -219,6 +223,7 @@ if [ -z "$strictDebootstrap" ]; then
 	
 	# make sure our packages lists are as up to date as we can get them
 	sudo chroot . apt-get update
+	sudo chroot . apt-get dist-upgrade -y
 fi
 
 if [ "$justTar" ]; then

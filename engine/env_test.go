@@ -4,6 +4,34 @@ import (
 	"testing"
 )
 
+func TestEnvLenZero(t *testing.T) {
+	env := &Env{}
+	if env.Len() != 0 {
+		t.Fatalf("%d", env.Len())
+	}
+}
+
+func TestEnvLenNotZero(t *testing.T) {
+	env := &Env{}
+	env.Set("foo", "bar")
+	env.Set("ga", "bu")
+	if env.Len() != 2 {
+		t.Fatalf("%d", env.Len())
+	}
+}
+
+func TestEnvLenDup(t *testing.T) {
+	env := &Env{
+		"foo=bar",
+		"foo=baz",
+		"a=b",
+	}
+	// len(env) != env.Len()
+	if env.Len() != 2 {
+		t.Fatalf("%d", env.Len())
+	}
+}
+
 func TestNewJob(t *testing.T) {
 	job := mkJob(t, "dummy", "--level=awesome")
 	if job.Name != "dummy" {
@@ -93,5 +121,25 @@ func TestEnviron(t *testing.T) {
 	}
 	if val != "bar" {
 		t.Fatalf("bar not found in the environ")
+	}
+}
+
+func TestMultiMap(t *testing.T) {
+	e := &Env{}
+	e.Set("foo", "bar")
+	e.Set("bar", "baz")
+	e.Set("hello", "world")
+	m := e.MultiMap()
+	e2 := &Env{}
+	e2.Set("old_key", "something something something")
+	e2.InitMultiMap(m)
+	if v := e2.Get("old_key"); v != "" {
+		t.Fatalf("%#v", v)
+	}
+	if v := e2.Get("bar"); v != "baz" {
+		t.Fatalf("%#v", v)
+	}
+	if v := e2.Get("hello"); v != "world" {
+		t.Fatalf("%#v", v)
 	}
 }

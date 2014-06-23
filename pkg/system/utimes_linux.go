@@ -24,8 +24,5 @@ func LUtimesNano(path string, ts []syscall.Timespec) error {
 }
 
 func UtimesNano(path string, ts []syscall.Timespec) error {
-	if err := syscall.UtimesNano(path, ts); err != nil {
-		return err
-	}
-	return nil
+	return syscall.UtimesNano(path, ts)
 }

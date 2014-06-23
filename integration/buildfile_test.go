@@ -1,17 +1,21 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/server"
+	"github.com/dotcloud/docker/utils"
 )
 
 // A testContextTemplate describes a build context and how to test it
@@ -309,6 +313,16 @@ RUN [ "$(cat /testfile)" = 'test!' ]
 		},
 		nil,
 	},
+	{
+		`
+FROM {IMAGE}
+# what \
+RUN mkdir /testing
+RUN touch /testing/other
+`,
+		nil,
+		nil,
+	},
 }
 
 // FIXME: test building with 2 successive overlapping ADD commands
@@ -350,10 +364,10 @@ func TestBuild(t *testing.T) {
 	}
 }
 
-func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*docker.Image, error) {
+func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*image.Image, error) {
 	if eng == nil {
 		eng = NewTestEngine(t)
-		runtime := mkRuntimeFromEngine(eng, t)
+		runtime := mkDaemonFromEngine(eng, t)
 		// FIXME: we might not need runtime, why not simply nuke
 		// the engine?
 		defer nuke(runtime)
@@ -382,587 +396,19 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	id, err := buildfile.Build(context.Archive(dockerfile, t))
 	if err != nil {
 		return nil, err
 	}
 
-	return srv.ImageInspect(id)
-}
-
-func TestVolume(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        volume /test
-        cmd Hello world
-    `, nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
+	job := eng.Job("image_inspect", id)
+	buffer := bytes.NewBuffer(nil)
+	image := &image.Image{}
+	job.Stdout.Add(buffer)
+	if err := job.Run(); err != nil {
+		return nil, err
 	}
-
-	if len(img.Config.Volumes) == 0 {
-		t.Fail()
-	}
-	for key := range img.Config.Volumes {
-		if key != "/test" {
-			t.Fail()
-		}
-	}
-}
-
-func TestBuildMaintainer(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-    `, nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Author != "dockerio" {
-		t.Fail()
-	}
-}
-
-func TestBuildUser(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        user dockerio
-    `, nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.User != "dockerio" {
-		t.Fail()
-	}
-}
-
-func TestBuildEnv(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        env port 4243
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	hasEnv := false
-	for _, envVar := range img.Config.Env {
-		if envVar == "port=4243" {
-			hasEnv = true
-			break
-		}
-	}
-	if !hasEnv {
-		t.Fail()
-	}
-}
-
-func TestBuildCmd(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        cmd ["/bin/echo", "Hello World"]
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.Cmd[0] != "/bin/echo" {
-		t.Log(img.Config.Cmd[0])
-		t.Fail()
-	}
-	if img.Config.Cmd[1] != "Hello World" {
-		t.Log(img.Config.Cmd[1])
-		t.Fail()
-	}
-}
-
-func TestBuildExpose(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        expose 4243
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.PortSpecs[0] != "4243" {
-		t.Fail()
-	}
-}
-
-func TestBuildEntrypoint(t *testing.T) {
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        entrypoint ["/bin/echo"]
-        `,
-		nil, nil}, t, nil, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if img.Config.Entrypoint[0] != "/bin/echo" {
-		t.Log(img.Config.Entrypoint[0])
-		t.Fail()
-	}
-}
-
-// testing #1405 - config.Cmd does not get cleaned up if
-// utilizing cache
-func TestBuildEntrypointRunCleanup(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	img, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        run echo "hello"
-        `,
-		nil, nil}, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	img, err = buildImage(testContextTemplate{`
-        from {IMAGE}
-        run echo "hello"
-        add foo /foo
-        entrypoint ["/bin/echo"]
-        `,
-		[][2]string{{"foo", "HEYO"}}, nil}, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(img.Config.Cmd) != 0 {
-		t.Fail()
-	}
-}
-
-func checkCacheBehavior(t *testing.T, template testContextTemplate, expectHit bool) (imageId string) {
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	img, err := buildImage(template, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	imageId = img.ID
-
-	img, err = buildImage(template, t, eng, expectHit)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if hit := imageId == img.ID; hit != expectHit {
-		t.Fatalf("Cache misbehavior, got hit=%t, expected hit=%t: (first: %s, second %s)", hit, expectHit, imageId, img.ID)
-	}
-	return
-}
-
-func checkCacheBehaviorFromEngime(t *testing.T, template testContextTemplate, expectHit bool, eng *engine.Engine) (imageId string) {
-	img, err := buildImage(template, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	imageId = img.ID
-
-	img, err = buildImage(template, t, eng, expectHit)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if hit := imageId == img.ID; hit != expectHit {
-		t.Fatalf("Cache misbehavior, got hit=%t, expected hit=%t: (first: %s, second %s)", hit, expectHit, imageId, img.ID)
-	}
-	return
-}
-
-func TestBuildImageWithCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        `,
-		nil, nil}
-	checkCacheBehavior(t, template, true)
-}
-
-func TestBuildImageWithoutCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        `,
-		nil, nil}
-	checkCacheBehavior(t, template, false)
-}
-
-func TestBuildADDLocalFileWithCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        run echo "first"
-        add foo /usr/lib/bla/bar
-	run [ "$(cat /usr/lib/bla/bar)" = "hello" ]
-        run echo "second"
-	add . /src/
-	run [ "$(cat /src/foo)" = "hello" ]
-        `,
-		[][2]string{
-			{"foo", "hello"},
-		},
-		nil}
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	id1 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	template.files = append(template.files, [2]string{"bar", "hello2"})
-	id2 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id1 == id2 {
-		t.Fatal("The cache should have been invalided but hasn't.")
-	}
-	id3 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id2 != id3 {
-		t.Fatal("The cache should have been used but hasn't.")
-	}
-	template.files[1][1] = "hello3"
-	id4 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id3 == id4 {
-		t.Fatal("The cache should have been invalided but hasn't.")
-	}
-	template.dockerfile += `
-	add ./bar /src2/
-	run ls /src2/bar
-	`
-	id5 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id4 == id5 {
-		t.Fatal("The cache should have been invalided but hasn't.")
-	}
-	template.files[1][1] = "hello4"
-	id6 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id5 == id6 {
-		t.Fatal("The cache should have been invalided but hasn't.")
-	}
-
-	template.dockerfile += `
-	add bar /src2/bar2
-	add /bar /src2/bar3
-	run ls /src2/bar2 /src2/bar3
-	`
-	id7 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id6 == id7 {
-		t.Fatal("The cache should have been invalided but hasn't.")
-	}
-	template.files[1][1] = "hello5"
-	id8 := checkCacheBehaviorFromEngime(t, template, true, eng)
-	if id7 == id8 {
-		t.Fatal("The cache should have been invalided but hasn't.")
-	}
-}
-
-func TestBuildADDLocalFileWithoutCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        run echo "first"
-        add foo /usr/lib/bla/bar
-        run echo "second"
-        `,
-		[][2]string{{"foo", "hello"}},
-		nil}
-	checkCacheBehavior(t, template, false)
-}
-
-func TestBuildADDCurrentDirectoryWithCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        add . /usr/lib/bla
-        `,
-		nil, nil}
-	checkCacheBehavior(t, template, true)
-}
-
-func TestBuildADDCurrentDirectoryWithoutCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        add . /usr/lib/bla
-        `,
-		nil, nil}
-	checkCacheBehavior(t, template, false)
-}
-
-func TestBuildADDRemoteFileWithCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        run echo "first"
-        add http://{SERVERADDR}/baz /usr/lib/baz/quux
-        run echo "second"
-        `,
-		nil,
-		[][2]string{{"/baz", "world!"}}}
-	checkCacheBehavior(t, template, true)
-}
-
-func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        run echo "first"
-        add http://{SERVERADDR}/baz /usr/lib/baz/quux
-        run echo "second"
-        `,
-		nil,
-		[][2]string{{"/baz", "world!"}}}
-	checkCacheBehavior(t, template, false)
-}
-
-func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        run echo "first"
-        add foo /usr/lib/bla/bar
-        add http://{SERVERADDR}/baz /usr/lib/baz/quux
-        run echo "second"
-        `,
-		[][2]string{{"foo", "hello"}},
-		[][2]string{{"/baz", "world!"}}}
-	checkCacheBehavior(t, template, true)
-}
-
-func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
-	template := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        run echo "first"
-        add foo /usr/lib/bla/bar
-        add http://{SERVERADDR}/baz /usr/lib/baz/quux
-        run echo "second"
-        `,
-		[][2]string{{"foo", "hello"}},
-		[][2]string{{"/baz", "world!"}}}
-	checkCacheBehavior(t, template, false)
-}
-
-func TestForbiddenContextPath(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-	srv := mkServerFromEngine(eng, t)
-
-	context := testContextTemplate{`
-        from {IMAGE}
-        maintainer dockerio
-        add ../../ test/
-        `,
-		[][2]string{{"test.txt", "test1"}, {"other.txt", "other"}}, nil}
-
-	httpServer, err := mkTestingFileServer(context.remoteFiles)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer httpServer.Close()
-
-	idx := strings.LastIndex(httpServer.URL, ":")
-	if idx < 0 {
-		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
-	}
-	port := httpServer.URL[idx+1:]
-
-	iIP := eng.Hack_GetGlobalVar("httpapi.bridgeIP")
-	if iIP == nil {
-		t.Fatal("Legacy bridgeIP field not set in engine")
-	}
-	ip, ok := iIP.(net.IP)
-	if !ok {
-		panic("Legacy bridgeIP field in engine does not cast to net.IP")
-	}
-	dockerfile := constructDockerfile(context.dockerfile, ip, port)
-
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
-	_, err = buildfile.Build(context.Archive(dockerfile, t))
-
-	if err == nil {
-		t.Log("Error should not be nil")
-		t.Fail()
-	}
-
-	if err.Error() != "Forbidden path outside the build context: ../../ (/)" {
-		t.Logf("Error message is not expected: %s", err.Error())
-		t.Fail()
-	}
-}
-
-func TestBuildADDFileNotFound(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	context := testContextTemplate{`
-        from {IMAGE}
-        add foo /usr/local/bar
-        `,
-		nil, nil}
-
-	httpServer, err := mkTestingFileServer(context.remoteFiles)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer httpServer.Close()
-
-	idx := strings.LastIndex(httpServer.URL, ":")
-	if idx < 0 {
-		t.Fatalf("could not get port from test http server address %s", httpServer.URL)
-	}
-	port := httpServer.URL[idx+1:]
-
-	iIP := eng.Hack_GetGlobalVar("httpapi.bridgeIP")
-	if iIP == nil {
-		t.Fatal("Legacy bridgeIP field not set in engine")
-	}
-	ip, ok := iIP.(net.IP)
-	if !ok {
-		panic("Legacy bridgeIP field in engine does not cast to net.IP")
-	}
-	dockerfile := constructDockerfile(context.dockerfile, ip, port)
-
-	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
-	_, err = buildfile.Build(context.Archive(dockerfile, t))
-
-	if err == nil {
-		t.Log("Error should not be nil")
-		t.Fail()
-	}
-
-	if err.Error() != "foo: no such file or directory" {
-		t.Logf("Error message is not expected: %s", err.Error())
-		t.Fail()
-	}
-}
-
-func TestBuildInheritance(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer nuke(mkRuntimeFromEngine(eng, t))
-
-	img, err := buildImage(testContextTemplate{`
-            from {IMAGE}
-            expose 4243
-            `,
-		nil, nil}, t, eng, true)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	img2, _ := buildImage(testContextTemplate{fmt.Sprintf(`
-            from %s
-            entrypoint ["/bin/echo"]
-            `, img.ID),
-		nil, nil}, t, eng, true)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// from child
-	if img2.Config.Entrypoint[0] != "/bin/echo" {
-		t.Fail()
-	}
-
-	// from parent
-	if img.Config.PortSpecs[0] != "4243" {
-		t.Fail()
-	}
-}
-
-func TestBuildFails(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-        from {IMAGE}
-        run sh -c "exit 23"
-        `,
-		nil, nil}, t, nil, true)
-
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
-
-	sterr, ok := err.(*utils.JSONError)
-	if !ok {
-		t.Fatalf("Error should be utils.JSONError")
-	}
-	if sterr.Code != 23 {
-		t.Fatalf("StatusCode %d unexpected, should be 23", sterr.Code)
-	}
-}
-
-func TestBuildFailsDockerfileEmpty(t *testing.T) {
-	_, err := buildImage(testContextTemplate{``, nil, nil}, t, nil, true)
-
-	if err != docker.ErrDockerfileEmpty {
-		t.Fatal("Expected: %v, got: %v", docker.ErrDockerfileEmpty, err)
-	}
-}
-
-func TestBuildOnBuildTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild run echo here is the trigger
-	onbuild run touch foobar
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: test that the 'foobar' file was created in the final build.
-}
-
-func TestBuildOnBuildForbiddenChainedTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild onbuild run echo test
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
-}
-
-func TestBuildOnBuildForbiddenFromTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild from {IMAGE}
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
-}
-
-func TestBuildOnBuildForbiddenMaintainerTrigger(t *testing.T) {
-	_, err := buildImage(testContextTemplate{`
-	from {IMAGE}
-	onbuild maintainer test
-	`,
-		nil, nil,
-	},
-		t, nil, true,
-	)
-	if err == nil {
-		t.Fatal("Error should not be nil")
-	}
+	err = json.NewDecoder(buffer).Decode(image)
+	return image, err
 }

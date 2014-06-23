@@ -291,7 +291,7 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 func handlerImages(w http.ResponseWriter, r *http.Request) {
 	u, _ := url.Parse(testHttpServer.URL)
-	w.Header().Add("X-Docker-Endpoints", u.Host)
+	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
 	if r.Method == "PUT" {
 		if strings.HasSuffix(r.URL.Path, "images") {
@@ -321,7 +321,12 @@ func handlerAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
-	writeResponse(w, "{}", 200)
+	result := &SearchResults{
+		Query:      "fakequery",
+		NumResults: 1,
+		Results:    []SearchResult{{Name: "fakeimage", StarCount: 42}},
+	}
+	writeResponse(w, result, 200)
 }
 
 func TestPing(t *testing.T) {

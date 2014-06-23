@@ -138,7 +138,7 @@ func mutateSampleDir(t *testing.T, root string) {
 	}
 
 	// Rewrite a file
-	if err := ioutil.WriteFile(path.Join(root, "file2"), []byte("fileN\n"), 0777); err != nil {
+	if err := ioutil.WriteFile(path.Join(root, "file2"), []byte("fileNN\n"), 0777); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,12 +146,12 @@ func mutateSampleDir(t *testing.T, root string) {
 	if err := os.RemoveAll(path.Join(root, "file3")); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(path.Join(root, "file3"), []byte("fileM\n"), 0404); err != nil {
+	if err := ioutil.WriteFile(path.Join(root, "file3"), []byte("fileMM\n"), 0404); err != nil {
 		t.Fatal(err)
 	}
 
 	// Touch file
-	if err := os.Chtimes(path.Join(root, "file4"), time.Now(), time.Now()); err != nil {
+	if err := os.Chtimes(path.Join(root, "file4"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -195,7 +195,7 @@ func mutateSampleDir(t *testing.T, root string) {
 	}
 
 	// Touch dir
-	if err := os.Chtimes(path.Join(root, "dir3"), time.Now(), time.Now()); err != nil {
+	if err := os.Chtimes(path.Join(root, "dir3"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
 }

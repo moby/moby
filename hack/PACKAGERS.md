@@ -157,6 +157,33 @@ AppArmor, you will need to set `DOCKER_BUILDTAGS` as follows:
 export DOCKER_BUILDTAGS='apparmor'
 ```
 
+There are build tags for disabling graphdrivers as well. By default, support
+for all graphdrivers are built in.
+
+To disable btrfs:
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
+```
+
+To disable devicemapper:
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
+```
+
+To disable aufs:
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
+```
+
+NOTE: if you need to set more than one build tag, space separate them.
+
+If you're building a binary that may need to be used on platforms that include
+SELinux, you will need to set `DOCKER_BUILDTAGS` as follows:
+
+```bash
+export DOCKER_BUILDTAGS='selinux'
+```
+
 ### Static Daemon
 
 If it is feasible within the constraints of your distribution, you should
@@ -180,6 +207,12 @@ the file "./VERSION". This binary is usually installed somewhere like
 "/usr/bin/docker".
 
 ### Dynamic Daemon / Client-only Binary
+
+If you are only interested in a Docker client binary, set `DOCKER_CLIENTONLY` to a non-empty value using something similar to the following: (which will prevent the extra step of compiling dockerinit)
+
+```bash
+export DOCKER_CLIENTONLY=1
+```
 
 If you need to (due to distro policy, distro library availability, or for other
 reasons) create a dynamically compiled daemon binary, or if you are only
@@ -232,7 +265,14 @@ To function properly, the Docker daemon needs the following software to be
 installed and available at runtime:
 
 * iptables version 1.4 or later
+* procps (or similar provider of a "ps" executable)
 * XZ Utils version 4.9 or later
+* a [properly
+  mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
+  cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount point
+  [is](https://github.com/dotcloud/docker/issues/2683)
+  [not](https://github.com/dotcloud/docker/issues/3485)
+  [sufficient](https://github.com/dotcloud/docker/issues/4568))
 
 Additionally, the Docker client needs the following software to be installed and
 available at runtime:
@@ -257,7 +297,7 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* LXC execution driver (requires version 0.8 or later of the LXC utility scripts)
+* LXC execution driver (requires version 1.0 or later of the LXC utility scripts)
 * AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
 * experimental BTRFS graph driver (requires BTRFS support enabled in the kernel)

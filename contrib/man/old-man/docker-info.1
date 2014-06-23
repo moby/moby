@@ -1,0 +1,39 @@
+.\" Process this file with
+.\" nroff -man -Tascii docker-info.1
+.\"
+.TH "DOCKER" "1" "APRIL 2014" "0.1" "Docker"
+.SH NAME
+docker-info \- Display system wide information
+.SH SYNOPSIS
+.B docker info
+.SH DESCRIPTION
+This command displays system wide information regarding the Docker installation. Information displayed includes the number of containers and images, pool name, data file, metadata file, data space used, total data space, metadata space used, total metadata space, execution driver, and the kernel version.
+.sp
+The data file is where the images are stored and the metadata file is where the meta data regarding those images are stored. When run for the first time Docker allocates a certain amount of data space and meta data space from the space available on the volume where /var/lib/docker is mounted.    
+.SH "OPTIONS"
+There are no available options.
+.sp
+.SH EXAMPLES
+.sp
+.B Display Docker system information
+.TP
+Here is a sample output:
+.sp
+.RS
+ # docker info
+ Containers: 18
+ Images: 95
+ Storage Driver: devicemapper
+  Pool Name: docker-8:1-170408448-pool
+  Data file: /var/lib/docker/devicemapper/devicemapper/data
+  Metadata file: /var/lib/docker/devicemapper/devicemapper/metadata
+  Data Space Used: 9946.3 Mb
+  Data Space Total: 102400.0 Mb
+  Metadata Space Used: 9.9 Mb
+  Metadata Space Total: 2048.0 Mb
+ Execution Driver: native-0.1
+ Kernel Version: 3.10.0-116.el7.x86_64
+.RE
+.sp
+.SH HISTORY
+April 2014, Originally compiled by William Henry (whenry at redhat dot com) based on dockier.io source material and internal work.

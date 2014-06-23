@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+TEXTRESET=$'\033[0m' # reset the foreground colour
+
+# Run Docker's test suite, including sub-packages, and store their output as a bundle
+# If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
+# You can use this to select certain tests to run, eg.
+#
+#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test-unit
+#
+bundle_test_unit() {
+	{
+		date
+
+		# Run all the tests if no TESTDIRS were specified.
+		if [ -z "$TESTDIRS" ]; then
+			TESTDIRS=$(find_dirs '*_test.go')
+		fi
+
+		TESTS_FAILED=()
+		for test_dir in $TESTDIRS; do
+			echo
+
+			if ! LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER" go_test_dir "$test_dir"; then
+				TESTS_FAILED+=("$test_dir")
+				echo
+				echo "${RED}Tests failed: $test_dir${TEXTRESET}"
+				sleep 1 # give it a second, so observers watching can take note
+			fi
+		done
+
+		echo
+		echo
+		echo
+
+		# if some tests fail, we want the bundlescript to fail, but we want to
+		# try running ALL the tests first, hence TESTS_FAILED
+		if [ "${#TESTS_FAILED[@]}" -gt 0 ]; then
+			echo "${RED}Test failures in: ${TESTS_FAILED[@]}${TEXTRESET}"
+			echo
+			false
+		else
+			echo "${GREEN}Test success${TEXTRESET}"
+			echo
+			true
+		fi
+	}
+}
+
+exec > >(tee -a $DEST/test.log) 2>&1
+bundle_test_unit
