@@ -64,7 +64,7 @@ func TestCmdStreamGood(t *testing.T) {
 }
 
 func tarUntar(t *testing.T, origin string, compression Compression) error {
-	archive, err := Tar(origin, compression)
+	archive, err := Tar(origin, compression, false)
 	if err != nil {
 		t.Fatal(err)
 	}

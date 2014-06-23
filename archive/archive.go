@@ -285,8 +285,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 
 // Tar creates an archive from the directory at `path`, and returns it as a
 // stream of bytes.
-func Tar(path string, compression Compression) (io.ReadCloser, error) {
-	return TarFilter(path, &TarOptions{Compression: compression})
+func Tar(path string, compression Compression, ignorePerms bool) (io.ReadCloser, error) {
+	return TarFilter(path, &TarOptions{Compression: compression}, ignorePerms)
 }
 
 func escapeName(name string) string {
@@ -310,7 +310,7 @@ func escapeName(name string) string {
 //
 // Files are included according to `options.Includes`, default to including all files.
 // Stream is compressed according to `options.Compression', default to Uncompressed.
-func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
+func TarFilter(srcPath string, options *TarOptions, ignorePerms bool) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
 	compressWriter, err := CompressStream(pipeWriter, options.Compression)
@@ -332,6 +332,23 @@ func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 
 		for _, include := range options.Includes {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
+				if f == nil || f.IsDir() {
+					return nil
+				}
+
+				if ignorePerms {
+					file, err := os.Open(filePath)
+					fi, _ := os.Stat(filePath)
+
+					if err != nil && os.IsPermission(err) {
+						if fi.IsDir() {
+							return filepath.SkipDir
+						}
+					} else if err == nil {
+						file.Close()
+					}
+				}
+
 				if err != nil {
 					utils.Debugf("Tar: Can't stat file %s to tar: %s\n", srcPath, err)
 					return nil
@@ -342,7 +359,7 @@ func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 					return nil
 				}
 
-				if err := addTarFile(filePath, relFilePath, tw); err != nil {
+				if err := addTarFile(filePath, relFilePath, tw); err != nil && !ignorePerms {
 					utils.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
 				}
 				return nil
@@ -451,9 +468,9 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 // TarUntar is a convenience function which calls Tar and Untar, with
 // the output of one piped into the other. If either Tar or Untar fails,
 // TarUntar aborts and returns the error.
-func TarUntar(src string, dst string) error {
+func TarUntar(src string, dst string, ignorePerms bool) error {
 	utils.Debugf("TarUntar(%s %s)", src, dst)
-	archive, err := TarFilter(src, &TarOptions{Compression: Uncompressed})
+	archive, err := TarFilter(src, &TarOptions{Compression: Uncompressed}, ignorePerms)
 	if err != nil {
 		return err
 	}
@@ -480,21 +497,24 @@ func UntarPath(src, dst string) error {
 // The archive is streamed directly with fixed buffering and no
 // intermediary disk IO.
 //
-func CopyWithTar(src, dst string) error {
+func CopyWithTar(src, dst string, ignorePerms bool) error {
 	srcSt, err := os.Stat(src)
+
 	if err != nil {
 		return err
 	}
+
 	if !srcSt.IsDir() {
 		return CopyFileWithTar(src, dst)
 	}
+
 	// Create dst, copy src's content into it
 	utils.Debugf("Creating dest directory: %s", dst)
 	if err := os.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
-	return TarUntar(src, dst)
+	return TarUntar(src, dst, ignorePerms)
 }
 
 // CopyFileWithTar emulates the behavior of the 'cp' command-line

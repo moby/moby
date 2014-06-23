@@ -665,7 +665,7 @@ func (container *Container) Export() (archive.Archive, error) {
 		return nil, err
 	}
 
-	archive, err := archive.Tar(container.basefs, archive.Uncompressed)
+	archive, err := archive.Tar(container.basefs, archive.Uncompressed, false)
 	if err != nil {
 		container.Unmount()
 		return nil, err
@@ -816,7 +816,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	archive, err := archive.TarFilter(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
-	})
+	}, false)
 	if err != nil {
 		container.Unmount()
 		return nil, err

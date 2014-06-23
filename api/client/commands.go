@@ -100,6 +100,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"#no-cache", "-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
+	ignorePerms := cmd.Bool([]string{"-ignore-permissions"}, false, "Always remove intermediate containers, even after unsuccessful builds")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -160,10 +161,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
-		if err = utils.ValidateContextDirectory(root); err != nil {
+		if err = utils.ValidateContextDirectory(root, *ignorePerms); err != nil {
 			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
 		}
-		context, err = archive.Tar(root, archive.Uncompressed)
+		context, err = archive.Tar(root, archive.Uncompressed, *ignorePerms)
 	}
 	var body io.Reader
 	// Setup an upload progress bar

@@ -315,7 +315,7 @@ func copyExistingContents(source, destination string) error {
 
 		if len(srcList) == 0 {
 			// If the source volume is empty copy files from the root into the volume
-			if err := archive.CopyWithTar(source, destination); err != nil {
+			if err := archive.CopyWithTar(source, destination, false); err != nil {
 				return err
 			}
 		}

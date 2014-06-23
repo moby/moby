@@ -427,6 +427,24 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		if !strings.Contains(out, "Error checking context is accessible") {
 			t.Fatalf("output should've contained the string: Error checking context is accessible")
 		}
+
+		buildCommandStatement = fmt.Sprintf("%s build --ignore-permissions -t ignore_permissions .", dockerBinary)
+		buildCmd = exec.Command("su", "unprivilegeduser", "-c", buildCommandStatement)
+		buildCmd.Dir = pathToInaccessibleFileBuildDirectory
+		out, exitCode, err = runCommandWithOutput(buildCmd)
+
+		if err != nil || exitCode != 0 {
+			t.Fatalf("build should not have failed: %s %s", err, out)
+		}
+
+		// check if we've detected the failure before we started building
+		if strings.Contains(out, "no permission to read from ") {
+			t.Fatalf("output should not contain the string: no permission to read from but contained: %s", out)
+		}
+
+		if strings.Contains(out, "Error checking context is accessible") {
+			t.Fatalf("output should contain the string: Error checking context is accessible")
+		}
 	}
 	{
 		// This is used to ensure we detect inaccessible directories early during build in the cli client
@@ -1134,7 +1152,7 @@ func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
 
 func testContextTar(t *testing.T, compression archive.Compression) {
 	contextDirectory := filepath.Join(workingDirectory, "build_tests", "TestContextTar")
-	context, err := archive.Tar(contextDirectory, compression)
+	context, err := archive.Tar(contextDirectory, compression, false)
 
 	if err != nil {
 		t.Fatalf("failed to build context tar: %v", err)
