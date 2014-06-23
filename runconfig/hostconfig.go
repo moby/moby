@@ -25,6 +25,19 @@ type DeviceMapping struct {
 	CgroupPermissions string
 }
 
+func (n NetworkMode) IsNonDefaultBridge() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "bridge"
+}
+
+func (n NetworkMode) GetNonDefaultBridge() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if (len(parts) > 1 && parts[0] == "bridge") {
+		return parts[1]
+	}
+	return ""
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string

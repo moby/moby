@@ -190,6 +190,7 @@ func populateCommand(c *Container, env []string) error {
 	case "host":
 		en.HostNetworking = true
 	case "bridge", "": // empty string to support existing containers
+		// TODO(vishh): Handle custom bridge here.
 		if !c.Config.NetworkDisabled {
 			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
@@ -411,6 +412,7 @@ func (container *Container) allocateNetwork() error {
 		eng = container.daemon.eng
 	)
 
+	// TODO(vishh): Handle custom bridge.
 	job := eng.Job("allocate_interface", container.ID)
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
@@ -945,6 +947,7 @@ func (container *Container) initializeNetworking() error {
 		container.Config.NetworkDisabled = true
 		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
+		// TODO(vishh): Handle custom bridge.
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
