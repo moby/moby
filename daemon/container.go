@@ -802,7 +802,11 @@ func (container *Container) CopyPut(resource string, stream io.Reader) error {
 		return err
 	}
 	defer container.Unmount()
-	basePath := path.Join(container.basefs, resource)
+
+	basePath, err := container.getResourcePath(resource)
+	if err != nil {
+		return err
+	}
 
 	return archive.Untar(stream, basePath, nil)
 }
