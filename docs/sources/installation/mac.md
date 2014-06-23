@@ -31,15 +31,11 @@ virtual machine and runs the Docker daemon.
 3. Run the `Boot2Docker` app in the `Applications` folder:
    ![](/installation/images/osx-Boot2Docker-Start-app.png)
 
-   Or, to initiate Boot2Docker manually, open a terminal and run:
+   Or, to initialize Boot2Docker manually, open a terminal and run:
 
 	     $ boot2docker init
 	     $ boot2docker start
 	     $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
-
-   The `boot2docker init` command will ask you to enter an SSH key passphrase - the simplest
-   (but least secure) is to just hit [Enter]. This passphrase is used by the
-   `boot2docker ssh` command.
 
 Once you have an initialized virtual machine, you can control it with `boot2docker stop`
 and `boot2docker start`.
