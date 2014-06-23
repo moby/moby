@@ -103,7 +103,7 @@ interactive cases.
 
 ## Container Identification
 
-### Name (–name)
+### Name (–-name)
 
 The operator can identify a container in three ways:
 
@@ -190,7 +190,7 @@ localhost interface.
     $ # use the redis container's network stack to access localhost
     $ docker run --rm -ti --net container:redis example/redis-cli -h 127.0.0.1
 
-## Clean Up (–rm)
+## Clean Up (–-rm)
 
 By default a container's file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
