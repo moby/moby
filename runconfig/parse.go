@@ -3,6 +3,7 @@ package runconfig
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -190,9 +191,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 			ports[p] = struct{}{}
 		}
 	}
-
 	// collect all the environment variables for the container
 	envVariables := []string{}
+
+	// propagate TERM if -t is set. Do this before -e and configs are processed.
+	if *flTty {
+		envVariables = append(envVariables, "TERM="+os.Getenv("TERM"))
+	}
+
 	for _, ef := range flEnvFile.GetAll() {
 		parsedVars, err := opts.ParseEnvFile(ef)
 		if err != nil {
