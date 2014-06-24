@@ -74,7 +74,11 @@ func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
+	config, err := daemonconfig.ConfigFromJob(job)
+	if err != nil {
+		return job.Error(err)
+	}
+	srv, err := NewServer(job.Eng, config)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -780,6 +784,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
+	v.Set("DetachKeys", srv.daemon.Config().DetachKeysStr)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}

@@ -471,6 +471,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if !remoteInfo.GetBool("IPv4Forwarding") {
 		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
 	}
+	if detachKeys := remoteInfo.Get("DetachKeys"); detachKeys != "" {
+		fmt.Fprintf(cli.out, "Key(s) to detach from `docker run -t`: \"%s\"\n", remoteInfo.Get("DetachKeys"))
+	}
 	return nil
 }
 

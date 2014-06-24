@@ -66,6 +66,7 @@ func main() {
 		flCert               = flag.String([]string{"-tlscert"}, dockerConfDir+defaultCertFile, "Path to TLS certificate file")
 		flKey                = flag.String([]string{"-tlskey"}, dockerConfDir+defaultKeyFile, "Path to TLS key file")
 		flSelinuxEnabled     = flag.Bool([]string{"-selinux-enabled"}, false, "Enable selinux support")
+		flDetachKeys         = flag.String([]string{"-detach-keys"}, "ctrl-p,ctrl-q", "Key to detach in TTY mode")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
@@ -162,6 +163,7 @@ func main() {
 			job.Setenv("ExecDriver", *flExecDriver)
 			job.SetenvInt("Mtu", *flMtu)
 			job.SetenvBool("EnableSelinuxSupport", *flSelinuxEnabled)
+			job.Setenv("DetachKeys", *flDetachKeys)
 			if err := job.Run(); err != nil {
 				log.Fatal(err)
 			}
