@@ -57,6 +57,8 @@ type buildFile struct {
 	authConfig *registry.AuthConfig
 	configFile *registry.ConfigFile
 
+	grantSecrets []string
+
 	tmpContainers map[string]struct{}
 	tmpImages     map[string]struct{}
 
@@ -666,6 +668,9 @@ func (b *buildFile) create() (*daemon.Container, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	c.SetHostConfig(&runconfig.HostConfig{GrantSecrets: b.grantSecrets})
+
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.outStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
@@ -888,7 +893,7 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile, grantSecrets []string) BuildFile {
 	return &buildFile{
 		daemon:        srv.daemon,
 		srv:           srv,
@@ -905,5 +910,6 @@ func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeC
 		authConfig:    auth,
 		configFile:    authConfigFile,
 		outOld:        outOld,
+		grantSecrets:  grantSecrets,
 	}
 }

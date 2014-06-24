@@ -42,13 +42,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 
-		flPublish     opts.ListOpts
-		flExpose      opts.ListOpts
-		flDns         opts.ListOpts
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
-		flVolumesFrom opts.ListOpts
-		flLxcOpts     opts.ListOpts
-		flEnvFile     opts.ListOpts
+		flPublish      opts.ListOpts
+		flExpose       opts.ListOpts
+		flDns          opts.ListOpts
+		flDnsSearch    = opts.NewListOpts(opts.ValidateDomain)
+		flVolumesFrom  opts.ListOpts
+		flGrantSecrets opts.ListOpts
+		flLxcOpts      opts.ListOpts
+		flEnvFile      opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: Run container in the background, print new container id")
@@ -82,6 +83,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom dns search domains")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
+	cmd.Var(&flGrantSecrets, []string{"-grant-secret"}, "Grant container access to named secret")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
@@ -244,6 +246,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
+		GrantSecrets:    flGrantSecrets.GetAll(),
 		NetworkMode:     netMode,
 	}
 
