@@ -412,8 +412,11 @@ func (container *Container) allocateNetwork() error {
 		eng = container.daemon.eng
 	)
 
-	// TODO(vishh): Handle custom bridge.
 	job := eng.Job("allocate_interface", container.ID)
+	if bridgeToUse := mode.GetNonDefaultBridge(); bridgeToUse != "" {
+		job.Setenv("RequestedBridge", bridgeToUse) 
+	}
+	
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
@@ -947,7 +950,6 @@ func (container *Container) initializeNetworking() error {
 		container.Config.NetworkDisabled = true
 		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	} else {
-		// TODO(vishh): Handle custom bridge.
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
