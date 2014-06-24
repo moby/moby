@@ -31,6 +31,7 @@ import (
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/pkg/truncindex"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
@@ -87,7 +88,7 @@ type Daemon struct {
 	containers     *contStore
 	graph          *graph.Graph
 	repositories   *graph.TagStore
-	idIndex        *utils.TruncIndex
+	idIndex        *truncindex.TruncIndex
 	sysInfo        *sysinfo.SysInfo
 	volumes        *graph.Graph
 	srv            Server
@@ -870,7 +871,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		containers:     &contStore{s: make(map[string]*Container)},
 		graph:          g,
 		repositories:   repositories,
-		idIndex:        utils.NewTruncIndex([]string{}),
+		idIndex:        truncindex.NewTruncIndex([]string{}),
 		sysInfo:        sysInfo,
 		volumes:        volumes,
 		config:         config,
