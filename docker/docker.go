@@ -95,6 +95,10 @@ func main() {
 		log.Fatal("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
 
+	if !*flEnableIptables && !*flInterContainerComm {
+		log.Fatal("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+	}
+
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
