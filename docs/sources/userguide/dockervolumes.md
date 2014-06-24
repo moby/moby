@@ -80,15 +80,15 @@ it.
 
 Let's create a new named container with a volume to share.
 
-    $ docker run -d -v /dbdata --name dbdata training/postgres
+    $ sudo docker run -d -v /dbdata --name dbdata training/postgres
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 
-    $ docker run -d --volumes-from dbdata --name db1 training/postgres
+    $ sudo docker run -d --volumes-from dbdata --name db1 training/postgres
 
 And another:
 
-    $ docker run -d --volumes-from dbdata --name db2 training/postgres
+    $ sudo docker run -d --volumes-from dbdata --name db2 training/postgres
 
 You can use multiple `--volumes-from` parameters to bring together multiple data
 volumes from multiple containers.
@@ -96,7 +96,7 @@ volumes from multiple containers.
 You can also extend the chain by mounting the volume that came from the
 `dbdata` container in yet another container via the `db1` or `db2` containers.
 
-    $ docker run -d --name db3 --volumes-from db1 training/postgres
+    $ sudo docker run -d --name db3 --volumes-from db1 training/postgres
 
 If you remove containers that mount volumes, including the initial `dbdata`
 container, or the subsequent containers `db1` and `db2`, the volumes will not
