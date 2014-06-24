@@ -509,6 +509,46 @@ Kill the container `id`
     -   **404** – no such container
     -   **500** – server error
 
+### Pause a container
+
+`POST /containers/(id)/pause`
+
+Pause the container `id`
+
+    **Example request**:
+
+        POST /containers/e90e34656806/pause HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+### Unpause a container
+
+`POST /containers/(id)/unpause`
+
+Unpause the container `id`
+
+    **Example request**:
+
+        POST /containers/e90e34656806/unpause HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
 ### Attach to a container
 
 `POST /containers/(id)/attach`
@@ -720,7 +760,7 @@ Copy files or folders of container `id`
 
     -   **all** – 1/True/true or 0/False/false, default false
     -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
-        
+
 
 
 ### Create an image
