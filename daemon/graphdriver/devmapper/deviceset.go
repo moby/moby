@@ -28,7 +28,7 @@ var (
 	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
 	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
-	DefaultThinpBlockSize       uint32  = 1024 // 512K = 1024 512b sectors
+	DefaultThinpBlockSize       uint32 = 1024 // 512K = 1024 512b sectors
 )
 
 type DevInfo struct {
