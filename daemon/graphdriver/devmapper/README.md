@@ -17,7 +17,7 @@ stored in the `$graph/devicemapper/json` file (encoded as Json).
 
 In order to support multiple devicemapper graphs on a system the thin
 pool will be named something like: `docker-0:33-19478248-pool`, where
-the `0:30` part is the minor/major device nr and `19478248` is the
+the `0:33` part is the minor/major device nr and `19478248` is the
 inode number of the $graph directory.
 
 On the thin pool docker automatically creates a base thin device,
