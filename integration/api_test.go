@@ -19,55 +19,8 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
-
-func TestGetEvents(t *testing.T) {
-	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
-	// FIXME: we might not need daemon, why not simply nuke
-	// the engine?
-	daemon := mkDaemonFromEngine(eng, t)
-	defer nuke(daemon)
-
-	var events []*utils.JSONMessage
-	for _, parts := range [][3]string{
-		{"fakeaction", "fakeid", "fakeimage"},
-		{"fakeaction2", "fakeid", "fakeimage"},
-	} {
-		action, id, from := parts[0], parts[1], parts[2]
-		ev := srv.LogEvent(action, id, from)
-		events = append(events, ev)
-	}
-
-	req, err := http.NewRequest("GET", "/events?since=1", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	setTimeout(t, "", 500*time.Millisecond, func() {
-		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-			t.Fatal(err)
-		}
-		assertHttpNotError(r, t)
-	})
-
-	dec := json.NewDecoder(r.Body)
-	for i := 0; i < 2; i++ {
-		var jm utils.JSONMessage
-		if err := dec.Decode(&jm); err == io.EOF {
-			break
-		} else if err != nil {
-			t.Fatal(err)
-		}
-		if jm != *events[i] {
-			t.Fatalf("Event received it different than expected")
-		}
-	}
-
-}
 
 func TestGetImagesJSON(t *testing.T) {
 	eng := NewTestEngine(t)
