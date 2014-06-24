@@ -18,7 +18,7 @@ import (
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container, error) {
+func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, error) {
 	container := template.New()
 
 	container.Hostname = getEnv("HOSTNAME", c.Env)
@@ -70,7 +70,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 	return container, nil
 }
 
-func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.Command) error {
+func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Command) error {
 	if c.Network.HostNetworking {
 		container.Namespaces["NEWNET"] = false
 		return nil
@@ -117,7 +117,7 @@ func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.
 	return nil
 }
 
-func (d *driver) setPrivileged(container *libcontainer.Container) (err error) {
+func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 	container.Capabilities = capabilities.GetAllCapabilities()
 	container.Cgroups.AllowAllDevices = true
 
@@ -136,7 +136,7 @@ func (d *driver) setPrivileged(container *libcontainer.Container) (err error) {
 	return nil
 }
 
-func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.Command) error {
+func (d *driver) setupCgroups(container *libcontainer.Config, c *execdriver.Command) error {
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CpuShares
 		container.Cgroups.Memory = c.Resources.Memory
@@ -148,7 +148,7 @@ func (d *driver) setupCgroups(container *libcontainer.Container, c *execdriver.C
 	return nil
 }
 
-func (d *driver) setupMounts(container *libcontainer.Container, c *execdriver.Command) error {
+func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Command) error {
 	for _, m := range c.Mounts {
 		container.MountConfig.Mounts = append(container.MountConfig.Mounts, mount.Mount{
 			Type:        "bind",
@@ -162,7 +162,7 @@ func (d *driver) setupMounts(container *libcontainer.Container, c *execdriver.Co
 	return nil
 }
 
-func (d *driver) setupLabels(container *libcontainer.Container, c *execdriver.Command) error {
+func (d *driver) setupLabels(container *libcontainer.Config, c *execdriver.Command) error {
 	container.Context["process_label"] = c.Config["process_label"][0]
 	container.Context["mount_label"] = c.Config["mount_label"][0]
 

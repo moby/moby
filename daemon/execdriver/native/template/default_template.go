@@ -7,8 +7,8 @@ import (
 )
 
 // New returns the docker default configuration for libcontainer
-func New() *libcontainer.Container {
-	container := &libcontainer.Container{
+func New() *libcontainer.Config {
+	container := &libcontainer.Config{
 		Capabilities: []string{
 			"CHOWN",
 			"DAC_OVERRIDE",
