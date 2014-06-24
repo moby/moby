@@ -1,0 +1,9 @@
+language: go
+
+go:
+  - 1.2
+  - tip
+
+branches:
+  exclude:
+    - wip

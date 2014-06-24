@@ -182,11 +182,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 
 	// don't update the Suffixarray if we're starting up
 	// we'll waste time if we update it for every container
-	if updateSuffixarray {
-		daemon.idIndex.Add(container.ID)
-	} else {
-		daemon.idIndex.AddWithoutSuffixarrayUpdate(container.ID)
-	}
+	daemon.idIndex.Add(container.ID)
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
@@ -376,8 +372,6 @@ func (daemon *Daemon) restore() error {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 		}
 	}
-
-	daemon.idIndex.UpdateSuffixarray()
 
 	for _, container := range containersToStart {
 		utils.Debugf("Starting container %d", container.ID)
