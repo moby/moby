@@ -96,6 +96,7 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+	Sockets        []string
 }
 
 // Install installs daemon capabilities to eng.
@@ -878,6 +879,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+		Sockets:        config.Sockets,
 	}
 
 	if err := daemon.checkLocaldns(); err != nil {

@@ -9,7 +9,7 @@ feels wrong or incomplete.
 When reporting [issues](https://github.com/dotcloud/docker/issues) 
 on GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc),
 the output of `uname -a` and the output of `docker version` along with
-the output of `docker info`. Please include the steps required to reproduce
+the output of `docker -D info`. Please include the steps required to reproduce
 the problem if possible and applicable.
 This information will help us review and fix your issue faster.
 

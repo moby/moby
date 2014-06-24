@@ -18,13 +18,25 @@ page_keywords: API, Docker, rcli, REST, documentation
    encoded (JSON) string with credentials:
    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`
 
-The current version of the API is v1.12
+The current version of the API is v1.13
 
 Calling `/images/<name>/insert` is the same as calling
 `/v1.12/images/<name>/insert`.
 
 You can still call an old version of the API using
 `/v1.12/images/<name>/insert`.
+
+## v1.13
+
+### Full Documentation
+
+[*Docker Remote API v1.13*](/reference/api/docker_remote_api_v1.13/)
+
+### What's new
+
+**New!**
+`Sockets` parameter added to the `/info` endpoint listing all the sockets the 
+daemon is configured to listen on.
 
 ## v1.12
 
