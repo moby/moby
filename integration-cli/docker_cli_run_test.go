@@ -946,3 +946,17 @@ func TestModeHostname(t *testing.T) {
 
 	logDone("run - hostname and several network modes")
 }
+
+func TestRootWorkdir(t *testing.T) {
+	s, _, err := cmd(t, "run", "--workdir", "/", "busybox", "pwd")
+	if err != nil {
+		t.Fatal(s, err)
+	}
+	if s != "/\n" {
+		t.Fatalf("pwd returned '%s' (expected /\\n)", s)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - workdir /")
+}

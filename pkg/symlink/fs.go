@@ -27,13 +27,12 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 		return root, nil
 	}
 
-
 	if !strings.HasPrefix(filepath.Dir(link), root) {
 		return "", fmt.Errorf("%s is not within %s", link, root)
 	}
 
 	prev := "/"
-	
+
 	for _, p := range strings.Split(link, "/") {
 		prev = filepath.Join(prev, p)
 		prev = filepath.Clean(prev)
