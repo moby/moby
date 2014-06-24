@@ -13,8 +13,6 @@ const maxLoopCounter = 100
 // FollowSymlink will follow an existing link and scope it to the root
 // path provided.
 func FollowSymlinkInScope(link, root string) (string, error) {
-	prev := "/"
-
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return "", err
@@ -25,10 +23,17 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 		return "", err
 	}
 
+	if link == root {
+		return root, nil
+	}
+
+
 	if !strings.HasPrefix(filepath.Dir(link), root) {
 		return "", fmt.Errorf("%s is not within %s", link, root)
 	}
 
+	prev := "/"
+	
 	for _, p := range strings.Split(link, "/") {
 		prev = filepath.Join(prev, p)
 		prev = filepath.Clean(prev)
