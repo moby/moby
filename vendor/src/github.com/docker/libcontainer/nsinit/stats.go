@@ -31,7 +31,7 @@ func statsAction(context *cli.Context) {
 }
 
 // returns the container stats in json format.
-func getContainerStats(container *libcontainer.Container) (string, error) {
+func getContainerStats(container *libcontainer.Config) (string, error) {
 	stats, err := fs.GetStats(container.Cgroups)
 	if err != nil {
 		return "", err

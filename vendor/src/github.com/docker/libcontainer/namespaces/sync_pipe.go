@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-
-	"github.com/docker/libcontainer"
 )
 
 // SyncPipe allows communication to and from the child processes
@@ -45,7 +43,7 @@ func (s *SyncPipe) Parent() *os.File {
 	return s.parent
 }
 
-func (s *SyncPipe) SendToChild(context libcontainer.Context) error {
+func (s *SyncPipe) SendToChild(context map[string]string) error {
 	data, err := json.Marshal(context)
 	if err != nil {
 		return err
@@ -54,12 +52,12 @@ func (s *SyncPipe) SendToChild(context libcontainer.Context) error {
 	return nil
 }
 
-func (s *SyncPipe) ReadFromParent() (libcontainer.Context, error) {
+func (s *SyncPipe) ReadFromParent() (map[string]string, error) {
 	data, err := ioutil.ReadAll(s.child)
 	if err != nil {
 		return nil, fmt.Errorf("error reading from sync pipe %s", err)
 	}
-	var context libcontainer.Context
+	var context map[string]string
 	if len(data) > 0 {
 		if err := json.Unmarshal(data, &context); err != nil {
 			return nil, err

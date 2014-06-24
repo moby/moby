@@ -121,66 +121,61 @@
         "process_label": "",
         "restrictions": "true"
     },
-    "device_nodes": [
-        {
-            "cgroup_permissions": "rwm",
-            "major_number": 10,
-            "minor_number": 229,
-            "path": "/dev/fuse",
-            "type": 99
-        },
-        {
-            "cgroup_permissions": "rwm",
-            "file_mode": 438,
-            "major_number": 1,
-            "minor_number": 3,
-            "path": "/dev/null",
-            "type": 99
-        },
-        {
-            "cgroup_permissions": "rwm",
-            "file_mode": 438,
-            "major_number": 1,
-            "minor_number": 5,
-            "path": "/dev/zero",
-            "type": 99
-        },
-        {
-            "cgroup_permissions": "rwm",
-            "file_mode": 438,
-            "major_number": 1,
-            "minor_number": 7,
-            "path": "/dev/full",
-            "type": 99
-        },
-        {
-            "cgroup_permissions": "rwm",
-            "file_mode": 438,
-            "major_number": 5,
-            "path": "/dev/tty",
-            "type": 99
-        },
-        {
-            "cgroup_permissions": "rwm",
-            "file_mode": 438,
-            "major_number": 1,
-            "minor_number": 9,
-            "path": "/dev/urandom",
-            "type": 99
-        },
-        {
-            "cgroup_permissions": "rwm",
-            "file_mode": 438,
-            "major_number": 1,
-            "minor_number": 8,
-            "path": "/dev/random",
-            "type": 99
-        }
-    ],
+    "mount_config": {
+        "device_nodes": [
+            {
+                "cgroup_permissions": "rwm",
+                "file_mode": 438,
+                "major_number": 1,
+                "minor_number": 3,
+                "path": "/dev/null",
+                "type": 99
+            },
+            {
+                "cgroup_permissions": "rwm",
+                "file_mode": 438,
+                "major_number": 1,
+                "minor_number": 5,
+                "path": "/dev/zero",
+                "type": 99
+            },
+            {
+                "cgroup_permissions": "rwm",
+                "file_mode": 438,
+                "major_number": 1,
+                "minor_number": 7,
+                "path": "/dev/full",
+                "type": 99
+            },
+            {
+                "cgroup_permissions": "rwm",
+                "file_mode": 438,
+                "major_number": 5,
+                "path": "/dev/tty",
+                "type": 99
+            },
+            {
+                "cgroup_permissions": "rwm",
+                "file_mode": 438,
+                "major_number": 1,
+                "minor_number": 9,
+                "path": "/dev/urandom",
+                "type": 99
+            },
+            {
+                "cgroup_permissions": "rwm",
+                "file_mode": 438,
+                "major_number": 1,
+                "minor_number": 8,
+                "path": "/dev/random",
+                "type": 99
+            }
+        ]
+    },
     "environment": [
         "HOME=/",
         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "HOSTNAME=2d388ea3bd92",
+        "HOSTNAME=koye",
         "TERM=xterm"
     ],
     "hostname": "koye",
@@ -197,17 +192,8 @@
             "gateway": "localhost",
             "mtu": 1500,
             "type": "loopback"
-        },
-        {
-            "address": "172.17.0.101/16",
-            "context": {
-                "bridge": "docker0",
-                "prefix": "veth"
-            },
-            "gateway": "172.17.42.1",
-            "mtu": 1500,
-            "type": "veth"
         }
     ],
-    "tty": true
+    "tty": true,
+    "user": "daemon"
 }

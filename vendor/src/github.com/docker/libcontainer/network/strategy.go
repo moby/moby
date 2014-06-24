@@ -1,9 +1,9 @@
+// +build linux
+
 package network
 
 import (
 	"errors"
-
-	"github.com/docker/libcontainer"
 )
 
 var (
@@ -19,8 +19,8 @@ var strategies = map[string]NetworkStrategy{
 // NetworkStrategy represents a specific network configuration for
 // a container's networking stack
 type NetworkStrategy interface {
-	Create(*libcontainer.Network, int, libcontainer.Context) error
-	Initialize(*libcontainer.Network, libcontainer.Context) error
+	Create(*Network, int, map[string]string) error
+	Initialize(*Network, map[string]string) error
 }
 
 // GetStrategy returns the specific network strategy for the
