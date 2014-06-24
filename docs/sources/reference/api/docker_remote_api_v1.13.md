@@ -429,6 +429,7 @@ Start the container `id`
     Status Codes:
 
     -   **204** – no error
+    -   **304** – container already started
     -   **404** – no such container
     -   **500** – server error
 
@@ -455,6 +456,7 @@ Stop the container `id`
     Status Codes:
 
     -   **204** – no error
+    -   **304** – container already stopped
     -   **404** – no such container
     -   **500** – server error
 

@@ -2046,6 +2046,11 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
+
+	if container.State.IsRunning() {
+		return job.Errorf("Container already started")
+	}
+
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
@@ -2099,6 +2104,9 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 		t = job.GetenvInt("t")
 	}
 	if container := srv.daemon.Get(name); container != nil {
+		if !container.State.IsRunning() {
+			return job.Errorf("Container already stopped")
+		}
 		if err := container.Stop(int(t)); err != nil {
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}

@@ -21,7 +21,7 @@ page_keywords: API, Docker, rcli, REST, documentation
 The current version of the API is v1.13
 
 Calling `/images/<name>/insert` is the same as calling
-`/v1.12/images/<name>/insert`.
+`/v1.13/images/<name>/insert`.
 
 You can still call an old version of the API using
 `/v1.12/images/<name>/insert`.
@@ -37,6 +37,12 @@ You can still call an old version of the API using
 **New!**
 `Sockets` parameter added to the `/info` endpoint listing all the sockets the 
 daemon is configured to listen on.
+
+`POST /containers/(name)/start`
+`POST /containers/(name)/stop`
+
+**New!**
+`start` and `stop` will now return 304 if the container's status is not modified
 
 ## v1.12
 
