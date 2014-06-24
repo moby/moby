@@ -221,6 +221,7 @@ func populateCommand(c *Container, env []string) error {
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
 		Privileged:         c.hostConfig.Privileged,
+		RunFs:              !c.hostConfig.NoRunFs,
 		Rootfs:             c.RootfsPath(),
 		InitPath:           "/.dockerinit",
 		Entrypoint:         c.Path,

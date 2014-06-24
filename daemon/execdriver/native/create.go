@@ -39,6 +39,14 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 			return nil, err
 		}
 	}
+	if c.RunFs {
+		// Prepend to allow other mounts under /run
+		container.Mounts = append([]libcontainer.Mount{{
+			Type:        "tmpfs",
+			Destination: "/run",
+			CopyContent: true,
+		}}, container.Mounts...)
+	}
 	if err := d.setupCgroups(container, c); err != nil {
 		return nil, err
 	}
