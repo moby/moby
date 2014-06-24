@@ -3,7 +3,7 @@ package configuration
 import (
 	"testing"
 
-	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/security/capabilities"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 )
 
@@ -25,14 +25,14 @@ func TestSetReadonlyRootFs(t *testing.T) {
 		}
 	)
 
-	if container.ReadonlyFs {
+	if container.MountConfig.ReadonlyFs {
 		t.Fatal("container should not have a readonly rootfs by default")
 	}
 	if err := ParseConfiguration(container, nil, opts); err != nil {
 		t.Fatal(err)
 	}
 
-	if !container.ReadonlyFs {
+	if !container.MountConfig.ReadonlyFs {
 		t.Fatal("container should have a readonly rootfs")
 	}
 }
@@ -165,7 +165,7 @@ func TestDropCap(t *testing.T) {
 		}
 	)
 	// enabled all caps like in privileged mode
-	container.Capabilities = libcontainer.GetAllCapabilities()
+	container.Capabilities = capabilities.GetAllCapabilities()
 	if err := ParseConfiguration(container, nil, opts); err != nil {
 		t.Fatal(err)
 	}

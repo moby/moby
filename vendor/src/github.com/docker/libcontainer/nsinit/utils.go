@@ -11,14 +11,14 @@ import (
 	"github.com/docker/libcontainer"
 )
 
-func loadContainer() (*libcontainer.Container, error) {
+func loadContainer() (*libcontainer.Config, error) {
 	f, err := os.Open(filepath.Join(dataPath, "container.json"))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var container *libcontainer.Container
+	var container *libcontainer.Config
 	if err := json.NewDecoder(f).Decode(&container); err != nil {
 		return nil, err
 	}
@@ -51,8 +51,8 @@ func openLog(name string) error {
 	return nil
 }
 
-func loadContainerFromJson(rawData string) (*libcontainer.Container, error) {
-	var container *libcontainer.Container
+func loadContainerFromJson(rawData string) (*libcontainer.Config, error) {
+	var container *libcontainer.Config
 
 	if err := json.Unmarshal([]byte(rawData), &container); err != nil {
 		return nil, err

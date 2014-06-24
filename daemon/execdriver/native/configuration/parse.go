@@ -11,7 +11,7 @@ import (
 	"github.com/dotcloud/docker/pkg/units"
 )
 
-type Action func(*libcontainer.Container, interface{}, string) error
+type Action func(*libcontainer.Config, interface{}, string) error
 
 var actions = map[string]Action{
 	"cap.add":  addCap,  // add a cap
@@ -35,7 +35,7 @@ var actions = map[string]Action{
 	"fs.readonly": readonlyFs, // make the rootfs of the container read only
 }
 
-func cpusetCpus(container *libcontainer.Container, context interface{}, value string) error {
+func cpusetCpus(container *libcontainer.Config, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
@@ -44,7 +44,7 @@ func cpusetCpus(container *libcontainer.Container, context interface{}, value st
 	return nil
 }
 
-func systemdSlice(container *libcontainer.Container, context interface{}, value string) error {
+func systemdSlice(container *libcontainer.Config, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set slice when cgroups are disabled")
 	}
@@ -53,12 +53,12 @@ func systemdSlice(container *libcontainer.Container, context interface{}, value 
 	return nil
 }
 
-func apparmorProfile(container *libcontainer.Container, context interface{}, value string) error {
+func apparmorProfile(container *libcontainer.Config, context interface{}, value string) error {
 	container.Context["apparmor_profile"] = value
 	return nil
 }
 
-func cpuShares(container *libcontainer.Container, context interface{}, value string) error {
+func cpuShares(container *libcontainer.Config, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
@@ -70,7 +70,7 @@ func cpuShares(container *libcontainer.Container, context interface{}, value str
 	return nil
 }
 
-func memory(container *libcontainer.Container, context interface{}, value string) error {
+func memory(container *libcontainer.Config, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
@@ -83,7 +83,7 @@ func memory(container *libcontainer.Container, context interface{}, value string
 	return nil
 }
 
-func memoryReservation(container *libcontainer.Container, context interface{}, value string) error {
+func memoryReservation(container *libcontainer.Config, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
@@ -96,7 +96,7 @@ func memoryReservation(container *libcontainer.Container, context interface{}, v
 	return nil
 }
 
-func memorySwap(container *libcontainer.Container, context interface{}, value string) error {
+func memorySwap(container *libcontainer.Config, context interface{}, value string) error {
 	if container.Cgroups == nil {
 		return fmt.Errorf("cannot set cgroups when they are disabled")
 	}
@@ -108,12 +108,12 @@ func memorySwap(container *libcontainer.Container, context interface{}, value st
 	return nil
 }
 
-func addCap(container *libcontainer.Container, context interface{}, value string) error {
+func addCap(container *libcontainer.Config, context interface{}, value string) error {
 	container.Capabilities = append(container.Capabilities, value)
 	return nil
 }
 
-func dropCap(container *libcontainer.Container, context interface{}, value string) error {
+func dropCap(container *libcontainer.Config, context interface{}, value string) error {
 	// If the capability is specified multiple times, remove all instances.
 	for i, capability := range container.Capabilities {
 		if capability == value {
@@ -125,27 +125,27 @@ func dropCap(container *libcontainer.Container, context interface{}, value strin
 	return nil
 }
 
-func addNamespace(container *libcontainer.Container, context interface{}, value string) error {
+func addNamespace(container *libcontainer.Config, context interface{}, value string) error {
 	container.Namespaces[value] = true
 	return nil
 }
 
-func dropNamespace(container *libcontainer.Container, context interface{}, value string) error {
+func dropNamespace(container *libcontainer.Config, context interface{}, value string) error {
 	container.Namespaces[value] = false
 	return nil
 }
 
-func readonlyFs(container *libcontainer.Container, context interface{}, value string) error {
+func readonlyFs(container *libcontainer.Config, context interface{}, value string) error {
 	switch value {
 	case "1", "true":
-		container.ReadonlyFs = true
+		container.MountConfig.ReadonlyFs = true
 	default:
-		container.ReadonlyFs = false
+		container.MountConfig.ReadonlyFs = false
 	}
 	return nil
 }
 
-func joinNetNamespace(container *libcontainer.Container, context interface{}, value string) error {
+func joinNetNamespace(container *libcontainer.Config, context interface{}, value string) error {
 	var (
 		running = context.(map[string]*exec.Cmd)
 		cmd     = running[value]
@@ -154,28 +154,13 @@ func joinNetNamespace(container *libcontainer.Container, context interface{}, va
 	if cmd == nil || cmd.Process == nil {
 		return fmt.Errorf("%s is not a valid running container to join", value)
 	}
+
 	nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
 	container.Networks = append(container.Networks, &libcontainer.Network{
-		Type: "netns",
-		Context: libcontainer.Context{
-			"nspath": nspath,
-		},
+		Type:   "netns",
+		NsPath: nspath,
 	})
-	return nil
-}
 
-func vethMacAddress(container *libcontainer.Container, context interface{}, value string) error {
-	var veth *libcontainer.Network
-	for _, network := range container.Networks {
-		if network.Type == "veth" {
-			veth = network
-			break
-		}
-	}
-	if veth == nil {
-		return fmt.Errorf("not veth configured for container")
-	}
-	veth.Context["mac"] = value
 	return nil
 }
 
@@ -183,7 +168,7 @@ func vethMacAddress(container *libcontainer.Container, context interface{}, valu
 // container's default configuration.
 //
 // TODO: this can be moved to a general utils or parser in pkg
-func ParseConfiguration(container *libcontainer.Container, running map[string]*exec.Cmd, opts []string) error {
+func ParseConfiguration(container *libcontainer.Config, running map[string]*exec.Cmd, opts []string) error {
 	for _, opt := range opts {
 		kv := strings.SplitN(opt, "=", 2)
 		if len(kv) < 2 {

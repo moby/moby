@@ -27,7 +27,7 @@ const (
 
 func init() {
 	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		var container *libcontainer.Container
+		var container *libcontainer.Config
 		f, err := os.Open(filepath.Join(args.Root, "container.json"))
 		if err != nil {
 			return err
@@ -54,7 +54,7 @@ func init() {
 }
 
 type activeContainer struct {
-	container *libcontainer.Container
+	container *libcontainer.Config
 	cmd       *exec.Cmd
 }
 
@@ -83,7 +83,7 @@ func NewDriver(root, initPath string) (*driver, error) {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	// take the Command and populate the libcontainer.Container from it
+	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c)
 	if err != nil {
 		return -1, err
@@ -110,7 +110,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	term := getTerminal(c, pipes)
 
-	return namespaces.Exec(container, term, c.Rootfs, dataPath, args, func(container *libcontainer.Container, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
+	return namespaces.Exec(container, term, c.Rootfs, dataPath, args, func(container *libcontainer.Config, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
 		// we need to join the rootfs because namespaces will setup the rootfs and chroot
 		initPath := filepath.Join(c.Rootfs, c.InitPath)
 
@@ -229,7 +229,7 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	return fs.GetPids(c)
 }
 
-func (d *driver) writeContainerFile(container *libcontainer.Container, id string) error {
+func (d *driver) writeContainerFile(container *libcontainer.Config, id string) error {
 	data, err := json.Marshal(container)
 	if err != nil {
 		return err

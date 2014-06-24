@@ -7,8 +7,8 @@ import (
 )
 
 // New returns the docker default configuration for libcontainer
-func New() *libcontainer.Container {
-	container := &libcontainer.Container{
+func New() *libcontainer.Config {
+	container := &libcontainer.Config{
 		Capabilities: []string{
 			"CHOWN",
 			"DAC_OVERRIDE",
@@ -34,10 +34,13 @@ func New() *libcontainer.Container {
 			Parent:          "docker",
 			AllowAllDevices: false,
 		},
-		Context: libcontainer.Context{},
+		MountConfig: &libcontainer.MountConfig{},
+		Context:     make(map[string]string),
 	}
+
 	if apparmor.IsEnabled() {
 		container.Context["apparmor_profile"] = "docker-default"
 	}
+
 	return container
 }

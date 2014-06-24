@@ -1,8 +1,10 @@
+// +build linux
+
 package network
 
 import (
 	"fmt"
-	"github.com/docker/libcontainer"
+
 	"github.com/docker/libcontainer/utils"
 )
 
@@ -14,17 +16,16 @@ type Veth struct {
 
 const defaultDevice = "eth0"
 
-func (v *Veth) Create(n *libcontainer.Network, nspid int, context libcontainer.Context) error {
+func (v *Veth) Create(n *Network, nspid int, context map[string]string) error {
 	var (
-		bridge string
-		prefix string
-		exists bool
+		bridge = n.Bridge
+		prefix = n.VethPrefix
 	)
-	if bridge, exists = n.Context["bridge"]; !exists {
-		return fmt.Errorf("bridge does not exist in network context")
+	if bridge == "" {
+		return fmt.Errorf("bridge is not specified")
 	}
-	if prefix, exists = n.Context["prefix"]; !exists {
-		return fmt.Errorf("veth prefix does not exist in network context")
+	if prefix == "" {
+		return fmt.Errorf("veth prefix is not specified")
 	}
 	name1, name2, err := createVethPair(prefix)
 	if err != nil {
@@ -47,7 +48,7 @@ func (v *Veth) Create(n *libcontainer.Network, nspid int, context libcontainer.C
 	return nil
 }
 
-func (v *Veth) Initialize(config *libcontainer.Network, context libcontainer.Context) error {
+func (v *Veth) Initialize(config *Network, context map[string]string) error {
 	var (
 		vethChild string
 		exists    bool

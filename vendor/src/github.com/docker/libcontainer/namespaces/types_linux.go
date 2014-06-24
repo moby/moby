@@ -1,4 +1,4 @@
-package libcontainer
+package namespaces
 
 import (
 	"syscall"

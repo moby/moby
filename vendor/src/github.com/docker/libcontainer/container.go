@@ -2,24 +2,21 @@ package libcontainer
 
 import (
 	"github.com/docker/libcontainer/cgroups"
-	"github.com/docker/libcontainer/devices"
+	"github.com/docker/libcontainer/mount"
+	"github.com/docker/libcontainer/network"
 )
 
-// Context is a generic key value pair that allows arbatrary data to be sent
-type Context map[string]string
+type MountConfig mount.MountConfig
 
-// Container defines configuration options for executing a process inside a contained environment
-type Container struct {
+type Network network.Network
+
+// Config defines configuration options for executing a process inside a contained environment.
+type Config struct {
+	// Mount specific options.
+	MountConfig *MountConfig `json:"mount_config,omitempty"`
+
 	// Hostname optionally sets the container's hostname if provided
 	Hostname string `json:"hostname,omitempty"`
-
-	// ReadonlyFs will remount the container's rootfs as readonly where only externally mounted
-	// bind mounts are writtable
-	ReadonlyFs bool `json:"readonly_fs,omitempty"`
-
-	// NoPivotRoot will use MS_MOVE and a chroot to jail the process into the container's rootfs
-	// This is a common option when the container is running in ramdisk
-	NoPivotRoot bool `json:"no_pivot_root,omitempty"`
 
 	// User will set the uid and gid of the executing process running inside the container
 	User string `json:"user,omitempty"`
@@ -58,37 +55,8 @@ type Container struct {
 	// on the container's creation
 	// This is commonly used to specify apparmor profiles, selinux labels, and different restrictions
 	// placed on the container's processes
-	Context Context `json:"context,omitempty"`
-
-	// Mounts specify additional source and destination paths that will be mounted inside the container's
-	// rootfs and mount namespace if specified
-	Mounts Mounts `json:"mounts,omitempty"`
-
-	// The device nodes that should be automatically created within the container upon container start.  Note, make sure that the node is marked as allowed in the cgroup as well!
-	DeviceNodes []*devices.Device `json:"device_nodes,omitempty"`
-}
-
-// Network defines configuration for a container's networking stack
-//
-// The network configuration can be omited from a container causing the
-// container to be setup with the host's networking stack
-type Network struct {
-	// Type sets the networks type, commonly veth and loopback
-	Type string `json:"type,omitempty"`
-
-	// Context is a generic key value format for setting additional options that are specific to
-	// the network type
-	Context Context `json:"context,omitempty"`
-
-	// Address contains the IP and mask to set on the network interface
-	Address string `json:"address,omitempty"`
-
-	// Gateway sets the gateway address that is used as the default for the interface
-	Gateway string `json:"gateway,omitempty"`
-
-	// Mtu sets the mtu value for the interface and will be mirrored on both the host and
-	// container's interfaces if a pair is created, specifically in the case of type veth
-	Mtu int `json:"mtu,omitempty"`
+	// TODO(vishh): Avoid overloading this field with params for different subsystems. Strongtype this.
+	Context map[string]string `json:"context,omitempty"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started

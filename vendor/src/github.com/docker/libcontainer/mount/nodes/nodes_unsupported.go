@@ -3,10 +3,11 @@
 package nodes
 
 import (
-	"github.com/docker/libcontainer"
+	"errors"
+
 	"github.com/docker/libcontainer/devices"
 )
 
 func CreateDeviceNodes(rootfs string, nodesToCreate []*devices.Device) error {
-	return libcontainer.ErrUnsupported
+	return errors.New("Unsupported method")
 }

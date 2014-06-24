@@ -13,7 +13,7 @@ import (
 )
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.
-func ExecIn(container *libcontainer.Container, nspid int, args []string) error {
+func ExecIn(container *libcontainer.Config, nspid int, args []string) error {
 	// TODO(vmarmol): If this gets too long, send it over a pipe to the child.
 	// Marshall the container into JSON since it won't be available in the namespace.
 	containerJson, err := json.Marshal(container)
@@ -31,7 +31,7 @@ func ExecIn(container *libcontainer.Container, nspid int, args []string) error {
 }
 
 // NsEnter is run after entering the namespace.
-func NsEnter(container *libcontainer.Container, nspid int, args []string) error {
+func NsEnter(container *libcontainer.Config, nspid int, args []string) error {
 	// clear the current processes env and replace it with the environment
 	// defined on the container
 	if err := LoadContainerEnvironment(container); err != nil {
