@@ -128,6 +128,44 @@ func TestTarUntar(t *testing.T) {
 	}
 }
 
+func TestTarUntarFile(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin-file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+
+	if err := os.MkdirAll(path.Join(origin, "before"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(path.Join(origin, "after"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(origin, "before", "file"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	tar, err := TarFilter(path.Join(origin, "before"), &TarOptions{Compression: Uncompressed, Includes: []string{"file"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Untar(tar, path.Join(origin, "after", "file2"), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	catCmd := exec.Command("cat", path.Join(origin, "after", "file2"))
+	out, err := CmdStream(catCmd, nil)
+	if err != nil {
+		t.Fatalf("Failed to start command: %s", err)
+	}
+	if output, err := ioutil.ReadAll(out); err != nil {
+		t.Error(err)
+	} else if string(output) != "hello world" {
+		t.Fatalf("Expected 'hello world', got '%s'", output)
+	}
+}
+
 // Some tar archives such as http://haproxy.1wt.eu/download/1.5/src/devel/haproxy-1.5-dev21.tar.gz
 // use PAX Global Extended Headers.
 // Failing prevents the archives from being uncompressed during ADD
