@@ -48,11 +48,28 @@
   <div id="content" class="container">
 {% if current_page.title != '**HIDDEN**' %}
     <div class="row" id="top-header">
-      <div class="span8">
+      <div class="span7">
         <h1 class="header2">{{ current_page.title }}</h1>
       </div>
-      <div class="span4 text-right edit-on-github">
-        <a class="home-link3" href="https://github.com/dotcloud/docker/blob/master/docs/sources/{{ current_page.input_path }}" class="tertiary-nav">Edit on GitHub</a>
+      <div class="span5">
+        <div class="span2 NOtext-right edit-on-github">
+		<a class="home-link3 tertiary-nav" href="https://github.com/dotcloud/docker/blob/master/docs/sources/{{ current_page.input_path }}" >Edit on GitHub</a>
+        </div>
+        <div id="versionnav" class="span2 pull-right">
+          <ul class="nav version">
+            <li class="dropdown">
+              <a id="logged-in-header-username" class="dropdown-toggle" data-toggle="dropdown" href="#">
+  	  	  Latest (v1.3)
+              </a>
+              <ul class="dropdown-menu pull-right">
+                <li><a href="https://hub.docker.com/">v1.3</a></li>
+                <li><a href="https://hub.docker.com/">v1.2</a></li>
+                <li><a href="https://hub.docker.com/">v1.1</a></li>
+                <li><a href="https://hub.docker.com/">v1.0</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 {% endif %}
