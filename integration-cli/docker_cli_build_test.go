@@ -1490,3 +1490,27 @@ func TestBuildAddToSymlinkDest(t *testing.T) {
 	}
 	logDone("build - add to symlink destination")
 }
+
+func TestBuildEscapeWhitespace(t *testing.T) {
+	name := "testbuildescaping"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  MAINTAINER "Docker \
+IO <io@\
+docker.com>"
+  `, true)
+
+	res, err := inspectField(name, "Author")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res != "Docker IO <io@docker.com>" {
+		t.Fatal("Parsed string did not match the escaped string")
+	}
+
+	logDone("build - validate escaping whitespace")
+}
