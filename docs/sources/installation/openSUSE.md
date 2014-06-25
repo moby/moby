@@ -47,6 +47,12 @@ Docker daemon.
 
     $ sudo usermod -G docker <username>
 
+To verify that everything has worked as expected:
+
+    $ sudo docker run -i -t b1systems/opensuse /bin/bash
+
+This should download and import the `opensuse` image, and then start `bash` in a container. To exit the container type `exit`.
+
 **Done!**
 
 Continue with the [User Guide](/userguide/).
