@@ -465,7 +465,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, d
 	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 		return err
 	}
-	if err := archive.CopyWithTar(origPath, destPath); err != nil {
+	if err := archive.CopyWithTar(origPath, destPath, false); err != nil {
 		return err
 	}
 
@@ -548,7 +548,7 @@ func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 		origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// Process the checksum
-		r, err := archive.Tar(tmpFileName, archive.Uncompressed)
+		r, err := archive.Tar(tmpFileName, archive.Uncompressed, false)
 		if err != nil {
 			return err
 		}
@@ -858,7 +858,7 @@ func stripComments(raw []byte) string {
 }
 
 func copyAsDirectory(source, destination string, destinationExists bool) error {
-	if err := archive.CopyWithTar(source, destination); err != nil {
+	if err := archive.CopyWithTar(source, destination, false); err != nil {
 		return err
 	}
 

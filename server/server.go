@@ -373,7 +373,7 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		}
 	}
 
-	fs, err := archive.Tar(tempdir, archive.Uncompressed)
+	fs, err := archive.Tar(tempdir, archive.Uncompressed, false)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -474,7 +474,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 			return job.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
-		c, err := archive.Tar(root, archive.Uncompressed)
+		c, err := archive.Tar(root, archive.Uncompressed, false)
 		if err != nil {
 			return job.Error(err)
 		}

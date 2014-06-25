@@ -187,7 +187,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	}()
 
 	if img.Parent == "" {
-		archive, err := archive.Tar(imgFs, archive.Uncompressed)
+		archive, err := archive.Tar(imgFs, archive.Uncompressed, false)
 		if err != nil {
 			return nil, err
 		}

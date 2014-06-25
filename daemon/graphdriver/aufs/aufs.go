@@ -297,7 +297,7 @@ func (a *Driver) Put(id string) {
 func (a *Driver) Diff(id string) (archive.Archive, error) {
 	return archive.TarFilter(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression: archive.Uncompressed,
-	})
+	}, false)
 }
 
 func (a *Driver) ApplyDiff(id string, diff archive.ArchiveReader) error {

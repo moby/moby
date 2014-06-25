@@ -960,7 +960,7 @@ func TreeSize(dir string) (size int64, err error) {
 // ValidateContextDirectory checks if all the contents of the directory
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
-func ValidateContextDirectory(srcPath string) error {
+func ValidateContextDirectory(srcPath string, ignorePerms bool) error {
 	var finalError error
 
 	filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
@@ -982,9 +982,11 @@ func ValidateContextDirectory(srcPath string) error {
 
 		if !f.IsDir() {
 			currentFile, err := os.Open(filePath)
-			if err != nil && os.IsPermission(err) {
+			if err != nil && os.IsPermission(err) && !ignorePerms {
 				finalError = fmt.Errorf("no permission to read from '%s'", filePath)
 				return err
+			} else if err != nil && ignorePerms {
+				return nil
 			} else {
 				currentFile.Close()
 			}
