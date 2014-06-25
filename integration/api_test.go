@@ -697,21 +697,24 @@ func TestPostContainersStart(t *testing.T) {
 	}
 
 	containerAssertExists(eng, containerID, t)
-	// Give some time to the process to start
-	// FIXME: use Wait once it's available as a job
-	containerWaitTimeout(eng, containerID, t)
-	if !containerRunning(eng, containerID, t) {
-		t.Errorf("Container should be running")
+
+	req, err = http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	req.Header.Set("Content-Type", "application/json")
 
 	r = httptest.NewRecorder()
 	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
-	// Starting an already started container should return an error
-	// FIXME: verify a precise error code. There is a possible bug here
-	// which causes this to return 404 even though the container exists.
-	assertHttpError(r, t)
+
+	// Starting an already started container should return a 304
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusNotModified {
+		t.Fatalf("%d NOT MODIFIER expected, received %d\n", http.StatusNotModified, r.Code)
+	}
 	containerAssertExists(eng, containerID, t)
 	containerKill(eng, containerID, t)
 }
@@ -789,6 +792,22 @@ func TestPostContainersStop(t *testing.T) {
 	}
 	if containerRunning(eng, containerID, t) {
 		t.Fatalf("The container hasn't been stopped")
+	}
+
+	req, err = http.NewRequest("POST", "/containers/"+containerID+"/stop?t=1", bytes.NewReader([]byte{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r = httptest.NewRecorder()
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stopping an already stopper container should return a 304
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusNotModified {
+		t.Fatalf("%d NOT MODIFIER expected, received %d\n", http.StatusNotModified, r.Code)
 	}
 }
 
