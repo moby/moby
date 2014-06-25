@@ -761,7 +761,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 }
 
 // Long lines can be split with a backslash
-var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
+var lineContinuation = regexp.MustCompile(`\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
