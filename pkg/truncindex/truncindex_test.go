@@ -210,6 +210,75 @@ func BenchmarkTruncIndexGet500(b *testing.B) {
 	}
 }
 
+func BenchmarkTruncIndexDelete100(b *testing.B) {
+	var testSet []string
+	for i := 0; i < 100; i++ {
+		testSet = append(testSet, utils.GenerateRandomID())
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		index := NewTruncIndex([]string{})
+		for _, id := range testSet {
+			if err := index.Add(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+		b.StartTimer()
+		for _, id := range testSet {
+			if err := index.Delete(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkTruncIndexDelete250(b *testing.B) {
+	var testSet []string
+	for i := 0; i < 250; i++ {
+		testSet = append(testSet, utils.GenerateRandomID())
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		index := NewTruncIndex([]string{})
+		for _, id := range testSet {
+			if err := index.Add(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+		b.StartTimer()
+		for _, id := range testSet {
+			if err := index.Delete(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkTruncIndexDelete500(b *testing.B) {
+	var testSet []string
+	for i := 0; i < 500; i++ {
+		testSet = append(testSet, utils.GenerateRandomID())
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		index := NewTruncIndex([]string{})
+		for _, id := range testSet {
+			if err := index.Add(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+		b.StartTimer()
+		for _, id := range testSet {
+			if err := index.Delete(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
 func BenchmarkTruncIndexNew100(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 100; i++ {
