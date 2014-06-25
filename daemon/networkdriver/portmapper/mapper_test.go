@@ -55,25 +55,16 @@ func TestMapPorts(t *testing.T) {
 			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if host, err := Map(srcAddr1, dstIp1, 80); err == nil {
+	if _, err := Map(srcAddr1, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
-	} else if !addrEqual(dstAddr1, host) {
-		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
-			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if host, err := Map(srcAddr2, dstIp1, 80); err == nil {
+	if _, err := Map(srcAddr2, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
-	} else if !addrEqual(dstAddr1, host) {
-		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
-			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if host, err := Map(srcAddr2, dstIp2, 80); err != nil {
+	if _, err := Map(srcAddr2, dstIp2, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
-	} else if !addrEqual(dstAddr2, host) {
-		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
-			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
 	if Unmap(dstAddr1) != nil {

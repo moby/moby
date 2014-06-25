@@ -2,6 +2,7 @@ package portallocator
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 )
@@ -18,9 +19,8 @@ const (
 )
 
 var (
-	ErrAllPortsAllocated    = errors.New("all ports are allocated")
-	ErrPortAlreadyAllocated = errors.New("port has already been allocated")
-	ErrUnknownProtocol      = errors.New("unknown protocol")
+	ErrAllPortsAllocated = errors.New("all ports are allocated")
+	ErrUnknownProtocol   = errors.New("unknown protocol")
 )
 
 var (
@@ -29,6 +29,34 @@ var (
 	defaultIP = net.ParseIP("0.0.0.0")
 	globalMap = ipMapping{}
 )
+
+type ErrPortAlreadyAllocated struct {
+	ip   string
+	port int
+}
+
+func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
+	return ErrPortAlreadyAllocated{
+		ip:   ip,
+		port: port,
+	}
+}
+
+func (e ErrPortAlreadyAllocated) IP() string {
+	return e.ip
+}
+
+func (e ErrPortAlreadyAllocated) Port() int {
+	return e.port
+}
+
+func (e ErrPortAlreadyAllocated) IPPort() string {
+	return fmt.Sprintf("%s:%d", e.ip, e.port)
+}
+
+func (e ErrPortAlreadyAllocated) Error() string {
+	return fmt.Sprintf("Bind for %s:%d failed: port is already allocated", e.ip, e.port)
+}
 
 func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	mutex.Lock()
@@ -47,7 +75,7 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 			mapping[proto][port] = true
 			return port, nil
 		} else {
-			return 0, ErrPortAlreadyAllocated
+			return 0, NewErrPortAlreadyAllocated(ip.String(), port)
 		}
 	} else {
 		port, err := findPort(ip, proto)

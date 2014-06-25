@@ -11,6 +11,7 @@ import (
 	"github.com/docker/libcontainer/netlink"
 	"github.com/dotcloud/docker/daemon/networkdriver"
 	"github.com/dotcloud/docker/daemon/networkdriver/ipallocator"
+	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
 	"github.com/dotcloud/docker/daemon/networkdriver/portmapper"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/iptables"
@@ -413,15 +414,22 @@ func AllocatePort(job *engine.Job) engine.Status {
 			break
 		}
 
-		// There is no point in immediately retrying to map an explicitely
-		// chosen port.
-		if hostPort != 0 {
-			job.Logf("Failed to bind %s for container address %s", host.String(), container.String())
+		switch allocerr := err.(type) {
+		case portallocator.ErrPortAlreadyAllocated:
+			// There is no point in immediately retrying to map an explicitly
+			// chosen port.
+			if hostPort != 0 {
+				job.Logf("Failed to bind %s for container address %s: %s", allocerr.IPPort(), container.String(), allocerr.Error())
+				break
+			}
+
+			// Automatically chosen 'free' port failed to bind: move on the next.
+			job.Logf("Failed to bind %s for container address %s. Trying another port.", allocerr.IPPort(), container.String())
+		default:
+			// some other error during mapping
+			job.Logf("Received an unexpected error during port allocation: %s", err.Error())
 			break
 		}
-
-		// Automatically chosen 'free' port failed to bind: move on the next.
-		job.Logf("Failed to bind %s for container address %s. Trying another port.", host.String(), container.String())
 	}
 
 	if err != nil {

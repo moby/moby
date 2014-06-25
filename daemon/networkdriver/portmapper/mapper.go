@@ -33,19 +33,6 @@ var (
 	ErrPortNotMapped             = errors.New("port is not mapped")
 )
 
-type genericAddr struct {
-	IP   net.IP
-	Port int
-}
-
-func (g *genericAddr) Network() string {
-	return ""
-}
-
-func (g *genericAddr) String() string {
-	return fmt.Sprintf("%s:%d", g.IP.String(), g.Port)
-}
-
 func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
@@ -65,7 +52,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 	case *net.TCPAddr:
 		proto = "tcp"
 		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
-			return &net.TCPAddr{IP: hostIP, Port: hostPort}, err
+			return nil, err
 		}
 		m = &mapping{
 			proto:     proto,
@@ -75,7 +62,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 	case *net.UDPAddr:
 		proto = "udp"
 		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
-			return &net.UDPAddr{IP: hostIP, Port: hostPort}, err
+			return nil, err
 		}
 		m = &mapping{
 			proto:     proto,
@@ -83,8 +70,8 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 			container: container,
 		}
 	default:
-		// Always return a proper net.Addr for proper reporting.
-		return &genericAddr{IP: hostIP, Port: hostPort}, ErrUnknownBackendAddressType
+		err = ErrUnknownBackendAddressType
+		return nil, err
 	}
 
 	// When binding fails:
@@ -111,7 +98,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 
 	p, err := newProxy(m.host, m.container)
 	if err != nil {
-		// need to undo the iptables rules before we reutrn
+		// need to undo the iptables rules before we return
 		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 		return m.host, err
 	}
