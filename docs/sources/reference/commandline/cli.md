@@ -751,6 +751,7 @@ For example:
       -f, --follow=false        Follow log output
       -t, --timestamps=false    Show timestamps
       --tail="all"              Output the specified number of lines at the end of logs (defaults to all logs)
+      --truncate=false          Truncate the logs
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
 
@@ -763,6 +764,9 @@ value is set to `all` in that case. This behavior may change in the future.
 The `docker logs --timestamp` commands will add an RFC3339Nano
 timestamp, for example `2014-05-10T17:42:14.999999999Z07:00`, to each
 log entry.
+
+The `docker logs --truncate` command will truncate all existing logs before
+returning any logs (for example, when combined with --follow)
 
 ## port
 

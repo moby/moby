@@ -84,6 +84,16 @@ daemon is configured to listen on.
 **New!**
 Added a `pause` parameter (default `true`) to pause the container during commit
 
+`GET /containers/json?size=1`
+
+**New!**
+Now reports the size of the log file.
+
+`DELETE /containers/(id)/logs`
+
+**New!**
+You can now truncate the logs for a container.
+
 ## v1.12
 
 ### Full Documentation

@@ -1735,10 +1735,11 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	var (
-		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
-		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
-		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
-		tail   = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
+		cmd      = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
+		follow   = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+		times    = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+		tail     = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
+		truncate = cmd.Bool([]string{"-truncate"}, false, "Truncate the logs")
 	)
 
 	if err := cmd.Parse(args); err != nil {
@@ -1769,10 +1770,24 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		v.Set("timestamps", "1")
 	}
 
+	v.Set("tail", *tail)
+
+	if *truncate {
+		cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), env.GetSubEnv("Config").GetBool("Tty"), nil, cli.out, cli.err, nil)
+
+		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"/logs", nil, false))
+		if err != nil {
+			return err
+		}
+
+		if !*follow {
+			return nil
+		}
+	}
+
 	if *follow {
 		v.Set("follow", "1")
 	}
-	v.Set("tail", *tail)
 
 	return cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), env.GetSubEnv("Config").GetBool("Tty"), nil, cli.out, cli.err, nil)
 }

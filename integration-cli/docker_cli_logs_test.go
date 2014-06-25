@@ -213,3 +213,36 @@ func TestLogsTail(t *testing.T) {
 	deleteContainer(cleanedContainerID)
 	logDone("logs - logs tail")
 }
+
+func TestLogsTruncate(t *testing.T) {
+	msg := "hello world"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "busybox", "sh", "-c", fmt.Sprintf("echo %s", msg))
+	logsCmd := exec.Command(dockerBinary, "logs", "--truncate", cleanedContainerID)
+	stdout, stderr, _, err := runCommandWithStdoutStderr(logsCmd)
+	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+
+	if stderr != "" {
+		t.Fatalf("Expected empty stderr stream, got %v", stderr)
+	}
+
+	stdout = strings.TrimSpace(stdout)
+	if stdout != msg {
+		t.Fatalf("Expected %v in stdout stream, got %v", msg, stdout)
+	}
+
+	logsCmd = exec.Command(dockerBinary, "logs", "--truncate", cleanedContainerID)
+	stdout, stderr, _, err = runCommandWithStdoutStderr(logsCmd)
+	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+
+	if stderr != "" {
+		t.Fatalf("Expected empty stderr stream, got %v", stderr)
+	}
+
+	if stdout != "" {
+		t.Fatalf("Expected empty stdout stream, got %v", stdout)
+	}
+
+	deleteContainer(cleanedContainerID)
+
+	logDone("logs - truncate, output first time, no output second time ")
+}

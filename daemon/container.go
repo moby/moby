@@ -727,6 +727,26 @@ func (container *Container) ReadLog(name string) (io.Reader, error) {
 	return os.Open(pth)
 }
 
+func (container *Container) TruncateLog(name string) error {
+	pth, err := container.logPath(name)
+	if err != nil {
+		return err
+	}
+	return os.Truncate(pth, 0)
+}
+
+func (container *Container) GetLogSize(name string) (int64, error) {
+	pth, err := container.logPath(name)
+	if err != nil {
+		return -1, err
+	}
+	stat, err := os.Stat(pth)
+	if err != nil {
+		return -1, err
+	}
+	return stat.Size(), nil
+}
+
 func (container *Container) hostConfigPath() (string, error) {
 	return container.getRootResourcePath("hostconfig.json")
 }
@@ -748,17 +768,17 @@ func validateID(id string) error {
 	return nil
 }
 
-// GetSize, return real size, virtual size
-func (container *Container) GetSize() (int64, int64) {
+// GetSize, return real size, virtual size, log size
+func (container *Container) GetSize() (int64, int64, int64) {
 	var (
-		sizeRw, sizeRootfs int64
-		err                error
-		driver             = container.daemon.driver
+		sizeRw, sizeRootfs, sizeLogs int64
+		err                          error
+		driver                       = container.daemon.driver
 	)
 
 	if err := container.Mount(); err != nil {
 		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
-		return sizeRw, sizeRootfs
+		return sizeRw, sizeRootfs, sizeLogs
 	}
 	defer container.Unmount()
 
@@ -784,7 +804,23 @@ func (container *Container) GetSize() (int64, int64) {
 			sizeRootfs = -1
 		}
 	}
-	return sizeRw, sizeRootfs
+
+	sizeLogs, err = container.GetLogSize("json")
+	if err != nil && os.IsNotExist(err) {
+		// Legacy logs
+		utils.Debugf("Old logs format")
+		stdoutLogSize, err := container.GetLogSize("stdout")
+		if err != nil {
+			utils.Errorf("Error getting log size (stdout): %s", err)
+		}
+		stderrLogSize, err := container.GetLogSize("stderr")
+		if err != nil {
+			utils.Errorf("Error getting log size (stderr): %s", err)
+		}
+		sizeLogs = stdoutLogSize + stderrLogSize
+	}
+
+	return sizeRw, sizeRootfs, sizeLogs
 }
 
 func (container *Container) Copy(resource string) (io.ReadCloser, error) {

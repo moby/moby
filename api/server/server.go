@@ -713,6 +713,18 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 	return job.Run()
 }
 
+func deleteLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	job := eng.Job("truncate_logs", vars["name"])
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postContainersStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1141,8 +1153,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/copy":    postContainersCopy,
 		},
 		"DELETE": {
-			"/containers/{name:.*}": deleteContainers,
-			"/images/{name:.*}":     deleteImages,
+			"/containers/{name:.*}/logs": deleteLogs,
+			"/containers/{name:.*}":      deleteContainers,
+			"/images/{name:.*}":          deleteImages,
 		},
 		"OPTIONS": {
 			"": optionsHandler,

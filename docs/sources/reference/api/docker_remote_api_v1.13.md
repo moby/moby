@@ -42,6 +42,7 @@ List containers
                      "Status": "Exit 0",
                      "Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
                      "SizeRw":12288,
+                     "SizeLogs": 1712.
                      "SizeRootFs":0
              },
              {
@@ -52,6 +53,7 @@ List containers
                      "Status": "Exit 0",
                      "Ports":[],
                      "SizeRw":12288,
+                     "SizeLogs": 1712.
                      "SizeRootFs":0
              },
              {
@@ -62,6 +64,7 @@ List containers
                      "Status": "Exit 0",
                      "Ports":[],
                      "SizeRw":12288,
+                     "SizeLogs": 1712.
                      "SizeRootFs":0
              },
              {
@@ -72,6 +75,7 @@ List containers
                      "Status": "Exit 0",
                      "Ports":[],
                      "SizeRw":12288,
+                     "SizeLogs": 1712.
                      "SizeRootFs":0
              }
         ]
@@ -329,6 +333,27 @@ Get stdout and stderr logs from the container ``id``
     Status Codes:
 
     -   **200** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+### Truncate container logs
+
+`DELETE /containers/(id)/logs`
+
+Truncate the STDOUT and STDERR logs for the container ``id``
+
+    **Example request**:
+
+       DELETE /containers/4fa6e0f0c678/logs HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 No Content
+        Content-Type: text/plain
+
+    Status Codes:
+
+    -   **204** – no error
     -   **404** – no such container
     -   **500** – server error
 
