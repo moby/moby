@@ -169,11 +169,12 @@ Docker exposes connectivity information for the parent container inside the
 child container in two ways:
 
 * Environment variables,
-* Updating the `/etc/host` file.
+* Updating the `/etc/hosts` file.
 
 Let's look first at the environment variables Docker sets. Let's run the `env`
 command to list the container's environment variables.
 
+```
     $ sudo docker run --rm --name web2 --link db:db training/webapp env
     . . .
     DB_NAME=/web2/db
@@ -183,6 +184,7 @@ command to list the container's environment variables.
     DB_PORT_5000_TCP_PORT=5432
     DB_PORT_5000_TCP_ADDR=172.17.0.5
     . . .
+```
 
 > **Note**:
 > These Environment variables are only set for the first process in the
