@@ -122,7 +122,7 @@ we'll be left with a backup of our `dbdata` volume.
 You could then to restore to the same container, or another that you've made
 elsewhere. Create a new container.
 
-    $ sudo docker run -v /dbdata --name dbdata2 ubuntu
+    $ sudo docker run -v /dbdata --name dbdata2 ubuntu /bin/bash
 
 Then un-tar the backup file in the new container's data volume.
 
