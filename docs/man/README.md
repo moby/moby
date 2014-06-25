@@ -51,7 +51,7 @@ saving you from dealing with Pandoc and dependencies on your own computer.
 
 ## Building the Fedora / Pandoc image
 
-There is a Dockerfile provided in the `docker/contrib/man/md` directory.
+There is a Dockerfile provided in the `docker/docs/man` directory.
 
 Using this Dockerfile, create a Docker image tagged `fedora/pandoc`:
 
@@ -61,11 +61,11 @@ Using this Dockerfile, create a Docker image tagged `fedora/pandoc`:
 
 Once the image is built, run a container using the image with *volumes*:
 
-    docker run -v /<path-to-git-dir>/docker/contrib/man:/pandoc:rw \
-    -w /pandoc -i fedora/pandoc /pandoc/md/md2man-all.sh
+    docker run -v /<path-to-git-dir>/docker/docs/man:/pandoc:rw \
+    -w /pandoc -i fedora/pandoc /pandoc/md2man-all.sh
 
 The Pandoc Docker container will process the Markdown files and generate
-the man pages inside the `docker/contrib/man/man1` directory using
+the man pages inside the `docker/docs/man/man1` directory using
 Docker volumes. For more information on Docker volumes see the man page for
 `docker run` and also look at the article [Sharing Directories via Volumes]
 (http://docs.docker.io/use/working_with_volumes/).
