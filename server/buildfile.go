@@ -81,6 +81,11 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	}
 }
 
+func (b *buildFile) CmdDescription(desc string) error {
+	b.config.Description = desc
+	return b.commit("", []string{}, desc)
+}
+
 func (b *buildFile) CmdFrom(name string) error {
 	image, err := b.daemon.Repositories().LookupImage(name)
 	if err != nil {
@@ -793,6 +798,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 	if len(fileBytes) == 0 {
 		return "", ErrDockerfileEmpty
 	}
+
 	var (
 		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
 		stepN      = 0
