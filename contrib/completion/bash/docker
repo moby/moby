@@ -196,24 +196,20 @@ _docker_commit()
 _docker_cp()
 {
 	local counter=$(__docker_pos_first_nonflag)
-	if [ $cword -eq $counter ]; then
+	if [ $cword -eq $counter -o $cword -eq $(( counter + 1 )) ]; then
 		case "$cur" in
-			*:)
+			*:*)
+				# TODO somehow do _filedir for stuff inside the container
 				return
 				;;
 			*)
 				__docker_containers_all
 				COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
 				compopt -o nospace
+				_filedir
 				return
 				;;
 		esac
-	fi
-	(( counter++ ))
-
-	if [ $cword -eq $counter ]; then
-		_filedir
-		return
 	fi
 }
 
