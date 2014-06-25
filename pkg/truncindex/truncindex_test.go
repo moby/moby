@@ -311,3 +311,78 @@ func BenchmarkTruncIndexNew500(b *testing.B) {
 		NewTruncIndex(testSet)
 	}
 }
+
+func BenchmarkTruncIndexAddGet100(b *testing.B) {
+	var testSet []string
+	var testKeys []string
+	for i := 0; i < 500; i++ {
+		id := utils.GenerateRandomID()
+		testSet = append(testSet, id)
+		l := rand.Intn(12) + 12
+		testKeys = append(testKeys, id[:l])
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range testSet {
+			if err := index.Add(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for _, id := range testKeys {
+			if res, err := index.Get(id); err != nil {
+				b.Fatal(res, err)
+			}
+		}
+	}
+}
+
+func BenchmarkTruncIndexAddGet250(b *testing.B) {
+	var testSet []string
+	var testKeys []string
+	for i := 0; i < 500; i++ {
+		id := utils.GenerateRandomID()
+		testSet = append(testSet, id)
+		l := rand.Intn(12) + 12
+		testKeys = append(testKeys, id[:l])
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range testSet {
+			if err := index.Add(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for _, id := range testKeys {
+			if res, err := index.Get(id); err != nil {
+				b.Fatal(res, err)
+			}
+		}
+	}
+}
+
+func BenchmarkTruncIndexAddGet500(b *testing.B) {
+	var testSet []string
+	var testKeys []string
+	for i := 0; i < 500; i++ {
+		id := utils.GenerateRandomID()
+		testSet = append(testSet, id)
+		l := rand.Intn(12) + 12
+		testKeys = append(testKeys, id[:l])
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		index := NewTruncIndex([]string{})
+		for _, id := range testSet {
+			if err := index.Add(id); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for _, id := range testKeys {
+			if res, err := index.Get(id); err != nil {
+				b.Fatal(res, err)
+			}
+		}
+	}
+}
