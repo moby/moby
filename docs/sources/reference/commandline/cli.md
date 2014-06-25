@@ -306,7 +306,7 @@ schema.
 
     Create a new image from a container's changes
 
-      -a, --author=""     Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
+      -a, --author=""     Author (eg. "John Hannibal Smith <hannibal@a-team.com>")
       -m, --message=""    Commit message
 
 It can be useful to commit a container's file changes or settings into a
