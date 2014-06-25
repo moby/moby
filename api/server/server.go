@@ -693,8 +693,11 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	job := eng.Job("start", name)
+	var (
+		name = vars["name"]
+		job  = eng.Job("start", name)
+	)
+
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
 		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
@@ -704,6 +707,10 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 		}
 	}
 	if err := job.Run(); err != nil {
+		if err.Error() == "Container already started" {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -720,6 +727,10 @@ func postContainersStop(eng *engine.Engine, version version.Version, w http.Resp
 	job := eng.Job("stop", vars["name"])
 	job.Setenv("t", r.Form.Get("t"))
 	if err := job.Run(); err != nil {
+		if err.Error() == "Container already stopped" {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
