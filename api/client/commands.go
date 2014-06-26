@@ -55,7 +55,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build an image from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
-		{"cp", "Copy files/folders from the containers filesystem to the host path"},
+		{"cp", "Copy files/folders from a container's filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},

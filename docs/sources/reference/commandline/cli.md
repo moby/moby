@@ -329,7 +329,7 @@ maintainable way.
 
 ## cp
 
-Copy files/folders from the containers filesystem to the host
+Copy files/folders from a container's filesystem to the host
 path.  Paths are relative to the root of the filesystem.
 
     Usage: docker cp CONTAINER:PATH HOSTPATH

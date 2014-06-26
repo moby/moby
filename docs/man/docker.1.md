@@ -87,7 +87,7 @@ unix://[/path/to/socket] to use.
   Create a new image from a container's changes
 
 **docker-cp(1)**
-  Copy files/folders from the containers filesystem to the host at path
+  Copy files/folders from a container's filesystem to the host at path
 
 **docker-diff(1)**
   Inspect changes on a container's filesystem

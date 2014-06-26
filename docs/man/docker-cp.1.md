@@ -8,7 +8,7 @@ docker-cp - Copy files/folders from the PATH to the HOSTPATH
 **docker cp** CONTAINER:PATH HOSTPATH
 
 # DESCRIPTION
-Copy files/folders from the containers filesystem to the host
+Copy files/folders from a container's filesystem to the host
 path. Paths are relative to the root of the filesystem. Files
 can be copied from a running or stopped container.
 
