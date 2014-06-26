@@ -116,11 +116,7 @@
         "name": "docker-koye",
         "parent": "docker"
     },
-    "context": {
-        "mount_label": "",
-        "process_label": "",
-        "restrictions": "true"
-    },
+    "restrict_sys": true,
     "mount_config": {
         "device_nodes": [
             {

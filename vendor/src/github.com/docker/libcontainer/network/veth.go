@@ -16,7 +16,7 @@ type Veth struct {
 
 const defaultDevice = "eth0"
 
-func (v *Veth) Create(n *Network, nspid int, context map[string]string) error {
+func (v *Veth) Create(n *Network, nspid int, networkState *NetworkState) error {
 	var (
 		bridge = n.Bridge
 		prefix = n.VethPrefix
@@ -31,8 +31,6 @@ func (v *Veth) Create(n *Network, nspid int, context map[string]string) error {
 	if err != nil {
 		return err
 	}
-	context["veth-host"] = name1
-	context["veth-child"] = name2
 	if err := SetInterfaceMaster(name1, bridge); err != nil {
 		return err
 	}
@@ -45,16 +43,16 @@ func (v *Veth) Create(n *Network, nspid int, context map[string]string) error {
 	if err := SetInterfaceInNamespacePid(name2, nspid); err != nil {
 		return err
 	}
+	networkState.VethHost = name1
+	networkState.VethChild = name2
+
 	return nil
 }
 
-func (v *Veth) Initialize(config *Network, context map[string]string) error {
-	var (
-		vethChild string
-		exists    bool
-	)
-	if vethChild, exists = context["veth-child"]; !exists {
-		return fmt.Errorf("vethChild does not exist in network context")
+func (v *Veth) Initialize(config *Network, networkState *NetworkState) error {
+	var vethChild = networkState.VethChild
+	if vethChild == "" {
+		return fmt.Errorf("vethChild is not specified")
 	}
 	if err := InterfaceDown(vethChild); err != nil {
 		return fmt.Errorf("interface down %s %s", vethChild, err)

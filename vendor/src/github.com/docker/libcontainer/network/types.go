@@ -27,3 +27,14 @@ type Network struct {
 	// container's interfaces if a pair is created, specifically in the case of type veth
 	Mtu int `json:"mtu,omitempty"`
 }
+
+// Struct describing the network specific runtime state that will be maintained by libcontainer for all running containers
+// Do not depend on it outside of libcontainer.
+type NetworkState struct {
+	// The name of the veth interface on the Host.
+	VethHost string `json:"veth_host,omitempty"`
+	// The name of the veth interface created inside the container for the child.
+	VethChild string `json:"veth_child,omitempty"`
+	// Net namespace path.
+	NsPath string `json:"ns_path,omitempty"`
+}

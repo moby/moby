@@ -3,6 +3,7 @@ package libcontainer
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/libcontainer/devices"
@@ -32,17 +33,27 @@ func containsDevice(expected *devices.Device, values []*devices.Device) bool {
 	return false
 }
 
-func TestConfigJsonFormat(t *testing.T) {
-	f, err := os.Open("sample_configs/attach_to_bridge.json")
+func loadConfig(name string) (*Config, error) {
+	f, err := os.Open(filepath.Join("sample_configs", name))
 	if err != nil {
-		t.Fatal("Unable to open container.json")
+		return nil, err
 	}
 	defer f.Close()
 
 	var container *Config
 	if err := json.NewDecoder(f).Decode(&container); err != nil {
-		t.Fatalf("failed to decode container config: %s", err)
+		return nil, err
 	}
+
+	return container, nil
+}
+
+func TestConfigJsonFormat(t *testing.T) {
+	container, err := loadConfig("attach_to_bridge.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if container.Hostname != "koye" {
 		t.Log("hostname is not set")
 		t.Fail()
@@ -111,8 +122,39 @@ func TestConfigJsonFormat(t *testing.T) {
 
 	for _, d := range devices.DefaultSimpleDevices {
 		if !containsDevice(d, container.MountConfig.DeviceNodes) {
-			t.Logf("expected defice configuration for %s", d.Path)
+			t.Logf("expected device configuration for %s", d.Path)
 			t.Fail()
 		}
+	}
+
+	if !container.RestrictSys {
+		t.Log("expected restrict sys to be true")
+		t.Fail()
+	}
+}
+
+func TestApparmorProfile(t *testing.T) {
+	container, err := loadConfig("apparmor.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if container.AppArmorProfile != "docker-default" {
+		t.Fatalf("expected apparmor profile to be docker-default but received %q", container.AppArmorProfile)
+	}
+}
+
+func TestSelinuxLabels(t *testing.T) {
+	container, err := loadConfig("selinux.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	label := "system_u:system_r:svirt_lxc_net_t:s0:c164,c475"
+
+	if container.ProcessLabel != label {
+		t.Fatalf("expected process label %q but received %q", label, container.ProcessLabel)
+	}
+	if container.MountConfig.MountLabel != label {
+		t.Fatalf("expected mount label %q but received %q", label, container.MountConfig.MountLabel)
 	}
 }

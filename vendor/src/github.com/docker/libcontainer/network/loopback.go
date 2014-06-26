@@ -10,11 +10,11 @@ import (
 type Loopback struct {
 }
 
-func (l *Loopback) Create(n *Network, nspid int, context map[string]string) error {
+func (l *Loopback) Create(n *Network, nspid int, networkState *NetworkState) error {
 	return nil
 }
 
-func (l *Loopback) Initialize(config *Network, context map[string]string) error {
+func (l *Loopback) Initialize(config *Network, networkState *NetworkState) error {
 	if err := SetMtu("lo", config.Mtu); err != nil {
 		return fmt.Errorf("set lo mtu to %d %s", config.Mtu, err)
 	}

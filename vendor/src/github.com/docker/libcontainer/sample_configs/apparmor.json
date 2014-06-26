@@ -117,6 +117,7 @@
         "parent": "docker"
     },
     "restrict_sys": true,
+    "apparmor_profile": "docker-default",
     "mount_config": {
         "device_nodes": [
             {
@@ -188,15 +189,8 @@
             "gateway": "localhost",
             "mtu": 1500,
             "type": "loopback"
-        },
-        {
-            "address": "172.17.0.101/16",
-            "bridge": "docker0",
-            "veth_prefix": "veth",
-            "gateway": "172.17.42.1",
-            "mtu": 1500,
-            "type": "veth"
         }
     ],
-    "tty": true
+    "tty": true,
+    "user": "daemon"
 }
