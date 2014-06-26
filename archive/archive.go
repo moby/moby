@@ -343,11 +343,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				for _, exclude := range options.Excludes {
 					matched, err := filepath.Match(exclude, relFilePath)
 					if err != nil {
-						utils.Errorf("Error matching: %s (pattern: %s)\n", relFilePath, exclude)
+						utils.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
 						return err
 					}
 					if matched {
-						utils.Debugf("Skipping excluded path: %s\n", relFilePath)
+						utils.Debugf("Skipping excluded path: %s", relFilePath)
 						if f.IsDir() {
 							return filepath.SkipDir
 						}

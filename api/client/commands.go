@@ -167,8 +167,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		options := &archive.TarOptions{
 			Compression: archive.Uncompressed,
 		}
-		ignoreFile := path.Join(root, ".dockerignore")
-		if ignore, err := ioutil.ReadFile(ignoreFile); err == nil {
+		if ignore, err := ioutil.ReadFile(path.Join(root, ".dockerignore")); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
+		} else if err == nil {
 			for _, pattern := range strings.Split(string(ignore), "\n") {
 				ok, err := filepath.Match(pattern, "Dockerfile")
 				if err != nil {
