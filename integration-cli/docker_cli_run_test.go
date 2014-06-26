@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"reflect"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 )
 
 // "test123" should be printed by docker run
@@ -982,4 +985,110 @@ func TestDisallowBindMountingRootToRoot(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - bind mount /:/ as volume should fail")
+}
+
+func TestDnsDefaultOptions(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
+
+	actual, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, actual)
+	}
+
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	if actual != string(resolvConf) {
+		t.Fatalf("expected resolv.conf is not the same of actual")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - dns default options")
+}
+
+func TestDnsOptions(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
+	if actual != "nameserver 127.0.0.1 search mydomain" {
+		t.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: '%s'", actual)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
+	if actual != "nameserver 127.0.0.1" {
+		t.Fatalf("expected 'nameserver 127.0.0.1', but says: '%s'", actual)
+	}
+
+	logDone("run - dns options")
+}
+
+func TestDnsOptionsBasedOnHostResolvConf(t *testing.T) {
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	hostNamservers := resolvconf.GetNameservers(resolvConf)
+	hostSearch := resolvconf.GetSearchDomains(resolvConf)
+
+	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actualNameservers := resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "127.0.0.1" {
+		t.Fatalf("expected '127.0.0.1', but says: '%s'", string(actualNameservers[0]))
+	}
+
+	actualSearch := resolvconf.GetSearchDomains([]byte(out))
+	if len(actualSearch) != len(hostSearch) {
+		t.Fatalf("expected '%s' search domain(s), but it has: '%s'", len(hostSearch), len(actualSearch))
+	}
+	for i := range actualSearch {
+		if actualSearch[i] != hostSearch[i] {
+			t.Fatalf("expected '%s' domain, but says: '%s'", actualSearch[i], hostSearch[i])
+		}
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualNameservers := resolvconf.GetNameservers([]byte(out))
+	if len(actualNameservers) != len(hostNamservers) {
+		t.Fatalf("expected '%s' nameserver(s), but it has: '%s'", len(hostNamservers), len(actualNameservers))
+	}
+	for i := range actualNameservers {
+		if actualNameservers[i] != hostNamservers[i] {
+			t.Fatalf("expected '%s' nameserver, but says: '%s'", actualNameservers[i], hostNamservers[i])
+		}
+	}
+
+	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); string(actualSearch[0]) != "mydomain" {
+		t.Fatalf("expected 'mydomain', but says: '%s'", string(actualSearch[0]))
+	}
+
+	deleteAllContainers()
+
+	logDone("run - dns options based on host resolv.conf")
 }
