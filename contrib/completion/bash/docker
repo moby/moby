@@ -458,10 +458,21 @@ _docker_rm()
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-v --volumes -l --link" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-f --force -l --link -v --volumes" -- "$cur" ) )
+			return
 			;;
 		*)
+			local force=
+			for arg in "${COMP_WORDS[@]}"; do
+				case "$arg" in
+					-f|--force)
+						__docker_containers_all
+						return
+						;;
+				esac
+			done
 			__docker_containers_stopped
+			return
 			;;
 	esac
 }
