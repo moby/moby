@@ -137,9 +137,9 @@ Your image will now be listed by Docker:
     $ sudo docker images
 
     # Example
-    REPOSITORY                 TAG       ID              CREATED
-    centos                     6.4       539c0211cd76    8 weeks ago
-    gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
+    REPOSITORY                            TAG       ID              CREATED
+    centos                                6.4       539c0211cd76    8 weeks ago
+    <your username>/centos-node-hello     latest    d64d3505b0d2    2 hours ago
 
 ## Run the image
 
