@@ -960,3 +960,14 @@ func TestRootWorkdir(t *testing.T) {
 
 	logDone("run - workdir /")
 }
+
+func TestAllowBindMountingRoot(t *testing.T) {
+	s, _, err := cmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	if err != nil {
+		t.Fatal(s, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - bind mount / as volume")
+}

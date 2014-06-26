@@ -2055,18 +2055,10 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
 		// Validate the HostConfig binds. Make sure that:
-		// 1) the source of a bind mount isn't /
-		//         The bind mount "/:/foo" isn't allowed.
-		// 2) Check that the source exists
-		//        The source to be bind mounted must exist.
+		// the source exists
 		for _, bind := range hostConfig.Binds {
 			splitBind := strings.Split(bind, ":")
 			source := splitBind[0]
-
-			// refuse to bind mount "/" to the container
-			if source == "/" {
-				return job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
-			}
 
 			// ensure the source exists on the host
 			_, err := os.Stat(source)
