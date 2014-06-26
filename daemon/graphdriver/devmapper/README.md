@@ -128,7 +128,8 @@ Here is the list of supported options:
 
  *  `dm.blocksize`
 
-    Specifies a custom blocksize to use for the thin pool.
+    Specifies a custom blocksize to use for the thin pool.  The default
+    blocksize is 512K.
 
     Example use:
 
