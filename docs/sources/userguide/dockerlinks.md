@@ -192,7 +192,7 @@ command to list the container's environment variables.
 > will scrub them when spawning shells for connection.
 
 We can see that Docker has created a series of environment variables with
-useful information about our `db` container. Each variables is prefixed with
+useful information about our `db` container. Each variable is prefixed with
 `DB_` which is populated from the `alias` we specified above. If our `alias`
 were `db1` the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
