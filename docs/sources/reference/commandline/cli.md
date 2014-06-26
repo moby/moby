@@ -956,6 +956,12 @@ flag exists to allow special use-cases, like running Docker within Docker.
 
     $ sudo docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
+In order to warn the user of the security implications of using the privileged flag,
+a warning will be printed to STDERR whenever the privileged flag is used with the tty
+flag. The warning is as follows:
+
+"WARNING: A privileged mode container is run unrestricted and has full access to the host."
+
 The `-w` lets the command being executed inside directory given, here
 `/path/to/dir/`. If the path does not exists it is created inside the container.
 

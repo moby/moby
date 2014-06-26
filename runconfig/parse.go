@@ -3,6 +3,7 @@ package runconfig
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -245,6 +246,10 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		DnsSearch:       flDnsSearch.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
+	}
+
+	if *flPrivileged && *flTty {
+		fmt.Fprintf(os.Stderr, "WARNING: A privileged mode container is run unrestricted and has full access to the host.\n")
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
