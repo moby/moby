@@ -1,31 +1,34 @@
 package truncindex
 
 import (
+	"errors"
 	"fmt"
-	"index/suffixarray"
 	"strings"
 	"sync"
+
+	"github.com/tchap/go-patricia/patricia"
+)
+
+var (
+	ErrNoID = errors.New("prefix can't be empty")
 )
 
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
 	sync.RWMutex
-	index *suffixarray.Index
-	ids   map[string]bool
-	bytes []byte
+	trie *patricia.Trie
+	ids  map[string]struct{}
 }
 
 func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	idx = &TruncIndex{
-		ids:   make(map[string]bool),
-		bytes: []byte{' '},
+		ids:  make(map[string]struct{}),
+		trie: patricia.NewTrie(),
 	}
 	for _, id := range ids {
-		idx.ids[id] = true
-		idx.bytes = append(idx.bytes, []byte(id+" ")...)
+		idx.addId(id)
 	}
-	idx.index = suffixarray.New(idx.bytes)
 	return
 }
 
@@ -33,11 +36,16 @@ func (idx *TruncIndex) addId(id string) error {
 	if strings.Contains(id, " ") {
 		return fmt.Errorf("Illegal character: ' '")
 	}
-	if _, exists := idx.ids[id]; exists {
-		return fmt.Errorf("Id already exists: %s", id)
+	if id == "" {
+		return ErrNoID
 	}
-	idx.ids[id] = true
-	idx.bytes = append(idx.bytes, []byte(id+" ")...)
+	if _, exists := idx.ids[id]; exists {
+		return fmt.Errorf("Id already exists: '%s'", id)
+	}
+	idx.ids[id] = struct{}{}
+	if inserted := idx.trie.Insert(patricia.Prefix(id), struct{}{}); !inserted {
+		return fmt.Errorf("Failed to insert id: %s", id)
+	}
 	return nil
 }
 
@@ -47,56 +55,46 @@ func (idx *TruncIndex) Add(id string) error {
 	if err := idx.addId(id); err != nil {
 		return err
 	}
-	idx.index = suffixarray.New(idx.bytes)
 	return nil
-}
-
-func (idx *TruncIndex) AddWithoutSuffixarrayUpdate(id string) error {
-	idx.Lock()
-	defer idx.Unlock()
-	return idx.addId(id)
-}
-
-func (idx *TruncIndex) UpdateSuffixarray() {
-	idx.Lock()
-	defer idx.Unlock()
-	idx.index = suffixarray.New(idx.bytes)
 }
 
 func (idx *TruncIndex) Delete(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
-	if _, exists := idx.ids[id]; !exists {
-		return fmt.Errorf("No such id: %s", id)
-	}
-	before, after, err := idx.lookup(id)
-	if err != nil {
-		return err
+	if _, exists := idx.ids[id]; !exists || id == "" {
+		return fmt.Errorf("No such id: '%s'", id)
 	}
 	delete(idx.ids, id)
-	idx.bytes = append(idx.bytes[:before], idx.bytes[after:]...)
-	idx.index = suffixarray.New(idx.bytes)
-	return nil
-}
-
-func (idx *TruncIndex) lookup(s string) (int, int, error) {
-	offsets := idx.index.Lookup([]byte(" "+s), -1)
-	//log.Printf("lookup(%s): %v (index bytes: '%s')\n", s, offsets, idx.index.Bytes())
-	if offsets == nil || len(offsets) == 0 || len(offsets) > 1 {
-		return -1, -1, fmt.Errorf("No such id: %s", s)
+	if deleted := idx.trie.Delete(patricia.Prefix(id)); !deleted {
+		return fmt.Errorf("No such id: '%s'", id)
 	}
-	offsetBefore := offsets[0] + 1
-	offsetAfter := offsetBefore + strings.Index(string(idx.bytes[offsetBefore:]), " ")
-	return offsetBefore, offsetAfter, nil
+	return nil
 }
 
 func (idx *TruncIndex) Get(s string) (string, error) {
 	idx.RLock()
 	defer idx.RUnlock()
-	before, after, err := idx.lookup(s)
-	//log.Printf("Get(%s) bytes=|%s| before=|%d| after=|%d|\n", s, idx.bytes, before, after)
-	if err != nil {
-		return "", err
+	var (
+		id string
+	)
+	if s == "" {
+		return "", ErrNoID
 	}
-	return string(idx.bytes[before:after]), err
+	subTreeVisitFunc := func(prefix patricia.Prefix, item patricia.Item) error {
+		if id != "" {
+			// we haven't found the ID if there are two or more IDs
+			id = ""
+			return fmt.Errorf("we've found two entries")
+		}
+		id = string(prefix)
+		return nil
+	}
+
+	if err := idx.trie.VisitSubtree(patricia.Prefix(s), subTreeVisitFunc); err != nil {
+		return "", fmt.Errorf("No such id: %s", s)
+	}
+	if id != "" {
+		return id, nil
+	}
+	return "", fmt.Errorf("No such id: %s", s)
 }

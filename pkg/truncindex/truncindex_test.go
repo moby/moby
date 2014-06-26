@@ -26,8 +26,16 @@ func TestTruncIndex(t *testing.T) {
 	if err := index.Add(id); err != nil {
 		t.Fatal(err)
 	}
+
+	// Add an empty id (should fail)
+	if err := index.Add(""); err == nil {
+		t.Fatalf("Adding an empty id should return an error")
+	}
+
 	// Get a non-existing id
 	assertIndexGet(t, index, "abracadabra", "", true)
+	// Get an empty id
+	assertIndexGet(t, index, "", "", true)
 	// Get the exact id
 	assertIndexGet(t, index, id, id, false)
 	// The first letter should match
@@ -60,6 +68,11 @@ func TestTruncIndex(t *testing.T) {
 		t.Fatalf("Deleting a non-existing id should return an error")
 	}
 
+	// Deleting an empty id should return an error
+	if err := index.Delete(""); err == nil {
+		t.Fatal("Deleting an empty id should return an error")
+	}
+
 	// Deleting id2 should remove conflicts
 	if err := index.Delete(id2); err != nil {
 		t.Fatal(err)
@@ -84,7 +97,7 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 	if result, err := index.Get(input); err != nil && !expectError {
 		t.Fatalf("Unexpected error getting '%s': %s", input, err)
 	} else if err == nil && expectError {
-		t.Fatalf("Getting '%s' should return an error", input)
+		t.Fatalf("Getting '%s' should return an error, not '%s'", input, result)
 	} else if result != expectedResult {
 		t.Fatalf("Getting '%s' returned '%s' instead of '%s'", input, result, expectedResult)
 	}
