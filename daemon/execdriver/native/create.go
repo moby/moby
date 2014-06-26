@@ -32,7 +32,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.MountConfig.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
-	container.Context["restrictions"] = "true"
+	container.RestrictSys = true
 
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
@@ -127,10 +127,10 @@ func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 	}
 	container.MountConfig.DeviceNodes = hostDeviceNodes
 
-	delete(container.Context, "restrictions")
+	container.RestrictSys = false
 
 	if apparmor.IsEnabled() {
-		container.Context["apparmor_profile"] = "unconfined"
+		container.AppArmorProfile = "unconfined"
 	}
 
 	return nil
@@ -163,8 +163,8 @@ func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Comma
 }
 
 func (d *driver) setupLabels(container *libcontainer.Config, c *execdriver.Command) error {
-	container.Context["process_label"] = c.Config["process_label"][0]
-	container.Context["mount_label"] = c.Config["mount_label"][0]
+	container.ProcessLabel = c.Config["process_label"][0]
+	container.MountConfig.MountLabel = c.Config["mount_label"][0]
 
 	return nil
 }
