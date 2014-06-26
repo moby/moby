@@ -2197,11 +2197,21 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		}
 	}
 	if len(infoDst) == 2 { // host to container
-		if _, err := os.Stat(pathSrc); err != nil {
+		var (
+			m, err  = os.Stat(pathSrc)
+			options = &archive.TarOptions{Compression: archive.Uncompressed}
+		)
+
+		if err != nil {
 			return err
 		}
 
-		tar, err := archive.Tar(pathSrc, archive.Uncompressed)
+		if !m.IsDir() {
+			options.Includes = append(options.Includes, filepath.Base(pathSrc))
+			pathSrc = filepath.Dir(pathSrc)
+		}
+
+		tar, err := archive.TarFilter(pathSrc, options)
 		if err != nil {
 			return err
 		}
