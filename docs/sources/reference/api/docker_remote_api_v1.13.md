@@ -240,7 +240,7 @@ Return low-level information on the container `id`
                                 }
                             ]
                          },
-                         "Links": null,
+                         "Links": ["/name:alias"],
                          "PublishAllPorts": false
                      }
         }

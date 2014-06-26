@@ -34,6 +34,11 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /containers/(name)/json`
+
+**New!**
+The `HostConfig.Links` field is now filled correctly
+
 **New!**
 `Sockets` parameter added to the `/info` endpoint listing all the sockets the 
 daemon is configured to listen on.
