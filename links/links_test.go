@@ -40,7 +40,7 @@ func TestLinkNew(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "docker0", "/db/docker", nil, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,13 +65,16 @@ func TestLinkNew(t *testing.T) {
 			t.Fail()
 		}
 	}
+	if link.Bridge != "docker0" {
+		t.Fail()
+	}
 }
 
 func TestLinkEnv(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "docker0", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

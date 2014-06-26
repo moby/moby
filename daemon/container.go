@@ -190,7 +190,6 @@ func populateCommand(c *Container, env []string) error {
 	case "host":
 		en.HostNetworking = true
 	case "bridge", "": // empty string to support existing containers
-		// TODO(vishh): Handle custom bridge here.
 		if !c.Config.NetworkDisabled {
 			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
@@ -414,9 +413,9 @@ func (container *Container) allocateNetwork() error {
 
 	job := eng.Job("allocate_interface", container.ID)
 	if bridgeToUse := mode.GetNonDefaultBridge(); bridgeToUse != "" {
-		job.Setenv("RequestedBridge", bridgeToUse) 
+		job.Setenv("RequestedBridge", bridgeToUse)
 	}
-	
+
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
@@ -1000,9 +999,13 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 			}
 
+			if container.NetworkSettings.Bridge != child.NetworkSettings.Bridge {
+				return nil, fmt.Errorf("Cannot link to a container (%s) running in a different bridge (%s)", child.Name, child.NetworkSettings.Bridge)
+			}
 			link, err := links.NewLink(
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,
+				container.NetworkSettings.Bridge,
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,

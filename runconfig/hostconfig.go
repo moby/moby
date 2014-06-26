@@ -32,7 +32,7 @@ func (n NetworkMode) IsNonDefaultBridge() bool {
 
 func (n NetworkMode) GetNonDefaultBridge() string {
 	parts := strings.SplitN(string(n), ":", 2)
-	if (len(parts) > 1 && parts[0] == "bridge") {
+	if len(parts) > 1 && parts[0] == "bridge" {
 		return parts[1]
 	}
 	return ""

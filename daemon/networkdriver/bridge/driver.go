@@ -475,6 +475,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
+		bridge       = job.Getenv("Bridge")
 	)
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
@@ -484,7 +485,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 	for _, p := range ports {
 		port, proto := split(p)
 		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
+			"-i", bridge, "-o", bridge,
 			"-p", proto,
 			"-s", parentIP,
 			"--dport", port,
@@ -496,7 +497,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		}
 
 		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
+			"-i", bridge, "-o", bridge,
 			"-p", proto,
 			"-s", childIP,
 			"--sport", port,
