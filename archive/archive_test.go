@@ -177,7 +177,7 @@ func TestTarUntarFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tar, err := TarFilter(path.Join(origin, "before"), &TarOptions{Compression: Uncompressed, Includes: []string{"file"}})
+	tar, err := TarWithOptions(path.Join(origin, "before"), &TarOptions{Compression: Uncompressed, Includes: []string{"file"}})
 	if err != nil {
 		t.Fatal(err)
 	}
