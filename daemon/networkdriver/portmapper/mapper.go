@@ -48,6 +48,13 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 		allocatedHostPort int
 	)
 
+	// release the port on any error during return.
+	defer func() {
+		if err != nil {
+			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
+		}
+	}()
+
 	switch container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
@@ -74,33 +81,22 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 		return nil, err
 	}
 
-	// When binding fails:
-	//  - for a specifically requested port: it might be locked by some other
-	//    process, so we want to allow for an ulterior retry
-	//  - for an automatically allocated port: it falls in the Docker range of
-	//    ports, so we'll just remember it as used and try the next free one
-	defer func() {
-		if err != nil && hostPort != 0 {
-			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
-		}
-	}()
-
 	key := getKey(m.host)
 	if _, exists := currentMappings[key]; exists {
 		err = ErrPortMappedForIP
-		return m.host, err
+		return nil, err
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
 	if err := forward(iptables.Add, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
-		return m.host, err
+		return nil, err
 	}
 
 	p, err := newProxy(m.host, m.container)
 	if err != nil {
 		// need to undo the iptables rules before we return
 		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		return m.host, err
+		return nil, err
 	}
 
 	m.userlandProxy = p

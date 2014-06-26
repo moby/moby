@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	DefaultNetworkBridge = "docker0"
+	DefaultNetworkBridge     = "docker0"
+	MaxAllocatedPortAttempts = 10
 )
 
 // Network interface represents the networking stack of a container
@@ -401,15 +402,15 @@ func AllocatePort(job *engine.Job) engine.Status {
 		return job.Errorf("unsupported address type %s", proto)
 	}
 
-	/*
-	 Try up to 10 times to get a port that's not already allocated.
-
-	 In the event of failure to bind, return the error that portmapper.Map
-	 yields.
-	*/
+	//
+	// Try up to 10 times to get a port that's not already allocated.
+	//
+	// In the event of failure to bind, return the error that portmapper.Map
+	// yields.
+	//
 
 	var host net.Addr
-	for i := 0; i < 10; i++ {
+	for i := 0; i < MaxAllocatedPortAttempts; i++ {
 		if host, err = portmapper.Map(container, ip, hostPort); err == nil {
 			break
 		}
