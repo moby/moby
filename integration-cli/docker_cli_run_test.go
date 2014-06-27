@@ -971,3 +971,15 @@ func TestAllowBindMountingRoot(t *testing.T) {
 
 	logDone("run - bind mount / as volume")
 }
+
+func TestDisallowBindMountingRootToRoot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/:/", "busybox", "ls", "/host")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(out, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - bind mount /:/ as volume should fail")
+}
