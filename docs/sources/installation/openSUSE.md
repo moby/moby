@@ -45,9 +45,9 @@ If we want Docker to start at boot, we should also:
 
 The docker package creates a new group named docker. Users, other than
 root user, need to be part of this group in order to interact with the
-Docker daemon.
+Docker daemon. You can add users with:
 
-    $ sudo usermod -G docker <username>
+    $ sudo usermod -a -G docker <username>
 
 **Done!**
 
