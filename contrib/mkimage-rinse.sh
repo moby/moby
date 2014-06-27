@@ -39,7 +39,7 @@ if [ ! "$repo" ] || [ ! "$distro" ]; then
 	exit 1
 fi
 
-target="/tmp/docker-rootfs-rinse-$distro-$$-$RANDOM"
+target="${TMPDIR:-/var/tmp}/docker-rootfs-rinse-$distro-$$-$RANDOM"
 
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"

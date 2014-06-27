@@ -50,7 +50,7 @@ fi
 
 delDir=
 if [ -z "$dir" ]; then
-	dir="$(mktemp -d ${TMPDIR:-/tmp}/docker-mkimage.XXXXXXXXXX)"
+	dir="$(mktemp -d ${TMPDIR:-/var/tmp}/docker-mkimage.XXXXXXXXXX)"
 	delDir=1
 fi
 
