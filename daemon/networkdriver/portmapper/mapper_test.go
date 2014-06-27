@@ -1,6 +1,7 @@
 package portmapper
 
 import (
+	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
 	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/proxy"
 	"net"
@@ -110,5 +111,42 @@ func TestGetUDPIPAndPort(t *testing.T) {
 
 	if ep := 53; port != ep {
 		t.Fatalf("expected port %d got %d", ep, port)
+	}
+}
+
+func TestMapAllPortsSingleInterface(t *testing.T) {
+	dstIp1 := net.ParseIP("0.0.0.0")
+	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
+
+	hosts := []net.Addr{}
+	var host net.Addr
+	var err error
+
+	defer func() {
+		for _, val := range hosts {
+			Unmap(val)
+		}
+	}()
+
+	for i := 0; i < 10; i++ {
+		for i := portallocator.BeginPortRange; i < portallocator.EndPortRange; i++ {
+			if host, err = Map(srcAddr1, dstIp1, 0); err != nil {
+				t.Fatal(err)
+			}
+
+			hosts = append(hosts, host)
+		}
+
+		if _, err := Map(srcAddr1, dstIp1, portallocator.BeginPortRange); err == nil {
+			t.Fatal("Port %d should be bound but is not", portallocator.BeginPortRange)
+		}
+
+		for _, val := range hosts {
+			if err := Unmap(val); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		hosts = []net.Addr{}
 	}
 }
