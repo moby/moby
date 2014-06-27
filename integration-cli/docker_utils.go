@@ -16,6 +16,10 @@ import (
 func deleteContainer(container string) error {
 	container = strings.Replace(container, "\n", " ", -1)
 	container = strings.Trim(container, " ")
+	killArgs := fmt.Sprintf("kill %v", container)
+	killSplitArgs := strings.Split(killArgs, " ")
+	killCmd := exec.Command(dockerBinary, killSplitArgs...)
+	runCommand(killCmd)
 	rmArgs := fmt.Sprintf("rm %v", container)
 	rmSplitArgs := strings.Split(rmArgs, " ")
 	rmCmd := exec.Command(dockerBinary, rmSplitArgs...)
