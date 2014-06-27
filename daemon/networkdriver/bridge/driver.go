@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -501,35 +502,48 @@ func AllocatePort(job *engine.Job) engine.Status {
 func LinkContainers(job *engine.Job) engine.Status {
 	var (
 		action       = job.Args[0]
+		nfAction     iptables.Action
 		childIP      = job.Getenv("ChildIP")
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
+		chain        = iptables.Chain{}
 	)
-	for _, value := range ports {
-		port := nat.Port(value)
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", port.Proto(),
-			"-s", parentIP,
-			"--dport", strconv.Itoa(port.Int()),
-			"-d", childIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return job.Error(err)
-		} else if len(output) != 0 {
-			return job.Errorf("Error toggle iptables forward: %s", output)
-		}
+	split := func(p string) (string, string) {
+		parts := strings.Split(p, "/")
+		return parts[0], parts[1]
+	}
 
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", port.Proto(),
-			"-s", childIP,
-			"--sport", strconv.Itoa(port.Int()),
-			"-d", parentIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+	switch action {
+	case "-A":
+		nfAction = iptables.Append
+	case "-I":
+		nfAction = iptables.Insert
+	case "-D":
+		nfAction = iptables.Delete
+	default:
+		return job.Errorf("Invalid action '%s' specified", action)
+	}
+
+	ip1 := net.ParseIP(parentIP)
+	if ip1 == nil {
+		return job.Errorf("parent IP '%s' is invalid", parentIP)
+	}
+	ip2 := net.ParseIP(childIP)
+	if ip2 == nil {
+		return job.Errorf("child IP '%s' is invalid", childIP)
+	}
+
+	chain.Name = "DOCKER"
+	chain.Bridge = bridgeIface
+	for _, p := range ports {
+		portStr, proto := split(p)
+		port, err := strconv.Atoi(portStr)
+		if !ignoreErrors && err != nil {
+			return job.Errorf("port '%s' is invalid", portStr)
+		}
+		if err := chain.Link(nfAction, ip1, ip2, port, proto); !ignoreErrors && err != nil {
 			return job.Error(err)
-		} else if len(output) != 0 {
-			return job.Errorf("Error toggle iptables forward: %s", output)
 		}
 	}
 	return engine.StatusOK
