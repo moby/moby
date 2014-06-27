@@ -318,14 +318,14 @@ func createBridgeIface(name string) error {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip              *net.IP
-		err             error
-		id              = job.Args[0]
-		requestedIP     = net.ParseIP(job.Getenv("RequestedIP"))
-		requestedBridge = job.Getenv("RequestedBridge")
+		ip                 *net.IP
+		err                error
+		id                 = job.Args[0]
+		requestedIP        = net.ParseIP(job.Getenv("RequestedIP"))
+		requestedBridge    = job.Getenv("RequestedBridge")
+		bridgeNetworkInUse = bridgeNetwork
+		bridgeIfaceInUse   = bridgeIface
 	)
-	bridgeNetworkInUse := bridgeNetwork
-	bridgeIfaceInUse := bridgeIface
 	if requestedBridge != "" && requestedBridge != bridgeIfaceInUse {
 		addr, err := networkdriver.GetIfaceAddr(requestedBridge)
 		if err != nil {

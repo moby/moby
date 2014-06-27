@@ -131,11 +131,11 @@ PID files):
 
     --dns=[]        : Set custom dns servers for the container
     --net="bridge"  : Set the Network mode for the container
-    		    		 'bridge': creates a new network stack for the container on the default docker bridge
-                                 'bridge:<name>': creates a new network stack for the container on the specified pre-existing bridge
-                                 'none': no networking for this container
-                                 'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the container
+    		    		  'bridge': creates a new network stack for the container on the default docker bridge
+                                  'bridge:<name>': creates a new network stack for the container on the specified pre-existing bridge
+                                  'none': no networking for this container
+                                  'container:<name|id>': reuses another container network stack
+                                  'host': use the host network stack inside the container
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
