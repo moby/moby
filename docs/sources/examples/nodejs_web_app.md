@@ -167,8 +167,8 @@ To test your app, get the the port of your app that Docker mapped:
     $ sudo docker ps
 
     # Example
-    ID            IMAGE                          COMMAND              ...   PORTS
-    ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
+    ID            IMAGE                                     COMMAND              ...   PORTS
+    ecce33b30ebf  <your username>/centos-node-hello:latest  node /src/index.js         49160->8080
 
 In the example above, Docker mapped the `8080` port of the container to `49160`.
 
