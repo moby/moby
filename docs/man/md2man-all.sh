@@ -17,6 +17,6 @@ for FILE in *.md; do
 		# skip files that aren't of the format xxxx.N.md (like README.md)
 		continue
 	fi
-	mkdir -p "../man${num}"
-	pandoc -s -t man "$FILE" -o "../man${num}/${name}"
+	mkdir -p "./man${num}"
+	pandoc -s -t man "$FILE" -o "./man${num}/${name}"
 done

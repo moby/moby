@@ -50,7 +50,7 @@ bundle_ubuntu() {
 	docs/man/md2man-all.sh -q
 	manRoot="$DIR/usr/share/man"
 	mkdir -p "$manRoot"
-	for manDir in docs/man?; do
+	for manDir in docs/man/man?; do
 		manBase="$(basename "$manDir")" # "man1"
 		for manFile in "$manDir"/*; do
 			manName="$(basename "$manFile")" # "docker-build.1"
