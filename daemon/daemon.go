@@ -138,7 +138,7 @@ func (daemon *Daemon) containerRoot(id string) string {
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*Container, error) {
-	container := &Container{root: daemon.containerRoot(id)}
+	container := &Container{root: daemon.containerRoot(id), State: NewState()}
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
@@ -236,12 +236,6 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 				}
 			}
 		}
-	} else {
-		// When the container is not running, we still initialize the waitLock
-		// chan and close it. Receiving on nil chan blocks whereas receiving on a
-		// closed chan does not. In this case we do not want to block.
-		container.waitLock = make(chan struct{})
-		close(container.waitLock)
 	}
 	return nil
 }
@@ -588,6 +582,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		Name:            name,
 		Driver:          daemon.driver.String(),
 		ExecDriver:      daemon.execDriver.Name(),
+		State:           NewState(),
 	}
 	container.root = daemon.containerRoot(container.ID)
 
@@ -900,7 +895,7 @@ func (daemon *Daemon) shutdown() error {
 				if err := c.KillSig(15); err != nil {
 					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
 				}
-				c.Wait()
+				c.State.WaitStop(-1 * time.Second)
 				utils.Debugf("container stopped %s", c.ID)
 			}()
 		}
