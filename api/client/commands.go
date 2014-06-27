@@ -1546,17 +1546,12 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return nil
 	}
 
-	var name, repository, tag string
-
-	if cmd.NArg() == 3 {
-		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'CONTAINER [REPOSITORY [TAG]]' as been deprecated. Please use CONTAINER [REPOSITORY[:TAG]]\n")
-		name, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
-	} else {
-		name = cmd.Arg(0)
+	var (
+		name            = cmd.Arg(0)
 		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
-	}
+	)
 
-	if name == "" {
+	if name == "" || len(cmd.Args()) > 2 {
 		cmd.Usage()
 		return nil
 	}
