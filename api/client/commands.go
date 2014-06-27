@@ -51,7 +51,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"attach", "Attach to a running container"},
 		{"build", "Build an image from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
-		{"cp", "Copy files/folders from the containers filesystem to the host path"},
+		{"cp", "Copy files/folders from a container's filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -1504,7 +1504,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := cli.Subcmd("commit", "[OPTIONS] CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
-	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\"")
+	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (eg. \"John Hannibal Smith <hannibal@a-team.com>\")")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "this option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	if err := cmd.Parse(args); err != nil {

@@ -58,10 +58,10 @@ expect an integer, and they can only be specified once.
       -D, --debug=false                          Enable debug mode
       --dns=[]                                   Force docker to use specific DNS servers
       --dns-search=[]                            Force Docker to use specific DNS search domains
-      -e, --exec-driver="native"                 Force the docker runtime to use a specific exec driver
+      -e, --exec-driver="native"                 Force the Docker runtime to use a specific exec driver
       -G, --group="docker"                       Group to assign the unix socket specified by -H when running in daemon mode
                                                    use '' (the empty string) to disable setting of a group
-      -g, --graph="/var/lib/docker"              Path to use as the root of the docker runtime
+      -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
       -H, --host=[]                              The socket(s) to bind to in daemon mode
                                                    specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --icc=true                                 Enable inter-container communication
@@ -72,7 +72,7 @@ expect an integer, and they can only be specified once.
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
       -r, --restart=true                         Restart previously running containers
-      -s, --storage-driver=""                    Force the docker runtime to use a specific storage driver
+      -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
       --storage-opt=[]                           Set storage driver options
       --selinux-enabled=false                    Enable selinux support
       --tls=false                                Use TLS; implied by tls-verify flags
@@ -301,7 +301,7 @@ schema.
 
     Create a new image from a container's changes
 
-      -a, --author=""     Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
+      -a, --author=""     Author (eg. "John Hannibal Smith <hannibal@a-team.com>")
       -m, --message=""    Commit message
 
 It can be useful to commit a container's file changes or settings into a
@@ -324,7 +324,7 @@ maintainable way.
 
 ## cp
 
-Copy files/folders from the containers filesystem to the host
+Copy files/folders from a container's filesystem to the host
 path.  Paths are relative to the root of the filesystem.
 
     Usage: docker cp CONTAINER:PATH HOSTPATH

@@ -15,7 +15,7 @@ To [*build*](../commandline/cli/#cli-build) an image from a source repository,
 create a description file called Dockerfile at the root of your repository.
 This file will describe the steps to assemble the image.
 
-Then call `docker build` with the path of you source repository as argument
+Then call `docker build` with the path of your source repository as the argument
 (for example, `.`):
 
     $ sudo docker build .
@@ -239,13 +239,13 @@ In the case where `<src>` is a remote file URL, the destination will have permis
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
-> build context, so the Dockerfile can only contain an URL based ADD
+> build context, so the Dockerfile can only contain a URL based ADD
 > statement.
 
 > **Note**:
 > If your URL files are protected using authentication, you will need to
-> use an `RUN wget` , `RUN curl`
-> or other tool from within the container as ADD does not support
+> use `RUN wget` , `RUN curl`
+> or use another tool from within the container as ADD does not support
 > authentication.
 
 The copy obeys the following rules:

@@ -85,7 +85,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -l run -d 'Conf
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -a '(__fish_print_docker_containers all)' -d "Container"
 
 # cp
-complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d 'Copy files/folders from the containers filesystem to the host path'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d 'Copy files/folders from a container's filesystem to the host path'
 
 # diff
 complete -c docker -f -n '__fish_docker_no_subcommand' -a diff -d "Inspect changes on a container's filesystem"
