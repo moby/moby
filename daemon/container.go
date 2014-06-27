@@ -804,7 +804,7 @@ func (container *Container) Insert(resource string, stream io.Reader) error {
 	defer container.Unmount()
 
 	if resource == "" {
-		return archive.Untar(stream, "/", nil)
+		return archive.Untar(stream, container.basefs, nil)
 	}
 
 	basePath, err := container.getResourcePath(resource)

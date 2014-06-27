@@ -2157,10 +2157,10 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	var (
 		copyData engine.Env
-		infoSrc  = strings.Split(cmd.Arg(0), ":")
-		infoDst  = strings.Split(cmd.Arg(1), ":")
 		pathSrc  = cmd.Arg(0)
 		pathDst  = cmd.Arg(1)
+		infoSrc  = strings.Split(pathSrc, ":")
+		infoDst  = strings.Split(pathDst, ":")
 	)
 	if len(infoSrc) != 2 && len(infoDst) != 2 {
 		return fmt.Errorf("Error: Wrong path format")
@@ -2211,7 +2211,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 			pathSrc = filepath.Dir(pathSrc)
 		}
 
-		tar, err := archive.TarFilter(pathSrc, options)
+		tar, err := archive.TarWithOptions(pathSrc, options)
 		if err != nil {
 			return err
 		}
