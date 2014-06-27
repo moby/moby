@@ -156,6 +156,25 @@ go_test_dir() {
 	)
 }
 
+# Compile phase run by parallel in test-unit. No support for coverpkg
+go_compile_test_dir() {
+	dir=$1
+	testcover=()
+	if [ "$HAVE_GO_TEST_COVER" ]; then
+		# if our current go install has -cover, we want to use it :)
+		mkdir -p "$DEST/coverprofiles"
+		coverprofile="docker${dir#.}"
+		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
+		testcover=( -cover -coverprofile "$coverprofile" ) # missing $coverpkg
+	fi
+	(
+		readarray -t BUILDFLAGS < "$BUILDFLAGS_FILE"
+		cd "$dir"
+		go test "${testcover[@]}" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c
+		echo "$dir"
+	)
+}
+
 # This helper function walks the current directory looking for directories
 # holding certain files ($1 parameter), and prints their paths on standard
 # output, one per line.
