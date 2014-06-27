@@ -87,11 +87,6 @@ This will display the help text and all available flags:
       --no-stdin=false: Do not attach stdin
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
-
-None of the containers we've run did anything particularly useful
-though. So let's build on that experience by running an example web
-application in Docker.
-
 > **Note:** 
 > You can see a full list of Docker's commands
 > [here](/reference/commandline/cli/).
@@ -140,8 +135,8 @@ command. This tells the `docker ps` command to return the details of the
 *last* container started.
 
 > **Note:** 
-> The `docker ps` command only shows running containers. If you want to
-> see stopped containers too use the `-a` flag.
+> By default, the `docker ps` command only shows information about running
+> containers. If you want to see stopped containers too use the `-a` flag.
 
 We can see the same details we saw [when we first Dockerized a
 container](/userguide/dockerizing) with one important addition in the `PORTS`
