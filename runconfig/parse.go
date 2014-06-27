@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	filepath "path/filepath"
 	"strings"
 
 	"github.com/dotcloud/docker/nat"
@@ -132,8 +133,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes.GetMap() {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
-			if arr[0] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
+			if filepath.Clean(arr[0]) == "/" {
+				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be system root")
 			}
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
