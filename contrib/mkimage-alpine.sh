@@ -13,8 +13,8 @@ usage() {
 }
 
 tmp() {
-	TMP=$(mktemp -d /tmp/alpine-docker-XXXXXXXXXX)
-	ROOTFS=$(mktemp -d /tmp/alpine-docker-rootfs-XXXXXXXXXX)
+	TMP=$(mktemp -d ${TMPDIR:-/var/tmp}/alpine-docker-XXXXXXXXXX)
+	ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/alpine-docker-rootfs-XXXXXXXXXX)
 	trap "rm -rf $TMP $ROOTFS" EXIT TERM INT
 }
 
