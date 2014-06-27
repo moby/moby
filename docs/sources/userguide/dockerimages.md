@@ -239,7 +239,7 @@ Let's create a directory and a `Dockerfile` first.
     $ cd sinatra
     $ touch Dockerfile
 
-Each instructions creates a new layer of the image. Let's look at a simple
+Each instruction creates a new layer of the image. Let's look at a simple
 example now for building our own Sinatra image for our development team.
 
     # This is a comment
