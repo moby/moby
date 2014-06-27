@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -163,7 +164,25 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if err = utils.ValidateContextDirectory(root); err != nil {
 			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
 		}
-		context, err = archive.Tar(root, archive.Uncompressed)
+		options := &archive.TarOptions{
+			Compression: archive.Uncompressed,
+		}
+		if ignore, err := ioutil.ReadFile(path.Join(root, ".dockerignore")); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
+		} else if err == nil {
+			for _, pattern := range strings.Split(string(ignore), "\n") {
+				ok, err := filepath.Match(pattern, "Dockerfile")
+				if err != nil {
+					utils.Errorf("Bad .dockerignore pattern: '%s', error: %s", pattern, err)
+					continue
+				}
+				if ok {
+					return fmt.Errorf("Dockerfile was excluded by .dockerignore pattern '%s'", pattern)
+				}
+				options.Excludes = append(options.Excludes, pattern)
+			}
+		}
+		context, err = archive.TarWithOptions(root, options)
 	}
 	var body io.Reader
 	// Setup an upload progress bar

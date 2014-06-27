@@ -1514,3 +1514,53 @@ docker.com>"
 
 	logDone("build - validate escaping whitespace")
 }
+
+func TestDockerignore(t *testing.T) {
+	name := "testbuilddockerignore"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+        ADD . /bla
+		RUN [[ -f /bla/src/x.go ]]
+		RUN [[ -f /bla/Makefile ]]
+		RUN [[ ! -e /bla/src/_vendor ]]
+		RUN [[ ! -e /bla/.gitignore ]]
+		RUN [[ ! -e /bla/README.md ]]
+		RUN [[ ! -e /bla/.git ]]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":         "all:",
+		".git/HEAD":        "ref: foo",
+		"src/x.go":         "package main",
+		"src/_vendor/v.go": "package main",
+		".gitignore":       "",
+		"README.md":        "readme",
+		".dockerignore":    ".git\npkg\n.gitignore\nsrc/_vendor\n*.md",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - test .dockerignore")
+}
+
+func TestDockerignoringDockerfile(t *testing.T) {
+	name := "testbuilddockerignoredockerfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM scratch`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    "FROM scratch",
+		".dockerignore": "Dockerfile\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err == nil {
+		t.Fatalf("Didn't get expected error from ignoring Dockerfile")
+	}
+	logDone("build - test .dockerignore of Dockerfile")
+}

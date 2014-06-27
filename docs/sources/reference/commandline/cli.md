@@ -215,6 +215,12 @@ temporary directory on your local host, and then this is sent to the
 Docker daemon as the context. This way, your local user credentials and
 vpn's etc can be used to access private repositories.
 
+If a file named ``.dockerignore`` exists in the root of ``PATH`` then it is
+interpreted as a newline-separated list of exclusion patterns. Exclusion
+patterns match files or directories relative to ``PATH`` that will be excluded
+from the context. Globbing is done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+
 See also:
 
 [*Dockerfile Reference*](/reference/builder/#dockerbuilder).
@@ -265,6 +271,30 @@ what the `docker` client means when you see the
 If you wish to keep the intermediate containers after the build is
 complete, you must use `--rm=false`. This does not
 affect the build cache.
+
+    $ docker build .
+    Uploading context 18.829 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
+    $ echo ".git" > .dockerignore
+    $ docker build .
+    Uploading context  6.76 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
+
+This example shows the use of the ``.dockerignore`` file to exclude the ``.git``
+directory the context. Its effect can be seen in the changed size of the
+uploaded context.
 
     $ sudo docker build -t vieux/apache:2.0 .
 
