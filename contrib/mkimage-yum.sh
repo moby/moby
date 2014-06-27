@@ -58,8 +58,10 @@ mknod -m 666 "$target"/dev/urandom c 1 9
 mknod -m 666 "$target"/dev/zero c 1 5
 
 yum -c "$yum_config" --installroot="$target" --setopt=tsflags=nodocs \
-    --setopt=group_package_types=mandatory -y groupinstall Core
-yum -c "$yum_config" --installroot="$target" -y clean all
+    --setopt=group_package_types=mandatory \
+    --setopt=releasever=$(rpm -q --qf '%{version}' centos-release) -y groupinstall Core
+yum -c "$yum_config" --installroot="$target" \
+    --setopt=releasever=$(rpm -q --qf '%{version}' centos-release) -y clean all
 
 cat > "$target"/etc/sysconfig/network <<EOF
 NETWORKING=yes
