@@ -67,6 +67,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"kill", "Kill a running container"},
 		{"load", "Load an image from a tar archive"},
 		{"login", "Register or Login to the docker registry server"},
+		{"logout", "Logout of the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"pause", "Pause all processes within a container"},
@@ -327,6 +328,36 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if out2.Get("Status") != "" {
 		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
 	}
+	return nil
+}
+
+// logout of a registry service
+func (cli *DockerCli) CmdLogout(args ...string) error {
+	cmd := cli.Subcmd("logout", "[SERVER]", "Logout of a docker registry server, if no server is specified \""+registry.IndexServerAddress()+"\" is the default.")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	serverAddress := registry.IndexServerAddress()
+	if len(cmd.Args()) > 0 {
+		serverAddress = cmd.Arg(0)
+	}
+
+	cli.LoadConfigFile()
+	if _, ok := cli.configFile.Configs[serverAddress]; !ok {
+		fmt.Fprintf(cli.out, "Not logged in to %s\n", serverAddress)
+		os.Exit(0)
+	}
+
+	fmt.Fprintf(cli.out, "Remove login credentials for %s\n", serverAddress)
+	delete(cli.configFile.Configs, serverAddress)
+
+	if err := registry.SaveConfig(cli.configFile); err != nil {
+		fmt.Fprintln(cli.out, "Failed to save docker config")
+		os.Exit(1)
+	}
+
+	fmt.Fprintln(cli.out, "Saved docker config")
 	return nil
 }
 
