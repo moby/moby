@@ -2,6 +2,7 @@ package mount
 
 import (
 	"errors"
+
 	"github.com/docker/libcontainer/devices"
 )
 

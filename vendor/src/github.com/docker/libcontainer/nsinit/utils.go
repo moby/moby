@@ -2,11 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/docker/libcontainer"
 )
@@ -24,20 +22,6 @@ func loadContainer() (*libcontainer.Config, error) {
 	}
 
 	return container, nil
-}
-
-func readPid() (int, error) {
-	data, err := ioutil.ReadFile(filepath.Join(dataPath, "pid"))
-	if err != nil {
-		return -1, err
-	}
-
-	pid, err := strconv.Atoi(string(data))
-	if err != nil {
-		return -1, err
-	}
-
-	return pid, nil
 }
 
 func openLog(name string) error {

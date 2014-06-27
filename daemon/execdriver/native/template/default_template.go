@@ -35,11 +35,10 @@ func New() *libcontainer.Config {
 			AllowAllDevices: false,
 		},
 		MountConfig: &libcontainer.MountConfig{},
-		Context:     make(map[string]string),
 	}
 
 	if apparmor.IsEnabled() {
-		container.Context["apparmor_profile"] = "docker-default"
+		container.AppArmorProfile = "docker-default"
 	}
 
 	return container

@@ -117,7 +117,9 @@
         "parent": "docker"
     },
     "restrict_sys": true,
+    "process_label": "system_u:system_r:svirt_lxc_net_t:s0:c164,c475",
     "mount_config": {
+        "mount_label": "system_u:system_r:svirt_lxc_net_t:s0:c164,c475",
         "device_nodes": [
             {
                 "cgroup_permissions": "rwm",
@@ -188,15 +190,8 @@
             "gateway": "localhost",
             "mtu": 1500,
             "type": "loopback"
-        },
-        {
-            "address": "172.17.0.101/16",
-            "bridge": "docker0",
-            "veth_prefix": "veth",
-            "gateway": "172.17.42.1",
-            "mtu": 1500,
-            "type": "veth"
         }
     ],
-    "tty": true
+    "tty": true,
+    "user": "daemon"
 }

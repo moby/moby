@@ -84,8 +84,9 @@ func TestAppArmorProfile(t *testing.T) {
 	if err := ParseConfiguration(container, nil, opts); err != nil {
 		t.Fatal(err)
 	}
-	if expected := "koye-the-protector"; container.Context["apparmor_profile"] != expected {
-		t.Fatalf("expected profile %s got %s", expected, container.Context["apparmor_profile"])
+
+	if expected := "koye-the-protector"; container.AppArmorProfile != expected {
+		t.Fatalf("expected profile %s got %s", expected, container.AppArmorProfile)
 	}
 }
 

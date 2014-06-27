@@ -51,12 +51,17 @@ type Config struct {
 	// placed into to limit the resources the container has available
 	Cgroups *cgroups.Cgroup `json:"cgroups,omitempty"`
 
-	// Context is a generic key value format that allows for additional settings to be passed
-	// on the container's creation
-	// This is commonly used to specify apparmor profiles, selinux labels, and different restrictions
-	// placed on the container's processes
-	// TODO(vishh): Avoid overloading this field with params for different subsystems. Strongtype this.
-	Context map[string]string `json:"context,omitempty"`
+	// AppArmorProfile specifies the profile to apply to the process running in the container and is
+	// change at the time the process is execed
+	AppArmorProfile string `json:"apparmor_profile,omitempty"`
+
+	// ProcessLabel specifies the label to apply to the process running in the container.  It is
+	// commonly used by selinux
+	ProcessLabel string `json:"process_label,omitempty"`
+
+	// RestrictSys will remount /proc/sys, /sys, and mask over sysrq-trigger as well as /proc/irq and
+	// /proc/bus
+	RestrictSys bool `json:"restrict_sys,omitempty"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started

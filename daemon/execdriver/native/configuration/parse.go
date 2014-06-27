@@ -54,7 +54,7 @@ func systemdSlice(container *libcontainer.Config, context interface{}, value str
 }
 
 func apparmorProfile(container *libcontainer.Config, context interface{}, value string) error {
-	container.Context["apparmor_profile"] = value
+	container.AppArmorProfile = value
 	return nil
 }
 

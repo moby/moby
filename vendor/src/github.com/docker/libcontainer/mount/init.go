@@ -25,8 +25,8 @@ type mount struct {
 	data   string
 }
 
-// InitializeMountNamespace setups up the devices, mount points, and filesystems for use inside a
-// new mount namepsace
+// InitializeMountNamespace sets up the devices, mount points, and filesystems for use inside a
+// new mount namespace.
 func InitializeMountNamespace(rootfs, console string, mountConfig *MountConfig) error {
 	var (
 		err  error
