@@ -131,7 +131,7 @@ world` daemon.
 
 Firstly let's make sure our container is running. We can
 do that with the `docker ps` command. The `docker ps` command queries
-the Docker daemon for information about all the container it knows
+the Docker daemon for information about all the containers it knows
 about.
 
     $ sudo docker ps
