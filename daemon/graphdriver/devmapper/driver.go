@@ -42,6 +42,10 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home:      home,
 	}
 
+	if err := os.Chmod(d.home, 0710); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
 	return d, nil
 }
 

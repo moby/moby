@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/dotcloud/docker/utils"
 )
 
 type BindMap struct {
@@ -40,6 +41,27 @@ func setupMountsForContainer(container *Container) error {
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
+	// Let root in the container own container.root and
+	// container.RootfsPath
+	if container.Config.MapRoot {
+		cRootUid, err := utils.ContainerRootUid()
+		if err != nil {
+			return err
+		}
+		if err := os.Chown(container.root, int(cRootUid), int(cRootUid)); err != nil {
+			return err
+		}
+		if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
+			return err
+		}
+	}
+
+	// Remap UIDs of the image
+	if container.Config.XlateUids || container.Config.InvXlateUids {
+		if err := utils.XlateUids(container.RootfsPath(), container.Config.InvXlateUids); err != nil {
+			return err
+		}
+	}
 	if container.HostnamePath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
 	}
@@ -296,6 +318,13 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 	if srcRW && !isBindMount {
 		if err := copyExistingContents(source, destination); err != nil {
 			return err
+		}
+		// Translate UIDs/GIDs of the empty new volumes and volumes copied from the image but not
+		// volumes imported from other containers or the host.
+		if container.Config.MapRoot {
+			if err := utils.XlateUids(destination, false); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

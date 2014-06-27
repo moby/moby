@@ -32,6 +32,9 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	OnBuild         []string
+	XlateUids       bool
+	InvXlateUids    bool
+	MapRoot         bool
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -52,6 +55,9 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Image:           job.Getenv("Image"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
+		XlateUids:       job.GetenvBool("XlateUids"),
+		InvXlateUids:    job.GetenvBool("InvXlateUids"),
+		MapRoot:         job.GetenvBool("MapRoot"),
 	}
 	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
 	job.GetenvJson("Volumes", &config.Volumes)

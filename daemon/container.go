@@ -212,6 +212,22 @@ func populateCommand(c *Container, env []string) error {
 	// TODO: this can be removed after lxc-conf is fully deprecated
 	mergeLxcConfIntoOptions(c.hostConfig, context)
 
+	uidMaps := make([]execdriver.UidMap, 0)
+	if c.Config.MapRoot {
+		dockerRootUid, _ := utils.ContainerRootUid()
+		maxUid, _ := utils.HostMaxUid()
+
+		// Add 3 uid mappings: one to map docker-root on host to root in
+		// container and the other two to map all other UIDs one-to-one
+		// notably, host root is unmapped
+		defaultUidMaps := []execdriver.UidMap{
+			{1, 1, dockerRootUid - 1},
+			{dockerRootUid + 1, dockerRootUid + 1, maxUid - dockerRootUid - 1},
+			{dockerRootUid, 0, 1},
+		}
+		uidMaps = append(uidMaps, defaultUidMaps...)
+	}
+
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
@@ -233,6 +249,7 @@ func populateCommand(c *Container, env []string) error {
 		Resources:          resources,
 		AllowedDevices:     devices.DefaultAllowedDevices,
 		AutoCreatedDevices: devices.DefaultAutoCreatedDevices,
+		UidMaps:            uidMaps,
 	}
 	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	c.command.Env = env
@@ -282,6 +299,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	if err := container.startLoggingToDisk(); err != nil {
+		return err
+	}
+	if err := container.daemon.execDriver.AddUidMaps(container.command); err != nil {
 		return err
 	}
 	container.waitLock = make(chan struct{})

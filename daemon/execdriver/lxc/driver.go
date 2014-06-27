@@ -58,6 +58,17 @@ type driver struct {
 	sharedRoot bool
 }
 
+func (d *driver) AddUidMaps(c *execdriver.Command) error {
+	lxcConfig := c.Config["lxc"]
+	for _, uidMap := range c.UidMaps {
+		lxcConfig = append(lxcConfig, fmt.Sprintf("id_map = u %d %d %d", uidMap.ContainerUid, uidMap.HostUid, uidMap.Size))
+		lxcConfig = append(lxcConfig, fmt.Sprintf("id_map = g %d %d %d", uidMap.ContainerUid, uidMap.HostUid, uidMap.Size))
+	}
+	c.Config["lxc"] = lxcConfig
+
+	return nil
+}
+
 func NewDriver(root string, apparmor bool) (*driver, error) {
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
@@ -449,5 +460,5 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	p := path.Join(d.root, "containers", c.ID, "config.env")
 	c.Mounts = append(c.Mounts, execdriver.Mount{p, "/.dockerenv", false, true})
 
-	return ioutil.WriteFile(p, data, 0600)
+	return ioutil.WriteFile(p, data, 0644)
 }
