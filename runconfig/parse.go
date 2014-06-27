@@ -133,7 +133,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	for bind := range flVolumes.GetMap() {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
 			if arr[1] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: desination can't be '/'")
+				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
 			}
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
