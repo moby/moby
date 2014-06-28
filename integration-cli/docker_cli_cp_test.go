@@ -444,32 +444,38 @@ func TestCpHostContainer(t *testing.T) {
 	// sleep just in case
 	time.Sleep(time.Second)
 
-	// docker cp tmpfile container:foo
-	cpCmd := exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/foo", cleanCID))
-	_, _, err = runCommandWithOutput(cpCmd)
+	// docker cp tmpfile container:/
+	cpCmd := exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/", cleanCID))
+	out, _, err := runCommandWithOutput(cpCmd)
 	if err != nil {
-		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %v", err))
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %s", out))
 	}
 
-	/* TODO: allow overriding files
-	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/etc/passwd", cleanCID))
-	_, _, err = runCommandWithOutput(cpCmd)
+	// docker cp tmpfile container:foo
+	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/foo", cleanCID))
+	out, _, err = runCommandWithOutput(cpCmd)
 	if err != nil {
-		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %v", err))
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %s", out))
 	}
-	*/
+
+	// allow overriding files
+	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/etc/passwd", cleanCID))
+	out, _, err = runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %s", out))
+	}
 
 	// docker diff to see if the file was added
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
-	out, _, err := runCommandWithOutput(diffCmd)
+	out, _, err = runCommandWithOutput(diffCmd)
 	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
 	found := 0
 	for _, line := range strings.Split(out, "\n") {
-		if line == "A /foo" || line == "C /etc/passwd" {
-			found += 1
+		if line == "A /foo" || line == "C /etc/passwd" || line == "A /"+filepath.Base(tmpFile.Name()) {
+			found++
 		}
 	}
-	if found != 1 {
+	if found != 3 {
 		t.Errorf("couldn't find the new file2 in docker diff's output: %v", out)
 	}
 
