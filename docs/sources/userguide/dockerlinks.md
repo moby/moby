@@ -94,7 +94,7 @@ yourself. This naming provides two useful functions:
    that makes it easier for you to remember them, for example naming a
    container with a web application in it `web`.
 
-2. It provides Docker with reference point that allows it to refer to other
+2. It provides Docker with a reference point that allows it to refer to other
    containers, for example link container `web` to container `db`.
 
 You can name your container by using the `--name` flag, for example:
