@@ -176,6 +176,7 @@ command to list the container's environment variables.
 
 ```
     $ sudo docker run --rm --name web2 --link db:db training/webapp env
+    
     . . .
     DB_NAME=/web2/db
     DB_PORT=tcp://172.17.0.5:5432
