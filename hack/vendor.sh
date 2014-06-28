@@ -47,7 +47,7 @@ clone git github.com/gorilla/mux 136d54f81f
 
 clone git github.com/syndtr/gocapability 3c85049eae
 
-clone git github.com/tchap/go-patricia v1.0.0 
+clone git github.com/tchap/go-patricia v1.0.1
 
 clone hg code.google.com/p/go.net 84a4013f96e0
 
