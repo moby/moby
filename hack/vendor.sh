@@ -41,7 +41,7 @@ clone() {
 
 clone git github.com/kr/pty 67e2db24c8
 
-clone git github.com/gorilla/context b06ed15e1c
+clone git github.com/gorilla/context 14f550f51a
 
 clone git github.com/gorilla/mux 136d54f81f
 
