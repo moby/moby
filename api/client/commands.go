@@ -87,6 +87,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"unpause", "Unpause a paused container"},
 		{"version", "Show the docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
+		{"fs", "List docker filesystems"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
@@ -1436,6 +1437,57 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 	} else {
 		fmt.Fprint(cli.out, "\n")
 	}
+}
+
+func (cli *DockerCli) CmdFs(args ...string) error {
+	cmd := cli.Subcmd("fs", "[OPTIONS]", "List filesystems managed by Docker")
+	dangling := cmd.Bool([]string{"d", "-dangling"}, false, "Only display volumes not being used")
+	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display IDs")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	v := url.Values{}
+	if *dangling {
+		v.Set("dangling", "1")
+	}
+
+	body, _, err := readBody(cli.call("GET", "/filesystems/json?"+v.Encode(), nil, false))
+	if err != nil {
+		return err
+	}
+
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	if !*quiet {
+		fmt.Fprint(w, "Volume ID\tNAMES")
+		fmt.Fprint(w, "\n")
+	}
+
+	for _, out := range outs.Data {
+		var (
+			outID    = out.Get("Id")
+			outNames = out.GetList("Names")
+		)
+
+		// Remove the leading / from the names
+		for i := 0; i < len(outNames); i++ {
+			outNames[i] = outNames[i][1:]
+		}
+
+		if *quiet {
+			fmt.Fprintln(w, outID)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\n", outID, strings.Join(outNames, ","))
+		}
+	}
+	if !*quiet {
+		w.Flush()
+	}
+	return nil
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {

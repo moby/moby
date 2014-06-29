@@ -149,6 +149,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"events":           srv.Events,
 		"push":             srv.ImagePush,
 		"containers":       srv.Containers,
+		"filesystems":      srv.FileSystems,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
@@ -918,6 +919,81 @@ func (srv *Server) ContainerChanges(job *engine.Job) engine.Status {
 		}
 	} else {
 		return job.Errorf("No such container: %s", name)
+	}
+	return engine.StatusOK
+}
+
+func (srv *Server) FileSystems(job *engine.Job) engine.Status {
+	var (
+		volumes  = map[string]struct{}{}
+		used     = map[string]map[string][]string{}
+		outs     = engine.NewTable("Created", 0)
+		dangling = job.GetenvBool("dangling")
+	)
+	getVolumeId := func(p string) string {
+		return filepath.Base(strings.TrimSuffix(p, "/layer"))
+	}
+
+	// Get neccessary data for active volumes
+	for _, container := range srv.daemon.List() {
+		for cPath, hPath := range container.Volumes {
+			volumeId := getVolumeId(hPath)
+			if _, exists := used[volumeId]; !exists {
+				used[volumeId] = map[string][]string{}
+			}
+			volumes[volumeId] = struct{}{}
+			if _, exists := used[volumeId][container.Name]; !exists {
+				used[volumeId][container.Name] = []string{}
+			}
+			used[volumeId][container.Name] = append(
+				used[volumeId][container.Name],
+				cPath,
+			)
+		}
+	}
+
+	// Get dangling volumes
+	volumesDriver := srv.daemon.Volumes()
+	volsPath := volumesDriver.Root
+	volDirs, _ := ioutil.ReadDir(volsPath)
+
+	for i := range volDirs {
+		dir := volDirs[i].Name()
+		if dir != "tmp" && dir != "_tmp" {
+			volumes[dir] = struct{}{}
+		}
+	}
+
+	for volume := range volumes {
+		var (
+			out   = &engine.Env{}
+			names []string
+		)
+		if !dangling {
+			for cName, cPaths := range used[volume] {
+				// Create a name based on the container name and path
+				for i := range cPaths {
+					names = append(names, strings.Join([]string{cName, cPaths[i]}, ":"))
+				}
+			}
+		}
+		if dangling {
+			if _, exists := used[volume]; !exists {
+				out.Set("Id", volume)
+				out.SetList("Names", names)
+				outs.Add(out)
+			}
+		} else {
+			out.Set("Id", volume)
+			out.SetList("Names", names)
+			outs.Add(out)
+		}
+	}
+
+	outs.ReverseSort()
+
+	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
