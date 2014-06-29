@@ -736,7 +736,7 @@ specify this by adding the server name.
 
     Usage: docker logout [SERVER]
 
-    Log the user out of a docker registry server, if no server is specified "https://index.docker.io/v1/" is the default.
+    Log out from a Docker registry, if no server is specified "https://index.docker.io/v1/" is the default.
 
     example:
     $ docker logout localhost:8080

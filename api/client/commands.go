@@ -67,8 +67,8 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"load", "Load an image from a tar archive"},
-		{"login", "Register or log in to the Docker registry server"},
-		{"logout", "Logout of the Docker registry server"},
+		{"login", "Register or log in to a Docker registry server"},
+		{"logout", "Log out from a Docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT"},
 		{"pause", "Pause all processes within a container"},
@@ -354,9 +354,9 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	return nil
 }
 
-// logout of a registry service
+// log out from a Docker registry
 func (cli *DockerCli) CmdLogout(args ...string) error {
-	cmd := cli.Subcmd("logout", "[SERVER]", "Logout of a docker registry server, if no server is specified \""+registry.IndexServerAddress()+"\" is the default.")
+	cmd := cli.Subcmd("logout", "[SERVER]", "Log out from a Docker registry, if no server is specified \""+registry.IndexServerAddress()+"\" is the default.")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
