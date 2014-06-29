@@ -46,7 +46,7 @@ Docker consists of:
     * Since Docker runs on so many platforms, it's easy to move your
       applications around. You can easily move an application from a
       testing environment into the cloud and back whenever you need.
-    * Docker's lightweight containers Docker also make scaling up and
+    * Docker's lightweight containers also make scaling up and
       down fast and easy. You can quickly launch more containers when
       needed and then shut them down easily when they're no longer needed.
 
