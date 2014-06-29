@@ -485,21 +485,52 @@ _docker_rmi()
 _docker_run()
 {
 	case "$prev" in
-		--cidfile)
+		-a|--attach)
+			COMPREPLY=( $( compgen -W 'stdin stdout stderr' -- "$cur" ) )
+			return
+			;;
+		--cidfile|--env-file)
 			_filedir
+			return
 			;;
 		--volumes-from)
 			__docker_containers_all
+			return
 			;;
 		-v|--volume)
-			# TODO something magical with colons and _filedir ?
+			case "$cur" in
+				*:*)
+					# TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
+					;;
+				'')
+					COMPREPLY=( $( compgen -W '/' -- "$cur" ) )
+					compopt -o nospace
+					;;
+				/*)
+					_filedir
+					compopt -o nospace
+					;;
+			esac
 			return
 			;;
 		-e|--env)
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			compopt -o nospace
 			return
 			;;
-		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf)
+		--link)
+			case "$cur" in
+				*:*)
+					;;
+				*)
+					__docker_containers_running
+					COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
+					compopt -o nospace
+					;;
+			esac
+			return
+			;;
+		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf)
 			return
 			;;
 		*)
