@@ -75,6 +75,18 @@ func imageExists(image string) error {
 	return err
 }
 
+func pullImageIfNotExist(image string) (err error) {
+	if err := imageExists(image); err != nil {
+		pullCmd := exec.Command(dockerBinary, "pull", image)
+		_, exitCode, err := runCommandWithOutput(pullCmd)
+
+		if err != nil || exitCode != 0 {
+			err = fmt.Errorf("image '%s' wasn't found locally and it couldn't be pulled: %s", image, err)
+		}
+	}
+	return
+}
+
 func cmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
