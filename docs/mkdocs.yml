@@ -1,139 +1,176 @@
-site_name: Docker Documentation
-#site_url: http://docs.docker.io/
-site_url: /
-site_description: Documentation for fast and lightweight Docker container based virtualization framework.
-site_favicon: img/favicon.png
-
-dev_addr: '0.0.0.0:8000'
-
-repo_url: https://github.com/dotcloud/docker/
-
+site_name: Gluu Server
+site_description: An SSO, Federation and API Access Management suite
+site_favicon: '/img/gluu_favicon.ico'
+copyright: Copyright &copy; 2014, Gluu, Inc.
 docs_dir: sources
-
-include_search: true
-
-use_absolute_urls: true
-
-# theme: docker
-theme_dir: ./theme/mkdocs/
-theme_center_lead: false
-include_search: true
-
-copyright: Copyright &copy; 2014, Docker, Inc.
-google_analytics: ['UA-6096819-11', 'docker.io']
+repo_url: https://github.com/GluuFederation/docs
+theme: spacelab 
 
 pages:
 
-# Introduction:
-- ['index.md', 'About', 'Docker']
-- ['introduction/index.md', '**HIDDEN**']
-- ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
+# Home Page
+- ['./index.md', 'Home']
 
-# Installation:
-- ['installation/index.md', '**HIDDEN**']
-- ['installation/mac.md', 'Installation', 'Mac OS X']
-- ['installation/ubuntulinux.md', 'Installation', 'Ubuntu']
-- ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
-- ['installation/centos.md', 'Installation', 'CentOS']
-- ['installation/debian.md', 'Installation', 'Debian']
-- ['installation/gentoolinux.md', 'Installation', 'Gentoo']
-- ['installation/google.md', 'Installation', 'Google Cloud Platform']
-- ['installation/rackspace.md', 'Installation', 'Rackspace Cloud']
-- ['installation/amazon.md', 'Installation', 'Amazon EC2']
-- ['installation/softlayer.md', 'Installation', 'IBM Softlayer']
-- ['installation/archlinux.md', 'Installation', 'Arch Linux']
-- ['installation/frugalware.md', 'Installation', 'FrugalWare']
-- ['installation/fedora.md', 'Installation', 'Fedora']
-- ['installation/openSUSE.md', 'Installation', 'openSUSE']
-- ['installation/cruxlinux.md', 'Installation', 'CRUX Linux']
-- ['installation/windows.md', 'Installation', 'Microsoft Windows']
-- ['installation/binaries.md', 'Installation', 'Binaries']
+# Admin Guide Sections
+- ['admin-guide/introduction/index.md', 'Admin Guide', 'introduction']
+- ['admin-guide/installation/index.md', 'Admin Guide', 'Installation']
+- ['admin-guide/configuration/index.md', 'Admin Guide', 'Configuration']
+- ['admin-guide/custom-look/index.md', 'Admin Guide', 'Customizing Look and Feel']
+- ['admin-guide/certificates/index.md', 'Admin Guide', 'Certificates']
+- ['admin-guide/user-management/index.md', 'Admin Guide', 'User Management']
+- ['admin-guide/authentication/index.md', 'Admin Guide', 'Authentication']
+- ['admin-guide/saml/index.md', 'Admin Guide', 'SAML']
+- ['admin-guide/openid-connect/index.md', 'Admin Guide', 'OpenID Connect']
+- ['admin-guide/uma/index.md', 'Admin Guide', 'UMA']
+- ['admin-guide/interception-scripts/index.md', 'Admin Guide', 'Interception Scripts']
+- ['admin-guide/multiparty-federation/index.md', 'Admin Guide', 'MultiParty Federation']
+- ['admin-guide/oxPush/index.md', 'Admin Guide', 'oxPush']
 
-# User Guide:
-- ['userguide/index.md', 'User Guide', 'The Docker User Guide' ]
-- ['userguide/dockerhub.md', 'User Guide', 'Getting Started with Docker Hub' ]
-- ['userguide/dockerizing.md', 'User Guide', 'Dockerizing Applications' ]
-- ['userguide/usingdocker.md', 'User Guide', 'Working with Containers' ]
-- ['userguide/dockerimages.md', 'User Guide', 'Working with Docker Images' ]
-- ['userguide/dockerlinks.md', 'User Guide', 'Linking containers together' ]
-- ['userguide/dockervolumes.md', 'User Guide', 'Managing data in containers' ]
-- ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
-
-# Docker Hub docs:
-- ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
-- ['docker-hub/accounts.md', 'Docker Hub', 'Accounts']
-- ['docker-hub/repos.md', 'Docker Hub', 'Repositories']
-- ['docker-hub/builds.md', 'Docker Hub', 'Automated Builds']
-
-# Examples:
-- ['examples/index.md', '**HIDDEN**']
-- ['examples/nodejs_web_app.md', 'Examples', 'Dockerizing a Node.js web application']
-- ['examples/mongodb.md', 'Examples', 'Dockerizing MongoDB']
-- ['examples/running_redis_service.md', 'Examples', 'Dockerizing a Redis service']
-- ['examples/postgresql_service.md', 'Examples', 'Dockerizing a PostgreSQL service']
-- ['examples/running_riak_service.md', 'Examples', 'Dockerizing a Riak service']
-- ['examples/running_ssh_service.md', 'Examples', 'Dockerizing an SSH service']
-- ['examples/couchdb_data_volumes.md', 'Examples', 'Dockerizing a CouchDB service']
-- ['examples/apt-cacher-ng.md', 'Examples', 'Dockerizing an Apt-Cacher-ng service']
+# Reference sections
+- ['reference/configuration/index.md', 'Reference', 'Configuration']
+- ['reference/oxTrust/index.md', 'Reference', 'oxTrust User Interface']
+- ['reference/ldap/index.md', 'Reference', 'LDAP Schema']
+- ['reference/lib/index.md', 'Reference', 'Libraries']
+- ['reference/api/index.md', 'Reference', 'APIs']
 
 # Articles
-- ['articles/index.md', '**HIDDEN**']
-- ['articles/basics.md', 'Articles', 'Docker basics']
-- ['articles/networking.md', 'Articles', 'Advanced networking']
-- ['articles/security.md', 'Articles', 'Security']
-- ['articles/https.md', 'Articles', 'Running Docker with HTTPS']
-- ['articles/host_integration.md', 'Articles', 'Automatically starting Containers']
-- ['articles/using_supervisord.md', 'Articles', 'Using Supervisor']
-- ['articles/cfengine_process_management.md', 'Articles', 'Process management with CFEngine']
-- ['articles/puppet.md', 'Articles', 'Using Puppet']
-- ['articles/chef.md', 'Articles', 'Using Chef']
-- ['articles/ambassador_pattern_linking.md', 'Articles', 'Cross-Host linking using Ambassador Containers']
-- ['articles/runmetrics.md', 'Articles', 'Runtime metrics']
-- ['articles/baseimages.md', 'Articles', 'Creating a Base Image']
+- ['articles/apache-saml.md', 'Articles', 'Apache SAML']
+- ['articles/java-saml.md', 'Articles', 'Java SAML']
+- ['articles/apache-oauth2.md', 'Articles', 'Apache OpenID Connect / UMA']
+- ['articles/nginx-oauth2.md', 'Articles', 'nginx OpenID Connect / UMA']
+- ['articles/js-connect.md', 'Articles', 'JavaScript OpenID Connect RP']
+- ['articles/java-connect.md', 'Articles', 'Java OpenID Connect RP']
+- ['articles/scim-client.md', 'Articles', 'Java SCIM client']
+- ['articles/mobile-api.md', 'Articles', 'Mobile - Headless API : Connect / UMA']
 
-# Reference
-- ['reference/index.md', '**HIDDEN**']
-- ['reference/commandline/index.md', '**HIDDEN**']
-- ['reference/commandline/cli.md', 'Reference', 'Command line']
-- ['reference/builder.md', 'Reference', 'Dockerfile']
-- ['faq.md', 'Reference', 'FAQ']
-- ['reference/run.md', 'Reference', 'Run Reference']
-- ['reference/api/index.md', '**HIDDEN**']
-- ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
-- ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
-- ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
-- ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
-- ['reference/api/docker_remote_api_v1.13.md', 'Reference', 'Docker Remote API v1.13']
-- ['reference/api/docker_remote_api_v1.12.md', 'Reference', 'Docker Remote API v1.12']
-- ['reference/api/docker_remote_api_v1.11.md', 'Reference', 'Docker Remote API v1.11']
-- ['reference/api/docker_remote_api_v1.10.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.9.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.8.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.7.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.6.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.5.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.4.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.3.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.2.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.1.md', '**HIDDEN**']
-- ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
-- ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
-- ['reference/api/docker_io_oauth_api.md', 'Reference', 'Docker Hub OAuth API']
-- ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub Accounts API']
+# Sub Pages of introduction 
+- ['admin-guide/introduction/architecture.md', '**HIDDEN**']
+- ['admin-guide/introduction/design-goals.md', '**HIDDEN**']
+- ['admin-guide/introduction/gluu-server-mission.md', '**HIDDEN**']
+- ['admin-guide/introduction/history.md', '**HIDDEN**']
+- ['admin-guide/introduction/licenses.md', '**HIDDEN**']
 
-- ['jsearch.md', '**HIDDEN**']
+# Sub Pages of Admin Guide / installation
+- ['admin-guide/installation/redhat.md', '**HIDDEN**']
+- ['admin-guide/installation/ubuntu.md', '**HIDDEN**']
+- ['admin-guide/installation/centos.md', '**HIDDEN**']
+- ['admin-guide/installation/debian.md', '**HIDDEN**']
+- ['admin-guide/installation/windows.md', '**HIDDEN**']
+- ['admin-guide/installation/mac.md', '**HIDDEN**']
+- ['admin-guide/installation/juju.md', '**HIDDEN**']
+- ['admin-guide/installation/build.md', '**HIDDEN**']
 
-# - ['static_files/README.md', 'static_files', 'README']
-- ['terms/index.md', '**HIDDEN**']
-- ['terms/layer.md', '**HIDDEN**']
-- ['terms/index.md', '**HIDDEN**']
-- ['terms/registry.md', '**HIDDEN**']
-- ['terms/container.md', '**HIDDEN**']
-- ['terms/repository.md', '**HIDDEN**']
-- ['terms/filesystem.md', '**HIDDEN**']
-- ['terms/image.md', '**HIDDEN**']
+# Sub Pages of Admin Guide / Configuration
+- ['admin-guide/configuration/asimba.md', '**HIDDEN**']
+- ['admin-guide/configuration/oxAuth.md', '**HIDDEN**']
+- ['admin-guide/configuration/oxPush.md', '**HIDDEN**']
+- ['admin-guide/configuration/oxTrust.md', '**HIDDEN**']
+- ['admin-guide/configuration/shibIDP.md', '**HIDDEN**']
+- ['admin-guide/configuration/oxProx.md', '**HIDDEN**']
 
-# Contribute:
-- ['contributing/index.md', '**HIDDEN**']
-- ['contributing/contributing.md', 'Contribute', 'Contributing']
-- ['contributing/devenvironment.md', 'Contribute', 'Development environment']
+# Sub Pages of Customizing Look and Feel
+- ['admin-guide/custom-look/authentication.md', '**HIDDEN**']
+- ['admin-guide/custom-look/defaults.md', '**HIDDEN**']
+- ['admin-guide/custom-look/registration.md', '**HIDDEN**']
+- ['admin-guide/custom-look/saml-discovery.md', '**HIDDEN**']
+- ['admin-guide/custom-look/user-profile.md', '**HIDDEN**']
+- ['admin-guide/custom-look/xhtml.md', '**HIDDEN**']
+
+# Sub Pages of Admin Guide / Certificates 
+- ['admin-guide/certificates/https.md', '**HIDDEN**']
+- ['admin-guide/certificates/saml.md', '**HIDDEN**']
+- ['admin-guide/certificates/openid.md', '**HIDDEN**']
+- ['admin-guide/certificates/federation.md', '**HIDDEN**']
+- ['admin-guide/certificates/ldap.md', '**HIDDEN**']
+
+# Sub pages of Admin Guide / User-Management
+- ['admin-guide/user-management/scim.md', '**HIDDEN**']
+- ['admin-guide/user-management/ldap-sync.md', '**HIDDEN**']
+- ['admin-guide/user-management/local-admin.md', '**HIDDEN**']
+- ['admin-guide/user-management/registration.md', '**HIDDEN**']
+- ['admin-guide/user-management/self-service.md', '**HIDDEN**']
+- ['admin-guide/user-management/invitation-code-registration.md', '**HIDDEN**']
+
+# Sub pages of Admin Guide / Authentication
+- ['admin-guide/authentication/ldap.md', '**HIDDEN**']
+- ['admin-guide/authentication/custom.md', '**HIDDEN**']
+- ['admin-guide/authentication/oxPush.md', '**HIDDEN**']
+- ['admin-guide/authentication/saml.md', '**HIDDEN**']
+- ['admin-guide/authentication/cas.md', '**HIDDEN**']
+- ['admin-guide/authentication/google.md', '**HIDDEN**']
+- ['admin-guide/authentication/duo.md', '**HIDDEN**']
+- ['admin-guide/authentication/toopher.md', '**HIDDEN**']
+
+# Sub pages of Admin Guide / SAML
+- ['admin-guide/saml/outbound-saml.md', '**HIDDEN**']
+- ['admin-guide/saml/inbound-saml.md', '**HIDDEN**']
+- ['admin-guide/saml/saml-registration.md', '**HIDDEN**']
+- ['admin-guide/saml/saml-sp-configuration.md', '**HIDDEN**']
+
+# Sub Pages of Admin Guide / OpenID Connect
+- ['admin-guide/openid-connect/registration.md', '**HIDDEN**']
+- ['admin-guide/openid-connect/discovery.md', '**HIDDEN**']
+- ['admin-guide/openid-connect/scopes.md', '**HIDDEN**']
+- ['admin-guide/openid-connect/client-config.md', '**HIDDEN**']
+
+# Sub pages of Admin Guide / UMA 
+- ['admin-guide/uma/discovery.md', '**HIDDEN**']
+- ['admin-guide/uma/resource-registration.md', '**HIDDEN**']
+- ['admin-guide/uma/policy.md', '**HIDDEN**']
+- ['admin-guide/uma/uma-scopes.md', '**HIDDEN**']
+- ['admin-guide/uma/mod_ox.md', '**HIDDEN**']
+
+# Sub pages of Admin Guide / Interception Scripts 
+- ['admin-guide/interception-scripts/authentication.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/authorization.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/id-generation.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/attribute-transformation.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/post-registration.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/pre-registration.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/logout.md', '**HIDDEN**']
+- ['admin-guide/interception-scripts/saml-discovery.md', '**HIDDEN**']
+
+# Sub pages of Admin Guide / oxPush
+- ['admin-guide/oxPush/cordova-app.md', '**HIDDEN**']
+- ['admin-guide/oxPush/oxPush-server.md', '**HIDDEN**']
+- ['admin-guide/oxPush/oxPush-crypto.md', '**HIDDEN**']
+
+# Sub pages of Multiparty Federation 
+- ['admin-guide/multiparty-federation/saml-federation.md', '**HIDDEN**']
+- ['admin-guide/multiparty-federation/oauth2-federation.md', '**HIDDEN**']
+- ['admin-guide/multiparty-federation/federation-public-website.md', '**HIDDEN**']
+
+- ['reference/lib/openid-connect.md', '**HIDDEN**']
+- ['reference/lib/uma.md', '**HIDDEN**']
+- ['reference/lib/scim.md', '**HIDDEN**']
+- ['reference/lib/saml.md', '**HIDDEN**']
+- ['reference/lib/user-management.md', '**HIDDEN**']
+
+# Sub pages of Reference / LDAP
+- ['reference/ldap/opendj-schema.md', '**HIDDEN**']
+- ['reference/ldap/openldap-schema.md', '**HIDDEN**']
+- ['reference/ldap/389ds-schema.md', '**HIDDEN**']
+- ['reference/ldap/namespace.md', '**HIDDEN**']
+- ['reference/ldap/indexing.md', '**HIDDEN**']
+- ['reference/ldap/replication.md', '**HIDDEN**']
+
+# Sub pages of Reference / Configuration
+- ['reference/configuration/system.md', '**HIDDEN**']
+- ['reference/configuration/oxAuth.md', '**HIDDEN**']
+- ['reference/configuration/oxTrust.md', '**HIDDEN**']
+- ['reference/configuration/shibIDP.md', '**HIDDEN**']
+- ['reference/configuration/asimba.md', '**HIDDEN**']
+- ['reference/configuration/opendj.md', '**HIDDEN**']
+- ['reference/configuration/openldap.md', '**HIDDEN**']
+- ['reference/configuration/jagger.md', '**HIDDEN**']
+- ['reference/configuration/oxPush.md', '**HIDDEN**']
+- ['reference/configuration/oxProx.md', '**HIDDEN**']
+- ['reference/configuration/mysql.md', '**HIDDEN**']
+- ['reference/configuration/memcached.md', '**HIDDEN**']
+
+# Sub pages of Reference / Configuration
+- ['reference/oxTrust/configuration.md', '**HIDDEN**']
+- ['reference/oxTrust/oauth2.md', '**HIDDEN**']
+- ['reference/oxTrust/personal.md', '**HIDDEN**']
+- ['reference/oxTrust/saml.md', '**HIDDEN**']
+- ['reference/oxTrust/users.md', '**HIDDEN**']
