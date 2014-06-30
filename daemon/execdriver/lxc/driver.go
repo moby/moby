@@ -451,3 +451,7 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 
 	return ioutil.WriteFile(p, data, 0600)
 }
+
+func (d *driver) RunIn(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return -1, fmt.Errorf("Unsupported")
+}
