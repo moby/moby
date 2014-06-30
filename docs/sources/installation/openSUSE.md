@@ -49,6 +49,12 @@ Docker daemon. You can add users with:
 
     $ sudo usermod -a -G docker <username>
 
+To verify that everything has worked as expected:
+
+    $ sudo docker run --rm -i -t ubuntu /bin/bash
+
+This should download and import the `ubuntu` image, and then start `bash` in a container. To exit the container type `exit`.
+
 **Done!**
 
 Continue with the [User Guide](/userguide/).
