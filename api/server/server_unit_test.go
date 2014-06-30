@@ -295,6 +295,9 @@ func TestGetImagesHistory(t *testing.T) {
 	var called bool
 	eng.Register("history", func(job *engine.Job) engine.Status {
 		called = true
+		if len(job.Args) == 0 {
+			t.Fatal("Job arguments is empty")
+		}
 		if job.Args[0] != imageName {
 			t.Fatalf("name != '%s': %#v", imageName, job.Args[0])
 		}
