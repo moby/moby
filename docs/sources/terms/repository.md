@@ -13,10 +13,10 @@ server.
 Images can be associated with a repository (or multiple) by giving them
 an image name using one of three different commands:
 
-1. At build time (e.g. `sudo docker build -t IMAGENAME`),
-2. When committing a container (e.g.
+1. At build time (e.g., `sudo docker build -t IMAGENAME`),
+2. When committing a container (e.g.,
    `sudo docker commit CONTAINERID IMAGENAME`) or
-3. When tagging an image id with an image name (e.g.
+3. When tagging an image id with an image name (e.g.,
    `sudo docker tag IMAGEID IMAGENAME`).
 
 A Fully Qualified Image Name (FQIN) can be made up of 3 parts:

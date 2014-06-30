@@ -10,7 +10,7 @@ docker-pull - Pull an image or a repository from the registry
 # DESCRIPTION
 
 This command pulls down an image or a repository from the registry. If
-there is more than one image for a repository (e.g. fedora) then all
+there is more than one image for a repository (e.g., fedora) then all
 images for that repository name are pulled down including any tags.
 It is also possible to specify a non-default registry to pull from.
 

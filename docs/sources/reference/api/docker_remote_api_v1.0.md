@@ -935,7 +935,7 @@ Create a new image from a container's changes
     -   **repo** – repository
     -   **tag** – tag
     -   **m** – commit message
-    -   **author** – author (e.g. "John Hannibal Smith
+    -   **author** – author (e.g., "John Hannibal Smith
         <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
     Status Codes:

@@ -29,7 +29,7 @@ keys:
     $ openssl req -new -x509 -days 365 -key ca-key.pem -out ca.pem
 
 Now that we have a CA, you can create a server key and certificate
-signing request. Make sure that "Common Name (e.g. server FQDN or YOUR
+signing request. Make sure that "Common Name (e.g., server FQDN or YOUR
 name)" matches the hostname you will use to connect to Docker or just
 use `\*` for a certificate valid for any hostname:
 
