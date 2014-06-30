@@ -83,8 +83,11 @@ func TestReleaseUnreadledPort(t *testing.T) {
 	}
 
 	port, err = RequestPort(defaultIP, "tcp", 5000)
-	if err != ErrPortAlreadyAllocated {
-		t.Fatalf("Expected error %s got %s", ErrPortAlreadyAllocated, err)
+
+	switch err.(type) {
+	case ErrPortAlreadyAllocated:
+	default:
+		t.Fatalf("Expected port allocation error got %s", err)
 	}
 }
 
