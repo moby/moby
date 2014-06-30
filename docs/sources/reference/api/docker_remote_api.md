@@ -373,7 +373,7 @@ List containers (/containers/json):
 
 Start containers (/containers/<id>/start):
 
- - You can now pass host-specific configuration (e.g. bind mounts) in
+ - You can now pass host-specific configuration (e.g., bind mounts) in
    the POST body for start calls
 
 ## v1.2

@@ -13,7 +13,7 @@ docker-run - Run a process in an isolated container
 [**--link**=*name*:*alias*]
 [**-e**|**--env**=*environment*] [**--entrypoint**=*command*]
 [**--expose**=*port*] [**-P**|**--publish-all**[=*false*]]
-[**-p**|**--publish**=*port-mappping*] [**-h**|**--hostname**=*hostname*]
+[**-p**|**--publish**=*port-mapping*] [**-h**|**--hostname**=*hostname*]
 [**--rm**[=*false*]] [**--privileged**[=*false*]]
 [**-i**|**--interactive**[=*false*]]
 [**-t**|**--tty**[=*false*]] [**--lxc-conf**=*options*]
@@ -71,7 +71,7 @@ stopping the process by pressing the keys CTRL-P CTRL-Q.
 **--dns**=*IP-address*
    Set custom DNS servers. This option can be used to override the DNS
 configuration passed to the container. Typically this is necessary when the
-host DNS configuration is invalid for the container (eg. 127.0.0.1). When this
+host DNS configuration is invalid for the container (e.g., 127.0.0.1). When this
 is the case the **-dns** flags is necessary for every run.
 
 

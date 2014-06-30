@@ -335,7 +335,7 @@ schema.
 
     Create a new image from a container's changes
 
-      -a, --author=""     Author (eg. "John Hannibal Smith <hannibal@a-team.com>")
+      -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
       -m, --message=""    Commit message
 
 It can be useful to commit a container's file changes or settings into a
@@ -518,7 +518,7 @@ by default.
 ### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there are more
-than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
+than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
  * dangling (boolean - true or false)
@@ -929,7 +929,7 @@ removed before the image is removed.
       --sig-proxy=true           Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
       -t, --tty=false            Allocate a pseudo-tty
       -u, --user=""              Username or UID
-      -v, --volume=[]            Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
+      -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 

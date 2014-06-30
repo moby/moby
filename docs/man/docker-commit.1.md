@@ -14,7 +14,7 @@ Using an existing container's name or ID you can create a new image.
 
 # OPTIONS
 **-a, --author**=""
-   Author name. (eg. "John Hannibal Smith <hannibal@a-team.com>"
+   Author name. (e.g., "John Hannibal Smith <hannibal@a-team.com>"
 
 **-m, --message**=""
    Commit message

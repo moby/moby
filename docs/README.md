@@ -70,7 +70,7 @@ in their shell:
 
 ### Images
 
-When you need to add images, try to make them as small as possible (e.g. as
+When you need to add images, try to make them as small as possible (e.g., as
 gifs). Usually images should go in the same directory as the `.md` file which
 references them, or in a subdirectory if one already exists.
 

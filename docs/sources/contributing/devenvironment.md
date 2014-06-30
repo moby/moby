@@ -113,7 +113,7 @@ something like this
     ok      github.com/dotcloud/docker/utils        0.017s
 
 If $TESTFLAGS is set in the environment, it is passed as extra arguments
-to `go test`. You can use this to select certain tests to run, e.g.
+to `go test`. You can use this to select certain tests to run, e.g.,
 
     $ TESTFLAGS=`-run \^TestBuild\$` make test
 

@@ -91,8 +91,8 @@ without any restriction. This sounds crazy? Well, you have to know that
 same way**. Nothing prevents you from sharing your root filesystem (or
 even your root block device) with a virtual machine.
 
-This has a strong security implication: if you instrument Docker from
-e.g. a web server to provision containers through an API, you should be
+This has a strong security implication: for example, if you instrument Docker
+from a web server to provision containers through an API, you should be
 even more careful than usual with parameter checking, to make sure that
 a malicious user cannot pass crafted parameters causing Docker to create
 arbitrary containers.
@@ -108,7 +108,7 @@ socket.
 You can also expose the REST API over HTTP if you explicitly decide so.
 However, if you do that, being aware of the above mentioned security
 implication, you should ensure that it will be reachable only from a
-trusted network or VPN; or protected with e.g. `stunnel` and client SSL
+trusted network or VPN; or protected with e.g., `stunnel` and client SSL
 certificates. You can also secure them with [HTTPS and
 certificates](/articles/https/).
 
@@ -136,7 +136,7 @@ Finally, if you run Docker on a server, it is recommended to run
 exclusively Docker in the server, and move all other services within
 containers controlled by Docker. Of course, it is fine to keep your
 favorite admin tools (probably at least an SSH server), as well as
-existing monitoring/supervision processes (e.g. NRPE, collectd, etc).
+existing monitoring/supervision processes (e.g., NRPE, collectd, etc).
 
 ## Linux Kernel Capabilities
 
@@ -154,8 +154,8 @@ This means a lot for container security; let's see why!
 
 Your average server (bare metal or virtual machine) needs to run a bunch
 of processes as root. Those typically include SSH, cron, syslogd;
-hardware management tools (to e.g. load modules), network configuration
-tools (to handle e.g. DHCP, WPA, or VPNs), and much more. A container is
+hardware management tools (e.g., load modules), network configuration
+tools (e.g., to handle DHCP, WPA, or VPNs), and much more. A container is
 very different, because almost all of those tasks are handled by the
 infrastructure around the container:
 
@@ -232,7 +232,7 @@ harden a Docker host. Here are a few examples.
    mechanism.
 
 Just like there are many third-party tools to augment Docker containers
-with e.g. special network topologies or shared filesystems, you can
+with e.g., special network topologies or shared filesystems, you can
 expect to see tools to harden existing Docker containers without
 affecting Docker's core.
 

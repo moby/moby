@@ -35,7 +35,7 @@ Note that here TAG is a part of the overall name or "tag".
 
 ## Giving an image a new alias
 
-Here is an example of aliasing an image (e.g. 0e5574283393) as "httpd" and 
+Here is an example of aliasing an image (e.g., 0e5574283393) as "httpd" and 
 tagging it into the "fedora" repository with "version1.0":
 
     docker tag 0e5574283393 fedora/httpd:version1.0

@@ -142,7 +142,7 @@ output:
 
 ## Getting information on an image
 
-Use an image's ID or name (e.g. repository/name[:tag]) to get information
+Use an image's ID or name (e.g., repository/name[:tag]) to get information
  on it.
 
     # docker inspect 58394af37342
