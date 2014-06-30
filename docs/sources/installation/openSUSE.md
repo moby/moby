@@ -49,9 +49,9 @@ Docker daemon.
 
 To verify that everything has worked as expected:
 
-    $ sudo docker run -i -t b1systems/opensuse /bin/bash
+    $ sudo docker run --rm -i -t ubuntu /bin/bash
 
-This should download and import the `opensuse` image, and then start `bash` in a container. To exit the container type `exit`.
+This should download and import the `ubuntu` image, and then start `bash` in a container. To exit the container type `exit`.
 
 **Done!**
 
