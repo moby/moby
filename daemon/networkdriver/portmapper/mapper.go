@@ -3,10 +3,12 @@ package portmapper
 import (
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
 	"net"
 	"sync"
+
+	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
+	"github.com/dotcloud/docker/pkg/iptables"
+	"github.com/dotcloud/docker/pkg/proxy"
 )
 
 type mapping struct {
@@ -31,47 +33,87 @@ var (
 	ErrPortNotMapped             = errors.New("port is not mapped")
 )
 
+type genericAddr struct {
+	IP   net.IP
+	Port int
+}
+
+func (g *genericAddr) Network() string {
+	return ""
+}
+
+func (g *genericAddr) String() string {
+	return fmt.Sprintf("%s:%d", g.IP.String(), g.Port)
+}
+
 func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
 
-func Map(container net.Addr, hostIP net.IP, hostPort int) error {
+func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	var m *mapping
+	var (
+		m                 *mapping
+		err               error
+		proto             string
+		allocatedHostPort int
+	)
+
 	switch container.(type) {
 	case *net.TCPAddr:
+		proto = "tcp"
+		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
+			return &net.TCPAddr{IP: hostIP, Port: hostPort}, err
+		}
 		m = &mapping{
-			proto:     "tcp",
-			host:      &net.TCPAddr{IP: hostIP, Port: hostPort},
+			proto:     proto,
+			host:      &net.TCPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
 	case *net.UDPAddr:
+		proto = "udp"
+		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
+			return &net.UDPAddr{IP: hostIP, Port: hostPort}, err
+		}
 		m = &mapping{
-			proto:     "udp",
-			host:      &net.UDPAddr{IP: hostIP, Port: hostPort},
+			proto:     proto,
+			host:      &net.UDPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
 	default:
-		return ErrUnknownBackendAddressType
+		// Always return a proper net.Addr for proper reporting.
+		return &genericAddr{IP: hostIP, Port: hostPort}, ErrUnknownBackendAddressType
 	}
+
+	// When binding fails:
+	//  - for a specifically requested port: it might be locked by some other
+	//    process, so we want to allow for an ulterior retry
+	//  - for an automatically allocated port: it falls in the Docker range of
+	//    ports, so we'll just remember it as used and try the next free one
+	defer func() {
+		if err != nil && hostPort != 0 {
+			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
+		}
+	}()
 
 	key := getKey(m.host)
 	if _, exists := currentMappings[key]; exists {
-		return ErrPortMappedForIP
+		err = ErrPortMappedForIP
+		return m.host, err
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if err := forward(iptables.Add, m.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		return err
+	if err := forward(iptables.Add, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
+		return m.host, err
 	}
 
 	p, err := newProxy(m.host, m.container)
 	if err != nil {
 		// need to undo the iptables rules before we reutrn
-		forward(iptables.Delete, m.proto, hostIP, hostPort, containerIP.String(), containerPort)
-		return err
+		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		return m.host, err
 	}
 
 	m.userlandProxy = p
@@ -79,7 +121,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) error {
 
 	go p.Run()
 
-	return nil
+	return m.host, nil
 }
 
 func Unmap(host net.Addr) error {
@@ -100,6 +142,18 @@ func Unmap(host net.Addr) error {
 	if err := forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
 		return err
 	}
+
+	switch a := host.(type) {
+	case *net.TCPAddr:
+		if err := portallocator.ReleasePort(a.IP, "tcp", a.Port); err != nil {
+			return err
+		}
+	case *net.UDPAddr:
+		if err := portallocator.ReleasePort(a.IP, "udp", a.Port); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
