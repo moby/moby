@@ -199,26 +199,26 @@ To kill the container, use `docker kill`.
       --rm=true            Remove intermediate containers after a successful build
       -t, --tag=""         Repository name (and optionally a tag) to be applied to the resulting image in case of success
 
-Use this command to build Docker images from a Dockerfile
-and a "context".
+Use this command to build Docker images from a Dockerfile and a
+"context".
 
-The files at `PATH` or `URL` are called the "context" of the build. The build
-process may refer to any of the files in the context, for example when using an
-[*ADD*](/reference/builder/#dockerfile-add) instruction. When a single Dockerfile is
-given as `URL` or is piped through STDIN (`docker build - < Dockerfile`), then
-no context is set.
+The files at `PATH` or `URL` are called the "context" of the build. The
+build process may refer to any of the files in the context, for example
+when using an [*ADD*](/reference/builder/#dockerfile-add) instruction.
+When a single Dockerfile is given as `URL` or is piped through `STDIN`
+(`docker build - < Dockerfile`), then no context is set.
 
-When a Git repository is set as `URL`, then the
-repository is used as the context. The Git repository is cloned with its
-submodules (git clone –recursive). A fresh git clone occurs in a
-temporary directory on your local host, and then this is sent to the
-Docker daemon as the context. This way, your local user credentials and
-vpn's etc can be used to access private repositories.
+When a Git repository is set as `URL`, then the repository is used as
+the context. The Git repository is cloned with its submodules (`git
+clone -recursive`). A fresh `git clone` occurs in a temporary directory
+on your local host, and then this is sent to the Docker daemon as the
+context.  This way, your local user credentials and VPN's etc can be
+used to access private repositories.
 
-If a file named ``.dockerignore`` exists in the root of ``PATH`` then it is
-interpreted as a newline-separated list of exclusion patterns. Exclusion
-patterns match files or directories relative to ``PATH`` that will be excluded
-from the context. Globbing is done using Go's
+If a file named `.dockerignore` exists in the root of `PATH` then it
+is interpreted as a newline-separated list of exclusion patterns.
+Exclusion patterns match files or directories relative to `PATH` that
+will be excluded from the context. Globbing is done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
 
 See also:
@@ -304,15 +304,14 @@ and the tag will be `2.0`
 
     $ sudo docker build - < Dockerfile
 
-This will read a Dockerfile from STDIN without
-context. Due to the lack of a context, no contents of any local
-directory will be sent to the `docker` daemon. Since
-there is no context, a Dockerfile `ADD`
-only works if it refers to a remote URL.
+This will read a Dockerfile from `STDIN` without context. Due to the
+lack of a context, no contents of any local directory will be sent to
+the Docker daemon. Since there is no context, a Dockerfile `ADD` only
+works if it refers to a remote URL.
 
     $ sudo docker build - < context.tar.gz
 
-This will build an image for a compressed context read from STDIN.
+This will build an image for a compressed context read from `STDIN`.
 Supported formats are: bzip2, gzip and xz.
 
     $ sudo docker build github.com/creack/docker-firefox
@@ -518,7 +517,7 @@ by default.
 
 ### Filtering
 
-The filtering flag (-f or --filter) format is of "key=value". If there are more
+The filtering flag (`-f` or `--filter`) format is of "key=value". If there are more
 than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
@@ -562,11 +561,10 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
     Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
-URLs must start with `http` and point to a single
-file archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a
-root filesystem. If you would like to import from a local directory or
-archive, you can use the `-` parameter to take the
-data from STDIN.
+URLs must start with `http` and point to a single file archive (.tar,
+.tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
+you would like to import from a local directory or archive, you can use
+the `-` parameter to take the data from `STDIN`.
 
 ### Examples
 
@@ -578,7 +576,7 @@ This will create a new untagged image.
 
 **Import from a local file:**
 
-Import to docker via pipe and STDIN.
+Import to docker via pipe and `STDIN`.
 
     $ cat exampleimage.tgz | sudo docker import - exampleimagelocal:new
 
@@ -681,7 +679,7 @@ contains complex json object, so to grab it as JSON, you use
 
       -s, --signal="KILL"    Signal to send to the container
 
-The main process inside the container will be sent SIGKILL, or any
+The main process inside the container will be sent `SIGKILL`, or any
 signal specified with option `--signal`.
 
 ## load
@@ -739,8 +737,8 @@ The `docker logs` command batch-retrieves all logs
 present at the time of execution.
 
 The ``docker logs --follow`` command will first return all logs from the
-beginning and then continue streaming new output from the container's stdout
-and stderr.
+beginning and then continue streaming new output from the container's `STDOUT`
+and `STDERR`.
 
 ## port
 
@@ -1074,7 +1072,7 @@ This will create and run a new container with the container name being
 
 The `--link` flag will link the container named `/redis` into the newly
 created container with the alias `redis`. The new container can access the
-network and environment of the redis container via environment variables.
+network and environment of the `redis` container via environment variables.
 The `--name` flag will assign the name `console` to the newly created
 container.
 
@@ -1087,19 +1085,19 @@ optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
 or read-write mode, respectively. By default, the volumes are mounted in
 the same mode (read write or read only) as the reference container.
 
-The `-a` flag tells `docker run` to bind to the container's stdin, stdout or
-stderr. This makes it possible to manipulate the output and input as needed.
+The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
+`STDERR`. This makes it possible to manipulate the output and input as needed.
 
     $ echo "test" | sudo docker run -i -a stdin ubuntu cat -
 
 This pipes data into a container and prints the container's ID by attaching
-only to the container'sstdin.
+only to the container's `STDIN`.
 
     $ sudo docker run -a stderr ubuntu echo test
 
-This isn't going to print anything unless there's an error because We've
-only attached to the stderr of the container. The container's logs still
-   store what's been written to stderr and stdout.
+This isn't going to print anything unless there's an error because we've
+only attached to the `STDERR` of the container. The container's logs
+still store what's been written to `STDERR` and `STDOUT`.
 
     $ cat somefile | sudo docker run -i -a stdin mybuilder dobuild
 
