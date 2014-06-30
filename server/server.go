@@ -2161,7 +2161,7 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 		return job.Errorf("You must choose at least one stream")
 	}
 	if times {
-		format = time.StampMilli
+		format = time.RFC3339Nano
 	}
 	container := srv.daemon.Get(name)
 	if container == nil {
@@ -2202,7 +2202,7 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 			}
 			logLine := l.Log
 			if times {
-				logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
+				logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
 			}
 			if l.Stream == "stdout" && stdout {
 				fmt.Fprintf(job.Stdout, "%s", logLine)
