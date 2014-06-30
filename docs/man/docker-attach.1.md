@@ -22,8 +22,8 @@ the client.
 When set to true, do not attach to stdin. The default is *false*.
 
 **--sig-proxy**=*true*|*false*:
-When set to true, proxify all received signal to the process (even in non-tty
-mode). The default is *true*.
+When set to true, proxify received signals to the process (even in non-tty
+mode). SIGCHLD is not proxied. The default is *true*.
 
 # EXAMPLES
 
