@@ -49,6 +49,11 @@ daemon is configured to listen on.
 **New!**
 `start` and `stop` will now return 304 if the container's status is not modified
 
+`POST /commit`
+
+**New!**
+Added a `pause` parameter (default `true`) to pause the container during commit
+
 ## v1.12
 
 ### Full Documentation

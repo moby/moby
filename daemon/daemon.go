@@ -620,8 +620,12 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
-	// FIXME: freeze the container before copying it to avoid data corruption?
+func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
+	if pause {
+		container.Pause()
+		defer container.Unpause()
+	}
+
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}

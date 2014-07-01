@@ -19,6 +19,9 @@ Using an existing container's name or ID you can create a new image.
 **-m, --message**=""
    Commit message
 
+**-p, --pause**=true
+   Pause container during commit
+
 # EXAMPLES
 
 ## Creating a new image from an existing container
