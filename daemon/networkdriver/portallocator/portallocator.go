@@ -12,10 +12,22 @@ type portMap struct {
 	last int
 }
 
-type (
-	protocolMap map[string]*portMap
-	ipMapping   map[string]protocolMap
-)
+func newPortMap() *portMap {
+	return &portMap{
+		p: map[int]struct{}{},
+	}
+}
+
+type protoMap map[string]*portMap
+
+func newProtoMap() protoMap {
+	return protoMap{
+		"tcp": newPortMap(),
+		"udp": newPortMap(),
+	}
+}
+
+type ipMapping map[string]protoMap
 
 const (
 	BeginPortRange = 49153
@@ -62,107 +74,83 @@ func (e ErrPortAlreadyAllocated) Error() string {
 	return fmt.Sprintf("Bind for %s:%d failed: port is already allocated", e.ip, e.port)
 }
 
+// RequestPort requests new port from global ports pool for specified ip and proto.
+// If port is 0 it returns first free port. Otherwise it cheks port availability
+// in pool and return that port or error if port is already busy.
 func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if err := validateProto(proto); err != nil {
+	if proto != "tcp" && proto != "udp" {
+		return 0, ErrUnknownProtocol
+	}
+
+	if ip == nil {
+		ip = defaultIP
+	}
+	ipstr := ip.String()
+	protomap, ok := globalMap[ipstr]
+	if !ok {
+		protomap = newProtoMap()
+		globalMap[ipstr] = protomap
+	}
+	mapping := protomap[proto]
+	if port > 0 {
+		if _, ok := mapping.p[port]; !ok {
+			mapping.p[port] = struct{}{}
+			return port, nil
+		}
+		return 0, NewErrPortAlreadyAllocated(ipstr, port)
+	}
+
+	port, err := mapping.findPort()
+	if err != nil {
 		return 0, err
 	}
-
-	ip = getDefault(ip)
-
-	mapping := getOrCreate(ip)
-
-	if port > 0 {
-		if _, ok := mapping[proto].p[port]; !ok {
-			mapping[proto].p[port] = struct{}{}
-			return port, nil
-		} else {
-			return 0, NewErrPortAlreadyAllocated(ip.String(), port)
-		}
-	} else {
-		port, err := findPort(ip, proto)
-
-		if err != nil {
-			return 0, err
-		}
-
-		return port, nil
-	}
+	return port, nil
 }
 
+// ReleasePort releases port from global ports pool for specified ip and proto.
 func ReleasePort(ip net.IP, proto string, port int) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	ip = getDefault(ip)
-
-	mapping := getOrCreate(ip)[proto]
-	delete(mapping.p, port)
-
+	if ip == nil {
+		ip = defaultIP
+	}
+	protomap, ok := globalMap[ip.String()]
+	if !ok {
+		return nil
+	}
+	delete(protomap[proto].p, port)
 	return nil
 }
 
+// ReleaseAll releases all ports for all ips.
 func ReleaseAll() error {
 	mutex.Lock()
-	defer mutex.Unlock()
-
 	globalMap = ipMapping{}
-
+	mutex.Unlock()
 	return nil
 }
 
-func getOrCreate(ip net.IP) protocolMap {
-	ipstr := ip.String()
-
-	if _, ok := globalMap[ipstr]; !ok {
-		globalMap[ipstr] = protocolMap{
-			"tcp": &portMap{p: map[int]struct{}{}, last: 0},
-			"udp": &portMap{p: map[int]struct{}{}, last: 0},
-		}
-	}
-
-	return globalMap[ipstr]
-}
-
-func findPort(ip net.IP, proto string) (int, error) {
-	mapping := getOrCreate(ip)[proto]
-
-	if mapping.last == 0 {
-		mapping.p[BeginPortRange] = struct{}{}
-		mapping.last = BeginPortRange
+func (pm *portMap) findPort() (int, error) {
+	if pm.last == 0 {
+		pm.p[BeginPortRange] = struct{}{}
+		pm.last = BeginPortRange
 		return BeginPortRange, nil
 	}
 
-	for port := mapping.last + 1; port != mapping.last; port++ {
+	for port := pm.last + 1; port != pm.last; port++ {
 		if port > EndPortRange {
 			port = BeginPortRange
 		}
 
-		if _, ok := mapping.p[port]; !ok {
-			mapping.p[port] = struct{}{}
-			mapping.last = port
+		if _, ok := pm.p[port]; !ok {
+			pm.p[port] = struct{}{}
+			pm.last = port
 			return port, nil
 		}
-
 	}
-
 	return 0, ErrAllPortsAllocated
-}
-
-func getDefault(ip net.IP) net.IP {
-	if ip == nil {
-		return defaultIP
-	}
-
-	return ip
-}
-
-func validateProto(proto string) error {
-	if proto != "tcp" && proto != "udp" {
-		return ErrUnknownProtocol
-	}
-
-	return nil
 }
