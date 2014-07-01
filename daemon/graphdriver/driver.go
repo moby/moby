@@ -23,6 +23,8 @@ type Driver interface {
 	String() string
 
 	Create(id, parent string) error
+	CreateWithParent(newID, parentID, startID, endID string) error
+
 	Remove(id string) error
 
 	Get(id, mountLabel string) (dir string, err error)

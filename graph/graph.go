@@ -194,11 +194,17 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, i
 		return fmt.Errorf("Mktemp failed: %s", err)
 	}
 
-	// Create root filesystem in the driver
-	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
-		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+	startId := fmt.Sprintf("%s-init", img.Container)
+	if graph.driver.Exists(img.Container) && layerData == nil && graph.driver.Exists(startId) {
+		if err := graph.driver.CreateWithParent(img.ID, img.Parent, startId, img.Container); err != nil {
+			return fmt.Errorf("failed to commit container: %s", err)
+		}
+	} else {
+		// Create root filesystem in the driver
+		if err := graph.driver.Create(img.ID, img.Parent); err != nil {
+			return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+		}
 	}
-	// Mount the root filesystem so we can apply the diff/layer
 	rootfs, err := graph.driver.Get(img.ID, "")
 	if err != nil {
 		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)

@@ -188,6 +188,35 @@ func (a *Driver) Create(id, parent string) error {
 	return nil
 }
 
+func (d *Driver) CreateWithParent(newID, parentID, startID, endID string) error {
+	var (
+		layerData archive.Archive
+		err       error
+	)
+	d.Get(endID, "")
+	defer d.Put(endID)
+
+	if layerData, err = d.Diff(endID); err != nil {
+		return err
+	}
+	defer layerData.Close()
+
+	if err := d.Create(newID, parentID); err != nil {
+		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", d, newID, err)
+	}
+
+	newImagePath, err := d.Get(newID, "")
+	if err != nil {
+		return fmt.Errorf("Error getting image rootfs %s from driver %s: %s %s", newID, d, err, newImagePath)
+	}
+	defer d.Put(newID)
+
+	if err = d.ApplyDiff(newID, layerData); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
