@@ -54,9 +54,9 @@ expect an integer, and they can only be specified once.
       -b, --bridge=""                            Attach containers to a pre-existing network bridge
                                                    use 'none' to disable container networking
       --bip=""                                   Use this CIDR notation address for the network bridge's IP, not compatible with -b
-      -d, --daemon=false                         Enable daemon mode
       -D, --debug=false                          Enable debug mode
-      --dns=[]                                   Force docker to use specific DNS servers
+      -d, --daemon=false                         Enable daemon mode
+      --dns=[]                                   Force Docker to use specific DNS servers
       --dns-search=[]                            Force Docker to use specific DNS search domains
       -e, --exec-driver="native"                 Force the Docker runtime to use a specific exec driver
       -G, --group="docker"                       Group to assign the unix socket specified by -H when running in daemon mode
@@ -73,8 +73,8 @@ expect an integer, and they can only be specified once.
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
       -r, --restart=true                         Restart previously running containers
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
-      --storage-opt=[]                           Set storage driver options
       --selinux-enabled=false                    Enable selinux support
+      --storage-opt=[]                           Set storage driver options
       --tls=false                                Use TLS; implied by tls-verify flags
       --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here
       --tlscert="/home/sven/.docker/cert.pem"    Path to TLS certificate file
@@ -134,8 +134,8 @@ like this:
 
     Attach to a running container
 
-      --no-stdin=false    Do not attach stdin
-      --sig-proxy=true    Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
+      --no-stdin=false    Do not attach STDIN
+      --sig-proxy=true    Proxify all received signals to the process (even in non-TTY mode). SIGCHLD is not proxied.
 
 The `attach` command will allow you to view or
 interact with any running container, detached (`-d`)
@@ -481,7 +481,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false      Show all images (by default filter out the intermediate image layers)
-      -f, --filter=[]:     Provide filter values (i.e. 'dangling=true')
+      -f, --filter=[]      Provide filter values (i.e. 'dangling=true')
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -600,6 +600,8 @@ tar, then the ownerships might not get preserved.
 
     Usage: docker info
 
+    Display system-wide information
+
 For example:
 
     $ sudo docker -D info
@@ -627,7 +629,7 @@ ensure we know how your setup is configured.
 
     Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
-    Return low-level information on a container/image
+    Return low-level information on a container or image
 
       -f, --format=""    Format the output using the given go template.
 
@@ -681,7 +683,7 @@ contains complex json object, so to grab it as JSON, you use
 
     Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
 
-    Kill a running container (send SIGKILL, or specified signal)
+    Kill a running container using SIGKILL or a specified signal
 
       -s, --signal="KILL"    Signal to send to the container
 
@@ -718,7 +720,7 @@ Restores both images and tags.
 
     Usage: docker login [OPTIONS] [SERVER]
 
-    Register or Login to a docker registry server, if no server is specified "https://index.docker.io/v1/" is the default.
+    Register or log in to a Docker registry server, if no server is specified "https://index.docker.io/v1/" is the default.
 
       -e, --email=""       Email
       -p, --password=""    Password
@@ -752,7 +754,7 @@ value is set to `all` in that case. This behavior may change in the future.
 
     Usage: docker port CONTAINER PRIVATE_PORT
 
-    Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+    Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
 
 ## ps
 
@@ -781,7 +783,7 @@ Running `docker ps` showing 2 linked containers.
 
 ## pull
 
-    Usage: docker pull [REGISTRY_PATH/]NAME[:TAG]
+    Usage: docker pull NAME[:TAG]
 
     Pull an image or a repository from the registry
 
@@ -824,7 +826,7 @@ registry or to a self-hosted one.
 
     Restart a running container
 
-      -t, --time=10      Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10
+      -t, --time=10      Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default is 10 seconds.
 
 ## rm
 
@@ -834,7 +836,7 @@ registry or to a self-hosted one.
 
       -f, --force=false      Force removal of running container
       -l, --link=false       Remove the specified link and not the underlying container
-      -v, --volumes=false    Remove the volumes associated to the container
+      -v, --volumes=false    Remove the volumes associated with the container
 
 ### Known Issues (rm)
 
@@ -870,7 +872,7 @@ delete them. Any running containers will not be deleted.
 
     Remove one or more images
 
-      -f, --force=false    Force
+      -f, --force=false    Force removal of the image
       --no-prune=false     Do not delete untagged parents
 
 ### Removing tagged images
@@ -910,6 +912,7 @@ removed before the image is removed.
       -a, --attach=[]            Attach to stdin, stdout or stderr.
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cidfile=""               Write the container ID to the file
+      --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
       -d, --detach=false         Detached mode: Run container in the background, print new container id
       --dns=[]                   Set custom dns servers
       --dns-search=[]            Set custom dns search domains
@@ -927,11 +930,11 @@ removed before the image is removed.
                                    'bridge': creates a new network stack for the container on the docker bridge
                                    'none': no networking for this container
                                    'container:<name|id>': reuses another container network stack
-                                   'host': use the host network stack inside the container
+                                   'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+      -P, --publish-all=false    Publish all exposed ports to the host interfaces
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)
-      -P, --publish-all=false    Publish all exposed ports to the host interfaces
       --privileged=false         Give extended privileges to this container
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --sig-proxy=true           Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
@@ -1150,7 +1153,7 @@ application change:
 
     Usage: docker save IMAGE
 
-    Save an image to a tar archive (streamed to stdout by default)
+    Save an image to a tar archive (streamed to STDOUT by default)
 
       -o, --output=""    Write to an file, instead of STDOUT
 
@@ -1175,11 +1178,11 @@ Search [Docker Hub](https://hub.docker.com) for images
 
     Usage: docker search TERM
 
-    Search the docker index for images
+    Search the Docker Hub for images
 
-      --no-trunc=false       Don't truncate output
-      -s, --stars=0          Only displays with at least xxx stars
-      --automated=false      Only show automated builds
+      --automated=false    Only show automated builds
+      --no-trunc=false     Don't truncate output
+      -s, --stars=0        Only displays with at least x stars
 
 See [*Find Public Images on Docker Hub*](
 /userguide/dockerrepos/#find-public-images-on-docker-hub) for
@@ -1191,8 +1194,8 @@ more details on finding shared images from the command line.
 
     Restart a stopped container
 
-      -a, --attach=false         Attach container's stdout/stderr and forward all signals to the process
-      -i, --interactive=false    Attach container's stdin
+      -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
+      -i, --interactive=false    Attach container's STDIN
 
 When run on a container that has already been started, 
 takes no action and succeeds unconditionally.
@@ -1201,9 +1204,9 @@ takes no action and succeeds unconditionally.
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
-    Stop a running container (Send SIGTERM, and then SIGKILL after grace period)
+    Stop a running container by sending SIGTERM and then SIGKILL after a grace period
 
-      -t, --time=10      Number of seconds to wait for the container to stop before killing it.
+      -t, --time=10      Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
 
 The main process inside the container will receive SIGTERM, and after a
 grace period, SIGKILL
@@ -1224,13 +1227,13 @@ them to [*Share Images via Repositories*](
 
     Usage: docker top CONTAINER [ps OPTIONS]
 
-    Lookup the running processes of a container
+    Display the running processes of a container
 
 ## version
 
     Usage: docker version
 
-    Show the docker version information.
+    Show the Docker version information.
 
 Show the Docker version, API version, Git commit, and Go version of
 both Docker client and daemon.
@@ -1240,3 +1243,4 @@ both Docker client and daemon.
     Usage: docker wait CONTAINER [CONTAINER...]
 
     Block until a container stops, then print its exit code.
+

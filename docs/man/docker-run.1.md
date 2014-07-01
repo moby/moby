@@ -1,26 +1,40 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-run - Run a process in an isolated container
+docker-run - Run a command in a new container
 
 # SYNOPSIS
 **docker run**
-[**-a**|**--attach**[=]] [**-c**|**--cpu-shares**[=0]
-[**-m**|**--memory**=*memory-limit*]
-[**--cidfile**=*file*] [**-d**|**--detach**[=*false*]] [**--dns**=*IP-address*]
-[**--name**=*name*] [**-u**|**--user**=*username*|*uid*]
-[**--link**=*name*:*alias*]
-[**-e**|**--env**=*environment*] [**--entrypoint**=*command*]
-[**--expose**=*port*] [**-P**|**--publish-all**[=*false*]]
-[**-p**|**--publish**=*port-mapping*] [**-h**|**--hostname**=*hostname*]
-[**--rm**[=*false*]] [**--privileged**[=*false*]]
+[**-a**|**--attach**[=*[]*]]
+[**-c**|**--cpu-shares**[=*0*]]
+[**--cidfile**[=*CIDFILE*]]
+[**--cpuset**[=*CPUSET*]]
+[**-d**|**--detach**[=*false*]]
+[**--dns-search**[=*[]*]]
+[**--dns**[=*[]*]]
+[**-e**|**--env**[=*[]*]]
+[**--entrypoint**[=*ENTRYPOINT*]]
+[**--env-file**[=*[]*]]
+[**--expose**[=*[]*]]
+[**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
-[**-t**|**--tty**[=*false*]] [**--lxc-conf**=*options*]
-[**-n**|**--networking**[=*true*]]
-[**-v**|**--volume**=*volume*] [**--volumes-from**=*container-id*]
-[**-w**|**--workdir**=*directory*] [**--sig-proxy**[=*true*]]
-IMAGE [COMMAND] [ARG...]
+[**--link**[=*[]*]]
+[**--lxc-conf**[=*[]*]]
+[**-m**|**--memory**[=*MEMORY*]]
+[**--name**[=*NAME*]]
+[**--net**[=*"bridge"*]]
+[**-P**|**--publish-all**[=*false*]]
+[**-p**|**--publish**[=*[]*]]
+[**--privileged**[=*false*]]
+[**--rm**[=*false*]]
+[**--sig-proxy**[=*true*]]
+[**-t**|**--tty**[=*false*]]
+[**-u**|**--user**[=*USER*]]
+[**-v**|**--volume**[=*[]*]]
+[**--volumes-from**[=*[]*]]
+[**-w**|**--workdir**[=*WORKDIR*]]
+ IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
 
@@ -56,6 +70,8 @@ run**.
 **--cidfile**=*file*
    Write the container ID to the file specified.
 
+**--cpuset**=""
+   CPUs in which to allow execution (0-3, 0,1)
 
 **-d**, **-detach**=*true*|*false*
    Detached mode. This runs the container in the background. It outputs the new
@@ -67,6 +83,8 @@ the detached mode, then you cannot use the **-rm** option.
    When attached in the tty mode, you can detach from a running container without
 stopping the process by pressing the keys CTRL-P CTRL-Q.
 
+**--dns-search**=[]
+   Set custom dns search domains
 
 **--dns**=*IP-address*
    Set custom DNS servers. This option can be used to override the DNS
@@ -92,6 +110,8 @@ pass in more options via the COMMAND. But, sometimes an operator may want to run
 something else inside the container, so you can override the default ENTRYPOINT
 at runtime by using a **--entrypoint** and a string to specify the new
 ENTRYPOINT.
+**--env-file**=[]
+   Read in a line delimited file of ENV variables
 
 **--expose**=*port*
    Expose a port from the container without publishing it to your host. A
@@ -100,35 +120,11 @@ developer can expose the port using the EXPOSE parameter of the Dockerfile, 2)
 the operator can use the **--expose** option with **docker run**, or 3) the
 container can be started with the **--link**.
 
-**-m**, **-memory**=*memory-limit*
-   Allows you to constrain the memory available to a container. If the host
-supports swap memory, then the -m memory setting can be larger than physical
-RAM. If a limit of 0 is specified, the container's memory is not limited. The
-actual limit may be rounded up to a multiple of the operating system's page
-size, if it is not already. The memory limit should be formatted as follows:
-`<number><optional unit>`, where unit = b, k, m or g.
-
-**-P**, **-publish-all**=*true*|*false*
-   When set to true publish all exposed ports to the host interfaces. The
-default is false. If the operator uses -P (or -p) then Docker will make the
-exposed port accessible on the host and the ports will be available to any
-client that can reach the host. To find the map between the host ports and the
-exposed ports, use **docker port**.
-
-
-**-p**, **-publish**=[]
-   Publish a container's port to the host (format: ip:hostPort:containerPort |
-ip::containerPort | hostPort:containerPort) (use **docker port** to see the
-actual mapping)
-
-
 **-h**, **-hostname**=*hostname*
    Sets the container host name that is available inside the container.
 
-
 **-i**, **-interactive**=*true*|*false*
    When set to true, keep stdin open even if not attached. The default is false.
-
 
 **--link**=*name*:*alias*
    Add link to another container. The format is name:alias. If the operator
@@ -137,16 +133,16 @@ container can access the exposed port via a private networking interface. Docker
 will set some environment variables in the client container to help indicate
 which interface and port to use.
 
+**--lxc-conf**=[]
+   (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
-**-n**, **-networking**=*true*|*false*
-   By default, all containers have networking enabled (true) and can make
-outgoing connections. The operator can disable networking with **--networking**
-to false. This disables all incoming and outgoing networking. In cases like this
-, I/O can only be performed through files or by using STDIN/STDOUT.
-
-Also by default, the container will use the same DNS servers as the host. The
-operator may override this with **-dns**.
-
+**-m**, **-memory**=*memory-limit*
+   Allows you to constrain the memory available to a container. If the host
+supports swap memory, then the -m memory setting can be larger than physical
+RAM. If a limit of 0 is specified, the container's memory is not limited. The
+actual limit may be rounded up to a multiple of the operating system's page
+size, if it is not already. The memory limit should be formatted as follows:
+`<number><optional unit>`, where unit = b, k, m or g.
 
 **--name**=*name*
    Assign a name to the container. The operator can identify a container in
@@ -162,6 +158,24 @@ string name. The name is useful when defining links (see **--link**) (or any
 other place you need to identify a container). This works for both background
 and foreground Docker containers.
 
+**--net**="bridge"
+   Set the Network mode for the container
+                               'bridge': creates a new network stack for the container on the docker bridge
+                               'none': no networking for this container
+                               'container:<name|id>': reuses another container network stack
+                               'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+
+**-P**, **-publish-all**=*true*|*false*
+   When set to true publish all exposed ports to the host interfaces. The
+default is false. If the operator uses -P (or -p) then Docker will make the
+exposed port accessible on the host and the ports will be available to any
+client that can reach the host. To find the map between the host ports and the
+exposed ports, use **docker port**.
+
+**-p**, **-publish**=[]
+   Publish a container's port to the host (format: ip:hostPort:containerPort |
+ip::containerPort | hostPort:containerPort) (use **docker port** to see the
+actual mapping)
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. By default, Docker containers are
@@ -356,3 +370,4 @@ changes will also be reflected on the host in /var/db.
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

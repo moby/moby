@@ -1,18 +1,22 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-diff - Inspect changes on a container's filesystem
 
 # SYNOPSIS
-**docker diff** CONTAINER
+**docker diff**
+CONTAINER
 
 # DESCRIPTION
 Inspect changes on a container's filesystem. You can use the full or
 shortened container ID or the container name set using
 **docker run --name** option.
 
-# EXAMPLE
+# OPTIONS
+There are no available options.
+
+# EXAMPLES
 Inspect the changes to on a nginx container:
 
     # docker diff 1fdfd1f54c1b
@@ -40,5 +44,4 @@ Inspect the changes to on a nginx container:
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
-
-
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

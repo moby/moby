@@ -1,16 +1,15 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
-
+% Docker Community
+% JUNE 2014
 # NAME
-
-docker-rm - Remove one or more containers.
+docker-rm - Remove one or more containers
 
 # SYNOPSIS
-
-**docker rm** [**-f**|**--force**[=*false*] [**-l**|**--link**[=*false*] [**-v**|
-**--volumes**[=*false*]
-CONTAINER [CONTAINER...]
+**docker rm**
+[**-f**|**--force**[=*false*]]
+[**-l**|**--link**[=*false*]]
+[**-v**|**--volumes**[=*false*]]
+ CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 
@@ -20,18 +19,14 @@ remove a running container unless you use the \fB-f\fR option. To see all
 containers on a host use the **docker ps -a** command.
 
 # OPTIONS
-
 **-f**, **--force**=*true*|*false*
-   When set to true, force the removal of the container. The default is
-*false*.
+   Force removal of running container. The default is *false*.
 
 **-l**, **--link**=*true*|*false*
-   When set to true, remove the specified link and not the underlying
-container. The default is *false*.
+   Remove the specified link and not the underlying container. The default is *false*.
 
 **-v**, **--volumes**=*true*|*false*
-   When set to true, remove the volumes associated to the container. The
-default is *false*.
+   Remove the volumes associated with the container. The default is *false*.
 
 # EXAMPLES
 
@@ -51,6 +46,6 @@ command. The use that name as follows:
     docker rm hopeful_morse
 
 # HISTORY
-
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

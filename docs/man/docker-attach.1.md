@@ -1,11 +1,14 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-attach - Attach to a running container
 
 # SYNOPSIS
-**docker attach** **--no-stdin**[=*false*] **--sig-proxy**[=*true*] CONTAINER
+**docker attach**
+[**--no-stdin**[=*false*]]
+[**--sig-proxy**[=*true*]]
+ CONTAINER
 
 # DESCRIPTION
 If you **docker run** a container in detached mode (**-d**), you can reattach to
@@ -19,11 +22,10 @@ the client.
 
 # OPTIONS
 **--no-stdin**=*true*|*false*
-When set to true, do not attach to stdin. The default is *false*.
+   Do not attach STDIN. The default is *false*.
 
-**--sig-proxy**=*true*|*false*:
-When set to true, proxify received signals to the process (even in non-tty
-mode). SIGCHLD is not proxied. The default is *true*.
+**--sig-proxy**=*true*|*false*
+   Proxify all received signals to the process (even in non-TTY mode). SIGCHLD is not proxied. The default is *true*.
 
 # EXAMPLES
 
@@ -56,3 +58,4 @@ attach** command:
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

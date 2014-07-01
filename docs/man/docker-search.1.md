@@ -1,12 +1,15 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-search - Search the docker index for images
+docker-search - Search the Docker Hub for images
 
 # SYNOPSIS
-**docker search** **--no-trunc**[=*false*] **--automated**[=*false*]
- **-s**|**--stars**[=*0*] TERM
+**docker search**
+[**--automated**[=*false*]]
+[**--no-trunc**[=*false*]]
+[**-s**|**--stars**[=*0*]]
+TERM
 
 # DESCRIPTION
 
@@ -16,17 +19,16 @@ number of stars awarded, whether the image is official, and whether it
 is automated.
 
 # OPTIONS
-**--no-trunc**=*true*|*false*
-   When true display the complete description. The default is false.
-
-**-s**, **--stars**=NUM
-   Only displays with at least NUM (integer) stars. I.e. only those images
-ranked >=NUM.
-
 **--automated**=*true*|*false*
-   When true only show automated builds. The default is false.
+   Only show automated builds. The default is *false*.
 
-# EXAMPLE
+**--no-trunc**=*true*|*false*
+   Don't truncate output. The default is *false*.
+
+**-s**, **--stars**=0
+   Only displays with at least x stars
+
+# EXAMPLES
 
 ## Search the registry for ranked images
 
@@ -53,3 +55,4 @@ ranked 1 or higher:
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

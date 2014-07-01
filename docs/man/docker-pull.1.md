@@ -1,11 +1,12 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-pull - Pull an image or a repository from the registry
 
 # SYNOPSIS
-**docker pull** [REGISTRY_PATH/]NAME[:TAG]
+**docker pull**
+NAME[:TAG]
 
 # DESCRIPTION
 
@@ -13,6 +14,9 @@ This command pulls down an image or a repository from the registry. If
 there is more than one image for a repository (e.g., fedora) then all
 images for that repository name are pulled down including any tags.
 It is also possible to specify a non-default registry to pull from.
+
+# OPTIONS
+There are no available options.
 
 # EXAMPLES
 
@@ -48,4 +52,4 @@ It is also possible to specify a non-default registry to pull from.
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
-
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

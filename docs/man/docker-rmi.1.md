@@ -1,12 +1,14 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-rmi \- Remove one or more images.
+docker-rmi - Remove one or more images
 
 # SYNOPSIS
-
-**docker rmi** [**-f**|**--force**[=*false*] IMAGE [IMAGE...]
+**docker rmi**
+[**-f**|**--force**[=*false*]]
+[**--no-prune**[=*false*]]
+IMAGE [IMAGE...]
 
 # DESCRIPTION
 
@@ -16,10 +18,11 @@ container unless you use the **-f** option. To see all images on a host
 use the **docker images** command.
 
 # OPTIONS
-
 **-f**, **--force**=*true*|*false*
-   When set to true, force the removal of the image. The default is
-*false*.
+   Force removal of the image. The default is *false*.
+
+**--no-prune**=*true*|*false*
+   Do not delete untagged parents. The default is *false*.
 
 # EXAMPLES
 
@@ -30,6 +33,6 @@ Here is an example of removing and image:
     docker rmi fedora/httpd
 
 # HISTORY
-
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
