@@ -22,6 +22,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/pkg/tailfile"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -2153,8 +2155,10 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 		name   = job.Args[0]
 		stdout = job.GetenvBool("stdout")
 		stderr = job.GetenvBool("stderr")
+		tail   = job.Getenv("tail")
 		follow = job.GetenvBool("follow")
 		times  = job.GetenvBool("timestamps")
+		lines  = -1
 		format string
 	)
 	if !(stdout || stderr) {
@@ -2162,6 +2166,9 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	if times {
 		format = time.StampMilli
+	}
+	if tail == "" {
+		tail = "all"
 	}
 	container := srv.daemon.Get(name)
 	if container == nil {
@@ -2190,25 +2197,47 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	} else if err != nil {
 		utils.Errorf("Error reading logs (json): %s", err)
 	} else {
-		dec := json.NewDecoder(cLog)
-		for {
-			l := &utils.JSONLog{}
+		if tail != "all" {
+			var err error
+			lines, err = strconv.Atoi(tail)
+			if err != nil {
+				utils.Errorf("Failed to parse tail %s, error: %v, show all logs", err)
+				lines = -1
+			}
+		}
+		if lines != 0 {
+			if lines > 0 {
+				f := cLog.(*os.File)
+				ls, err := tailfile.TailFile(f, lines)
+				if err != nil {
+					return job.Error(err)
+				}
+				tmp := bytes.NewBuffer([]byte{})
+				for _, l := range ls {
+					fmt.Fprintf(tmp, "%s\n", l)
+				}
+				cLog = tmp
+			}
+			dec := json.NewDecoder(cLog)
+			for {
+				l := &utils.JSONLog{}
 
-			if err := dec.Decode(l); err == io.EOF {
-				break
-			} else if err != nil {
-				utils.Errorf("Error streaming logs: %s", err)
-				break
-			}
-			logLine := l.Log
-			if times {
-				logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
-			}
-			if l.Stream == "stdout" && stdout {
-				fmt.Fprintf(job.Stdout, "%s", logLine)
-			}
-			if l.Stream == "stderr" && stderr {
-				fmt.Fprintf(job.Stderr, "%s", logLine)
+				if err := dec.Decode(l); err == io.EOF {
+					break
+				} else if err != nil {
+					utils.Errorf("Error streaming logs: %s", err)
+					break
+				}
+				logLine := l.Log
+				if times {
+					logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
+				}
+				if l.Stream == "stdout" && stdout {
+					fmt.Fprintf(job.Stdout, "%s", logLine)
+				}
+				if l.Stream == "stderr" && stderr {
+					fmt.Fprintf(job.Stderr, "%s", logLine)
+				}
 			}
 		}
 	}
