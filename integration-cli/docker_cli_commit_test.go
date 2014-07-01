@@ -45,7 +45,7 @@ func TestCommitWithoutPause(t *testing.T) {
 	_, _, err = runCommandWithOutput(waitCmd)
 	errorOut(err, t, fmt.Sprintf("error thrown while waiting for container: %s", out))
 
-	commitCmd := exec.Command(dockerBinary, "commit", "-p", "false", cleanedContainerID)
+	commitCmd := exec.Command(dockerBinary, "commit", "-p=false", cleanedContainerID)
 	out, _, err = runCommandWithOutput(commitCmd)
 	errorOut(err, t, fmt.Sprintf("failed to commit container to image: %v %v", out, err))
 
@@ -58,7 +58,7 @@ func TestCommitWithoutPause(t *testing.T) {
 	deleteContainer(cleanedContainerID)
 	deleteImages(cleanedImageID)
 
-	logDone("commit - echo foo and commit the image")
+	logDone("commit - echo foo and commit the image with --pause=false")
 }
 
 func TestCommitNewFile(t *testing.T) {
