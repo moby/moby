@@ -83,6 +83,38 @@ be treated as an argument. This allows statements like:
 Here is the set of instructions you can use in a Dockerfile
 for building images.
 
+## .dockerignore
+
+If a file named `.dockerignore` exists in the source repository, then it
+is interpreted as a newline-separated list of exclusion patterns.
+Exclusion patterns match files or directories relative to the source repository
+that will be excluded from the context. Globbing is done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+
+The following example shows the use of the `.dockerignore` file to exclude the
+`.git` directory from the context. Its effect can be seen in the changed size of
+the uploaded context.
+
+    $ docker build .
+    Uploading context 18.829 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
+    $ echo ".git" > .dockerignore
+    $ docker build .
+    Uploading context  6.76 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
+
 ## FROM
 
     FROM <image>
