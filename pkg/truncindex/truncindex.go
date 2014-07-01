@@ -13,6 +13,12 @@ var (
 	ErrNoID = errors.New("prefix can't be empty")
 )
 
+func init() {
+	// Change patricia max prefix per node length,
+	// because our len(ID) always 64
+	patricia.MaxPrefixPerNode = 64
+}
+
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
