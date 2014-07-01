@@ -19,6 +19,7 @@ var (
 	ErrInvalidWorkingDirectory     = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach        = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove    = fmt.Errorf("Conflicting options: --rm and -d")
+	ErrConflictDetachForceRemove   = fmt.Errorf("Conflicting options: --force-rm and -d")
 	ErrConflictNetworkHostname     = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
@@ -56,6 +57,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flCapDrop     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
+		flForceRemove     = cmd.Bool([]string{"-force-rm"}, false, "Always remove the container, even after unsuccessful run (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -108,6 +110,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
+	}
+	if *flDetach && *flForceRemove {
+		return nil, nil, cmd, ErrConflictDetachForceRemove
 	}
 	if *flDetach && *flAutoRemove {
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
