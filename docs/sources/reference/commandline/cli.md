@@ -223,7 +223,7 @@ will be excluded from the context. Globbing is done using Go's
 
 See also:
 
-[*Dockerfile Reference*](/reference/builder/#dockerbuilder).
+[*Dockerfile Reference*](/reference/builder).
 
 ### Examples:
 
@@ -292,8 +292,8 @@ affect the build cache.
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
 
-This example shows the use of the ``.dockerignore`` file to exclude the ``.git``
-directory the context. Its effect can be seen in the changed size of the
+This example shows the use of the `.dockerignore` file to exclude the `.git`
+directory from the context. Its effect can be seen in the changed size of the
 uploaded context.
 
     $ sudo docker build -t vieux/apache:2.0 .
