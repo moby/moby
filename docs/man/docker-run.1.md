@@ -17,6 +17,7 @@ docker-run - Run a command in a new container
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
+[**--force-rm**[=*false*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
 [**--link**[=*[]*]]
@@ -119,6 +120,10 @@ containers port can be exposed to other containers in three ways: 1) The
 developer can expose the port using the EXPOSE parameter of the Dockerfile, 2)
 the operator can use the **--expose** option with **docker run**, or 3) the
 container can be started with the **--link**.
+
+**--force-rm**=*true*|*false*
+   If set to *true* the container is always removed, even after unsuccessful run.
+The default is *false*. This option is incompatible with **-d**.
 
 **-h**, **-hostname**=*hostname*
    Sets the container host name that is available inside the container.

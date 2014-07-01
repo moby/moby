@@ -964,6 +964,7 @@ removed before the image is removed.
       --entrypoint=""            Overwrite the default entrypoint of the image
       --env-file=[]              Read in a line delimited file of ENV variables
       --expose=[]                Expose a port from the container without publishing it to your host
+      --force-rm=false           Always remove the container, even after unsuccessful run (incompatible with -d)
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep stdin open even if not attached
       --link=[]                  Add link to another container (name:alias)

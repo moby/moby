@@ -1414,3 +1414,33 @@ func TestCopyVolumeContent(t *testing.T) {
 		t.Fatal("Container failed to transfer content to volume")
 	}
 }
+
+func TestDockerRunRm(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--rm", "--name=testrm", "busybox", "echo", "test")
+	if _, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(dockerBinary, "inspect", "testrm")
+	if _, _, err := runCommandWithOutput(cmd); err == nil {
+		t.Fatalf("container found, but it should have been removed")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - remove the container when it exits")
+}
+
+func TestDockerRunForceRm(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--force-rm", "--name=testforcerm", "--link", "err:err", "busybox")
+	if _, _, err := runCommandWithOutput(cmd); err == nil {
+		t.Fatalf("run succeed, but it shouldn't (bad link)")
+	}
+	cmd = exec.Command(dockerBinary, "inspect", "testforcerm")
+	if _, _, err := runCommandWithOutput(cmd); err == nil {
+		t.Fatalf("container found, but it should have been removed")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - force remove the container")
+}
