@@ -169,3 +169,47 @@ func TestLogsStderrInStdout(t *testing.T) {
 
 	logDone("logs - stderr in stdout (with pseudo-tty)")
 }
+
+func TestLogsTail(t *testing.T) {
+	testLen := 100
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
+
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+
+	logsCmd := exec.Command(dockerBinary, "logs", "--tail", "5", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
+	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+
+	lines := strings.Split(out, "\n")
+
+	if len(lines) != 6 {
+		t.Fatalf("Expected log %d lines, received %d\n", 6, len(lines))
+	}
+
+	logsCmd = exec.Command(dockerBinary, "logs", "--tail", "all", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
+	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+
+	lines = strings.Split(out, "\n")
+
+	if len(lines) != testLen+1 {
+		t.Fatalf("Expected log %d lines, received %d\n", testLen+1, len(lines))
+	}
+
+	logsCmd = exec.Command(dockerBinary, "logs", "--tail", "random", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
+	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+
+	lines = strings.Split(out, "\n")
+
+	if len(lines) != testLen+1 {
+		t.Fatalf("Expected log %d lines, received %d\n", testLen+1, len(lines))
+	}
+
+	deleteContainer(cleanedContainerID)
+	logDone("logs - logs tail")
+}

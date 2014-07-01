@@ -738,13 +738,15 @@ specify this by adding the server name.
 
       -f, --follow=false        Follow log output
       -t, --timestamps=false    Show timestamps
+      --tail="all"              Output the specified number of lines at the end of logs (all logs by default)
 
-The `docker logs` command batch-retrieves all logs
-present at the time of execution.
+The `docker logs` command batch-retrieves logs present at the time of execution.
 
-The ``docker logs --follow`` command will first return all logs from the
-beginning and then continue streaming new output from the container's `STDOUT`
-and `STDERR`.
+The `docker logs --follow` command will continue streaming the new output from
+the container's `STDOUT` and `STDERR`.
+
+Passing a negative number or a non-integer to --tail is invalid and the
+value is set to all in that case. This behavior may change in the future.
 
 ## port
 
