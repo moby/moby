@@ -29,7 +29,7 @@ environment. To learn more;
 
 Go to [Using Docker Hub](/userguide/dockerhub).
 
-## Dockerizing Applications: A "Hello World!"
+## Dockerizing Applications: A "Hello world"
 
 *How do I run applications inside containers?*
 

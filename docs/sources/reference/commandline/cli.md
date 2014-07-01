@@ -246,7 +246,7 @@ See also:
     drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
     drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
      ---> b35f4035db3f
-    Step 3 : CMD echo Hello World
+    Step 3 : CMD echo Hello world
      ---> Running in 02071fceb21b
      ---> f52f38b7823e
     Successfully built f52f38b7823e
@@ -277,7 +277,7 @@ affect the build cache.
     Uploading context
     Step 0 : FROM busybox
      ---> 769b9341d937
-    Step 1 : CMD echo Hello World
+    Step 1 : CMD echo Hello world
      ---> Using cache
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
@@ -287,7 +287,7 @@ affect the build cache.
     Uploading context
     Step 0 : FROM busybox
      ---> 769b9341d937
-    Step 1 : CMD echo Hello World
+    Step 1 : CMD echo Hello world
      ---> Using cache
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469

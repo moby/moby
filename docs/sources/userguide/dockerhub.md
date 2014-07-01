@@ -65,7 +65,7 @@ Your Docker Hub account is now active and ready for you to use!
 
 ##  Next steps
 
-Next, let's start learning how to Dockerize applications with our "Hello World!"
+Next, let's start learning how to Dockerize applications with our "Hello world"
 exercise.
 
 Go to [Dockerizing Applications](/userguide/dockerizing).
