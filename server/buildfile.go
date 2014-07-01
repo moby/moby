@@ -752,7 +752,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.daemon.Commit(container, "", "", "", b.maintainer, &autoConfig)
+	image, err := b.daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
 	if err != nil {
 		return err
 	}

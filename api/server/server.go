@@ -439,6 +439,12 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		utils.Errorf("%s", err)
 	}
 
+	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
+		job.Setenv("pause", "1")
+	} else {
+		job.Setenv("pause", r.FormValue("pause"))
+	}
+
 	job.Setenv("repo", r.Form.Get("repo"))
 	job.Setenv("tag", r.Form.Get("tag"))
 	job.Setenv("author", r.Form.Get("author"))
