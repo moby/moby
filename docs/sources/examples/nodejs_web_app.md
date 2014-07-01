@@ -24,7 +24,7 @@ describes your app and its dependencies:
       "name": "docker-centos-hello",
       "private": true,
       "version": "0.0.1",
-      "description": "Node.js Hello World app on CentOS using docker",
+      "description": "Node.js Hello world app on CentOS using docker",
       "author": "Daniel Gasienica <daniel@gasienica.ch>",
       "dependencies": {
         "express": "3.2.4"
@@ -42,7 +42,7 @@ app using the [Express.js](http://expressjs.com/) framework:
     // App
     var app = express();
     app.get('/', function (req, res) {
-      res.send('Hello World\n');
+      res.send('Hello world\n');
     });
 
     app.listen(PORT);
@@ -184,7 +184,7 @@ Now you can call your app using `curl` (install if needed via:
     Date: Sun, 02 Jun 2013 03:53:22 GMT
     Connection: keep-alive
 
-    Hello World
+    Hello world
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at
