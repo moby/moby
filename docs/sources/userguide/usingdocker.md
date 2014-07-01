@@ -179,8 +179,9 @@ see the application.
 Our Python application is live!
 
 > **Note:**
-> If you have used boot2docker on OSX you'll need to get the IP of the virtual
-> host instead of using localhost. You can do this by running the following in
+> If you have used the boot2docker virtual machine on OS X, Windows or Linux,
+> you'll need to get the IP of the virtual host instead of using localhost.
+> You can do this by running the following in
 > the boot2docker shell.
 > 
 >     $ boot2docker ip
