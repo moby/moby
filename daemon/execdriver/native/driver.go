@@ -171,7 +171,7 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 
 func (d *driver) Terminate(p *execdriver.Command) error {
 	// lets check the start time for the process
-	started, err := d.readStartTime(p)
+	state, err := libcontainer.GetState(filepath.Join(d.root, p.ID))
 	if err != nil {
 		// if we don't have the data on disk then we can assume the process is gone
 		// because this is only removed after we know the process has stopped
@@ -185,21 +185,13 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 	if err != nil {
 		return err
 	}
-	if started == currentStartTime {
+	if state.InitStartTime == currentStartTime {
 		err = syscall.Kill(p.Process.Pid, 9)
 		syscall.Wait4(p.Process.Pid, nil, 0, nil)
 	}
 	d.removeContainerRoot(p.ID)
 	return err
 
-}
-
-func (d *driver) readStartTime(p *execdriver.Command) (string, error) {
-	data, err := ioutil.ReadFile(filepath.Join(d.root, p.ID, "start"))
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
 
 func (d *driver) Info(id string) execdriver.Info {
