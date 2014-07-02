@@ -88,6 +88,9 @@ case "$1" in
 		touch "$DOCKER_LOGFILE"
 		chgrp docker "$DOCKER_LOGFILE"
 
+		ulimit -n 1048576
+		ulimit -u 1048576
+
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
 			--no-close \
