@@ -13,5 +13,4 @@ There are no available options.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
-based on docker.io source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

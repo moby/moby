@@ -225,5 +225,5 @@ Use an image's ID or name (e.g., repository/name[:tag]) to get information
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
-based on docker.io source material and internal work.
+based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

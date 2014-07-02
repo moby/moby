@@ -19,7 +19,7 @@ In the process we learned about several Docker commands:
 
 > **Tip:**
 > Another way to learn about `docker` commands is our
-> [interactive tutorial](https://www.docker.io/gettingstarted).
+> [interactive tutorial](https://www.docker.com/tryit/).
 
 The `docker` client is pretty simple. Each action you can take
 with Docker is a command and each command can take a series of

@@ -82,11 +82,11 @@ Go to [Working with Docker Hub](/userguide/dockerrepos).
 
 ## Getting help
 
-* [Docker homepage](http://www.docker.io/)
+* [Docker homepage](http://www.docker.com/)
 * [Docker Hub](https://hub.docker.com)
-* [Docker blog](http://blog.docker.io/)
-* [Docker documentation](http://docs.docker.io/)
-* [Docker Getting Started Guide](http://www.docker.io/gettingstarted/)
+* [Docker blog](http://blog.docker.com/)
+* [Docker documentation](http://docs.docker.com/)
+* [Docker Getting Started Guide](http://www.docker.com/gettingstarted/)
 * [Docker code on GitHub](https://github.com/dotcloud/docker)
 * [Docker mailing
   list](https://groups.google.com/forum/#!forum/docker-user)

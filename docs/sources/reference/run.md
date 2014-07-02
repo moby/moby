@@ -240,7 +240,7 @@ to access to all devices on the host as well as set some configuration
 in AppArmor to allow the container nearly all the same access to the
 host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
-[Docker Blog](http://blog.docker.io/2013/09/docker-can-now-run-within-docker/).
+[Docker Blog](http://blog.docker.com/2013/09/docker-can-now-run-within-docker/).
 
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options

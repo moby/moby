@@ -3,7 +3,7 @@
 The source for Docker documentation is here under `sources/` and uses extended
 Markdown, as implemented by [MkDocs](http://mkdocs.org).
 
-The HTML files are built and hosted on `https://docs.docker.io`, and update
+The HTML files are built and hosted on `https://docs.docker.com`, and update
 automatically after each change to the master or release branch of [Docker on
 GitHub](https://github.com/dotcloud/docker) thanks to post-commit hooks. The
 `docs` branch maps to the "latest" documentation and the `master` (unreleased
@@ -21,14 +21,14 @@ In the rare case where your change is not forward-compatible, you may need to
 base your changes on the `docs` branch.
 
 Also, now that we have a `docs` branch, we can keep the
-[http://docs.docker.io](http://docs.docker.io) docs up to date with any bugs
+[http://docs.docker.com](http://docs.docker.com) docs up to date with any bugs
 found between Docker code releases.
 
 **Warning**: When *reading* the docs, the
-[http://beta-docs.docker.io](http://beta-docs.docker.io) documentation may
+[http://docs-stage.docker.com](http://docs-stage.docker.com) documentation may
 include features not yet part of any official Docker release. The `beta-docs`
 site should be used only for understanding bleeding-edge development and
-`docs.docker.io` (which points to the `docs` branch`) should be used for the
+`docs.docker.com` (which points to the `docs` branch`) should be used for the
 latest official release.
 
 ## Contributing

@@ -160,7 +160,7 @@ Docker can be used to run short-lived commands, long-running daemons
 (app servers, databases etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](http://docs.docker.io/en/latest/examples/) in the
+examples](http://docs.docker.com/examples/) in the
 documentation.
 
 Under the hood

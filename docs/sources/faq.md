@@ -178,13 +178,13 @@ Cloud:
 ### How do I report a security issue with Docker?
 
 You can learn about the project's security policy
-[here](https://www.docker.io/security/) and report security issues to
+[here](https://www.docker.com/security/) and report security issues to
 this [mailbox](mailto:security@docker.com).
 
 ### Why do I need to sign my commits to Docker with the DCO?
 
 Please read [our blog post](
-http://blog.docker.io/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
+http://blog.docker.com/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
 on the introduction of the DCO.
 
 ### When building an image, should I prefer system libraries or bundled ones?
