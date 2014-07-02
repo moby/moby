@@ -82,7 +82,7 @@ func TestBroadcastWriter(t *testing.T) {
 		t.Errorf("Buffer contains %v", bufferC.String())
 	}
 
-	writer.Close()
+	writer.Clean()
 }
 
 type devNullCloser int
@@ -138,7 +138,7 @@ func BenchmarkBroadcastWriter(b *testing.B) {
 		}
 
 		b.StopTimer()
-		writer.Close()
+		writer.Clean()
 		b.StartTimer()
 	}
 }
