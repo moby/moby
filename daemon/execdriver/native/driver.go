@@ -173,12 +173,21 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 	// lets check the start time for the process
 	state, err := libcontainer.GetState(filepath.Join(d.root, p.ID))
 	if err != nil {
-		// if we don't have the data on disk then we can assume the process is gone
-		// because this is only removed after we know the process has stopped
-		if os.IsNotExist(err) {
-			return nil
+		if !os.IsNotExist(err) {
+			return err
 		}
-		return err
+		// TODO: Remove this part for version 1.2.0
+		// This is added only to ensure smooth upgrades from pre 1.1.0 to 1.1.0
+		data, err := ioutil.ReadFile(filepath.Join(d.root, p.ID, "start"))
+		if err != nil {
+			// if we don't have the data on disk then we can assume the process is gone
+			// because this is only removed after we know the process has stopped
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		state = &libcontainer.State{InitStartTime: string(data)}
 	}
 
 	currentStartTime, err := system.GetProcessStartTime(p.Process.Pid)
