@@ -896,8 +896,8 @@ func (daemon *Daemon) shutdown() error {
 
 			go func() {
 				defer group.Done()
-				if err := c.KillSig(15); err != nil {
-					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
+				if err := c.Stop(5); err != nil {
+					utils.Debugf("stop error for %s - %s", c.ID, err)
 				}
 				c.State.WaitStop(-1 * time.Second)
 				utils.Debugf("container stopped %s", c.ID)
