@@ -29,6 +29,7 @@ import (
 	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/broadcastwriter"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -66,8 +67,8 @@ type Container struct {
 	ExecDriver     string
 
 	command   *execdriver.Command
-	stdout    *utils.WriteBroadcaster
-	stderr    *utils.WriteBroadcaster
+	stdout    *broadcastwriter.BroadcastWriter
+	stderr    *broadcastwriter.BroadcastWriter
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 
@@ -502,10 +503,10 @@ func (container *Container) cleanup() {
 			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
-	if err := container.stdout.CloseWriters(); err != nil {
+	if err := container.stdout.Close(); err != nil {
 		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
-	if err := container.stderr.CloseWriters(); err != nil {
+	if err := container.stderr.Close(); err != nil {
 		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 	if container.command != nil && container.command.Terminal != nil {
