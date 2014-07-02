@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -122,30 +121,6 @@ func TestGetImagesJSON(t *testing.T) {
 
 	if images3.Len() != 0 {
 		t.Errorf("Expected 0 image, %d found", images3.Len())
-	}
-}
-
-func TestGetImagesHistory(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("/images/%s/history", unitTestImageName), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadListFrom(r.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 line, %d found", len(outs.Data))
 	}
 }
 
