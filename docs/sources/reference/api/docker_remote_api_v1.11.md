@@ -1309,6 +1309,28 @@ Load a set of images and tags into the docker repository.
     -   **200** – no error
     -   **500** – server error
 
+#### Get a tarball containing a single image layer
+
+`GET /images/(name)/root`
+
+Get a tarball containing a single image layer specified by `name`.
+
+    **Example request (returns top layer only)**
+
+        GET /images/ubuntu/root
+
+    **Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/x-tar
+
+        Binary data stream
+
+    Status Codes:
+
+    -   **200** – no error
+    -   **500** – server error
+
 # 3. Going further
 
 ## 3.1 Inside `docker run`

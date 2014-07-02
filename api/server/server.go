@@ -610,6 +610,18 @@ func getImagesGet(eng *engine.Engine, version version.Version, w http.ResponseWr
 	return job.Run()
 }
 
+func getImagesRootLayer(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if version.GreaterThan("1.0") {
+		w.Header().Set("Content-Type", "application/x-tar")
+	}
+	job := eng.Job("image_root", vars["name"])
+	job.Stdout.Add(w)
+	return job.Run()
+}
+
 func postImagesLoad(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	job := eng.Job("load")
 	job.Stdin.Add(r.Body)
@@ -1092,6 +1104,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,
 			"/images/{name:.*}/get":           getImagesGet,
+			"/images/{name:.*}/root":          getImagesRootLayer,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
 			"/containers/ps":                  getContainersJSON,
