@@ -178,7 +178,7 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 		}
 		// TODO: Remove this part for version 1.2.0
 		// This is added only to ensure smooth upgrades from pre 1.1.0 to 1.1.0
-		data, err := ioutil.ReadAll(filepath.Join(d.root, p.ID, "start"))
+		data, err := ioutil.ReadFile(filepath.Join(d.root, p.ID, "start"))
 		if err != nil {
 			// if we don't have the data on disk then we can assume the process is gone
 			// because this is only removed after we know the process has stopped
@@ -187,7 +187,7 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 			}
 			return err
 		}
-		state.InitStartTime = string(data)
+		state = &libcontainer.State{InitStartTime: string(data)}
 	}
 
 	currentStartTime, err := system.GetProcessStartTime(p.Process.Pid)
