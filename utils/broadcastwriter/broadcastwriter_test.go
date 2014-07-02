@@ -106,3 +106,39 @@ func TestRaceBroadcastWriter(t *testing.T) {
 	writer.Write([]byte("hello"))
 	<-c
 }
+
+func BenchmarkBroadcastWriter(b *testing.B) {
+	writer := New()
+	setUpWriter := func() {
+		for i := 0; i < 100; i++ {
+			writer.AddWriter(devNullCloser(0), "stdout")
+			writer.AddWriter(devNullCloser(0), "stderr")
+			writer.AddWriter(devNullCloser(0), "")
+		}
+	}
+	testLine := "Line that thinks that it is log line from docker"
+	var buf bytes.Buffer
+	for i := 0; i < 100; i++ {
+		buf.Write([]byte(testLine + "\n"))
+	}
+	// line without eol
+	buf.Write([]byte(testLine))
+	testText := buf.Bytes()
+	b.SetBytes(int64(5 * len(testText)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		setUpWriter()
+		b.StartTimer()
+
+		for j := 0; j < 5; j++ {
+			if _, err := writer.Write(testText); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+		b.StopTimer()
+		writer.Close()
+		b.StartTimer()
+	}
+}
