@@ -55,7 +55,7 @@ Docker's portability and lightweight nature also make dynamically managing
 workloads easy. You can use Docker to quickly scale up or tear down applications
 and services. Docker's speed means that scaling can be near real time.
 
-*Achieving higher density and running more workloads**
+*Achieving higher density and running more workloads*
 
 Docker is lightweight and fast. It provides a viable, cost-effective alternative
 to hypervisor-based virtual machines. This is especially useful in high density
