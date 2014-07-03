@@ -2,7 +2,6 @@ package docker
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,18 +15,6 @@ func TestCreateNumberHostname(t *testing.T) {
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config, _, _, err := runconfig.Parse([]string{"-h", "web.0", unitTestImageID, "echo test"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	createTestContainer(eng, config, t)
-}
-
-func TestCreateNumberUsername(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	config, _, _, err := runconfig.Parse([]string{"-u", "1002", unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,92 +255,6 @@ func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	job.SetenvList("Cmd", []string{"/bin/cat"})
 	if err := job.Run(); err == nil {
 		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
-	}
-}
-
-func TestRmi(t *testing.T) {
-	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	initialImages := getAllImages(eng, t)
-
-	config, hostConfig, _, err := runconfig.Parse([]string{unitTestImageID, "echo", "test"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	containerID := createTestContainer(eng, config, t)
-
-	//To remove
-	job := eng.Job("start", containerID)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("wait", containerID).Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("commit", containerID)
-	job.Setenv("repo", "test")
-	var outputBuffer = bytes.NewBuffer(nil)
-	job.Stdout.Add(outputBuffer)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("tag", engine.Tail(outputBuffer, 1), "test", "0.1").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	containerID = createTestContainer(eng, config, t)
-
-	//To remove
-	job = eng.Job("start", containerID)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("wait", containerID).Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("commit", containerID)
-	job.Setenv("repo", "test")
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	images := getAllImages(eng, t)
-
-	if images.Len()-initialImages.Len() != 2 {
-		t.Fatalf("Expected 2 new images, found %d.", images.Len()-initialImages.Len())
-	}
-
-	if err = srv.DeleteImage(engine.Tail(outputBuffer, 1), engine.NewTable("", 0), true, false, false); err != nil {
-		t.Fatal(err)
-	}
-
-	images = getAllImages(eng, t)
-
-	if images.Len()-initialImages.Len() != 1 {
-		t.Fatalf("Expected 1 new image, found %d.", images.Len()-initialImages.Len())
-	}
-
-	for _, image := range images.Data {
-		if strings.Contains(unitTestImageID, image.Get("Id")) {
-			continue
-		}
-		if image.GetList("RepoTags")[0] == "<none>:<none>" {
-			t.Fatalf("Expected tagged image, got untagged one.")
-		}
 	}
 }
 
