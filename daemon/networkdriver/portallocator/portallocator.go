@@ -2,13 +2,18 @@ package portallocator
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 )
 
+type portMap struct {
+	p    map[int]struct{}
+	last int
+}
+
 type (
-	portMap     map[int]bool
-	protocolMap map[string]portMap
+	protocolMap map[string]*portMap
 	ipMapping   map[string]protocolMap
 )
 
@@ -18,9 +23,8 @@ const (
 )
 
 var (
-	ErrAllPortsAllocated    = errors.New("all ports are allocated")
-	ErrPortAlreadyAllocated = errors.New("port has already been allocated")
-	ErrUnknownProtocol      = errors.New("unknown protocol")
+	ErrAllPortsAllocated = errors.New("all ports are allocated")
+	ErrUnknownProtocol   = errors.New("unknown protocol")
 )
 
 var (
@@ -29,6 +33,34 @@ var (
 	defaultIP = net.ParseIP("0.0.0.0")
 	globalMap = ipMapping{}
 )
+
+type ErrPortAlreadyAllocated struct {
+	ip   string
+	port int
+}
+
+func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
+	return ErrPortAlreadyAllocated{
+		ip:   ip,
+		port: port,
+	}
+}
+
+func (e ErrPortAlreadyAllocated) IP() string {
+	return e.ip
+}
+
+func (e ErrPortAlreadyAllocated) Port() int {
+	return e.port
+}
+
+func (e ErrPortAlreadyAllocated) IPPort() string {
+	return fmt.Sprintf("%s:%d", e.ip, e.port)
+}
+
+func (e ErrPortAlreadyAllocated) Error() string {
+	return fmt.Sprintf("Bind for %s:%d failed: port is already allocated", e.ip, e.port)
+}
 
 func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	mutex.Lock()
@@ -43,11 +75,11 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	mapping := getOrCreate(ip)
 
 	if port > 0 {
-		if !mapping[proto][port] {
-			mapping[proto][port] = true
+		if _, ok := mapping[proto].p[port]; !ok {
+			mapping[proto].p[port] = struct{}{}
 			return port, nil
 		} else {
-			return 0, ErrPortAlreadyAllocated
+			return 0, NewErrPortAlreadyAllocated(ip.String(), port)
 		}
 	} else {
 		port, err := findPort(ip, proto)
@@ -66,8 +98,8 @@ func ReleasePort(ip net.IP, proto string, port int) error {
 
 	ip = getDefault(ip)
 
-	mapping := getOrCreate(ip)
-	delete(mapping[proto], port)
+	mapping := getOrCreate(ip)[proto]
+	delete(mapping.p, port)
 
 	return nil
 }
@@ -86,8 +118,8 @@ func getOrCreate(ip net.IP) protocolMap {
 
 	if _, ok := globalMap[ipstr]; !ok {
 		globalMap[ipstr] = protocolMap{
-			"tcp": portMap{},
-			"udp": portMap{},
+			"tcp": &portMap{p: map[int]struct{}{}, last: 0},
+			"udp": &portMap{p: map[int]struct{}{}, last: 0},
 		}
 	}
 
@@ -95,21 +127,28 @@ func getOrCreate(ip net.IP) protocolMap {
 }
 
 func findPort(ip net.IP, proto string) (int, error) {
-	port := BeginPortRange
+	mapping := getOrCreate(ip)[proto]
 
-	mapping := getOrCreate(ip)
-
-	for mapping[proto][port] {
-		port++
-
-		if port > EndPortRange {
-			return 0, ErrAllPortsAllocated
-		}
+	if mapping.last == 0 {
+		mapping.p[BeginPortRange] = struct{}{}
+		mapping.last = BeginPortRange
+		return BeginPortRange, nil
 	}
 
-	mapping[proto][port] = true
+	for port := mapping.last + 1; port != mapping.last; port++ {
+		if port > EndPortRange {
+			port = BeginPortRange
+		}
 
-	return port, nil
+		if _, ok := mapping.p[port]; !ok {
+			mapping.p[port] = struct{}{}
+			mapping.last = port
+			return port, nil
+		}
+
+	}
+
+	return 0, ErrAllPortsAllocated
 }
 
 func getDefault(ip net.IP) net.IP {

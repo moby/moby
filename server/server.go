@@ -22,6 +22,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/pkg/tailfile"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -410,6 +412,7 @@ func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 			return err
 		}
 		job := eng.Job("image_inspect", n)
+		job.SetenvBool("raw", true)
 		job.Stdout.Add(json)
 		if err := job.Run(); err != nil {
 			return err
@@ -779,6 +782,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
+	v.SetList("Sockets", srv.daemon.Sockets)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
@@ -1036,7 +1040,7 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	img, err := srv.daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
+	img, err := srv.daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), job.GetenvBool("pause"), &newConfig)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1236,9 +1240,10 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 				break
 			}
 			if !success {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, %s", img.Tag, localName, lastErr), nil))
+				err := fmt.Errorf("Error pulling image (%s) from %s, %v", img.Tag, localName, lastErr)
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), err.Error(), nil))
 				if parallel {
-					errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
+					errors <- err
 					return
 				}
 			}
@@ -2043,22 +2048,19 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
+
+	if container.State.IsRunning() {
+		return job.Errorf("Container already started")
+	}
+
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
 		// Validate the HostConfig binds. Make sure that:
-		// 1) the source of a bind mount isn't /
-		//         The bind mount "/:/foo" isn't allowed.
-		// 2) Check that the source exists
-		//        The source to be bind mounted must exist.
+		// the source exists
 		for _, bind := range hostConfig.Binds {
 			splitBind := strings.Split(bind, ":")
 			source := splitBind[0]
-
-			// refuse to bind mount "/" to the container
-			if source == "/" {
-				return job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
-			}
 
 			// ensure the source exists on the host
 			_, err := os.Stat(source)
@@ -2096,6 +2098,9 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 		t = job.GetenvInt("t")
 	}
 	if container := srv.daemon.Get(name); container != nil {
+		if !container.State.IsRunning() {
+			return job.Errorf("Container already stopped")
+		}
 		if err := container.Stop(int(t)); err != nil {
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
@@ -2112,7 +2117,7 @@ func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := srv.daemon.Get(name); container != nil {
-		status := container.Wait()
+		status, _ := container.State.WaitStop(-1 * time.Second)
 		job.Printf("%d\n", status)
 		return engine.StatusOK
 	}
@@ -2150,8 +2155,10 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 		name   = job.Args[0]
 		stdout = job.GetenvBool("stdout")
 		stderr = job.GetenvBool("stderr")
+		tail   = job.Getenv("tail")
 		follow = job.GetenvBool("follow")
 		times  = job.GetenvBool("timestamps")
+		lines  = -1
 		format string
 	)
 	if !(stdout || stderr) {
@@ -2159,6 +2166,9 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	if times {
 		format = time.StampMilli
+	}
+	if tail == "" {
+		tail = "all"
 	}
 	container := srv.daemon.Get(name)
 	if container == nil {
@@ -2187,25 +2197,47 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	} else if err != nil {
 		utils.Errorf("Error reading logs (json): %s", err)
 	} else {
-		dec := json.NewDecoder(cLog)
-		for {
-			l := &utils.JSONLog{}
+		if tail != "all" {
+			var err error
+			lines, err = strconv.Atoi(tail)
+			if err != nil {
+				utils.Errorf("Failed to parse tail %s, error: %v, show all logs", err)
+				lines = -1
+			}
+		}
+		if lines != 0 {
+			if lines > 0 {
+				f := cLog.(*os.File)
+				ls, err := tailfile.TailFile(f, lines)
+				if err != nil {
+					return job.Error(err)
+				}
+				tmp := bytes.NewBuffer([]byte{})
+				for _, l := range ls {
+					fmt.Fprintf(tmp, "%s\n", l)
+				}
+				cLog = tmp
+			}
+			dec := json.NewDecoder(cLog)
+			for {
+				l := &utils.JSONLog{}
 
-			if err := dec.Decode(l); err == io.EOF {
-				break
-			} else if err != nil {
-				utils.Errorf("Error streaming logs: %s", err)
-				break
-			}
-			logLine := l.Log
-			if times {
-				logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
-			}
-			if l.Stream == "stdout" && stdout {
-				fmt.Fprintf(job.Stdout, "%s", logLine)
-			}
-			if l.Stream == "stderr" && stderr {
-				fmt.Fprintf(job.Stderr, "%s", logLine)
+				if err := dec.Decode(l); err == io.EOF {
+					break
+				} else if err != nil {
+					utils.Errorf("Error streaming logs: %s", err)
+					break
+				}
+				logLine := l.Log
+				if times {
+					logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
+				}
+				if l.Stream == "stdout" && stdout {
+					fmt.Fprintf(job.Stdout, "%s", logLine)
+				}
+				if l.Stream == "stderr" && stderr {
+					fmt.Fprintf(job.Stderr, "%s", logLine)
+				}
 			}
 		}
 	}
@@ -2325,7 +2357,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {
-			container.Wait()
+			container.State.WaitStop(-1 * time.Second)
 		}
 	}
 	return engine.StatusOK

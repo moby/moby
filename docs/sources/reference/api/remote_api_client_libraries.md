@@ -124,11 +124,17 @@ will add the libraries here.
     </tr>
     <tr class="row-even">
       <td>Scala</td>
+      <td>tugboat</td>
+      <td><a class="reference external" href="https://github.com/softprops/tugboat">https://github.com/softprops/tugboat</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Scala</td>
       <td>reactive-docker</td>
       <td><a class="reference external" href="https://github.com/almoehi/reactive-docker">https://github.com/almoehi/reactive-docker</a></td>
       <td>Active</td>
     </tr>
-    <tr class="row-odd">
+    <tr class="row-even">
       <td>Java</td>
       <td>docker-client</td>
       <td><a class="reference external" href="https://github.com/spotify/docker-client">https://github.com/spotify/docker-client</a></td>

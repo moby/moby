@@ -14,7 +14,7 @@ BUSYBOX=$(which busybox)
 }
 
 set -e
-ROOTFS=/tmp/rootfs-busybox-$$-$RANDOM
+ROOTFS=${TMPDIR:-/var/tmp}/rootfs-busybox-$$-$RANDOM
 mkdir $ROOTFS
 cd $ROOTFS
 

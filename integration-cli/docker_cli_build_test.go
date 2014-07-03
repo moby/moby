@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/archive"
 )
 
 func TestBuildCacheADD(t *testing.T) {
@@ -1130,6 +1132,50 @@ func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
 	logDone("build - add local and remote file with cache")
 }
 
+func testContextTar(t *testing.T, compression archive.Compression) {
+	contextDirectory := filepath.Join(workingDirectory, "build_tests", "TestContextTar")
+	context, err := archive.Tar(contextDirectory, compression)
+
+	if err != nil {
+		t.Fatalf("failed to build context tar: %v", err)
+	}
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "contexttar", "-")
+	buildCmd.Stdin = context
+
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("build failed to complete: %v %v", out, err)
+	}
+	deleteImages("contexttar")
+	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", compression))
+}
+
+func TestContextTarGzip(t *testing.T) {
+	testContextTar(t, archive.Gzip)
+}
+
+func TestContextTarNoCompression(t *testing.T) {
+	testContextTar(t, archive.Uncompressed)
+}
+
+func TestNoContext(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "nocontext", "-")
+	buildCmd.Stdin = strings.NewReader("FROM busybox\nCMD echo ok\n")
+
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("build failed to complete: %v %v", out, err)
+	}
+
+	out, exitCode, err = cmd(t, "run", "nocontext")
+	if out != "ok\n" {
+		t.Fatalf("run produced invalid output: %q, expected %q", out, "ok")
+	}
+
+	deleteImages("nocontext")
+	logDone("build - build an image with no context")
+}
+
 // TODO: TestCaching
 func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
@@ -1443,4 +1489,78 @@ func TestBuildAddToSymlinkDest(t *testing.T) {
 		t.Fatal(err)
 	}
 	logDone("build - add to symlink destination")
+}
+
+func TestBuildEscapeWhitespace(t *testing.T) {
+	name := "testbuildescaping"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  MAINTAINER "Docker \
+IO <io@\
+docker.com>"
+  `, true)
+
+	res, err := inspectField(name, "Author")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res != "Docker IO <io@docker.com>" {
+		t.Fatal("Parsed string did not match the escaped string")
+	}
+
+	logDone("build - validate escaping whitespace")
+}
+
+func TestDockerignore(t *testing.T) {
+	name := "testbuilddockerignore"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+        ADD . /bla
+		RUN [[ -f /bla/src/x.go ]]
+		RUN [[ -f /bla/Makefile ]]
+		RUN [[ ! -e /bla/src/_vendor ]]
+		RUN [[ ! -e /bla/.gitignore ]]
+		RUN [[ ! -e /bla/README.md ]]
+		RUN [[ ! -e /bla/.git ]]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":         "all:",
+		".git/HEAD":        "ref: foo",
+		"src/x.go":         "package main",
+		"src/_vendor/v.go": "package main",
+		".gitignore":       "",
+		"README.md":        "readme",
+		".dockerignore":    ".git\npkg\n.gitignore\nsrc/_vendor\n*.md",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - test .dockerignore")
+}
+
+func TestDockerignoringDockerfile(t *testing.T) {
+	name := "testbuilddockerignoredockerfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM scratch`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    "FROM scratch",
+		".dockerignore": "Dockerfile\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err == nil {
+		t.Fatalf("Didn't get expected error from ignoring Dockerfile")
+	}
+	logDone("build - test .dockerignore of Dockerfile")
 }

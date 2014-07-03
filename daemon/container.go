@@ -53,7 +53,7 @@ type Container struct {
 	Args []string
 
 	Config *runconfig.Config
-	State  State
+	State  *State
 	Image  string
 
 	NetworkSettings *NetworkSettings
@@ -74,8 +74,7 @@ type Container struct {
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
 
-	waitLock chan struct{}
-	Volumes  map[string]string
+	Volumes map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW  map[string]bool
@@ -284,7 +283,6 @@ func (container *Container) Start() (err error) {
 	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
-	container.waitLock = make(chan struct{})
 
 	return container.waitForStart()
 }
@@ -293,7 +291,7 @@ func (container *Container) Run() error {
 	if err := container.Start(); err != nil {
 		return err
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	return nil
 }
 
@@ -307,7 +305,7 @@ func (container *Container) Output() (output []byte, err error) {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	return output, err
 }
 
@@ -467,6 +465,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
 	}
+	container.State.SetStopped(exitCode)
 
 	// Cleanup
 	container.cleanup()
@@ -475,28 +474,17 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
 	if container.daemon != nil && container.daemon.srv != nil {
 		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
 	}
-
-	close(container.waitLock)
-
 	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
-		container.State.SetStopped(exitCode)
-
-		// FIXME: there is a race condition here which causes this to fail during the unit tests.
-		// If another goroutine was waiting for Wait() to return before removing the container's root
-		// from the filesystem... At this point it may already have done so.
-		// This is because State.setStopped() has already been called, and has caused Wait()
-		// to return.
-		// FIXME: why are we serializing running state to disk in the first place?
-		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+		// FIXME: here is race condition between two RUN instructions in Dockerfile
+		// because they share same runconfig and change image. Must be fixed
+		// in server/buildfile.go
 		if err := container.ToDisk(); err != nil {
-			utils.Errorf("Error dumping container state to disk: %s\n", err)
+			utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
 		}
 	}
-
 	return err
 }
 
@@ -532,6 +520,7 @@ func (container *Container) cleanup() {
 }
 
 func (container *Container) KillSig(sig int) error {
+	utils.Debugf("Sending %d to %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
 
@@ -577,9 +566,9 @@ func (container *Container) Kill() error {
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
-	if err := container.WaitTimeout(10 * time.Second); err != nil {
+	if _, err := container.State.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
-		if pid := container.State.Pid; pid != 0 {
+		if pid := container.State.GetPid(); pid != 0 {
 			log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				return err
@@ -587,7 +576,7 @@ func (container *Container) Kill() error {
 		}
 	}
 
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	return nil
 }
 
@@ -605,11 +594,11 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 2. Wait for the process to exit on its own
-	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
+	if _, err := container.State.WaitStop(time.Duration(seconds) * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
-			container.Wait()
+			container.State.WaitStop(-1 * time.Second)
 			return err
 		}
 	}
@@ -628,12 +617,6 @@ func (container *Container) Restart(seconds int) error {
 		return err
 	}
 	return container.Start()
-}
-
-// Wait blocks until the container stops running, then returns its exit code.
-func (container *Container) Wait() int {
-	<-container.waitLock
-	return container.State.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {
@@ -676,21 +659,6 @@ func (container *Container) Export() (archive.Archive, error) {
 			return err
 		}),
 		nil
-}
-
-func (container *Container) WaitTimeout(timeout time.Duration) error {
-	done := make(chan bool, 1)
-	go func() {
-		container.Wait()
-		done <- true
-	}()
-
-	select {
-	case <-time.After(timeout):
-		return fmt.Errorf("Timed Out")
-	case <-done:
-		return nil
-	}
 }
 
 func (container *Container) Mount() error {
@@ -813,7 +781,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		basePath = path.Dir(basePath)
 	}
 
-	archive, err := archive.TarFilter(basePath, &archive.TarOptions{
+	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
 	})
@@ -1103,9 +1071,7 @@ func (container *Container) startLoggingToDisk() error {
 }
 
 func (container *Container) waitForStart() error {
-	callbackLock := make(chan struct{})
 	callback := func(command *execdriver.Command) {
-		container.State.SetRunning(command.Pid())
 		if command.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
@@ -1117,16 +1083,23 @@ func (container *Container) waitForStart() error {
 		if err := container.ToDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
-		close(callbackLock)
+		container.State.SetRunning(command.Pid())
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
 	// syncronization purposes
 	cErr := utils.Go(func() error { return container.monitor(callback) })
 
+	waitStart := make(chan struct{})
+
+	go func() {
+		container.State.WaitRunning(-1 * time.Second)
+		close(waitStart)
+	}()
+
 	// Start should not return until the process is actually running
 	select {
-	case <-callbackLock:
+	case <-waitStart:
 	case err := <-cErr:
 		return err
 	}

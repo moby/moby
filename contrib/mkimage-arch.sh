@@ -9,31 +9,13 @@ hash pacstrap &>/dev/null || {
     exit 1
 }
 
-hash expect &>/dev/null || {
-    echo "Could not find expect. Run pacman -S expect"
-    exit 1
-}
-
-ROOTFS=$(mktemp -d /tmp/rootfs-archlinux-XXXXXXXXXX)
+ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/rootfs-archlinux-XXXXXXXXXX)
 chmod 755 $ROOTFS
 
 # packages to ignore for space savings
 PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
 
-expect <<EOF
-  set timeout 60
-  set send_slow {1 1}
-  spawn pacstrap -C ./mkimage-arch-pacman.conf -c -d -G -i $ROOTFS base haveged --ignore $PKGIGNORE
-  expect {
-    "Install anyway?" { send n\r; exp_continue }
-    "(default=all)" { send \r; exp_continue }
-    "Proceed with installation?" { send "\r"; exp_continue }
-    "skip the above package" {send "y\r"; exp_continue }
-    "checking" { exp_continue }
-    "loading" { exp_continue }
-    "installing" { exp_continue }
-  }
-EOF
+pacstrap -C ./mkimage-arch-pacman.conf -c -d -G -i $ROOTFS base haveged --ignore $PKGIGNORE
 
 arch-chroot $ROOTFS /bin/sh -c "haveged -w 1024; pacman-key --init; pkill haveged; pacman -Rs --noconfirm haveged; pacman-key --populate archlinux"
 arch-chroot $ROOTFS /bin/sh -c "ln -s /usr/share/zoneinfo/UTC /etc/localtime"

@@ -138,11 +138,10 @@ make AWS_S3_BUCKET=beta-docs.docker.io docs-release
 ### 5. Commit and create a pull request to the "release" branch
 
 ```bash
-export GITHUBUSER="YOUR_GITHUB_USER"
 git add VERSION CHANGELOG.md
 git commit -m "Bump version to $VERSION"
 git push $GITHUBUSER bump_$VERSION
-echo "https://github.com/$GITHUBUSER/docker/compare/dotcloud:master...$GITHUBUSER:bump_$VERSION?expand=1"
+echo "https://github.com/$GITHUBUSER/docker/compare/dotcloud:release...$GITHUBUSER:bump_$VERSION?expand=1"
 ```
 
 That last command will give you the proper link to visit to ensure that you

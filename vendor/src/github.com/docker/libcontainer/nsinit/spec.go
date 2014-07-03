@@ -30,7 +30,7 @@ func specAction(context *cli.Context) {
 }
 
 // returns the container spec in json format.
-func getContainerSpec(container *libcontainer.Container) (string, error) {
+func getContainerSpec(container *libcontainer.Config) (string, error) {
 	spec, err := json.MarshalIndent(container, "", "\t")
 	if err != nil {
 		return "", err

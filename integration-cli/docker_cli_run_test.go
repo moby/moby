@@ -946,3 +946,40 @@ func TestModeHostname(t *testing.T) {
 
 	logDone("run - hostname and several network modes")
 }
+
+func TestRootWorkdir(t *testing.T) {
+	s, _, err := cmd(t, "run", "--workdir", "/", "busybox", "pwd")
+	if err != nil {
+		t.Fatal(s, err)
+	}
+	if s != "/\n" {
+		t.Fatalf("pwd returned '%s' (expected /\\n)", s)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - workdir /")
+}
+
+func TestAllowBindMountingRoot(t *testing.T) {
+	s, _, err := cmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	if err != nil {
+		t.Fatal(s, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - bind mount / as volume")
+}
+
+func TestDisallowBindMountingRootToRoot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/:/", "busybox", "ls", "/host")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(out, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - bind mount /:/ as volume should fail")
+}

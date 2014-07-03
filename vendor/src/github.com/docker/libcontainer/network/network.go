@@ -1,8 +1,11 @@
+// +build linux
+
 package network
 
 import (
-	"github.com/docker/libcontainer/netlink"
 	"net"
+
+	"github.com/docker/libcontainer/netlink"
 )
 
 func InterfaceUp(name string) error {

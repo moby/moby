@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/runconfig"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/runconfig"
 )
 
 func TestKillDifferentUser(t *testing.T) {
@@ -60,7 +61,7 @@ func TestKillDifferentUser(t *testing.T) {
 	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	if container.State.IsRunning() {
 		t.Errorf("Container shouldn't be running")
 	}
@@ -134,7 +135,7 @@ func TestRestartStdin(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +165,7 @@ func TestRestartStdin(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	output, err = ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +213,7 @@ func TestStdin(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -257,7 +258,7 @@ func TestTty(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -366,7 +367,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				complete <- err
 				return
 			}
-			if err := container.WaitTimeout(15 * time.Second); err != nil {
+			if _, err := container.State.WaitStop(15 * time.Second); err != nil {
 				complete <- err
 				return
 			}
@@ -420,7 +421,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", nil)
+	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -446,7 +447,7 @@ func TestCopyVolumeUidGid(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img2, err := r.Commit(container2, "", "", "unit test commited image", "", nil)
+	img2, err := r.Commit(container2, "", "", "unit test commited image", "", true, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -480,7 +481,7 @@ func TestCopyVolumeContent(t *testing.T) {
 		t.Errorf("Container shouldn't be running")
 	}
 
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", nil)
+	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
 	if err != nil {
 		t.Error(err)
 	}

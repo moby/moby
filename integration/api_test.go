@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -19,55 +18,8 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
-
-func TestGetEvents(t *testing.T) {
-	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
-	// FIXME: we might not need daemon, why not simply nuke
-	// the engine?
-	daemon := mkDaemonFromEngine(eng, t)
-	defer nuke(daemon)
-
-	var events []*utils.JSONMessage
-	for _, parts := range [][3]string{
-		{"fakeaction", "fakeid", "fakeimage"},
-		{"fakeaction2", "fakeid", "fakeimage"},
-	} {
-		action, id, from := parts[0], parts[1], parts[2]
-		ev := srv.LogEvent(action, id, from)
-		events = append(events, ev)
-	}
-
-	req, err := http.NewRequest("GET", "/events?since=1", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	setTimeout(t, "", 500*time.Millisecond, func() {
-		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-			t.Fatal(err)
-		}
-		assertHttpNotError(r, t)
-	})
-
-	dec := json.NewDecoder(r.Body)
-	for i := 0; i < 2; i++ {
-		var jm utils.JSONMessage
-		if err := dec.Decode(&jm); err == io.EOF {
-			break
-		} else if err != nil {
-			t.Fatal(err)
-		}
-		if jm != *events[i] {
-			t.Fatalf("Event received it different than expected")
-		}
-	}
-
-}
 
 func TestGetImagesJSON(t *testing.T) {
 	eng := NewTestEngine(t)
@@ -169,30 +121,6 @@ func TestGetImagesJSON(t *testing.T) {
 
 	if images3.Len() != 0 {
 		t.Errorf("Expected 0 image, %d found", images3.Len())
-	}
-}
-
-func TestGetImagesHistory(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("/images/%s/history", unitTestImageName), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadListFrom(r.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 line, %d found", len(outs.Data))
 	}
 }
 
@@ -697,59 +625,26 @@ func TestPostContainersStart(t *testing.T) {
 	}
 
 	containerAssertExists(eng, containerID, t)
-	// Give some time to the process to start
-	// FIXME: use Wait once it's available as a job
-	containerWaitTimeout(eng, containerID, t)
-	if !containerRunning(eng, containerID, t) {
-		t.Errorf("Container should be running")
-	}
 
-	r = httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	// Starting an already started container should return an error
-	// FIXME: verify a precise error code. There is a possible bug here
-	// which causes this to return 404 even though the container exists.
-	assertHttpError(r, t)
-	containerAssertExists(eng, containerID, t)
-	containerKill(eng, containerID, t)
-}
-
-// Expected behaviour: using / as a bind mount source should throw an error
-func TestRunErrorBindMountRootSource(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	containerID := createTestContainer(
-		eng,
-		&runconfig.Config{
-			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/cat"},
-			OpenStdin: true,
-		},
-		t,
-	)
-
-	hostConfigJSON, err := json.Marshal(&runconfig.HostConfig{
-		Binds: []string{"/:/tmp"},
-	})
-
-	req, err := http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
+	req, err = http.NewRequest("POST", "/containers/"+containerID+"/start", bytes.NewReader(hostConfigJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	r := httptest.NewRecorder()
+	r = httptest.NewRecorder()
 	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
-	if r.Code != http.StatusInternalServerError {
-		containerKill(eng, containerID, t)
-		t.Fatal("should have failed to run when using / as a source for the bind mount")
+
+	// Starting an already started container should return a 304
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusNotModified {
+		t.Fatalf("%d NOT MODIFIER expected, received %d\n", http.StatusNotModified, r.Code)
 	}
+	containerAssertExists(eng, containerID, t)
+	containerKill(eng, containerID, t)
 }
 
 func TestPostContainersStop(t *testing.T) {
@@ -789,6 +684,22 @@ func TestPostContainersStop(t *testing.T) {
 	}
 	if containerRunning(eng, containerID, t) {
 		t.Fatalf("The container hasn't been stopped")
+	}
+
+	req, err = http.NewRequest("POST", "/containers/"+containerID+"/stop?t=1", bytes.NewReader([]byte{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r = httptest.NewRecorder()
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stopping an already stopper container should return a 304
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusNotModified {
+		t.Fatalf("%d NOT MODIFIER expected, received %d\n", http.StatusNotModified, r.Code)
 	}
 }
 

@@ -8,16 +8,12 @@ import (
 
 // tagging a named image in a new unprefixed repo should work
 func TestTagUnprefixedRepoByName(t *testing.T) {
-	pullCmd := exec.Command(dockerBinary, "pull", "busybox")
-	out, exitCode, err := runCommandWithOutput(pullCmd)
-	errorOut(err, t, fmt.Sprintf("%s %s", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("pulling the busybox image from the registry has failed")
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox", "testfoobarbaz")
-	out, _, err = runCommandWithOutput(tagCmd)
+	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "testfoobarbaz")
+	out, _, err := runCommandWithOutput(tagCmd)
 	errorOut(err, t, fmt.Sprintf("%v %v", out, err))
 
 	deleteImages("testfoobarbaz")
@@ -62,18 +58,14 @@ func TestTagInvalidUnprefixedRepo(t *testing.T) {
 
 // ensure we allow the use of valid tags
 func TestTagValidPrefixedRepo(t *testing.T) {
-	pullCmd := exec.Command(dockerBinary, "pull", "busybox")
-	out, exitCode, err := runCommandWithOutput(pullCmd)
-	errorOut(err, t, fmt.Sprintf("%s %s", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("pulling the busybox image from the registry has failed")
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 
 	validRepos := []string{"fooo/bar", "fooaa/test"}
 
 	for _, repo := range validRepos {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox", repo)
+		tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", repo)
 		_, _, err := runCommandWithOutput(tagCmd)
 		if err != nil {
 			t.Errorf("tag busybox %v should have worked: %s", repo, err)

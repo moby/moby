@@ -94,7 +94,7 @@ yourself. This naming provides two useful functions:
    that makes it easier for you to remember them, for example naming a
    container with a web application in it `web`.
 
-2. It provides Docker with reference point that allows it to refer to other
+2. It provides Docker with a reference point that allows it to refer to other
    containers, for example link container `web` to container `db`.
 
 You can name your container by using the `--name` flag, for example:
@@ -169,10 +169,12 @@ Docker exposes connectivity information for the parent container inside the
 child container in two ways:
 
 * Environment variables,
-* Updating the `/etc/host` file.
+* Updating the `/etc/hosts` file.
 
 Let's look first at the environment variables Docker sets. Let's run the `env`
 command to list the container's environment variables.
+
+```
     $ sudo docker run --rm --name web2 --link db:db training/webapp env
     . . .
     DB_NAME=/web2/db
@@ -182,6 +184,7 @@ command to list the container's environment variables.
     DB_PORT_5000_TCP_PORT=5432
     DB_PORT_5000_TCP_ADDR=172.17.0.5
     . . .
+```
 
 > **Note**:
 > These Environment variables are only set for the first process in the
@@ -189,8 +192,8 @@ command to list the container's environment variables.
 > will scrub them when spawning shells for connection.
 
 We can see that Docker has created a series of environment variables with
-useful information about our `db` container. Each variables is prefixed with
-`DB` which is populated from the `alias` we specified above. If our `alias`
+useful information about our `db` container. Each variable is prefixed with
+`DB_` which is populated from the `alias` we specified above. If our `alias`
 were `db1` the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
 on the `db` container. The connection will be secure, private and only the

@@ -36,8 +36,8 @@ page.
 
 Also available on the Docker Hub are organizations and groups that allow
 you to collaborate across your organization or team. You can see what
-organizations [you belong to and add new organizations](Sam Alba
-<sam@docker.com>) from the Account
+organizations [you belong to and add new organizations](
+https://hub.docker.com/account/organizations/) from the Account
 tab.
 
 ![organizations](/docker-hub/orgs.png)

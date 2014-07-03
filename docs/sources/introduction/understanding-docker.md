@@ -112,7 +112,7 @@ Docker images are the **build** component of Docker.
 #### Docker Registries
 Docker registries hold images. These are public or private stores from which you upload
 or download images. The public Docker registry is called
-[Docker Hub](http://index.docker.io). It provides a huge collection of existing
+[Docker Hub](http://hub.docker.com). It provides a huge collection of existing
 images for your use. These can be images you create yourself or you
 can use images that others have previously created. Docker registries are the 
 **distribution** component of Docker.
@@ -156,7 +156,7 @@ basis for a new image, for example if you have a base Apache image you could use
 this as the base of all your web application images.
 
 > **Note:** Docker usually gets these base images from
-> [Docker Hub](https://index.docker.io).
+> [Docker Hub](https://hub.docker.com).
 > 
 Docker images are then built from these base images using a simple, descriptive
 set of steps we call *instructions*. Each instruction creates a new layer in our
@@ -173,17 +173,17 @@ returns a final image.
 
 ### How does a Docker registry work?
 The Docker registry is the store for your Docker images. Once you build a Docker
-image you can *push* it to a public registry [Docker Hub](https://index.docker.io) or to 
+image you can *push* it to a public registry [Docker Hub](https://hub.docker.com) or to 
 your own registry running behind your firewall.
 
 Using the Docker client, you can search for already published images and then
 pull them down to your Docker host to build containers from them.
 
-[Docker Hub](https://index.docker.io) provides both public and private storage
+[Docker Hub](https://hub.docker.com) provides both public and private storage
 for images. Public storage is searchable and can be downloaded by anyone.
 Private storage is excluded from search results and only you and your users can
 pull images down and use them to build containers. You can [sign up for a storage plan
-here](https://index.docker.io/plans).
+here](https://hub.docker.com/plans).
 
 ### How does a container work?
 A container consists of an operating system, user-added files, and meta-data. As
@@ -216,7 +216,7 @@ In order, Docker does the following:
 
 - **Pulls the `ubuntu` image:** Docker checks for the presence of the `ubuntu`
 image and, if it doesn't exist locally on the host, then Docker downloads it from
-[Docker Hub](https://index.docker.io). If the image already exists, then Docker
+[Docker Hub](https://hub.docker.com). If the image already exists, then Docker
 uses it for the new container. 
 - **Creates a new container:** Once Docker has the image, it uses it to create a
 container. 

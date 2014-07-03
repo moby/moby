@@ -31,6 +31,7 @@ import (
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 	"github.com/dotcloud/docker/pkg/sysinfo"
+	"github.com/dotcloud/docker/pkg/truncindex"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
 )
@@ -87,7 +88,7 @@ type Daemon struct {
 	containers     *contStore
 	graph          *graph.Graph
 	repositories   *graph.TagStore
-	idIndex        *utils.TruncIndex
+	idIndex        *truncindex.TruncIndex
 	sysInfo        *sysinfo.SysInfo
 	volumes        *graph.Graph
 	srv            Server
@@ -96,6 +97,7 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+	Sockets        []string
 }
 
 // Install installs daemon capabilities to eng.
@@ -136,7 +138,7 @@ func (daemon *Daemon) containerRoot(id string) string {
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*Container, error) {
-	container := &Container{root: daemon.containerRoot(id)}
+	container := &Container{root: daemon.containerRoot(id), State: NewState()}
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
@@ -180,11 +182,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 
 	// don't update the Suffixarray if we're starting up
 	// we'll waste time if we update it for every container
-	if updateSuffixarray {
-		daemon.idIndex.Add(container.ID)
-	} else {
-		daemon.idIndex.AddWithoutSuffixarrayUpdate(container.ID)
-	}
+	daemon.idIndex.Add(container.ID)
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
@@ -238,12 +236,6 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 				}
 			}
 		}
-	} else {
-		// When the container is not running, we still initialize the waitLock
-		// chan and close it. Receiving on nil chan blocks whereas receiving on a
-		// closed chan does not. In this case we do not want to block.
-		container.waitLock = make(chan struct{})
-		close(container.waitLock)
 	}
 	return nil
 }
@@ -374,8 +366,6 @@ func (daemon *Daemon) restore() error {
 			utils.Debugf("Failed to register container %s: %s", container.ID, err)
 		}
 	}
-
-	daemon.idIndex.UpdateSuffixarray()
 
 	for _, container := range containersToStart {
 		utils.Debugf("Starting container %d", container.ID)
@@ -592,6 +582,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		Name:            name,
 		Driver:          daemon.driver.String(),
 		ExecDriver:      daemon.execDriver.Name(),
+		State:           NewState(),
 	}
 	container.root = daemon.containerRoot(container.ID)
 
@@ -629,8 +620,12 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
-	// FIXME: freeze the container before copying it to avoid data corruption?
+func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
+	if pause {
+		container.Pause()
+		defer container.Unpause()
+	}
+
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
@@ -841,7 +836,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
-		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.com/contributing/devenvironment for official build instructions.")
 	}
 
 	if sysInitPath != localCopy {
@@ -869,7 +864,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		containers:     &contStore{s: make(map[string]*Container)},
 		graph:          g,
 		repositories:   repositories,
-		idIndex:        utils.NewTruncIndex([]string{}),
+		idIndex:        truncindex.NewTruncIndex([]string{}),
 		sysInfo:        sysInfo,
 		volumes:        volumes,
 		config:         config,
@@ -878,6 +873,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+		Sockets:        config.Sockets,
 	}
 
 	if err := daemon.checkLocaldns(); err != nil {
@@ -903,7 +899,7 @@ func (daemon *Daemon) shutdown() error {
 				if err := c.KillSig(15); err != nil {
 					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
 				}
-				c.Wait()
+				c.State.WaitStop(-1 * time.Second)
 				utils.Debugf("container stopped %s", c.ID)
 			}()
 		}

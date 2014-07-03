@@ -239,7 +239,7 @@ Let's create a directory and a `Dockerfile` first.
     $ cd sinatra
     $ touch Dockerfile
 
-Each instructions creates a new layer of the image. Let's look at a simple
+Each instruction creates a new layer of the image. Let's look at a simple
 example now for building our own Sinatra image for our development team.
 
     # This is a comment
@@ -380,7 +380,7 @@ containers](
 
 Let's delete the `training/sinatra` image as we don't need it anymore.
 
-    $ docker rmi training/sinatra
+    $ sudo docker rmi training/sinatra
     Untagged: training/sinatra:latest
     Deleted: 5bc342fa0b91cabf65246837015197eecfa24b2213ed6a51a8974ae250fedd8d
     Deleted: ed0fffdcdae5eb2c3a55549857a8be7fc8bc4241fb19ad714364cbfd7a56b22f

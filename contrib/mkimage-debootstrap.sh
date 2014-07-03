@@ -118,7 +118,7 @@ fi
 # will be filled in later, if [ -z "$skipDetection" ]
 lsbDist=''
 
-target="/tmp/docker-rootfs-debootstrap-$suite-$$-$RANDOM"
+target="${TMPDIR:-/var/tmp}/docker-rootfs-debootstrap-$suite-$$-$RANDOM"
 
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"

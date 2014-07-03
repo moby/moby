@@ -9,7 +9,7 @@ To publish the Docker documentation you need to set your access_key and secret_k
 (with the keys in a [profile $AWS_S3_BUCKET] section - so you can have more than one set of keys in your file)
 and set the AWS_S3_BUCKET env var to the name of your bucket.
 
-make AWS_S3_BUCKET=beta-docs.docker.io docs-release
+make AWS_S3_BUCKET=docs-stage.docker.com docs-release
 
 will then push the documentation site to your s3 bucket.
 EOF
@@ -18,7 +18,15 @@ EOF
 
 [ "$AWS_S3_BUCKET" ] || usage
 
-#VERSION=$(cat VERSION)
+VERSION=$(cat VERSION)
+
+if [ "$$AWS_S3_BUCKET" == "docs.docker.com" ]; then
+	if [ "${VERSION%-dev}" != "$VERSION" ]; then
+		echo "Please do not push '-dev' documentation to docs.docker.com ($VERSION)"
+		exit 1
+	fi
+fi
+
 export BUCKET=$AWS_S3_BUCKET
 
 export AWS_CONFIG_FILE=$(pwd)/awsconfig
@@ -50,7 +58,7 @@ build_current_documentation() {
 
 upload_current_documentation() {
 	src=site/
-	dst=s3://$BUCKET
+	dst=s3://$BUCKET$1
 
 	echo
 	echo "Uploading $src"
@@ -61,7 +69,7 @@ upload_current_documentation() {
 
 	# a really complicated way to send only the files we want
 	# if there are too many in any one set, aws s3 sync seems to fall over with 2 files to go
-	endings=( json html xml css js gif png JPG )
+	endings=( json html xml css js gif png JPG ttf svg woff)
 	for i in ${endings[@]}; do
 		include=""
 		for j in ${endings[@]}; do
@@ -78,11 +86,8 @@ upload_current_documentation() {
 			--exclude *.DS_Store \
 			--exclude *.psd \
 			--exclude *.ai \
-			--exclude *.svg \
 			--exclude *.eot \
 			--exclude *.otf \
-			--exclude *.ttf \
-			--exclude *.woff \
 			--exclude *.rej \
 			--exclude *.rst \
 			--exclude *.orig \
@@ -99,3 +104,10 @@ setup_s3
 build_current_documentation
 upload_current_documentation
 
+# Remove the last version - 1.0.2-dev -> 1.0
+MAJOR_MINOR="v${VERSION%.*}"
+
+#build again with /v1.0/ prefix
+sed -i "s/^site_url:.*/site_url: \/$MAJOR_MINOR\//" mkdocs.yml
+build_current_documentation
+upload_current_documentation "/$MAJOR_MINOR/"

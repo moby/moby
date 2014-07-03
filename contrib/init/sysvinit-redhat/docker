@@ -2,10 +2,10 @@
 #
 #       /etc/rc.d/init.d/docker
 #
-#       Daemon for docker.io
+#       Daemon for docker.com
 #
 # chkconfig:   2345 95 95
-# description: Daemon for docker.io
+# description: Daemon for docker.com
 
 ### BEGIN INIT INFO
 # Provides:       docker
@@ -16,7 +16,7 @@
 # Default-Start: 2 3 4 5
 # Default-Stop:  0 1 6
 # Short-Description: start and stop docker
-# Description: Daemon for docker.io
+# Description: Daemon for docker.com
 ### END INIT INFO
 
 # Source function library.

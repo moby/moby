@@ -28,8 +28,12 @@ WORKDIR	/docs
 
 RUN	VERSION=$(cat /docs/VERSION)								&&\
 	GIT_BRANCH=$(cat /docs/GIT_BRANCH)							&&\
+	GITCOMMIT=$(cat /docs/GITCOMMIT)							&&\
 	AWS_S3_BUCKET=$(cat /docs/AWS_S3_BUCKET)						&&\
-	echo "{% set docker_version = \"${VERSION}\" %}{% set docker_branch = \"${GIT_BRANCH}\" %}{% set aws_bucket = \"${AWS_S3_BUCKET}\" %}{% include \"beta_warning.html\" %}" > /docs/theme/mkdocs/version.html
+	sed -i "s/\$VERSION/$VERSION/g" /docs/theme/mkdocs/base.html				&&\
+	sed -i "s/\$GITCOMMIT/$GITCOMMIT/g" /docs/theme/mkdocs/base.html			&&\
+	sed -i "s/\$GIT_BRANCH/$GIT_BRANCH/g" /docs/theme/mkdocs/base.html			&&\
+	sed -i "s/\$AWS_S3_BUCKET/$AWS_S3_BUCKET/g" /docs/theme/mkdocs/base.html
 
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000

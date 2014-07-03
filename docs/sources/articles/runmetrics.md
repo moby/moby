@@ -35,7 +35,7 @@ known to the system, the hierarchy they belong to, and how many groups they cont
 
 You can also look at `/proc/<pid>/cgroup` to see which control groups a process
 belongs to. The control group will be shown as a path relative to the root of
-the hierarchy mountpoint; e.g. `/` means “this process has not been assigned into
+the hierarchy mountpoint; e.g., `/` means “this process has not been assigned into
 a particular group”, while `/lxc/pumpkin` means that the process is likely to be
 a member of a container named `pumpkin`.
 
@@ -106,9 +106,9 @@ to the processes within the cgroup, excluding sub-cgroups. The second half
 (with the `total_` prefix) includes sub-cgroups as well.
 
 Some metrics are "gauges", i.e. values that can increase or decrease
-(e.g. swap, the amount of swap space used by the members of the cgroup).
+(e.g., swap, the amount of swap space used by the members of the cgroup).
 Some others are "counters", i.e. values that can only go up, because
-they represent occurrences of a specific event (e.g. pgfault, which
+they represent occurrences of a specific event (e.g., pgfault, which
 indicates the number of page faults which happened since the creation of
 the cgroup; this number can never decrease).
 
@@ -410,7 +410,7 @@ used.
 
 Docker makes this difficult because it relies on `lxc-start`, which
 carefully cleans up after itself, but it is still possible. It is
-usually easier to collect metrics at regular intervals (e.g. every
+usually easier to collect metrics at regular intervals (e.g., every
 minute, with the collectd LXC plugin) and rely on that instead.
 
 But, if you'd still like to gather the stats when a container stops,

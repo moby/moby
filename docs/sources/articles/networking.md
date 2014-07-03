@@ -26,7 +26,7 @@ bridge* that automatically forwards packets between any other network
 interfaces that are attached to it.  This lets containers communicate
 both with the host machine and with each other.  Every time Docker
 creates a container, it creates a pair of “peer” interfaces that are
-like opposite ends of a pipe — a packet send on one will be received on
+like opposite ends of a pipe — a packet sent on one will be received on
 the other.  It gives one of the peers to the container to become its
 `eth0` interface and keeps the other peer, with a unique name like
 `vethAQI2QT`, out in the namespace of the host machine.  By binding
