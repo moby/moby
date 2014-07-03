@@ -17,7 +17,7 @@ This information will help us review and fix your issue faster.
 
 For instructions on setting up your development environment, please
 see our dedicated [dev environment setup
-docs](http://docs.docker.io/en/latest/contributing/devenvironment/).
+docs](http://docs.docker.com/contributing/devenvironment/).
 
 ## Contribution guidelines
 
@@ -190,7 +190,7 @@ There are several exceptions to the signing requirement. Currently these are:
 * Your patch fixes Markdown formatting or syntax errors in the
   documentation contained in the `docs` directory.
 
-If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.io)
+If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.com)
 
 ### How can I become a maintainer?
 

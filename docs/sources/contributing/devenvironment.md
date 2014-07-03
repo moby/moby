@@ -16,7 +16,7 @@ Docker's build environment itself is a Docker container, so the first
 step is to install Docker on your system.
 
 You can follow the [install instructions most relevant to your
-system](https://docs.docker.io/installation/). Make sure you
+system](https://docs.docker.com/installation/). Make sure you
 have a working, up-to-date docker installation, then continue to the
 next step.
 

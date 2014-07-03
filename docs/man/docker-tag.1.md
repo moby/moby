@@ -54,5 +54,9 @@ registry you must tag it with the registry hostname and port (if needed).
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
+<<<<<<< HEAD
 based on docker.io source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+=======
+based on docker.com source material and internal work.
+>>>>>>> 834ef8a... I'm going to wish I didn't do this

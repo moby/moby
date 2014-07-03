@@ -9,7 +9,7 @@ To publish the Docker documentation you need to set your access_key and secret_k
 (with the keys in a [profile $AWS_S3_BUCKET] section - so you can have more than one set of keys in your file)
 and set the AWS_S3_BUCKET env var to the name of your bucket.
 
-make AWS_S3_BUCKET=beta-docs.docker.io docs-release
+make AWS_S3_BUCKET=docs-stage.docker.com docs-release
 
 will then push the documentation site to your s3 bucket.
 EOF

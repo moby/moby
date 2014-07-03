@@ -203,4 +203,4 @@ or
  run later, during the next build stage.  
 
 # HISTORY
-*May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.io Dockerfile documentation.
+*May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.

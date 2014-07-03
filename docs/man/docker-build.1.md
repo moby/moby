@@ -117,5 +117,5 @@ Note: You can set an arbitrary Git repository via the `git://` schema.
 
 # HISTORY
 March 2014, Originally compiled by William Henry (whenry at redhat dot com)
-based on docker.io source material and internal work.
+based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
