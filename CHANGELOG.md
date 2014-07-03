@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.1.0 (2014-07-03)
+
+#### Notable features since 1.0.1
++ Add `.dockerignore` support
++ Pause containers during `docker commit`
++ Add `--tail` to `docker logs`
+
+#### Builder
++ Allow a tar file as context for `docker build`
+* Fix issue with white-spaces and multi-lines in `Dockerfiles`
+
+#### Runtime
+* Overall performance improvements
+* Allow `/` as source of `docker run -v`
+* Fix port allocation
+* Fix bug in `docker save`
+* Add links information to `docker inspect`
+
+#### Client
+* Improve command line parsing for `docker commit`
+
+#### Remote API
+* Improve status code for the `start` and `stop` endpoints
+
 ## 1.0.1 (2014-06-19)
 
 #### Notable features since 1.0.0
