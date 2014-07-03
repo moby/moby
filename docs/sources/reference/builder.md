@@ -169,9 +169,8 @@ will be reused during the next build.
 The cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
-The first encountered `ADD` instruction will invalidate the cache for all
-following instructions from the 'Dockerfile' if the contents of the context
-have changed. This will also invalidate the cache for `RUN` instructions.
+The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
+[below](#add) for details.
 
 ### Known Issues (RUN)
 
@@ -284,6 +283,11 @@ In the case where `<src>` is a remote file URL, the destination will have permis
 > use `RUN wget` , `RUN curl`
 > or use another tool from within the container as ADD does not support
 > authentication.
+
+> **Note**:
+> The first encountered `ADD` instruction will invalidate the cache for all
+> following instructions from the Dockerfile if the contents of `<src>` have
+> changed. This includes invalidating the cache for `RUN` instructions.
 
 The copy obeys the following rules:
 
