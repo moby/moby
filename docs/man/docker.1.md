@@ -127,6 +127,9 @@ inside it)
 **docker-logs(1)**
   Fetch the logs of a container
 
+**docker-pause(1)**
+  Pause all processes within a container
+
 **docker-port(1)**
   Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
@@ -169,7 +172,10 @@ inside it)
 **docker-top(1)**
   Lookup the running processes of a container
 
-**version**
+**docker-unpause(1)**
+  Unpause all processes within a container
+
+**docker-version(1)**
   Show the Docker version information
 
 **docker-wait(1)**

@@ -1,12 +1,13 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-inspect - Return low-level information on a container/image
+docker-inspect - Return low-level information on a container or image
 
 # SYNOPSIS
-**docker inspect** [**-f**|**--format**="" CONTAINER|IMAGE
-[CONTAINER|IMAGE...]
+**docker inspect**
+[**-f**|**--format**[=*FORMAT*]]
+CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
 # DESCRIPTION
 
@@ -17,8 +18,7 @@ each result.
 
 # OPTIONS
 **-f**, **--format**=""
-   The text/template package of Go describes all the details of the
-format. See examples section
+   Format the output using the given go template.
 
 # EXAMPLES
 
@@ -224,6 +224,6 @@ Use an image's ID or name (e.g., repository/name[:tag]) to get information
     }]
 
 # HISTORY
-
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

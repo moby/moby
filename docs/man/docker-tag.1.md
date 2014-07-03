@@ -1,12 +1,13 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-tag - Tag an image in the repository
+docker-tag - Tag an image into a repository
 
 # SYNOPSIS
-**docker tag** [**-f**|**--force**[=*false*]
-IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
+**docker tag**
+[**-f**|**--force**[=*false*]]
+ IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
 # DESCRIPTION
 This will give a new alias to an image in the repository. This refers to the
@@ -31,6 +32,10 @@ separated by a ':'
 recommended to be used for a version to disinguish images with the same name.
 Note that here TAG is a part of the overall name or "tag".
 
+# OPTIONS
+**-f**, **--force**=*true*|*false*
+   Force. The default is *false*.
+
 # EXAMPLES
 
 ## Giving an image a new alias
@@ -50,3 +55,4 @@ registry you must tag it with the registry hostname and port (if needed).
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

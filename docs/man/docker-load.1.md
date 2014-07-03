@@ -1,11 +1,13 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-load - Load an image from a tar archive on STDIN
 
 # SYNOPSIS
-**docker load**  **--input**=""
+**docker load**
+[**-i**|**--input**[=*INPUT*]]
+
 
 # DESCRIPTION
 
@@ -13,11 +15,10 @@ Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.
 
 # OPTIONS
-
 **-i**, **--input**=""
    Read from a tar archive file, instead of STDIN
 
-# EXAMPLE
+# EXAMPLES
 
     $ sudo docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
@@ -34,3 +35,4 @@ Restores both images and tags.
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

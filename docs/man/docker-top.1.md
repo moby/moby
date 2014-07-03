@@ -1,18 +1,22 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-top - Lookup the running processes of a container
+docker-top - Display the running processes of a container
 
 # SYNOPSIS
-**docker top** CONTAINER [ps-OPTION]
+**docker top**
+CONTAINER [ps OPTIONS]
 
 # DESCRIPTION
 
 Look up the running process of the container. ps-OPTION can be any of the
  options you would pass to a Linux ps command.
 
-# EXAMPLE
+# OPTIONS
+There are no available options.
+
+# EXAMPLES
 
 Run **docker top** with the ps option of -x:
 
@@ -24,4 +28,4 @@ Run **docker top** with the ps option of -x:
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
-
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

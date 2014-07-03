@@ -1,14 +1,20 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-ps - List containers
 
 # SYNOPSIS
-**docker ps** [**-a**|**--all**=*false*] [**--before**=""]
-[**-l**|**--latest**=*false*] [**-n**=*-1*] [**--no-trunc**=*false*]
-[**-q**|**--quiet**=*false*] [**-s**|**--size**=*false*]
-[**--since**=""]
+**docker ps**
+[**-a**|**--all**[=*false*]]
+[**--before**[=*BEFORE*]]
+[**-l**|**--latest**[=*false*]]
+[**-n**[=*-1*]]
+[**--no-trunc**[=*false*]]
+[**-q**|**--quiet**[=*false*]]
+[**-s**|**--size**[=*false*]]
+[**--since**[=*SINCE*]]
+
 
 # DESCRIPTION
 
@@ -16,36 +22,31 @@ List the containers in the local repository. By default this show only
 the running containers.
 
 # OPTIONS
-
 **-a**, **--all**=*true*|*false*
-   When true show all containers. Only running containers are shown by
-default. Default is false.
+   Show all containers. Only running containers are shown by default. The default is *false*.
 
 **--before**=""
-   Show only container created before Id or Name, include non-running
-ones.
+   Show only container created before Id or Name, include non-running ones.
 
 **-l**, **--latest**=*true*|*false*
-   When true show only the latest created container, include non-running
-ones. The default is false.
+   Show only the latest created container, include non-running ones. The default is *false*.
 
-**-n**=NUM
-   Show NUM (integer) last created containers, include non-running ones.
-The default is -1 (none)
+**-n**=-1
+   Show n last created containers, include non-running ones.
 
 **--no-trunc**=*true*|*false*
-   When true truncate output. Default is false.
+   Don't truncate output. The default is *false*.
 
 **-q**, **--quiet**=*true*|*false*
-   When false only display numeric IDs. Default is false.
+   Only display numeric IDs. The default is *false*.
 
 **-s**, **--size**=*true*|*false*
-   When true display container sizes. Default is false.
+   Display sizes. The default is *false*.
 
 **--since**=""
    Show only containers created since Id or Name, include non-running ones.
 
-# EXAMPLE
+# EXAMPLES
 # Display all containers, including non-running
 
     # docker ps -a
@@ -66,3 +67,4 @@ The default is -1 (none)
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

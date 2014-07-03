@@ -1,11 +1,13 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-history - Show the history of an image
 
 # SYNOPSIS
-**docker history** **--no-trunc**[=*false*] [**-q**|**--quiet**[=*false*]]
+**docker history**
+[**--no-trunc**[=*false*]]
+[**-q**|**--quiet**[=*false*]]
  IMAGE
 
 # DESCRIPTION
@@ -13,14 +15,13 @@ docker-history - Show the history of an image
 Show the history of when and how an image was created.
 
 # OPTIONS
-
 **--no-trunc**=*true*|*false*
-   When true don't truncate output. Default is false
+   Don't truncate output. The default is *false*.
 
-**-q**, **--quiet=*true*|*false*
-   When true only show numeric IDs. Default is false.
+**-q**, **--quiet**=*true*|*false*
+   Only show numeric IDs. The default is *false*.
 
-# EXAMPLE
+# EXAMPLES
     $ sudo docker history fedora
     IMAGE          CREATED          CREATED BY                                      SIZE
     105182bb5e8b   5 days ago       /bin/sh -c #(nop) ADD file:71356d2ad59aa3119d   372.7 MB
@@ -30,3 +31,4 @@ Show the history of when and how an image was created.
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.io source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
