@@ -159,6 +159,7 @@ go_test_dir() {
 # Compile phase run by parallel in test-unit. No support for coverpkg
 go_compile_test_dir() {
 	dir=$1
+	out_file="$DEST/precompiled/$dir.test"
 	testcover=()
 	if [ "$HAVE_GO_TEST_COVER" ]; then
 		# if our current go install has -cover, we want to use it :)
@@ -167,12 +168,16 @@ go_compile_test_dir() {
 		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
 		testcover=( -cover -coverprofile "$coverprofile" ) # missing $coverpkg
 	fi
-	(
+	if [ "$BUILDFLAGS_FILE" ]; then
 		readarray -t BUILDFLAGS < "$BUILDFLAGS_FILE"
+	fi
+	(
 		cd "$dir"
 		go test "${testcover[@]}" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c
-		echo "$dir"
 	)
+	mkdir -p "$(dirname "$out_file")"
+	mv "$dir/$(basename "$dir").test" "$out_file"
+	echo "Precompiled: github.com/dotcloud/docker${dir#.}"
 }
 
 # This helper function walks the current directory looking for directories
