@@ -87,7 +87,7 @@ To learn about Docker in more detail and to answer questions about usage and imp
 
 ## Release Notes
 
-<b>Version 1.1</b>
+<b>Version 1.1.0</b>
 
 ### New Features
 
