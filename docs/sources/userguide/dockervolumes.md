@@ -71,6 +71,21 @@ read-only.
 Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
 
+### Mount a Host File as a Data Volume
+
+As well as directories, the `-v` flag can be used to mount a single file from the host into a container.
+
+    $ sudo docker run --rm -it -v ~/.bash_history:/.bash_history ubuntu /bin/bash
+
+This will drop you into a bash shell in a new container, you will have your bash history from your host and when 
+you exit the container the host will have the history of the commands typed while in the container.
+
+> **Note:** 
+> The two-way binding of the mounted file will only be preserved as long as the inode doesn't change. Many
+> tools used to edit files including `vi` and `sed --in-place` may result in a inode change. In the case where you
+> want to edit the file, it is often best to mount the parent directory.
+
+
 ## Creating and mounting a Data Volume Container
 
 If you have some persistent data that you want to share between
