@@ -391,6 +391,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	if dockerversion.GITCOMMIT != "" {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
 	}
+	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
 	body, _, err := readBody(cli.call("GET", "/version", nil, false))
 	if err != nil {
