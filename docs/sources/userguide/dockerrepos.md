@@ -124,7 +124,7 @@ triggering a build and update when you push a commit.
 
 1.  Create a [Docker Hub account](https://hub.docker.com/) and login.
 2.  Link your GitHub or BitBucket account through the ["Link Accounts"](https://registry.hub.docker.com/account/accounts/) menu.
-3.  [Configure an Automated Build](https://registry.hub.docker.com/builds/).
+3.  [Configure an Automated Build](http://docs.docker.com/docker-hub/builds/).
 4.  Pick a GitHub or BitBucket project that has a `Dockerfile` that you want to build.
 5.  Pick the branch you want to build (the default is the `master` branch).
 6.  Give the Automated Build a name.
@@ -137,7 +137,7 @@ Registry. It will stay in sync with your GitHub and BitBucket repository until y
 deactivate the Automated Build.
 
 If you want to see the status of your Automated Builds, you can go to your
-[Automated Builds page](https://registry.hub.docker.com/builds/) on the Docker Hub,
+[Automated Builds page](http://docs.docker.com/docker-hub/builds/) on the Docker Hub,
 and it will show you the status of your builds and their build history.
 
 Once you've created an Automated Build you can deactivate or delete it. You
