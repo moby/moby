@@ -24,6 +24,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -957,22 +958,25 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		}
 	}
 
-	for _, container := range srv.daemon.List() {
+	errLast := errors.New("last container")
+	writeCont := func(container *daemon.Container) error {
+		container.Lock()
+		defer container.Unlock()
 		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
-			continue
+			return nil
 		}
 		if before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
 			}
-			continue
+			return nil
 		}
 		if n > 0 && displayed == n {
-			break
+			return errLast
 		}
 		if since != "" {
 			if container.ID == sinceCont.ID {
-				break
+				return errLast
 			}
 		}
 		displayed++
@@ -999,7 +1003,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out.Set("Status", container.State.String())
 		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		out.Set("Ports", str)
 		if size {
@@ -1008,6 +1012,16 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
 		outs.Add(out)
+		return nil
+	}
+
+	for _, container := range srv.daemon.List() {
+		if err := writeCont(container); err != nil {
+			if err != errLast {
+				return job.Error(err)
+			}
+			break
+		}
 	}
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
