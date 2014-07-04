@@ -381,6 +381,15 @@ func (b *buildFile) CmdVolume(args string) error {
 	return nil
 }
 
+func (b *buildFile) CmdNocache(args string) error {
+	if len(strings.Fields(args)) != 0 {
+		return fmt.Errorf("Non-zero number of arguments passed to NOCACHE")
+	}
+
+	b.utilizeCache = false
+	return nil
+}
+
 func (b *buildFile) checkPathForAddition(orig string) error {
 	origPath := path.Join(b.contextPath, orig)
 	if p, err := filepath.EvalSymlinks(origPath); err != nil {
@@ -822,12 +831,17 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 // BuildStep parses a single build step from `instruction` and executes it in the current context.
 func (b *buildFile) BuildStep(name, expression string) error {
 	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
+
 	tmp := strings.SplitN(expression, " ", 2)
-	if len(tmp) != 2 {
+	if len(tmp) == 0 {
 		return fmt.Errorf("Invalid Dockerfile format")
 	}
+
 	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-	arguments := strings.Trim(tmp[1], " ")
+	var arguments string
+	if len(tmp) == 2 {
+		arguments = strings.Trim(tmp[1], " ")
+	}
 
 	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 	if !exists {
