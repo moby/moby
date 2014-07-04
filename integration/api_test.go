@@ -1209,7 +1209,7 @@ func TestPostContainersCgroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
