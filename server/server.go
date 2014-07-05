@@ -351,29 +351,52 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 
 	utils.Debugf("Serializing %s", name)
 
+	rootRepoMap := map[string]graph.Repository{}
 	rootRepo, err := srv.daemon.Repositories().Get(name)
 	if err != nil {
 		return job.Error(err)
 	}
 	if rootRepo != nil {
+		// this is a base repo name, like 'busybox'
+
 		for _, id := range rootRepo {
 			if err := srv.exportImage(job.Eng, id, tempdir); err != nil {
 				return job.Error(err)
 			}
 		}
-
-		// write repositories
-		rootRepoMap := map[string]graph.Repository{}
 		rootRepoMap[name] = rootRepo
+	} else {
+		img, err := srv.daemon.Repositories().LookupImage(name)
+		if err != nil {
+			return job.Error(err)
+		}
+		if img != nil {
+			// This is a named image like 'busybox:latest'
+			repoName, repoTag := utils.ParseRepositoryTag(name)
+			if err := srv.exportImage(job.Eng, img.ID, tempdir); err != nil {
+				return job.Error(err)
+			}
+			// check this length, because a lookup of a truncated has will not have a tag
+			// and will not need to be added to this map
+			if len(repoTag) > 0 {
+				rootRepoMap[repoName] = graph.Repository{repoTag: img.ID}
+			}
+		} else {
+			// this must be an ID that didn't get looked up just right?
+			if err := srv.exportImage(job.Eng, name, tempdir); err != nil {
+				return job.Error(err)
+			}
+		}
+	}
+	// write repositories, if there is something to write
+	if len(rootRepoMap) > 0 {
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
 		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.FileMode(0644)); err != nil {
 			return job.Error(err)
 		}
 	} else {
-		if err := srv.exportImage(job.Eng, name, tempdir); err != nil {
-			return job.Error(err)
-		}
+		utils.Debugf("There were no repositories to write")
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
