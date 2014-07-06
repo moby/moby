@@ -42,25 +42,59 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	logDone("rm - volume")
 }
 
-func TestRemoveContainerRunning(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-dt", "--name", "foo", "busybox", "top")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
+func TestRemoveRunningContainer(t *testing.T) {
+	createRunningContainer(t, "foo")
 
 	// Test cannot remove running container
-	cmd = exec.Command(dockerBinary, "rm", "foo")
+	cmd := exec.Command(dockerBinary, "rm", "foo")
 	if _, err := runCommand(cmd); err == nil {
 		t.Fatalf("Expected error, can't rm a running container")
 	}
 
-	// Remove with -f
-	cmd = exec.Command(dockerBinary, "rm", "-f", "foo")
+	deleteAllContainers()
+
+	logDone("rm - running container")
+}
+
+func TestStopAndRemoveRunningContainer(t *testing.T) {
+	createRunningContainer(t, "foo")
+
+	// Stop then remove with -s
+	cmd := exec.Command(dockerBinary, "rm", "-s", "foo")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
 
 	deleteAllContainers()
 
-	logDone("rm - running container")
+	logDone("rm - running container with --stop=true")
+}
+
+func TestKillAndRemoveRunningContainer(t *testing.T) {
+	createRunningContainer(t, "foo")
+
+	// Kill then remove with -k
+	cmd := exec.Command(dockerBinary, "rm", "-k", "foo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteAllContainers()
+
+	logDone("rm - running container with --kill=true")
+}
+
+func TestRemoveContainerWithStopAndKill(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "rm", "-sk", "foo")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatalf("Expected error: can't use stop and kill simulteanously")
+	}
+	logDone("rm - with --stop=true and --kill=true")
+}
+
+func createRunningContainer(t *testing.T, name string) {
+	cmd := exec.Command(dockerBinary, "run", "-dt", "--name", name, "busybox", "top")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
 }
