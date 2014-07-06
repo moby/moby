@@ -11,7 +11,7 @@ its own networking, and its own isolated process tree.  The
 defaults related to the binary to run, the networking to expose, and
 more, but `docker run` gives final control to the operator who starts
 the container from the image. That's the main reason
-[*run*](/reference/commandline/cli/#cli-run) has more options than any
+[*run*](/reference/commandline/cli/#run) has more options than any
 other `docker` command.
 
 ## General Form
@@ -21,7 +21,7 @@ The basic `docker run` command takes this form:
     $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
-see [*Option types*](/reference/commandline/cli/#cli-options).
+see [*Option types*](/reference/commandline/cli/#option-types).
 
 The list of `[OPTIONS]` breaks down into two groups:
 
