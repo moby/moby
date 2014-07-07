@@ -64,7 +64,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	if passAuthInfo {
 		cli.LoadConfigFile()
 		// Resolve the Auth config relevant for this server
-		authConfig := cli.configFile.ResolveAuthConfig(registry.IndexServerAddress())
+		authConfig := registry.ResolveAuthConfig(cli.configFile, registry.IndexServerAddress())
 		getHeaders := func(authConfig registry.AuthConfig) (map[string][]string, error) {
 			buf, err := json.Marshal(authConfig)
 			if err != nil {

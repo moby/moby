@@ -3,28 +3,20 @@ package registry
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/config"
+	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path"
 	"strings"
 
 	"github.com/dotcloud/docker/utils"
 )
 
-// Where we store the config file
-const CONFIGFILE = ".dockercfg"
-
 // Only used for user auth + account creation
 const INDEXSERVER = "https://index.docker.io/v1/"
 
 //const INDEXSERVER = "https://indexstaging-docker.dotcloud.com/v1/"
-
-var (
-	ErrConfigFileMissing = errors.New("The Auth config file is missing")
-)
 
 type AuthConfig struct {
 	Username      string `json:"username,omitempty"`
@@ -32,11 +24,6 @@ type AuthConfig struct {
 	Auth          string `json:"auth"`
 	Email         string `json:"email"`
 	ServerAddress string `json:"serveraddress,omitempty"`
-}
-
-type ConfigFile struct {
-	Configs  map[string]AuthConfig `json:"configs,omitempty"`
-	rootPath string
 }
 
 func IndexServerAddress() string {
@@ -72,82 +59,35 @@ func decodeAuth(authStr string) (string, string, error) {
 	return arr[0], password, nil
 }
 
-// load up the auth config information and return values
-// FIXME: use the internal golang config parser
-func LoadConfig(rootPath string) (*ConfigFile, error) {
-	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
-	confFile := path.Join(rootPath, CONFIGFILE)
-	if _, err := os.Stat(confFile); err != nil {
-		return &configFile, nil //missing file is not an error
-	}
-	b, err := ioutil.ReadFile(confFile)
+func GetAuth(config *config.ConfigFile, key string) (*AuthConfig, error) {
+	a, err := config.GetConfig(key)
 	if err != nil {
-		return &configFile, err
+		return nil, err
 	}
-
-	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
-		arr := strings.Split(string(b), "\n")
-		if len(arr) < 2 {
-			return &configFile, fmt.Errorf("The Auth config file is empty")
-		}
-		authConfig := AuthConfig{}
-		origAuth := strings.Split(arr[0], " = ")
-		if len(origAuth) != 2 {
-			return &configFile, fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
+	authConfig, found := a.(*AuthConfig)
+	if !found {
+		return &AuthConfig{}, fmt.Errorf("%s value is invalid type", key)
+	}
+	if authConfig.Auth != "" {
+		authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 		if err != nil {
-			return &configFile, err
-		}
-		origEmail := strings.Split(arr[1], " = ")
-		if len(origEmail) != 2 {
-			return &configFile, fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Email = origEmail[1]
-		authConfig.ServerAddress = IndexServerAddress()
-		configFile.Configs[IndexServerAddress()] = authConfig
-	} else {
-		for k, authConfig := range configFile.Configs {
-			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
-			if err != nil {
-				return &configFile, err
-			}
-			authConfig.Auth = ""
-			configFile.Configs[k] = authConfig
-			authConfig.ServerAddress = k
+			return authConfig, err
 		}
 	}
-	return &configFile, nil
+	authConfig.Auth = ""
+	authConfig.ServerAddress = key
+	return authConfig, nil
 }
 
-// save the auth config
-func SaveConfig(configFile *ConfigFile) error {
-	confFile := path.Join(configFile.rootPath, CONFIGFILE)
-	if len(configFile.Configs) == 0 {
-		os.Remove(confFile)
-		return nil
-	}
+func PutAuth(config *config.ConfigFile, key string, authConfig *AuthConfig) error {
+	authCopy := authConfig
 
-	configs := make(map[string]AuthConfig, len(configFile.Configs))
-	for k, authConfig := range configFile.Configs {
-		authCopy := authConfig
+	authCopy.Auth = encodeAuth(authCopy)
+	authCopy.Username = ""
+	authCopy.Password = ""
+	authCopy.ServerAddress = ""
 
-		authCopy.Auth = encodeAuth(&authCopy)
-		authCopy.Username = ""
-		authCopy.Password = ""
-		authCopy.ServerAddress = ""
-		configs[k] = authCopy
-	}
-
-	b, err := json.Marshal(configs)
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(confFile, b, 0600)
-	if err != nil {
-		return err
-	}
-	return nil
+	return config.PutConfig(key, authCopy)
 }
 
 // try to register/login to the registry server
@@ -259,15 +199,15 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 }
 
 // this method matches a auth configuration to a server address or a url
-func (config *ConfigFile) ResolveAuthConfig(hostname string) AuthConfig {
-	if hostname == IndexServerAddress() || len(hostname) == 0 {
+func ResolveAuthConfig(config *config.ConfigFile, hostname string) AuthConfig {
+	if len(hostname) == 0 {
 		// default to the index server
-		return config.Configs[IndexServerAddress()]
+		hostname = IndexServerAddress()
 	}
 
 	// First try the happy case
-	if c, found := config.Configs[hostname]; found {
-		return c
+	if c, err := GetAuth(config, hostname); err == nil {
+		return *c
 	}
 
 	convertToHostname := func(url string) string {
@@ -283,12 +223,12 @@ func (config *ConfigFile) ResolveAuthConfig(hostname string) AuthConfig {
 		return nameParts[0]
 	}
 
-	// Maybe they have a legacy config file, we will iterate the keys converting
-	// them to the new format and testing
 	normalizedHostename := convertToHostname(hostname)
-	for registry, config := range config.Configs {
-		if registryHostname := convertToHostname(registry); registryHostname == normalizedHostename {
-			return config
+	for index := range config.Configs {
+		if registryHostname := convertToHostname(index); registryHostname == normalizedHostename {
+			if c, err := GetAuth(config, index); err == nil {
+				return *c
+			}
 		}
 	}
 

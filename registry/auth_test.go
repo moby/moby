@@ -1,9 +1,14 @@
 package registry
 
 import (
+	"github.com/dotcloud/docker/config"
 	"io/ioutil"
 	"os"
 	"testing"
+)
+
+var (
+	cfgFile string
 )
 
 func TestEncodeAuth(t *testing.T) {
@@ -26,22 +31,22 @@ func TestEncodeAuth(t *testing.T) {
 	}
 }
 
-func setupTempConfigFile() (*ConfigFile, error) {
-	root, err := ioutil.TempDir("", "docker-test-auth")
+func setupTempConfigFile() (*config.ConfigFile, error) {
+	cfgFile, err := ioutil.TempDir("", "docker-test-auth")
 	if err != nil {
 		return nil, err
 	}
-	configFile := &ConfigFile{
-		rootPath: root,
-		Configs:  make(map[string]AuthConfig),
+	configFile, err := config.LoadConfig(cfgFile)
+	if err != nil {
+		return configFile, err
 	}
 
-	for _, registry := range []string{"testIndex", IndexServerAddress()} {
-		configFile.Configs[registry] = AuthConfig{
+	for _, index := range []string{"testIndex", IndexServerAddress()} {
+		PutAuth(configFile, index, &AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 			Email:    "docker@docker.io",
-		}
+		})
 	}
 
 	return configFile, nil
@@ -52,14 +57,14 @@ func TestSameAuthDataPostSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(cfgFile)
 
-	err = SaveConfig(configFile)
+	err = config.SaveConfig(configFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	authConfig := configFile.Configs["testIndex"]
+	authConfig, err := GetAuth(configFile, "testIndex")
 	if authConfig.Username != "docker-user" {
 		t.Fail()
 	}
@@ -79,12 +84,13 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(cfgFile)
 
-	for _, registry := range []string{"", IndexServerAddress()} {
-		resolved := configFile.ResolveAuthConfig(registry)
-		if resolved != configFile.Configs[IndexServerAddress()] {
-			t.Fail()
+	for _, index := range []string{"", IndexServerAddress()} {
+		resolved := ResolveAuthConfig(configFile, index)
+		auth, _ := GetAuth(configFile, IndexServerAddress())
+		if resolved.ServerAddress != auth.ServerAddress {
+			t.Errorf("failed to get Auth for %s - got %s and %s", index, resolved.ServerAddress, auth.ServerAddress)
 		}
 	}
 }
@@ -94,7 +100,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(cfgFile)
 
 	registryAuth := AuthConfig{
 		Username: "foo-user",
@@ -106,9 +112,9 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		Password: "bar-pass",
 		Email:    "bar@example.com",
 	}
-	configFile.Configs["https://registry.example.com/v1/"] = registryAuth
-	configFile.Configs["http://localhost:8000/v1/"] = localAuth
-	configFile.Configs["registry.com"] = registryAuth
+	PutAuth(configFile, "https://registry.example.com/v1/", &registryAuth)
+	PutAuth(configFile, "http://localhost:8000/v1/", &localAuth)
+	PutAuth(configFile, "registry.com", &registryAuth)
 
 	validRegistries := map[string][]string{
 		"https://registry.example.com/v1/": {
@@ -132,17 +138,14 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	}
 
 	for configKey, registries := range validRegistries {
-		for _, registry := range registries {
-			var (
-				configured AuthConfig
-				ok         bool
-			)
-			resolved := configFile.ResolveAuthConfig(registry)
-			if configured, ok = configFile.Configs[configKey]; !ok {
-				t.Fail()
+		for _, index := range registries {
+			resolved := ResolveAuthConfig(configFile, index)
+			configured, err := GetAuth(configFile, configKey)
+			if err != nil {
+				t.Fatal(err)
 			}
 			if resolved.Email != configured.Email {
-				t.Errorf("%s -> %q != %q\n", registry, resolved.Email, configured.Email)
+				t.Errorf("%s -> %q != %s -> %q\n", index, resolved.Email, configKey, configured.Email)
 			}
 		}
 	}

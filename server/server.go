@@ -46,6 +46,7 @@ import (
 	"time"
 
 	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/config"
 	"github.com/dotcloud/docker/daemon"
 	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
@@ -453,7 +454,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		rm             = job.GetenvBool("rm")
 		forceRm        = job.GetenvBool("forcerm")
 		authConfig     = &registry.AuthConfig{}
-		configFile     = &registry.ConfigFile{}
+		configFile     = &config.ConfigFile{}
 		tag            string
 		context        io.ReadCloser
 	)

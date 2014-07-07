@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/dotcloud/docker/config"
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/registry"
 )
 
 var funcMap = template.FuncMap{
@@ -57,7 +57,7 @@ func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet 
 }
 
 func (cli *DockerCli) LoadConfigFile() (err error) {
-	cli.configFile, err = registry.LoadConfig(os.Getenv("HOME"))
+	cli.configFile, err = config.LoadConfig(os.Getenv("HOME"))
 	if err != nil {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
@@ -101,7 +101,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 type DockerCli struct {
 	proto      string
 	addr       string
-	configFile *registry.ConfigFile
+	configFile *config.ConfigFile
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer

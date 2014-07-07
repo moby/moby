@@ -23,6 +23,7 @@ import (
 	"code.google.com/p/go.net/websocket"
 
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/config"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/pkg/listenbuffer"
 	"github.com/dotcloud/docker/pkg/systemd"
@@ -904,7 +905,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		authEncoded       = r.Header.Get("X-Registry-Auth")
 		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
-		configFile        = &registry.ConfigFile{}
+		configFile        = &config.ConfigFile{}
 		job               = eng.Job("build")
 	)
 
@@ -926,7 +927,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			configFile = &registry.ConfigFile{}
+			configFile = &config.ConfigFile{}
 		}
 	}
 
