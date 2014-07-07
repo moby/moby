@@ -1052,16 +1052,19 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		return nil
 	}
 
-	var src, repository, tag string
+	var (
+		v          = url.Values{}
+		src        = cmd.Arg(0)
+		repository = cmd.Arg(1)
+	)
+
+	v.Set("fromSrc", src)
+	v.Set("repo", repository)
 
 	if cmd.NArg() == 3 {
 		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
-		src, repository, tag = cmd.Arg(0), cmd.Arg(1), cmd.Arg(2)
-	} else {
-		src = cmd.Arg(0)
-		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+		v.Set("tag", cmd.Arg(2))
 	}
-	v := url.Values{}
 
 	if repository != "" {
 		//Check if the given image name can be resolved
@@ -1069,10 +1072,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 			return err
 		}
 	}
-
-	v.Set("repo", repository)
-	v.Set("tag", tag)
-	v.Set("fromSrc", src)
 
 	var in io.Reader
 
@@ -1159,12 +1158,18 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+	var (
+		v      = url.Values{}
+		remote = cmd.Arg(0)
+	)
 
-	remote, parsedTag := utils.ParseRepositoryTag(cmd.Arg(0))
+	v.Set("fromImage", remote)
+
 	if *tag == "" {
-		*tag = parsedTag
+		v.Set("tag", *tag)
 	}
 
+	remote, _ = utils.ParseRepositoryTag(remote)
 	// Resolve the Repository name from fqn to hostname + name
 	hostname, _, err := registry.ResolveRepositoryName(remote)
 	if err != nil {
@@ -1175,9 +1180,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	// Resolve the Auth config relevant for this server
 	authConfig := cli.configFile.ResolveAuthConfig(hostname)
-	v := url.Values{}
-	v.Set("fromImage", remote)
-	v.Set("tag", *tag)
 
 	pull := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)

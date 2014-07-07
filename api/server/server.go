@@ -468,6 +468,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 
 	var (
 		image = r.Form.Get("fromImage")
+		repo  = r.Form.Get("repo")
 		tag   = r.Form.Get("tag")
 		job   *engine.Job
 	)
@@ -482,18 +483,24 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		}
 	}
 	if image != "" { //pull
+		if tag == "" {
+			image, tag = utils.ParseRepositoryTag(image)
+		}
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
 			if strings.HasPrefix(k, "X-Meta-") {
 				metaHeaders[k] = v
 			}
 		}
-		job = eng.Job("pull", r.Form.Get("fromImage"), tag)
+		job = eng.Job("pull", image, tag)
 		job.SetenvBool("parallel", version.GreaterThan("1.3"))
 		job.SetenvJson("metaHeaders", metaHeaders)
 		job.SetenvJson("authConfig", authConfig)
 	} else { //import
-		job = eng.Job("import", r.Form.Get("fromSrc"), r.Form.Get("repo"), tag)
+		if tag == "" {
+			repo, tag = utils.ParseRepositoryTag(repo)
+		}
+		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
 		job.Stdin.Add(r.Body)
 	}
 
