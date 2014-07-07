@@ -684,13 +684,24 @@ func TreeSize(dir string) (size int64, err error) {
 // ValidateContextDirectory checks if all the contents of the directory
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
-func ValidateContextDirectory(srcPath string) error {
+func ValidateContextDirectory(srcPath string, excludes []string) error {
 	var finalError error
 
 	filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
 		// skip this directory/file if it's not in the path, it won't get added to the context
-		_, err = filepath.Rel(srcPath, filePath)
+		relFilePath, err := filepath.Rel(srcPath, filePath)
 		if err != nil && os.IsPermission(err) {
+			return nil
+		}
+
+		skip, err := Matches(relFilePath, excludes)
+		if err != nil {
+			finalError = err
+		}
+		if skip {
+			if f.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -725,4 +736,24 @@ func StringsContainsNoCase(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// Matches returns true if relFilePath matches any of the patterns
+func Matches(relFilePath string, patterns []string) (bool, error) {
+	for _, exclude := range patterns {
+		matched, err := filepath.Match(exclude, relFilePath)
+		if err != nil {
+			Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
+			return false, err
+		}
+		if matched {
+			if filepath.Clean(relFilePath) == "." {
+				Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
+				continue
+			}
+			Debugf("Skipping excluded path: %s", relFilePath)
+			return true, nil
+		}
+	}
+	return false, nil
 }
