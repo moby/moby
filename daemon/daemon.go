@@ -118,6 +118,12 @@ func (daemon *Daemon) Get(name string) *Container {
 		return c
 	}
 
+	if len(name) == 64 {
+		if c := daemon.containers.Get(name); c != nil {
+			return c
+		}
+	}
+
 	id, err := daemon.idIndex.Get(name)
 	if err != nil {
 		return nil
@@ -183,7 +189,9 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 
 	// don't update the Suffixarray if we're starting up
 	// we'll waste time if we update it for every container
-	daemon.idIndex.Add(container.ID)
+	if !container.Config.NoIndex {
+		daemon.idIndex.Add(container.ID)
+	}
 
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock

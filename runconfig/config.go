@@ -32,6 +32,7 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	OnBuild         []string
+	NoIndex         bool // If true, don't put container id into TruncIndex
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -52,6 +53,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Image:           job.Getenv("Image"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
+		NoIndex:         job.GetenvBool("NoIndex"),
 	}
 	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
 	job.GetenvJson("Volumes", &config.Volumes)
