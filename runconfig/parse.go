@@ -45,7 +45,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
 		flDns         opts.ListOpts
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
+		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
 		flEnvFile     opts.ListOpts

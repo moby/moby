@@ -23,8 +23,9 @@ func TestValidateIP4(t *testing.T) {
 
 }
 
-func TestValidateDomain(t *testing.T) {
+func TestValidateDnsSearch(t *testing.T) {
 	valid := []string{
+		`.`,
 		`a`,
 		`a.`,
 		`1.foo`,
@@ -49,7 +50,8 @@ func TestValidateDomain(t *testing.T) {
 
 	invalid := []string{
 		``,
-		`.`,
+		` `,
+		`  `,
 		`17`,
 		`17.`,
 		`.17`,
@@ -65,14 +67,14 @@ func TestValidateDomain(t *testing.T) {
 	}
 
 	for _, domain := range valid {
-		if ret, err := ValidateDomain(domain); err != nil || ret == "" {
-			t.Fatalf("ValidateDomain(`"+domain+"`) got %s %s", ret, err)
+		if ret, err := ValidateDnsSearch(domain); err != nil || ret == "" {
+			t.Fatalf("ValidateDnsSearch(`"+domain+"`) got %s %s", ret, err)
 		}
 	}
 
 	for _, domain := range invalid {
-		if ret, err := ValidateDomain(domain); err == nil || ret != "" {
-			t.Fatalf("ValidateDomain(`"+domain+"`) got %s %s", ret, err)
+		if ret, err := ValidateDnsSearch(domain); err == nil || ret != "" {
+			t.Fatalf("ValidateDnsSearch(`"+domain+"`) got %s %s", ret, err)
 		}
 	}
 }
