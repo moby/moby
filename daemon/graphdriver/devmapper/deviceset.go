@@ -28,6 +28,7 @@ var (
 	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
 	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
+	DefaultThinpBlockSize       uint32 = 1024 // 512K = 1024 512b sectors
 )
 
 type DevInfo struct {
@@ -78,6 +79,7 @@ type DeviceSet struct {
 	dataDevice           string
 	metadataDevice       string
 	doBlkDiscard         bool
+	thinpBlockSize       uint32
 }
 
 type DiskUsage struct {
@@ -510,7 +512,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 
 	// Reload with the new block sizes
-	if err := reloadPool(devices.getPoolName(), dataloopback, metadataloopback); err != nil {
+	if err := reloadPool(devices.getPoolName(), dataloopback, metadataloopback, devices.thinpBlockSize); err != nil {
 		return fmt.Errorf("Unable to reload pool: %s", err)
 	}
 
@@ -640,7 +642,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 		defer metadataFile.Close()
 
-		if err := createPool(devices.getPoolName(), dataFile, metadataFile); err != nil {
+		if err := createPool(devices.getPoolName(), dataFile, metadataFile, devices.thinpBlockSize); err != nil {
 			return err
 		}
 	}
@@ -1159,6 +1161,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		baseFsSize:           DefaultBaseFsSize,
 		filesystem:           "ext4",
 		doBlkDiscard:         true,
+		thinpBlockSize:       DefaultThinpBlockSize,
 	}
 
 	foundBlkDiscard := false
@@ -1170,19 +1173,19 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		key = strings.ToLower(key)
 		switch key {
 		case "dm.basesize":
-			size, err := units.FromHumanSize(val)
+			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
 			devices.baseFsSize = uint64(size)
 		case "dm.loopdatasize":
-			size, err := units.FromHumanSize(val)
+			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
 			devices.dataLoopbackSize = size
 		case "dm.loopmetadatasize":
-			size, err := units.FromHumanSize(val)
+			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
@@ -1206,6 +1209,13 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			if err != nil {
 				return nil, err
 			}
+		case "dm.blocksize":
+			size, err := units.RAMInBytes(val)
+			if err != nil {
+				return nil, err
+			}
+			// convert to 512b sectors
+			devices.thinpBlockSize = uint32(size) >> 9
 		default:
 			return nil, fmt.Errorf("Unknown option %s\n", key)
 		}
