@@ -65,13 +65,12 @@ a MongoDB repository file for the package manager.
 After this initial preparation we can update our packages and install MongoDB.
 
     # Update apt-get sources AND install MongoDB
-    RUN apt-get update
-    RUN apt-get install -y -q mongodb-org
+    RUN apt-get update && apt-get install -y mongodb-org
 
 > **Tip:** You can install a specific version of MongoDB by using a list
 > of required packages with versions, e.g.:
 > 
->     RUN apt-get install -y -q mongodb-org=2.6.1 mongodb-org-server=2.6.1 mongodb-org-shell=2.6.1 mongodb-org-mongos=2.6.1 mongodb-org-tools=2.6.1
+>     RUN apt-get update && apt-get install -y mongodb-org=2.6.1 mongodb-org-server=2.6.1 mongodb-org-shell=2.6.1 mongodb-org-mongos=2.6.1 mongodb-org-tools=2.6.1
 
 MongoDB requires a data directory. Let's create it as the final step of our
 installation instructions.
