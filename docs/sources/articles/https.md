@@ -17,7 +17,12 @@ will only connect to servers with a certificate signed by that CA.
 
 > **Warning**: 
 > Using TLS and managing a CA is an advanced topic. Please make you self
-> familiar with openssl, x509 and tls before using it in production.
+> familiar with OpenSSL, x509 and TLS before using it in production.
+
+> **Warning**:
+> These TLS commands will only generate a working set of certificates on Linux.
+> Mac OS X comes with a version of OpenSSL that is incompatible with the 
+> certificates that Docker requires.
 
 ## Create a CA, server and client keys with OpenSSL
 
@@ -25,16 +30,15 @@ First, initialize the CA serial file and generate CA private and public
 keys:
 
     $ echo 01 > ca.srl
-    $ openssl genrsa -des3 -out ca-key.pem
+    $ openssl genrsa -des3 -out ca-key.pem 2048
     $ openssl req -new -x509 -days 365 -key ca-key.pem -out ca.pem
 
 Now that we have a CA, you can create a server key and certificate
-signing request. Make sure that "Common Name (e.g., server FQDN or YOUR
-name)" matches the hostname you will use to connect to Docker or just
-use `\*` for a certificate valid for any hostname:
+signing request. Make sure that "Common Name (e.g. server FQDN or YOUR
+name)" matches the hostname you will use to connect to Docker:
 
-    $ openssl genrsa -des3 -out server-key.pem
-    $ openssl req -new -key server-key.pem -out server.csr
+    $ openssl genrsa -des3 -out server-key.pem 2048
+    $ openssl req -subj '/CN=**<Your Hostname Here>**' -new -key server-key.pem -out server.csr
 
 Next we're going to sign the key with our CA:
 
@@ -44,8 +48,8 @@ Next we're going to sign the key with our CA:
 For client authentication, create a client key and certificate signing
 request:
 
-    $ openssl genrsa -des3 -out client-key.pem
-    $ openssl req -new -key client-key.pem -out client.csr
+    $ openssl genrsa -des3 -out client-key.pem 2048
+    $ openssl req -subj '/CN=client' -new -key client-key.pem -out client.csr
 
 To make the key suitable for client authentication, create a extensions
 config file:
@@ -67,13 +71,16 @@ Now you can make the Docker daemon only accept connections from clients
 providing a certificate trusted by our CA:
 
     $ sudo docker -d --tlsverify --tlscacert=ca.pem --tlscert=server-cert.pem --tlskey=server-key.pem \
-      -H=0.0.0.0:2375
+      -H=0.0.0.0:2376
 
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
     $ docker --tlsverify --tlscacert=ca.pem --tlscert=client-cert.pem --tlskey=client-key.pem \
-      -H=dns-name-of-docker-host:2375
+      -H=dns-name-of-docker-host:2376
+
+> **Note**:
+> Docker over TLS should run on TCP port 2376.
 
 > **Warning**: 
 > As shown in the example above, you don't have to run the
@@ -83,6 +90,20 @@ need to provide your client keys, certificates and trusted CA:
 > instructions to your Docker daemon, giving them root access to the
 > machine hosting the daemon. Guard these keys as you would a root
 > password!
+
+## Secure By Default
+
+If you want to secure your Docker client connections by default, you can move the files
+to the `.docker` directory in your home directory. Set the `DOCKER_HOST` variable as well.
+
+    $ cp ca.pem ~/.docker/ca.pem
+    $ cp client-cert.pem ~/.docker/cert.pem
+    $ cp client-key.pem ~/.docker/key.pem
+    $ export DOCKER_HOST=tcp://:2376
+
+Then you can just run docker with the `--tlsverify` option.
+
+    $ docker --tlsverify ps
 
 ## Other modes
 
