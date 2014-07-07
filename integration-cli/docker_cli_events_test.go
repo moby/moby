@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
-func TestCLIGetEvents(t *testing.T) {
+func TestCLIGetEventsUntag(t *testing.T) {
 	out, _, _ := cmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	cmd(t, "tag", image, "utest:tag1")
@@ -26,4 +28,30 @@ func TestCLIGetEvents(t *testing.T) {
 		}
 	}
 	logDone("events - untags are logged")
+}
+
+func TestCLIGetEventsPause(t *testing.T) {
+	out, _, _ := cmd(t, "images", "-q")
+	image := strings.Split(out, "\n")[0]
+	cmd(t, "run", "-d", "--name", "testeventpause", image, "sleep", "2")
+	cmd(t, "pause", "testeventpause")
+	cmd(t, "unpause", "testeventpause")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, _, _ = runCommandWithOutput(eventsCmd)
+	events := strings.Split(out, "\n")
+	if len(events) <= 1 {
+		t.Fatalf("Missing expected event")
+	}
+
+	pauseEvent := strings.Fields(events[len(events)-3])
+	unpauseEvent := strings.Fields(events[len(events)-2])
+
+	if pauseEvent[len(pauseEvent)-1] != "pause" {
+		t.Fatalf("event should be pause, not %#v", pauseEvent)
+	}
+	if unpauseEvent[len(unpauseEvent)-1] != "unpause" {
+		t.Fatalf("event should be pause, not %#v", unpauseEvent)
+	}
+
+	logDone("events - pause/unpause is logged")
 }

@@ -183,6 +183,7 @@ func (srv *Server) ContainerPause(job *engine.Job) engine.Status {
 	if err := container.Pause(); err != nil {
 		return job.Errorf("Cannot pause container %s: %s", name, err)
 	}
+	srv.LogEvent("pause", container.ID, srv.daemon.Repositories().ImageName(container.Image))
 	return engine.StatusOK
 }
 
@@ -198,6 +199,7 @@ func (srv *Server) ContainerUnpause(job *engine.Job) engine.Status {
 	if err := container.Unpause(); err != nil {
 		return job.Errorf("Cannot unpause container %s: %s", name, err)
 	}
+	srv.LogEvent("unpause", container.ID, srv.daemon.Repositories().ImageName(container.Image))
 	return engine.StatusOK
 }
 
