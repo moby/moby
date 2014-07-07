@@ -181,7 +181,7 @@ Announcing on IRC in both `#docker` and `#docker-dev` is a great way to get
 help testing!  An easy way to get some useful links for sharing:
 
 ```bash
-echo "Ubuntu/Debian install script: curl -sLS https://test.docker.io/ | sh"
+echo "Ubuntu/Debian: https://test.docker.io/ubuntu or curl -sSL https://test.docker.io/ | sh"
 echo "Linux 64bit binary: https://test.docker.io/builds/Linux/x86_64/docker-${VERSION#v}"
 echo "Darwin/OSX 64bit client binary: https://test.docker.io/builds/Darwin/x86_64/docker-${VERSION#v}"
 echo "Darwin/OSX 32bit client binary: https://test.docker.io/builds/Darwin/i386/docker-${VERSION#v}"

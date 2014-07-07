@@ -59,7 +59,7 @@ After that, we install and setup a few dependencies:
 
 Next, we add Basho's APT repository:
 
-    RUN curl -s http://apt.basho.com/gpg/basho.apt.key | apt-key add --
+    RUN curl -sSL http://apt.basho.com/gpg/basho.apt.key | apt-key add --
     RUN echo "deb http://apt.basho.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/basho.list
     RUN apt-get update
 

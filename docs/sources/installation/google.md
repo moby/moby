@@ -12,7 +12,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 2. Download and configure the [Google Cloud SDK][3] to use your
    project with the following commands:
 
-        $ curl https://sdk.cloud.google.com | bash
+        $ curl -sSL https://sdk.cloud.google.com | bash
         $ gcloud auth login
         $ gcloud config set project <google-cloud-project-id>
 
