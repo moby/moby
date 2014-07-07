@@ -146,5 +146,11 @@ will add the libraries here.
       <td><a class="reference external" href="https://github.com/gesellix-docker/docker-client">https://github.com/gesellix-docker/docker-client</a></td>
       <td>Active</td>
     </tr>
+    <tr class="row-even">
+      <td>Java</td>
+      <td>jclouds-docker</td>
+      <td><a class="reference external" href="https://github.com/jclouds/jclouds-labs/tree/master/docker">https://github.com/jclouds/jclouds-labs/tree/master/docker</a></td>
+      <td>Active</td>
+    </tr>
   </tbody>
 </table>
