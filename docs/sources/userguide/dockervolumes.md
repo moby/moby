@@ -73,17 +73,21 @@ option to specify that the mount should be read-only.
 
 ### Mount a Host File as a Data Volume
 
-As well as directories, the `-v` flag can be used to mount a single file from the host into a container.
+As well as directories, the `-v` flag can be used to mount a single file from 
+the host into a container.
 
     $ sudo docker run --rm -it -v ~/.bash_history:/.bash_history ubuntu /bin/bash
 
-This will drop you into a bash shell in a new container, you will have your bash history from your host and when 
-you exit the container, the host will have the history of the commands typed while in the container.
+This will drop you into a bash shell in a new container, you will have your bash 
+history from your host and when you exit the container, the host will have the 
+history of the commands typed while in the container.
 
 > **Note:** 
-> Many tools used to edit files including `vi` and `sed --in-place` may result in a inode change. Since docker v1.1.0
-> this will produce a error such as "*sed: cannot rename ./sedKdJ9Dy: Device or resource busy*". In the case where you
-> want to edit the mounted file, it is often easiest to instead mount the parent directory.
+> Many tools used to edit files including `vi` and `sed --in-place` may result 
+> in a inode change. Since docker v1.1.0 this will produce a error such as
+> "*sed: cannot rename ./sedKdJ9Dy: Device or resource busy*". In the case where 
+> you want to edit the mounted file, it is often easiest to instead mount the 
+> parent directory.
 
 ## Creating and mounting a Data Volume Container
 
