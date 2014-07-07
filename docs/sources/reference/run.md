@@ -11,7 +11,7 @@ its own networking, and its own isolated process tree.  The
 defaults related to the binary to run, the networking to expose, and
 more, but `docker run` gives final control to the operator who starts
 the container from the image. That's the main reason
-[*run*](/reference/commandline/cli/#cli-run) has more options than any
+[*run*](/reference/commandline/cli/#run) has more options than any
 other `docker` command.
 
 ## General Form
@@ -21,7 +21,7 @@ The basic `docker run` command takes this form:
     $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
-see [*Option types*](/reference/commandline/cli/#cli-options).
+see [*Option types*](/reference/commandline/cli/#option-types).
 
 The list of `[OPTIONS]` breaks down into two groups:
 
@@ -240,7 +240,7 @@ to access to all devices on the host as well as set some configuration
 in AppArmor to allow the container nearly all the same access to the
 host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
-[Docker Blog](http://blog.docker.io/2013/09/docker-can-now-run-within-docker/).
+[Docker Blog](http://blog.docker.com/2013/09/docker-can-now-run-within-docker/).
 
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options

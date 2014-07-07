@@ -41,3 +41,21 @@ func TestBuildHistory(t *testing.T) {
 
 	deleteImages("testbuildhistory")
 }
+
+func TestHistoryExistentImage(t *testing.T) {
+	historyCmd := exec.Command(dockerBinary, "history", "busybox")
+	_, exitCode, err := runCommandWithOutput(historyCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to get image history")
+	}
+	logDone("history - history on existent image must not fail")
+}
+
+func TestHistoryNonExistentImage(t *testing.T) {
+	historyCmd := exec.Command(dockerBinary, "history", "testHistoryNonExistentImage")
+	_, exitCode, err := runCommandWithOutput(historyCmd)
+	if err == nil || exitCode == 0 {
+		t.Fatal("history on a non-existent image didn't result in a non-zero exit status")
+	}
+	logDone("history - history on non-existent image must fail")
+}

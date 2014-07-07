@@ -328,7 +328,7 @@ func BlockDeviceDiscard(path string) error {
 }
 
 // This is the programmatic example of "dmsetup create"
-func createPool(poolName string, dataFile, metadataFile *os.File) error {
+func createPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
 	task, err := createTask(DeviceCreate, poolName)
 	if task == nil {
 		return err
@@ -339,7 +339,7 @@ func createPool(poolName string, dataFile, metadataFile *os.File) error {
 		return fmt.Errorf("Can't get data size %s", err)
 	}
 
-	params := metadataFile.Name() + " " + dataFile.Name() + " 128 32768 1 skip_block_zeroing"
+	params := fmt.Sprintf("%s %s %d 32768 1 skip_block_zeroing", metadataFile.Name(), dataFile.Name(), poolBlockSize)
 	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
 		return fmt.Errorf("Can't add target %s", err)
 	}
@@ -358,7 +358,7 @@ func createPool(poolName string, dataFile, metadataFile *os.File) error {
 	return nil
 }
 
-func reloadPool(poolName string, dataFile, metadataFile *os.File) error {
+func reloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
 	task, err := createTask(DeviceReload, poolName)
 	if task == nil {
 		return err
@@ -369,7 +369,7 @@ func reloadPool(poolName string, dataFile, metadataFile *os.File) error {
 		return fmt.Errorf("Can't get data size %s", err)
 	}
 
-	params := metadataFile.Name() + " " + dataFile.Name() + " 128 32768"
+	params := fmt.Sprintf("%s %s %d 32768 1 skip_block_zeroing", metadataFile.Name(), dataFile.Name(), poolBlockSize)
 	if err := task.AddTarget(0, size/512, "thin-pool", params); err != nil {
 		return fmt.Errorf("Can't add target %s", err)
 	}

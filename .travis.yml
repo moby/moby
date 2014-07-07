@@ -3,7 +3,12 @@
 
 language: go
 
-go: 1.2
+# This should match the version in the Dockerfile.
+go: 1.2.1
+
+# Let us have pretty experimental Docker-based Travis workers.
+# (These spin up much faster than the VM-based ones.)
+sudo: false
 
 # Disable the normal go build.
 install: true

@@ -34,6 +34,7 @@ import (
 	"github.com/dotcloud/docker/pkg/truncindex"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/broadcastwriter"
 )
 
 // Set the max depth to the aufs default that most
@@ -169,8 +170,8 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 	container.daemon = daemon
 
 	// Attach to stdout and stderr
-	container.stderr = utils.NewWriteBroadcaster()
-	container.stdout = utils.NewWriteBroadcaster()
+	container.stderr = broadcastwriter.New()
+	container.stdout = broadcastwriter.New()
 	// Attach to stdin
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
@@ -255,7 +256,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) LogToDisk(src *utils.WriteBroadcaster, dst, stream string) error {
+func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, stream string) error {
 	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return err
@@ -620,8 +621,12 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, config *runconfig.Config) (*image.Image, error) {
-	// FIXME: freeze the container before copying it to avoid data corruption?
+func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
+	if pause {
+		container.Pause()
+		defer container.Unpause()
+	}
+
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
@@ -774,6 +779,11 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	}
 	utils.Debugf("Using graph driver %s", driver)
 
+	// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
+	if config.EnableSelinuxSupport && driver.String() == "btrfs" {
+		return nil, fmt.Errorf("SELinux is not supported with the BTRFS graph driver!")
+	}
+
 	daemonRepo := path.Join(config.Root, "containers")
 
 	if err := os.MkdirAll(daemonRepo, 0700); err != nil && !os.IsExist(err) {
@@ -832,7 +842,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
-		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.io/en/latest/contributing/devenvironment for official build instructions.")
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.com/contributing/devenvironment for official build instructions.")
 	}
 
 	if sysInitPath != localCopy {

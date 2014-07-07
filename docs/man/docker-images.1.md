@@ -1,23 +1,22 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-images - List the images in the local repository
+docker-images - List images
 
 # SYNOPSIS
 **docker images**
-[**-a**|**--all**=*false*]
-[**--no-trunc**[=*false*]
-[**-q**|**--quiet**[=*false*]
-[**-t**|**--tree**=*false*]
-[**-v**|**--viz**=*false*]
-[NAME]
+[**-a**|**--all**[=*false*]]
+[**-f**|**--filter**[=*[]*]]
+[**--no-trunc**[=*false*]]
+[**-q**|**--quiet**[=*false*]]
+ [NAME]
 
 # DESCRIPTION
 This command lists the images stored in the local Docker repository.
 
 By default, intermediate images, used during builds, are not listed. Some of the
-output, e.g. image ID, is truncated, for space reasons. However the truncated
+output, e.g., image ID, is truncated, for space reasons. However the truncated
 image ID, and often the first few characters, are enough to be used in other
 Docker commands that use the image ID. The output includes repository, tag, image
 ID, date created and the virtual size.
@@ -30,26 +29,17 @@ called fedora. It may be tagged with 18, 19, or 20, etc. to manage different
 versions.
 
 # OPTIONS
-
 **-a**, **--all**=*true*|*false*
-   When set to true, also include all intermediate images in the list. The
-default is false.
+   Show all images (by default filter out the intermediate image layers). The default is *false*.
+
+**-f**, **--filter**=[]
+   Provide filter values (i.e. 'dangling=true')
 
 **--no-trunc**=*true*|*false*
-   When set to true, list the full image ID and not the truncated ID. The
-default is false.
+   Don't truncate output. The default is *false*.
 
 **-q**, **--quiet**=*true*|*false*
-   When set to true, list the complete image ID as part of the output. The
-default is false.
-
-**-t**, **--tree**=*true*|*false*
-   When set to true, list the images in a tree dependency tree (hierarchy)
-format. The default is false.
-
-**-v**, **--viz**=*true*|*false*
-   When set to true, list the graph in graphviz format. The default is
-*false*.
+   Only show numeric IDs. The default is *false*.
 
 # EXAMPLES
 
@@ -96,4 +86,5 @@ tools.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
-based on docker.io source material and internal work.
+based on docker.com source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

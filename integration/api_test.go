@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -17,7 +16,6 @@ import (
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/api/server"
 	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
@@ -122,54 +120,6 @@ func TestGetImagesJSON(t *testing.T) {
 
 	if images3.Len() != 0 {
 		t.Errorf("Expected 0 image, %d found", images3.Len())
-	}
-}
-
-func TestGetImagesHistory(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("/images/%s/history", unitTestImageName), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadListFrom(r.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 line, %d found", len(outs.Data))
-	}
-}
-
-func TestGetImagesByName(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	req, err := http.NewRequest("GET", "/images/"+unitTestImageName+"/json", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	img := &image.Image{}
-	if err := json.Unmarshal(r.Body.Bytes(), img); err != nil {
-		t.Fatal(err)
-	}
-	if img.ID != unitTestImageID {
-		t.Errorf("Error inspecting image")
 	}
 }
 

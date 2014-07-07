@@ -378,6 +378,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		return err
 	}
 	logsJob.Setenv("follow", r.Form.Get("follow"))
+	logsJob.Setenv("tail", r.Form.Get("tail"))
 	logsJob.Setenv("stdout", r.Form.Get("stdout"))
 	logsJob.Setenv("stderr", r.Form.Get("stderr"))
 	logsJob.Setenv("timestamps", r.Form.Get("timestamps"))
@@ -437,6 +438,12 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	)
 	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
+	}
+
+	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
+		job.Setenv("pause", "1")
+	} else {
+		job.Setenv("pause", r.FormValue("pause"))
 	}
 
 	job.Setenv("repo", r.Form.Get("repo"))

@@ -74,7 +74,7 @@ unix://[/path/to/socket] to use.
   Print version information and quit. Default is false.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false.
+  Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
 # COMMANDS
 **docker-attach(1)**
@@ -127,6 +127,9 @@ inside it)
 **docker-logs(1)**
   Fetch the logs of a container
 
+**docker-pause(1)**
+  Pause all processes within a container
+
 **docker-port(1)**
   Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
 
@@ -169,7 +172,10 @@ inside it)
 **docker-top(1)**
   Lookup the running processes of a container
 
-**version**
+**docker-unpause(1)**
+  Unpause all processes within a container
+
+**docker-version(1)**
   Show the Docker version information
 
 **docker-wait(1)**
@@ -184,4 +190,4 @@ For example:
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com) based
- on docker.io source material and internal work.
+ on docker.com source material and internal work.

@@ -49,6 +49,11 @@ daemon is configured to listen on.
 **New!**
 `start` and `stop` will now return 304 if the container's status is not modified
 
+`POST /commit`
+
+**New!**
+Added a `pause` parameter (default `true`) to pause the container during commit
+
 ## v1.12
 
 ### Full Documentation
@@ -373,7 +378,7 @@ List containers (/containers/json):
 
 Start containers (/containers/<id>/start):
 
- - You can now pass host-specific configuration (e.g. bind mounts) in
+ - You can now pass host-specific configuration (e.g., bind mounts) in
    the POST body for start calls
 
 ## v1.2

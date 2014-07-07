@@ -15,7 +15,7 @@ will need to install it. And this is a little more difficult on
 Rackspace.
 
 Rackspace boots their servers using grub's `menu.lst`
-and does not like non `virtual` packages (e.g. Xen compatible)
+and does not like non `virtual` packages (e.g., Xen compatible)
 kernels there, although they do work. This results in
 `update-grub` not having the expected result, and
 you will need to set the kernel manually.

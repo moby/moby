@@ -289,6 +289,73 @@ func TestLogsNoStreams(t *testing.T) {
 	}
 }
 
+func TestGetImagesHistory(t *testing.T) {
+	eng := engine.New()
+	imageName := "docker-test-image"
+	var called bool
+	eng.Register("history", func(job *engine.Job) engine.Status {
+		called = true
+		if len(job.Args) == 0 {
+			t.Fatal("Job arguments is empty")
+		}
+		if job.Args[0] != imageName {
+			t.Fatalf("name != '%s': %#v", imageName, job.Args[0])
+		}
+		v := &engine.Env{}
+		if _, err := v.WriteTo(job.Stdout); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
+	})
+	r := serveRequest("GET", "/images/"+imageName+"/history", nil, eng, t)
+	if !called {
+		t.Fatalf("handler was not called")
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusOK)
+	}
+	if r.HeaderMap.Get("Content-Type") != "application/json" {
+		t.Fatalf("%#v\n", r)
+	}
+}
+
+func TestGetImagesByName(t *testing.T) {
+	eng := engine.New()
+	name := "image_name"
+	var called bool
+	eng.Register("image_inspect", func(job *engine.Job) engine.Status {
+		called = true
+		if job.Args[0] != name {
+			t.Fatalf("name != '%s': %#v", name, job.Args[0])
+		}
+		if api.APIVERSION.LessThan("1.12") && !job.GetenvBool("dirty") {
+			t.Fatal("dirty env variable not set")
+		} else if api.APIVERSION.GreaterThanOrEqualTo("1.12") && job.GetenvBool("dirty") {
+			t.Fatal("dirty env variable set when it shouldn't")
+		}
+		v := &engine.Env{}
+		v.SetBool("dirty", true)
+		if _, err := v.WriteTo(job.Stdout); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
+	})
+	r := serveRequest("GET", "/images/"+name+"/json", nil, eng, t)
+	if !called {
+		t.Fatal("handler was not called")
+	}
+	if r.HeaderMap.Get("Content-Type") != "application/json" {
+		t.Fatalf("%#v\n", r)
+	}
+	var stdoutJson interface{}
+	if err := json.Unmarshal(r.Body.Bytes(), &stdoutJson); err != nil {
+		t.Fatalf("%#v", err)
+	}
+	if stdoutJson.(map[string]interface{})["dirty"].(float64) != 1 {
+		t.Fatalf("%#v", stdoutJson)
+	}
+}
+
 func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *testing.T) *httptest.ResponseRecorder {
 	r := httptest.NewRecorder()
 	req, err := http.NewRequest(method, target, body)

@@ -93,7 +93,7 @@ or
   they omit the executable, an ENTRYPOINT must be specified.
   When used in the shell or exec formats, the CMD instruction sets the command to
   be executed when running the image.
-  If you use the shell form of of the CMD, the <command> executes in /bin/sh -c:
+  If you use the shell form of the CMD, the <command> executes in /bin/sh -c:
   **FROM ubuntu**
   **CMD echo "This is a test." | wc -**
   If you run <command> wihtout a shell, then you must express the command as a
@@ -203,4 +203,4 @@ or
  run later, during the next build stage.  
 
 # HISTORY
-*May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.io Dockerfile documentation.
+*May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.

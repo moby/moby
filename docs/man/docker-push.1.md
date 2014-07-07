@@ -1,19 +1,23 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
 docker-push - Push an image or a repository to the registry
 
 # SYNOPSIS
-**docker push** NAME[:TAG]
+**docker push**
+NAME[:TAG]
 
 # DESCRIPTION
 Push an image or a repository to a registry. The default registry is the Docker 
-Index located at [index.docker.io](https://index.docker.io/v1/). However the 
+Hub located at [hub.docker.com](https://hub.docker.com/). However the 
 image can be pushed to another, perhaps private, registry as demonstrated in 
 the example below.
 
-# EXAMPLE
+# OPTIONS
+There are no available options.
+
+# EXAMPLES
 
 # Pushing a new image to a registry
 
@@ -24,7 +28,7 @@ and then committing it to a new image name:
 
 Now push the image to the registry using the image ID. In this example
 the registry is on host named registry-host and listening on port 5000.
-Default Docker commands will push to the default `index.docker.io`
+Default Docker commands will push to the default `hub.docker.com`
 registry. Instead, push to the local registry, which is on a host called
 registry-host*. To do this, tag the image with the host name or IP
 address, and the port of the registry:
@@ -41,4 +45,5 @@ listed.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
-based on docker.io source material and internal work.
+based on docker.com source material and internal work.
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

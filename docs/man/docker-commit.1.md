@@ -1,23 +1,27 @@
 % DOCKER(1) Docker User Manuals
-% William Henry
-% APRIL 2014
+% Docker Community
+% JUNE 2014
 # NAME
-docker-commit - Create a new image from the changes to an existing
-container
+docker-commit - Create a new image from a container's changes
 
 # SYNOPSIS
-**docker commit** **-a**|**--author**[=""] **-m**|**--message**[=""]
-CONTAINER [REPOSITORY[:TAG]]
+**docker commit**
+[**-a**|**--author**[=*AUTHOR*]]
+[**-m**|**--message**[=*MESSAGE*]]
+ CONTAINER [REPOSITORY[:TAG]]
 
 # DESCRIPTION
 Using an existing container's name or ID you can create a new image.
 
 # OPTIONS
-**-a, --author**=""
-   Author name. (eg. "John Hannibal Smith <hannibal@a-team.com>"
+**-a**, **--author**=""
+   Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
 
-**-m, --message**=""
+**-m**, **--message**=""
    Commit message
+
+**-p, --pause**=true
+   Pause container during commit
 
 # EXAMPLES
 
@@ -31,4 +35,5 @@ create a new image run docker ps to find the container's ID and then run:
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
-based on docker.io source material and in
+based on docker.com source material and in
+June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

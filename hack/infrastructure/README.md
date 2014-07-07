@@ -20,7 +20,7 @@ AWS           | packages (S3 bucket), dotCloud PAAS, dev-env, ci
 CloudFlare    | cdn
 Digital Ocean | ci
 dotCloud PAAS | website, index, registry, ssl, blog
-DynECT        | dns (docker.io)            
+DynECT        | dns (docker.com)            
 GitHub        | repository
 Linode        | stackbrew
 Mailgun       | outgoing e-mail            
@@ -36,20 +36,19 @@ and which service is handling them.
 
 URL                                          | Service
 ---------------------------------------------|---------------------------------
- http://blog.docker.io/                      | blog
+ http://blog.docker.com/                     | blog
 *http://cdn-registry-1.docker.io/            | registry (pull)
  http://debug.docker.io/                     | debug tool
- http://docs.docker.io/                      | docsproxy (proxy to readthedocs)
+ http://docs.docker.com/                     | documentation served from an S3 bucket
  http://docker-ci.dotcloud.com/              | ci
- http://docker.io/                           | redirect to www.docker.io (dynect)
- http://docker.readthedocs.org/              | docs
+ http://docker.com/                          | redirect to www.docker.com (dynect)
 *http://get.docker.io/                       | packages
  https://github.com/dotcloud/docker          | repository
-*https://index.docker.io/                    | index
+*https://hub.docker.com/                     | Docker Hub
  http://registry-1.docker.io/                | registry (push)
  http://staging-docker-ci.dotcloud.com/      | ci
 *http://test.docker.io/                      | packages
-*http://www.docker.io/                       | website
+*http://www.docker.com/                      | website
  http://? (internal URL, not for public use) | stackbrew
 
 *Ordered-by: lexicographic*
