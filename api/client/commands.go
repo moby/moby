@@ -552,7 +552,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 }
 
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
-	sigc := make(chan os.Signal, 1)
+	sigc := make(chan os.Signal, 128)
 	signal.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
