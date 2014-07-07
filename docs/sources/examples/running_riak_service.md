@@ -25,13 +25,6 @@ of. We'll use [Ubuntu](https://registry.hub.docker.com/_/ubuntu/) (tag:
     FROM ubuntu:latest
     MAINTAINER Hector Castro hector@basho.com
 
-Next, we update the APT cache and apply any updates:
-
-    # Update the APT cache
-    RUN sed -i.bak 's/main$/main universe/' /etc/apt/sources.list
-    RUN apt-get update
-    RUN apt-get upgrade -y
-
 After that, we install and setup a few dependencies:
 
  - `curl` is used to download Basho's APT
@@ -46,7 +39,7 @@ After that, we install and setup a few dependencies:
 <!-- -->
 
     # Install and setup project dependencies
-    RUN apt-get install -y curl lsb-release supervisor openssh-server
+    RUN apt-get update && apt-get install -y curl lsb-release supervisor openssh-server
 
     RUN mkdir -p /var/run/sshd
     RUN mkdir -p /var/log/supervisor
@@ -61,22 +54,13 @@ Next, we add Basho's APT repository:
 
     RUN curl -sSL http://apt.basho.com/gpg/basho.apt.key | apt-key add --
     RUN echo "deb http://apt.basho.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/basho.list
-    RUN apt-get update
 
 After that, we install Riak and alter a few defaults:
 
     # Install Riak and prepare it to run
-    RUN apt-get install -y riak
+    RUN apt-get update && apt-get install -y riak
     RUN sed -i.bak 's/127.0.0.1/0.0.0.0/' /etc/riak/app.config
     RUN echo "ulimit -n 4096" >> /etc/default/riak
-
-Almost there. Next, we add a hack to get us by the lack of
-`initctl`:
-
-    # Hack for initctl
-    # See: https://github.com/docker/docker/issues/1024
-    RUN dpkg-divert --local --rename --add /sbin/initctl
-    RUN ln -s /bin/true /sbin/initctl
 
 Then, we expose the Riak Protocol Buffers and HTTP interfaces, along
 with SSH:

@@ -516,23 +516,16 @@ For example you might add something like this:
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
 
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
-
-    RUN apt-get install -y inotify-tools nginx apache2 openssh-server
+    RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC
     #
     # VERSION               0.3
 
     FROM ubuntu
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
 
     # Install vnc, xvfb in order to create a 'fake' display and firefox
-    RUN apt-get install -y x11vnc xvfb firefox
+    RUN apt-get update && apt-get install -y x11vnc xvfb firefox
     RUN mkdir /.vnc
     # Setup a password
     RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
