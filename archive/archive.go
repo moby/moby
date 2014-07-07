@@ -349,23 +349,16 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					return nil
 				}
 
-				for _, exclude := range options.Excludes {
-					matched, err := filepath.Match(exclude, relFilePath)
-					if err != nil {
-						utils.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
-						return err
+				skip, err := utils.Matches(relFilePath, options.Excludes)
+				if err != nil {
+					utils.Debugf("Error matching %s\n", relFilePath, err)
+					return nil
+				}
+				if skip {
+					if f.IsDir() {
+						return filepath.SkipDir
 					}
-					if matched {
-						if filepath.Clean(relFilePath) == "." {
-							utils.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
-							continue
-						}
-						utils.Debugf("Skipping excluded path: %s", relFilePath)
-						if f.IsDir() {
-							return filepath.SkipDir
-						}
-						return nil
-					}
+					return nil
 				}
 
 				if err := addTarFile(filePath, relFilePath, tw, twBuf); err != nil {
