@@ -2049,6 +2049,32 @@ func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*imag
 	return match, nil
 }
 
+func (srv *Server) setHostConfig(container *daemon.Container, hostConfig *runconfig.HostConfig) error {
+	// Validate the HostConfig binds. Make sure that:
+	// the source exists
+	for _, bind := range hostConfig.Binds {
+		splitBind := strings.Split(bind, ":")
+		source := splitBind[0]
+
+		// ensure the source exists on the host
+		_, err := os.Stat(source)
+		if err != nil && os.IsNotExist(err) {
+			err = os.MkdirAll(source, 0755)
+			if err != nil {
+				return fmt.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
+			}
+		}
+	}
+	// Register any links from the host config before starting the container
+	if err := srv.daemon.RegisterLinks(container, hostConfig); err != nil {
+		return err
+	}
+	container.SetHostConfig(hostConfig)
+	container.ToDisk()
+
+	return nil
+}
+
 func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s container_id", job.Name)
@@ -2070,27 +2096,9 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
-		// Validate the HostConfig binds. Make sure that:
-		// the source exists
-		for _, bind := range hostConfig.Binds {
-			splitBind := strings.Split(bind, ":")
-			source := splitBind[0]
-
-			// ensure the source exists on the host
-			_, err := os.Stat(source)
-			if err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(source, 0755)
-				if err != nil {
-					return job.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
-				}
-			}
-		}
-		// Register any links from the host config before starting the container
-		if err := srv.daemon.RegisterLinks(container, hostConfig); err != nil {
+		if err := srv.setHostConfig(container, hostConfig); err != nil {
 			return job.Error(err)
 		}
-		container.SetHostConfig(hostConfig)
-		container.ToDisk()
 	}
 	if err := container.Start(); err != nil {
 		return job.Errorf("Cannot start container %s: %s", name, err)

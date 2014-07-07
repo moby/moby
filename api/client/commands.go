@@ -1896,6 +1896,41 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) pullImage(image string) error {
+	v := url.Values{}
+	repos, tag := utils.ParseRepositoryTag(image)
+	// pull only the image tagged 'latest' if no tag was specified
+	if tag == "" {
+		tag = "latest"
+	}
+	v.Set("fromImage", repos)
+	v.Set("tag", tag)
+
+	// Resolve the Repository name from fqn to hostname + name
+	hostname, _, err := registry.ResolveRepositoryName(repos)
+	if err != nil {
+		return err
+	}
+
+	// Load the auth config file, to be able to pull the image
+	cli.LoadConfigFile()
+
+	// Resolve the Auth config relevant for this server
+	authConfig := cli.configFile.ResolveAuthConfig(hostname)
+	buf, err := json.Marshal(authConfig)
+	if err != nil {
+		return err
+	}
+
+	registryAuthHeader := []string{
+		base64.URLEncoding.EncodeToString(buf),
+	}
+	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (cli *DockerCli) CmdRun(args ...string) error {
 	// FIXME: just use runconfig.Parse already
 	config, hostConfig, cmd, err := runconfig.ParseSubcommand(cli.Subcmd("run", "[OPTIONS] IMAGE [COMMAND] [ARG...]", "Run a command in a new container"), args, nil)
@@ -1957,37 +1992,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if statusCode == 404 {
 		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", config.Image)
 
-		v := url.Values{}
-		repos, tag := utils.ParseRepositoryTag(config.Image)
-		// pull only the image tagged 'latest' if no tag was specified
-		if tag == "" {
-			tag = "latest"
-		}
-		v.Set("fromImage", repos)
-		v.Set("tag", tag)
-
-		// Resolve the Repository name from fqn to hostname + name
-		hostname, _, err := registry.ResolveRepositoryName(repos)
-		if err != nil {
+		if err = cli.pullImage(config.Image); err != nil {
 			return err
 		}
-
-		// Load the auth config file, to be able to pull the image
-		cli.LoadConfigFile()
-
-		// Resolve the Auth config relevant for this server
-		authConfig := cli.configFile.ResolveAuthConfig(hostname)
-		buf, err := json.Marshal(authConfig)
-		if err != nil {
-			return err
-		}
-
-		registryAuthHeader := []string{
-			base64.URLEncoding.EncodeToString(buf),
-		}
-		if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
-			return err
-		}
+		// Retry
 		if stream, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), config, false); err != nil {
 			return err
 		}
