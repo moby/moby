@@ -34,6 +34,7 @@ import (
 	"github.com/dotcloud/docker/pkg/truncindex"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/broadcastwriter"
 )
 
 // Set the max depth to the aufs default that most
@@ -169,8 +170,8 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 	container.daemon = daemon
 
 	// Attach to stdout and stderr
-	container.stderr = utils.NewWriteBroadcaster()
-	container.stdout = utils.NewWriteBroadcaster()
+	container.stderr = broadcastwriter.New()
+	container.stdout = broadcastwriter.New()
 	// Attach to stdin
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
@@ -255,7 +256,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) LogToDisk(src *utils.WriteBroadcaster, dst, stream string) error {
+func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, stream string) error {
 	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return err
