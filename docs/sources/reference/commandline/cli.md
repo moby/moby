@@ -73,7 +73,7 @@ expect an integer, and they can only be specified once.
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
       -r, --restart=true                         Restart previously running containers
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
-      --selinux-enabled=false                    Enable selinux support
+      --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
       --storage-opt=[]                           Set storage driver options
       --tls=false                                Use TLS; implied by tls-verify flags
       --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here

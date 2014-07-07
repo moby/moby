@@ -74,7 +74,7 @@ unix://[/path/to/socket] to use.
   Print version information and quit. Default is false.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false.
+  Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
 # COMMANDS
 **docker-attach(1)**
