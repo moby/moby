@@ -31,9 +31,9 @@ We are working on a plugin API which will make Docker very, very customization-f
 
 ## Broader kernel support
 
-Our goal is to make Docker run everywhere, but currently Docker requires Linux version 3.8 or higher with lxc and aufs support. If you’re deploying new machines for the purpose of running Docker, this is a fairly easy requirement to meet. However, if you’re adding Docker to an existing deployment, you may not have the flexibility to update and patch the kernel.
+Our goal is to make Docker run everywhere, but currently Docker requires Linux version 3.8 or higher with cgroups support. If you’re deploying new machines for the purpose of running Docker, this is a fairly easy requirement to meet. However, if you’re adding Docker to an existing deployment, you may not have the flexibility to update and patch the kernel.
 
-Expanding Docker’s kernel support is a priority. This includes running on older kernel versions, but also on kernels with no AUFS support, or with incomplete lxc capabilities.
+Expanding Docker’s kernel support is a priority. This includes running on older kernel versions, specifically focusing on versions already popular in server deployments such as those used by RHEL and the OpenVZ stack.
 
 
 ## Cross-architecture support
