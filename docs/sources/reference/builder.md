@@ -381,16 +381,19 @@ An `ENTRYPOINT` helps you to configure a container that you can run as an
 executable. That is, when you specify an `ENTRYPOINT`, then the whole container
 runs as if it was just that executable.
 
-The `ENTRYPOINT` instruction adds an entry command that will **not** be
-overwritten when arguments are passed to `docker run`, unlike the behavior
-of `CMD`. This allows arguments to be passed to the entrypoint. i.e. 
-`docker run <image> -d` will pass the "-d" argument to the ENTRYPOINT.
-
 You can specify parameters either in the ENTRYPOINT JSON array (as in
 "like an exec" above), or by using a CMD statement. Parameters in the
 ENTRYPOINT will not be overridden by the `docker run`
 arguments, but parameters specified via CMD will be overridden
 by `docker run` arguments.
+
+The `ENTRYPOINT` instruction adds an entry command that will **not** be
+overwritten when arguments are passed to `docker run`, unlike the behavior
+of `CMD`. Arguments can be passed to the entrypoint **only** if the ENTRYPOINT 
+JSON array form is used. For example, `docker run <image> param2` will pass 
+the "param2" argument to the ENTRYPOINT, only if it is using the JSON array 
+form, e.g. `ENTRYPOINT  ["executable", "param1"]`. In this case `executable`
+will receive both `param1` and `param2` arguments.
 
 Like a `CMD`, you can specify a plain string for the `ENTRYPOINT` and it will
 execute in `/bin/sh -c`:
