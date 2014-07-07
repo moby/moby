@@ -328,6 +328,13 @@ instructions have executed we're left with the `324104cde6ad` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
+> **Note:** 
+> Due to a AUFS limitation, an image can't have more than 127 layers 
+> (see [this PR](https://github.com/dotcloud/docker/pull/2897)).
+> This means that a Dockerfile can't create more than 127 containers
+> during a build (each RUN command creates a new container).
+> An image flatten strategy is discussed [here](https://github.com/dotcloud/docker/issues/332).
+
 We can then create a container from our new image.
 
     $ sudo docker run -t -i ouruser/sinatra:v2 /bin/bash
