@@ -1,7 +1,8 @@
 .PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration test-integration-cli validate
 
 # to allow `make BINDDIR=. shell` or `make BINDDIR= test`
-BINDDIR := bundles
+# (default to no bind mount if DOCKER_HOST is set)
+BINDDIR := $(if $(DOCKER_HOST),,bundles)
 # to allow `make DOCSPORT=9000 docs`
 DOCSPORT := 8000
 
