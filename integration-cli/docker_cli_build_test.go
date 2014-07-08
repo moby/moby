@@ -1564,3 +1564,202 @@ func TestDockerignoringDockerfile(t *testing.T) {
 	}
 	logDone("build - test .dockerignore of Dockerfile")
 }
+
+func TestBuildLineBreak(t *testing.T) {
+	name := "testbuildlinebreak"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM  busybox
+RUN    sh -c 'echo root:testpass \
+	> /tmp/passwd'
+RUN    mkdir -p /var/run/sshd
+RUN    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+RUN    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - line break with \\")
+}
+
+func TestBuildEOLInLine(t *testing.T) {
+	name := "testbuildeolinline"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM   busybox
+RUN    sh -c 'echo root:testpass > /tmp/passwd'
+RUN    echo "foo \n bar"; echo "baz"
+RUN    mkdir -p /var/run/sshd
+RUN    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+RUN    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - end of line in dockerfile instruction")
+}
+
+func TestBuildCommentsShebangs(t *testing.T) {
+	name := "testbuildcomments"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+# This is an ordinary comment.
+RUN { echo '#!/bin/sh'; echo 'echo hello world'; } > /hello.sh
+RUN [ ! -x /hello.sh ]
+# comment with line break \
+RUN chmod +x /hello.sh
+RUN [ -x /hello.sh ]
+RUN [ "$(cat /hello.sh)" = $'#!/bin/sh\necho hello world' ]
+RUN [ "$(/hello.sh)" = "hello world" ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - comments and shebangs")
+}
+
+func TestBuildUsersAndGroups(t *testing.T) {
+	name := "testbuildusers"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+
+# Make sure our defaults work
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)" = '0:0/root:root' ]
+
+# TODO decide if "args.user = strconv.Itoa(syscall.Getuid())" is acceptable behavior for changeUser in sysvinit instead of "return nil" when "USER" isn't specified (so that we get the proper group list even if that is the empty list, even in the default case of not supplying an explicit USER to run as, which implies USER 0)
+USER root
+RUN [ "$(id -G):$(id -Gn)" = '0 10:root wheel' ]
+
+# Setup dockerio user and group
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+
+# Make sure we can switch to our user and all the information is exactly as we expect it to be
+USER dockerio
+RUN id -G
+RUN id -Gn
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+
+# Switch back to root and double check that worked exactly as we might expect it to
+USER root
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0 10:root wheel' ]
+
+# Add a "supplementary" group for our dockerio user
+RUN echo 'supplementary:x:1002:dockerio' >> /etc/group
+
+# ... and then go verify that we get it like we expect
+USER dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001 1002:dockerio supplementary' ]
+USER 1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001 1002:dockerio supplementary' ]
+
+# super test the new "user:group" syntax
+USER dockerio:dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER 1001:dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER dockerio:1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER 1001:1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER dockerio:supplementary
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+USER dockerio:1002
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+USER 1001:supplementary
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+USER 1001:1002
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+
+# make sure unknown uid/gid still works properly
+USER 1042:1043
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1042:1043/1042:1043/1043:1043' ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - users and groups")
+}
+
+func TestBuildEnvUsage(t *testing.T) {
+	name := "testbuildenvusage"
+	defer deleteImages(name)
+	dockerfile := `FROM busybox
+ENV    FOO /foo/baz
+ENV    BAR /bar
+ENV    BAZ $BAR
+ENV    FOOPATH $PATH:$FOO
+RUN    [ "$BAR" = "$BAZ" ]
+RUN    [ "$FOOPATH" = "$PATH:/foo/baz" ]
+ENV	   FROM hello/docker/world
+ENV    TO /docker/world/hello
+ADD    $FROM $TO
+RUN    [ "$(cat $TO)" = "hello" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"hello/docker/world": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - environment variables usage")
+}
+
+func TestBuildAddScript(t *testing.T) {
+	name := "testbuildaddscript"
+	defer deleteImages(name)
+	dockerfile := `
+FROM busybox
+ADD test /test
+RUN ["chmod","+x","/test"]
+RUN ["/test"]
+RUN [ "$(cat /testfile)" = 'test!' ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"test": "#!/bin/sh\necho 'test!' > /testfile",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add and run script")
+}
+
+func TestBuildAddTar(t *testing.T) {
+
+	checkOutput := func(out string) {
+		n := -1
+		x := ""
+		for i, line := range strings.Split(out, "\n") {
+			if strings.HasPrefix(line, "Step 2") {
+				n = i + 2
+				x = line[strings.Index(line, "cat ")+4:]
+			}
+			if i == n {
+				if line != "Hi" {
+					t.Fatalf("Could not find contents of %s (expected 'Hi' got '%s'", x, line)
+				}
+				n = -2
+			}
+		}
+		if n > -2 {
+			t.Fatalf("Could not find contents of %s in build output", x)
+		}
+	}
+
+	for _, n := range []string{"1", "2"} {
+		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar", n)
+		buildCmd := exec.Command(dockerBinary, "build", "-t", "testbuildaddtar", ".")
+		buildCmd.Dir = buildDirectory
+		out, _, err := runCommandWithOutput(buildCmd)
+		errorOut(err, t, fmt.Sprintf("build failed to complete for TestBuildAddTar/%s: %v", n, err))
+		checkOutput(out)
+	}
+}
