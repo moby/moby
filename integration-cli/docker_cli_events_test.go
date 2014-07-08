@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCLIGetEvents(t *testing.T) {
@@ -26,4 +29,18 @@ func TestCLIGetEvents(t *testing.T) {
 		}
 	}
 	logDone("events - untags are logged")
+}
+
+func TestCLILimitEvents(t *testing.T) {
+	for i := 0; i < 30; i++ {
+		cmd(t, "run", "busybox", "echo", strconv.Itoa(i))
+	}
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, _, _ := runCommandWithOutput(eventsCmd)
+	events := strings.Split(out, "\n")
+	n_events := len(events) - 1
+	if n_events > 64 {
+		t.Fatalf("events should be limited to 64, but received %d", n_events)
+	}
+	logDone("events - limited to 64 entries")
 }
