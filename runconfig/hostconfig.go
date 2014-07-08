@@ -19,6 +19,12 @@ func (n NetworkMode) IsContainer() bool {
 	return len(parts) > 1 && parts[0] == "container"
 }
 
+type DeviceMapping struct {
+	PathOnHost        string
+	PathInContainer   string
+	CgroupPermissions string
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
@@ -30,6 +36,7 @@ type HostConfig struct {
 	Dns             []string
 	DnsSearch       []string
 	VolumesFrom     []string
+	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
 }
 
@@ -42,6 +49,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
+	job.GetenvJson("Devices", &hostConfig.Devices)
 	if Binds := job.GetenvList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds
 	}
