@@ -838,7 +838,8 @@ registry or to a self-hosted one.
 
     Remove one or more containers
 
-      -f, --force=false      Force removal of running container
+      -s, --stop=false       Stop and remove a running container
+      -k, --kill=false       Kill and remove a running container
       -l, --link=false       Remove the specified link and not the underlying container
       -v, --volumes=false    Remove the volumes associated with the container
 
@@ -862,6 +863,20 @@ This will remove the container referenced under the link
 This will remove the underlying link between `/webapp`
 and the `/redis` containers removing all
 network communication.
+
+    $ sudo docker rm --stop redis
+    redis
+ 
+The main process inside the container referenced under the link `/redis` will receive
+SIGTERM, and after a grace period, SIGKILL, then the container will be removed.
+
+    $ sudo docker rm --kill redis
+    redis
+
+The main process inside the container referenced under the link `/redis` will receive
+SIGKILL, then the container will be removed.
+
+NOTE: If you try to use `stop` and `kill` simultaneously, Docker will return an error.
 
     $ sudo docker rm $(docker ps -a -q)
 
