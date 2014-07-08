@@ -988,7 +988,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		copyData.Set("Resource", copyData.Get("Resource")[1:])
 	}
 
-	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
+	job := eng.Job("container_extract", vars["name"], copyData.Get("Resource"))
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
 		utils.Errorf("%s", err.Error())
@@ -999,6 +999,28 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		}
 	}
 	return nil
+}
+
+func putContainersCopy(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	resource := r.Form.Get("path")
+	if resource == "" {
+		return fmt.Errorf("Path cannot be empty")
+	}
+	if resource[0] == '/' {
+		resource = resource[1:]
+	}
+
+	job := eng.Job("container_insert", vars["name"], resource)
+	job.Stdin.Add(r.Body)
+	return job.Run()
 }
 
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1122,6 +1144,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+		},
+		"PUT": {
+			"/containers/{name:.*}/copy": putContainersCopy,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

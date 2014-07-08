@@ -755,7 +755,7 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) Copy(resource string) (io.ReadCloser, error) {
+func (container *Container) Extract(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
@@ -796,6 +796,23 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			return err
 		}),
 		nil
+}
+
+func (container *Container) Insert(resource string, stream io.Reader) error {
+	if err := container.Mount(); err != nil {
+		return err
+	}
+	defer container.Unmount()
+
+	if resource == "" {
+		return archive.Untar(stream, container.basefs, nil)
+	}
+
+	basePath, err := container.getResourcePath(resource)
+	if err != nil {
+		return err
+	}
+	return archive.Untar(stream, basePath, nil)
 }
 
 // Returns true if the container exposes a certain port

@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -370,4 +372,172 @@ func TestCpUnprivilegedUser(t *testing.T) {
 	}
 
 	logDone("cp - unprivileged user")
+}
+
+func TestCopyContainerHost(t *testing.T) {
+	// create tmpdir
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to create temp dir: %v", err))
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// create one container with a /foo file
+	containerCmd := `echo -n test > /foo`
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
+	cid, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	}
+	cleanCID := stripTrailingCharacters(cid)
+
+	// sleep just in case
+	time.Sleep(time.Second)
+
+	// docker cp container:/foo <tmpdir>/bar
+	cpCmd := exec.Command(dockerBinary, "cp", fmt.Sprintf("%s:/foo", cleanCID), tmpDir+"/bar")
+	_, _, err = runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp from the container: %v", err))
+	}
+	file, err := os.Open(tmpDir + "/bar")
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to open the temp file: %v", err))
+	}
+	defer file.Close()
+
+	// chec if <tmpdir>/bar has the right content
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to read the temp file: %v", err))
+	}
+	if string(content) != "test" {
+		t.Errorf("the file wasn't copied")
+	}
+
+	// cleanup
+	deleteContainer(cleanCID)
+
+	logDone("cp - check cp from container to host")
+}
+
+func TestCpHostContainer(t *testing.T) {
+	// create tmpfile
+	tmpFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to create temp file: %v", err))
+	}
+
+	// write test into tmpfile
+	fmt.Fprintf(tmpFile, "test")
+	defer tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	// create a container
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "ls")
+	cid, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	}
+	cleanCID := stripTrailingCharacters(cid)
+
+	// sleep just in case
+	time.Sleep(time.Second)
+
+	// docker cp tmpfile container:/
+	cpCmd := exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/", cleanCID))
+	out, _, err := runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %s", out))
+	}
+
+	// docker cp tmpfile container:foo
+	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/foo", cleanCID))
+	out, _, err = runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %s", out))
+	}
+
+	// allow overriding files
+	cpCmd = exec.Command(dockerBinary, "cp", tmpFile.Name(), fmt.Sprintf("%s:/etc/passwd", cleanCID))
+	out, _, err = runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp to the container: %s", out))
+	}
+
+	// docker diff to see if the file was added
+	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
+	out, _, err = runCommandWithOutput(diffCmd)
+	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+	found := 0
+	for _, line := range strings.Split(out, "\n") {
+		if line == "A /foo" || line == "C /etc/passwd" || line == "A /"+filepath.Base(tmpFile.Name()) {
+			found++
+		}
+	}
+	if found != 3 {
+		t.Errorf("couldn't find the new file2 in docker diff's output: %v", out)
+	}
+
+	catCmd := exec.Command("cat", fmt.Sprintf("/var/lib/docker/vfs/dir/%s/foo", cleanCID))
+	out, _, err = runCommandWithOutput(catCmd)
+	if out != "test" {
+		t.Errorf("Expected 'test', got '%s'", out)
+	}
+
+	// cleanup
+	deleteContainer(cleanCID)
+
+	logDone("cp - check cp from host to container")
+}
+
+func TestCpContainerContainer(t *testing.T) {
+	// create one container with a /foo file
+	containerCmd := `echo -n test > /foo`
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
+	cid1, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	}
+	cleanCID1 := stripTrailingCharacters(cid1)
+
+	// create another container
+	containerCmd = `echo test`
+	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
+	cid2, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	}
+	cleanCID2 := stripTrailingCharacters(cid2)
+
+	// sleep just in case
+	time.Sleep(time.Second)
+
+	// docker cp container1:/foo container2:/bar
+	cpCmd := exec.Command(dockerBinary, "cp", fmt.Sprintf("%s:/foo", cleanCID1), fmt.Sprintf("%s:/bar", cleanCID2))
+	_, _, err = runCommandWithOutput(cpCmd)
+	if err != nil {
+		errorOut(err, t, fmt.Sprintf("failed to cp from container to container: %v", err))
+	}
+
+	// docker diff to see if the file was added
+	diffCmd := exec.Command(dockerBinary, "diff", cleanCID2)
+	out, _, err := runCommandWithOutput(diffCmd)
+	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+	found := false
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains("A /foo", line) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("couldn't find the new file in docker diff's output: %v", out)
+	}
+
+	// cleanup
+	deleteContainer(cleanCID1)
+	deleteContainer(cleanCID2)
+
+	logDone("cp - check cp from container to container")
 }

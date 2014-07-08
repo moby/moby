@@ -121,37 +121,38 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
 	for name, handler := range map[string]engine.Handler{
-		"export":           srv.ContainerExport,
-		"create":           srv.ContainerCreate,
-		"stop":             srv.ContainerStop,
-		"restart":          srv.ContainerRestart,
-		"start":            srv.ContainerStart,
-		"kill":             srv.ContainerKill,
-		"pause":            srv.ContainerPause,
-		"unpause":          srv.ContainerUnpause,
-		"wait":             srv.ContainerWait,
-		"tag":              srv.ImageTag, // FIXME merge with "image_tag"
-		"resize":           srv.ContainerResize,
-		"commit":           srv.ContainerCommit,
-		"info":             srv.DockerInfo,
-		"container_delete": srv.ContainerDestroy,
-		"image_export":     srv.ImageExport,
-		"images":           srv.Images,
-		"history":          srv.ImageHistory,
-		"viz":              srv.ImagesViz,
-		"container_copy":   srv.ContainerCopy,
-		"attach":           srv.ContainerAttach,
-		"logs":             srv.ContainerLogs,
-		"changes":          srv.ContainerChanges,
-		"top":              srv.ContainerTop,
-		"load":             srv.ImageLoad,
-		"build":            srv.Build,
-		"pull":             srv.ImagePull,
-		"import":           srv.ImageImport,
-		"image_delete":     srv.ImageDelete,
-		"events":           srv.Events,
-		"push":             srv.ImagePush,
-		"containers":       srv.Containers,
+		"export":            srv.ContainerExport,
+		"create":            srv.ContainerCreate,
+		"stop":              srv.ContainerStop,
+		"restart":           srv.ContainerRestart,
+		"start":             srv.ContainerStart,
+		"kill":              srv.ContainerKill,
+		"pause":             srv.ContainerPause,
+		"unpause":           srv.ContainerUnpause,
+		"wait":              srv.ContainerWait,
+		"tag":               srv.ImageTag, // FIXME merge with "image_tag"
+		"resize":            srv.ContainerResize,
+		"commit":            srv.ContainerCommit,
+		"info":              srv.DockerInfo,
+		"container_delete":  srv.ContainerDestroy,
+		"image_export":      srv.ImageExport,
+		"images":            srv.Images,
+		"history":           srv.ImageHistory,
+		"viz":               srv.ImagesViz,
+		"container_insert":  srv.ContainerInsert,
+		"container_extract": srv.ContainerExtract,
+		"attach":            srv.ContainerAttach,
+		"logs":              srv.ContainerLogs,
+		"changes":           srv.ContainerChanges,
+		"top":               srv.ContainerTop,
+		"load":              srv.ImageLoad,
+		"build":             srv.Build,
+		"pull":              srv.ImagePull,
+		"import":            srv.ImageImport,
+		"image_delete":      srv.ImageDelete,
+		"events":            srv.Events,
+		"push":              srv.ImagePush,
+		"containers":        srv.Containers,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
@@ -2410,7 +2411,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
+func (srv *Server) ContainerInsert(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 {
 		return job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
 	}
@@ -2421,8 +2422,25 @@ func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 	)
 
 	if container := srv.daemon.Get(name); container != nil {
+		if err := container.Insert(resource, job.Stdin); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
+	}
+	return job.Errorf("No such container: %s", name)
+}
+func (srv *Server) ContainerExtract(job *engine.Job) engine.Status {
+	if len(job.Args) != 2 {
+		return job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
+	}
 
-		data, err := container.Copy(resource)
+	var (
+		name     = job.Args[0]
+		resource = job.Args[1]
+	)
+
+	if container := srv.daemon.Get(name); container != nil {
+		data, err := container.Extract(resource)
 		if err != nil {
 			return job.Error(err)
 		}

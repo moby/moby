@@ -2158,7 +2158,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
+	cmd := cli.Subcmd("cp", "[CONTAINERSRC:]PATHSRC [CONTAINERDST:]PATHDST", "Copy files/folders from PATHSRC to PATHDST")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -2168,31 +2168,70 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		return nil
 	}
 
-	var copyData engine.Env
-	info := strings.Split(cmd.Arg(0), ":")
-
-	if len(info) != 2 {
-		return fmt.Errorf("Error: Path not specified")
+	var (
+		copyData engine.Env
+		pathSrc  = cmd.Arg(0)
+		pathDst  = cmd.Arg(1)
+		infoSrc  = strings.Split(pathSrc, ":")
+		infoDst  = strings.Split(pathDst, ":")
+	)
+	if len(infoSrc) != 2 && len(infoDst) != 2 {
+		return fmt.Errorf("Error: Wrong path format")
 	}
-
-	copyData.Set("Resource", info[1])
-	copyData.Set("HostPath", cmd.Arg(1))
-
-	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, false)
-	if stream != nil {
-		defer stream.Close()
-	}
-	if statusCode == 404 {
-		return fmt.Errorf("No such container: %v", info[0])
-	}
-	if err != nil {
-		return err
-	}
-
-	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
+	if len(infoSrc) == 2 && len(infoDst) == 2 { // container to container
+		tmpDir, err := ioutil.TempDir("", "")
+		if err != nil {
 			return err
 		}
+		defer os.RemoveAll(tmpDir)
+		pathSrc = tmpDir
+		pathDst = tmpDir
+
+	}
+	if len(infoSrc) == 2 { // container to host
+		copyData.Set("Resource", infoSrc[1])
+		copyData.Set("HostPath", pathDst)
+
+		stream, statusCode, err := cli.call("POST", "/containers/"+infoSrc[0]+"/copy", copyData, false)
+		if stream != nil {
+			defer stream.Close()
+		}
+		if statusCode == 404 {
+			return fmt.Errorf("No such container: %v", infoSrc[0])
+		}
+		if err != nil {
+			return err
+		}
+
+		if statusCode == 200 {
+			if err := archive.Untar(stream, pathDst, &archive.TarOptions{NoLchown: true}); err != nil {
+				return err
+			}
+		}
+	}
+	if len(infoDst) == 2 { // host to container
+		var (
+			m, err  = os.Stat(pathSrc)
+			options = &archive.TarOptions{Compression: archive.Uncompressed}
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !m.IsDir() {
+			options.Includes = append(options.Includes, filepath.Base(pathSrc))
+			pathSrc = filepath.Dir(pathSrc)
+		}
+
+		tar, err := archive.TarWithOptions(pathSrc, options)
+		if err != nil {
+			return err
+		}
+		v := url.Values{}
+		v.Set("path", infoDst[1])
+
+		return cli.stream("PUT", "/containers/"+infoDst[0]+"/copy?"+v.Encode(), tar, nil, nil)
 	}
 	return nil
 }
