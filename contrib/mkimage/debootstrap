@@ -123,9 +123,9 @@ if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
 					" "$rootfsDir/etc/apt/sources.list"
 					echo "deb http://security.debian.org $suite/updates main" >> "$rootfsDir/etc/apt/sources.list"
 					# LTS
-					if [ "$suite" = 'squeeze' ]; then
+					if [ "$suite" = 'squeeze' -o "$suite" = 'oldstable' ]; then
 						head -1 "$rootfsDir/etc/apt/sources.list" \
-							| sed "s/ $suite / ${suite}-lts /" \
+							| sed "s/ $suite / squeeze-lts /" \
 								>> "$rootfsDir/etc/apt/sources.list"
 					fi
 				)
