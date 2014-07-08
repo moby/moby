@@ -65,7 +65,7 @@ func TestCLILimitEvents(t *testing.T) {
 	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
 	n_events := len(events) - 1
-	if n_events > 64 {
+	if n_events != 64 {
 		t.Fatalf("events should be limited to 64, but received %d", n_events)
 	}
 	logDone("events - limited to 64 entries")
