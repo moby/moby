@@ -19,7 +19,7 @@ In the process we learned about several Docker commands:
 
 > **Tip:**
 > Another way to learn about `docker` commands is our
-> [interactive tutorial](https://www.docker.io/gettingstarted).
+> [interactive tutorial](https://www.docker.com/tryit/).
 
 The `docker` client is pretty simple. Each action you can take
 with Docker is a command and each command can take a series of
@@ -87,11 +87,6 @@ This will display the help text and all available flags:
       --no-stdin=false: Do not attach stdin
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
 
-
-None of the containers we've run did anything particularly useful
-though. So let's build on that experience by running an example web
-application in Docker.
-
 > **Note:** 
 > You can see a full list of Docker's commands
 > [here](/reference/commandline/cli/).
@@ -140,8 +135,8 @@ command. This tells the `docker ps` command to return the details of the
 *last* container started.
 
 > **Note:** 
-> The `docker ps` command only shows running containers. If you want to
-> see stopped containers too use the `-a` flag.
+> By default, the `docker ps` command only shows information about running
+> containers. If you want to see stopped containers too use the `-a` flag.
 
 We can see the same details we saw [when we first Dockerized a
 container](/userguide/dockerizing) with one important addition in the `PORTS`
@@ -182,6 +177,17 @@ see the application.
 ![Viewing the web application](/userguide/webapp1.png).
 
 Our Python application is live!
+
+> **Note:**
+> If you have used the boot2docker virtual machine on OS X, Windows or Linux,
+> you'll need to get the IP of the virtual host instead of using localhost.
+> You can do this by running the following in
+> the boot2docker shell.
+> 
+>     $ boot2docker ip
+>     The VM's Host only interface IP address is: 192.168.59.103
+> 
+> In this case you'd browse to http://192.168.59.103:49155 for the above example.
 
 ## A Network Port Shortcut
 

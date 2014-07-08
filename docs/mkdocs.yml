@@ -1,5 +1,5 @@
 site_name: Docker Documentation
-#site_url: http://docs.docker.io/
+#site_url: http://docs.docker.com/
 site_url: /
 site_description: Documentation for fast and lightweight Docker container based virtualization framework.
 site_favicon: img/favicon.png
@@ -87,6 +87,7 @@ pages:
 - ['articles/cfengine_process_management.md', 'Articles', 'Process management with CFEngine']
 - ['articles/puppet.md', 'Articles', 'Using Puppet']
 - ['articles/chef.md', 'Articles', 'Using Chef']
+- ['articles/dsc.md', 'Articles', 'Using PowerShell DSC']
 - ['articles/ambassador_pattern_linking.md', 'Articles', 'Cross-Host linking using Ambassador Containers']
 - ['articles/runmetrics.md', 'Articles', 'Runtime metrics']
 - ['articles/baseimages.md', 'Articles', 'Creating a Base Image']
@@ -103,6 +104,7 @@ pages:
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
+- ['reference/api/docker_remote_api_v1.13.md', 'Reference', 'Docker Remote API v1.13']
 - ['reference/api/docker_remote_api_v1.12.md', 'Reference', 'Docker Remote API v1.12']
 - ['reference/api/docker_remote_api_v1.11.md', 'Reference', 'Docker Remote API v1.11']
 - ['reference/api/docker_remote_api_v1.10.md', '**HIDDEN**']

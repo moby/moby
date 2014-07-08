@@ -149,6 +149,22 @@ func jsonPath(root string) string {
 	return path.Join(root, "json")
 }
 
+func (img *Image) RawJson() ([]byte, error) {
+	root, err := img.root()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get root for image %s: %s", img.ID, err)
+	}
+	fh, err := os.Open(jsonPath(root))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open json for image %s: %s", img.ID, err)
+	}
+	buf, err := ioutil.ReadAll(fh)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read json for image %s: %s", img.ID, err)
+	}
+	return buf, nil
+}
+
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if img.graph == nil {

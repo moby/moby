@@ -79,13 +79,13 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from build' -s t -l tag -d '
 
 # commit
 complete -c docker -f -n '__fish_docker_no_subcommand' -a commit -d "Create a new image from a container's changes"
-complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s a -l author -d 'Author (eg. "John Hannibal Smith <hannibal@a-team.com>"'
+complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s a -l author -d 'Author (e.g., "John Hannibal Smith <hannibal@a-team.com>"'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s m -l message -d 'Commit message'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -l run -d 'Config automatically applied when the image is run. (ex: -run=\'{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}\')'
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -a '(__fish_print_docker_containers all)' -d "Container"
 
 # cp
-complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d 'Copy files/folders from the containers filesystem to the host path'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d "Copy files/folders from a container's filesystem to the host path"
 
 # diff
 complete -c docker -f -n '__fish_docker_no_subcommand' -a diff -d "Inspect changes on a container's filesystem"
@@ -119,10 +119,6 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -a import -d 'Create a ne
 
 # info
 complete -c docker -f -n '__fish_docker_no_subcommand' -a info -d 'Display system-wide information'
-
-# insert
-complete -c docker -f -n '__fish_docker_no_subcommand' -a insert -d 'Insert a file in an image'
-complete -c docker -A -f -n '__fish_seen_subcommand_from insert' -a '(__fish_print_docker_images)' -d "Image"
 
 # inspect
 complete -c docker -f -n '__fish_docker_no_subcommand' -a inspect -d 'Return low-level information on a container'

@@ -311,7 +311,7 @@ List processes running inside the container `id`
 
      
 
-    -   **ps_args** – ps arguments to use (eg. aux)
+    -   **ps_args** – ps arguments to use (e.g., aux)
 
     Status Codes:
 
@@ -558,7 +558,7 @@ Attach to the container `id`
 
     `STREAM_TYPE` can be:
 
-    -   0: stdin (will be writen on stdout)
+    -   0: stdin (will be written on stdout)
     -   1: stdout
     -   2: stderr
 
@@ -832,8 +832,8 @@ Return low-level information on the image `name`
                              "OpenStdin":true,
                              "StdinOnce":false,
                              "Env":null,
-                             "Cmd": ["/bin/bash"]
-                             ,"Dns":null,
+                             "Cmd": ["/bin/bash"],
+                             "Dns":null,
                              "Image":"base",
                              "Volumes":null,
                              "VolumesFrom":"",
@@ -1163,7 +1163,7 @@ Create a new image from a container's changes
     -   **repo** – repository
     -   **tag** – tag
     -   **m** – commit message
-    -   **author** – author (eg. "John Hannibal Smith
+    -   **author** – author (e.g., "John Hannibal Smith
         <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
     Status Codes:

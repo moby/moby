@@ -1,9 +1,12 @@
+// +build linux
+
 package namespaces
 
 /*
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <linux/sched.h>
 #include <signal.h>
 #include <stdio.h>
@@ -12,6 +15,7 @@ package namespaces
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <getopt.h>
 
 static const kBufSize = 256;
 
@@ -49,6 +53,22 @@ void get_args(int *argc, char ***argv) {
 	(*argv)[*argc] = NULL;
 }
 
+// Use raw setns syscall for versions of glibc that don't include it (namely glibc-2.12)
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ < 14
+#define _GNU_SOURCE
+#include <sched.h>
+#include "syscall.h"
+#ifdef SYS_setns
+int setns(int fd, int nstype) {
+  return syscall(SYS_setns, fd, nstype);
+}
+#endif
+#endif
+
+void print_usage() {
+	fprintf(stderr, "<binary> nsenter --nspid <pid> --containerjson <container_json> -- cmd1 arg1 arg2...\n");
+}
+
 void nsenter() {
 	int argc;
 	char **argv;
@@ -64,21 +84,47 @@ void nsenter() {
 		fprintf(stderr, "nsenter: Incorrect usage, not enough arguments\n");
 		exit(1);
 	}
-	pid_t init_pid = strtol(argv[2], NULL, 10);
-	if (errno != 0 || init_pid <= 0) {
-		fprintf(stderr, "nsenter: Failed to parse PID from \"%s\" with error: \"%s\"\n", argv[2], strerror(errno));
+
+	static const struct option longopts[] = {
+		{ "nspid",         required_argument, NULL, 'n' },
+		{ "containerjson", required_argument, NULL, 'c' },
+		{ NULL,            0,                 NULL,  0  }
+	};
+
+	int c;
+	pid_t init_pid = -1;
+	char *init_pid_str = NULL;
+	char *container_json = NULL;
+	while ((c = getopt_long_only(argc, argv, "n:s:c:", longopts, NULL)) != -1) {
+		switch (c) {
+		case 'n':
+			init_pid_str = optarg;
+			break;
+		case 'c':
+			container_json = optarg;
+			break;
+		}
+	}
+
+	if (container_json == NULL || init_pid_str == NULL) {
+		print_usage();
 		exit(1);
 	}
+
+	init_pid = strtol(init_pid_str, NULL, 10);
+	if (errno != 0 || init_pid <= 0) {
+		fprintf(stderr, "nsenter: Failed to parse PID from \"%s\" with error: \"%s\"\n", init_pid_str, strerror(errno));
+		print_usage();
+		exit(1);
+	}
+
 	argc -= 3;
 	argv += 3;
 
 	// Setns on all supported namespaces.
-	char ns_dir[kBufSize];
-	memset(ns_dir, 0, kBufSize);
-	if (snprintf(ns_dir, kBufSize - 1, "/proc/%d/ns/", init_pid) < 0) {
-		fprintf(stderr, "nsenter: Error getting ns dir path with error: \"%s\"\n", strerror(errno));
-		exit(1);
-	}
+	char ns_dir[PATH_MAX];
+	memset(ns_dir, 0, PATH_MAX);
+	snprintf(ns_dir, PATH_MAX - 1, "/proc/%d/ns/", init_pid);
 	struct dirent *dent;
 	DIR *dir = opendir(ns_dir);
 	if (dir == NULL) {
@@ -92,10 +138,9 @@ void nsenter() {
 		}
 
 		// Get and open the namespace for the init we are joining..
-		char buf[kBufSize];
-		memset(buf, 0, kBufSize);
-		strncat(buf, ns_dir, kBufSize - 1);
-		strncat(buf, dent->d_name, kBufSize - 1);
+		char buf[PATH_MAX];
+		memset(buf, 0, PATH_MAX);
+		snprintf(buf, PATH_MAX - 1, "%s%s", ns_dir, dent->d_name);
 		int fd = open(buf, O_RDONLY);
 		if (fd == -1) {
 			fprintf(stderr, "nsenter: Failed to open ns file \"%s\" for ns \"%s\" with error: \"%s\"\n", buf, dent->d_name, strerror(errno));

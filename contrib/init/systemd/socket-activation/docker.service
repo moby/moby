@@ -1,6 +1,6 @@
 [Unit]
 Description=Docker Application Container Engine
-Documentation=http://docs.docker.io
+Documentation=http://docs.docker.com
 After=network.target
 
 [Service]

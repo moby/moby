@@ -68,7 +68,7 @@ configurations. For example if we've bound the container port to the
 `localhost` on the host machine this will be shown in the `docker port`
 output.
 
-    $ docker port nostalgic_morse
+    $ docker port nostalgic_morse 5000
     127.0.0.1:49155
 
 > **Note:** 
@@ -94,7 +94,7 @@ yourself. This naming provides two useful functions:
    that makes it easier for you to remember them, for example naming a
    container with a web application in it `web`.
 
-2. It provides Docker with reference point that allows it to refer to other
+2. It provides Docker with a reference point that allows it to refer to other
    containers, for example link container `web` to container `db`.
 
 You can name your container by using the `--name` flag, for example:
@@ -149,16 +149,16 @@ Let's look at our linked containers using `docker ps`.
 
     $ docker ps
     CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
-    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db
-    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  db/web,web
+    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
+    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
 
-We can see our named containers, `db` and `web`, and we can see that the `web`
-containers also shows `db/web` in the `NAMES` column. This tells us that the
+We can see our named containers, `db` and `web`, and we can see that the `db`
+containers also shows `web/db` in the `NAMES` column. This tells us that the
 `web` container is linked to the `db` container in a parent/child relationship.
 
 So what does linking the containers do? Well we've discovered the link creates
 a parent-child relationship between the two containers. The parent container,
-here `db`, can access information on the child container `web`. To do this
+here `web`, can access information on the child container `db`. To do this
 Docker creates a secure tunnel between the containers without the need to
 expose any ports externally on the container. You'll note when we started the
 `db` container we did not use either of the `-P` or `-p` flags. As we're
@@ -169,22 +169,22 @@ Docker exposes connectivity information for the parent container inside the
 child container in two ways:
 
 * Environment variables,
-* Updating the `/etc/host` file.
+* Updating the `/etc/hosts` file.
 
-Let's look first at the environment variables Docker sets. Inside the `web`
-container let's run the `env` command to list the container's environment
-variables.
+Let's look first at the environment variables Docker sets. Let's run the `env`
+command to list the container's environment variables.
 
-    root@aed84ee21bde:/opt/webapp# env
-    HOSTNAME=aed84ee21bde
+```
+    $ sudo docker run --rm --name web2 --link db:db training/webapp env
     . . .
-    DB_NAME=/web/db
+    DB_NAME=/web2/db
     DB_PORT=tcp://172.17.0.5:5432
     DB_PORT_5000_TCP=tcp://172.17.0.5:5432
     DB_PORT_5000_TCP_PROTO=tcp
     DB_PORT_5000_TCP_PORT=5432
     DB_PORT_5000_TCP_ADDR=172.17.0.5
     . . .
+```
 
 > **Note**:
 > These Environment variables are only set for the first process in the
@@ -192,8 +192,8 @@ variables.
 > will scrub them when spawning shells for connection.
 
 We can see that Docker has created a series of environment variables with
-useful information about our `db` container. Each variables is prefixed with
-`DB` which is populated from the `alias` we specified above. If our `alias`
+useful information about our `db` container. Each variable is prefixed with
+`DB_` which is populated from the `alias` we specified above. If our `alias`
 were `db1` the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
 on the `db` container. The connection will be secure, private and only the

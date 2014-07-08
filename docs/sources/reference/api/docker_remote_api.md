@@ -18,13 +18,41 @@ page_keywords: API, Docker, rcli, REST, documentation
    encoded (JSON) string with credentials:
    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`
 
-The current version of the API is v1.12
+The current version of the API is v1.13
 
 Calling `/images/<name>/insert` is the same as calling
-`/v1.12/images/<name>/insert`.
+`/v1.13/images/<name>/insert`.
 
 You can still call an old version of the API using
 `/v1.12/images/<name>/insert`.
+
+## v1.13
+
+### Full Documentation
+
+[*Docker Remote API v1.13*](/reference/api/docker_remote_api_v1.13/)
+
+### What's new
+
+`GET /containers/(name)/json`
+
+**New!**
+The `HostConfig.Links` field is now filled correctly
+
+**New!**
+`Sockets` parameter added to the `/info` endpoint listing all the sockets the 
+daemon is configured to listen on.
+
+`POST /containers/(name)/start`
+`POST /containers/(name)/stop`
+
+**New!**
+`start` and `stop` will now return 304 if the container's status is not modified
+
+`POST /commit`
+
+**New!**
+Added a `pause` parameter (default `true`) to pause the container during commit
 
 ## v1.12
 
@@ -94,7 +122,7 @@ You can now use the force parameter to force delete of an
 `DELETE /containers/(id)`
 
 **New!**
-You can now use the force paramter to force delete a
+You can now use the force parameter to force delete a
     container, even if it is currently running
 
 ## v1.9
@@ -350,7 +378,7 @@ List containers (/containers/json):
 
 Start containers (/containers/<id>/start):
 
- - You can now pass host-specific configuration (e.g. bind mounts) in
+ - You can now pass host-specific configuration (e.g., bind mounts) in
    the POST body for start calls
 
 ## v1.2

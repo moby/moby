@@ -334,7 +334,7 @@ func TestDaemonCreate(t *testing.T) {
 	}
 	container, _, err = daemon.Create(config, "")
 
-	_, err = daemon.Commit(container, "testrepo", "testtag", "", "", config)
+	_, err = daemon.Commit(container, "testrepo", "testtag", "", "", true, config)
 	if err != nil {
 		t.Error(err)
 	}
@@ -496,7 +496,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 	})
 
 	// Even if the state is running, lets give some time to lxc to spawn the process
-	container.WaitTimeout(500 * time.Millisecond)
+	container.State.WaitStop(500 * time.Millisecond)
 
 	strPort = container.NetworkSettings.Ports[p][0].HostPort
 	return daemon, container, strPort
@@ -611,7 +611,7 @@ func TestRestore(t *testing.T) {
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
 	cStdin, _ := container2.StdinPipe()
 	cStdin.Close()
-	if err := container2.WaitTimeout(2 * time.Second); err != nil {
+	if _, err := container2.State.WaitStop(2 * time.Second); err != nil {
 		t.Fatal(err)
 	}
 	container2.State.SetRunning(42)

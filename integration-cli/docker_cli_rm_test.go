@@ -43,7 +43,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 }
 
 func TestRemoveContainerRunning(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-d", "--name", "foo", "busybox", "sleep", "300")
+	cmd := exec.Command(dockerBinary, "run", "-dt", "--name", "foo", "busybox", "top")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}

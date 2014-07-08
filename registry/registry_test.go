@@ -264,7 +264,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 1 {
-			t.Fatal("Expected 1 headers, got %d", len(reqTo.Header))
+			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
 		}
 
 		if reqTo.Header.Get("Content-Type") != "application/json" {
@@ -288,7 +288,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 2 {
-			t.Fatal("Expected 2 headers, got %d", len(reqTo.Header))
+			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
 		}
 
 		if reqTo.Header.Get("Content-Type") != "application/json" {

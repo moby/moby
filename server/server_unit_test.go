@@ -47,16 +47,14 @@ func TestPools(t *testing.T) {
 
 func TestLogEvent(t *testing.T) {
 	srv := &Server{
-		events:    make([]utils.JSONMessage, 0, 64),
-		listeners: make(map[int64]chan utils.JSONMessage),
+		events:         make([]utils.JSONMessage, 0, 64),
+		eventPublisher: utils.NewJSONMessagePublisher(),
 	}
 
 	srv.LogEvent("fakeaction", "fakeid", "fakeimage")
 
 	listener := make(chan utils.JSONMessage)
-	srv.Lock()
-	srv.listeners[1337] = listener
-	srv.Unlock()
+	srv.eventPublisher.Subscribe(listener)
 
 	srv.LogEvent("fakeaction2", "fakeid", "fakeimage")
 

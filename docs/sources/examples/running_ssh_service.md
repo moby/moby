@@ -12,7 +12,7 @@ quick access to a test container.
     #
     # VERSION               0.0.1
 
-    FROM     debian
+    FROM     ubuntu:12.04
     MAINTAINER Thatcher R. Peskens "thatcher@dotcloud.com"
 
     # make sure the package repository is up to date

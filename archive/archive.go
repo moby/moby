@@ -27,6 +27,7 @@ type (
 	Compression   int
 	TarOptions    struct {
 		Includes    []string
+		Excludes    []string
 		Compression Compression
 		NoLchown    bool
 	}
@@ -42,6 +43,16 @@ const (
 	Gzip
 	Xz
 )
+
+func IsArchive(header []byte) bool {
+	compression := DetectCompression(header)
+	if compression != Uncompressed {
+		return true
+	}
+	r := tar.NewReader(bytes.NewBuffer(header))
+	_, err := r.Next()
+	return err == nil
+}
 
 func DetectCompression(source []byte) Compression {
 	for compression, m := range map[Compression][]byte{
@@ -262,11 +273,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
 	if hdr.Typeflag != tar.TypeSymlink {
-		if err := system.UtimesNano(path, ts); err != nil {
+		if err := system.UtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
 			return err
 		}
 	} else {
-		if err := system.LUtimesNano(path, ts); err != nil {
+		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
 			return err
 		}
 	}
@@ -276,7 +287,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 // Tar creates an archive from the directory at `path`, and returns it as a
 // stream of bytes.
 func Tar(path string, compression Compression) (io.ReadCloser, error) {
-	return TarFilter(path, &TarOptions{Compression: compression})
+	return TarWithOptions(path, &TarOptions{Compression: compression})
 }
 
 func escapeName(name string) string {
@@ -295,12 +306,9 @@ func escapeName(name string) string {
 	return string(escaped)
 }
 
-// TarFilter creates an archive from the directory at `srcPath` with `options`, and returns it as a
-// stream of bytes.
-//
-// Files are included according to `options.Includes`, default to including all files.
-// Stream is compressed according to `options.Compression', default to Uncompressed.
-func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
+// TarWithOptions creates an archive from the directory at `path`, only including files whose relative
+// paths are included in `options.Includes` (if non-nil) or not in `options.Excludes`.
+func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
 	compressWriter, err := CompressStream(pipeWriter, options.Compression)
@@ -332,6 +340,21 @@ func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 					return nil
 				}
 
+				for _, exclude := range options.Excludes {
+					matched, err := filepath.Match(exclude, relFilePath)
+					if err != nil {
+						utils.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
+						return err
+					}
+					if matched {
+						utils.Debugf("Skipping excluded path: %s", relFilePath)
+						if f.IsDir() {
+							return filepath.SkipDir
+						}
+						return nil
+					}
+				}
+
 				if err := addTarFile(filePath, relFilePath, tw); err != nil {
 					utils.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
 				}
@@ -355,10 +378,13 @@ func TarFilter(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 }
 
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
-// and unpacks it into the directory at `path`.
+// and unpacks it into the directory at `dest`.
 // The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
-// FIXME: specify behavior when target path exists vs. doesn't exist.
+// If `dest` does not exist, it is created unless there are multiple entries in `archive`.
+// In the latter case, an error is returned.
+// If `dest` is an existing file, it gets overwritten.
+// If `dest` is an existing directory, its files get merged (with overwrite for conflicting files).
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
@@ -372,7 +398,22 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 
 	tr := tar.NewReader(decompressedArchive)
 
-	var dirs []*tar.Header
+	var (
+		dirs            []*tar.Header
+		create          bool
+		multipleEntries bool
+	)
+
+	if fi, err := os.Lstat(dest); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		// destination does not exist, so it is assumed it has to be created.
+		create = true
+	} else if !fi.IsDir() {
+		// destination exists and is not a directory, so it will be overwritten.
+		create = true
+	}
 
 	// Iterate through the files in the archive.
 	for {
@@ -383,6 +424,11 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		}
 		if err != nil {
 			return err
+		}
+
+		// Return an error if destination needs to be created and there is more than 1 entry in the tar stream.
+		if create && multipleEntries {
+			return fmt.Errorf("Trying to untar an archive with multiple entries to an inexistant target `%s`: did you mean `%s` instead?", dest, filepath.Dir(dest))
 		}
 
 		// Normalize name, for safety and for a simple is-root check
@@ -400,7 +446,12 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			}
 		}
 
-		path := filepath.Join(dest, hdr.Name)
+		var path string
+		if create {
+			path = dest // we are renaming hdr.Name to dest
+		} else {
+			path = filepath.Join(dest, hdr.Name)
+		}
 
 		// If path exits we almost always just want to remove and replace it
 		// The only exception is when it is a directory *and* the file from
@@ -416,9 +467,13 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 				}
 			}
 		}
+
 		if err := createTarFile(path, dest, hdr, tr, options == nil || !options.NoLchown); err != nil {
 			return err
 		}
+
+		// Successfully added an entry. Predicting multiple entries for next iteration (not current one).
+		multipleEntries = true
 
 		// Directory mtimes must be handled at the end to avoid further
 		// file creation in them to modify the directory mtime
@@ -443,7 +498,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 // TarUntar aborts and returns the error.
 func TarUntar(src string, dst string) error {
 	utils.Debugf("TarUntar(%s %s)", src, dst)
-	archive, err := TarFilter(src, &TarOptions{Compression: Uncompressed})
+	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ var (
 	ErrInvalidWorkingDirectory  = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
-	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and --net")
+	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 )
 
 //FIXME Only used in tests
@@ -45,7 +45,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
 		flDns         opts.ListOpts
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
+		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
 		flEnvFile     opts.ListOpts
@@ -65,14 +65,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
-		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the contaner")
+		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
 		// For documentation purpose
-		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signal to the process (even in non-tty mode)")
+		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to stdin, stdout or stderr.")
-	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
+	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container (name:alias)")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of ENV variables")
@@ -104,7 +104,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
 	}
 
-	if *flNetMode != "bridge" && *flHostname != "" {
+	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
 	}
 
@@ -132,8 +132,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes.GetMap() {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
-			if arr[0] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: source can't be '/'")
+			if arr[1] == "/" {
+				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
 			}
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs

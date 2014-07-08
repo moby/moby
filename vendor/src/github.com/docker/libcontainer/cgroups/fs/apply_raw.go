@@ -57,12 +57,13 @@ func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 
 	d, err := getCgroupData(c, 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting CgroupData %s", err)
 	}
 
-	for _, sys := range subsystems {
-		if err := sys.GetStats(d, stats); err != nil {
-			return nil, err
+	for sysName, sys := range subsystems {
+		// Don't fail if a cgroup hierarchy was not found.
+		if err := sys.GetStats(d, stats); err != nil && err != cgroups.ErrNotFound {
+			return nil, fmt.Errorf("getting stats for system %q %s", sysName, err)
 		}
 	}
 

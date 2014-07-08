@@ -39,8 +39,8 @@ func (device *Device) GetCgroupAllowString() string {
 }
 
 // Given the path to a device and it's cgroup_permissions(which cannot be easilly queried) look up the information about a linux device and return that information as a Device struct.
-func GetDevice(path string, cgroupPermissions string) (*Device, error) {
-	fileInfo, err := os.Stat(path)
+func GetDevice(path, cgroupPermissions string) (*Device, error) {
+	fileInfo, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
 	}

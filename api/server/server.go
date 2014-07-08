@@ -370,13 +370,24 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	var (
-		job    = eng.Job("container_inspect", vars["name"])
-		c, err = job.Stdout.AddEnv()
+		inspectJob = eng.Job("container_inspect", vars["name"])
+		logsJob    = eng.Job("logs", vars["name"])
+		c, err     = inspectJob.Stdout.AddEnv()
 	)
 	if err != nil {
 		return err
 	}
-	if err = job.Run(); err != nil {
+	logsJob.Setenv("follow", r.Form.Get("follow"))
+	logsJob.Setenv("tail", r.Form.Get("tail"))
+	logsJob.Setenv("stdout", r.Form.Get("stdout"))
+	logsJob.Setenv("stderr", r.Form.Get("stderr"))
+	logsJob.Setenv("timestamps", r.Form.Get("timestamps"))
+	// Validate args here, because we can't return not StatusOK after job.Run() call
+	stdout, stderr := logsJob.GetenvBool("stdout"), logsJob.GetenvBool("stderr")
+	if !(stdout || stderr) {
+		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+	}
+	if err = inspectJob.Run(); err != nil {
 		return err
 	}
 
@@ -390,15 +401,10 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		errStream = outStream
 	}
 
-	job = eng.Job("logs", vars["name"])
-	job.Setenv("follow", r.Form.Get("follow"))
-	job.Setenv("stdout", r.Form.Get("stdout"))
-	job.Setenv("stderr", r.Form.Get("stderr"))
-	job.Setenv("timestamps", r.Form.Get("timestamps"))
-	job.Stdout.Add(outStream)
-	job.Stderr.Set(errStream)
-	if err := job.Run(); err != nil {
-		fmt.Fprintf(outStream, "Error: %s\n", err)
+	logsJob.Stdout.Add(outStream)
+	logsJob.Stderr.Set(errStream)
+	if err := logsJob.Run(); err != nil {
+		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
 	}
 	return nil
 }
@@ -432,6 +438,12 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	)
 	if err := config.Decode(r.Body); err != nil {
 		utils.Errorf("%s", err)
+	}
+
+	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
+		job.Setenv("pause", "1")
+	} else {
+		job.Setenv("pause", r.FormValue("pause"))
 	}
 
 	job.Setenv("repo", r.Form.Get("repo"))
@@ -688,8 +700,11 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	job := eng.Job("start", name)
+	var (
+		name = vars["name"]
+		job  = eng.Job("start", name)
+	)
+
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
 		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
@@ -699,6 +714,10 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 		}
 	}
 	if err := job.Run(); err != nil {
+		if err.Error() == "Container already started" {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -715,6 +734,10 @@ func postContainersStop(eng *engine.Engine, version version.Version, w http.Resp
 	job := eng.Job("stop", vars["name"])
 	job.Setenv("t", r.Form.Get("t"))
 	if err := job.Run(); err != nil {
+		if err.Error() == "Container already stopped" {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -811,7 +834,7 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	job.Stdout.Add(outStream)
 	job.Stderr.Set(errStream)
 	if err := job.Run(); err != nil {
-		fmt.Fprintf(outStream, "Error: %s\n", err)
+		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 
 	}
 	return nil
@@ -841,7 +864,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		job.Stdout.Add(ws)
 		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
-			utils.Errorf("Error: %s", err)
+			utils.Errorf("Error attaching websocket: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -855,7 +878,7 @@ func getContainersByName(eng *engine.Engine, version version.Version, w http.Res
 	}
 	var job = eng.Job("container_inspect", vars["name"])
 	if version.LessThan("1.12") {
-		job.SetenvBool("dirty", true)
+		job.SetenvBool("raw", true)
 	}
 	streamJSON(job, w, false)
 	return job.Run()
@@ -867,7 +890,7 @@ func getImagesByName(eng *engine.Engine, version version.Version, w http.Respons
 	}
 	var job = eng.Job("image_inspect", vars["name"])
 	if version.LessThan("1.12") {
-		job.SetenvBool("dirty", true)
+		job.SetenvBool("raw", true)
 	}
 	streamJSON(job, w, false)
 	return job.Run()
@@ -1022,7 +1045,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
-			utils.Errorf("Error: %s", err)
+			utils.Errorf("Error making handler: %s", err)
 			httpError(w, err)
 		}
 	}

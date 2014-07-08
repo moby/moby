@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
 )
 
 // "test123" should be printed by docker run
@@ -444,44 +446,75 @@ func TestCreateVolume(t *testing.T) {
 
 // Test that creating a volume with a symlink in its path works correctly. Test for #5152.
 // Note that this bug happens only with symlinks with a target that starts with '/'.
-func TestVolumeWithSymlink(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "run_tests", "TestVolumeWithSymlink")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumewithsymlink", ".")
-	buildCmd.Dir = buildDirectory
+func TestCreateVolumeWithSymlink(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-createvolumewithsymlink", "-")
+	buildCmd.Stdin = strings.NewReader(`FROM busybox
+		RUN mkdir /foo && ln -s /foo /bar`)
+	buildCmd.Dir = workingDirectory
 	err := buildCmd.Run()
 	if err != nil {
-		t.Fatal("could not build 'docker-test-volumewithsymlink': %v", err)
+		t.Fatalf("could not build 'docker-test-createvolumewithsymlink': %v", err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-volumewithsymlink", "docker-test-volumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
+	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", "docker-test-createvolumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
 	exitCode, err := runCommand(cmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("[run] err: %v, exitcode: %d", err, exitCode)
+		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
 	var volPath string
-	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-volumewithsymlink")
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-createvolumewithsymlink")
 	volPath, exitCode, err = runCommandWithOutput(cmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("[inspect] err: %v, exitcode: %d", err, exitCode)
+		t.Fatalf("[inspect] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	cmd = exec.Command(dockerBinary, "rm", "-v", "test-volumewithsymlink")
+	cmd = exec.Command(dockerBinary, "rm", "-v", "test-createvolumewithsymlink")
 	exitCode, err = runCommand(cmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("[rm] err: %v, exitcode: %d", err, exitCode)
+		t.Fatalf("[rm] err: %v, exitcode: %d", err, exitCode)
 	}
 
 	f, err := os.Open(volPath)
 	defer f.Close()
 	if !os.IsNotExist(err) {
-		t.Fatal("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
+		t.Fatalf("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
 	}
 
-	deleteImages("docker-test-volumewithsymlink")
+	deleteImages("docker-test-createvolumewithsymlink")
 	deleteAllContainers()
 
-	logDone("run - volume with symlink")
+	logDone("run - create volume with symlink")
+}
+
+// Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
+func TestVolumesFromSymlinkPath(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumesfromsymlinkpath", "-")
+	buildCmd.Stdin = strings.NewReader(`FROM busybox
+		RUN mkdir /baz && ln -s /baz /foo
+		VOLUME ["/foo/bar"]`)
+	buildCmd.Dir = workingDirectory
+	err := buildCmd.Run()
+	if err != nil {
+		t.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test-volumesfromsymlinkpath", "docker-test-volumesfromsymlinkpath")
+	exitCode, err := runCommand(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("[run] (volume) err: %v, exitcode: %d", err, exitCode)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "test-volumesfromsymlinkpath", "busybox", "sh", "-c", "ls /foo | grep -q bar")
+	exitCode, err = runCommand(cmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
+	}
+
+	deleteImages("docker-test-volumesfromsymlinkpath")
+	deleteAllContainers()
+
+	logDone("run - volumes-from symlink path")
 }
 
 func TestExitCode(t *testing.T) {
@@ -884,4 +917,178 @@ func TestRunUnprivilegedWithChroot(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - unprivileged with chroot")
+}
+
+func TestModeHostname(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-h=testhostname", "busybox", "cat", "/etc/hostname")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "testhostname" {
+		t.Fatalf("expected 'testhostname', but says: '%s'", actual)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hostname")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual := strings.Trim(out, "\r\n"); actual != hostname {
+		t.Fatalf("expected '%s', but says: '%s'", hostname, actual)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - hostname and several network modes")
+}
+
+func TestRootWorkdir(t *testing.T) {
+	s, _, err := cmd(t, "run", "--workdir", "/", "busybox", "pwd")
+	if err != nil {
+		t.Fatal(s, err)
+	}
+	if s != "/\n" {
+		t.Fatalf("pwd returned '%s' (expected /\\n)", s)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - workdir /")
+}
+
+func TestAllowBindMountingRoot(t *testing.T) {
+	s, _, err := cmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	if err != nil {
+		t.Fatal(s, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - bind mount / as volume")
+}
+
+func TestDisallowBindMountingRootToRoot(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/:/", "busybox", "ls", "/host")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(out, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - bind mount /:/ as volume should fail")
+}
+
+func TestDnsDefaultOptions(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
+
+	actual, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, actual)
+	}
+
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	if actual != string(resolvConf) {
+		t.Fatalf("expected resolv.conf is not the same of actual")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - dns default options")
+}
+
+func TestDnsOptions(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
+	if actual != "nameserver 127.0.0.1 search mydomain" {
+		t.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: '%s'", actual)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
+	if actual != "nameserver 127.0.0.1" {
+		t.Fatalf("expected 'nameserver 127.0.0.1', but says: '%s'", actual)
+	}
+
+	logDone("run - dns options")
+}
+
+func TestDnsOptionsBasedOnHostResolvConf(t *testing.T) {
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	hostNamservers := resolvconf.GetNameservers(resolvConf)
+	hostSearch := resolvconf.GetSearchDomains(resolvConf)
+
+	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actualNameservers := resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "127.0.0.1" {
+		t.Fatalf("expected '127.0.0.1', but says: '%s'", string(actualNameservers[0]))
+	}
+
+	actualSearch := resolvconf.GetSearchDomains([]byte(out))
+	if len(actualSearch) != len(hostSearch) {
+		t.Fatalf("expected '%s' search domain(s), but it has: '%s'", len(hostSearch), len(actualSearch))
+	}
+	for i := range actualSearch {
+		if actualSearch[i] != hostSearch[i] {
+			t.Fatalf("expected '%s' domain, but says: '%s'", actualSearch[i], hostSearch[i])
+		}
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualNameservers := resolvconf.GetNameservers([]byte(out))
+	if len(actualNameservers) != len(hostNamservers) {
+		t.Fatalf("expected '%s' nameserver(s), but it has: '%s'", len(hostNamservers), len(actualNameservers))
+	}
+	for i := range actualNameservers {
+		if actualNameservers[i] != hostNamservers[i] {
+			t.Fatalf("expected '%s' nameserver, but says: '%s'", actualNameservers[i], hostNamservers[i])
+		}
+	}
+
+	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); string(actualSearch[0]) != "mydomain" {
+		t.Fatalf("expected 'mydomain', but says: '%s'", string(actualSearch[0]))
+	}
+
+	deleteAllContainers()
+
+	logDone("run - dns options based on host resolv.conf")
 }

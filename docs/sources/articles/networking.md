@@ -26,7 +26,7 @@ bridge* that automatically forwards packets between any other network
 interfaces that are attached to it.  This lets containers communicate
 both with the host machine and with each other.  Every time Docker
 creates a container, it creates a pair of “peer” interfaces that are
-like opposite ends of a pipe — a packet send on one will be received on
+like opposite ends of a pipe — a packet sent on one will be received on
 the other.  It gives one of the peers to the container to become its
 `eth0` interface and keeps the other peer, with a unique name like
 `vethAQI2QT`, out in the namespace of the host machine.  By binding
@@ -110,7 +110,9 @@ Finally, several networking options can only be provided when calling
 The following sections tackle all of the above topics in an order that
 moves roughly from simplest to most complex.
 
-## <a name="dns"></a>Configuring DNS
+## Configuring DNS
+
+<a name="dns"></a>
 
 How can Docker supply each container with a hostname and DNS
 configuration, without having to build a custom image with the hostname
@@ -136,14 +138,14 @@ Four different options affect container domain name services.
 
  *  `-h HOSTNAME` or `--hostname=HOSTNAME` — sets the hostname by which
     the container knows itself.  This is written into `/etc/hostname`,
-    into `/etc/hosts` as the name of the container’s host-facing IP
+    into `/etc/hosts` as the name of the container's host-facing IP
     address, and is the name that `/bin/bash` inside the container will
     display inside its prompt.  But the hostname is not easy to see from
     outside the container.  It will not appear in `docker ps` nor in the
     `/etc/hosts` file of any other container.
 
  *  `--link=CONTAINER_NAME:ALIAS` — using this option as you `run` a
-    container gives the new container’s `/etc/hosts` an extra entry
+    container gives the new container's `/etc/hosts` an extra entry
     named `ALIAS` that points to the IP address of the container named
     `CONTAINER_NAME`.  This lets processes inside the new container
     connect to the hostname `ALIAS` without having to know its IP.  The
@@ -158,9 +160,9 @@ Four different options affect container domain name services.
 
  *  `--dns-search=DOMAIN...` — sets the domain names that are searched
     when a bare unqualified hostname is used inside of the container, by
-    writing `search` lines into the container’s `/etc/resolv.conf`.
+    writing `search` lines into the container's `/etc/resolv.conf`.
     When a container process attempts to access `host` and the search
-    domain `exmaple.com` is set, for instance, the DNS logic will not
+    domain `example.com` is set, for instance, the DNS logic will not
     only look up `host` but also `host.example.com`.
 
 Note that Docker, in the absence of either of the last two options
@@ -168,12 +170,14 @@ above, will make `/etc/resolv.conf` inside of each container look like
 the `/etc/resolv.conf` of the host machine where the `docker` daemon is
 running.  The options then modify this default configuration.
 
-## <a name="between-containers"></a>Communication between containers
+## Communication between containers
+
+<a name="between-containers"></a>
 
 Whether two containers can communicate is governed, at the operating
 system level, by three factors.
 
-1.  Does the network topology even connect the containers’ network
+1.  Does the network topology even connect the containers' network
     interfaces?  By default Docker will attach all containers to a
     single `docker0` bridge, providing a path for packets to travel
     between them.  See the later sections of this document for other
@@ -259,15 +263,17 @@ the `FORWARD` chain has a default policy of `ACCEPT` or `DROP`:
 
 > **Note**:
 > Docker is careful that its host-wide `iptables` rules fully expose
-> containers to each other’s raw IP addresses, so connections from one
+> containers to each other's raw IP addresses, so connections from one
 > container to another should always appear to be originating from the
-> first container’s own IP address.
+> first container's own IP address.
 
-## <a name="binding-ports"></a>Binding container ports to the host
+## Binding container ports to the host
+
+<a name="binding-ports"></a>
 
 By default Docker containers can make connections to the outside world,
 but the outside world cannot connect to containers.  Each outgoing
-connection will appear to originate from one of the host machine’s own
+connection will appear to originate from one of the host machine's own
 IP addresses thanks to an `iptables` masquerading rule on the host
 machine that the Docker server creates when it starts:
 
@@ -289,7 +295,7 @@ page.  There are two approaches.
 
 First, you can supply `-P` or `--publish-all=true|false` to `docker run`
 which is a blanket operation that identifies every port with an `EXPOSE`
-line in the image’s `Dockerfile` and maps it to a host port somewhere in
+line in the image's `Dockerfile` and maps it to a host port somewhere in
 the range 49000–49900.  This tends to be a bit inconvenient, since you
 then have to run other `docker` sub-commands to learn which external
 port a given service was mapped to.
@@ -336,9 +342,11 @@ Again, this topic is covered without all of these low-level networking
 details in the [Docker User Guide](/userguide/dockerlinks/) document if you
 would like to use that as your port redirection reference instead.
 
-## <a name="docker0"></a>Customizing docker0
+## Customizing docker0
 
-By default, the Docker server creates and configures the host system’s
+<a name="docker0"></a>
+
+By default, the Docker server creates and configures the host system's
 `docker0` interface as an *Ethernet bridge* inside the Linux kernel that
 can pass packets back and forth between other physical or virtual
 network interfaces so that they behave as a single Ethernet network.
@@ -347,7 +355,7 @@ Docker configures `docker0` with an IP address and netmask so the host
 machine can both receive and send packets to containers connected to the
 bridge, and gives it an MTU — the *maximum transmission unit* or largest
 packet length that the interface will allow — of either 1,500 bytes or
-else a more specific value copied from the Docker host’s interface that
+else a more specific value copied from the Docker host's interface that
 supports its default route.  Both are configurable at server startup:
 
  *  `--bip=CIDR` — supply a specific IP address and netmask for the
@@ -380,8 +388,8 @@ install it.
 Finally, the `docker0` Ethernet bridge settings are used every time you
 create a new container.  Docker selects a free IP address from the range
 available on the bridge each time you `docker run` a new container, and
-configures the container’s `eth0` interface with that IP address and the
-bridge’s netmask.  The Docker host’s own IP address on the bridge is
+configures the container's `eth0` interface with that IP address and the
+bridge's netmask.  The Docker host's own IP address on the bridge is
 used as the default gateway by which each container reaches the rest of
 the Internet.
 
@@ -408,7 +416,9 @@ packets out on to the Internet unless its `ip_forward` system setting is
 `1` — see the section above on [Communication between
 containers](#between-containers) for details.
 
-## <a name="bridge-building"></a>Building your own bridge
+## Building your own bridge
+
+<a name="bridge-building"></a>
 
 If you want to take Docker out of the business of creating its own
 Ethernet bridge entirely, you can set up your own bridge before starting
@@ -450,25 +460,27 @@ illustrate the technique.
 
 The result should be that the Docker server starts successfully and is
 now prepared to bind containers to the new bridge.  After pausing to
-verify the bridge’s configuration, try creating a container — you will
+verify the bridge's configuration, try creating a container — you will
 see that its IP address is in your new IP address range, which Docker
 will have auto-detected.
 
 Just as we learned in the previous section, you can use the `brctl show`
 command to see Docker add and remove interfaces from the bridge as you
 start and stop containers, and can run `ip addr` and `ip route` inside a
-container to see that it has been given an address in the bridge’s IP
-address range and has been told to use the Docker host’s IP address on
+container to see that it has been given an address in the bridge's IP
+address range and has been told to use the Docker host's IP address on
 the bridge as its default gateway to the rest of the Internet.
 
-## <a name="container-networking"></a>How Docker networks a container
+## How Docker networks a container
+
+<a name="container-networking"></a>
 
 While Docker is under active development and continues to tweak and
 improve its network configuration logic, the shell commands in this
 section are rough equivalents to the steps that Docker takes when
 configuring networking for each new container.
 
-Let’s review a few basics.
+Let's review a few basics.
 
 To communicate using the Internet Protocol (IP), a machine needs access
 to at least one network interface at which packets can be sent and
@@ -477,11 +489,11 @@ reachable through that interface.  Network interfaces do not have to be
 physical devices.  In fact, the `lo` loopback interface available on
 every Linux machine (and inside each Docker container) is entirely
 virtual — the Linux kernel simply copies loopback packets directly from
-the sender’s memory into the receiver’s memory.
+the sender's memory into the receiver's memory.
 
 Docker uses special virtual interfaces to let containers communicate
 with the host machine — pairs of virtual interfaces called “peers” that
-are linked inside of the host machine’s kernel so that packets can
+are linked inside of the host machine's kernel so that packets can
 travel between them.  They are simple to create, as we will see in a
 moment.
 
@@ -495,12 +507,12 @@ The steps with which Docker configures a container are:
 
 3.  Toss the other interface over the wall into the new container (which
     will already have been provided with an `lo` interface) and rename
-    it to the much prettier name `eth0` since, inside of the container’s
+    it to the much prettier name `eth0` since, inside of the container's
     separate and unique network interface namespace, there are no
     physical interfaces with which this name could collide.
 
-4.  Give the container’s `eth0` a new IP address from within the
-    bridge’s range of network addresses, and set its default route to
+4.  Give the container's `eth0` a new IP address from within the
+    bridge's range of network addresses, and set its default route to
     the IP address that the Docker host owns on the bridge.
 
 With these steps complete, the container now possesses an `eth0`
@@ -516,7 +528,7 @@ values.
 
  *  `--net=host` — Tells Docker to skip placing the container inside of
     a separate network stack.  In essence, this choice tells Docker to
-    **not containerize the container’s networking**!  While container
+    **not containerize the container's networking**!  While container
     processes will still be confined to their own filesystem and process
     list and resource limits, a quick `ip addr` command will show you
     that, network-wise, they live “outside” in the main Docker host and
@@ -524,10 +536,15 @@ values.
     **not** let the container reconfigure the host network stack — that
     would require `--privileged=true` — but it does let container
     processes open low-numbered ports like any other root process.
+    It also allows the container to access local network services
+    like D-bus.  This can lead to processes in the container being
+    able to do unexpected things like
+    [restart your computer](https://github.com/dotcloud/docker/issues/6401).
+    You should use this option with caution.
 
- *  `--net=container:NAME_or_ID` — Tells Docker to put this container’s
+ *  `--net=container:NAME_or_ID` — Tells Docker to put this container's
     processes inside of the network stack that has already been created
-    inside of another container.  The new container’s processes will be
+    inside of another container.  The new container's processes will be
     confined to their own filesystem and process list and resource
     limits, but will share the same IP address and port numbers as the
     first container, and processes on the two containers will be able to
@@ -559,7 +576,7 @@ Docker do all of the configuration:
     $ sudo mkdir -p /var/run/netns
     $ sudo ln -s /proc/$pid/ns/net /var/run/netns/$pid
 
-    # Check the bridge’s IP address and netmask
+    # Check the bridge's IP address and netmask
 
     $ ip addr show docker0
     21: docker0: ...
@@ -621,14 +638,16 @@ of the same kinds of configuration.  Here are two:
 
  *  Brandon Rhodes has created a whole network topology of Docker
     containers for the next edition of Foundations of Python Network
-    Programming that includes routing, NAT’d firewalls, and servers that
+    Programming that includes routing, NAT'd firewalls, and servers that
     offer HTTP, SMTP, POP, IMAP, Telnet, SSH, and FTP:
     <https://github.com/brandon-rhodes/fopnp/tree/m/playground>
 
 Both tools use networking commands very much like the ones you saw in
 the previous section, and will see in the following sections.
 
-## <a name="point-to-point"></a>Building a point-to-point connection
+## Building a point-to-point connection
+
+<a name="point-to-point"></a>
 
 By default, Docker attaches all containers to the virtual subnet
 implemented by `docker0`.  You can create containers that are each
@@ -646,7 +665,7 @@ The solution is simple: when you create your pair of peer interfaces,
 simply throw *both* of them into containers, and configure them as
 classic point-to-point links.  The two containers will then be able to
 communicate directly (provided you manage to tell each container the
-other’s IP address, of course).  You might adjust the instructions of
+other's IP address, of course).  You might adjust the instructions of
 the previous section to go something like this:
 
     # Start up two containers in two terminal windows
@@ -683,7 +702,7 @@ the previous section to go something like this:
     $ sudo ip netns exec 3004 ip route add 10.1.1.1/32 dev B
 
 The two containers should now be able to ping each other and make
-connections sucessfully.  Point-to-point links like this do not depend
+connections successfully.  Point-to-point links like this do not depend
 on a subnet nor a netmask, but on the bare assertion made by `ip route`
 that some other single IP address is connected to a particular network
 interface.
@@ -691,7 +710,7 @@ interface.
 Note that point-to-point links can be safely combined with other kinds
 of network connectivity — there is no need to start the containers with
 `--net=none` if you want point-to-point links to be an addition to the
-container’s normal networking instead of a replacement.
+container's normal networking instead of a replacement.
 
 A final permutation of this pattern is to create the point-to-point link
 between the Docker host and one container, which would allow the host to

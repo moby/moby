@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/symlink"
@@ -26,14 +25,14 @@ type mount struct {
 	data   string
 }
 
-// InitializeMountNamespace setups up the devices, mount points, and filesystems for use inside a
-// new mount namepsace
-func InitializeMountNamespace(rootfs, console string, container *libcontainer.Container) error {
+// InitializeMountNamespace sets up the devices, mount points, and filesystems for use inside a
+// new mount namespace.
+func InitializeMountNamespace(rootfs, console string, mountConfig *MountConfig) error {
 	var (
 		err  error
 		flag = syscall.MS_PRIVATE
 	)
-	if container.NoPivotRoot {
+	if mountConfig.NoPivotRoot {
 		flag = syscall.MS_SLAVE
 	}
 	if err := system.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
@@ -42,16 +41,16 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
-	if err := mountSystem(rootfs, container); err != nil {
+	if err := mountSystem(rootfs, mountConfig); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
-	if err := setupBindmounts(rootfs, container.Mounts); err != nil {
+	if err := setupBindmounts(rootfs, mountConfig.Mounts); err != nil {
 		return fmt.Errorf("bind mounts %s", err)
 	}
-	if err := nodes.CreateDeviceNodes(rootfs, container.DeviceNodes); err != nil {
+	if err := nodes.CreateDeviceNodes(rootfs, mountConfig.DeviceNodes); err != nil {
 		return fmt.Errorf("create device nodes %s", err)
 	}
-	if err := SetupPtmx(rootfs, console, container.Context["mount_label"]); err != nil {
+	if err := SetupPtmx(rootfs, console, mountConfig.MountLabel); err != nil {
 		return err
 	}
 	if err := setupDevSymlinks(rootfs); err != nil {
@@ -61,7 +60,7 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
-	if container.NoPivotRoot {
+	if mountConfig.NoPivotRoot {
 		err = MsMoveRoot(rootfs)
 	} else {
 		err = PivotRoot(rootfs)
@@ -70,7 +69,7 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 		return err
 	}
 
-	if container.ReadonlyFs {
+	if mountConfig.ReadonlyFs {
 		if err := SetReadonly(); err != nil {
 			return fmt.Errorf("set readonly %s", err)
 		}
@@ -83,8 +82,8 @@ func InitializeMountNamespace(rootfs, console string, container *libcontainer.Co
 
 // mountSystem sets up linux specific system mounts like sys, proc, shm, and devpts
 // inside the mount namespace
-func mountSystem(rootfs string, container *libcontainer.Container) error {
-	for _, m := range newSystemMounts(rootfs, container.Context["mount_label"], container.Mounts) {
+func mountSystem(rootfs string, mountConfig *MountConfig) error {
+	for _, m := range newSystemMounts(rootfs, mountConfig.MountLabel, mountConfig.Mounts) {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
 		}
@@ -145,7 +144,7 @@ func setupDevSymlinks(rootfs string) error {
 	return nil
 }
 
-func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
+func setupBindmounts(rootfs string, bindMounts Mounts) error {
 	for _, m := range bindMounts.OfType("bind") {
 		var (
 			flags = syscall.MS_BIND | syscall.MS_REC
@@ -188,7 +187,7 @@ func setupBindmounts(rootfs string, bindMounts libcontainer.Mounts) error {
 
 // TODO: this is crappy right now and should be cleaned up with a better way of handling system and
 // standard bind mounts allowing them to be more dynamic
-func newSystemMounts(rootfs, mountLabel string, mounts libcontainer.Mounts) []mount {
+func newSystemMounts(rootfs, mountLabel string, mounts Mounts) []mount {
 	systemMounts := []mount{
 		{source: "proc", path: filepath.Join(rootfs, "proc"), device: "proc", flags: defaultMountFlags},
 		{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: defaultMountFlags},

@@ -36,7 +36,7 @@ In general, a 3.8 Linux kernel (or higher) is preferred, as some of the
 prior versions have known issues that are triggered by Docker.
 
 Note that Docker also has a client mode, which can run on virtually any
-Linux kernel (it even builds on OSX!).
+Linux kernel (it even builds on OS X!).
 
 ## Get the docker binary:
 

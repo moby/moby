@@ -16,6 +16,10 @@ import (
 func deleteContainer(container string) error {
 	container = strings.Replace(container, "\n", " ", -1)
 	container = strings.Trim(container, " ")
+	killArgs := fmt.Sprintf("kill %v", container)
+	killSplitArgs := strings.Split(killArgs, " ")
+	killCmd := exec.Command(dockerBinary, killSplitArgs...)
+	runCommand(killCmd)
 	rmArgs := fmt.Sprintf("rm %v", container)
 	rmSplitArgs := strings.Split(rmArgs, " ")
 	rmCmd := exec.Command(dockerBinary, rmSplitArgs...)
@@ -60,6 +64,27 @@ func deleteImages(images string) error {
 	}
 
 	return err
+}
+
+func imageExists(image string) error {
+	inspectCmd := exec.Command(dockerBinary, "inspect", image)
+	exitCode, err := runCommand(inspectCmd)
+	if exitCode != 0 && err == nil {
+		err = fmt.Errorf("couldn't find image '%s'", image)
+	}
+	return err
+}
+
+func pullImageIfNotExist(image string) (err error) {
+	if err := imageExists(image); err != nil {
+		pullCmd := exec.Command(dockerBinary, "pull", image)
+		_, exitCode, err := runCommandWithOutput(pullCmd)
+
+		if err != nil || exitCode != 0 {
+			err = fmt.Errorf("image '%s' wasn't found locally and it couldn't be pulled: %s", image, err)
+		}
+	}
+	return
 }
 
 func cmd(t *testing.T, args ...string) (string, int, error) {

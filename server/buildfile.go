@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon"
@@ -123,7 +124,12 @@ func (b *buildFile) CmdFrom(name string) error {
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
 		fmt.Fprintf(b.errStream, "# Executing %d build triggers\n", nTriggers)
 	}
-	for n, step := range b.config.OnBuild {
+
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be commited.
+	onBuildTriggers := b.config.OnBuild
+	b.config.OnBuild = []string{}
+
+	for n, step := range onBuildTriggers {
 		splitStep := strings.Split(step, " ")
 		stepInstruction := strings.ToUpper(strings.Trim(splitStep[0], " "))
 		switch stepInstruction {
@@ -136,7 +142,6 @@ func (b *buildFile) CmdFrom(name string) error {
 			return err
 		}
 	}
-	b.config.OnBuild = []string{}
 	return nil
 }
 
@@ -692,7 +697,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 	}
 
 	// Wait for it to finish
-	if ret := c.Wait(); ret != 0 {
+	if ret, _ := c.State.WaitStop(-1 * time.Second); ret != 0 {
 		err := &utils.JSONError{
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
 			Code:    ret,
@@ -747,7 +752,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.daemon.Commit(container, "", "", "", b.maintainer, &autoConfig)
+	image, err := b.daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
 	if err != nil {
 		return err
 	}
@@ -757,7 +762,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 }
 
 // Long lines can be split with a backslash
-var lineContinuation = regexp.MustCompile(`\s*\\\s*\n`)
+var lineContinuation = regexp.MustCompile(`\\\s*\n`)
 
 func (b *buildFile) Build(context io.Reader) (string, error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")

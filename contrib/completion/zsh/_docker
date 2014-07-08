@@ -1,6 +1,6 @@
 #compdef docker 
 #
-# zsh completion for docker (http://docker.io)
+# zsh completion for docker (http://docker.com)
 #
 # version:  0.2.2
 # author:   Felix Riedel
@@ -138,11 +138,6 @@ __docker_subcommand () {
             ;;
         (history)
             _arguments ':images:__docker_images'
-            ;;
-        (insert)
-            _arguments '1:containers:__docker_containers' \
-                       '2:URL:(http:// file://)' \
-                       '3:file:_files'
             ;;
         (kill)
             _arguments '*:containers:__docker_runningcontainers'

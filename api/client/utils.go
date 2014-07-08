@@ -105,7 +105,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		if len(body) == 0 {
 			return nil, resp.StatusCode, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(resp.StatusCode), req.URL)
 		}
-		return nil, resp.StatusCode, fmt.Errorf("Error: %s", bytes.TrimSpace(body))
+		return nil, resp.StatusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
 	}
 	return resp.Body, resp.StatusCode, nil
 }

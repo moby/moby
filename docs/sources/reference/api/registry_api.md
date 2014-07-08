@@ -62,10 +62,10 @@ grasp the context, here are some examples of registries:
 >  - local mount point;
 >  - remote docker addressed through SSH.
 
-The latter would only require two new commands in docker, e.g.
+The latter would only require two new commands in docker, e.g.,
 `registryget` and `registryput`, wrapping access to the local filesystem
 (and optionally doing consistency checks). Authentication and authorization
-are then delegated to SSH (e.g. with public keys).
+are then delegated to SSH (e.g., with public keys).
 
 # Endpoints
 

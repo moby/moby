@@ -21,7 +21,7 @@ virtual machine and runs the Docker daemon.
 
 ## Installation
 
-1. Download the latest release of the [Docker for OSX Installer](
+1. Download the latest release of the [Docker for OS X Installer](
    https://github.com/boot2docker/osx-installer/releases)
 
 2. Run the installer, which will install VirtualBox and the Boot2Docker management
@@ -31,22 +31,18 @@ virtual machine and runs the Docker daemon.
 3. Run the `Boot2Docker` app in the `Applications` folder:
    ![](/installation/images/osx-Boot2Docker-Start-app.png)
 
-   Or, to initiate Boot2Docker manually, open a terminal and run:
+   Or, to initialize Boot2Docker manually, open a terminal and run:
 
 	     $ boot2docker init
 	     $ boot2docker start
 	     $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
-
-   The `boot2docker init` command will ask you to enter an SSH key passphrase - the simplest
-   (but least secure) is to just hit [Enter]. This passphrase is used by the
-   `boot2docker ssh` command.
 
 Once you have an initialized virtual machine, you can control it with `boot2docker stop`
 and `boot2docker start`.
 
 ## Upgrading
 
-1. Download the latest release of the [Docker for OSX Installer](
+1. Download the latest release of the [Docker for OS X Installer](
    https://github.com/boot2docker/osx-installer/releases)
 
 2. Run the installer, which will update VirtualBox and the Boot2Docker management
@@ -74,22 +70,24 @@ access to the container's ports.
 
 If you run a container with an exposed port,
 
-    $ docker run --rm -i -t -p 80:80 apache
+    $ docker run --rm -i -t -p 80:80 nginx
 
-then you should be able to access that Apache server using the IP address reported by:
+then you should be able to access that Nginx server using the IP address reported by:
 
-    $ boot2docker ssh ip addr show dev eth1
+    $ boot2docker ip
 
 Typically, it is 192.168.59.103, but it could get changed by Virtualbox's DHCP
 implementation.
 
 # Further details
 
+If you are curious, the username for the boot2docker default user is `docker` and the password is `tcuser`.
+
 The Boot2Docker management tool provides several commands:
 
     $ ./boot2docker
     Usage: ./boot2docker [<options>]
-    {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version}
+    {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|delete|download|version} [<args>]
 
 Continue with the [User Guide](/userguide/).
 
