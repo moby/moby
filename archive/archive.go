@@ -381,10 +381,13 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 // and unpacks it into the directory at `dest`.
 // The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
-// If `dest` does not exist, it is created unless there are multiple entries in `archive`.
-// In the latter case, an error is returned.
-// If `dest` is an existing file, it gets overwritten.
-// If `dest` is an existing directory, its files get merged (with overwrite for conflicting files).
+// If `dest` does not exist, it gets created as a:
+//  	- file if there is a single entry in `archive`
+//  	- directory if there are multiple entries in `archive`
+// If `dest` is an existing:
+//  	- file, it gets overwritten
+//  	- directory, its files get merged (with overwrite for conflicting files)
+// FIXME: what happens if `archive` contains multiple entries and `dest` is an existing file (as opposed to directory) ?
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
@@ -426,11 +429,6 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			return err
 		}
 
-		// Return an error if destination needs to be created and there is more than 1 entry in the tar stream.
-		if create && multipleEntries {
-			return fmt.Errorf("Trying to untar an archive with multiple entries to an inexistant target `%s`: did you mean `%s` instead?", dest, filepath.Dir(dest))
-		}
-
 		// Normalize name, for safety and for a simple is-root check
 		hdr.Name = filepath.Clean(hdr.Name)
 
@@ -447,8 +445,10 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		}
 
 		var path string
-		if create {
-			path = dest // we are renaming hdr.Name to dest
+		if create && !multipleEntries {
+			// If destination needs to be created and there is only 1 entry in the tar stream,
+			// then use dest directly instead of dest/hdr.Name.
+			path = dest
 		} else {
 			path = filepath.Join(dest, hdr.Name)
 		}
