@@ -176,9 +176,6 @@ func TestTarUntarFile(t *testing.T) {
 	if err := ioutil.WriteFile(path.Join(origin, "before", "file"), []byte("hello world"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(path.Join(origin, "after", "file2"), []byte("please overwrite me"), 0700); err != nil {
-		t.Fatal(err)
-	}
 
 	tar, err := TarWithOptions(path.Join(origin, "before"), &TarOptions{Compression: Uncompressed, Includes: []string{"file"}})
 	if err != nil {

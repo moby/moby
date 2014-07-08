@@ -383,8 +383,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 //  identity (uncompressed), gzip, bzip2, xz.
 // If `dest` does not exist, it is created unless there are multiple entries in `archive`.
 // In the latter case, an error is returned.
-// If `dest` is an existing file, it gets overwritten.
-// If `dest` is an existing directory, its files get merged (with overwrite for conflicting files).
+// An other error is returned if `dest` exists but is not a directory, to prevent overwriting.
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
@@ -400,7 +399,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 
 	var (
 		dirs            []*tar.Header
-		create          bool
+		destNotExist    bool
 		multipleEntries bool
 	)
 
@@ -409,10 +408,9 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			return err
 		}
 		// destination does not exist, so it is assumed it has to be created.
-		create = true
+		destNotExist = true
 	} else if !fi.IsDir() {
-		// destination exists and is not a directory, so it will be overwritten.
-		create = true
+		return fmt.Errorf("Trying to untar to `%s`: exists but not a directory", dest)
 	}
 
 	// Iterate through the files in the archive.
@@ -427,7 +425,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		}
 
 		// Return an error if destination needs to be created and there is more than 1 entry in the tar stream.
-		if create && multipleEntries {
+		if destNotExist && multipleEntries {
 			return fmt.Errorf("Trying to untar an archive with multiple entries to an inexistant target `%s`: did you mean `%s` instead?", dest, filepath.Dir(dest))
 		}
 
@@ -447,7 +445,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 		}
 
 		var path string
-		if create {
+		if destNotExist {
 			path = dest // we are renaming hdr.Name to dest
 		} else {
 			path = filepath.Join(dest, hdr.Name)
@@ -467,7 +465,6 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 				}
 			}
 		}
-
 		if err := createTarFile(path, dest, hdr, tr, options == nil || !options.NoLchown); err != nil {
 			return err
 		}
