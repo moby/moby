@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -592,8 +591,12 @@ func TestBuildRm(t *testing.T) {
 }
 
 func TestBuildWithVolumes(t *testing.T) {
-	name := "testbuildvolumes"
-	expected := "map[/test1:map[] /test2:map[]]"
+	var (
+		result   map[string]map[string]struct{}
+		name     = "testbuildvolumes"
+		emptyMap = make(map[string]struct{})
+		expected = map[string]map[string]struct{}{"/test1": emptyMap, "/test2": emptyMap}
+	)
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
@@ -603,13 +606,22 @@ func TestBuildWithVolumes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Volumes")
+	res, err := inspectFieldJSON(name, "Config.Volumes")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res != expected {
-		t.Fatalf("Volumes %s, expected %s", res, expected)
+
+	err = unmarshalJSON([]byte(res), &result)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	equal := deepEqual(&expected, &result)
+
+	if !equal {
+		t.Fatalf("Volumes %s, expected %s", result, expected)
+	}
+
 	logDone("build - with volumes")
 }
 
