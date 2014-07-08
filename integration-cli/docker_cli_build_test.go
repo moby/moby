@@ -1310,8 +1310,8 @@ func TestBuildEntrypointRunCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Cmd inherited from busybox, maybe will be fixed in #5147
-	if expected := "[/bin/sh]"; res != expected {
+	// Cmd must be cleaned up
+	if expected := "<no value>"; res != expected {
 		t.Fatalf("Cmd %s, expected %s", res, expected)
 	}
 	logDone("build - cleanup cmd after RUN")
@@ -1874,4 +1874,37 @@ func TestBuildFromGIT(t *testing.T) {
 		t.Fatal("Maintainer should be docker, got %s", res)
 	}
 	logDone("build - build from GIT")
+}
+
+func TestBuildCleanupCmdOnEntrypoint(t *testing.T) {
+	name := "testbuildcmdcleanuponentrypoint"
+	defer deleteImages(name)
+	if _, err := buildImage(name,
+		`FROM scratch
+        CMD ["test"]
+		ENTRYPOINT ["echo"]`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImage(name,
+		fmt.Sprintf(`FROM %s
+		ENTRYPOINT ["cat"]`, name),
+		true); err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := "<no value>"; res != expected {
+		t.Fatalf("Cmd %s, expected %s", res, expected)
+	}
+	res, err = inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := "[cat]"; res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+	logDone("build - cleanup cmd on ENTRYPOINT")
 }

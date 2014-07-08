@@ -70,6 +70,9 @@ type buildFile struct {
 	// Deprecated, original writer used for ImagePull. To be removed.
 	outOld io.Writer
 	sf     *utils.StreamFormatter
+
+	// cmdSet indicates is CMD was setted in current Dockerfile
+	cmdSet bool
 }
 
 func (b *buildFile) clearTmp(containers map[string]struct{}) {
@@ -306,12 +309,17 @@ func (b *buildFile) CmdCmd(args string) error {
 	if err := b.commit("", b.config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
 		return err
 	}
+	b.cmdSet = true
 	return nil
 }
 
 func (b *buildFile) CmdEntrypoint(args string) error {
 	entrypoint := b.buildCmdFromJson(args)
 	b.config.Entrypoint = entrypoint
+	// if there is no cmd in current Dockerfile - cleanup cmd
+	if !b.cmdSet {
+		b.config.Cmd = nil
+	}
 	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %v", entrypoint)); err != nil {
 		return err
 	}
