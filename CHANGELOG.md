@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 (2014-07-09)
+
+#### Builder
+* Fix issue with ADD
+
 ## 1.1.0 (2014-07-03)
 
 #### Notable features since 1.0.1
