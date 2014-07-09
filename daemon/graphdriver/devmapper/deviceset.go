@@ -831,7 +831,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 	utils.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, devname)
 	defer utils.Debugf("[deviceset %s] waitRemove(%s) END", devices.devicePrefix, devname)
 	i := 0
-	for ; i < 1000; i += 1 {
+	for ; i < 1000; i++ {
 		devinfo, err := getInfo(devname)
 		if err != nil {
 			// If there is an error we assume the device doesn't exist.
@@ -860,7 +860,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 // or b) the 10 second timeout expires.
 func (devices *DeviceSet) waitClose(info *DevInfo) error {
 	i := 0
-	for ; i < 1000; i += 1 {
+	for ; i < 1000; i++ {
 		devinfo, err := getInfo(info.Name())
 		if err != nil {
 			return err

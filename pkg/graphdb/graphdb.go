@@ -454,7 +454,7 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 		if depth != 0 {
 			nDepth := depth
 			if depth != -1 {
-				nDepth -= 1
+				nDepth--
 			}
 			entities, err = db.children(child, meta.FullPath, nDepth, entities)
 			if err != nil {

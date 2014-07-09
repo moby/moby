@@ -14,7 +14,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 	)
 
 	if stdin != nil && container.Config.OpenStdin {
-		nJobs += 1
+		nJobs++
 		if cStdin, err := container.StdinPipe(); err != nil {
 			errors <- err
 		} else {
@@ -50,7 +50,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 		}
 	}
 	if stdout != nil {
-		nJobs += 1
+		nJobs++
 		if p, err := container.StdoutPipe(); err != nil {
 			errors <- err
 		} else {
@@ -88,7 +88,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 		}()
 	}
 	if stderr != nil {
-		nJobs += 1
+		nJobs++
 		if p, err := container.StderrPipe(); err != nil {
 			errors <- err
 		} else {
@@ -139,7 +139,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 
 		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
 		// of closing the passed stdin? Add an intermediary io.Pipe?
-		for i := 0; i < nJobs; i += 1 {
+		for i := 0; i < nJobs; i++ {
 			utils.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
 			if err := <-errors; err != nil {
 				utils.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
