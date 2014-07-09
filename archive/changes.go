@@ -321,8 +321,7 @@ func ChangesSize(newDir string, changes []Change) int64 {
 	for _, change := range changes {
 		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
 			file := filepath.Join(newDir, change.Path)
-			fileInfo, _ := os.Lstat(file)
-			if fileInfo != nil && !fileInfo.IsDir() {
+			if fileInfo, err := os.Lstat(file); err != nil || !fileInfo.IsDir() {
 				size += fileInfo.Size()
 			}
 		}
