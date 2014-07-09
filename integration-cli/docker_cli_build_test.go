@@ -1733,7 +1733,8 @@ RUN [ "$(cat /testfile)" = 'test!' ]`
 }
 
 func TestBuildAddTar(t *testing.T) {
-
+	name := "testbuildaddtar"
+	defer deleteImages(name)
 	checkOutput := func(out string) {
 		n := -1
 		x := ""
@@ -1756,10 +1757,11 @@ func TestBuildAddTar(t *testing.T) {
 
 	for _, n := range []string{"1", "2"} {
 		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar", n)
-		buildCmd := exec.Command(dockerBinary, "build", "-t", "testbuildaddtar", ".")
+		buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 		buildCmd.Dir = buildDirectory
 		out, _, err := runCommandWithOutput(buildCmd)
 		errorOut(err, t, fmt.Sprintf("build failed to complete for TestBuildAddTar/%s: %v", n, err))
 		checkOutput(out)
 	}
+	logDone("build - ADD tar")
 }
