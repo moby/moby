@@ -902,7 +902,7 @@ div + .form-inline {
   margin-bottom: 22px;
 }
 #leftnav .nav {
-  margin: 0;
+  margin: 0, 0, 20px, 0;
 }
 #leftnav .nav > li > a {
   line-height: 22px;
