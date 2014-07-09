@@ -71,37 +71,6 @@ func TestKillDifferentUser(t *testing.T) {
 	}
 }
 
-func TestRestart(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, err := daemon.Create(&runconfig.Config{
-		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"echo", "-n", "foobar"},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-	output, err := container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(output) != "foobar" {
-		t.Error(string(output))
-	}
-
-	// Run the container again and check the output
-	output, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(output) != "foobar" {
-		t.Error(string(output))
-	}
-}
-
 func TestRestartStdin(t *testing.T) {
 	daemon := mkDaemon(t)
 	defer nuke(daemon)
@@ -524,49 +493,5 @@ func TestBindMounts(t *testing.T) {
 	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 	if content != "yotta" {
 		t.Fatal("Container failed to write to bind mount file")
-	}
-}
-
-// Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
-func TestRestartWithVolumes(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-
-	container, _, err := daemon.Create(&runconfig.Config{
-		Image:   GetTestImage(daemon).ID,
-		Cmd:     []string{"echo", "-n", "foobar"},
-		Volumes: map[string]struct{}{"/test": {}},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-
-	for key := range container.Config.Volumes {
-		if key != "/test" {
-			t.Fail()
-		}
-	}
-
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := container.Volumes["/test"]
-	if expected == "" {
-		t.Fail()
-	}
-	// Run the container again to verify the volume path persists
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	actual := container.Volumes["/test"]
-	if expected != actual {
-		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
 	}
 }
