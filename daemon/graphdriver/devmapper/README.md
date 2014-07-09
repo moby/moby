@@ -129,11 +129,11 @@ Here is the list of supported options:
  *  `dm.blocksize`
 
     Specifies a custom blocksize to use for the thin pool.  The default
-    blocksize is 512K.
+    blocksize is 64K.
 
     Example use:
 
-    ``docker -d --storage-opt dm.blocksize=64K``
+    ``docker -d --storage-opt dm.blocksize=512K``
 
  *  `dm.blkdiscard`
 
