@@ -117,7 +117,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	if image.Config != nil {
 		b.config = image.Config
 	}
-	if b.config.Env == nil || len(b.config.Env) == 0 {
+	if len(b.config.Env) == 0 {
 		b.config.Env = append(b.config.Env, "HOME=/", "PATH="+daemon.DefaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist

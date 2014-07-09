@@ -4,12 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/dotcloud/docker/archive"
+	"github.com/dotcloud/docker/daemon/graphdriver"
 )
 
 var (
@@ -557,7 +558,7 @@ func TestStatus(t *testing.T) {
 	}
 
 	status := d.Status()
-	if status == nil || len(status) == 0 {
+	if len(status) == 0 {
 		t.Fatal("Status should not be nil or empty")
 	}
 	rootDir := status[0]
