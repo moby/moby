@@ -2,12 +2,13 @@ package opts
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"net"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/dotcloud/docker/utils"
 )
 
 // ListOpts type
@@ -129,7 +130,7 @@ func ValidateEnv(val string) (string, error) {
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
 }
 
-func ValidateIpAddress(val string) (string, error) {
+func ValidateIPAddress(val string) (string, error) {
 	var ip = net.ParseIP(strings.TrimSpace(val))
 	if ip != nil {
 		return ip.String(), nil
