@@ -2463,8 +2463,14 @@ func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 
 func (srv *Server) AddEvent(jm utils.JSONMessage) {
 	srv.Lock()
-	defer srv.Unlock()
-	srv.events = append(srv.events, jm)
+	if len(srv.events) == cap(srv.events) {
+		// discard oldest event
+		copy(srv.events, srv.events[1:])
+		srv.events[len(srv.events)-1] = jm
+	} else {
+		srv.events = append(srv.events, jm)
+	}
+	srv.Unlock()
 }
 
 func (srv *Server) GetEvents() []utils.JSONMessage {
