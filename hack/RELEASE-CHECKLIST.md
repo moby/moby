@@ -34,15 +34,16 @@ git checkout --track origin/release
 git checkout -b bump_$VERSION
 ```
 
-If it's a regular release, we usually merge master
+If it's a regular release, we usually merge master.
 ```bash
 git merge origin/master
 ```
-Otherwise, if it is a hotfix release, we cherry-pick only the commits we want
+
+Otherwise, if it is a hotfix release, we cherry-pick only the commits we want.
 ```bash
-#get the commits ids we want to cherry-pick
+# get the commits ids we want to cherry-pick
 git log
-#cherry-pick the commits starting from the oldest one, without including merge commits
+# cherry-pick the commits starting from the oldest one, without including merge commits
 git cherry-pick <commit-id>
 git cherry-pick <commit-id>
 ...
