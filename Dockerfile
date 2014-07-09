@@ -44,6 +44,7 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	lxc=1.0* \
 	mercurial \
 	pandoc \
+	parallel \
 	reprepro \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
