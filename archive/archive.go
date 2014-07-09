@@ -290,7 +290,7 @@ func Tar(path string, compression Compression) (io.ReadCloser, error) {
 }
 
 func escapeName(name string) string {
-	escaped := make([]byte, 0)
+	var escaped []byte
 	for i, c := range []byte(name) {
 		if i == 0 && c == '/' {
 			continue
