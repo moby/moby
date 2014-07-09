@@ -764,7 +764,14 @@ log entry.
 
     Usage: docker pause CONTAINER
 
-    Pause all processes within a container
+    Pause uses the cgroups freezer to suspend all processes in a container.
+    Traditionally when suspending a process the SIGSTOP signal is used,
+    which is observable by the process being suspended. With the cgroups freezer
+    the process is unaware, and unable to capture, that it is being suspended,
+    and subsequently resumed.
+
+    For for information on the cgroups freezer see:
+    https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt
 
 ## ps
 
@@ -1273,7 +1280,7 @@ them to [*Share Images via Repositories*](
 
     Usage: docker unpause CONTAINER
 
-    Pause all processes within a container
+    Resumes a paused container.
 
 ## version
 
