@@ -52,7 +52,7 @@ which you can `docker pull`. You can then use that
 image to base your new minimal containers `FROM`:
 
     FROM scratch
-    ADD true-asm /true
+    COPY true-asm /true
     CMD ["/true"]
 
 The Dockerfile above is from extremely minimal image - [tianon/true](
