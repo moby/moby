@@ -240,11 +240,11 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 			srcRW = true
 		}
 
-		if stat, err := os.Stat(bindMap.SrcPath); err != nil {
+		stat, err := os.Stat(bindMap.SrcPath)
+		if err != nil {
 			return err
-		} else {
-			volIsDir = stat.IsDir()
 		}
+		volIsDir = stat.IsDir()
 	} else {
 		// Do not pass a container as the parameter for the volume creation.
 		// The graph driver using the container's information ( Image ) to
@@ -262,11 +262,11 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 		srcRW = true
 	}
 
-	if p, err := filepath.EvalSymlinks(destination); err != nil {
+	p, err := filepath.EvalSymlinks(destination)
+	if err != nil {
 		return err
-	} else {
-		destination = p
 	}
+	destination = p
 
 	// Create the mountpoint
 	source, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
