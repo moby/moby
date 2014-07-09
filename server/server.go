@@ -1755,6 +1755,14 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	for _, warning := range buildWarnings {
 		job.Errorf("%s\n", warning)
 	}
+
+	if job.EnvExists("HostConfig") {
+		hostConfig := runconfig.ContainerHostConfigFromJob(job)
+		if err := srv.setHostConfig(container, hostConfig); err != nil {
+			return job.Error(err)
+		}
+	}
+
 	return engine.StatusOK
 }
 
