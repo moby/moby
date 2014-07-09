@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -29,10 +30,13 @@ const (
 )
 
 var (
-	dockerConfDir = os.Getenv("HOME") + "/.docker/"
+	dockerConfDir = os.Getenv("DOCKER_CONFIG")
 )
 
 func main() {
+	if len(dockerConfDir) == 0 {
+		dockerConfDir = filepath.Join(os.Getenv("HOME"), ".docker")
+	}
 	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		// Running in init mode
 		sysinit.SysInit()
@@ -63,9 +67,9 @@ func main() {
 		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU\nif no value is provided: default to the default route MTU or 1500 if no default route is available")
 		flTls                = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
 		flTlsVerify          = flag.Bool([]string{"-tlsverify"}, false, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
-		flCa                 = flag.String([]string{"-tlscacert"}, dockerConfDir+defaultCaFile, "Trust only remotes providing a certificate signed by the CA given here")
-		flCert               = flag.String([]string{"-tlscert"}, dockerConfDir+defaultCertFile, "Path to TLS certificate file")
-		flKey                = flag.String([]string{"-tlskey"}, dockerConfDir+defaultKeyFile, "Path to TLS key file")
+		flCa                 = flag.String([]string{"-tlscacert"}, filepath.Join(dockerConfDir, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
+		flCert               = flag.String([]string{"-tlscert"}, filepath.Join(dockerConfDir, defaultCertFile), "Path to TLS certificate file")
+		flKey                = flag.String([]string{"-tlskey"}, filepath.Join(dockerConfDir, defaultKeyFile), "Path to TLS key file")
 		flSelinuxEnabled     = flag.Bool([]string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")

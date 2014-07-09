@@ -125,4 +125,9 @@ Docker in various other modes by mixing the flags.
    certificate, authenticate server based on given CA
 
 The client will send its client certificate if found, so you just need
-to drop your keys into ~/.docker/<ca, cert or key>.pem
+to drop your keys into ~/.docker/<ca, cert or key>.pem. Alternatively, if you
+want to store your keys in another location, you can specify that location
+using the environment variable `DOCKER_CONFIG`.
+
+    $ export DOCKER_CONFIG=${HOME}/.dockers/zone1/
+    $ docker --tlsverify ps
