@@ -14,7 +14,6 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/native/configuration"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
-	"github.com/dotcloud/docker/utils"
 )
 
 // createContainer populates and configures the container type with the
@@ -140,20 +139,7 @@ func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 }
 
 func (d *driver) setCapabilities(container *libcontainer.Config, c *execdriver.Command) {
-	var caps []string
-	for _, cap := range container.Capabilities {
-		if !utils.StringsContains(c.CapDrop, cap) {
-			caps = append(caps, cap)
-		}
-	}
-
-	for _, cap := range c.CapAdd {
-		if !utils.StringsContains(caps, cap) {
-			caps = append(caps, cap)
-		}
-	}
-
-	container.Capabilities = caps
+	container.Capabilities = execdriver.TweakCapabilities(container.Capabilities, c.CapAdd, c.CapDrop)
 }
 
 func (d *driver) setupCgroups(container *libcontainer.Config, c *execdriver.Command) error {
