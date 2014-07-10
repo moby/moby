@@ -156,7 +156,7 @@ _docker_build()
 		*)
 			local counter="$(__docker_pos_first_nonflag '-t|--tag')"
 			if [ $cword -eq $counter ]; then
-				_filedir
+				_filedir -d
 			fi
 			;;
 	esac
