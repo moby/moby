@@ -77,13 +77,16 @@ Automated Build:
   <tbody>
     <tr>
       <td>1.</td>
-      <td><img src="https://d207aa93qlcgug.cloudfront.net/0.8/img/github_settings.png"></td>
-      <td>Log in to Github.com, and visit your Repository page. Click on repository "Settings" on the right side of the page. You must have admin privileges to the repository in order to do this.</td>
+      <td><img src="/docker-hub/hub-images/gh_settings.png"></td>
+      <td>Log in to Github.com, and go to your Repository page. Click on "Settings" on
+      the right side of the page. You must have admin privileges to the repository in order to do this.</td>
     </tr>
     <tr>
       <td>2.</td>
-      <td><img src="https://d207aa93qlcgug.cloudfront.net/0.8/img/github_service_hooks.png" alt="Service Hooks"></td>
-      <td>Click on "Webhooks & Services" on the left side of the page.</td></tr><tr><td>3.</td><td><img src="https://d207aa93qlcgug.cloudfront.net/0.8/img/github_docker_service_hook.png" alt="Find the service labeled Docker"></td><td>Find the service labeled "Docker" and click on it.</td></tr><tr><td>4.</td><td><img src="https://d207aa93qlcgug.cloudfront.net/0.8/img/github_service_hook_docker_activate.png" alt="Activate Service Hooks"></td>
+      <td><img src="/docker-hub/hub-images/gh_menu.png" alt="Webhooks & Services"></td>
+      <td>Click on "Webhooks & Services" on the left side of the page.</td></tr>
+      <tr><td>3.</td><td><img src="/docker-hub/hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td><td>Find the service labeled "Docker" and click on it.</td></tr>
+      <tr><td>4.</td><td><img src="/docker-hub/hub-images/gh_docker-service.png" alt="Activate Service Hooks"></td>
       <td>Make sure the "Active" checkbox is selected and click the "Update service" button to save your changes.</td>
     </tr>
   </tbody>
@@ -112,42 +115,42 @@ public or private Bitbucket repositories with a `Dockerfile`.
 
 ## The Dockerfile and Automated Builds
 
-During the build process, we copy the contents of your `Dockerfile`. We also
-add it to the [Docker Hub](https://hub.docker.com) for the Docker community (for public
-repos) or approved team members/orgs (for private repos) to see on the repository page
-(if your repo is public).
+During the build process, Docker will copy the contents of your `Dockerfile`. It will
+also add it to the [Docker Hub](https://hub.docker.com) for the Docker community (for
+public repos) or approved team members/orgs (for private repos) to see on the repository
+page.
 
 ## README.md
 
 If you have a `README.md` file in your repository, it will be used as the
-repository's full description.
+repository's full description.The build process will look for a
+`README.md` in the same directory as your `Dockerfile`.
 
 > **Warning:**
 > If you change the full description after a build, it will be
 > rewritten the next time the Automated Build has been built. To make changes,
-> modify the `README.md` from the Git repository. The build process will look for a
-> `README.md` in the same directory as your `Dockerfile`.
+> modify the `README.md` from the Git repository.
 
 ### Build triggers
 
 If you need a way to trigger Automated Builds outside of GitHub
 or Bitbucket, you can set up a build trigger. When you turn on the build
 trigger for an Automated Build, it will give you a URL to which you can
-send POST requests. This will trigger the Automated Build, which
-is similar to GitHub webhooks.
+send POST requests. This will trigger the Automated Build, much as with a GitHub webhook.
 
-Build triggers are available under the Settings tab of each Automated Build.
+Build triggers are available under the Settings menu of each Automated Build repo on the
+Docker Hub.
 
 > **Note:** 
 > You can only trigger one build at a time and no more than one
-> every five minutes. If you have a build already pending, or if you already
+> every five minutes. If you already have a build pending, or if you
 > recently submitted a build request, those requests *will be ignored*.
-> You can find the logs of last 10 triggers on the settings page to verify
-> if everything is working correctly.
+> To verify everything is working correctly, check the logs of last ten triggers on the
+settings page .
 
 ### Webhooks
 
-Also available for Automated Builds are Webhooks. Webhooks can be called
+Automated Builds also include a Webhooks feature. Webhooks can be called
 after a successful repository push is made.
 
 The webhook call will generate a HTTP POST with the following JSON
@@ -184,24 +187,23 @@ payload:
 }
 ```
 
-Webhooks are available under the Settings tab of each Automated
-Build.
+Webhooks are available under the Settings menu of each Automated
+Build's repo.
 
-> **Note:** If you want to test your webhook out then we recommend using
+> **Note:** If you want to test your webhook out we recommend using
 > a tool like [requestb.in](http://requestb.in/).
 
 
 ### Repository links
 
 Repository links are a way to associate one Automated Build with another. If one
-gets updated, linking system also triggers a build for the other Automated Build.
-This makes it easy to keep your Automated Builds up to date.
+gets updated,the linking system triggers a rebuild for the other Automated Build.
+This makes it easy to keep all your Automated Builds up to date.
 
-To add a link, go to the settings page of an Automated Build and click on
-*Repository Links*. Then enter the name of the repository that you want have
-linked.
+To add a link, go to the repo for the Automated Build you want to link to and click on
+*Repository Links* under the Settings menu at right. Then, enter the name of the repository that you want have linked.
 
 > **Warning:**
 > You can add more than one repository link, however, you should
-> be very careful. Creating a two way relationship between Automated Builds will
-> cause a never ending build loop.
+> do so very carefully. Creating a two way relationship between Automated Builds will
+> cause an endless build loop.
