@@ -52,7 +52,7 @@ Now let's add a configuration file for Supervisor. The default file is
 called `supervisord.conf` and is located in
 `/etc/supervisor/conf.d/`.
 
-    ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+    COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 Let's see what is inside our `supervisord.conf`
 file.
