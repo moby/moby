@@ -266,12 +266,12 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 }
 
 func (b *buildFile) CmdEnv(args string) error {
-	tmp := strings.SplitN(args, " ", 2)
+	tmp := splitParams(args)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ENV format")
 	}
 	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
+	value := tmp[1]
 
 	envKey := b.FindEnvKey(key)
 	replacedValue, err := b.ReplaceEnvMatches(value)
@@ -482,7 +482,7 @@ func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
-	tmp := strings.SplitN(args, " ", 2)
+	tmp := splitParams(args)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid %s format", cmdName)
 	}
@@ -887,6 +887,33 @@ func fixPermissions(destination string, uid, gid int) error {
 		}
 		return nil
 	})
+}
+
+func splitParams(str string) []string {
+	if isQuoted(str) {
+		return splitQuotedStrings(str)
+	} else {
+		return strings.SplitN(str, " ", 2)
+	}
+}
+
+func splitQuotedStrings(str string) []string {
+	r := regexp.MustCompile(`"([^\\"]|\\")*"`)
+	strs := r.FindAllString(str, -1)
+
+	for i := range strs {
+		if isQuoted(str) {
+			strs[i] = strings.Trim(strs[i], `"`)
+			strs[i] = strings.Replace(strs[i], `\"`, `"`, -1)
+		}
+	}
+
+	return strs
+}
+
+func isQuoted(str string) bool {
+	quotes := regexp.MustCompile(`^".*"$`)
+	return quotes.MatchString(str)
 }
 
 func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
