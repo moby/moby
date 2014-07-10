@@ -67,5 +67,11 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
 		hostConfig.VolumesFrom = VolumesFrom
 	}
+	if CapAdd := job.GetenvList("CapAdd"); CapAdd != nil {
+		hostConfig.CapAdd = CapAdd
+	}
+	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
+		hostConfig.CapDrop = CapDrop
+	}
 	return hostConfig
 }

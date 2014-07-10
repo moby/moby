@@ -783,6 +783,36 @@ func TestUnPrivilegedCanMknod(t *testing.T) {
 	logDone("run - test un-privileged can mknod")
 }
 
+func TestCapDropCannotMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=MKNOD cannot mknod")
+}
+
+func TestCapAddCanDownInterface(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-add=NET_ADMIN can set eth0 down")
+}
+
 func TestPrivilegedCanMount(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
 
