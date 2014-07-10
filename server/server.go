@@ -83,6 +83,18 @@ func InitPidfile(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func (srv *Server) removeUnixSockets() {
+	for _, sock := range srv.daemon.Config().Sockets {
+		parts := strings.SplitN(sock, "://", 2)
+		if parts[0] == "unix" {
+			err := os.Remove(parts[1])
+			if err != nil {
+				utils.Debugf("Got error removing unix socket: %s", err.Error())
+			}
+		}
+	}
+}
+
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
@@ -121,6 +133,8 @@ func InitServer(job *engine.Job) engine.Status {
 					}
 				case syscall.SIGQUIT:
 				}
+
+				srv.removeUnixSockets()
 				os.Exit(128 + int(sig.(syscall.Signal)))
 			}(sig)
 		}
