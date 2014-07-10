@@ -879,9 +879,8 @@ func (container *Container) setupContainerDns() error {
 		container.ResolvConfPath = resolvConfPath
 
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
-	} else {
-		container.ResolvConfPath = "/etc/resolv.conf"
 	}
+	container.ResolvConfPath = "/etc/resolv.conf"
 	return nil
 }
 
@@ -917,7 +916,8 @@ func (container *Container) initializeNetworking() error {
 		container.HostsPath = hostsPath
 
 		return ioutil.WriteFile(container.HostsPath, content, 0644)
-	} else if container.hostConfig.NetworkMode.IsContainer() {
+	}
+	if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()
 		if err != nil {
@@ -927,16 +927,16 @@ func (container *Container) initializeNetworking() error {
 		container.ResolvConfPath = nc.ResolvConfPath
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
-	} else if container.daemon.config.DisableNetwork {
+		return nil
+	}
+	if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
 		return container.buildHostnameAndHostsFiles("127.0.1.1")
-	} else {
-		if err := container.allocateNetwork(); err != nil {
-			return err
-		}
-		return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 	}
-	return nil
+	if err := container.allocateNetwork(); err != nil {
+		return err
+	}
+	return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 }
 
 // Make sure the config is compatible with the current kernel

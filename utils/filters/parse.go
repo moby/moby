@@ -15,7 +15,7 @@ type Args map[string][]string
 // If prev map is provided, then it is appended to, and returned. By default a new
 // map is created.
 func ParseFlag(arg string, prev Args) (Args, error) {
-	var filters Args = prev
+	filters := prev
 	if prev == nil {
 		filters = Args{}
 	}

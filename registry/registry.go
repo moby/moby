@@ -258,10 +258,10 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 
 func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string, imgSize int64) (io.ReadCloser, error) {
 	var (
-		retries   = 5
 		headRes   *http.Response
-		hasResume bool = false
-		imageURL       = fmt.Sprintf("%simages/%s/layer", registry, imgID)
+		hasResume bool
+		retries   = 5
+		imageURL  = fmt.Sprintf("%simages/%s/layer", registry, imgID)
 	)
 	headReq, err := r.reqFactory.NewRequest("HEAD", imageURL, nil)
 	if err != nil {

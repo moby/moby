@@ -1428,8 +1428,8 @@ func (srv *Server) ImagePull(job *engine.Job) engine.Status {
 func (srv *Server) getImageList(localRepo map[string]string, requestedTag string) ([]string, map[string][]string, error) {
 	var (
 		imageList   []string
-		imagesSeen  map[string]bool     = make(map[string]bool)
-		tagsByImage map[string][]string = make(map[string][]string)
+		imagesSeen  = make(map[string]bool)
+		tagsByImage = make(map[string][]string)
 	)
 
 	for tag, id := range localRepo {

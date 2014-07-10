@@ -2211,7 +2211,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 	}
 
 	var (
-		output io.Writer = cli.out
+		output = cli.out
 		err    error
 	)
 	if *outfile != "" {
@@ -2241,7 +2241,7 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	}
 
 	var (
-		input io.Reader = cli.in
+		input = cli.in
 		err   error
 	)
 	if *infile != "" {

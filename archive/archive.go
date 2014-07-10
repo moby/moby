@@ -177,15 +177,14 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	}
 
 	if hdr.Typeflag == tar.TypeReg {
-		if file, err := os.Open(path); err != nil {
+		file, err := os.Open(path)
+		if err != nil {
 			return err
-		} else {
-			_, err := io.Copy(tw, file)
-			if err != nil {
-				return err
-			}
-			file.Close()
 		}
+		if _, err := io.Copy(tw, file); err != nil {
+			return err
+		}
+		file.Close()
 	}
 
 	return nil
@@ -291,7 +290,7 @@ func Tar(path string, compression Compression) (io.ReadCloser, error) {
 }
 
 func escapeName(name string) string {
-	escaped := make([]byte, 0)
+	var escaped []byte
 	for i, c := range []byte(name) {
 		if i == 0 && c == '/' {
 			continue

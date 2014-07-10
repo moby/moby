@@ -17,7 +17,7 @@ func ListenFD(addr string) ([]net.Listener, error) {
 		return nil, err
 	}
 
-	if listeners == nil || len(listeners) == 0 {
+	if len(listeners) == 0 {
 		return nil, errors.New("No sockets found")
 	}
 
