@@ -120,35 +120,49 @@ func (r *Session) LookupRemoteImage(imgID, registry string, token []string) bool
 }
 
 // Retrieve an image from the Registry.
-func (r *Session) GetRemoteImageJSON(imgID, registry string, token []string) ([]byte, int, error) {
+func (r *Session) GetRemoteImageJSON(imgID, registry string, token []string) ([]byte, int, []string, error) {
 	// Get the JSON
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
-		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
+		return nil, -1, nil, fmt.Errorf("Failed to download json: %s", err)
 	}
 	setTokenAuth(req, token)
 	res, _, err := r.doRequest(req)
 	if err != nil {
-		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
+		return nil, -1, nil, fmt.Errorf("Failed to download json: %s", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, -1, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
+		return nil, -1, nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 	// if the size header is not present, then set it to '-1'
 	imageSize := -1
 	if hdr := res.Header.Get("X-Docker-Size"); hdr != "" {
 		imageSize, err = strconv.Atoi(hdr)
 		if err != nil {
-			return nil, -1, err
+			return nil, -1, nil, err
 		}
+	}
+
+	// if the checksum header is not present, then set it to '-1'
+	var imageChksums []string
+
+	ckhdrs := [...]string{"X-Docker-Checksum", "X-Docker-Payload-Checksum", "X-Docker-Checksum-Payload"}
+	for _, v := range ckhdrs {
+		if hdr := res.Header.Get(v); hdr != "" {
+			imageChksums = strings.Split(hdr, " ")
+			break
+		}
+	}
+	if imageChksums == nil {
+		log.Infof("Checksum not found for image: " + imgID + ", will not verify.")
 	}
 
 	jsonString, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, -1, fmt.Errorf("Failed to parse downloaded json: %s (%s)", err, jsonString)
+		return nil, -1, imageChksums, fmt.Errorf("Failed to parse downloaded json: %s (%s)", err, jsonString)
 	}
-	return jsonString, imageSize, nil
+	return jsonString, imageSize, imageChksums, nil
 }
 
 func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, imgSize int64) (io.ReadCloser, error) {
@@ -283,8 +297,6 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	if res.StatusCode == 401 {
 		return nil, errLoginRequired
 	}
-	// TODO: Right now we're ignoring checksums in the response body.
-	// In the future, we need to use them to check image validity.
 	if res.StatusCode != 200 {
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
 	}

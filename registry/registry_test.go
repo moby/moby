@@ -12,6 +12,7 @@ import (
 
 var (
 	IMAGE_ID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
+	CHKSUM   = "tarsum+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	TOKEN    = []string{"fake-token"}
 	REPO     = "foo42/bar"
 )
@@ -54,17 +55,26 @@ func TestLookupRemoteImage(t *testing.T) {
 }
 
 func TestGetRemoteImageJSON(t *testing.T) {
+	var hasChecksum bool
 	r := spawnTestRegistrySession(t)
-	json, size, err := r.GetRemoteImageJSON(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	json, size, chksum, err := r.GetRemoteImageJSON(IMAGE_ID, makeURL("/v1/"), TOKEN)
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, v := range chksum {
+		fmt.Println("checking chksum: " + v)
+		if v == CHKSUM {
+			hasChecksum = true
+			break
+		}
+	}
+	assertEqual(t, hasChecksum, true, "Expected matching checksum: "+CHKSUM)
 	assertEqual(t, size, 154, "Expected size 154")
 	if len(json) <= 0 {
 		t.Fatal("Expected non-empty json")
 	}
 
-	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), TOKEN)
+	_, _, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), TOKEN)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
