@@ -385,7 +385,7 @@ container running Redis:
     $ docker port 4241164edf6f 6379
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 
-Yet we can get information about the Redis container'sexposed ports
+Yet we can get information about the Redis container's exposed ports
 with `--link`. Choose an alias that will form a
 valid environment variable!
 
