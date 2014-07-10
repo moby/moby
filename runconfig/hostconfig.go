@@ -38,6 +38,8 @@ type HostConfig struct {
 	VolumesFrom     []string
 	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
+	CapAdd          []string
+	CapDrop         []string
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {

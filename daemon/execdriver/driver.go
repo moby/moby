@@ -140,6 +140,8 @@ type Command struct {
 	Mounts             []Mount             `json:"mounts"`
 	AllowedDevices     []*devices.Device   `json:"allowed_devices"`
 	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
+	CapAdd             []string            `json:"cap_add"`
+	CapDrop            []string            `json:"cap_drop"`
 
 	Terminal     Terminal `json:"-"`             // standard or tty terminal
 	Console      string   `json:"-"`             // dev/console path

@@ -50,6 +50,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
 		flEnvFile     opts.ListOpts
+		flCapAdd      opts.ListOpts
+		flCapDrop     opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
@@ -85,6 +87,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+
+	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capability(ies)")
+	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capability(ies)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -258,6 +263,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
 		Devices:         deviceMappings,
+		CapAdd:          flCapAdd.GetAll(),
+		CapDrop:         flCapDrop.GetAll(),
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
