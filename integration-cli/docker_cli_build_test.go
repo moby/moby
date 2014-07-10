@@ -1732,6 +1732,26 @@ RUN [ "$(cat /testfile)" = 'test!' ]`
 	logDone("build - add and run script")
 }
 
+func TestBuildWhitespace(t *testing.T) {
+	name := "testbuildwhitespace"
+	defer deleteImages(name)
+	// this writes out a literal tab to foo.txt with a trailer, then checks if
+	// there are any spaces in the file.
+	dockerfile := `
+FROM	 busybox
+RUN echo "	foo" >foo.txt
+RUN grep -qv " " foo.txt`
+	ctx, err := fakeContext(dockerfile, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - tabs in dockerfile")
+}
+
 func TestBuildAddTar(t *testing.T) {
 	name := "testbuildaddtar"
 	defer deleteImages(name)
