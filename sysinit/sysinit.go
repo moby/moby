@@ -3,11 +3,12 @@ package sysinit
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/dotcloud/docker/daemon/execdriver"
 	_ "github.com/dotcloud/docker/daemon/execdriver/lxc"
 	_ "github.com/dotcloud/docker/daemon/execdriver/native"
-	"log"
-	"os"
 )
 
 func executeProgram(args *execdriver.InitArgs) error {
@@ -39,6 +40,8 @@ func SysInit() {
 		pipe       = flag.Int("pipe", 0, "sync pipe fd")
 		console    = flag.String("console", "", "console (pty slave) path")
 		root       = flag.String("root", ".", "root path for configuration files")
+		capAdd     = flag.String("cap-add", "", "capabilities to add")
+		capDrop    = flag.String("cap-drop", "", "capabilities to drop")
 	)
 	flag.Parse()
 
@@ -54,6 +57,8 @@ func SysInit() {
 		Console:    *console,
 		Pipe:       *pipe,
 		Root:       *root,
+		CapAdd:     *capAdd,
+		CapDrop:    *capDrop,
 	}
 
 	if err := executeProgram(args); err != nil {

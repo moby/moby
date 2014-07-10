@@ -4,6 +4,7 @@ package lxc
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 
 	"github.com/docker/libcontainer/namespaces"
@@ -12,6 +13,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 	"github.com/dotcloud/docker/pkg/system"
+	utils2 "github.com/dotcloud/docker/utils"
 )
 
 func setHostname(hostname string) error {
@@ -48,8 +50,21 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 			return fmt.Errorf("clear keep caps %s", err)
 		}
 
+		var caps []string
+		for _, cap := range container.Capabilities {
+			if !utils2.StringsContains(strings.Split(args.CapDrop, " "), cap) {
+				caps = append(caps, cap)
+			}
+		}
+
+		for _, cap := range strings.Split(args.CapAdd, " ") {
+			if !utils2.StringsContains(caps, cap) {
+				caps = append(caps, cap)
+			}
+		}
+
 		// drop all other capabilities
-		if err := capabilities.DropCapabilities(container.Capabilities); err != nil {
+		if err := capabilities.DropCapabilities(caps); err != nil {
 			return fmt.Errorf("drop capabilities %s", err)
 		}
 	}

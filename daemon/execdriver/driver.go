@@ -60,6 +60,8 @@ type InitArgs struct {
 	Console    string
 	Pipe       int
 	Root       string
+	CapAdd     string
+	CapDrop    string
 }
 
 // Driver specific information based on
