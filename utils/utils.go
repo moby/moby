@@ -908,9 +908,9 @@ func ValidateContextDirectory(srcPath string) error {
 	return finalError
 }
 
-func StringsContains(slice []string, s string) bool {
+func StringsContainsNoCase(slice []string, s string) bool {
 	for _, ss := range slice {
-		if s == ss {
+		if strings.ToLower(s) == strings.ToLower(ss) {
 			return true
 		}
 	}

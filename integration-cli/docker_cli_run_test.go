@@ -798,6 +798,21 @@ func TestCapDropCannotMknod(t *testing.T) {
 	logDone("run - test --cap-drop=MKNOD cannot mknod")
 }
 
+func TestCapDropALLCannotMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=ALL cannot mknod")
+}
+
 func TestCapAddCanDownInterface(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--cap-add=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
@@ -811,6 +826,21 @@ func TestCapAddCanDownInterface(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - test --cap-add=NET_ADMIN can set eth0 down")
+}
+
+func TestCapAddALLCanDownInterface(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=ALL", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-add=ALL can set eth0 down")
 }
 
 func TestPrivilegedCanMount(t *testing.T) {
