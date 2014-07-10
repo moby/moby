@@ -1102,10 +1102,10 @@ func (container *Container) waitForStart() error {
 				c.Close()
 			}
 		}
-		if err := container.toDisk(); err != nil {
+		container.State.SetRunning(command.Pid())
+		if err := container.ToDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
-		container.State.SetRunning(command.Pid())
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
