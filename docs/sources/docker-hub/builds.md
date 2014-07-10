@@ -28,7 +28,8 @@ Automated Builds are supported for both public and private repositories on both
 
 To use Automated Builds, you must have an 
 [account on Docker Hub](http://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
-and on GitHub and/or Bitbucket.
+and on GitHub and/or Bitbucket. The account needs to be properly validated and activated
+before you can link to it.
 
 ## Setting up Automated Builds with GitHub
 
@@ -48,7 +49,8 @@ at the upper right of the screen. Then select
 
 Select the [GitHub service](https://registry.hub.docker.com/associate/github/).
 
-Then follow the onscreen instructions to authorize and link your GitHub account to Docker Hub.
+Then follow the onscreen instructions to authorize and link your GitHub account to Docker Hub. Once it is linked, you'll be able to choose a repo from which to create the
+Automatic Build.
 
 ### Creating an Automated Build
 
@@ -85,7 +87,8 @@ Automated Build:
       <td>2.</td>
       <td><img src="/docker-hub/hub-images/gh_menu.png" alt="Webhooks & Services"></td>
       <td>Click on "Webhooks & Services" on the left side of the page.</td></tr>
-      <tr><td>3.</td><td><img src="/docker-hub/hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td><td>Find the service labeled "Docker" and click on it.</td></tr>
+      <tr><td>3.</td>
+      <td><img src="/docker-hub/hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td><td>Find the service labeled "Docker" and click on it.</td></tr>
       <tr><td>4.</td><td><img src="/docker-hub/hub-images/gh_docker-service.png" alt="Activate Service Hooks"></td>
       <td>Make sure the "Active" checkbox is selected and click the "Update service" button to save your changes.</td>
     </tr>
@@ -102,16 +105,53 @@ To get started, log into your Docker Hub account and click the "+ Add Repository
 the upper right of the screen. Then select [Automated Build](https://registry.hub.docker.com/builds/add/).
 
 Select the [Bitbucket
-service](https://registry.hub.docker.com/associate/bitbucket/).
+source](https://registry.hub.docker.com/associate/bitbucket/).
 
 Then follow the onscreen instructions to authorize and link your Bitbucket account
-to Docker Hub.
+to Docker Hub. Once it is linked, you'll be able to choose a repo from which to create
+the Automatic Build.
 
 ### Creating an Automated Build
 
 You can [create an Automated Build](
 https://registry.hub.docker.com/builds/bitbucket/select/) from any of your
 public or private Bitbucket repositories with a `Dockerfile`.
+
+### Adding a Hook
+
+When you link your Docker Hub account, a `POST` hook should get automatically added to
+your Bitbucket repo.
+Follow the steps below to confirm or modify the Bitbucket hooks for your
+Automated Build:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>Screenshot</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1.</td>
+      <td><img src="/docker-hub/hub-images/bb_menu.png" alt="Settings" width="180"></td>
+      <td>Log in to Bitbucket.org and go to your Repository page. Click on "Settings" on
+      the far left side of the page, under "Navigation". You must have admin privileges
+      to the repository in order to do this.</td>
+    </tr>
+    <tr>
+      <td>2.</td>
+      <td><img src="/docker-hub/hub-images/bb_hooks.png" alt="Hooks" width="180"></td>
+      <td>Click on "Hooks" on the near left side of the page, under "Settings".</td></tr>
+    <tr>
+      <td>3.</td>
+      <td><img src="/docker-hub/hub-images/bb_post-hook.png" alt="Docker Post Hook"></td><td>You should now see a list of hooks associated with the repo, including a <code>POST</code> hook that points at
+      registry.hub.docker.com/hooks/bitbucket.</td>
+    </tr>
+  </tbody>
+</table>
+
 
 ## The Dockerfile and Automated Builds
 
