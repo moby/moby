@@ -20,7 +20,7 @@ import (
 	"github.com/dotcloud/docker/daemon/execdriver/lxc"
 	"github.com/dotcloud/docker/daemon/graphdriver"
 	_ "github.com/dotcloud/docker/daemon/graphdriver/vfs"
-	_ "github.com/dotcloud/docker/daemon/networkdriver/bridge"
+	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
 	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
 	"github.com/dotcloud/docker/daemonconfig"
 	"github.com/dotcloud/docker/dockerversion"
@@ -912,6 +912,7 @@ func (daemon *Daemon) shutdown() error {
 	}
 	group.Wait()
 
+	bridge.TermDriver()
 	return nil
 }
 
