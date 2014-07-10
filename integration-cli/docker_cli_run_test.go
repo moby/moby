@@ -783,6 +783,16 @@ func TestUnPrivilegedCanMknod(t *testing.T) {
 	logDone("run - test un-privileged can mknod")
 }
 
+func TestCapDropInvalid(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=CHPASS", "busybox", "ls")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("run - test --cap-drop=CHPASS invalid")
+}
+
 func TestCapDropCannotMknod(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--cap-drop=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
@@ -814,7 +824,7 @@ func TestCapDropALLCannotMknod(t *testing.T) {
 }
 
 func TestCapDropALLAddMknodCannotMknod(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL --cap-add=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
@@ -826,6 +836,16 @@ func TestCapDropALLAddMknodCannotMknod(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - test --cap-drop=ALL --cap-add=MKNOD can mknod")
+}
+
+func TestCapAddInvalid(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=CHPASS", "busybox", "ls")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("run - test --cap-add=CHPASS invalid")
 }
 
 func TestCapAddCanDownInterface(t *testing.T) {
@@ -859,7 +879,7 @@ func TestCapAddALLCanDownInterface(t *testing.T) {
 }
 
 func TestCapAddALLDropNetAdminCanDownInterface(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-add=ALL --cap-drop=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=ALL", "--cap-drop=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
 		t.Fatal(err, out)

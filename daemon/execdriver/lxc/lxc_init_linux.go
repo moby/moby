@@ -49,7 +49,10 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 			return fmt.Errorf("clear keep caps %s", err)
 		}
 
-		caps := execdriver.TweakCapabilities(container.Capabilities, strings.Split(args.CapAdd, " "), strings.Split(args.CapDrop, " "))
+		caps, err := execdriver.TweakCapabilities(container.Capabilities, strings.Split(args.CapAdd, " "), strings.Split(args.CapDrop, " "))
+		if err != nil {
+			return err
+		}
 
 		// drop all other capabilities
 		if err := capabilities.DropCapabilities(caps); err != nil {
