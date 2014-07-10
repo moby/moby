@@ -338,7 +338,7 @@ fedora-data image:
 
 Multiple --volumes-from parameters will bring together multiple data volumes from
 multiple containers. And it's possible to mount the volumes that came from the
-DATA container in yet another container via the fedora-container1 intermidiery
+DATA container in yet another container via the fedora-container1 intermediary
 container, allowing to abstract the actual data source from users of that data:
 
     # docker run --volumes-from=fedora-container1 --name=fedora-container2 -i -t fedora bash
