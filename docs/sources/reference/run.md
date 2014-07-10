@@ -55,7 +55,7 @@ following options.
  - [Network Settings](#network-settings)
  - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
- - [Runtime Privilege and LXC Configuration](#runtime-privilege-and-lxc-configuration)
+ - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
 
 ## Detached vs Foreground
 
@@ -222,8 +222,10 @@ get the same proportion of CPU cycles, but you can tell the kernel to
 give more shares of CPU time to one or more containers when you start
 them via Docker.
 
-## Runtime Privilege and LXC Configuration
+## Runtime Privilege, Linux Capabilities, and LXC Configuration
 
+    --cap-add: Add Linux capabilities
+    --cap-drop: Drop Linux capabilities
     --privileged=false: Give extended privileges to this container
     --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
@@ -241,6 +243,16 @@ in AppArmor to allow the container nearly all the same access to the
 host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
 [Docker Blog](http://blog.docker.com/2013/09/docker-can-now-run-within-docker/).
+
+In addition to `--privileged` the operator can have fine grain control over the
+capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
+list of capabilities that are kept. Both flags support the value `all`, so if the
+operator wants to have all capabilities but `MKNOD` they could use:
+
+    $ docker run --cap-add=ALL --cap-drop=MKNOD ...
+
+For interacting with the network stack, instead of using `--privileged` they
+should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options

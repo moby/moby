@@ -88,8 +88,8 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
-	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capability(ies)")
-	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capability(ies)")
+	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
+	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
