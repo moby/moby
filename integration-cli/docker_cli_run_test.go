@@ -1454,3 +1454,29 @@ func TestCopyVolumeContent(t *testing.T) {
 		t.Fatal("Container failed to transfer content to volume")
 	}
 }
+
+func TestRunCleanupCmdOnEntrypoint(t *testing.T) {
+	name := "testrunmdcleanuponentrypoint"
+	defer deleteImages(name)
+	defer deleteAllContainers()
+	if _, err := buildImage(name,
+		`FROM busybox
+		ENTRYPOINT ["echo"]
+        CMD ["testingpoint"]`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+	runCmd := exec.Command(dockerBinary, "run", "--entrypoint", "whoami", name)
+	out, exit, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("Error: %v, out: %q", err, out)
+	}
+	if exit != 0 {
+		t.Fatalf("expected exit code 0 received %d, out: %q", exit, out)
+	}
+	out = strings.TrimSpace(out)
+	if out != "root" {
+		t.Fatalf("Expected output root, got %q", out)
+	}
+	logDone("run - cleanup cmd on --entrypoint")
+}

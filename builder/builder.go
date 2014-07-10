@@ -71,7 +71,7 @@ type buildFile struct {
 	outOld io.Writer
 	sf     *utils.StreamFormatter
 
-	// cmdSet indicates is CMD was setted in current Dockerfile
+	// cmdSet indicates is CMD was set in current Dockerfile
 	cmdSet bool
 }
 
@@ -202,7 +202,8 @@ func (b *buildFile) CmdRun(args string) error {
 	}
 
 	cmd := b.config.Cmd
-	b.config.Cmd = nil
+	// set Cmd manually, this is special case only for Dockerfiles
+	b.config.Cmd = config.Cmd
 	runconfig.Merge(b.config, config)
 
 	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)

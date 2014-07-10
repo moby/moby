@@ -84,10 +84,10 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if len(userConf.Cmd) == 0 {
-		userConf.Cmd = imageConf.Cmd
-	}
 	if len(userConf.Entrypoint) == 0 {
+		if len(userConf.Cmd) == 0 {
+			userConf.Cmd = imageConf.Cmd
+		}
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
 	if userConf.WorkingDir == "" {
