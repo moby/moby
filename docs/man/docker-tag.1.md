@@ -29,7 +29,7 @@ separated by a ':'
 
 **TAG**
    The tag you are assigning to the image.  Though this is arbitrary it is
-recommended to be used for a version to disinguish images with the same name.
+recommended to be used for a version to distinguish images with the same name.
 Note that here TAG is a part of the overall name or "tag".
 
 # OPTIONS

@@ -100,7 +100,7 @@ after timestamp.
 
 `GET /containers/(id)/logs`
 
-This url is prefered method for getting container logs now.
+This url is preferred method for getting container logs now.
 
 ## v1.10
 
@@ -284,7 +284,7 @@ output is now generated in the client, using the
 
 **New!**
 You can now split stderr from stdout. This is done by
-prefixing a header to each transmition. See
+prefixing a header to each transmission. See
 [`POST /containers/(id)/attach`](
 /reference/api/docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
 The WebSocket attach is unchanged. Note that attach calls on the
