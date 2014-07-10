@@ -9,6 +9,11 @@ import (
 
 func TweakCapabilities(basics, adds, drops []string) []string {
 	var caps []string
+
+	if utils.StringsContainsNoCase(adds, "all") {
+		basics = capabilities.GetAllCapabilities()
+	}
+
 	if !utils.StringsContainsNoCase(drops, "all") {
 		for _, cap := range basics {
 			if !utils.StringsContainsNoCase(drops, cap) {
@@ -19,8 +24,7 @@ func TweakCapabilities(basics, adds, drops []string) []string {
 
 	for _, cap := range adds {
 		if strings.ToLower(cap) == "all" {
-			caps = capabilities.GetAllCapabilities()
-			break
+			continue
 		}
 		if !utils.StringsContainsNoCase(caps, cap) {
 			caps = append(caps, cap)
