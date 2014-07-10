@@ -17,6 +17,7 @@ import (
 var (
 	ErrInvalidWorkingDirectory  = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
+	ErrConflictAttachTty        = fmt.Errorf("Conflicting options: -a and -t")
 	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
 	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 )
@@ -56,7 +57,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to the host interfaces")
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY (incompatible with -a)")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
@@ -96,6 +97,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// Validate input params
 	if *flDetach && flAttach.Len() > 0 {
 		return nil, nil, cmd, ErrConflictAttachDetach
+	}
+	if *flTty && flAttach.Len() > 0 {
+		return nil, nil, cmd, ErrConflictAttachTty
 	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
