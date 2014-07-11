@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	APIVERSION        version.Version = "1.13"
+	APIVERSION        version.Version = "1.14"
 	DEFAULTHTTPHOST                   = "127.0.0.1"
 	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
 )
