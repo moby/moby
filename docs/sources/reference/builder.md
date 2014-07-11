@@ -378,23 +378,26 @@ ENTRYPOINT has two forms:
 - `ENTRYPOINT command param1 param2`
   (as a *shell*)
 
-There can only be one `ENTRYPOINT` in a Dockerfile. If you have more than one
-`ENTRYPOINT`, then only the last one in the Dockerfile will have an effect.
-
 An `ENTRYPOINT` helps you to configure a container that you can run as an
 executable. That is, when you specify an `ENTRYPOINT`, then the whole container
 runs as if it was just that executable.
 
+There can only be one active `ENTRYPOINT` in a Dockerfile. If you have more
+than one `ENTRYPOINT`, then only the last one in the Dockerfile will have an
+effect.
+
 The `ENTRYPOINT` instruction adds an entry command that will **not** be
 overwritten when arguments are passed to `docker run`, unlike the behavior
 of `CMD`. This allows arguments to be passed to the entrypoint. i.e. 
-`docker run <image> -d` will pass the "-d" argument to the ENTRYPOINT.
+`docker run <image> -d` will pass the "-d" argument to the `ENTRYPOINT` if it
+was specified in the `JSON` form.
 
 You can specify parameters either in the ENTRYPOINT JSON array (as in
 "like an exec" above), or by using a CMD statement. Parameters in the
 ENTRYPOINT will not be overridden by the `docker run`
-arguments, but parameters specified via CMD will be overridden
-by `docker run` arguments.
+arguments, but parameters specified via CMD can be overridden
+by `docker run` arguments. If you use the *shell* form of `ENTRYPOINT`, then
+both `CMD` and `docker run` parameters will be ignored.
 
 Like a `CMD`, you can specify a plain string for the `ENTRYPOINT` and it will
 execute in `/bin/sh -c`:
