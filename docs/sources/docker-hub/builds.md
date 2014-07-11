@@ -28,8 +28,8 @@ Automated Builds are supported for both public and private repositories on both
 
 To use Automated Builds, you must have an 
 [account on Docker Hub](http://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
-and on GitHub and/or Bitbucket. The account needs to be properly validated and activated
-before you can link to it.
+and on GitHub and/or Bitbucket. In either case, the account needs to be properly
+validated and activated before you can link to it.
 
 ## Setting up Automated Builds with GitHub
 
@@ -49,7 +49,8 @@ at the upper right of the screen. Then select
 
 Select the [GitHub service](https://registry.hub.docker.com/associate/github/).
 
-Then follow the onscreen instructions to authorize and link your GitHub account to Docker Hub. Once it is linked, you'll be able to choose a repo from which to create the
+Then follow the onscreen instructions to authorize and link your GitHub account to Docker
+Hub. Once it is linked, you'll be able to choose a repo from which to create the
 Automatic Build.
 
 ### Creating an Automated Build
@@ -120,9 +121,8 @@ public or private Bitbucket repositories with a `Dockerfile`.
 ### Adding a Hook
 
 When you link your Docker Hub account, a `POST` hook should get automatically added to
-your Bitbucket repo.
-Follow the steps below to confirm or modify the Bitbucket hooks for your
-Automated Build:
+your Bitbucket repo. Follow the steps below to confirm or modify the Bitbucket hooks for
+your Automated Build:
 
 <table class="table table-bordered">
   <thead>
