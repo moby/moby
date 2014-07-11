@@ -678,9 +678,19 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 		return fmt.Errorf("Missing parameter")
 	}
 	job := eng.Job("container_delete", vars["name"])
+
+	if version.GreaterThanOrEqualTo("1.14") {
+		job.Setenv("stop", r.Form.Get("stop"))
+		job.Setenv("kill", r.Form.Get("kill"))
+
+		if job.GetenvBool("stop") && job.GetenvBool("kill") {
+			return fmt.Errorf("Bad parameters: can't use stop and kill simultaneously")
+		}
+	} else {
+		job.Setenv("stop", r.Form.Get("force"))
+	}
 	job.Setenv("removeVolume", r.Form.Get("v"))
 	job.Setenv("removeLink", r.Form.Get("link"))
-	job.Setenv("forceRemove", r.Form.Get("force"))
 	if err := job.Run(); err != nil {
 		return err
 	}
