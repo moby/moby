@@ -50,6 +50,9 @@ func remote(eng *engine.Engine) error {
 // These components should be broken off into plugins of their own.
 //
 func daemon(eng *engine.Engine) error {
+	if err := eng.Register("initserverpidfile", server.InitPidfile); err != nil {
+		return err
+	}
 	if err := eng.Register("initserver", server.InitServer); err != nil {
 		return err
 	}
