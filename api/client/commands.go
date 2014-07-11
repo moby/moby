@@ -241,7 +241,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if jerr.Code == 0 {
 			jerr.Code = 1
 		}
-		return &utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
+		return utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
 	return err
 }
@@ -789,7 +789,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return utils.StatusError{StatusCode: status}
 	}
 	return nil
 }
@@ -1802,7 +1802,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return utils.StatusError{StatusCode: status}
 	}
 
 	return nil
@@ -2152,7 +2152,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return utils.StatusError{StatusCode: status}
 	}
 	return nil
 }
