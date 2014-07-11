@@ -13,6 +13,7 @@ import (
 	flag "github.com/dotcloud/docker/pkg/mflag"
 	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/registry"
+	"github.com/dotcloud/docker/utils"
 )
 
 var funcMap = template.FuncMap{
@@ -34,16 +35,33 @@ func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
 	return method.Interface().(func(...string) error), true
 }
 
+func toStatusError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Don't modify errors which are StatusErrors
+	if _, ok := err.(utils.StatusError); ok {
+		return err
+	}
+
+	// Assume a regular error has an error code of 1.
+	return utils.StatusError{
+		Status:     err.Error(),
+		StatusCode: 1,
+	}
+}
+
 func (cli *DockerCli) ParseCommands(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp(args[1:]...)
+			return toStatusError(cli.CmdHelp(args[1:]...))
 		}
-		return method(args[1:]...)
+		return toStatusError(method(args[1:]...))
 	}
-	return cli.CmdHelp(args...)
+	return toStatusError(cli.CmdHelp(args...))
 }
 
 func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {
