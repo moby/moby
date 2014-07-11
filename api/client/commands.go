@@ -67,7 +67,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"load", "Load an image from a tar archive"},
-		{"login", "Register or log in to a Docker registry server"},
+		{"login", "Log in to the Docker registry server"},
 		{"logout", "Log out from a Docker registry server"},
 		{"logs", "Fetch the logs of a container"},
 		{"port", "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT"},
@@ -75,6 +75,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from a Docker registry server"},
 		{"push", "Push an image or a repository to a Docker registry server"},
+		{"register", "Create a Docker account"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove one or more containers"},
 		{"rmi", "Remove one or more images"},
@@ -254,24 +255,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	return err
 }
 
-// 'docker login': login / register a user to registry service.
-func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := cli.Subcmd("login", "[OPTIONS] [SERVER]", "Register or log in to a Docker registry server, if no server is specified \""+registry.IndexServerAddress()+"\" is the default.")
-
-	var username, password, email string
-
-	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
-	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
-	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
-	err := cmd.Parse(args)
-	if err != nil {
-		return nil
-	}
-	serverAddress := registry.IndexServerAddress()
-	if len(cmd.Args()) > 0 {
-		serverAddress = cmd.Arg(0)
-	}
-
+func (cli *DockerCli) loginOrRegister(username, password, email, serverAddress string, register bool) error {
 	promptDefault := func(prompt string, configDefault string) {
 		if configDefault == "" {
 			fmt.Fprintf(cli.out, "%s: ", prompt)
@@ -296,10 +280,17 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		authconfig = registry.AuthConfig{}
 	}
 
+	if register {
+		authconfig.Username = ""
+	}
+
 	if username == "" {
 		promptDefault("Username", authconfig.Username)
 		username = readInput(cli.in, cli.out)
 		if username == "" {
+			if authconfig.Username == "" {
+				return fmt.Errorf("Error : Username Required")
+			}
 			username = authconfig.Username
 		}
 	}
@@ -318,7 +309,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			}
 		}
 
-		if email == "" {
+		if register && email == "" {
 			promptDefault("Email", authconfig.Email)
 			email = readInput(cli.in, cli.out)
 			if email == "" {
@@ -335,7 +326,12 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.Configs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false)
+	endpoint := "/auth"
+	if register {
+		endpoint = "/register"
+	}
+
+	stream, statusCode, err := cli.call("POST", endpoint, cli.configFile.Configs[serverAddress], false)
 	if statusCode == 401 {
 		delete(cli.configFile.Configs, serverAddress)
 		registry.SaveConfig(cli.configFile)
@@ -381,6 +377,47 @@ func (cli *DockerCli) CmdLogout(args ...string) error {
 		}
 	}
 	return nil
+}
+
+// 'docker register': register a user to registry service.
+func (cli *DockerCli) CmdRegister(args ...string) error {
+	cmd := cli.Subcmd("register", "[OPTIONS] [SERVER]", "Register an account to the Docker Hub")
+	var username, password, email string
+
+	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
+	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
+	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
+	err := cmd.Parse(args)
+	if err != nil {
+		return nil
+	}
+	serverAddress := registry.IndexServerAddress()
+	if len(cmd.Args()) > 0 {
+		serverAddress = cmd.Arg(0)
+	}
+
+	return cli.loginOrRegister(username, password, email, serverAddress, true)
+}
+
+// 'docker login': login a user to registry service.
+func (cli *DockerCli) CmdLogin(args ...string) error {
+	cmd := cli.Subcmd("login", "[OPTIONS] [SERVER]", "Log into a Docker registry server, if no server is specified the hub server ("+registry.IndexServerAddress()+") is the default.")
+
+	var username, password, email string
+
+	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
+	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
+	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
+	err := cmd.Parse(args)
+	if err != nil {
+		return nil
+	}
+	serverAddress := registry.IndexServerAddress()
+	if len(cmd.Args()) > 0 {
+		serverAddress = cmd.Arg(0)
+	}
+
+	return cli.loginOrRegister(username, password, email, serverAddress, false)
 }
 
 // 'docker wait': block until a container stops

@@ -150,30 +150,21 @@ func SaveConfig(configFile *ConfigFile) error {
 	return nil
 }
 
-// try to register/login to the registry server
-func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
-	var (
-		status  string
-		reqBody []byte
-		err     error
-		client  = &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives: true,
-				Proxy:             http.ProxyFromEnvironment,
-			},
-			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-		}
-		reqStatusCode = 0
-		serverAddress = authConfig.ServerAddress
-	)
+func Register(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
+	status := ""
+	client := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			Proxy:             http.ProxyFromEnvironment,
+		},
+		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+	}
+	serverAddress := authConfig.ServerAddress
 
 	if serverAddress == "" {
 		serverAddress = IndexServerAddress()
 	}
 
-	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
-
-	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig
 	authCopy.ServerAddress = ""
 
@@ -184,78 +175,83 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	req, err := factory.NewRequest("POST", serverAddress+"users/", b)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
-	reqStatusCode = req1.StatusCode
-	defer req1.Body.Close()
-	reqBody, err = ioutil.ReadAll(req1.Body)
+	reqStatusCode := resp.StatusCode
+	defer resp.Body.Close()
+	reqBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
 	}
 
 	if reqStatusCode == 201 {
-		if loginAgainstOfficialIndex {
+		if serverAddress == IndexServerAddress() {
 			status = "Account created. Please use the confirmation link we sent" +
 				" to your e-mail to activate it."
 		} else {
-			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
+			status = "Account created. Please see the documentation of the registry (" + serverAddress + ") for instructions on how to activate it."
 		}
 	} else if reqStatusCode == 400 {
-		if string(reqBody) == "\"Username or email already exists\"" {
-			req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
-			req.SetBasicAuth(authConfig.Username, authConfig.Password)
-			resp, err := client.Do(req)
-			if err != nil {
-				return "", err
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return "", err
-			}
-			if resp.StatusCode == 200 {
-				status = "Login Succeeded"
-			} else if resp.StatusCode == 401 {
-				return "", fmt.Errorf("Wrong login/password, please try again")
-			} else if resp.StatusCode == 403 {
-				if loginAgainstOfficialIndex {
-					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
-				}
-				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-			} else {
-				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
-			}
-		} else {
-			return "", fmt.Errorf("Registration: %s", reqBody)
-		}
+		return "", fmt.Errorf("Registration error: %s", reqBody)
 	} else if reqStatusCode == 401 {
 		// This case would happen with private registries where /v1/users is
 		// protected, so people can use `docker login` as an auth check.
-		req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
-		req.SetBasicAuth(authConfig.Username, authConfig.Password)
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", err
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		if resp.StatusCode == 200 {
-			status = "Login Succeeded"
-		} else if resp.StatusCode == 401 {
-			return "", fmt.Errorf("Wrong login/password, please try again")
-		} else {
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-				resp.StatusCode, resp.Header)
-		}
+		return "", fmt.Errorf("Authentication required, please contact the administrator of " + serverAddress)
 	} else {
 		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
 	}
 	return status, nil
+}
+
+// try to register/login to the registry server
+func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
+	client := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			Proxy:             http.ProxyFromEnvironment,
+		},
+		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+	}
+	serverAddress := authConfig.ServerAddress
+
+	if serverAddress == "" {
+		serverAddress = IndexServerAddress()
+	}
+
+	req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
+	if err != nil {
+		return "", err
+	}
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == 200 {
+		return "Login Succeeded", nil
+	}
+	if resp.StatusCode == 401 {
+		return "", fmt.Errorf("Wrong login/password, please try again")
+	}
+	if resp.StatusCode == 403 {
+		if serverAddress == IndexServerAddress() {
+			return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
+		}
+		return "", fmt.Errorf("Login: Access unauthorized. Please contact the administrator of the registry %s for assistance.", serverAddress)
+	}
+	return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 }
 
 // this method matches a auth configuration to a server address or a url

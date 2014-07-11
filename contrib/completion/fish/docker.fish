@@ -135,7 +135,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from kill' -a '(__fish_print
 complete -c docker -f -n '__fish_docker_no_subcommand' -a load -d 'Load an image from a tar archive'
 
 # login
-complete -c docker -f -n '__fish_docker_no_subcommand' -a login -d 'Register or Login to the docker registry server'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a login -d 'Log in to the Docker registry server'
 complete -c docker -A -f -n '__fish_seen_subcommand_from login' -s e -l email -d 'Email'
 complete -c docker -A -f -n '__fish_seen_subcommand_from login' -s p -l password -d 'Password'
 complete -c docker -A -f -n '__fish_seen_subcommand_from login' -s u -l username -d 'Username'
@@ -170,6 +170,12 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from pull' -a '(__fish_print
 complete -c docker -f -n '__fish_docker_no_subcommand' -a push -d 'Push an image or a repository to the docker registry server'
 complete -c docker -A -f -n '__fish_seen_subcommand_from push' -a '(__fish_print_docker_images)' -d "Image"
 complete -c docker -A -f -n '__fish_seen_subcommand_from push' -a '(__fish_print_docker_repositories)' -d "Repository"
+
+# register
+complete -c docker -f -n '__fish_docker_no_subcommand' -a register -d 'Create a new Docker account'
+complete -c docker -A -f -n '__fish_seen_subcommand_from register' -s e -l email -d 'Email'
+complete -c docker -A -f -n '__fish_seen_subcommand_from register' -s p -l password -d 'Password'
+complete -c docker -A -f -n '__fish_seen_subcommand_from register' -s u -l username -d 'Username'
 
 # restart
 complete -c docker -f -n '__fish_docker_no_subcommand' -a restart -d 'Restart a running container'

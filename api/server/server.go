@@ -118,6 +118,29 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
+func postRegister(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var (
+		authConfig, err = ioutil.ReadAll(r.Body)
+		job             = eng.Job("register")
+		stdoutBuffer    = bytes.NewBuffer(nil)
+	)
+	if err != nil {
+		return err
+	}
+	job.Setenv("authConfig", string(authConfig))
+	job.Stdout.Add(stdoutBuffer)
+	if err = job.Run(); err != nil {
+		return err
+	}
+	if status := engine.Tail(stdoutBuffer, 1); status != "" {
+		var env engine.Env
+		env.Set("Status", status)
+		return writeJSON(w, http.StatusOK, env)
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		authConfig, err = ioutil.ReadAll(r.Body)
@@ -1122,6 +1145,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 		},
 		"POST": {
 			"/auth":                         postAuth,
+			"/register":                     postRegister,
 			"/commit":                       postCommit,
 			"/build":                        postBuild,
 			"/images/create":                postImagesCreate,
