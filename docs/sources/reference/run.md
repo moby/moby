@@ -244,7 +244,7 @@ host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
 [Docker Blog](http://blog.docker.com/2013/09/docker-can-now-run-within-docker/).
 
-In addition to `--privileged` the operator can have fine grain control over the
+In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
 list of capabilities that are kept. Both flags support the value `all`, so if the
 operator wants to have all capabilities but `MKNOD` they could use:

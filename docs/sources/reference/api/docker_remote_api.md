@@ -43,6 +43,12 @@ You can now use the `stop` parameter to stop running containers before removal
 **New!**
 You can now use the `kill` parameter to kill running containers before removal.
 
+`POST /containers/(id)/start`
+
+**New!**
+The `hostConfig` option now accepts the field `CapAdd`, which specifies a list of capabilities
+to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
+
 ## v1.13
 
 ### Full Documentation
