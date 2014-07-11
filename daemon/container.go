@@ -106,7 +106,7 @@ func (container *Container) FromDisk() error {
 	return container.readHostConfig()
 }
 
-func (container *Container) ToDisk() error {
+func (container *Container) toDisk() error {
 	data, err := json.Marshal(container)
 	if err != nil {
 		return err
@@ -123,6 +123,13 @@ func (container *Container) ToDisk() error {
 	}
 
 	return container.WriteHostConfig()
+}
+
+func (container *Container) ToDisk() error {
+	container.Lock()
+	err := container.toDisk()
+	container.Unlock()
+	return err
 }
 
 func (container *Container) readHostConfig() error {
@@ -482,7 +489,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		// FIXME: here is race condition between two RUN instructions in Dockerfile
 		// because they share same runconfig and change image. Must be fixed
 		// in server/buildfile.go
-		if err := container.ToDisk(); err != nil {
+		if err := container.toDisk(); err != nil {
 			utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
 		}
 	}
@@ -1081,7 +1088,7 @@ func (container *Container) waitForStart() error {
 				c.Close()
 			}
 		}
-		if err := container.ToDisk(); err != nil {
+		if err := container.toDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
 		container.State.SetRunning(command.Pid())
