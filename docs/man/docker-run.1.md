@@ -202,7 +202,8 @@ non-tty mode). SIGCHLD is not proxied. The default is *true*.
 **-t**, **-tty**=*true*|*false*
    When set to true Docker can allocate a pseudo-tty and attach to the standard
 input of any container. This can be used, for example, to run a throwaway
-interactive shell. The default is value is false.
+interactive shell. The default is value is false. This option is incompatible
+with **-a**.
 
 
 **-u**, **-user**=*username*,*uid*

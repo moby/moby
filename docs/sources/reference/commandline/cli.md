@@ -942,7 +942,7 @@ removed before the image is removed.
       --privileged=false         Give extended privileges to this container
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --sig-proxy=true           Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
-      -t, --tty=false            Allocate a pseudo-tty
+      -t, --tty=false            Allocate a pseudo-tty (incompatible with -a)
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
