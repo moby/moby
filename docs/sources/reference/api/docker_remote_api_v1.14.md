@@ -302,7 +302,7 @@ List processes running inside the container `id`
 
 `GET /containers/(id)/logs`
 
-Get STDOUT and STDERR logs from the container ``id``
+Get stdout and stderr logs from the container ``id``
 
     **Example request**:
 
@@ -593,16 +593,16 @@ Attach to the container `id`
     When using the TTY setting is enabled in
     [`POST /containers/create`
     ](../docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
-    the stream is the raw data from the process PTY and client's STDIN.
+    the stream is the raw data from the process PTY and client's stdin.
     When the TTY is disabled, then the stream is multiplexed to separate
-    STDOUT and STDERR.
+    stdout and stderr.
 
     The format is a **Header** and a **Payload** (frame).
 
     **HEADER**
 
     The header will contain the information on which stream write the
-    stream (STDOUT or STDERR). It also contain the size of the
+    stream (stdout or stderr). It also contain the size of the
     associated frame encoded on the last 4 bytes (uint32).
 
     It is encoded on the first 8 bytes like this:
@@ -611,9 +611,9 @@ Attach to the container `id`
 
     `STREAM_TYPE` can be:
 
-    -   0: STDIN (will be written on STDOUT)
-    -   1: STDOUT
-    -   2: STDERR
+    -   0: stdin (will be written on stdout)
+    -   1: stdout
+    -   2: stderr
 
     `SIZE1, SIZE2, SIZE3, SIZE4` are the 4 bytes of
     the uint32 size encoded as big endian.
@@ -627,7 +627,7 @@ Attach to the container `id`
     The simplest way to implement the Attach protocol is the following:
 
     1.  Read 8 bytes
-    2.  chose STDOUT or STDERR depending on the first byte
+    2.  chose stdout or stderr depending on the first byte
     3.  Extract the frame size from the last 4 byets
     4.  Read the extracted size and output it on the correct output
     5.  Goto 1)
@@ -1077,11 +1077,11 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 
 ## 2.3 Misc
 
-### Build an image from Dockerfile via STDIN
+### Build an image from Dockerfile via stdin
 
 `POST /build`
 
-Build an image from Dockerfile via STDIN
+Build an image from Dockerfile via stdin
 
     **Example request**:
 
@@ -1403,16 +1403,16 @@ Here are the steps of `docker run`:
 - Start the container
 
 - If you are not in detached mode:
-    - Attach to the container, using logs=1 (to have STDOUT and
-      STDERR from the container's start) and stream=1
+    - Attach to the container, using logs=1 (to have stdout and
+      stderr from the container's start) and stream=1
 
-- If in detached mode or only STDIN is attached:
+- If in detached mode or only stdin is attached:
     - Display the container's id
 
 ## 3.2 Hijacking
 
-In this version of the API, /attach, uses hijacking to transport STDIN,
-STDOUT and STDERR on the same socket. This might change in the future.
+In this version of the API, /attach, uses hijacking to transport stdin,
+stdout and stderr on the same socket. This might change in the future.
 
 ## 3.3 CORS Requests
 
