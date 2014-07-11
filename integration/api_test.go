@@ -768,35 +768,6 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	containerWait(eng, containerID, t)
 }
 
-// FIXME: Test deleting running container
-// FIXME: Test deleting container with volume
-// FIXME: Test deleting volume in use by other container
-func TestDeleteContainers(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	containerID := createTestContainer(eng,
-		&runconfig.Config{
-			Image: unitTestImageID,
-			Cmd:   []string{"touch", "/test"},
-		},
-		t,
-	)
-	req, err := http.NewRequest("DELETE", "/containers/"+containerID, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-	if r.Code != http.StatusNoContent {
-		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
-	}
-	containerAssertNotExists(eng, containerID, t)
-}
-
 func TestOptionsRoute(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()

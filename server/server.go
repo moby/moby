@@ -1787,7 +1787,8 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
-	forceRemove := job.GetenvBool("forceRemove")
+	stop := job.GetenvBool("stop")
+	kill := job.GetenvBool("kill")
 
 	container := srv.daemon.Get(name)
 
@@ -1821,12 +1822,16 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 
 	if container != nil {
 		if container.State.IsRunning() {
-			if forceRemove {
+			if stop {
 				if err := container.Stop(5); err != nil {
 					return job.Errorf("Could not stop running container, cannot remove - %v", err)
 				}
+			} else if kill {
+				if err := container.Kill(); err != nil {
+					return job.Errorf("Could not kill running container, cannot remove - %v", err)
+				}
 			} else {
-				return job.Errorf("Impossible to remove a running container, please stop it first or use -f")
+				return job.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -s or -k")
 			}
 		}
 		if err := srv.daemon.Destroy(container); err != nil {
