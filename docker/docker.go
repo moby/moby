@@ -251,13 +251,14 @@ func main() {
 		}
 
 		if err := cli.ParseCommands(flag.Args()...); err != nil {
-			if sterr, ok := err.(*utils.StatusError); ok {
-				if sterr.Status != "" {
-					log.Println(sterr.Status)
-				}
-				os.Exit(sterr.StatusCode)
+			// All errors from cli.ParseCommands are StatusErrors.
+			sterr := err.(utils.StatusError)
+
+			if sterr.Status != "" {
+				log.Println(sterr.Status)
 			}
-			log.Fatal(err)
+
+			os.Exit(sterr.StatusCode)
 		}
 	}
 }
