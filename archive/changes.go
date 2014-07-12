@@ -134,6 +134,7 @@ type FileInfo struct {
 	stat       syscall.Stat_t
 	children   map[string]*FileInfo
 	capability []byte
+	added      bool
 }
 
 func (root *FileInfo) LookUp(path string) *FileInfo {
@@ -167,6 +168,9 @@ func (info *FileInfo) isDir() bool {
 }
 
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
+
+	sizeAtEntry := len(*changes)
+
 	if oldInfo == nil {
 		// add
 		change := Change{
@@ -174,6 +178,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			Kind: ChangeAdd,
 		}
 		*changes = append(*changes, change)
+		info.added = true
 	}
 
 	// We make a copy so we can modify it to detect additions
@@ -211,6 +216,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 					Kind: ChangeModify,
 				}
 				*changes = append(*changes, change)
+				newChild.added = true
 			}
 
 			// Remove from copy so we can detect deletions
@@ -226,6 +232,19 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			Kind: ChangeDelete,
 		}
 		*changes = append(*changes, change)
+	}
+
+	// If there were changes inside this directory, we need to add it, even if the directory
+	// itself wasn't changed. This is needed to properly save and restore filesystem permissions.
+	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != "/" {
+		change := Change{
+			Path: info.path(),
+			Kind: ChangeModify,
+		}
+		// Let's insert the directory entry before the recently added entries located inside this dir
+		*changes = append(*changes, change) // just to resize the slice, will be overwritten
+		copy((*changes)[sizeAtEntry+1:], (*changes)[sizeAtEntry:])
+		(*changes)[sizeAtEntry] = change
 	}
 
 }
