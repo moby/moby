@@ -64,7 +64,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"load", "Load an image from a tar archive"},
 		{"login", "Register or Login to the docker registry server"},
 		{"logs", "Fetch the logs of a container"},
-		{"port", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT"},
+		{"port", "Lookup or alter the public-facing port which is NAT-ed to PRIVATE_PORT"},
 		{"pause", "Pause all processes within a container"},
 		{"ps", "List containers"},
 		{"pull", "Pull an image or a repository from the docker registry server"},
@@ -813,14 +813,45 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPort(args ...string) error {
-	cmd := cli.Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
+	cmd := cli.Subcmd("port", "CONTAINER [--republish=[]] [PRIVATE_PORT]", "Lookup or alter the public-facing port which is NAT-ed to PRIVATE_PORT")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 2 {
+	if cmd.NArg() < 2 {
 		cmd.Usage()
 		return nil
 	}
+
+}
+
+
+func cmdPortRepublish(args ...string) error {
+
+	steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
+	if err != nil {
+		return err
+	}
+
+	env := engine.Env{}
+	if err := env.Decode(steam); err != nil {
+		return err
+	}
+	ports := nat.PortMap{}
+	if err := env.GetSubEnv("NetworkSettings").GetJson("Ports", &ports); err != nil {
+		return err
+	}
+
+
+	if frontends, exists := ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
+		for _, frontend := range frontends {
+			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
+		}
+		return nil
+	}
+
+}
+
+func cmdPortQuery(args ...string) error {
 
 	var (
 		port  = cmd.Arg(1)

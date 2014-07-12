@@ -684,6 +684,18 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 	return job.Run()
 }
 
+func postContainersRemap(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	name := vars["name"]
+  job := eng.Job("stop", vars["name"])
+  job.Setenv("t", r.Form.Get("t"))
+  
+
+
+}
+
 func postContainersStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
