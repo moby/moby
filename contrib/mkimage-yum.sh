@@ -57,7 +57,7 @@ mknod -m 666 "$target"/dev/tty0 c 4 0
 mknod -m 666 "$target"/dev/urandom c 1 9
 mknod -m 666 "$target"/dev/zero c 1 5
 
-yum -c "$yum_config" --installroot="$target" --setopt=tsflags=nodocs \
+yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
     --setopt=group_package_types=mandatory -y groupinstall Core
 yum -c "$yum_config" --installroot="$target" -y clean all
 
