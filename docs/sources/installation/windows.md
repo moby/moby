@@ -5,7 +5,7 @@ page_keywords: Docker, Docker documentation, Windows, requirements, virtualbox, 
 # Windows
 > **Note:**
 > Docker has been tested on Windows 7.1 and 8; it may also run on older versions.
-
+> Your processor needs to support hardware virtualization.
 
 The Docker Engine uses Linux-specific kernel features, so to run it on Windows
 we need to use a lightweight virtual machine (vm).  You use the Windows Docker client to
@@ -25,7 +25,7 @@ virtual machine and runs the Docker daemon.
 2. Run the installer, which will install VirtualBox, MSYS-git, the boot2docker Linux ISO,
 and the Boot2Docker management tool.
    ![](/installation/images/windows-installer.png)
-3. Run the `Boot2Docker Start` shell script from your Desktop or Program Files > Docker.
+3. Run the `Boot2Docker Start` shell script from your Desktop or Program Files > Boot2Docker for Windows.
    The Start script will ask you to enter an ssh key passphrase - the simplest
    (but least secure) is to just hit [Enter].
 
@@ -63,18 +63,20 @@ This will download the small busybox image and print "hello world".
 The Boot2Docker management tool provides several commands:
 
     $ ./boot2docker
-    Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|delete|download|version} [<args>]
+    Usage: ./boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|delete|download|version} [<args>]
 
 
 ## Container port redirection
+
+If you are curious, the username for the boot2docker default user is `docker` and the password is `tcuser`.
 
 The latest version of `boot2docker` sets up a host only network adaptor which provides access to the container's ports.
 
 If you run a container with an exposed port:
 
-    docker run --rm -i -t -p 80:80 apache
+    docker run --rm -i -t -p 80:80 nginx
 
-Then you should be able to access that Apache server using the IP address reported
+Then you should be able to access that nginx server using the IP address reported
 to you using:
 
     boot2docker ip

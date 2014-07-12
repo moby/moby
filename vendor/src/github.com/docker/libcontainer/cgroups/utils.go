@@ -2,6 +2,7 @@ package cgroups
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -28,6 +29,80 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 		}
 	}
 	return "", ErrNotFound
+}
+
+type Mount struct {
+	Mountpoint string
+	Subsystems []string
+}
+
+func (m Mount) GetThisCgroupDir() (string, error) {
+	if len(m.Subsystems) == 0 {
+		return "", fmt.Errorf("no subsystem for mount")
+	}
+
+	return GetThisCgroupDir(m.Subsystems[0])
+}
+
+func GetCgroupMounts() ([]Mount, error) {
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		return nil, err
+	}
+
+	all, err := GetAllSubsystems()
+	if err != nil {
+		return nil, err
+	}
+
+	allMap := make(map[string]bool)
+	for _, s := range all {
+		allMap[s] = true
+	}
+
+	res := []Mount{}
+	for _, mount := range mounts {
+		if mount.Fstype == "cgroup" {
+			m := Mount{Mountpoint: mount.Mountpoint}
+
+			for _, opt := range strings.Split(mount.VfsOpts, ",") {
+				if strings.HasPrefix(opt, "name=") {
+					m.Subsystems = append(m.Subsystems, opt)
+				}
+				if allMap[opt] {
+					m.Subsystems = append(m.Subsystems, opt)
+				}
+			}
+			res = append(res, m)
+		}
+	}
+	return res, nil
+}
+
+// Returns all the cgroup subsystems supported by the kernel
+func GetAllSubsystems() ([]string, error) {
+	f, err := os.Open("/proc/cgroups")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	subsystems := []string{}
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
+		text := s.Text()
+		if text[0] != '#' {
+			parts := strings.Fields(text)
+			if len(parts) > 4 && parts[3] != "0" {
+				subsystems = append(subsystems, parts[0])
+			}
+		}
+	}
+	return subsystems, nil
 }
 
 // Returns the relative path to the cgroup docker is running in.

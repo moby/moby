@@ -6,9 +6,11 @@ mkimg="$(basename "$0")"
 usage() {
 	echo >&2 "usage: $mkimg [-d dir] [-t tag] script [script-args]"
 	echo >&2 "   ie: $mkimg -t someuser/debian debootstrap --variant=minbase jessie"
-	echo >&2 "       $mkimg -t someuser/ubuntu debootstrap --include=ubuntu-minimal trusty"
+	echo >&2 "       $mkimg -t someuser/ubuntu debootstrap --include=ubuntu-minimal --components main,universe trusty"
 	echo >&2 "       $mkimg -t someuser/busybox busybox-static"
 	echo >&2 "       $mkimg -t someuser/centos:5 rinse --distribution centos-5"
+	echo >&2 "       $mkimg -t someuser/mageia:4 mageia-urpmi --version=4"
+	echo >&2 "       $mkimg -t someuser/mageia:4 mageia-urpmi --version=4 --mirror=http://somemirror/"
 	exit 1
 }
 
@@ -48,7 +50,7 @@ fi
 
 delDir=
 if [ -z "$dir" ]; then
-	dir="$(mktemp -d ${TMPDIR:-/tmp}/docker-mkimage.XXXXXXXXXX)"
+	dir="$(mktemp -d ${TMPDIR:-/var/tmp}/docker-mkimage.XXXXXXXXXX)"
 	delDir=1
 fi
 

@@ -98,12 +98,17 @@ func applyVolumesFrom(container *Container) error {
 					continue
 				}
 
-				stat, err := os.Stat(c.getResourcePath(volPath))
+				pth, err := c.getResourcePath(volPath)
 				if err != nil {
 					return err
 				}
 
-				if err := createIfNotExists(container.getResourcePath(volPath), stat.IsDir()); err != nil {
+				stat, err := os.Stat(pth)
+				if err != nil {
+					return err
+				}
+
+				if err := createIfNotExists(pth, stat.IsDir()); err != nil {
 					return err
 				}
 
@@ -280,8 +285,8 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 		delete(container.VolumesRW, volPath)
 	}
 
-	container.Volumes[newVolPath] = destination
-	container.VolumesRW[newVolPath] = srcRW
+	container.Volumes[volPath] = destination
+	container.VolumesRW[volPath] = srcRW
 
 	if err := createIfNotExists(source, volIsDir); err != nil {
 		return err

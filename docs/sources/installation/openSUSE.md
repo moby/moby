@@ -19,9 +19,11 @@ repository.
 
     # openSUSE 12.3
     $ sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_12.3/ Virtualization
+    $ sudo rpm --import http://download.opensuse.org/repositories/Virtualization/openSUSE_12.3/repodata/repomd.xml.key
 
     # openSUSE 13.1
     $ sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_13.1/ Virtualization
+    $ sudo rpm --import http://download.opensuse.org/repositories/Virtualization/openSUSE_13.1/repodata/repomd.xml.key
 
 Install the Docker package.
 
@@ -43,9 +45,15 @@ If we want Docker to start at boot, we should also:
 
 The docker package creates a new group named docker. Users, other than
 root user, need to be part of this group in order to interact with the
-Docker daemon.
+Docker daemon. You can add users with:
 
-    $ sudo usermod -G docker <username>
+    $ sudo usermod -a -G docker <username>
+
+To verify that everything has worked as expected:
+
+    $ sudo docker run --rm -i -t ubuntu /bin/bash
+
+This should download and import the `ubuntu` image, and then start `bash` in a container. To exit the container type `exit`.
 
 **Done!**
 

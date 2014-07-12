@@ -199,6 +199,22 @@ func (env *Env) SetAuto(k string, v interface{}) {
 	}
 }
 
+func changeFloats(v interface{}) interface{} {
+	switch v := v.(type) {
+	case float64:
+		return int(v)
+	case map[string]interface{}:
+		for key, val := range v {
+			v[key] = changeFloats(val)
+		}
+	case []interface{}:
+		for idx, val := range v {
+			v[idx] = changeFloats(val)
+		}
+	}
+	return v
+}
+
 func (env *Env) Encode(dst io.Writer) error {
 	m := make(map[string]interface{})
 	for k, v := range env.Map() {
@@ -207,10 +223,7 @@ func (env *Env) Encode(dst io.Writer) error {
 			// FIXME: we fix-convert float values to int, because
 			// encoding/json decodes integers to float64, but cannot encode them back.
 			// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
-			if fval, isFloat := val.(float64); isFloat {
-				val = int(fval)
-			}
-			m[k] = val
+			m[k] = changeFloats(val)
 		} else {
 			m[k] = v
 		}

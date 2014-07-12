@@ -11,6 +11,9 @@ DOCKER_OPTS=${DOCKER_OPTS:-}
 start() {
 	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"
 
+	ulimit -n 1048576
+	ulimit -u 1048576
+
 	ebegin "Starting docker daemon"
 	start-stop-daemon --start --background \
 		--exec "$DOCKER_BINARY" \

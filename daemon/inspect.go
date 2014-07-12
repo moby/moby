@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
@@ -13,11 +14,13 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := daemon.Get(name); container != nil {
-		if job.GetenvBool("dirty") {
+		container.Lock()
+		defer container.Unlock()
+		if job.GetenvBool("raw") {
 			b, err := json.Marshal(&struct {
 				*Container
 				HostConfig *runconfig.HostConfig
-			}{container, container.HostConfig()})
+			}{container, container.hostConfig})
 			if err != nil {
 				return job.Error(err)
 			}
@@ -44,7 +47,16 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.Set("ProcessLabel", container.ProcessLabel)
 		out.SetJson("Volumes", container.Volumes)
 		out.SetJson("VolumesRW", container.VolumesRW)
+
+		if children, err := daemon.Children(container.Name); err == nil {
+			for linkAlias, child := range children {
+				container.hostConfig.Links = append(container.hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
+			}
+		}
+
 		out.SetJson("HostConfig", container.hostConfig)
+
+		container.hostConfig.Links = nil
 		if _, err := out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}

@@ -22,7 +22,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -52,6 +54,7 @@ import (
 	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/signal"
+	"github.com/dotcloud/docker/pkg/tailfile"
 	"github.com/dotcloud/docker/registry"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
@@ -117,7 +120,6 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
-	// FIXME: 'insert' is deprecated and should be removed in a future version.
 	for name, handler := range map[string]engine.Handler{
 		"export":           srv.ContainerExport,
 		"create":           srv.ContainerCreate,
@@ -248,85 +250,63 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) EvictListener(from int64) {
-	srv.Lock()
-	if old, ok := srv.listeners[from]; ok {
-		delete(srv.listeners, from)
-		close(old)
-	}
-	srv.Unlock()
-}
-
 func (srv *Server) Events(job *engine.Job) engine.Status {
 	if len(job.Args) != 0 {
 		return job.Errorf("Usage: %s", job.Name)
 	}
 
 	var (
-		from    = time.Now().UTC().UnixNano()
 		since   = job.GetenvInt64("since")
 		until   = job.GetenvInt64("until")
 		timeout = time.NewTimer(time.Unix(until, 0).Sub(time.Now()))
 	)
-	sendEvent := func(event *utils.JSONMessage) error {
-		b, err := json.Marshal(event)
-		if err != nil {
-			return fmt.Errorf("JSON error")
-		}
-		_, err = job.Stdout.Write(b)
-		return err
+
+	// If no until, disable timeout
+	if until == 0 {
+		timeout.Stop()
 	}
 
 	listener := make(chan utils.JSONMessage)
-	srv.Lock()
-	if old, ok := srv.listeners[from]; ok {
-		delete(srv.listeners, from)
-		close(old)
+	srv.eventPublisher.Subscribe(listener)
+	defer srv.eventPublisher.Unsubscribe(listener)
+
+	// When sending an event JSON serialization errors are ignored, but all
+	// other errors lead to the eviction of the listener.
+	sendEvent := func(event *utils.JSONMessage) error {
+		if b, err := json.Marshal(event); err == nil {
+			if _, err = job.Stdout.Write(b); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	srv.listeners[from] = listener
-	srv.Unlock()
-	job.Stdout.Write(nil) // flush
+
+	job.Stdout.Write(nil)
+
+	// Resend every event in the [since, until] time interval.
 	if since != 0 {
-		// If since, send previous events that happened after the timestamp and until timestamp
 		for _, event := range srv.GetEvents() {
 			if event.Time >= since && (event.Time <= until || until == 0) {
-				err := sendEvent(&event)
-				if err != nil && err.Error() == "JSON error" {
-					continue
-				}
-				if err != nil {
-					// On error, evict the listener
-					srv.EvictListener(from)
+				if err := sendEvent(&event); err != nil {
 					return job.Error(err)
 				}
 			}
 		}
 	}
 
-	// If no until, disable timeout
-	if until == 0 {
-		timeout.Stop()
-	}
 	for {
 		select {
 		case event, ok := <-listener:
-			if !ok { // Channel is closed: listener was evicted
+			if !ok {
 				return engine.StatusOK
 			}
-			err := sendEvent(&event)
-			if err != nil && err.Error() == "JSON error" {
-				continue
-			}
-			if err != nil {
-				// On error, evict the listener
-				srv.EvictListener(from)
+			if err := sendEvent(&event); err != nil {
 				return job.Error(err)
 			}
 		case <-timeout.C:
 			return engine.StatusOK
 		}
 	}
-	return engine.StatusOK
 }
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
@@ -371,29 +351,52 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 
 	utils.Debugf("Serializing %s", name)
 
+	rootRepoMap := map[string]graph.Repository{}
 	rootRepo, err := srv.daemon.Repositories().Get(name)
 	if err != nil {
 		return job.Error(err)
 	}
 	if rootRepo != nil {
+		// this is a base repo name, like 'busybox'
+
 		for _, id := range rootRepo {
 			if err := srv.exportImage(job.Eng, id, tempdir); err != nil {
 				return job.Error(err)
 			}
 		}
-
-		// write repositories
-		rootRepoMap := map[string]graph.Repository{}
 		rootRepoMap[name] = rootRepo
+	} else {
+		img, err := srv.daemon.Repositories().LookupImage(name)
+		if err != nil {
+			return job.Error(err)
+		}
+		if img != nil {
+			// This is a named image like 'busybox:latest'
+			repoName, repoTag := utils.ParseRepositoryTag(name)
+			if err := srv.exportImage(job.Eng, img.ID, tempdir); err != nil {
+				return job.Error(err)
+			}
+			// check this length, because a lookup of a truncated has will not have a tag
+			// and will not need to be added to this map
+			if len(repoTag) > 0 {
+				rootRepoMap[repoName] = graph.Repository{repoTag: img.ID}
+			}
+		} else {
+			// this must be an ID that didn't get looked up just right?
+			if err := srv.exportImage(job.Eng, name, tempdir); err != nil {
+				return job.Error(err)
+			}
+		}
+	}
+	// write repositories, if there is something to write
+	if len(rootRepoMap) > 0 {
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
 
 		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.FileMode(0644)); err != nil {
 			return job.Error(err)
 		}
 	} else {
-		if err := srv.exportImage(job.Eng, name, tempdir); err != nil {
-			return job.Error(err)
-		}
+		utils.Debugf("There were no repositories to write")
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
@@ -433,6 +436,7 @@ func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 			return err
 		}
 		job := eng.Job("image_inspect", n)
+		job.SetenvBool("raw", true)
 		job.Stdout.Add(json)
 		if err := job.Run(); err != nil {
 			return err
@@ -797,11 +801,12 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.daemon.ExecutionDriver().Name())
-	v.SetInt("NEventsListener", len(srv.listeners))
+	v.SetInt("NEventsListener", srv.eventPublisher.SubscribersCount())
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
+	v.SetList("Sockets", srv.daemon.Sockets)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
@@ -840,7 +845,6 @@ func (srv *Server) ImageHistory(job *engine.Job) engine.Status {
 		outs.Add(out)
 		return nil
 	})
-	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
@@ -977,22 +981,25 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		}
 	}
 
-	for _, container := range srv.daemon.List() {
+	errLast := errors.New("last container")
+	writeCont := func(container *daemon.Container) error {
+		container.Lock()
+		defer container.Unlock()
 		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
-			continue
+			return nil
 		}
 		if before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
 			}
-			continue
+			return nil
 		}
 		if n > 0 && displayed == n {
-			break
+			return errLast
 		}
 		if since != "" {
 			if container.ID == sinceCont.ID {
-				break
+				return errLast
 			}
 		}
 		displayed++
@@ -1019,7 +1026,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out.Set("Status", container.State.String())
 		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		out.Set("Ports", str)
 		if size {
@@ -1028,6 +1035,16 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
 		outs.Add(out)
+		return nil
+	}
+
+	for _, container := range srv.daemon.List() {
+		if err := writeCont(container); err != nil {
+			if err != errLast {
+				return job.Error(err)
+			}
+			break
+		}
 	}
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
@@ -1060,7 +1077,7 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	img, err := srv.daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), &newConfig)
+	img, err := srv.daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), job.GetenvBool("pause"), &newConfig)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -1260,9 +1277,10 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 				break
 			}
 			if !success {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, %s", img.Tag, localName, lastErr), nil))
+				err := fmt.Errorf("Error pulling image (%s) from %s, %v", img.Tag, localName, lastErr)
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), err.Error(), nil))
 				if parallel {
-					errors <- fmt.Errorf("Could not find repository on any of the indexed registries.")
+					errors <- err
 					return
 				}
 			}
@@ -2054,6 +2072,32 @@ func (srv *Server) ImageGetCached(imgID string, config *runconfig.Config) (*imag
 	return match, nil
 }
 
+func (srv *Server) setHostConfig(container *daemon.Container, hostConfig *runconfig.HostConfig) error {
+	// Validate the HostConfig binds. Make sure that:
+	// the source exists
+	for _, bind := range hostConfig.Binds {
+		splitBind := strings.Split(bind, ":")
+		source := splitBind[0]
+
+		// ensure the source exists on the host
+		_, err := os.Stat(source)
+		if err != nil && os.IsNotExist(err) {
+			err = os.MkdirAll(source, 0755)
+			if err != nil {
+				return fmt.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
+			}
+		}
+	}
+	// Register any links from the host config before starting the container
+	if err := srv.daemon.RegisterLinks(container, hostConfig); err != nil {
+		return err
+	}
+	container.SetHostConfig(hostConfig)
+	container.ToDisk()
+
+	return nil
+}
+
 func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s container_id", job.Name)
@@ -2067,38 +2111,17 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
+
+	if container.State.IsRunning() {
+		return job.Errorf("Container already started")
+	}
+
 	// If no environment was set, then no hostconfig was passed.
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
-		// Validate the HostConfig binds. Make sure that:
-		// 1) the source of a bind mount isn't /
-		//         The bind mount "/:/foo" isn't allowed.
-		// 2) Check that the source exists
-		//        The source to be bind mounted must exist.
-		for _, bind := range hostConfig.Binds {
-			splitBind := strings.Split(bind, ":")
-			source := splitBind[0]
-
-			// refuse to bind mount "/" to the container
-			if source == "/" {
-				return job.Errorf("Invalid bind mount '%s' : source can't be '/'", bind)
-			}
-
-			// ensure the source exists on the host
-			_, err := os.Stat(source)
-			if err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(source, 0755)
-				if err != nil {
-					return job.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
-				}
-			}
-		}
-		// Register any links from the host config before starting the container
-		if err := srv.daemon.RegisterLinks(container, hostConfig); err != nil {
+		if err := srv.setHostConfig(container, hostConfig); err != nil {
 			return job.Error(err)
 		}
-		container.SetHostConfig(hostConfig)
-		container.ToDisk()
 	}
 	if err := container.Start(); err != nil {
 		return job.Errorf("Cannot start container %s: %s", name, err)
@@ -2120,6 +2143,9 @@ func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
 		t = job.GetenvInt("t")
 	}
 	if container := srv.daemon.Get(name); container != nil {
+		if !container.State.IsRunning() {
+			return job.Errorf("Container already stopped")
+		}
 		if err := container.Stop(int(t)); err != nil {
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
@@ -2136,7 +2162,7 @@ func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := srv.daemon.Get(name); container != nil {
-		status := container.Wait()
+		status, _ := container.State.WaitStop(-1 * time.Second)
 		job.Printf("%d\n", status)
 		return engine.StatusOK
 	}
@@ -2174,8 +2200,10 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 		name   = job.Args[0]
 		stdout = job.GetenvBool("stdout")
 		stderr = job.GetenvBool("stderr")
+		tail   = job.Getenv("tail")
 		follow = job.GetenvBool("follow")
 		times  = job.GetenvBool("timestamps")
+		lines  = -1
 		format string
 	)
 	if !(stdout || stderr) {
@@ -2183,6 +2211,9 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	if times {
 		format = time.StampMilli
+	}
+	if tail == "" {
+		tail = "all"
 	}
 	container := srv.daemon.Get(name)
 	if container == nil {
@@ -2211,25 +2242,47 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	} else if err != nil {
 		utils.Errorf("Error reading logs (json): %s", err)
 	} else {
-		dec := json.NewDecoder(cLog)
-		for {
-			l := &utils.JSONLog{}
+		if tail != "all" {
+			var err error
+			lines, err = strconv.Atoi(tail)
+			if err != nil {
+				utils.Errorf("Failed to parse tail %s, error: %v, show all logs", err)
+				lines = -1
+			}
+		}
+		if lines != 0 {
+			if lines > 0 {
+				f := cLog.(*os.File)
+				ls, err := tailfile.TailFile(f, lines)
+				if err != nil {
+					return job.Error(err)
+				}
+				tmp := bytes.NewBuffer([]byte{})
+				for _, l := range ls {
+					fmt.Fprintf(tmp, "%s\n", l)
+				}
+				cLog = tmp
+			}
+			dec := json.NewDecoder(cLog)
+			for {
+				l := &utils.JSONLog{}
 
-			if err := dec.Decode(l); err == io.EOF {
-				break
-			} else if err != nil {
-				utils.Errorf("Error streaming logs: %s", err)
-				break
-			}
-			logLine := l.Log
-			if times {
-				logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
-			}
-			if l.Stream == "stdout" && stdout {
-				fmt.Fprintf(job.Stdout, "%s", logLine)
-			}
-			if l.Stream == "stderr" && stderr {
-				fmt.Fprintf(job.Stderr, "%s", logLine)
+				if err := dec.Decode(l); err == io.EOF {
+					break
+				} else if err != nil {
+					utils.Errorf("Error streaming logs: %s", err)
+					break
+				}
+				logLine := l.Log
+				if times {
+					logLine = fmt.Sprintf("[%s] %s", l.Created.Format(format), logLine)
+				}
+				if l.Stream == "stdout" && stdout {
+					fmt.Fprintf(job.Stdout, "%s", logLine)
+				}
+				if l.Stream == "stderr" && stderr {
+					fmt.Fprintf(job.Stderr, "%s", logLine)
+				}
 			}
 		}
 	}
@@ -2349,7 +2402,7 @@ func (srv *Server) ContainerAttach(job *engine.Job) engine.Status {
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {
-			container.Wait()
+			container.State.WaitStop(-1 * time.Second)
 		}
 	}
 	return engine.StatusOK
@@ -2387,12 +2440,12 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		return nil, err
 	}
 	srv := &Server{
-		Eng:         eng,
-		daemon:      daemon,
-		pullingPool: make(map[string]chan struct{}),
-		pushingPool: make(map[string]chan struct{}),
-		events:      make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		listeners:   make(map[int64]chan utils.JSONMessage),
+		Eng:            eng,
+		daemon:         daemon,
+		pullingPool:    make(map[string]chan struct{}),
+		pushingPool:    make(map[string]chan struct{}),
+		events:         make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
+		eventPublisher: utils.NewJSONMessagePublisher(),
 	}
 	daemon.SetServer(srv)
 	return srv, nil
@@ -2402,12 +2455,7 @@ func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	now := time.Now().UTC().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
 	srv.AddEvent(jm)
-	for _, c := range srv.listeners {
-		select { // non blocking channel
-		case c <- jm:
-		default:
-		}
-	}
+	srv.eventPublisher.Publish(jm)
 	return &jm
 }
 
@@ -2459,12 +2507,12 @@ func (srv *Server) Close() error {
 
 type Server struct {
 	sync.RWMutex
-	daemon      *daemon.Daemon
-	pullingPool map[string]chan struct{}
-	pushingPool map[string]chan struct{}
-	events      []utils.JSONMessage
-	listeners   map[int64]chan utils.JSONMessage
-	Eng         *engine.Engine
-	running     bool
-	tasks       sync.WaitGroup
+	daemon         *daemon.Daemon
+	pullingPool    map[string]chan struct{}
+	pushingPool    map[string]chan struct{}
+	events         []utils.JSONMessage
+	eventPublisher *utils.JSONMessagePublisher
+	Eng            *engine.Engine
+	running        bool
+	tasks          sync.WaitGroup
 }

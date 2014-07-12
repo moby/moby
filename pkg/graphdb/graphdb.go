@@ -64,6 +64,11 @@ func IsNonUniqueNameError(err error) bool {
 	if strings.Contains(str, "UNIQUE constraint failed") && strings.Contains(str, "edge.name") {
 		return true
 	}
+	// sqlite-3.6.20-1.el6 returns:
+	// Set failure: Abort due to constraint violation: constraint failed
+	if strings.HasSuffix(str, "constraint failed") {
+		return true
+	}
 	return false
 }
 

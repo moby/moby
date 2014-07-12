@@ -178,14 +178,52 @@ Cloud:
 ### How do I report a security issue with Docker?
 
 You can learn about the project's security policy
-[here](https://www.docker.io/security/) and report security issues to
+[here](https://www.docker.com/security/) and report security issues to
 this [mailbox](mailto:security@docker.com).
 
 ### Why do I need to sign my commits to Docker with the DCO?
 
 Please read [our blog post](
-http://blog.docker.io/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
+http://blog.docker.com/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
 on the introduction of the DCO.
+
+### When building an image, should I prefer system libraries or bundled ones?
+
+*This is a summary of a discussion on the [docker-dev mailing list](
+https://groups.google.com/forum/#!topic/docker-dev/L2RBSPDu1L0).*
+
+Virtually all programs depend on third-party libraries. Most frequently,
+they will use dynamic linking and some kind of package dependency, so
+that when multiple programs need the same library, it is installed only once.
+
+Some programs, however, will bundle their third-party libraries, because
+they rely on very specific versions of those libraries. For instance,
+Node.js bundles OpenSSL; MongoDB bundles V8 and Boost (among others).
+
+When creating a Docker image, is it better to use the bundled libraries,
+or should you build those programs so that they use the default system
+libraries instead?
+
+The key point about system libraries is not about saving disk or memory
+space. It is about security. All major distributions handle security
+seriously, by having dedicated security teams, following up closely
+with published vulnerabilities, and disclosing advisories themselves.
+(Look at the [Debian Security Information](https://www.debian.org/security/)
+for an example of those procedures.) Upstream developers, however,
+do not always implement similar practices.
+
+Before setting up a Docker image to compile a program from source,
+if you want to use bundled libraries, you should check if the upstream
+authors provide a convenient way to announce security vulnerabilities,
+and if they update their bundled libraries in a timely manner. If they
+don't, you are exposing yourself (and the users of your image) to
+security vulnerabilities.
+
+Likewise, before using packages built by others, you should check if the
+channels providing those packages implement similar security best practices.
+Downloading and installing an "all-in-one" .deb or .rpm sounds great at first,
+except if you have no way to figure out that it contains a copy of the
+OpenSSL library vulnerable to the [Heartbleed](http://heartbleed.com/) bug.
 
 ### Can I help by adding some questions and answers?
 

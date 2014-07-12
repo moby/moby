@@ -290,7 +290,7 @@ List processes running inside the container `id`
 
      
 
-    -   **ps_args** – ps arguments to use (eg. aux)
+    -   **ps_args** – ps arguments to use (e.g., aux)
 
     Status Codes:
 
@@ -406,6 +406,7 @@ Start the container `id`
 
         {
              "Binds":["/tmp:/tmp"],
+             "Links":["redis3:redis"],
              "LxcConf":{"lxc.utsname":"docker"},
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
@@ -508,6 +509,46 @@ Kill the container `id`
     -   **404** – no such container
     -   **500** – server error
 
+### Pause a container
+
+`POST /containers/(id)/pause`
+
+Pause the container `id`
+
+    **Example request**:
+
+        POST /containers/e90e34656806/pause HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
+### Unpause a container
+
+`POST /containers/(id)/unpause`
+
+Unpause the container `id`
+
+    **Example request**:
+
+        POST /containers/e90e34656806/unpause HTTP/1.1
+
+    **Example response**:
+
+        HTTP/1.1 204 OK
+
+    Status Codes:
+
+    -   **204** – no error
+    -   **404** – no such container
+    -   **500** – server error
+
 ### Attach to a container
 
 `POST /containers/(id)/attach`
@@ -570,7 +611,7 @@ Attach to the container `id`
 
     `STREAM_TYPE` can be:
 
-    -   0: stdin (will be writen on stdout)
+    -   0: stdin (will be written on stdout)
     -   1: stdout
     -   2: stderr
 
@@ -719,7 +760,7 @@ Copy files or folders of container `id`
 
     -   **all** – 1/True/true or 0/False/false, default false
     -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
-        
+
 
 
 ### Create an image
@@ -824,8 +865,8 @@ Return low-level information on the image `name`
                              "OpenStdin":true,
                              "StdinOnce":false,
                              "Env":null,
-                             "Cmd": ["/bin/bash"]
-                             ,"Dns":null,
+                             "Cmd": ["/bin/bash"],
+                             "Dns":null,
                              "Image":"base",
                              "Volumes":null,
                              "VolumesFrom":"",
@@ -1135,9 +1176,15 @@ Display system-wide information
         {
              "Containers":11,
              "Images":16,
+             "Driver":"btrfs",
+             "ExecutionDriver":"native-0.1",
+             "KernelVersion":"3.12.0-1-amd64"
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
+             "NEventsListener":0,
+             "InitPath":"/usr/bin/docker",
+             "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
              "IPv4Forwarding":true
@@ -1164,6 +1211,7 @@ Show the docker version information
         Content-Type: application/json
 
         {
+             "ApiVersion":"1.12",
              "Version":"0.2.2",
              "GitCommit":"5a2a5cc+CHANGES",
              "GoVersion":"go1.0.3"
@@ -1253,7 +1301,7 @@ Create a new image from a container's changes
     -   **repo** – repository
     -   **tag** – tag
     -   **m** – commit message
-    -   **author** – author (eg. "John Hannibal Smith
+    -   **author** – author (e.g., "John Hannibal Smith
         <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
     Status Codes:

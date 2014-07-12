@@ -24,7 +24,7 @@ describes your app and its dependencies:
       "name": "docker-centos-hello",
       "private": true,
       "version": "0.0.1",
-      "description": "Node.js Hello World app on CentOS using docker",
+      "description": "Node.js Hello world app on CentOS using docker",
       "author": "Daniel Gasienica <daniel@gasienica.ch>",
       "dependencies": {
         "express": "3.2.4"
@@ -42,7 +42,7 @@ app using the [Express.js](http://expressjs.com/) framework:
     // App
     var app = express();
     app.get('/', function (req, res) {
-      res.send('Hello World\n');
+      res.send('Hello world\n');
     });
 
     app.listen(PORT);
@@ -137,9 +137,9 @@ Your image will now be listed by Docker:
     $ sudo docker images
 
     # Example
-    REPOSITORY                 TAG       ID              CREATED
-    centos                     6.4       539c0211cd76    8 weeks ago
-    gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
+    REPOSITORY                            TAG       ID              CREATED
+    centos                                6.4       539c0211cd76    8 weeks ago
+    <your username>/centos-node-hello     latest    d64d3505b0d2    2 hours ago
 
 ## Run the image
 
@@ -167,8 +167,8 @@ To test your app, get the the port of your app that Docker mapped:
     $ sudo docker ps
 
     # Example
-    ID            IMAGE                          COMMAND              ...   PORTS
-    ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
+    ID            IMAGE                                     COMMAND              ...   PORTS
+    ecce33b30ebf  <your username>/centos-node-hello:latest  node /src/index.js         49160->8080
 
 In the example above, Docker mapped the `8080` port of the container to `49160`.
 
@@ -184,7 +184,7 @@ Now you can call your app using `curl` (install if needed via:
     Date: Sun, 02 Jun 2013 03:53:22 GMT
     Connection: keep-alive
 
-    Hello World
+    Hello world
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at

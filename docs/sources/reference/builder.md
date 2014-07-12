@@ -15,7 +15,7 @@ To [*build*](../commandline/cli/#cli-build) an image from a source repository,
 create a description file called Dockerfile at the root of your repository.
 This file will describe the steps to assemble the image.
 
-Then call `docker build` with the path of you source repository as argument
+Then call `docker build` with the path of your source repository as the argument
 (for example, `.`):
 
     $ sudo docker build .
@@ -82,6 +82,38 @@ be treated as an argument. This allows statements like:
 
 Here is the set of instructions you can use in a Dockerfile
 for building images.
+
+## .dockerignore
+
+If a file named `.dockerignore` exists in the source repository, then it
+is interpreted as a newline-separated list of exclusion patterns.
+Exclusion patterns match files or directories relative to the source repository
+that will be excluded from the context. Globbing is done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+
+The following example shows the use of the `.dockerignore` file to exclude the
+`.git` directory from the context. Its effect can be seen in the changed size of
+the uploaded context.
+
+    $ docker build .
+    Uploading context 18.829 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
+    $ echo ".git" > .dockerignore
+    $ docker build .
+    Uploading context  6.76 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
 
 ## FROM
 
@@ -216,7 +248,7 @@ from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
 
 > **Note**:
-> One example where this can cause unexpected consequenses, is setting
+> One example where this can cause unexpected consequences, is setting
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
@@ -238,14 +270,19 @@ All new files and directories are created with a uid and gid of 0.
 In the case where `<src>` is a remote file URL, the destination will have permissions 600.
 
 > **Note**:
-> If you build using STDIN (`docker build - < somefile`), there is no
-> build context, so the Dockerfile can only contain an URL based ADD
-> statement.
+> If you build by passing a Dockerfile through STDIN (`docker build - < somefile`),
+> there is no build context, so the Dockerfile can only contain a URL
+> based ADD statement.
 
+> You can also pass a compressed archive through STDIN:
+> (`docker build - < archive.tar.gz`), the `Dockerfile` at the root of
+> the archive and the rest of the archive will get used at the context
+> of the build.
+>
 > **Note**:
 > If your URL files are protected using authentication, you will need to
-> use an `RUN wget` , `RUN curl`
-> or other tool from within the container as ADD does not support
+> use `RUN wget` , `RUN curl`
+> or use another tool from within the container as ADD does not support
 > authentication.
 
 The copy obeys the following rules:
@@ -361,7 +398,7 @@ execute in `/bin/sh -c`:
     FROM ubuntu
     ENTRYPOINT wc -l -
 
-For example, that Dockerfile's image will *always* take stdin as input
+For example, that Dockerfile's image will *always* take STDIN as input
 ("-") and print the number of lines ("-l"). If you wanted to make this
 optional but default, you could use a CMD:
 
@@ -468,7 +505,7 @@ For example you might add something like this:
     # VERSION               0.0.1
 
     FROM      ubuntu
-    MAINTAINER Guillaume J. Charmes <guillaume@docker.com>
+    MAINTAINER Victor Vieux <victor@docker.com>
 
     # make sure the package repository is up to date
     RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list

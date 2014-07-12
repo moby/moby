@@ -1,4 +1,4 @@
-// +build !linux,!freebsd
+// +build !linux,!freebsd,!darwin
 
 package system
 

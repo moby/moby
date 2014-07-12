@@ -14,9 +14,9 @@ die () {
 
 ISO=${1}
 
-ROOTFS=$(mktemp -d /tmp/rootfs-crux-XXXXXXXXXX)
-CRUX=$(mktemp -d /tmp/crux-XXXXXXXXXX)
-TMP=$(mktemp -d /tmp/XXXXXXXXXX)
+ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/rootfs-crux-XXXXXXXXXX)
+CRUX=$(mktemp -d ${TMPDIR:-/var/tmp}/crux-XXXXXXXXXX)
+TMP=$(mktemp -d ${TMPDIR:-/var/tmp}/XXXXXXXXXX)
 
 VERSION=$(basename --suffix=.iso $ISO | sed 's/[^0-9.]*\([0-9.]*\).*/\1/')
 

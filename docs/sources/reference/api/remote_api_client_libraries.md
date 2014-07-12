@@ -77,7 +77,7 @@ will add the libraries here.
     <tr class="row-even">
       <td>Java</td>
       <td>docker-java</td>
-      <td><a class="reference external" href="https://github.com/kpelykh/docker-java">https://github.com/kpelykh/docker-java</a></td>
+      <td><a class="reference external" href="https://github.com/docker-java/docker-java">https://github.com/docker-java/docker-java</a></td>
       <td>Active</td>
     </tr>
     <tr class="row-odd">
@@ -122,10 +122,34 @@ will add the libraries here.
       <td><a class="reference external" href="https://github.com/alambike/eixo-docker">https://github.com/alambike/eixo-docker</a></td>
       <td>Active</td>
     </tr>
+    <tr class="row-even">
+      <td>Scala</td>
+      <td>tugboat</td>
+      <td><a class="reference external" href="https://github.com/softprops/tugboat">https://github.com/softprops/tugboat</a></td>
+      <td>Active</td>
+    </tr>
     <tr class="row-odd">
       <td>Scala</td>
       <td>reactive-docker</td>
       <td><a class="reference external" href="https://github.com/almoehi/reactive-docker">https://github.com/almoehi/reactive-docker</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>Java</td>
+      <td>docker-client</td>
+      <td><a class="reference external" href="https://github.com/spotify/docker-client">https://github.com/spotify/docker-client</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Groovy</td>
+      <td>docker-client</td>
+      <td><a class="reference external" href="https://github.com/gesellix-docker/docker-client">https://github.com/gesellix-docker/docker-client</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>Java</td>
+      <td>jclouds-docker</td>
+      <td><a class="reference external" href="https://github.com/jclouds/jclouds-labs/tree/master/docker">https://github.com/jclouds/jclouds-labs/tree/master/docker</a></td>
       <td>Active</td>
     </tr>
   </tbody>

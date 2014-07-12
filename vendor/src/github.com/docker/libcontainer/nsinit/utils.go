@@ -2,42 +2,26 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/docker/libcontainer"
 )
 
-func loadContainer() (*libcontainer.Container, error) {
+func loadContainer() (*libcontainer.Config, error) {
 	f, err := os.Open(filepath.Join(dataPath, "container.json"))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var container *libcontainer.Container
+	var container *libcontainer.Config
 	if err := json.NewDecoder(f).Decode(&container); err != nil {
 		return nil, err
 	}
 
 	return container, nil
-}
-
-func readPid() (int, error) {
-	data, err := ioutil.ReadFile(filepath.Join(dataPath, "pid"))
-	if err != nil {
-		return -1, err
-	}
-
-	pid, err := strconv.Atoi(string(data))
-	if err != nil {
-		return -1, err
-	}
-
-	return pid, nil
 }
 
 func openLog(name string) error {
@@ -51,8 +35,8 @@ func openLog(name string) error {
 	return nil
 }
 
-func loadContainerFromJson(rawData string) (*libcontainer.Container, error) {
-	var container *libcontainer.Container
+func loadContainerFromJson(rawData string) (*libcontainer.Config, error) {
+	var container *libcontainer.Config
 
 	if err := json.Unmarshal([]byte(rawData), &container); err != nil {
 		return nil, err

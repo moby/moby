@@ -96,11 +96,13 @@ func containerAttach(eng *engine.Engine, id string, t utils.Fataler) (io.WriteCl
 }
 
 func containerWait(eng *engine.Engine, id string, t utils.Fataler) int {
-	return getContainer(eng, id, t).Wait()
+	ex, _ := getContainer(eng, id, t).State.WaitStop(-1 * time.Second)
+	return ex
 }
 
 func containerWaitTimeout(eng *engine.Engine, id string, t utils.Fataler) error {
-	return getContainer(eng, id, t).WaitTimeout(500 * time.Millisecond)
+	_, err := getContainer(eng, id, t).State.WaitStop(500 * time.Millisecond)
+	return err
 }
 
 func containerKill(eng *engine.Engine, id string, t utils.Fataler) {
@@ -307,7 +309,7 @@ func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testin
 		return "", err
 	}
 
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	data, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		return "", err

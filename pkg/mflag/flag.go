@@ -305,12 +305,10 @@ type flagSlice []string
 
 func (p flagSlice) Len() int { return len(p) }
 func (p flagSlice) Less(i, j int) bool {
-	pi, pj := strings.ToLower(p[i]), strings.ToLower(p[j])
-	if pi[0] == '-' {
-		pi = pi[1:]
-	}
-	if pj[0] == '-' {
-		pj = pj[1:]
+	pi, pj := strings.TrimPrefix(p[i], "-"), strings.TrimPrefix(p[j], "-")
+	lpi, lpj := strings.ToLower(pi), strings.ToLower(pj)
+	if lpi != lpj {
+		return lpi < lpj
 	}
 	return pi < pj
 }
@@ -443,8 +441,6 @@ func (f *FlagSet) PrintDefaults() {
 				}
 				fmt.Fprintln(writer, "\t", line)
 			}
-			//			start := fmt.Sprintf(format, strings.Join(names, ", -"), flag.DefValue)
-			//			fmt.Fprintln(f.out(), start, strings.Replace(flag.Usage, "\n", "\n"+strings.Repeat(" ", len(start)+1), -1))
 		}
 	})
 	writer.Flush()
@@ -778,6 +774,9 @@ func (f *FlagSet) usage() {
 }
 
 func trimQuotes(str string) string {
+	if len(str) == 0 {
+		return str
+	}
 	type quote struct {
 		start, end byte
 	}
@@ -830,14 +829,12 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 	f.args = f.args[1:]
 	has_value := false
 	value := ""
-	for i := 1; i < len(name); i++ { // equals cannot be first
-		if name[i] == '=' {
-			value = trimQuotes(name[i+1:])
-			has_value = true
-			name = name[0:i]
-			break
-		}
+	if i := strings.Index(name, "="); i != -1 {
+		value = trimQuotes(name[i+1:])
+		has_value = true
+		name = name[:i]
 	}
+
 	m := f.formal
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {

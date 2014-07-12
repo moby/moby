@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dotcloud/docker/archive"
 )
 
 func TestBuildCacheADD(t *testing.T) {
@@ -588,6 +590,7 @@ func TestBuildRm(t *testing.T) {
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
 	logDone("build - ensure --rm=false overrides the default")
 }
+
 func TestBuildWithVolumes(t *testing.T) {
 	name := "testbuildvolumes"
 	expected := "map[/test1:map[] /test2:map[]]"
@@ -764,6 +767,68 @@ func TestBuildEntrypoint(t *testing.T) {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	logDone("build - entrypoint")
+}
+
+// #6445 ensure ONBUILD triggers aren't committed to grandchildren
+func TestBuildOnBuildLimitedInheritence(t *testing.T) {
+	name1 := "testonbuildtrigger1"
+	dockerfile1 := `
+		FROM busybox
+		RUN echo "GRANDPARENT"
+		ONBUILD RUN echo "ONBUILD PARENT"
+	`
+	ctx1, err := fakeContext(dockerfile1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name1, ".")
+	buildCmd.Dir = ctx1.Dir
+	out1, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out1, err))
+	defer deleteImages(name1)
+
+	name2 := "testonbuildtrigger2"
+	dockerfile2 := `
+		FROM testonbuildtrigger1
+	`
+	ctx2, err := fakeContext(dockerfile2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", name2, ".")
+	buildCmd.Dir = ctx2.Dir
+	out2, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out2, err))
+	defer deleteImages(name2)
+
+	name3 := "testonbuildtrigger3"
+	dockerfile3 := `
+		FROM testonbuildtrigger2
+	`
+	ctx3, err := fakeContext(dockerfile3, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCmd = exec.Command(dockerBinary, "build", "-t", name3, ".")
+	buildCmd.Dir = ctx3.Dir
+	out3, _, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out3, err))
+	defer deleteImages(name3)
+
+	// ONBUILD should be run in second build.
+	if !strings.Contains(out2, "ONBUILD PARENT") {
+		t.Fatalf("ONBUILD instruction did not run in child of ONBUILD parent")
+	}
+
+	// ONBUILD should *not* be run in third build.
+	if strings.Contains(out3, "ONBUILD PARENT") {
+		t.Fatalf("ONBUILD instruction ran in grandchild of ONBUILD parent")
+	}
+
+	logDone("build - onbuild")
 }
 
 func TestBuildWithCache(t *testing.T) {
@@ -1067,6 +1132,50 @@ func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
 	logDone("build - add local and remote file with cache")
 }
 
+func testContextTar(t *testing.T, compression archive.Compression) {
+	contextDirectory := filepath.Join(workingDirectory, "build_tests", "TestContextTar")
+	context, err := archive.Tar(contextDirectory, compression)
+
+	if err != nil {
+		t.Fatalf("failed to build context tar: %v", err)
+	}
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "contexttar", "-")
+	buildCmd.Stdin = context
+
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("build failed to complete: %v %v", out, err)
+	}
+	deleteImages("contexttar")
+	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", compression))
+}
+
+func TestContextTarGzip(t *testing.T) {
+	testContextTar(t, archive.Gzip)
+}
+
+func TestContextTarNoCompression(t *testing.T) {
+	testContextTar(t, archive.Uncompressed)
+}
+
+func TestNoContext(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "nocontext", "-")
+	buildCmd.Stdin = strings.NewReader("FROM busybox\nCMD echo ok\n")
+
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("build failed to complete: %v %v", out, err)
+	}
+
+	out, exitCode, err = cmd(t, "run", "nocontext")
+	if out != "ok\n" {
+		t.Fatalf("run produced invalid output: %q, expected %q", out, "ok")
+	}
+
+	deleteImages("nocontext")
+	logDone("build - build an image with no context")
+}
+
 // TODO: TestCaching
 func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
@@ -1132,4 +1241,493 @@ func TestBuildWithVolumeOwnership(t *testing.T) {
 	}
 
 	logDone("build - volume ownership")
+}
+
+// testing #1405 - config.Cmd does not get cleaned up if
+// utilizing cache
+func TestBuildEntrypointRunCleanup(t *testing.T) {
+	name := "testbuildcmdcleanup"
+	defer deleteImages(name)
+	if _, err := buildImage(name,
+		`FROM busybox
+        RUN echo "hello"`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, err := fakeContext(`FROM busybox
+        RUN echo "hello"
+        ADD foo /foo
+        ENTRYPOINT ["/bin/echo"]`,
+		map[string]string{
+			"foo": "hello",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Cmd inherited from busybox, maybe will be fixed in #5147
+	if expected := "[/bin/sh]"; res != expected {
+		t.Fatalf("Cmd %s, expected %s", res, expected)
+	}
+	logDone("build - cleanup cmd after RUN")
+}
+
+func TestBuldForbiddenContextPath(t *testing.T) {
+	name := "testbuildforbidpath"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+        ADD ../../ test/
+        `,
+		map[string]string{
+			"test.txt":  "test1",
+			"other.txt": "other",
+		})
+
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "Forbidden path outside the build context: ../../ (/)") {
+			t.Fatal("Wrong error, must be about forbidden ../../ path")
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - forbidden context path")
+}
+
+func TestBuildADDFileNotFound(t *testing.T) {
+	name := "testbuildaddnotfound"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+        ADD foo /usr/local/bar`,
+		map[string]string{"bar": "hello"})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "foo: no such file or directory") {
+			t.Fatalf("Wrong error %v, must be about missing foo file or directory", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - add file not found")
+}
+
+func TestBuildInheritance(t *testing.T) {
+	name := "testbuildinheritance"
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`FROM scratch
+		EXPOSE 2375`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ports1, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM %s
+		ENTRYPOINT ["/bin/echo"]`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := "[/bin/echo]"; res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+	ports2, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ports1 != ports2 {
+		t.Fatalf("Ports must be same: %s != %s", ports1, ports2)
+	}
+	logDone("build - inheritance")
+}
+
+func TestBuildFails(t *testing.T) {
+	name := "testbuildfails"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN sh -c "exit 23"`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "returned a non-zero code: 23") {
+			t.Fatalf("Wrong error %v, must be about non-zero code 23", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - fails")
+}
+
+func TestBuildFailsDockerfileEmpty(t *testing.T) {
+	name := "testbuildfails"
+	defer deleteImages(name)
+	_, err := buildImage(name, ``, true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Dockerfile cannot be empty") {
+			t.Fatalf("Wrong error %v, must be about empty Dockerfile", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - fails with empty dockerfile")
+}
+
+func TestBuildOnBuild(t *testing.T) {
+	name := "testbuildonbuild"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD RUN touch foobar`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM %s
+		RUN [ -f foobar ]`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - onbuild")
+}
+
+func TestBuildOnBuildForbiddenChained(t *testing.T) {
+	name := "testbuildonbuildforbiddenchained"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD ONBUILD RUN touch foobar`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed") {
+			t.Fatalf("Wrong error %v, must be about chaining ONBUILD", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden chained")
+}
+
+func TestBuildOnBuildForbiddenFrom(t *testing.T) {
+	name := "testbuildonbuildforbiddenfrom"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD FROM scratch`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "FROM isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about FROM forbidden", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden from")
+}
+
+func TestBuildOnBuildForbiddenMaintainer(t *testing.T) {
+	name := "testbuildonbuildforbiddenmaintainer"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ONBUILD MAINTAINER docker.io`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "MAINTAINER isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about MAINTAINER forbidden", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden maintainer")
+}
+
+// gh #2446
+func TestBuildAddToSymlinkDest(t *testing.T) {
+	name := "testbuildaddtosymlinkdest"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+        RUN mkdir /foo
+        RUN ln -s /foo /bar
+        ADD foo /bar/
+        RUN [ -f /bar/foo ]
+        RUN [ -f /foo/foo ]`,
+		map[string]string{
+			"foo": "hello",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add to symlink destination")
+}
+
+func TestBuildEscapeWhitespace(t *testing.T) {
+	name := "testbuildescaping"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  MAINTAINER "Docker \
+IO <io@\
+docker.com>"
+  `, true)
+
+	res, err := inspectField(name, "Author")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res != "Docker IO <io@docker.com>" {
+		t.Fatal("Parsed string did not match the escaped string")
+	}
+
+	logDone("build - validate escaping whitespace")
+}
+
+func TestDockerignore(t *testing.T) {
+	name := "testbuilddockerignore"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+        ADD . /bla
+		RUN [[ -f /bla/src/x.go ]]
+		RUN [[ -f /bla/Makefile ]]
+		RUN [[ ! -e /bla/src/_vendor ]]
+		RUN [[ ! -e /bla/.gitignore ]]
+		RUN [[ ! -e /bla/README.md ]]
+		RUN [[ ! -e /bla/.git ]]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":         "all:",
+		".git/HEAD":        "ref: foo",
+		"src/x.go":         "package main",
+		"src/_vendor/v.go": "package main",
+		".gitignore":       "",
+		"README.md":        "readme",
+		".dockerignore":    ".git\npkg\n.gitignore\nsrc/_vendor\n*.md",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - test .dockerignore")
+}
+
+func TestDockerignoringDockerfile(t *testing.T) {
+	name := "testbuilddockerignoredockerfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM scratch`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    "FROM scratch",
+		".dockerignore": "Dockerfile\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err == nil {
+		t.Fatalf("Didn't get expected error from ignoring Dockerfile")
+	}
+	logDone("build - test .dockerignore of Dockerfile")
+}
+
+func TestBuildLineBreak(t *testing.T) {
+	name := "testbuildlinebreak"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM  busybox
+RUN    sh -c 'echo root:testpass \
+	> /tmp/passwd'
+RUN    mkdir -p /var/run/sshd
+RUN    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+RUN    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - line break with \\")
+}
+
+func TestBuildEOLInLine(t *testing.T) {
+	name := "testbuildeolinline"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM   busybox
+RUN    sh -c 'echo root:testpass > /tmp/passwd'
+RUN    echo "foo \n bar"; echo "baz"
+RUN    mkdir -p /var/run/sshd
+RUN    [ "$(cat /tmp/passwd)" = "root:testpass" ]
+RUN    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - end of line in dockerfile instruction")
+}
+
+func TestBuildCommentsShebangs(t *testing.T) {
+	name := "testbuildcomments"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+# This is an ordinary comment.
+RUN { echo '#!/bin/sh'; echo 'echo hello world'; } > /hello.sh
+RUN [ ! -x /hello.sh ]
+# comment with line break \
+RUN chmod +x /hello.sh
+RUN [ -x /hello.sh ]
+RUN [ "$(cat /hello.sh)" = $'#!/bin/sh\necho hello world' ]
+RUN [ "$(/hello.sh)" = "hello world" ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - comments and shebangs")
+}
+
+func TestBuildUsersAndGroups(t *testing.T) {
+	name := "testbuildusers"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+
+# Make sure our defaults work
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)" = '0:0/root:root' ]
+
+# TODO decide if "args.user = strconv.Itoa(syscall.Getuid())" is acceptable behavior for changeUser in sysvinit instead of "return nil" when "USER" isn't specified (so that we get the proper group list even if that is the empty list, even in the default case of not supplying an explicit USER to run as, which implies USER 0)
+USER root
+RUN [ "$(id -G):$(id -Gn)" = '0 10:root wheel' ]
+
+# Setup dockerio user and group
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+
+# Make sure we can switch to our user and all the information is exactly as we expect it to be
+USER dockerio
+RUN id -G
+RUN id -Gn
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+
+# Switch back to root and double check that worked exactly as we might expect it to
+USER root
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0 10:root wheel' ]
+
+# Add a "supplementary" group for our dockerio user
+RUN echo 'supplementary:x:1002:dockerio' >> /etc/group
+
+# ... and then go verify that we get it like we expect
+USER dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001 1002:dockerio supplementary' ]
+USER 1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001 1002:dockerio supplementary' ]
+
+# super test the new "user:group" syntax
+USER dockerio:dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER 1001:dockerio
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER dockerio:1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER 1001:1001
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
+USER dockerio:supplementary
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+USER dockerio:1002
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+USER 1001:supplementary
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+USER 1001:1002
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1002/dockerio:supplementary/1002:supplementary' ]
+
+# make sure unknown uid/gid still works properly
+USER 1042:1043
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1042:1043/1042:1043/1043:1043' ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - users and groups")
+}
+
+func TestBuildEnvUsage(t *testing.T) {
+	name := "testbuildenvusage"
+	defer deleteImages(name)
+	dockerfile := `FROM busybox
+ENV    FOO /foo/baz
+ENV    BAR /bar
+ENV    BAZ $BAR
+ENV    FOOPATH $PATH:$FOO
+RUN    [ "$BAR" = "$BAZ" ]
+RUN    [ "$FOOPATH" = "$PATH:/foo/baz" ]
+ENV	   FROM hello/docker/world
+ENV    TO /docker/world/hello
+ADD    $FROM $TO
+RUN    [ "$(cat $TO)" = "hello" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"hello/docker/world": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - environment variables usage")
+}
+
+func TestBuildAddScript(t *testing.T) {
+	name := "testbuildaddscript"
+	defer deleteImages(name)
+	dockerfile := `
+FROM busybox
+ADD test /test
+RUN ["chmod","+x","/test"]
+RUN ["/test"]
+RUN [ "$(cat /testfile)" = 'test!' ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"test": "#!/bin/sh\necho 'test!' > /testfile",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add and run script")
 }

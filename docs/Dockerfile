@@ -13,10 +13,8 @@ RUN	pip install mkdocs
 #RUN	easy_install -U setuptools
 #RUN	pip install MarkdownTools2
 
-# this week I seem to need the latest dev release of awscli too
-# awscli 1.3.6 does --error-document correctly
-# https://github.com/aws/aws-cli/commit/edc2290e173dfaedc70b48cfa3624d58c533c6c3
-RUN	pip install awscli
+# this version works, the current versions fail in different ways
+RUN	pip install awscli==1.3.9
 
 # get my sitemap.xml branch of mkdocs and use that for now
 RUN	git clone https://github.com/SvenDowideit/mkdocs	&&\
@@ -30,8 +28,12 @@ WORKDIR	/docs
 
 RUN	VERSION=$(cat /docs/VERSION)								&&\
 	GIT_BRANCH=$(cat /docs/GIT_BRANCH)							&&\
+	GITCOMMIT=$(cat /docs/GITCOMMIT)							&&\
 	AWS_S3_BUCKET=$(cat /docs/AWS_S3_BUCKET)						&&\
-	echo "{% set docker_version = \"${VERSION}\" %}{% set docker_branch = \"${GIT_BRANCH}\" %}{% set aws_bucket = \"${AWS_S3_BUCKET}\" %}{% include \"beta_warning.html\" %}" > /docs/theme/mkdocs/version.html
+	sed -i "s/\$VERSION/$VERSION/g" /docs/theme/mkdocs/base.html				&&\
+	sed -i "s/\$GITCOMMIT/$GITCOMMIT/g" /docs/theme/mkdocs/base.html			&&\
+	sed -i "s/\$GIT_BRANCH/$GIT_BRANCH/g" /docs/theme/mkdocs/base.html			&&\
+	sed -i "s/\$AWS_S3_BUCKET/$AWS_S3_BUCKET/g" /docs/theme/mkdocs/base.html
 
 # note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
 EXPOSE	8000

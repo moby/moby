@@ -1,20 +1,20 @@
-page_title: Dockerizing Applications: A "Hello World!"
-page_description: A simple "Hello World!" exercise that introduced you to Docker.
+page_title: Dockerizing Applications: A "Hello world"
+page_description: A simple "Hello world" exercise that introduced you to Docker.
 page_keywords: docker guide, docker, docker platform, virtualization framework, how to, dockerize, dockerizing apps, dockerizing applications, container, containers
 
-# Dockerizing Applications: A "Hello World!"
+# Dockerizing Applications: A "Hello world"
 
 *So what's this Docker thing all about?*
 
 Docker allows you to run applications inside containers. Running an
 application inside a container takes a single command: `docker run`.
 
-## Hello World!
+## Hello world
 
 Let's try it now.
 
-    $ sudo docker run ubuntu:14.04 /bin/echo 'Hello World!'
-    Hello World!
+    $ sudo docker run ubuntu:14.04 /bin/echo 'Hello world'
+    Hello world
 
 And you just launched your first container!
 
@@ -34,17 +34,17 @@ image registry: [Docker Hub](https://hub.docker.com).
 
 Next we told Docker what command to run inside our new container:
 
-    /bin/echo 'Hello World!'
+    /bin/echo 'Hello world'
 
 When our container was launched Docker created a new Ubuntu 14.04
 environment and then executed the `/bin/echo` command inside it. We saw
 the result on the command line:
 
-    Hello World!
+    Hello world
 
 So what happened to our container after that? Well Docker containers
 only run as long as the command you specify is active. Here, as soon as
-`Hello World!` was echoed, the container stopped.
+`Hello world` was echoed, the container stopped.
 
 ## An Interactive Container
 
@@ -88,7 +88,7 @@ use the `exit` command to finish.
 As with our previous container, once the Bash shell process has
 finished, the container is stopped.
 
-## A Daemonized Hello World!
+## A Daemonized Hello world
 
 Now a container that runs a command and then exits has some uses but
 it's not overly helpful. Let's create a container that runs as a daemon,
@@ -99,7 +99,7 @@ Again we can do this with the `docker run` command:
     $ sudo docker run -d ubuntu:14.04 /bin/sh -c "while true; do echo hello world; sleep 1; done"
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
-Wait what? Where's our "Hello World!" Let's look at what we've run here.
+Wait what? Where's our "Hello world" Let's look at what we've run here.
 It should look pretty familiar. We ran `docker run` but this time we
 specified a flag: `-d`. The `-d` flag tells Docker to run the container
 and put it in the background, to daemonize it.
@@ -131,10 +131,10 @@ world` daemon.
 
 Firstly let's make sure our container is running. We can
 do that with the `docker ps` command. The `docker ps` command queries
-the Docker daemon for information about all the container it knows
+the Docker daemon for information about all the containers it knows
 about.
 
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
     1e5535038e28  ubuntu:14.04  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 

@@ -290,7 +290,7 @@ List processes running inside the container `id`
 
      
 
-    -   **ps_args** – ps arguments to use (eg. aux)
+    -   **ps_args** – ps arguments to use (e.g., aux)
 
     Status Codes:
 
@@ -570,7 +570,7 @@ Attach to the container `id`
 
     `STREAM_TYPE` can be:
 
-    -   0: stdin (will be writen on stdout)
+    -   0: stdin (will be written on stdout)
     -   1: stdout
     -   2: stderr
 
@@ -791,8 +791,8 @@ Return low-level information on the image `name`
                              "OpenStdin":true,
                              "StdinOnce":false,
                              "Env":null,
-                             "Cmd": ["/bin/bash"]
-                             ,"Dns":null,
+                             "Cmd": ["/bin/bash"],
+                             "Dns":null,
                              "Image":"base",
                              "Volumes":null,
                              "VolumesFrom":"",
@@ -1099,9 +1099,15 @@ Display system-wide information
         {
              "Containers":11,
              "Images":16,
+             "Driver":"btrfs",
+             "ExecutionDriver":"native-0.1",
+             "KernelVersion":"3.12.0-1-amd64"
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
+             "NEventsListener":0,
+             "InitPath":"/usr/bin/docker",
+             "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
              "IPv4Forwarding":true
@@ -1217,7 +1223,7 @@ Create a new image from a container's changes
     -   **repo** – repository
     -   **tag** – tag
     -   **m** – commit message
-    -   **author** – author (eg. "John Hannibal Smith
+    -   **author** – author (e.g., "John Hannibal Smith
         <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
     Status Codes:

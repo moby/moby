@@ -1,7 +1,11 @@
 package engine
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
+
+	"github.com/dotcloud/docker/pkg/testutils"
 )
 
 func TestEnvLenZero(t *testing.T) {
@@ -141,5 +145,168 @@ func TestMultiMap(t *testing.T) {
 	}
 	if v := e2.Get("hello"); v != "world" {
 		t.Fatalf("%#v", v)
+	}
+}
+
+func testMap(l int) [][2]string {
+	res := make([][2]string, l)
+	for i := 0; i < l; i++ {
+		t := [2]string{testutils.RandomString(5), testutils.RandomString(20)}
+		res[i] = t
+	}
+	return res
+}
+
+func BenchmarkSet(b *testing.B) {
+	fix := testMap(100)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env := &Env{}
+		for _, kv := range fix {
+			env.Set(kv[0], kv[1])
+		}
+	}
+}
+
+func BenchmarkSetJson(b *testing.B) {
+	fix := testMap(100)
+	type X struct {
+		f string
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env := &Env{}
+		for _, kv := range fix {
+			if err := env.SetJson(kv[0], X{kv[1]}); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	fix := testMap(100)
+	env := &Env{}
+	for _, kv := range fix {
+		env.Set(kv[0], kv[1])
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, kv := range fix {
+			env.Get(kv[0])
+		}
+	}
+}
+
+func BenchmarkGetJson(b *testing.B) {
+	fix := testMap(100)
+	env := &Env{}
+	type X struct {
+		f string
+	}
+	for _, kv := range fix {
+		env.SetJson(kv[0], X{kv[1]})
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, kv := range fix {
+			if err := env.GetJson(kv[0], &X{}); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkEncode(b *testing.B) {
+	fix := testMap(100)
+	env := &Env{}
+	type X struct {
+		f string
+	}
+	// half a json
+	for i, kv := range fix {
+		if i%2 != 0 {
+			if err := env.SetJson(kv[0], X{kv[1]}); err != nil {
+				b.Fatal(err)
+			}
+			continue
+		}
+		env.Set(kv[0], kv[1])
+	}
+	var writer bytes.Buffer
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env.Encode(&writer)
+		writer.Reset()
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	fix := testMap(100)
+	env := &Env{}
+	type X struct {
+		f string
+	}
+	// half a json
+	for i, kv := range fix {
+		if i%2 != 0 {
+			if err := env.SetJson(kv[0], X{kv[1]}); err != nil {
+				b.Fatal(err)
+			}
+			continue
+		}
+		env.Set(kv[0], kv[1])
+	}
+	var writer bytes.Buffer
+	env.Encode(&writer)
+	denv := &Env{}
+	reader := bytes.NewReader(writer.Bytes())
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := denv.Decode(reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+		reader.Seek(0, 0)
+	}
+}
+
+func TestLongNumbers(t *testing.T) {
+	type T struct {
+		TestNum int64
+	}
+	v := T{67108864}
+	var buf bytes.Buffer
+	e := &Env{}
+	e.SetJson("Test", v)
+	if err := e.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	res := make(map[string]T)
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res["Test"].TestNum != v.TestNum {
+		t.Fatalf("TestNum %d, expected %d", res["Test"].TestNum, v.TestNum)
+	}
+}
+
+func TestLongNumbersArray(t *testing.T) {
+	type T struct {
+		TestNum []int64
+	}
+	v := T{[]int64{67108864}}
+	var buf bytes.Buffer
+	e := &Env{}
+	e.SetJson("Test", v)
+	if err := e.Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	res := make(map[string]T)
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res["Test"].TestNum[0] != v.TestNum[0] {
+		t.Fatalf("TestNum %d, expected %d", res["Test"].TestNum, v.TestNum)
 	}
 }

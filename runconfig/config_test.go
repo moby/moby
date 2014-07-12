@@ -1,6 +1,7 @@
 package runconfig
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -18,6 +19,18 @@ func mustParse(t *testing.T, args string) (*Config, *HostConfig) {
 		t.Fatal(err)
 	}
 	return config, hostConfig
+}
+
+// check if (a == c && b == d) || (a == d && b == c)
+// because maps are randomized
+func compareRandomizedStrings(a, b, c, d string) error {
+	if a == c && b == d {
+		return nil
+	}
+	if a == d && b == c {
+		return nil
+	}
+	return fmt.Errorf("strings don't match")
 }
 
 func TestParseRunLinks(t *testing.T) {
@@ -98,11 +111,11 @@ func TestParseRunVolumes(t *testing.T) {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp` should mount-bind /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" || hostConfig.Binds[1] != "/hostVar:/containerVar" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp", "/hostVar:/containerVar") != nil {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /hostVar:/containerVar` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp:ro" || hostConfig.Binds[1] != "/hostVar:/containerVar:rw" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:ro", "/hostVar:/containerVar:rw") != nil {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
 	}
 

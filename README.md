@@ -18,7 +18,13 @@ It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
 
-![Docker L](docs/theme/mkdocs/img/logo_compressed.png "Docker")
+![Docker L](docs/theme/mkdocs/images/docker-logo-compressed.png "Docker")
+
+## Security Disclosure
+
+Security is very important to us.  If you have any issue regarding security, 
+please disclose the information responsibly by sending an email to 
+security@docker.com and not by creating a github issue.
 
 ## Better than VMs
 
@@ -142,11 +148,10 @@ Docker can be installed on your local machine as well as servers - both
 bare metal and virtualized.  It is available as a binary on most modern
 Linux systems, or as a VM on Windows, Mac and other systems.
 
-We also offer an interactive tutorial for quickly learning the basics of
-using Docker.
+We also offer an [interactive tutorial](http://www.docker.com/tryit/)
+for quickly learning the basics of using Docker.
 
-For up-to-date install instructions and online tutorials, see the
-[Getting Started page](http://www.docker.io/gettingstarted/).
+For up-to-date install instructions, see the [Docs](http://docs.docker.com).
 
 Usage examples
 ==============
@@ -155,7 +160,7 @@ Docker can be used to run short-lived commands, long-running daemons
 (app servers, databases etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](http://docs.docker.io/en/latest/examples/) in the
+examples](http://docs.docker.com/examples/) in the
 documentation.
 
 Under the hood

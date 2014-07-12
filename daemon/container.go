@@ -29,6 +29,7 @@ import (
 	"github.com/dotcloud/docker/pkg/symlink"
 	"github.com/dotcloud/docker/runconfig"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/utils/broadcastwriter"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -53,7 +54,7 @@ type Container struct {
 	Args []string
 
 	Config *runconfig.Config
-	State  State
+	State  *State
 	Image  string
 
 	NetworkSettings *NetworkSettings
@@ -66,16 +67,15 @@ type Container struct {
 	ExecDriver     string
 
 	command   *execdriver.Command
-	stdout    *utils.WriteBroadcaster
-	stderr    *utils.WriteBroadcaster
+	stdout    *broadcastwriter.BroadcastWriter
+	stderr    *broadcastwriter.BroadcastWriter
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
 
-	waitLock chan struct{}
-	Volumes  map[string]string
+	Volumes map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
 	// Easier than migrating older container configs :)
 	VolumesRW  map[string]bool
@@ -85,7 +85,12 @@ type Container struct {
 }
 
 func (container *Container) FromDisk() error {
-	data, err := ioutil.ReadFile(container.jsonPath())
+	pth, err := container.jsonPath()
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadFile(pth)
 	if err != nil {
 		return err
 	}
@@ -101,15 +106,22 @@ func (container *Container) FromDisk() error {
 	return container.readHostConfig()
 }
 
-func (container *Container) ToDisk() (err error) {
+func (container *Container) ToDisk() error {
 	data, err := json.Marshal(container)
 	if err != nil {
-		return
+		return err
 	}
-	err = ioutil.WriteFile(container.jsonPath(), data, 0666)
+
+	pth, err := container.jsonPath()
 	if err != nil {
-		return
+		return err
 	}
+
+	err = ioutil.WriteFile(pth, data, 0666)
+	if err != nil {
+		return err
+	}
+
 	return container.WriteHostConfig()
 }
 
@@ -118,33 +130,45 @@ func (container *Container) readHostConfig() error {
 	// If the hostconfig file does not exist, do not read it.
 	// (We still have to initialize container.hostConfig,
 	// but that's OK, since we just did that above.)
-	_, err := os.Stat(container.hostConfigPath())
+	pth, err := container.hostConfigPath()
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stat(pth)
 	if os.IsNotExist(err) {
 		return nil
 	}
-	data, err := ioutil.ReadFile(container.hostConfigPath())
+
+	data, err := ioutil.ReadFile(pth)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(data, container.hostConfig)
 }
 
-func (container *Container) WriteHostConfig() (err error) {
+func (container *Container) WriteHostConfig() error {
 	data, err := json.Marshal(container.hostConfig)
 	if err != nil {
-		return
+		return err
 	}
-	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
+
+	pth, err := container.hostConfigPath()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(pth, data, 0666)
 }
 
-func (container *Container) getResourcePath(path string) string {
+func (container *Container) getResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
-	return filepath.Join(container.basefs, cleanPath)
+	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
 }
 
-func (container *Container) getRootResourcePath(path string) string {
+func (container *Container) getRootResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
-	return filepath.Join(container.root, cleanPath)
+	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
 func populateCommand(c *Container, env []string) error {
@@ -260,7 +284,6 @@ func (container *Container) Start() (err error) {
 	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
-	container.waitLock = make(chan struct{})
 
 	return container.waitForStart()
 }
@@ -269,7 +292,7 @@ func (container *Container) Run() error {
 	if err := container.Start(); err != nil {
 		return err
 	}
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	return nil
 }
 
@@ -283,7 +306,7 @@ func (container *Container) Output() (output []byte, err error) {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	return output, err
 }
 
@@ -324,7 +347,12 @@ func (container *Container) StderrLogPipe() io.ReadCloser {
 }
 
 func (container *Container) buildHostnameFile() error {
-	container.HostnamePath = container.getRootResourcePath("hostname")
+	hostnamePath, err := container.getRootResourcePath("hostname")
+	if err != nil {
+		return err
+	}
+	container.HostnamePath = hostnamePath
+
 	if container.Config.Domainname != "" {
 		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
 	}
@@ -336,7 +364,11 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 		return err
 	}
 
-	container.HostsPath = container.getRootResourcePath("hosts")
+	hostsPath, err := container.getRootResourcePath("hosts")
+	if err != nil {
+		return err
+	}
+	container.HostsPath = hostsPath
 
 	extraContent := make(map[string]string)
 
@@ -434,6 +466,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
 	}
+	container.State.SetStopped(exitCode)
 
 	// Cleanup
 	container.cleanup()
@@ -442,28 +475,17 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
 	if container.daemon != nil && container.daemon.srv != nil {
 		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
 	}
-
-	close(container.waitLock)
-
 	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
-		container.State.SetStopped(exitCode)
-
-		// FIXME: there is a race condition here which causes this to fail during the unit tests.
-		// If another goroutine was waiting for Wait() to return before removing the container's root
-		// from the filesystem... At this point it may already have done so.
-		// This is because State.setStopped() has already been called, and has caused Wait()
-		// to return.
-		// FIXME: why are we serializing running state to disk in the first place?
-		//log.Printf("%s: Failed to dump configuration to the disk: %s", container.ID, err)
+		// FIXME: here is race condition between two RUN instructions in Dockerfile
+		// because they share same runconfig and change image. Must be fixed
+		// in server/buildfile.go
 		if err := container.ToDisk(); err != nil {
-			utils.Errorf("Error dumping container state to disk: %s\n", err)
+			utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
 		}
 	}
-
 	return err
 }
 
@@ -481,10 +503,10 @@ func (container *Container) cleanup() {
 			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
-	if err := container.stdout.CloseWriters(); err != nil {
+	if err := container.stdout.Clean(); err != nil {
 		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
-	if err := container.stderr.CloseWriters(); err != nil {
+	if err := container.stderr.Clean(); err != nil {
 		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 	if container.command != nil && container.command.Terminal != nil {
@@ -499,6 +521,7 @@ func (container *Container) cleanup() {
 }
 
 func (container *Container) KillSig(sig int) error {
+	utils.Debugf("Sending %d to %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
 
@@ -544,9 +567,9 @@ func (container *Container) Kill() error {
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
-	if err := container.WaitTimeout(10 * time.Second); err != nil {
+	if _, err := container.State.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
-		if pid := container.State.Pid; pid != 0 {
+		if pid := container.State.GetPid(); pid != 0 {
 			log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				return err
@@ -554,7 +577,7 @@ func (container *Container) Kill() error {
 		}
 	}
 
-	container.Wait()
+	container.State.WaitStop(-1 * time.Second)
 	return nil
 }
 
@@ -572,11 +595,11 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 2. Wait for the process to exit on its own
-	if err := container.WaitTimeout(time.Duration(seconds) * time.Second); err != nil {
+	if _, err := container.State.WaitStop(time.Duration(seconds) * time.Second); err != nil {
 		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
-			container.Wait()
+			container.State.WaitStop(-1 * time.Second)
 			return err
 		}
 	}
@@ -595,12 +618,6 @@ func (container *Container) Restart(seconds int) error {
 		return err
 	}
 	return container.Start()
-}
-
-// Wait blocks until the container stops running, then returns its exit code.
-func (container *Container) Wait() int {
-	<-container.waitLock
-	return container.State.GetExitCode()
 }
 
 func (container *Container) Resize(h, w int) error {
@@ -645,21 +662,6 @@ func (container *Container) Export() (archive.Archive, error) {
 		nil
 }
 
-func (container *Container) WaitTimeout(timeout time.Duration) error {
-	done := make(chan bool, 1)
-	go func() {
-		container.Wait()
-		done <- true
-	}()
-
-	select {
-	case <-time.After(timeout):
-		return fmt.Errorf("Timed Out")
-	case <-done:
-		return nil
-	}
-}
-
 func (container *Container) Mount() error {
 	return container.daemon.Mount(container)
 }
@@ -681,19 +683,23 @@ func (container *Container) Unmount() error {
 	return container.daemon.Unmount(container)
 }
 
-func (container *Container) logPath(name string) string {
+func (container *Container) logPath(name string) (string, error) {
 	return container.getRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
 }
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
-	return os.Open(container.logPath(name))
+	pth, err := container.logPath(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(pth)
 }
 
-func (container *Container) hostConfigPath() string {
+func (container *Container) hostConfigPath() (string, error) {
 	return container.getRootResourcePath("hostconfig.json")
 }
 
-func (container *Container) jsonPath() string {
+func (container *Container) jsonPath() (string, error) {
 	return container.getRootResourcePath("config.json")
 }
 
@@ -756,8 +762,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	var filter []string
 
-	resPath := container.getResourcePath(resource)
-	basePath, err := symlink.FollowSymlinkInScope(resPath, container.basefs)
+	basePath, err := container.getResourcePath(resource)
 	if err != nil {
 		container.Unmount()
 		return nil, err
@@ -777,7 +782,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		basePath = path.Dir(basePath)
 	}
 
-	archive, err := archive.TarFilter(basePath, &archive.TarOptions{
+	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		Includes:    filter,
 	})
@@ -808,11 +813,16 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 }
 
 func (container *Container) HostConfig() *runconfig.HostConfig {
-	return container.hostConfig
+	container.Lock()
+	res := container.hostConfig
+	container.Unlock()
+	return res
 }
 
 func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
+	container.Lock()
 	container.hostConfig = hostConfig
+	container.Unlock()
 }
 
 func (container *Container) DisableLink(name string) {
@@ -861,7 +871,13 @@ func (container *Container) setupContainerDns() error {
 		} else if len(daemon.config.DnsSearch) > 0 {
 			dnsSearch = daemon.config.DnsSearch
 		}
-		container.ResolvConfPath = container.getRootResourcePath("resolv.conf")
+
+		resolvConfPath, err := container.getRootResourcePath("resolv.conf")
+		if err != nil {
+			return err
+		}
+		container.ResolvConfPath = resolvConfPath
+
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
@@ -886,12 +902,20 @@ func (container *Container) initializeNetworking() error {
 		content, err := ioutil.ReadFile("/etc/hosts")
 		if os.IsNotExist(err) {
 			return container.buildHostnameAndHostsFiles("")
-		}
-		if err != nil {
+		} else if err != nil {
 			return err
 		}
 
-		container.HostsPath = container.getRootResourcePath("hosts")
+		if err := container.buildHostnameFile(); err != nil {
+			return err
+		}
+
+		hostsPath, err := container.getRootResourcePath("hosts")
+		if err != nil {
+			return err
+		}
+		container.HostsPath = hostsPath
+
 		return ioutil.WriteFile(container.HostsPath, content, 0644)
 	} else if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
@@ -1007,12 +1031,18 @@ func (container *Container) setupWorkingDirectory() error {
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
 
-		pthInfo, err := os.Stat(container.getResourcePath(container.Config.WorkingDir))
+		pth, err := container.getResourcePath(container.Config.WorkingDir)
+		if err != nil {
+			return err
+		}
+
+		pthInfo, err := os.Stat(pth)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-			if err := os.MkdirAll(container.getResourcePath(container.Config.WorkingDir), 0755); err != nil {
+
+			if err := os.MkdirAll(pth, 0755); err != nil {
 				return err
 			}
 		}
@@ -1025,19 +1055,24 @@ func (container *Container) setupWorkingDirectory() error {
 
 func (container *Container) startLoggingToDisk() error {
 	// Setup logging of stdout and stderr to disk
-	if err := container.daemon.LogToDisk(container.stdout, container.logPath("json"), "stdout"); err != nil {
+	pth, err := container.logPath("json")
+	if err != nil {
 		return err
 	}
-	if err := container.daemon.LogToDisk(container.stderr, container.logPath("json"), "stderr"); err != nil {
+
+	if err := container.daemon.LogToDisk(container.stdout, pth, "stdout"); err != nil {
 		return err
 	}
+
+	if err := container.daemon.LogToDisk(container.stderr, pth, "stderr"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (container *Container) waitForStart() error {
-	callbackLock := make(chan struct{})
 	callback := func(command *execdriver.Command) {
-		container.State.SetRunning(command.Pid())
 		if command.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
@@ -1049,16 +1084,23 @@ func (container *Container) waitForStart() error {
 		if err := container.ToDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
-		close(callbackLock)
+		container.State.SetRunning(command.Pid())
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
 	// syncronization purposes
 	cErr := utils.Go(func() error { return container.monitor(callback) })
 
+	waitStart := make(chan struct{})
+
+	go func() {
+		container.State.WaitRunning(-1 * time.Second)
+		close(waitStart)
+	}()
+
 	// Start should not return until the process is actually running
 	select {
-	case <-callbackLock:
+	case <-waitStart:
 	case err := <-cErr:
 		return err
 	}
