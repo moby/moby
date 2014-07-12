@@ -171,6 +171,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
 		} else if err == nil {
 			for _, pattern := range strings.Split(string(ignore), "\n") {
+				if pattern == "" {
+					continue
+				}
+
 				ok, err := filepath.Match(pattern, "Dockerfile")
 				if err != nil {
 					utils.Errorf("Bad .dockerignore pattern: '%s', error: %s", pattern, err)
