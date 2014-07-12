@@ -4,15 +4,17 @@ page_keywords: builder, docker, Dockerfile, automation, image creation
 
 # Dockerfile Reference
 
-**Docker can act as a builder** and read instructions from a text *Dockerfile*
-to automate the steps you would otherwise take manually to create an image.
-Executing `docker build` will run your steps and commit them along the way,
-giving you a final image.
+**Docker can build images automatically** by reading the instructions
+from a `Dockerfile`. A `Dockerfile` is a text document that contains all
+the commands you would normally execute manually in order to build a
+Docker image. By calling `docker build` from your terminal, you can have
+Docker build your image step by step, executing the instructions
+successively.
 
 ## Usage
 
 To [*build*](../commandline/cli/#cli-build) an image from a source repository,
-create a description file called Dockerfile at the root of your repository.
+create a description file called `Dockerfile` at the root of your repository.
 This file will describe the steps to assemble the image.
 
 Then call `docker build` with the path of your source repository as the argument
@@ -55,13 +57,12 @@ accelerating `docker build` significantly (indicated by `Using cache`):
      ---> 1a5ffc17324d
     Successfully built 1a5ffc17324d
 
-When you're done with your build, you're ready to look into
-[*Pushing a repository to its registry*](
-/userguide/dockerrepos/#image-push).
+When you're done with your build, you're ready to look into [*Pushing a
+repository to its registry*]( /userguide/dockerrepos/#image-push).
 
 ## Format
 
-Here is the format of the Dockerfile:
+Here is the format of the `Dockerfile`:
 
     # Comment
     INSTRUCTION arguments
@@ -69,8 +70,8 @@ Here is the format of the Dockerfile:
 The Instruction is not case-sensitive, however convention is for them to
 be UPPERCASE in order to distinguish them from arguments more easily.
 
-Docker evaluates the instructions in a Dockerfile in order. **The first
-instruction must be \`FROM\`** in order to specify the [*Base
+Docker runs the instructions in a `Dockerfile` in order. **The
+first instruction must be \`FROM\`** in order to specify the [*Base
 Image*](/terms/image/#base-image-def) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
@@ -80,10 +81,10 @@ be treated as an argument. This allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
-Here is the set of instructions you can use in a Dockerfile
-for building images.
+Here is the set of instructions you can use in a `Dockerfile` for building
+images.
 
-## .dockerignore
+## The `.dockerignore` file
 
 If a file named `.dockerignore` exists in the source repository, then it
 is interpreted as a newline-separated list of exclusion patterns.
@@ -124,15 +125,15 @@ Or
     FROM <image>:<tag>
 
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
-for subsequent instructions. As such, a valid Dockerfile must have `FROM` as
+for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
 /userguide/dockerrepos/#using-public-repositories).
 
-`FROM` must be the first non-comment instruction in the Dockerfile.
+`FROM` must be the first non-comment instruction in the `Dockerfile`.
 
-`FROM` can appear multiple times within a single Dockerfile in order to create
-multiple images. Simply make a note of the last image id output by the commit
+`FROM` can appear multiple times within a single `Dockerfile` in order to create
+multiple images. Simply make a note of the last image ID output by the commit
 before each new `FROM` command.
 
 If no `tag` is given to the `FROM` instruction, `latest` is assumed. If the
@@ -154,7 +155,7 @@ RUN has 2 forms:
 
 The `RUN` instruction will execute any commands in a new layer on top of the
 current image and commit the results. The resulting committed image will be
-used for the next step in the Dockerfile.
+used for the next step in the `Dockerfile`.
 
 Layering `RUN` instructions and generating commits conforms to the core
 concepts of Docker where commits are cheap and containers can be created from
@@ -163,11 +164,11 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
-The cache for `RUN` instructions isn't invalidated automatically during the
-next build. The cache for an instruction like `RUN apt-get dist-upgrade -y`
-will be reused during the next build.
-The cache for `RUN` instructions can be invalidated by using the `--no-cache`
-flag, for example `docker build --no-cache`.
+The cache for `RUN` instructions isn't invalidated automatically during
+the next build. The cache for an instruction like `RUN apt-get
+dist-upgrade -y` will be reused during the next build.  The cache for
+`RUN` instructions can be invalidated by using the `--no-cache` flag,
+for example `docker build --no-cache`.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -178,28 +179,27 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
   permissions problems that can occur when using the AUFS file system. You
   might notice it during an attempt to `rm` a file, for example. The issue
   describes a workaround.
-- [Issue 2424](https://github.com/dotcloud/docker/issues/2424) Locale will
-  not be set automatically.
 
 ## CMD
 
-CMD has three forms:
+The `CMD` instruction has three forms:
 
 - `CMD ["executable","param1","param2"]` (like an *exec*, this is the preferred form)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
 - `CMD command param1 param2` (as a *shell*)
 
-There can only be one CMD in a Dockerfile. If you list more than one CMD
-then only the last CMD will take effect.
+There can only be one `CMD` instruction in a `Dockerfile`. If you list more than one `CMD`
+then only the last `CMD` will take effect.
 
-**The main purpose of a CMD is to provide defaults for an executing
+**The main purpose of a `CMD` is to provide defaults for an executing
 container.** These defaults can include an executable, or they can omit
-the executable, in which case you must specify an ENTRYPOINT as well.
+the executable, in which case you must specify an `ENTRYPOINT`
+instruction as well.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
 
-If you use the *shell* form of the CMD, then the `<command>` will execute in
+If you use the *shell* form of the `CMD`, then the `<command>` will execute in
 `/bin/sh -c`:
 
     FROM ubuntu
@@ -207,7 +207,7 @@ If you use the *shell* form of the CMD, then the `<command>` will execute in
 
 If you want to **run your** `<command>` **without a shell** then you must
 express the command as a JSON array and give the full path to the executable.
-**This array form is the preferred format of CMD.** Any additional parameters
+**This array form is the preferred format of `CMD`.** Any additional parameters
 must be individually expressed as strings in the array:
 
     FROM ubuntu
@@ -218,7 +218,7 @@ you should consider using `ENTRYPOINT` in combination with `CMD`. See
 [*ENTRYPOINT*](#entrypoint).
 
 If the user specifies arguments to `docker run` then they will override the
-default specified in CMD.
+default specified in `CMD`.
 
 > **Note**:
 > don't confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
@@ -264,24 +264,23 @@ being built (also called the *context* of the build) or a remote file URL.
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
-All new files and directories are created with a uid and gid of 0.
+All new files and directories are created with a UID and GID of 0.
 
-In the case where `<src>` is a remote file URL, the destination will have permissions 600.
+In the case where `<src>` is a remote file URL, the destination will
+have permissions of 600.
 
 > **Note**:
-> If you build by passing a Dockerfile through STDIN (`docker build - < somefile`),
-> there is no build context, so the Dockerfile can only contain a URL
-> based ADD statement.
+> If you build by passing a `Dockerfile` through STDIN (`docker
+> build - < somefile`), there is no build context, so the `Dockerfile`
+> can only contain a URL based `ADD` instruction. You can also pass a
+> compressed archive through STDIN: (`docker build - < archive.tar.gz`),
+> the `Dockerfile` at the root of the archive and the rest of the
+> archive will get used at the context of the build.
 
-> You can also pass a compressed archive through STDIN:
-> (`docker build - < archive.tar.gz`), the `Dockerfile` at the root of
-> the archive and the rest of the archive will get used at the context
-> of the build.
->
 > **Note**:
-> If your URL files are protected using authentication, you will need to
-> use `RUN wget` , `RUN curl`
-> or use another tool from within the container as ADD does not support
+> If your URL files are protected using authentication, you
+> will need to use `RUN wget`, `RUN curl` or use another tool from
+> within the container as the `ADD` instruction does not support
 > authentication.
 
 > **Note**:
@@ -314,9 +313,9 @@ The copy obeys the following rules:
   from *remote* URLs are **not** decompressed. When a directory is copied or
   unpacked, it has the same behavior as `tar -x`: the result is the union of:
 
-    1. whatever existed at the destination path and
-    2. the contents of the source tree, with conflicts resolved in favor of 
-       "2." on a file-by-file basis.
+    1. Whatever existed at the destination path and
+    2. The contents of the source tree, with conflicts resolved in favor
+       of "2." on a file-by-file basis.
 
 - If `<src>` is any other kind of file, it is copied individually along with
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
@@ -342,7 +341,7 @@ being built (also called the *context* of the build).
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
-All new files and directories are created with a uid and gid of 0.
+All new files and directories are created with a UID and GID of 0.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
@@ -431,34 +430,34 @@ instructions via the Docker client, refer to [*Share Directories via Volumes*](
 
     USER daemon
 
-The `USER` instruction sets the username or UID to use when running the image
+The `USER` instruction sets the user name or UID to use when running the image
 and for any following `RUN` directives.
 
 ## WORKDIR
 
     WORKDIR /path/to/workdir
 
-The `WORKDIR` instruction sets the working directory for the `RUN`, `CMD` and
-`ENTRYPOINT` Dockerfile commands that follow it.
+The `WORKDIR` instruction sets the working directory for any `RUN`, `CMD` and
+`ENTRYPOINT` instructions that follow it in the `Dockerfile`.
 
-It can be used multiple times in the one Dockerfile. If a relative path
+It can be used multiple times in the one `Dockerfile`. If a relative path
 is provided, it will be relative to the path of the previous `WORKDIR`
 instruction. For example:
 
     WORKDIR /a WORKDIR b WORKDIR c RUN pwd
 
-The output of the final `pwd` command in this
-Dockerfile would be `/a/b/c`.
+The output of the final `pwd` command in this Dockerfile would be
+`/a/b/c`.
 
 ## ONBUILD
 
     ONBUILD [INSTRUCTION]
 
-The `ONBUILD` instruction adds to the image a
-"trigger" instruction to be executed at a later time, when the image is
-used as the base for another build. The trigger will be executed in the
-context of the downstream build, as if it had been inserted immediately
-after the *FROM* instruction in the downstream Dockerfile.
+The `ONBUILD` instruction adds to the image a *trigger* instruction to
+be executed at a later time, when the image is used as the base for
+another build. The trigger will be executed in the context of the
+downstream build, as if it had been inserted immediately after the
+`FROM` instruction in the downstream `Dockerfile`.
 
 Any build instruction can be registered as a trigger.
 
@@ -466,33 +465,33 @@ This is useful if you are building an image which will be used as a base
 to build other images, for example an application build environment or a
 daemon which may be customized with user-specific configuration.
 
-For example, if your image is a reusable python application builder, it
+For example, if your image is a reusable Python application builder, it
 will require application source code to be added in a particular
 directory, and it might require a build script to be called *after*
-that. You can't just call *ADD* and *RUN* now, because you don't yet
+that. You can't just call `ADD` and `RUN` now, because you don't yet
 have access to the application source code, and it will be different for
 each application build. You could simply provide application developers
-with a boilerplate Dockerfile to copy-paste into their application, but
+with a boilerplate `Dockerfile` to copy-paste into their application, but
 that is inefficient, error-prone and difficult to update because it
 mixes with application-specific code.
 
-The solution is to use *ONBUILD* to register in advance instructions to
+The solution is to use `ONBUILD` to register advance instructions to
 run later, during the next build stage.
 
 Here's how it works:
 
-1. When it encounters an *ONBUILD* instruction, the builder adds a
+1. When it encounters an `ONBUILD` instruction, the builder adds a
    trigger to the metadata of the image being built. The instruction
    does not otherwise affect the current build.
 2. At the end of the build, a list of all triggers is stored in the
-   image manifest, under the key *OnBuild*. They can be inspected with
-   *docker inspect*.
+   image manifest, under the key `OnBuild`. They can be inspected with
+   the `docker inspect` command.
 3. Later the image may be used as a base for a new build, using the
-   *FROM* instruction. As part of processing the *FROM* instruction,
-   the downstream builder looks for *ONBUILD* triggers, and executes
+   `FROM` instruction. As part of processing the `FROM` instruction,
+   the downstream builder looks for `ONBUILD` triggers, and executes
    them in the same order they were registered. If any of the triggers
-   fail, the *FROM* instruction is aborted which in turn causes the
-   build to fail. If all triggers succeed, the FROM instruction
+   fail, the `FROM` instruction is aborted which in turn causes the
+   build to fail. If all triggers succeed, the `FROM` instruction
    completes and the build continues as usual.
 4. Triggers are cleared from the final image after being executed. In
    other words they are not inherited by "grand-children" builds.
@@ -504,9 +503,9 @@ For example you might add something like this:
     ONBUILD RUN /usr/local/bin/python-build --dir /app/src
     [...]
 
-> **Warning**: Chaining ONBUILD instructions using ONBUILD ONBUILD isn't allowed.
+> **Warning**: Chaining `ONBUILD` instructions using `ONBUILD ONBUILD` isn't allowed.
 
-> **Warning**: ONBUILD may not trigger FROM or MAINTAINER instructions.
+> **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
 
 ## Dockerfile Examples
 
@@ -557,3 +556,4 @@ For example you might add something like this:
 
     # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.
+
