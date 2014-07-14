@@ -308,10 +308,12 @@ The copy obeys the following rules:
 - If `<src>` is a directory, the entire directory is copied, including
   filesystem metadata.
 
-- If `<src>` is a *local* tar archive in a recognized compression format
-  (identity, gzip, bzip2 or xz) then it is unpacked as a directory. Resources
-  from *remote* URLs are **not** decompressed. When a directory is copied or
-  unpacked, it has the same behavior as `tar -x`: the result is the union of:
+- If `<src>` is a *local* tar archive in a recognized compression
+  format (identity, gzip, bzip2 or xz) and `<dest>` end with a
+  trailing slash, then it is unpacked as a directory. Resources from
+  *remote* URLs are **not** decompressed. When a directory is copied
+  or unpacked, it has the same behavior as `tar -x`: the result is the
+  union of:
 
     1. Whatever existed at the destination path and
     2. The contents of the source tree, with conflicts resolved in favor
