@@ -907,3 +907,12 @@ func ValidateContextDirectory(srcPath string) error {
 	})
 	return finalError
 }
+
+func StringsContainsNoCase(slice []string, s string) bool {
+	for _, ss := range slice {
+		if strings.ToLower(s) == strings.ToLower(ss) {
+			return true
+		}
+	}
+	return false
+}

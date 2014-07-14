@@ -42,6 +42,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
+	} else {
+		if err := d.setCapabilities(container, c); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := d.setupCgroups(container, c); err != nil {
@@ -134,6 +138,11 @@ func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 	}
 
 	return nil
+}
+
+func (d *driver) setCapabilities(container *libcontainer.Config, c *execdriver.Command) (err error) {
+	container.Capabilities, err = execdriver.TweakCapabilities(container.Capabilities, c.CapAdd, c.CapDrop)
+	return err
 }
 
 func (d *driver) setupCgroups(container *libcontainer.Config, c *execdriver.Command) error {

@@ -241,7 +241,9 @@ Return low-level information on the container `id`
                             ]
                          },
                          "Links": ["/name:alias"],
-                         "PublishAllPorts": false
+                         "PublishAllPorts": false,
+                         "CapAdd: ["NET_ADMIN"],
+                         "CapDrop: ["MKNOD"]
                      }
         }
 
@@ -410,7 +412,9 @@ Start the container `id`
              "PublishAllPorts":false,
              "Privileged":false,
              "Dns": ["8.8.8.8"],
-             "VolumesFrom": ["parent", "other:ro"]
+             "VolumesFrom": ["parent", "other:ro"],
+             "CapAdd: ["NET_ADMIN"],
+             "CapDrop: ["MKNOD"]
         }
 
     **Example response**:

@@ -4,6 +4,7 @@ package lxc
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 
 	"github.com/docker/libcontainer/namespaces"
@@ -48,8 +49,13 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 			return fmt.Errorf("clear keep caps %s", err)
 		}
 
+		caps, err := execdriver.TweakCapabilities(container.Capabilities, strings.Split(args.CapAdd, " "), strings.Split(args.CapDrop, " "))
+		if err != nil {
+			return err
+		}
+
 		// drop all other capabilities
-		if err := capabilities.DropCapabilities(container.Capabilities); err != nil {
+		if err := capabilities.DropCapabilities(caps); err != nil {
 			return fmt.Errorf("drop capabilities %s", err)
 		}
 	}
