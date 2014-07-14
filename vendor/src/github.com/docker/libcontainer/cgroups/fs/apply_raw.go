@@ -12,21 +12,21 @@ import (
 
 var (
 	subsystems = map[string]subsystem{
-		"devices":    &devicesGroup{},
-		"memory":     &memoryGroup{},
-		"cpu":        &cpuGroup{},
-		"cpuset":     &cpusetGroup{},
-		"cpuacct":    &cpuacctGroup{},
-		"blkio":      &blkioGroup{},
-		"perf_event": &perfEventGroup{},
-		"freezer":    &freezerGroup{},
+		"devices":    &DevicesGroup{},
+		"memory":     &MemoryGroup{},
+		"cpu":        &CpuGroup{},
+		"cpuset":     &CpusetGroup{},
+		"cpuacct":    &CpuacctGroup{},
+		"blkio":      &BlkioGroup{},
+		"perf_event": &PerfEventGroup{},
+		"freezer":    &FreezerGroup{},
 	}
 )
 
 type subsystem interface {
 	Set(*data) error
 	Remove(*data) error
-	GetStats(*data, *cgroups.Stats) error
+	GetStats(string, *cgroups.Stats) error
 }
 
 type data struct {
@@ -52,6 +52,14 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	return d, nil
 }
 
+func Cleanup(c *cgroups.Cgroup) error {
+	d, err := getCgroupData(c, 0)
+	if err != nil {
+		return fmt.Errorf("Could not get Cgroup data %s", err)
+	}
+	return d.Cleanup()
+}
+
 func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 	stats := cgroups.NewStats()
 
@@ -60,10 +68,19 @@ func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 		return nil, fmt.Errorf("getting CgroupData %s", err)
 	}
 
-	for sysName, sys := range subsystems {
-		// Don't fail if a cgroup hierarchy was not found.
-		if err := sys.GetStats(d, stats); err != nil && err != cgroups.ErrNotFound {
-			return nil, fmt.Errorf("getting stats for system %q %s", sysName, err)
+	for sysname, sys := range subsystems {
+		path, err := d.path(sysname)
+		if err != nil {
+			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
+			if err == cgroups.ErrNotFound {
+				continue
+			}
+
+			return nil, err
+		}
+
+		if err := sys.GetStats(path, stats); err != nil {
+			return nil, err
 		}
 	}
 

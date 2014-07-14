@@ -66,6 +66,23 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
+// Change the label of path to the filelabel string.  If the relabel string
+// is "z", relabel will change the MCS label to s0.  This will allow all
+// containers to share the content.  If the relabel string is a "Z" then
+// the MCS label should continue to be used.  SELinux will use this field
+// to make sure the content can not be shared by other containes.
+func Relabel(path string, fileLabel string, relabel string) error {
+	if fileLabel == "" {
+		return nil
+	}
+	if relabel == "z" {
+		c := selinux.NewContext(fileLabel)
+		c["level"] = "s0"
+		fileLabel = c.Get()
+	}
+	return selinux.Chcon(path, fileLabel, true)
+}
+
 func GetPidCon(pid int) (string, error) {
 	if !selinux.SelinuxEnabled() {
 		return "", nil

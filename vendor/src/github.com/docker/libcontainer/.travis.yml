@@ -1,12 +1,25 @@
 language: go
 
+# let us have pretty experimental Docker-based Travis workers
+sudo: false
+
+env:
+    - TRAVIS_GLOBAL_WTF=1
+    - GOOS=linux GOARCH=amd64
+    - GOOS=linux GOARCH=386
+    - GOOS=linux GOARCH=arm
+    - GOOS=darwin GOARCH=amd64
+    - GOOS=darwin GOARCH=386
+    - GOOS=freebsd GOARCH=amd64
+
 install:
-    - go get -d ./...
-    - go get -d github.com/dotcloud/docker # just to be sure
+    - go get -d -v ./...
+    - go get -d -v github.com/dotcloud/docker # just to be sure
     - DOCKER_PATH="${GOPATH%%:*}/src/github.com/dotcloud/docker"
     - sed -i 's!dotcloud/docker!docker/libcontainer!' "$DOCKER_PATH/hack/make/.validate"
 
 script:
-    - bash "$DOCKER_PATH/hack/make/validate-dco"
-    - bash "$DOCKER_PATH/hack/make/validate-gofmt"
-    - go test
+    - if [ "$TRAVIS_GLOBAL_WTF" ]; then bash "$DOCKER_PATH/hack/make/validate-dco"; fi
+    - if [ "$TRAVIS_GLOBAL_WTF" ]; then bash "$DOCKER_PATH/hack/make/validate-gofmt"; fi
+    - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go build -v ./...; fi
+    - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go test -v ./...; fi

@@ -18,6 +18,10 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
+func Relabel(path string, fileLabel string, relabel string) error {
+	return nil
+}
+
 func GetPidCon(pid int) (string, error) {
 	return "", nil
 }

@@ -1,4 +1,4 @@
-package main
+package nsinit
 
 import (
 	"log"
@@ -34,7 +34,7 @@ func nsenterAction(context *cli.Context) {
 		log.Fatalf("cannot enter into namespaces without valid pid: %q", nspid)
 	}
 
-	if err := namespaces.NsEnter(container, nspid, args); err != nil {
+	if err := namespaces.NsEnter(container, args); err != nil {
 		log.Fatalf("failed to nsenter: %s", err)
 	}
 }

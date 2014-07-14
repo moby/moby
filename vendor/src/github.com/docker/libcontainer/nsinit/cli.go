@@ -1,4 +1,4 @@
-package main
+package nsinit
 
 import (
 	"log"
@@ -19,7 +19,7 @@ func preload(context *cli.Context) error {
 	return nil
 }
 
-func main() {
+func NsInit() {
 	app := cli.NewApp()
 	app.Name = "nsinit"
 	app.Version = "0.1"
@@ -30,8 +30,10 @@ func main() {
 		execCommand,
 		initCommand,
 		statsCommand,
-		specCommand,
+		configCommand,
 		nsenterCommand,
+		pauseCommand,
+		unpauseCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

@@ -1,4 +1,4 @@
-package namespaces
+package syncpipe
 
 import (
 	"encoding/json"

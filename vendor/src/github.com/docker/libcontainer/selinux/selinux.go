@@ -9,6 +9,7 @@ import (
 	"github.com/dotcloud/docker/pkg/system"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -76,7 +77,7 @@ func SelinuxEnabled() bool {
 	}
 	selinuxEnabledChecked = true
 	if fs := getSelinuxMountPoint(); fs != "" {
-		if con, _ := getcon(); con != "kernel" {
+		if con, _ := Getcon(); con != "kernel" {
 			selinuxEnabled = true
 		}
 	}
@@ -145,6 +146,12 @@ func Setfilecon(path string, scon string) error {
 	return system.Lsetxattr(path, xattrNameSelinux, []byte(scon), 0)
 }
 
+// Return the SELinux label for this path
+func Getfilecon(path string) (string, error) {
+	con, err := system.Lgetxattr(path, xattrNameSelinux)
+	return string(con), err
+}
+
 func Setfscreatecon(scon string) error {
 	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()), scon)
 }
@@ -153,7 +160,8 @@ func Getfscreatecon() (string, error) {
 	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()))
 }
 
-func getcon() (string, error) {
+// Return the SELinux label of the current process thread.
+func Getcon() (string, error) {
 	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/current", system.Gettid()))
 }
 
@@ -395,4 +403,37 @@ func CopyLevel(src, dest string) (string, error) {
 	mcsAdd(scon["level"])
 	tcon["level"] = scon["level"]
 	return tcon.Get(), nil
+}
+
+// Prevent users from relabing system files
+func badPrefix(fpath string) error {
+	var badprefixes = []string{"/usr"}
+
+	for _, prefix := range badprefixes {
+		if fpath == prefix || strings.HasPrefix(fpath, fmt.Sprintf("%s/", prefix)) {
+			return fmt.Errorf("Relabeling content in %s is not allowed.", prefix)
+		}
+	}
+	return nil
+}
+
+// Change the fpath file object to the SELinux label scon.
+// If the fpath is a directory and recurse is true Chcon will walk the
+// directory tree setting the label
+func Chcon(fpath string, scon string, recurse bool) error {
+	if !SelinuxEnabled() {
+		return nil
+	}
+	if err := badPrefix(fpath); err != nil {
+		return err
+	}
+	callback := func(p string, info os.FileInfo, err error) error {
+		return Setfilecon(p, scon)
+	}
+
+	if recurse {
+		return filepath.Walk(fpath, callback)
+	}
+
+	return Setfilecon(fpath, scon)
 }
