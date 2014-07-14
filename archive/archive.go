@@ -177,15 +177,15 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	}
 
 	if hdr.Typeflag == tar.TypeReg {
-		if file, err := os.Open(path); err != nil {
+		file, err := os.Open(path)
+		if err != nil {
 			return err
-		} else {
-			_, err := io.Copy(tw, file)
-			if err != nil {
-				return err
-			}
-			file.Close()
 		}
+		if _, err := io.Copy(tw, file); err != nil {
+			file.Close()
+			return err
+		}
+		file.Close()
 	}
 
 	return nil
@@ -544,19 +544,19 @@ func CopyFileWithTar(src, dst string) (err error) {
 		}
 		defer srcF.Close()
 
-		tw := tar.NewWriter(w)
 		hdr, err := tar.FileInfoHeader(srcSt, "")
 		if err != nil {
 			return err
 		}
 		hdr.Name = filepath.Base(dst)
+		tw := tar.NewWriter(w)
+		defer tw.Close()
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
 		}
 		if _, err := io.Copy(tw, srcF); err != nil {
 			return err
 		}
-		tw.Close()
 		return nil
 	})
 	defer func() {
