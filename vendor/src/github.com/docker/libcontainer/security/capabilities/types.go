@@ -64,8 +64,6 @@ var capabilityList = Capabilities{
 	{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN},
 	{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN},
 	{Key: "SYSLOG", Value: capability.CAP_SYSLOG},
-	{Key: "SETUID", Value: capability.CAP_SETUID},
-	{Key: "SETGID", Value: capability.CAP_SETGID},
 	{Key: "CHOWN", Value: capability.CAP_CHOWN},
 	{Key: "NET_RAW", Value: capability.CAP_NET_RAW},
 	{Key: "DAC_OVERRIDE", Value: capability.CAP_DAC_OVERRIDE},

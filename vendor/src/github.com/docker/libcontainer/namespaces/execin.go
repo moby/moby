@@ -30,8 +30,8 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, args []st
 	panic("unreachable")
 }
 
-// NsEnter is run after entering the namespace.
-func NsEnter(container *libcontainer.Config, nspid int, args []string) error {
+// Run a command in a container after entering the namespace.
+func NsEnter(container *libcontainer.Config, args []string) error {
 	// clear the current processes env and replace it with the environment
 	// defined on the container
 	if err := LoadContainerEnvironment(container); err != nil {

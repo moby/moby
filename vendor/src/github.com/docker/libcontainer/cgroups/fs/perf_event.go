@@ -4,10 +4,10 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 )
 
-type perfEventGroup struct {
+type PerfEventGroup struct {
 }
 
-func (s *perfEventGroup) Set(d *data) error {
+func (s *PerfEventGroup) Set(d *data) error {
 	// we just want to join this group even though we don't set anything
 	if _, err := d.join("perf_event"); err != nil && err != cgroups.ErrNotFound {
 		return err
@@ -15,10 +15,10 @@ func (s *perfEventGroup) Set(d *data) error {
 	return nil
 }
 
-func (s *perfEventGroup) Remove(d *data) error {
+func (s *PerfEventGroup) Remove(d *data) error {
 	return removePath(d.path("perf_event"))
 }
 
-func (s *perfEventGroup) GetStats(d *data, stats *cgroups.Stats) error {
+func (s *PerfEventGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }

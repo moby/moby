@@ -22,10 +22,10 @@ var (
 
 const nanosecondsInSecond = 1000000000
 
-type cpuacctGroup struct {
+type CpuacctGroup struct {
 }
 
-func (s *cpuacctGroup) Set(d *data) error {
+func (s *CpuacctGroup) Set(d *data) error {
 	// we just want to join this group even though we don't set anything
 	if _, err := d.join("cpuacct"); err != nil && err != cgroups.ErrNotFound {
 		return err
@@ -33,20 +33,20 @@ func (s *cpuacctGroup) Set(d *data) error {
 	return nil
 }
 
-func (s *cpuacctGroup) Remove(d *data) error {
+func (s *CpuacctGroup) Remove(d *data) error {
 	return removePath(d.path("cpuacct"))
 }
 
-func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
+func (s *CpuacctGroup) GetStats(path string, stats *cgroups.Stats) error {
 	var (
+		err                                                                                                           error
 		startCpu, lastCpu, startSystem, lastSystem, startUsage, lastUsage, kernelModeUsage, userModeUsage, percentage uint64
 	)
-	path, err := d.path("cpuacct")
-	if kernelModeUsage, userModeUsage, err = s.getCpuUsage(d, path); err != nil {
+	if kernelModeUsage, userModeUsage, err = getCpuUsage(path); err != nil {
 		return err
 	}
 	startCpu = kernelModeUsage + userModeUsage
-	if startSystem, err = s.getSystemCpuUsage(d); err != nil {
+	if startSystem, err = getSystemCpuUsage(); err != nil {
 		return err
 	}
 	startUsageTime := time.Now()
@@ -55,11 +55,11 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	}
 	// sample for 100ms
 	time.Sleep(100 * time.Millisecond)
-	if kernelModeUsage, userModeUsage, err = s.getCpuUsage(d, path); err != nil {
+	if kernelModeUsage, userModeUsage, err = getCpuUsage(path); err != nil {
 		return err
 	}
 	lastCpu = kernelModeUsage + userModeUsage
-	if lastSystem, err = s.getSystemCpuUsage(d); err != nil {
+	if lastSystem, err = getSystemCpuUsage(); err != nil {
 		return err
 	}
 	usageSampleDuration := time.Since(startUsageTime)
@@ -80,7 +80,7 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 	stats.CpuStats.CpuUsage.PercentUsage = percentage
 	// Delta usage is in nanoseconds of CPU time so get the usage (in cores) over the sample time.
 	stats.CpuStats.CpuUsage.CurrentUsage = deltaUsage / uint64(usageSampleDuration.Nanoseconds())
-	percpuUsage, err := s.getPercpuUsage(path)
+	percpuUsage, err := getPercpuUsage(path)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (s *cpuacctGroup) GetStats(d *data, stats *cgroups.Stats) error {
 }
 
 // TODO(vmarmol): Use cgroups stats.
-func (s *cpuacctGroup) getSystemCpuUsage(d *data) (uint64, error) {
+func getSystemCpuUsage() (uint64, error) {
 
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *cpuacctGroup) getSystemCpuUsage(d *data) (uint64, error) {
 	return 0, fmt.Errorf("invalid stat format")
 }
 
-func (s *cpuacctGroup) getCpuUsage(d *data, path string) (uint64, uint64, error) {
+func getCpuUsage(path string) (uint64, uint64, error) {
 	kernelModeUsage := uint64(0)
 	userModeUsage := uint64(0)
 	data, err := ioutil.ReadFile(filepath.Join(path, "cpuacct.stat"))
@@ -146,7 +146,7 @@ func (s *cpuacctGroup) getCpuUsage(d *data, path string) (uint64, uint64, error)
 	return kernelModeUsage, userModeUsage, nil
 }
 
-func (s *cpuacctGroup) getPercpuUsage(path string) ([]uint64, error) {
+func getPercpuUsage(path string) ([]uint64, error) {
 	percpuUsage := []uint64{}
 	data, err := ioutil.ReadFile(filepath.Join(path, "cpuacct.usage_percpu"))
 	if err != nil {

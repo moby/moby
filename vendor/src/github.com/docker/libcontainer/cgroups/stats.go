@@ -55,17 +55,10 @@ type BlkioStats struct {
 	SectorsRecursive        []BlkioStatEntry `json:"sectors_recursive,omitempty"`
 }
 
-// TODO(Vishh): Remove freezer from stats since it does not logically belong in stats.
-type FreezerStats struct {
-	ParentState string `json:"parent_state,omitempty"`
-	SelfState   string `json:"self_state,omitempty"`
-}
-
 type Stats struct {
-	CpuStats     CpuStats     `json:"cpu_stats,omitempty"`
-	MemoryStats  MemoryStats  `json:"memory_stats,omitempty"`
-	BlkioStats   BlkioStats   `json:"blkio_stats,omitempty"`
-	FreezerStats FreezerStats `json:"freezer_stats,omitempty"`
+	CpuStats    CpuStats    `json:"cpu_stats,omitempty"`
+	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
+	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
 }
 
 func NewStats() *Stats {

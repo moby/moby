@@ -10,10 +10,10 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 )
 
-type cpusetGroup struct {
+type CpusetGroup struct {
 }
 
-func (s *cpusetGroup) Set(d *data) error {
+func (s *CpusetGroup) Set(d *data) error {
 	// we don't want to join this cgroup unless it is specified
 	if d.c.CpusetCpus != "" {
 		dir, err := d.path("cpuset")
@@ -36,15 +36,15 @@ func (s *cpusetGroup) Set(d *data) error {
 	return nil
 }
 
-func (s *cpusetGroup) Remove(d *data) error {
+func (s *CpusetGroup) Remove(d *data) error {
 	return removePath(d.path("cpuset"))
 }
 
-func (s *cpusetGroup) GetStats(d *data, stats *cgroups.Stats) error {
+func (s *CpusetGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }
 
-func (s *cpusetGroup) getSubsystemSettings(parent string) (cpus []byte, mems []byte, err error) {
+func (s *CpusetGroup) getSubsystemSettings(parent string) (cpus []byte, mems []byte, err error) {
 	if cpus, err = ioutil.ReadFile(filepath.Join(parent, "cpuset.cpus")); err != nil {
 		return
 	}
@@ -57,7 +57,7 @@ func (s *cpusetGroup) getSubsystemSettings(parent string) (cpus []byte, mems []b
 // ensureParent ensures that the parent directory of current is created
 // with the proper cpus and mems files copied from it's parent if the values
 // are a file with a new line char
-func (s *cpusetGroup) ensureParent(current string) error {
+func (s *CpusetGroup) ensureParent(current string) error {
 	parent := filepath.Dir(current)
 
 	if _, err := os.Stat(parent); err != nil {
@@ -78,7 +78,7 @@ func (s *cpusetGroup) ensureParent(current string) error {
 
 // copyIfNeeded copies the cpuset.cpus and cpuset.mems from the parent
 // directory to the current directory if the file's contents are 0
-func (s *cpusetGroup) copyIfNeeded(current, parent string) error {
+func (s *CpusetGroup) copyIfNeeded(current, parent string) error {
 	var (
 		err                      error
 		currentCpus, currentMems []byte
@@ -105,6 +105,6 @@ func (s *cpusetGroup) copyIfNeeded(current, parent string) error {
 	return nil
 }
 
-func (s *cpusetGroup) isEmpty(b []byte) bool {
+func (s *CpusetGroup) isEmpty(b []byte) bool {
 	return len(bytes.Trim(b, "\n")) == 0
 }

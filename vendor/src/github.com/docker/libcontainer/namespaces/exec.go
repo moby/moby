@@ -12,6 +12,7 @@ import (
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/network"
+	"github.com/docker/libcontainer/syncpipe"
 	"github.com/dotcloud/docker/pkg/system"
 )
 
@@ -28,7 +29,7 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 
 	// create a pipe so that we can syncronize with the namespaced process and
 	// pass the veth name to the child
-	syncPipe, err := NewSyncPipe()
+	syncPipe, err := syncpipe.NewSyncPipe()
 	if err != nil {
 		return -1, err
 	}
@@ -42,7 +43,7 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 		term.SetMaster(master)
 	}
 
-	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
+	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.Child(), args)
 
 	if err := term.Attach(command); err != nil {
 		return -1, err
@@ -166,7 +167,7 @@ func SetupCgroups(container *libcontainer.Config, nspid int) (cgroups.ActiveCgro
 
 // InitializeNetworking creates the container's network stack outside of the namespace and moves
 // interfaces into the container's net namespaces if necessary
-func InitializeNetworking(container *libcontainer.Config, nspid int, pipe *SyncPipe, networkState *network.NetworkState) error {
+func InitializeNetworking(container *libcontainer.Config, nspid int, pipe *syncpipe.SyncPipe, networkState *network.NetworkState) error {
 	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
 		if err != nil {

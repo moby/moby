@@ -1,4 +1,4 @@
-package main
+package nsinit
 
 import (
 	"encoding/json"
@@ -21,30 +21,19 @@ func statsAction(context *cli.Context) {
 		log.Fatal(err)
 	}
 
-	runtimeCkpt, err := libcontainer.GetState(dataPath)
+	state, err := libcontainer.GetState(dataPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	stats, err := getStats(container, runtimeCkpt)
-	if err != nil {
-		log.Fatalf("Failed to get stats - %v\n", err)
-	}
-
-	fmt.Printf("Stats:\n%v\n", stats)
-}
-
-// returns the container stats in json format.
-func getStats(container *libcontainer.Config, state *libcontainer.State) (string, error) {
 	stats, err := libcontainer.GetStats(container, state)
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
-
-	out, err := json.MarshalIndent(stats, "", "\t")
+	data, err := json.MarshalIndent(stats, "", "\t")
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 
-	return string(out), nil
+	fmt.Printf("%s", data)
 }

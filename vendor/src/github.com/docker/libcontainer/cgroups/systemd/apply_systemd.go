@@ -15,6 +15,7 @@ import (
 
 	systemd1 "github.com/coreos/go-systemd/dbus"
 	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/godbus/dbus"
 )
@@ -23,10 +24,24 @@ type systemdCgroup struct {
 	cleanupDirs []string
 }
 
+type subsystem interface {
+	GetStats(string, *cgroups.Stats) error
+}
+
 var (
 	connLock              sync.Mutex
 	theConn               *systemd1.Conn
 	hasStartTransientUnit bool
+	subsystems            = map[string]subsystem{
+		"devices":    &fs.DevicesGroup{},
+		"memory":     &fs.MemoryGroup{},
+		"cpu":        &fs.CpuGroup{},
+		"cpuset":     &fs.CpusetGroup{},
+		"cpuacct":    &fs.CpuacctGroup{},
+		"blkio":      &fs.BlkioGroup{},
+		"perf_event": &fs.PerfEventGroup{},
+		"freezer":    &fs.FreezerGroup{},
+	}
 )
 
 func UseSystemd() bool {
@@ -316,7 +331,7 @@ func (c *systemdCgroup) Cleanup() error {
 }
 
 func joinFreezer(c *cgroups.Cgroup, pid int) (string, error) {
-	path, err := getFreezerPath(c)
+	path, err := getSubsystemPath(c, "freezer")
 	if err != nil {
 		return "", err
 	}
@@ -332,23 +347,27 @@ func joinFreezer(c *cgroups.Cgroup, pid int) (string, error) {
 	return path, nil
 }
 
-func getFreezerPath(c *cgroups.Cgroup) (string, error) {
-	mountpoint, err := cgroups.FindCgroupMountpoint("freezer")
+func getSubsystemPath(c *cgroups.Cgroup, subsystem string) (string, error) {
+	mountpoint, err := cgroups.FindCgroupMountpoint(subsystem)
 	if err != nil {
 		return "", err
 	}
 
-	initPath, err := cgroups.GetInitCgroupDir("freezer")
+	initPath, err := cgroups.GetInitCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(mountpoint, initPath, fmt.Sprintf("%s-%s", c.Parent, c.Name)), nil
+	slice := "system.slice"
+	if c.Slice != "" {
+		slice = c.Slice
+	}
 
+	return filepath.Join(mountpoint, initPath, slice, getUnitName(c)), nil
 }
 
 func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
-	path, err := getFreezerPath(c)
+	path, err := getSubsystemPath(c, "freezer")
 	if err != nil {
 		return err
 	}
@@ -388,4 +407,33 @@ func GetPids(c *cgroups.Cgroup) ([]int, error) {
 
 func getUnitName(c *cgroups.Cgroup) string {
 	return fmt.Sprintf("%s-%s.scope", c.Parent, c.Name)
+}
+
+/*
+ * This would be nicer to get from the systemd API when accounting
+ * is enabled, but sadly there is no way to do that yet.
+ * The lack of this functionality in the API & the approach taken
+ * is guided by
+ * http://www.freedesktop.org/wiki/Software/systemd/ControlGroupInterface/#readingaccountinginformation.
+ */
+func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
+	stats := cgroups.NewStats()
+
+	for sysname, sys := range subsystems {
+		subsystemPath, err := getSubsystemPath(c, sysname)
+		if err != nil {
+			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
+			if err == cgroups.ErrNotFound {
+				continue
+			}
+
+			return nil, err
+		}
+
+		if err := sys.GetStats(subsystemPath, stats); err != nil {
+			return nil, err
+		}
+	}
+
+	return stats, nil
 }

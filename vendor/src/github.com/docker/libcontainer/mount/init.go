@@ -44,7 +44,7 @@ func InitializeMountNamespace(rootfs, console string, mountConfig *MountConfig) 
 	if err := mountSystem(rootfs, mountConfig); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
-	if err := setupBindmounts(rootfs, mountConfig.Mounts); err != nil {
+	if err := setupBindmounts(rootfs, mountConfig); err != nil {
 		return fmt.Errorf("bind mounts %s", err)
 	}
 	if err := nodes.CreateDeviceNodes(rootfs, mountConfig.DeviceNodes); err != nil {
@@ -144,7 +144,8 @@ func setupDevSymlinks(rootfs string) error {
 	return nil
 }
 
-func setupBindmounts(rootfs string, bindMounts Mounts) error {
+func setupBindmounts(rootfs string, mountConfig *MountConfig) error {
+	bindMounts := mountConfig.Mounts
 	for _, m := range bindMounts.OfType("bind") {
 		var (
 			flags = syscall.MS_BIND | syscall.MS_REC
@@ -174,6 +175,11 @@ func setupBindmounts(rootfs string, bindMounts Mounts) error {
 		if !m.Writable {
 			if err := system.Mount(m.Source, dest, "bind", uintptr(flags|syscall.MS_REMOUNT), ""); err != nil {
 				return fmt.Errorf("remounting %s into %s %s", m.Source, dest, err)
+			}
+		}
+		if m.Relabel != "" {
+			if err := label.Relabel(m.Source, mountConfig.MountLabel, m.Relabel); err != nil {
+				return fmt.Errorf("relabeling %s to %s %s", m.Source, mountConfig.MountLabel, err)
 			}
 		}
 		if m.Private {

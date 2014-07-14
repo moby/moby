@@ -24,8 +24,8 @@ func TestMemoryStats(t *testing.T) {
 		"memory.failcnt":            memoryFailcnt,
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,10 +41,10 @@ func TestMemoryStatsNoStatFile(t *testing.T) {
 		"memory.max_usage_in_bytes": memoryMaxUsageContents,
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
-	if err == nil {
-		t.Fatal("Expected failure")
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -56,8 +56,8 @@ func TestMemoryStatsNoUsageFile(t *testing.T) {
 		"memory.max_usage_in_bytes": memoryMaxUsageContents,
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -71,8 +71,8 @@ func TestMemoryStatsNoMaxUsageFile(t *testing.T) {
 		"memory.usage_in_bytes": memoryUsageContents,
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -87,8 +87,8 @@ func TestMemoryStatsBadStatFile(t *testing.T) {
 		"memory.max_usage_in_bytes": memoryMaxUsageContents,
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -103,8 +103,8 @@ func TestMemoryStatsBadUsageFile(t *testing.T) {
 		"memory.max_usage_in_bytes": memoryMaxUsageContents,
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}
@@ -119,8 +119,8 @@ func TestMemoryStatsBadMaxUsageFile(t *testing.T) {
 		"memory.max_usage_in_bytes": "bad",
 	})
 
-	memory := &memoryGroup{}
-	err := memory.GetStats(helper.CgroupData, &actualStats)
+	memory := &MemoryGroup{}
+	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
 	}

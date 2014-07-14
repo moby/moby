@@ -27,7 +27,7 @@ func DropBoundingSet(capabilities []string) error {
 	return nil
 }
 
-// DropCapabilities drops all capabilities for the current process expect those specified in the container configuration.
+// DropCapabilities drops all capabilities for the current process except those specified in the container configuration.
 func DropCapabilities(capList []string) error {
 	c, err := capability.NewPid(os.Getpid())
 	if err != nil {
