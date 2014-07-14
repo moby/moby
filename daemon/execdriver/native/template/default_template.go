@@ -12,6 +12,7 @@ func New() *libcontainer.Config {
 		Capabilities: []string{
 			"CHOWN",
 			"DAC_OVERRIDE",
+			"FSETID",
 			"FOWNER",
 			"MKNOD",
 			"NET_RAW",
