@@ -1,3 +1,5 @@
+// +build linux
+
 package native
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/namespaces"
+	"github.com/docker/libcontainer/syncpipe"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/system"
 )
@@ -32,6 +35,7 @@ func init() {
 		if err != nil {
 			return err
 		}
+
 		if err := json.NewDecoder(f).Decode(&container); err != nil {
 			f.Close()
 			return err
@@ -42,13 +46,16 @@ func init() {
 		if err != nil {
 			return err
 		}
-		syncPipe, err := namespaces.NewSyncPipeFromFd(0, uintptr(args.Pipe))
+
+		syncPipe, err := syncpipe.NewSyncPipeFromFd(0, uintptr(args.Pipe))
 		if err != nil {
 			return err
 		}
+
 		if err := namespaces.Init(container, rootfs, args.Console, syncPipe, args.Args); err != nil {
 			return err
 		}
+
 		return nil
 	})
 }
