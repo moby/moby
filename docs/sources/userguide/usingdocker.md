@@ -38,16 +38,14 @@ This command will not only provide you the version of Docker client and
 daemon you are using, but also the version of Go (the programming
 language powering Docker).
 
-    Client version: 0.8.0
-    Go version (client): go1.2
-
-    Git commit (client): cc3a8c8
-    Server version: 0.8.0
-
-    Git commit (server): cc3a8c8
-    Go version (server): go1.2
-
-    Last stable version: 0.8.0
+    Client version: 1.1.1
+    Client API version: 1.13
+    Go version (client): go1.2.1
+    Git commit (client): bd609d2
+    Server version: 1.1.1
+    Server API version: 1.13
+    Go version (server): go1.2.1
+    Git commit (server): bd609d2
 
 ### Seeing what the Docker client can do
 
