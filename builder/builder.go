@@ -361,6 +361,10 @@ func (b *buildFile) CmdCopy(args string) error {
 }
 
 func (b *buildFile) CmdWorkdir(workdir string) error {
+	workdir, err := b.ReplaceEnvMatches(strings.TrimSpace(workdir))
+	if err != nil {
+		return err
+	}
 	if workdir[0] == '/' {
 		b.config.WorkingDir = workdir
 	} else {
