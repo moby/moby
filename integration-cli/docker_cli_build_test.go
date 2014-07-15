@@ -973,6 +973,30 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 	logDone("build - relative workdir")
 }
 
+func TestBuildWorkdirWithEnvVariables(t *testing.T) {
+	name := "testbuildworkdirwithenvvariables"
+	expected := "/test1/test2/$MISSING_VAR"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		ENV DIRPATH /test1
+		ENV SUBDIRNAME test2
+		WORKDIR $DIRPATH
+		WORKDIR $SUBDIRNAME/$MISSING_VAR`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.WorkingDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Workdir %s, expected %s", res, expected)
+	}
+	logDone("build - workdir with env variables")
+}
+
 func TestBuildEnv(t *testing.T) {
 	name := "testbuildenv"
 	expected := "[PATH=/test:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
