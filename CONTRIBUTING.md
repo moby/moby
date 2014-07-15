@@ -180,7 +180,7 @@ One way to automate this, is customize your git `commit.template` by adding
 a `prepare-commit-msg` hook to your Docker repository:
 
 ```
-curl -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
+curl -sSL -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
 ```
 
 * Note: the above script expects to find your GitHub user name in `git config --get github.user`

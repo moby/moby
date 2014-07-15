@@ -133,7 +133,7 @@ Here's a typical Docker build process:
 FROM ubuntu:12.04
 RUN apt-get update
 RUN apt-get install -q -y python python-pip curl
-RUN curl -L https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
+RUN curl -sSL https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
 RUN cd helloflask-master && pip install -r requirements.txt
 ```
 
