@@ -85,7 +85,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
+				$sh_c 'docker run hello-world'
 			) || true
 		fi
 		your_user=your-user
@@ -150,7 +150,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
+				$sh_c 'docker run hello-world'
 			) || true
 		fi
 		your_user=your-user

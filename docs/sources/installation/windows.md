@@ -51,11 +51,11 @@ and the Boot2Docker management tool.
 
 Boot2Docker will log you in automatically so you can start using Docker right away.
 
-Let's try the “hello world” example. Run
+Let's try the `hello-world` example image. Run
 
-    $ docker run busybox echo hello world
+    $ docker run hello-world
 
-This will download the small busybox image and print "hello world".
+This should download the very small `hello-world` image and print a `Hello from Docker.` message.
 
 
 # Further Details

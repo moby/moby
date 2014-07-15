@@ -56,12 +56,12 @@ and `boot2docker start`.
 
 ## Running Docker
 
-From your terminal, you can test that Docker is running with a “hello world” example.
+From your terminal, you can test that Docker is running with the small `hello-world` example image.
 Start the vm and then run:
 
-    $ docker run ubuntu echo hello world
+    $ docker run hello-world
 
-This should download the `ubuntu` image and print `hello world`.
+This should download the very small `hello-world` image and print a `Hello from Docker.` message.
 
 ## Container port redirection
 
