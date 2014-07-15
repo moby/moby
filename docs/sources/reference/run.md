@@ -435,8 +435,8 @@ mechanism to communicate with a linked container by its alias:
     --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own documentation
-in section [*Share Directories via
-Volumes*](/userguide/dockervolumes/#volume-def).  A developer can define
+in section [*Managing data in 
+containers*](/userguide/dockervolumes/#volume-def). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
