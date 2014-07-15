@@ -98,7 +98,7 @@ it.
 
 Let's create a new named container with a volume to share.
 
-    $ sudo docker run -d -v /dbdata --name dbdata training/postgres
+    $ sudo docker run -d -v /dbdata --name dbdata training/postgres echo Data-only container for postgres
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 
