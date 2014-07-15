@@ -293,6 +293,9 @@ func (container *Container) Start() (err error) {
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
+	if err := container.updateParentsHosts(); err != nil {
+		return err
+	}
 	container.verifyDaemonSettings()
 	if err := prepareVolumesForContainer(container); err != nil {
 		return err
@@ -389,10 +392,7 @@ func (container *Container) buildHostnameFile() error {
 	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) error {
-	if err := container.buildHostnameFile(); err != nil {
-		return err
-	}
+func (container *Container) buildHostsFiles(IP string) error {
 
 	hostsPath, err := container.getRootResourcePath("hosts")
 	if err != nil {
@@ -413,6 +413,14 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	}
 
 	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) error {
+	if err := container.buildHostnameFile(); err != nil {
+		return err
+	}
+
+	return container.buildHostsFiles(IP)
 }
 
 func (container *Container) allocateNetwork() error {
@@ -917,6 +925,32 @@ func (container *Container) setupContainerDns() error {
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	} else {
 		container.ResolvConfPath = "/etc/resolv.conf"
+	}
+	return nil
+}
+
+func (container *Container) updateParentsHosts() error {
+	parents, err := container.daemon.Parents(container.Name)
+	if err != nil {
+		return err
+	}
+	for _, cid := range parents {
+		if cid != "0" {
+			c := container.daemon.Get(cid)
+			if c.hostConfig.NetworkMode.IsHost() {
+				if err := c.buildHostsFiles(""); err != nil {
+					return fmt.Errorf("Failed to update parent: %v", err)
+				}
+			} else if c.daemon.config.DisableNetwork { //useful ?
+				if err := c.buildHostnameAndHostsFiles("127.0.1.1"); err != nil {
+					return fmt.Errorf("Failed to update parent: %v", err)
+				}
+			} else if !container.hostConfig.NetworkMode.IsContainer() {
+				if err := c.buildHostsFiles(c.NetworkSettings.IPAddress); err != nil {
+					return fmt.Errorf("Failed to update parent: %v", err)
+				}
+			}
+		}
 	}
 	return nil
 }
