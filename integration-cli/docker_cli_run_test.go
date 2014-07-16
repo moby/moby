@@ -1361,3 +1361,32 @@ func TestState(t *testing.T) {
 	}
 	logDone("run - test container state.")
 }
+
+// Test for #1737
+func TestCopyVolumeUidGid(t *testing.T) {
+	name := "testrunvolumesuidgid"
+	defer deleteImages(name)
+	defer deleteAllContainers()
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		RUN echo 'dockerio:x:1001:' >> /etc/group
+		RUN mkdir -p /hello && touch /hello/test && chown dockerio.dockerio /hello`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that the uid and gid is copied from the image to the volume
+	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "sh", "-c", "ls -l / | grep hello | awk '{print $3\":\"$4}'")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out = strings.TrimSpace(out)
+	if out != "dockerio:dockerio" {
+		t.Fatalf("Wrong /hello ownership: %s, expected dockerio:dockerio", out)
+	}
+
+	logDone("run - copy uid/gid for volume")
+}

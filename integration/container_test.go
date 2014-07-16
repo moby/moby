@@ -370,66 +370,6 @@ func tempDir(t *testing.T) string {
 	return tmpDir
 }
 
-// Test for #1737
-func TestCopyVolumeUidGid(t *testing.T) {
-	eng := NewTestEngine(t)
-	r := mkDaemonFromEngine(eng, t)
-	defer r.Nuke()
-
-	// Add directory not owned by root
-	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && touch /hello/test && chown daemon.daemon /hello"}, t)
-	defer r.Destroy(container1)
-
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container1.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Test that the uid and gid is copied from the image to the volume
-	tmpDir1 := tempDir(t)
-	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(eng, r, []string{"-v", "/hello", img.ID, "stat", "-c", "%U %G", "/hello"}, t)
-	if !strings.Contains(stdout1, "daemon daemon") {
-		t.Fatal("Container failed to transfer uid and gid to volume")
-	}
-
-	container2, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && chown daemon.daemon /hello"}, t)
-	defer r.Destroy(container1)
-
-	if container2.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container2.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container2.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-
-	img2, err := r.Commit(container2, "", "", "unit test commited image", "", true, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Test that the uid and gid is copied from the image to the volume
-	tmpDir2 := tempDir(t)
-	defer os.RemoveAll(tmpDir2)
-	stdout2, _ := runContainer(eng, r, []string{"-v", "/hello", img2.ID, "stat", "-c", "%U %G", "/hello"}, t)
-	if !strings.Contains(stdout2, "daemon daemon") {
-		t.Fatal("Container failed to transfer uid and gid to volume")
-	}
-}
-
 // Test for #1582
 func TestCopyVolumeContent(t *testing.T) {
 	eng := NewTestEngine(t)
