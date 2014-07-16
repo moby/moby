@@ -1218,3 +1218,51 @@ func TestDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 
 	logDone("run - dns options based on host resolv.conf")
 }
+
+// Regression test for #6983
+func TestAttachStdErrOnlyTTYMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stderr", "busybox", "true")
+
+	exitCode, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	} else if exitCode != 0 {
+		t.Fatalf("Container should have exited with error code 0")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - Attach stderr only with -t")
+}
+
+// Regression test for #6983
+func TestAttachStdOutOnlyTTYMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stdout", "busybox", "true")
+
+	exitCode, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	} else if exitCode != 0 {
+		t.Fatalf("Container should have exited with error code 0")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - Attach stdout only with -t")
+}
+
+// Regression test for #6983
+func TestAttachStdOutAndErrTTYMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stdout", "-a", "stderr", "busybox", "true")
+
+	exitCode, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	} else if exitCode != 0 {
+		t.Fatalf("Container should have exited with error code 0")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - Attach stderr and stdout with -t")
+}
