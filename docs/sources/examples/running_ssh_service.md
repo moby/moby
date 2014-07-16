@@ -27,7 +27,7 @@ quick access to a test container.
 
 Build the image using:
 
-    $ sudo docker build --rm -t eg_sshd .
+    $ sudo docker build -t eg_sshd .
 
 Then run it. You can then use `docker port` to find out what host port
 the container's port 22 is mapped to:
