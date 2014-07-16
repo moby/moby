@@ -123,11 +123,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	if len(c.CapAdd) > 0 {
-		params = append(params, "-cap-add", strings.Join(c.CapAdd, " "))
+		params = append(params, "-cap-add", strings.Join(c.CapAdd, ","))
 	}
 
 	if len(c.CapDrop) > 0 {
-		params = append(params, "-cap-drop", strings.Join(c.CapDrop, " "))
+		params = append(params, "-cap-drop", strings.Join(c.CapDrop, ","))
 	}
 
 	params = append(params, "--", c.Entrypoint)

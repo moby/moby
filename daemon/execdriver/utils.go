@@ -20,7 +20,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			continue
 		}
 		if !utils.StringsContainsNoCase(allCaps, cap) {
-			return nil, fmt.Errorf("Unknown capability: %s", cap)
+			return nil, fmt.Errorf("Unknown capability drop: %q", cap)
 		}
 	}
 
@@ -49,9 +49,8 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			continue
 		}
 
-		// look for invalid cap in the drop list
 		if !utils.StringsContainsNoCase(allCaps, cap) {
-			return nil, fmt.Errorf("Unknown capability: %s", cap)
+			return nil, fmt.Errorf("Unknown capability to add: %q", cap)
 		}
 
 		// add cap if not already in the list
@@ -59,5 +58,6 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			newCaps = append(newCaps, cap)
 		}
 	}
+
 	return newCaps, nil
 }
