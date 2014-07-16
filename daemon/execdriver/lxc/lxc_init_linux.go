@@ -55,10 +55,10 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 		)
 
 		if args.CapAdd != "" {
-			adds = strings.Split(args.CapAdd, ",")
+			adds = strings.Split(args.CapAdd, ":")
 		}
 		if args.CapDrop != "" {
-			drops = strings.Split(args.CapDrop, ",")
+			drops = strings.Split(args.CapDrop, ":")
 		}
 
 		caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
