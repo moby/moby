@@ -49,6 +49,13 @@ You can now use the `kill` parameter to kill running containers before removal.
 The `hostConfig` option now accepts the field `CapAdd`, which specifies a list of capabilities
 to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
 
+`POST /images/create`
+
+**New!**
+The `fromImage` and `repo` parameters now supports the `repo:tag` format.
+Consequently,  the `tag` parameter is now obsolete. Using the new format and
+the `tag` parameter at the same time will return an error.
+
 ## v1.13
 
 ### Full Documentation
