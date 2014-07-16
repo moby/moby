@@ -95,6 +95,21 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 
 	Acquire::Languages "none";
 	EOF
+
+	echo >&2 "+ echo Acquire::GzipIndexes 'true' > '$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes'"
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes" <<-'EOF'
+	# Since Docker users using "RUN apt-get update && apt-get install -y ..." in
+	# their Dockerfiles don't go delete the lists files afterwards, we want them to
+	# be as small as possible on-disk, so we explicitly request "gz" versions and
+	# tell Apt to keep them gzipped on-disk.
+
+	# For comparison, an "apt-get update" layer without this on a pristine
+	# "debian:wheezy" base image was "29.88 MB", where with this it was only
+	# "8.273 MB".
+
+	Acquire::GzipIndexes "true";
+	Acquire::CompressionTypes::Order:: "gz";
+	EOF
 fi
 
 if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
