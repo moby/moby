@@ -37,7 +37,7 @@ func TestLXCConfig(t *testing.T) {
 		cpu    = cpuMin + rand.Intn(cpuMax-cpuMin)
 	)
 
-	driver, err := NewDriver(root, false)
+	driver, err := NewDriver(root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestCustomLxcConfig(t *testing.T) {
 
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
 
-	driver, err := NewDriver(root, false)
+	driver, err := NewDriver(root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
