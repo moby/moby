@@ -3,6 +3,7 @@ package lxc
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,7 +20,9 @@ import (
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/dotcloud/docker/pkg/term"
 	"github.com/dotcloud/docker/utils"
+	"github.com/kr/pty"
 )
 
 const DriverName = "lxc"
@@ -78,10 +81,20 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	if err := execdriver.SetTerminal(c, pipes); err != nil {
-		return -1, err
+	var (
+		term execdriver.Terminal
+		err  error
+	)
+
+	if c.Tty {
+		term, err = NewTtyConsole(c, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(c, pipes)
 	}
+	c.Terminal = term
+
 	c.Mounts = append(c.Mounts, execdriver.Mount{d.initPath, c.InitPath, false, true})
+
 	if err := d.generateEnvConfig(c); err != nil {
 		return -1, err
 	}
@@ -461,4 +474,75 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	c.Mounts = append(c.Mounts, execdriver.Mount{p, "/.dockerenv", false, true})
 
 	return ioutil.WriteFile(p, data, 0600)
+}
+
+type TtyConsole struct {
+	MasterPty *os.File
+	SlavePty  *os.File
+}
+
+func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
+	// lxc is special in that we cannot create the master outside of the container without
+	// opening the slave because we have nothing to provide to the cmd.  We have to open both then do
+	// the crazy setup on command right now instead of passing the console path to lxc and telling it
+	// to open up that console.  we save a couple of openfiles in the native driver because we can do
+	// this.
+	ptyMaster, ptySlave, err := pty.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	tty := &TtyConsole{
+		MasterPty: ptyMaster,
+		SlavePty:  ptySlave,
+	}
+
+	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
+		tty.Close()
+		return nil, err
+	}
+
+	command.Console = tty.SlavePty.Name()
+
+	return tty, nil
+}
+
+func (t *TtyConsole) Master() *os.File {
+	return t.MasterPty
+}
+
+func (t *TtyConsole) Resize(h, w int) error {
+	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+}
+
+func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
+	command.Stdout = t.SlavePty
+	command.Stderr = t.SlavePty
+
+	go func() {
+		if wb, ok := pipes.Stdout.(interface {
+			CloseWriters() error
+		}); ok {
+			defer wb.CloseWriters()
+		}
+
+		io.Copy(pipes.Stdout, t.MasterPty)
+	}()
+
+	if pipes.Stdin != nil {
+		command.Stdin = t.SlavePty
+		command.SysProcAttr.Setctty = true
+
+		go func() {
+			io.Copy(t.MasterPty, pipes.Stdin)
+
+			pipes.Stdin.Close()
+		}()
+	}
+	return nil
+}
+
+func (t *TtyConsole) Close() error {
+	t.SlavePty.Close()
+	return t.MasterPty.Close()
 }

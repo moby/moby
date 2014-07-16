@@ -5,6 +5,7 @@ package native
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/libcontainer/syncpipe"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/pkg/term"
 )
 
 const (
@@ -96,9 +98,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return -1, err
 	}
 
-	if err := execdriver.SetTerminal(c, pipes); err != nil {
-		return -1, err
+	var term execdriver.Terminal
+
+	if c.Tty {
+		term, err = NewTtyConsole(c, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(c, pipes)
 	}
+	c.Terminal = term
 
 	d.Lock()
 	d.activeContainers[c.ID] = &activeContainer{
@@ -271,4 +278,62 @@ func getEnv(key string, env []string) string {
 		}
 	}
 	return ""
+}
+
+type TtyConsole struct {
+	MasterPty *os.File
+}
+
+func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
+	ptyMaster, console, err := system.CreateMasterAndConsole()
+	if err != nil {
+		return nil, err
+	}
+
+	tty := &TtyConsole{
+		MasterPty: ptyMaster,
+	}
+
+	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
+		tty.Close()
+		return nil, err
+	}
+
+	command.Console = console
+
+	return tty, nil
+}
+
+func (t *TtyConsole) Master() *os.File {
+	return t.MasterPty
+}
+
+func (t *TtyConsole) Resize(h, w int) error {
+	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+}
+
+func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
+	go func() {
+		if wb, ok := pipes.Stdout.(interface {
+			CloseWriters() error
+		}); ok {
+			defer wb.CloseWriters()
+		}
+
+		io.Copy(pipes.Stdout, t.MasterPty)
+	}()
+
+	if pipes.Stdin != nil {
+		go func() {
+			io.Copy(t.MasterPty, pipes.Stdin)
+
+			pipes.Stdin.Close()
+		}()
+	}
+
+	return nil
+}
+
+func (t *TtyConsole) Close() error {
+	return t.MasterPty.Close()
 }

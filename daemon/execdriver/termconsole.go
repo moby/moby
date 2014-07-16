@@ -2,88 +2,8 @@ package execdriver
 
 import (
 	"io"
-	"os"
 	"os/exec"
-
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/pkg/term"
 )
-
-func SetTerminal(command *Command, pipes *Pipes) error {
-	var (
-		term Terminal
-		err  error
-	)
-
-	if command.Tty {
-		term, err = NewTtyConsole(command, pipes)
-	} else {
-		term, err = NewStdConsole(command, pipes)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	command.Terminal = term
-
-	return nil
-}
-
-type TtyConsole struct {
-	MasterPty *os.File
-}
-
-func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
-	ptyMaster, console, err := system.CreateMasterAndConsole()
-	if err != nil {
-		return nil, err
-	}
-
-	tty := &TtyConsole{
-		MasterPty: ptyMaster,
-	}
-
-	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
-		tty.Close()
-		return nil, err
-	}
-	command.Console = console
-
-	return tty, nil
-}
-
-func (t *TtyConsole) Master() *os.File {
-	return t.MasterPty
-}
-
-func (t *TtyConsole) Resize(h, w int) error {
-	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
-}
-
-func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
-	go func() {
-		if wb, ok := pipes.Stdout.(interface {
-			CloseWriters() error
-		}); ok {
-			defer wb.CloseWriters()
-		}
-		io.Copy(pipes.Stdout, t.MasterPty)
-	}()
-
-	if pipes.Stdin != nil {
-		go func() {
-			defer pipes.Stdin.Close()
-			io.Copy(t.MasterPty, pipes.Stdin)
-		}()
-	}
-
-	return nil
-}
-
-func (t *TtyConsole) Close() error {
-	return t.MasterPty.Close()
-}
 
 type StdConsole struct {
 }
