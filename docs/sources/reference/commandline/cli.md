@@ -760,6 +760,22 @@ log entry.
 
     Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
 
+## pause
+
+    Usage: docker pause CONTAINER
+
+    Pause all processes within a container
+
+The `docker pause` command uses the cgroups freezer to suspend all processes in
+a container.  Traditionally when suspending a process the `SIGSTOP` signal is
+used, which is observable by the process being suspended. With the cgroups freezer
+the process is unaware, and unable to capture, that it is being suspended,
+and subsequently resumed.
+
+See the [cgroups freezer documentation]
+(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+further details.
+
 ## ps
 
     Usage: docker ps [OPTIONS]
@@ -1262,6 +1278,19 @@ them to [*Share Images via Repositories*](
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Display the running processes of a container
+
+## unpause
+
+    Usage: docker unpause CONTAINER
+
+    Resumes a paused container.
+
+The `docker unpause` command uses the cgroups freezer to un-suspend all
+processes in a container.
+
+See the [cgroups freezer documentation]
+(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+further details.
 
 ## version
 
