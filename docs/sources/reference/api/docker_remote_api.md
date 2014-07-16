@@ -52,8 +52,9 @@ to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
 `POST /images/create`
 
 **New!**
-Parameters `fromImage` and `repo` can now embed the tag using the syntax `repo:tag`,
-therefore the `tag` parameter is obsolete.
+The `fromImage` and `repo` parameters now supports the `repo:tag` format.
+Consequently,  the `tag` parameter is now obsolete. Using the new format and
+the `tag` parameter at the same time will return an error.
 
 ## v1.13
 
