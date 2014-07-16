@@ -5,8 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/pkg/system"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/docker/libcontainer/system"
+	"github.com/dotcloud/docker/pkg/mount"
 )
 
 const (
@@ -153,16 +154,16 @@ func Getfilecon(path string) (string, error) {
 }
 
 func Setfscreatecon(scon string) error {
-	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()), scon)
+	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", syscall.Gettid()), scon)
 }
 
 func Getfscreatecon() (string, error) {
-	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", system.Gettid()))
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/fscreate", syscall.Gettid()))
 }
 
 // Return the SELinux label of the current process thread.
 func Getcon() (string, error) {
-	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/current", system.Gettid()))
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/current", syscall.Gettid()))
 }
 
 func Getpidcon(pid int) (string, error) {
@@ -192,7 +193,7 @@ func writeCon(name string, val string) error {
 }
 
 func Setexeccon(scon string) error {
-	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/exec", system.Gettid()), scon)
+	return writeCon(fmt.Sprintf("/proc/self/task/%d/attr/exec", syscall.Gettid()), scon)
 }
 
 func (c SELinuxContext) Get() string {

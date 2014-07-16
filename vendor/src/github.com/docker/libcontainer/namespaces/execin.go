@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/label"
-	"github.com/dotcloud/docker/pkg/system"
+	"github.com/docker/libcontainer/system"
 )
 
 // ExecIn uses an existing pid and joins the pid's namespaces with the new command.

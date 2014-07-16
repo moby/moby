@@ -11,7 +11,6 @@ import (
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/dotcloud/docker/pkg/symlink"
-	"github.com/dotcloud/docker/pkg/system"
 )
 
 // default mount point flags
@@ -35,10 +34,10 @@ func InitializeMountNamespace(rootfs, console string, mountConfig *MountConfig) 
 	if mountConfig.NoPivotRoot {
 		flag = syscall.MS_SLAVE
 	}
-	if err := system.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
+	if err := syscall.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
 		return fmt.Errorf("mounting / with flags %X %s", (flag | syscall.MS_REC), err)
 	}
-	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+	if err := syscall.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
 	if err := mountSystem(rootfs, mountConfig); err != nil {
@@ -56,7 +55,7 @@ func InitializeMountNamespace(rootfs, console string, mountConfig *MountConfig) 
 	if err := setupDevSymlinks(rootfs); err != nil {
 		return fmt.Errorf("dev symlinks %s", err)
 	}
-	if err := system.Chdir(rootfs); err != nil {
+	if err := syscall.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
@@ -75,7 +74,7 @@ func InitializeMountNamespace(rootfs, console string, mountConfig *MountConfig) 
 		}
 	}
 
-	system.Umask(0022)
+	syscall.Umask(0022)
 
 	return nil
 }
@@ -87,7 +86,7 @@ func mountSystem(rootfs string, mountConfig *MountConfig) error {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
 		}
-		if err := system.Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
+		if err := syscall.Mount(m.source, m.path, m.device, uintptr(m.flags), m.data); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.source, m.path, err)
 		}
 	}
@@ -169,11 +168,11 @@ func setupBindmounts(rootfs string, mountConfig *MountConfig) error {
 			return fmt.Errorf("Creating new bind-mount target, %s", err)
 		}
 
-		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
+		if err := syscall.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
 			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
 		}
 		if !m.Writable {
-			if err := system.Mount(m.Source, dest, "bind", uintptr(flags|syscall.MS_REMOUNT), ""); err != nil {
+			if err := syscall.Mount(m.Source, dest, "bind", uintptr(flags|syscall.MS_REMOUNT), ""); err != nil {
 				return fmt.Errorf("remounting %s into %s %s", m.Source, dest, err)
 			}
 		}
@@ -183,7 +182,7 @@ func setupBindmounts(rootfs string, mountConfig *MountConfig) error {
 			}
 		}
 		if m.Private {
-			if err := system.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
+			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
 				return fmt.Errorf("mounting %s private %s", dest, err)
 			}
 		}

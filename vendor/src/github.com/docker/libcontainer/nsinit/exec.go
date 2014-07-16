@@ -2,14 +2,18 @@ package nsinit
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/docker/libcontainer"
+	consolepkg "github.com/docker/libcontainer/console"
 	"github.com/docker/libcontainer/namespaces"
+	"github.com/dotcloud/docker/pkg/term"
 )
 
 var execCommand = cli.Command{
@@ -34,8 +38,7 @@ func execAction(context *cli.Context) {
 	if state != nil {
 		err = namespaces.ExecIn(container, state, []string(context.Args()))
 	} else {
-		term := namespaces.NewTerminal(os.Stdin, os.Stdout, os.Stderr, container.Tty)
-		exitCode, err = startContainer(container, term, dataPath, []string(context.Args()))
+		exitCode, err = startContainer(container, dataPath, []string(context.Args()))
 	}
 
 	if err != nil {
@@ -49,7 +52,7 @@ func execAction(context *cli.Context) {
 // error.
 //
 // Signals sent to the current process will be forwarded to container.
-func startContainer(container *libcontainer.Config, term namespaces.Terminal, dataPath string, args []string) (int, error) {
+func startContainer(container *libcontainer.Config, dataPath string, args []string) (int, error) {
 	var (
 		cmd  *exec.Cmd
 		sigc = make(chan os.Signal, 10)
@@ -65,13 +68,66 @@ func startContainer(container *libcontainer.Config, term namespaces.Terminal, da
 		return cmd
 	}
 
+	var (
+		master  *os.File
+		console string
+		err     error
+
+		stdin  = os.Stdin
+		stdout = os.Stdout
+		stderr = os.Stderr
+	)
+
+	if container.Tty {
+		stdin = nil
+		stdout = nil
+		stderr = nil
+
+		master, console, err = consolepkg.CreateMasterAndConsole()
+		if err != nil {
+			return -1, err
+		}
+
+		go io.Copy(master, os.Stdin)
+		go io.Copy(os.Stdout, master)
+
+		state, err := term.SetRawTerminal(os.Stdin.Fd())
+		if err != nil {
+			return -1, err
+		}
+
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
+	}
+
 	startCallback := func() {
 		go func() {
+			resizeTty(master)
+
 			for sig := range sigc {
-				cmd.Process.Signal(sig)
+				switch sig {
+				case syscall.SIGWINCH:
+					resizeTty(master)
+				default:
+					cmd.Process.Signal(sig)
+				}
 			}
 		}()
 	}
 
-	return namespaces.Exec(container, term, "", dataPath, args, createCommand, startCallback)
+	return namespaces.Exec(container, stdin, stdout, stderr, console, "", dataPath, args, createCommand, startCallback)
+}
+
+func resizeTty(master *os.File) {
+	if master == nil {
+		return
+	}
+
+	ws, err := term.GetWinsize(os.Stdin.Fd())
+	if err != nil {
+		return
+	}
+
+	if err := term.SetWinsize(master.Fd(), ws); err != nil {
+		return
+	}
 }
