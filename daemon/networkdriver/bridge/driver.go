@@ -415,8 +415,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 			break
 		}
 
-		switch allocerr := err.(type) {
-		case portallocator.ErrPortAlreadyAllocated:
+		if allocerr, ok := err.(portallocator.ErrPortAlreadyAllocated); ok {
 			// There is no point in immediately retrying to map an explicitly
 			// chosen port.
 			if hostPort != 0 {
@@ -426,7 +425,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 			// Automatically chosen 'free' port failed to bind: move on the next.
 			job.Logf("Failed to bind %s for container address %s. Trying another port.", allocerr.IPPort(), container.String())
-		default:
+		} else {
 			// some other error during mapping
 			job.Logf("Received an unexpected error during port allocation: %s", err.Error())
 			break
