@@ -38,7 +38,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 
 			// if we don't drop `all`, add back all the non-dropped caps
 			if !utils.StringsContainsNoCase(drops, cap) {
-				newCaps = append(newCaps, cap)
+				newCaps = append(newCaps, strings.ToUpper(cap))
 			}
 		}
 	}
@@ -56,7 +56,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 
 		// add cap if not already in the list
 		if !utils.StringsContainsNoCase(newCaps, cap) {
-			newCaps = append(newCaps, cap)
+			newCaps = append(newCaps, strings.ToUpper(cap))
 		}
 	}
 	return newCaps, nil
