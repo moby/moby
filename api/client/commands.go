@@ -1877,7 +1877,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 type ports []int
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository")
+	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil
