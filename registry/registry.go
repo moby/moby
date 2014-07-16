@@ -522,6 +522,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	if err != nil {
 		return "", "", err
 	}
+	req.Header.Add("Content-Type", "application/octet-stream")
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
 	setTokenAuth(req, token)
