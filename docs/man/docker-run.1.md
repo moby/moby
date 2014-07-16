@@ -34,7 +34,7 @@ docker-run - Run a command in a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
- IMAGE [COMMAND] [ARG...]
+ IMAGE[:TAG] [COMMAND] [ARG...]
 
 # DESCRIPTION
 
@@ -241,7 +241,10 @@ can override the working directory by using the **-w** option.
 
 
 **IMAGE**
-   The image name or ID.
+   The image name or ID. You can specify a version of an image you'd like to run
+   the container with by adding image:tag to the command. For example,
+   `docker run ubuntu:14.04`.
+
 
 
 **COMMAND**

@@ -26,18 +26,16 @@ see [*Option types*](/reference/commandline/cli/#option-types).
 The list of `[OPTIONS]` breaks down into two groups:
 
 1. Settings exclusive to operators, including:
-
- - Detached or Foreground running,
- - Container Identification,
- - Network settings, and
- - Runtime Constraints on CPU and Memory
- - Privileges and LXC Configuration
-
-2. Setting shared between operators and developers, where operators can
+     * Detached or Foreground running,
+     * Container Identification,
+     * Network settings, and
+     * Runtime Constraints on CPU and Memory
+     * Privileges and LXC Configuration
+2. Settings shared between operators and developers, where operators can
    override defaults developers set in images at build time.
 
-Together, the `docker run [OPTIONS]` give complete control over runtime
-behavior to the operator, allowing them to override all defaults set by
+Together, the `docker run [OPTIONS]` give the operator complete control over runtime
+behavior, allowing them to override all defaults set by
 the developer during `docker build` and nearly all the defaults set by
 the Docker runtime itself.
 
@@ -126,6 +124,12 @@ programs might write out their process ID to a file (you've seen them as
 PID files):
 
     --cidfile="": Write the container ID to the file
+    
+### Image[:tag]
+
+While not strictly a means of identifying a container, you can specify a version of an
+image you'd like to run the container with by adding `image[:tag]` to the command. For
+example, `docker run ubuntu:14.04`.
 
 ## Network Settings
 
