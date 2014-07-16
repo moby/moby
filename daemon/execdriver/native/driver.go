@@ -95,6 +95,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		return -1, err
 	}
+
+	if err := execdriver.SetTerminal(c, pipes); err != nil {
+		return -1, err
+	}
+
 	d.Lock()
 	d.activeContainers[c.ID] = &activeContainer{
 		container: container,
@@ -106,6 +111,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		dataPath = filepath.Join(d.root, c.ID)
 		args     = append([]string{c.Entrypoint}, c.Arguments...)
 	)
+
 	if err := d.createContainerRoot(c.ID); err != nil {
 		return -1, err
 	}
@@ -115,9 +121,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return -1, err
 	}
 
-	term := getTerminal(c, pipes)
-
-	return namespaces.Exec(container, term, c.Rootfs, dataPath, args, func(container *libcontainer.Config, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
+	return namespaces.Exec(container, c.Stdin, c.Stdout, c.Stderr, c.Console, c.Rootfs, dataPath, args, func(container *libcontainer.Config, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
 		// we need to join the rootfs because namespaces will setup the rootfs and chroot
 		initPath := filepath.Join(c.Rootfs, c.InitPath)
 
@@ -201,11 +205,13 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 	if err != nil {
 		return err
 	}
+
 	if state.InitStartTime == currentStartTime {
 		err = syscall.Kill(p.Process.Pid, 9)
 		syscall.Wait4(p.Process.Pid, nil, 0, nil)
 	}
 	d.removeContainerRoot(p.ID)
+
 	return err
 
 }
@@ -265,19 +271,4 @@ func getEnv(key string, env []string) string {
 		}
 	}
 	return ""
-}
-
-func getTerminal(c *execdriver.Command, pipes *execdriver.Pipes) namespaces.Terminal {
-	var term namespaces.Terminal
-	if c.Tty {
-		term = &dockerTtyTerm{
-			pipes: pipes,
-		}
-	} else {
-		term = &dockerStdTerm{
-			pipes: pipes,
-		}
-	}
-	c.Terminal = term
-	return term
 }

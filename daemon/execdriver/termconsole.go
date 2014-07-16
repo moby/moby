@@ -1,11 +1,12 @@
 package execdriver
 
 import (
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/kr/pty"
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/dotcloud/docker/pkg/system"
+	"github.com/dotcloud/docker/pkg/term"
 )
 
 func SetTerminal(command *Command, pipes *Pipes) error {
@@ -13,37 +14,42 @@ func SetTerminal(command *Command, pipes *Pipes) error {
 		term Terminal
 		err  error
 	)
+
 	if command.Tty {
 		term, err = NewTtyConsole(command, pipes)
 	} else {
 		term, err = NewStdConsole(command, pipes)
 	}
+
 	if err != nil {
 		return err
 	}
+
 	command.Terminal = term
+
 	return nil
 }
 
 type TtyConsole struct {
 	MasterPty *os.File
-	SlavePty  *os.File
 }
 
 func NewTtyConsole(command *Command, pipes *Pipes) (*TtyConsole, error) {
-	ptyMaster, ptySlave, err := pty.Open()
+	ptyMaster, console, err := system.CreateMasterAndConsole()
 	if err != nil {
 		return nil, err
 	}
+
 	tty := &TtyConsole{
 		MasterPty: ptyMaster,
-		SlavePty:  ptySlave,
 	}
+
 	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
 		tty.Close()
 		return nil, err
 	}
-	command.Console = tty.SlavePty.Name()
+	command.Console = console
+
 	return tty, nil
 }
 
@@ -56,9 +62,6 @@ func (t *TtyConsole) Resize(h, w int) error {
 }
 
 func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
-	command.Stdout = t.SlavePty
-	command.Stderr = t.SlavePty
-
 	go func() {
 		if wb, ok := pipes.Stdout.(interface {
 			CloseWriters() error
@@ -69,19 +72,16 @@ func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
 	}()
 
 	if pipes.Stdin != nil {
-		command.Stdin = t.SlavePty
-		command.SysProcAttr.Setctty = true
-
 		go func() {
 			defer pipes.Stdin.Close()
 			io.Copy(t.MasterPty, pipes.Stdin)
 		}()
 	}
+
 	return nil
 }
 
 func (t *TtyConsole) Close() error {
-	t.SlavePty.Close()
 	return t.MasterPty.Close()
 }
 
