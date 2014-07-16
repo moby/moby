@@ -145,12 +145,16 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	// We can always try removing the iptables
-	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
+	if err := iptables.RemoveExistingChain("DOCKER", iptables.Nat); err != nil {
 		return job.Error(err)
 	}
 
 	if enableIPTables {
-		chain, err := iptables.NewChain("DOCKER", bridgeIface)
+		_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Nat)
+		if err != nil {
+			return job.Error(err)
+		}
+		chain, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter)
 		if err != nil {
 			return job.Error(err)
 		}
