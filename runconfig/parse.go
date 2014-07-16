@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	ErrInvalidWorkingDirectory  = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
-	ErrConflictNetworkHostname  = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	ErrInvalidWorkingDirectory     = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictAttachDetach        = fmt.Errorf("Conflicting options: -a and -d")
+	ErrConflictDetachAutoRemove    = fmt.Errorf("Conflicting options: --rm and -d")
+	ErrConflictNetworkHostname     = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
 
 //FIXME Only used in tests
@@ -113,6 +114,10 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
+	}
+
+	if *flNetMode == "host" && flLinks.Len() > 0 {
+		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
 	}
 
 	// If neither -d or -a are set, attach to everything by default

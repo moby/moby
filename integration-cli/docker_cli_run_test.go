@@ -722,6 +722,20 @@ func TestLoopbackWhenNetworkDisabled(t *testing.T) {
 	logDone("run - test container loopback when networking disabled")
 }
 
+func TestNetHostNotAllowedWithLinks(t *testing.T) {
+	_, _, err := cmd(t, "run", "--name", "linked", "busybox", "true")
+
+	cmd := exec.Command(dockerBinary, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
+	_, _, err = runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - don't allow --net=host to be used with links")
+}
+
 func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--net=none", "busybox", "ip", "-o", "-4", "a", "show", "up")
 	out, _, err := runCommandWithOutput(cmd)
