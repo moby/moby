@@ -808,6 +808,21 @@ func TestCapDropCannotMknod(t *testing.T) {
 	logDone("run - test --cap-drop=MKNOD cannot mknod")
 }
 
+func TestCapDropCannotMknodLowerCase(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=mknod", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=mknod cannot mknod lowercase")
+}
+
 func TestCapDropALLCannotMknod(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
