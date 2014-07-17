@@ -1390,3 +1390,27 @@ func TestCopyVolumeUidGid(t *testing.T) {
 
 	logDone("run - copy uid/gid for volume")
 }
+
+// Test for #1582
+func TestCopyVolumeContent(t *testing.T) {
+	name := "testruncopyvolumecontent"
+	defer deleteImages(name)
+	defer deleteAllContainers()
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN mkdir -p /hello/local && echo hello > /hello/local/world`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that the content is copied from the image to the volume
+	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "sh", "-c", "find", "/hello")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !(strings.Contains(out, "/hello/local/world") && strings.Contains(out, "/hello/local")) {
+		t.Fatal("Container failed to transfer content to volume")
+	}
+}

@@ -370,40 +370,6 @@ func tempDir(t *testing.T) string {
 	return tmpDir
 }
 
-// Test for #1582
-func TestCopyVolumeContent(t *testing.T) {
-	eng := NewTestEngine(t)
-	r := mkDaemonFromEngine(eng, t)
-	defer r.Nuke()
-
-	// Put some content in a directory of a container and commit it
-	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello/local && echo hello > /hello/local/world"}, t)
-	defer r.Destroy(container1)
-
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container1.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Test that the content is copied from the image to the volume
-	tmpDir1 := tempDir(t)
-	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(eng, r, []string{"-v", "/hello", img.ID, "find", "/hello"}, t)
-	if !(strings.Contains(stdout1, "/hello/local/world") && strings.Contains(stdout1, "/hello/local")) {
-		t.Fatal("Container failed to transfer content to volume")
-	}
-}
-
 func TestBindMounts(t *testing.T) {
 	eng := NewTestEngine(t)
 	r := mkDaemonFromEngine(eng, t)
