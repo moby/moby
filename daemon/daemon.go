@@ -905,7 +905,10 @@ func (daemon *Daemon) shutdown() error {
 				if err := c.KillSig(15); err != nil {
 					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
 				}
-				c.State.WaitStop(-1 * time.Second)
+				if _, err := c.State.WaitStop(60 * time.Second); err != nil {
+					log.Printf("Container %s did not stop in 60 seconds", c.ID)
+					c.State.WaitStop(-1 * time.Second)
+				}
 				utils.Debugf("container stopped %s", c.ID)
 			}()
 		}
