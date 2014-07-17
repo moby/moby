@@ -7,7 +7,6 @@ import (
 
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/server"
 )
 
 func TestCreateNumberHostname(t *testing.T) {
@@ -297,120 +296,6 @@ func TestImagesFilter(t *testing.T) {
 	if len(images.Data[0].GetList("RepoTags")) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
-}
-
-func TestListContainers(t *testing.T) {
-	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	config := runconfig.Config{
-		Image:     unitTestImageID,
-		Cmd:       []string{"/bin/sh", "-c", "cat"},
-		OpenStdin: true,
-	}
-
-	firstID := createTestContainer(eng, &config, t)
-	secondID := createTestContainer(eng, &config, t)
-	thirdID := createTestContainer(eng, &config, t)
-	fourthID := createTestContainer(eng, &config, t)
-	defer func() {
-		containerKill(eng, firstID, t)
-		containerKill(eng, secondID, t)
-		containerKill(eng, fourthID, t)
-		containerWait(eng, firstID, t)
-		containerWait(eng, secondID, t)
-		containerWait(eng, fourthID, t)
-	}()
-
-	startContainer(eng, firstID, t)
-	startContainer(eng, secondID, t)
-	startContainer(eng, fourthID, t)
-
-	// all
-	if !assertContainerList(srv, true, -1, "", "", []string{fourthID, thirdID, secondID, firstID}) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// running
-	if !assertContainerList(srv, false, -1, "", "", []string{fourthID, secondID, firstID}) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// from here 'all' flag is ignored
-
-	// limit
-	expected := []string{fourthID, thirdID}
-	if !assertContainerList(srv, true, 2, "", "", expected) ||
-		!assertContainerList(srv, false, 2, "", "", expected) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// since
-	expected = []string{fourthID, thirdID, secondID}
-	if !assertContainerList(srv, true, -1, firstID, "", expected) ||
-		!assertContainerList(srv, false, -1, firstID, "", expected) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// before
-	expected = []string{secondID, firstID}
-	if !assertContainerList(srv, true, -1, "", thirdID, expected) ||
-		!assertContainerList(srv, false, -1, "", thirdID, expected) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// since & before
-	expected = []string{thirdID, secondID}
-	if !assertContainerList(srv, true, -1, firstID, fourthID, expected) ||
-		!assertContainerList(srv, false, -1, firstID, fourthID, expected) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// since & limit
-	expected = []string{fourthID, thirdID}
-	if !assertContainerList(srv, true, 2, firstID, "", expected) ||
-		!assertContainerList(srv, false, 2, firstID, "", expected) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// before & limit
-	expected = []string{thirdID}
-	if !assertContainerList(srv, true, 1, "", fourthID, expected) ||
-		!assertContainerList(srv, false, 1, "", fourthID, expected) {
-		t.Error("Container list is not in the correct order")
-	}
-
-	// since & before & limit
-	expected = []string{thirdID}
-	if !assertContainerList(srv, true, 1, firstID, fourthID, expected) ||
-		!assertContainerList(srv, false, 1, firstID, fourthID, expected) {
-		t.Error("Container list is not in the correct order")
-	}
-}
-
-func assertContainerList(srv *server.Server, all bool, limit int, since, before string, expected []string) bool {
-	job := srv.Eng.Job("containers")
-	job.SetenvBool("all", all)
-	job.SetenvInt("limit", limit)
-	job.Setenv("since", since)
-	job.Setenv("before", before)
-	outs, err := job.Stdout.AddListTable()
-	if err != nil {
-		return false
-	}
-	if err := job.Run(); err != nil {
-		return false
-	}
-	if len(outs.Data) != len(expected) {
-		return false
-	}
-	for i := 0; i < len(outs.Data); i++ {
-		if outs.Data[i].Get("Id") != expected[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // Regression test for being able to untag an image with an existing
