@@ -76,7 +76,7 @@ command:
 
 Or you can also pass the `--help` flag to the `docker` binary.
 
-    $ sudo docker images --help
+    $ sudo docker attach --help
 
 This will display the help text and all available flags:
 
