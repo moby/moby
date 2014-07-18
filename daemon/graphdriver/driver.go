@@ -13,8 +13,9 @@ import (
 type FsMagic uint64
 
 const (
-	FsMagicBtrfs = FsMagic(0x9123683E)
-	FsMagicAufs  = FsMagic(0x61756673)
+	FsMagicBtrfs   = FsMagic(0x9123683E)
+	FsMagicAufs    = FsMagic(0x61756673)
+	FsMagicUnionfs = FsMagic(0xF15F083D)
 )
 
 type InitFunc func(root string, options []string) (Driver, error)
@@ -81,6 +82,7 @@ var (
 		"btrfs",
 		"devicemapper",
 		"vfs",
+		"unionfs",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")
