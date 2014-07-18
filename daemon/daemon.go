@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/docker/libcontainer/label"
-	"github.com/docker/libcontainer/selinux"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/daemon/execdriver"
 	"github.com/dotcloud/docker/daemon/execdriver/execdrivers"
@@ -300,7 +299,8 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	if err := os.RemoveAll(container.root); err != nil {
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
-	selinux.FreeLxcContexts(container.ProcessLabel)
+
+	selinuxFreeLxcContexts(container.ProcessLabel)
 
 	return nil
 }
@@ -761,7 +761,7 @@ func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error)
 
 func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
 	if !config.EnableSelinuxSupport {
-		selinux.SetDisabled()
+		selinuxSetDisabled()
 	}
 
 	// Create the root directory if it doesn't exists

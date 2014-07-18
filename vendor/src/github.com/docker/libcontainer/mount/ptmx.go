@@ -4,9 +4,10 @@ package mount
 
 import (
 	"fmt"
-	"github.com/docker/libcontainer/console"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/libcontainer/console"
 )
 
 func SetupPtmx(rootfs, consolePath, mountLabel string) error {
@@ -14,13 +15,16 @@ func SetupPtmx(rootfs, consolePath, mountLabel string) error {
 	if err := os.Remove(ptmx); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
 	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
 		return fmt.Errorf("symlink dev ptmx %s", err)
 	}
+
 	if consolePath != "" {
 		if err := console.Setup(rootfs, consolePath, mountLabel); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

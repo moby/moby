@@ -3,6 +3,7 @@
 package namespaces
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
@@ -13,18 +14,16 @@ import (
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/network"
 	"github.com/docker/libcontainer/syncpipe"
-	"github.com/dotcloud/docker/pkg/system"
+	"github.com/docker/libcontainer/system"
 )
 
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console string, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
-		master  *os.File
-		console string
-		err     error
+		err error
 	)
 
 	// create a pipe so that we can syncronize with the namespaced process and
@@ -35,20 +34,13 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 	}
 	defer syncPipe.Close()
 
-	if container.Tty {
-		master, console, err = system.CreateMasterAndConsole()
-		if err != nil {
-			return -1, err
-		}
-		term.SetMaster(master)
-	}
-
 	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.Child(), args)
-
-	if err := term.Attach(command); err != nil {
-		return -1, err
-	}
-	defer term.Close()
+	// Note: these are only used in non-tty mode
+	// if there is a tty for the container it will be opened within the namespace and the
+	// fds will be duped to stdin, stdiout, and stderr
+	command.Stdin = stdin
+	command.Stdout = stdout
+	command.Stderr = stderr
 
 	if err := command.Start(); err != nil {
 		return -1, err
@@ -110,6 +102,7 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 			return -1, err
 		}
 	}
+
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
@@ -145,7 +138,11 @@ func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataP
 	command.Dir = rootfs
 	command.Env = append(os.Environ(), env...)
 
-	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
+	if command.SysProcAttr == nil {
+		command.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	command.SysProcAttr.Cloneflags = uintptr(GetNamespaceFlags(container.Namespaces))
+
 	command.SysProcAttr.Pdeathsig = syscall.SIGKILL
 	command.ExtraFiles = []*os.File{pipe}
 
@@ -157,11 +154,14 @@ func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataP
 func SetupCgroups(container *libcontainer.Config, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
 		c := container.Cgroups
+
 		if systemd.UseSystemd() {
 			return systemd.Apply(c, nspid)
 		}
+
 		return fs.Apply(c, nspid)
 	}
+
 	return nil, nil
 }
 

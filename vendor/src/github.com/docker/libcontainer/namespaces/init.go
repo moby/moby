@@ -19,8 +19,8 @@ import (
 	"github.com/docker/libcontainer/security/capabilities"
 	"github.com/docker/libcontainer/security/restrict"
 	"github.com/docker/libcontainer/syncpipe"
+	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/utils"
-	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/pkg/user"
 )
 
@@ -57,7 +57,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 			return err
 		}
 	}
-	if _, err := system.Setsid(); err != nil {
+	if _, err := syscall.Setsid(); err != nil {
 		return fmt.Errorf("setsid %s", err)
 	}
 	if consolePath != "" {
@@ -81,7 +81,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 	}
 
 	if container.Hostname != "" {
-		if err := system.Sethostname(container.Hostname); err != nil {
+		if err := syscall.Sethostname([]byte(container.Hostname)); err != nil {
 			return fmt.Errorf("sethostname %s", err)
 		}
 	}
@@ -155,15 +155,19 @@ func SetupUser(u string) error {
 	if err != nil {
 		return fmt.Errorf("get supplementary groups %s", err)
 	}
-	if err := system.Setgroups(suppGids); err != nil {
+
+	if err := syscall.Setgroups(suppGids); err != nil {
 		return fmt.Errorf("setgroups %s", err)
 	}
-	if err := system.Setgid(gid); err != nil {
+
+	if err := syscall.Setgid(gid); err != nil {
 		return fmt.Errorf("setgid %s", err)
 	}
-	if err := system.Setuid(uid); err != nil {
+
+	if err := syscall.Setuid(uid); err != nil {
 		return fmt.Errorf("setuid %s", err)
 	}
+
 	return nil
 }
 
@@ -229,7 +233,7 @@ func FinalizeNamespace(container *libcontainer.Config) error {
 	}
 
 	if container.WorkingDir != "" {
-		if err := system.Chdir(container.WorkingDir); err != nil {
+		if err := syscall.Chdir(container.WorkingDir); err != nil {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}
