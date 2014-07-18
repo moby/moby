@@ -134,7 +134,7 @@ Docker supports softlinks for the Docker data directory
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
+      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). In TTY mode, SIGTSTP, SIGTTIN, SIGTTOU, and SIGINT are not proxied. SIGCHLD, SIGKILL, and SIGSTOP are never proxied.
 
 The `attach` command will allow you to view or
 interact with any running container, detached (`-d`)
