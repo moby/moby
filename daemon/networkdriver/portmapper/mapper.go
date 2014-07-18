@@ -37,23 +37,15 @@ func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
 
-func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
+func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err error) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	var (
 		m                 *mapping
-		err               error
 		proto             string
 		allocatedHostPort int
 	)
-
-	// release the port on any error during return.
-	defer func() {
-		if err != nil {
-			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
-		}
-	}()
 
 	switch container.(type) {
 	case *net.TCPAddr:
@@ -77,14 +69,19 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 			container: container,
 		}
 	default:
-		err = ErrUnknownBackendAddressType
-		return nil, err
+		return nil, ErrUnknownBackendAddressType
 	}
+
+	// release the allocated port on any further error during return.
+	defer func() {
+		if err != nil {
+			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
+		}
+	}()
 
 	key := getKey(m.host)
 	if _, exists := currentMappings[key]; exists {
-		err = ErrPortMappedForIP
-		return nil, err
+		return nil, ErrPortMappedForIP
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
