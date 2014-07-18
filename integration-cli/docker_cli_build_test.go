@@ -1565,6 +1565,29 @@ func TestDockerignoringDockerfile(t *testing.T) {
 	logDone("build - test .dockerignore of Dockerfile")
 }
 
+func TestDockerignoringWholeDir(t *testing.T) {
+	name := "testbuilddockerignorewholedir"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+		COPY . /
+		RUN [[ ! -e /.gitignore ]]
+		RUN [[ -f /Makefile ]]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    "FROM scratch",
+		"Makefile":      "all:",
+		".dockerignore": ".*\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - test .dockerignore whole dir with .*")
+}
+
 func TestBuildLineBreak(t *testing.T) {
 	name := "testbuildlinebreak"
 	defer deleteImages(name)
