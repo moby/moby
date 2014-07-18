@@ -124,6 +124,9 @@ inside it)
 **docker-login(1)**
   Register or Login to a Docker registry server
 
+**docker-logout(1)**
+  Log the user out of a Docker registry server
+
 **docker-logs(1)**
   Fetch the logs of a container
 
