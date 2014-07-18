@@ -1295,3 +1295,69 @@ func TestAttachStdOutAndErrTTYMode(t *testing.T) {
 
 	logDone("run - Attach stderr and stdout with -t")
 }
+
+func TestState(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	state, err := inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "true" {
+		t.Fatal("Container state is 'not running'")
+	}
+	pid1, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid1 == "0" {
+		t.Fatal("Container state Pid 0")
+	}
+
+	cmd = exec.Command(dockerBinary, "stop", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	state, err = inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "false" {
+		t.Fatal("Container state is 'running'")
+	}
+	pid2, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid2 == pid1 {
+		t.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
+	}
+
+	cmd = exec.Command(dockerBinary, "start", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	state, err = inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "true" {
+		t.Fatal("Container state is 'not running'")
+	}
+	pid3, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid3 == pid1 {
+		t.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
+	}
+	logDone("run - test container state.")
+}
