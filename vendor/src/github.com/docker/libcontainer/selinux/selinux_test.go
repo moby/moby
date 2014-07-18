@@ -1,9 +1,12 @@
+// +build linux
+
 package selinux_test
 
 import (
-	"github.com/docker/libcontainer/selinux"
 	"os"
 	"testing"
+
+	"github.com/docker/libcontainer/selinux"
 )
 
 func testSetfilecon(t *testing.T) {

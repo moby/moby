@@ -21,6 +21,14 @@ type Container interface {
 	// Returns the current config of the container.
 	Config() *Config
 
+	// Start a process inside the container. Returns the PID of the new process (in the caller process's namespace) and a channel that will return the exit status of the process whenever it dies.
+	//
+	// Errors: container no longer exists,
+	//         config is invalid,
+	//         container is paused,
+	//         system error.
+	Start(*ProcessConfig) (pid int, exitChan chan int, err error)
+
 	// Destroys the container after killing all running processes.
 	//
 	// Any event registrations are removed before the container is destroyed.
