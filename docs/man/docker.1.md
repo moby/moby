@@ -64,6 +64,9 @@ unix://[/path/to/socket] to use.
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
+**--registry-mirror=<scheme>://<host>
+  Prepend a registry mirror to be used for image pulls. May be specified multiple times.
+
 **-s**=""
   Force the Docker runtime to use a specific storage driver.
 

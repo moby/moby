@@ -52,7 +52,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := NewTagStore(path.Join(root, "tags"), graph)
+	store, err := NewTagStore(path.Join(root, "tags"), graph, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

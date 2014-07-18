@@ -3,6 +3,7 @@ package opts
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +32,10 @@ func DnsSearchListVar(values *[]string, names []string, usage string) {
 
 func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 	flag.Var(NewIpOpt(value, defaultValue), names, usage)
+}
+
+func MirrorListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateMirror), names, usage)
 }
 
 // ListOpts type
@@ -189,4 +194,22 @@ func validateDomain(val string) (string, error) {
 		return string(ns[1]), nil
 	}
 	return "", fmt.Errorf("%s is not a valid domain", val)
+}
+
+// Validates an HTTP(S) registry mirror
+func ValidateMirror(val string) (string, error) {
+	uri, err := url.Parse(val)
+	if err != nil {
+		return "", fmt.Errorf("%s is not a valid URI", val)
+	}
+
+	if uri.Scheme != "http" && uri.Scheme != "https" {
+		return "", fmt.Errorf("Unsupported scheme %s", uri.Scheme)
+	}
+
+	if uri.Path != "" || uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
+	}
+
+	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
 }

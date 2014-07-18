@@ -12,3 +12,4 @@
  - [Automatically Start Containers](host_integration/)
  - [Link via an Ambassador Container](ambassador_pattern_linking/)
  - [Increase a Boot2Docker Volume](b2d_volume_resize/)
+ - [Run a Local Registry Mirror](registry_mirror/)
