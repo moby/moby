@@ -232,7 +232,7 @@ func initializeVolume(container *Container, volPath string, binds map[string]Bin
 		destination = bindMap.SrcPath
 
 		if !filepath.IsAbs(destination) {
-			return fmt.Errorf("%s must be an absolute path", destination)
+			return fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", destination)
 		}
 
 		if strings.ToLower(bindMap.Mode) == "rw" {
