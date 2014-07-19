@@ -11,7 +11,9 @@ import (
 // We need different setns values for the different platforms and arch
 // We are declaring the macro here because the SETNS syscall does not exist in th stdlib
 var setNsMap = map[string]uintptr{
+	"linux/386":   346,
 	"linux/amd64": 308,
+	"linux/arm":   374,
 }
 
 func Setns(fd uintptr, flags uintptr) error {
