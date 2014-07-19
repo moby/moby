@@ -30,9 +30,9 @@ So, an example setup would be::
        ├── client.key
        └── localhost.crt
 
-A simple way to test this setup is to use an apache server to host a
-registry. Just copy a registry tree into the apache root,
-[here](http://people.gnome.org/~alexl/v1.tar.gz) is an example one
+A simple way to test this setup is to use an Apache server to host a
+registry. Just copy a registry tree into the Apache root,
+[here](http://people.gnome.org/~alexl/v1.tar.gz) is an example of one
 containing the busybox image.
 
 Then add this conf file as `/etc/httpd/conf.d/registry.conf`:
