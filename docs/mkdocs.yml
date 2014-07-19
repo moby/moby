@@ -83,6 +83,7 @@ pages:
 - ['articles/security.md', 'Articles', 'Security']
 - ['articles/https.md', 'Articles', 'Running Docker with HTTPS']
 - ['articles/host_integration.md', 'Articles', 'Automatically starting Containers']
+- ['articles/certificates.md', 'Articles', 'Using certificates for repository client verification']
 - ['articles/using_supervisord.md', 'Articles', 'Using Supervisor']
 - ['articles/cfengine_process_management.md', 'Articles', 'Process management with CFEngine']
 - ['articles/puppet.md', 'Articles', 'Using Puppet']
