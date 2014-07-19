@@ -211,6 +211,16 @@ func inspectField(name, field string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+func inspectFieldJSON(name, field string) (string, error) {
+	format := fmt.Sprintf("{{json .%s}}", field)
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
 }

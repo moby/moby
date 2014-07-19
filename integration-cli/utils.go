@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os/exec"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -110,4 +112,25 @@ func errorOutOnNonNilError(err error, t *testing.T, message string) {
 
 func nLines(s string) int {
 	return strings.Count(s, "\n")
+}
+
+func unmarshalJSON(data []byte, result interface{}) error {
+	err := json.Unmarshal(data, result)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deepEqual(expected interface{}, result interface{}) bool {
+	return reflect.DeepEqual(result, expected)
+}
+
+func convertSliceOfStringsToMap(input []string) map[string]struct{} {
+	output := make(map[string]struct{})
+	for _, v := range input {
+		output[v] = struct{}{}
+	}
+	return output
 }
