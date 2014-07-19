@@ -1195,7 +1195,12 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 
 	repoData, err := r.GetRepositoryData(remoteName)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "HTTP code: 404") {
+			return fmt.Errorf("Error: image %s not found", remoteName)
+		} else {
+			// Unexpected HTTP error
+			return err
+		}
 	}
 
 	utils.Debugf("Retrieving the tag list")
