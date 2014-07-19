@@ -1177,6 +1177,88 @@ func TestNoContext(t *testing.T) {
 }
 
 // TODO: TestCaching
+func TestChainBuildFromPath(t *testing.T) {
+	name := "testchainbuildfrompath"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM ./chain
+		RUN [ -f /first ]`,
+		map[string]string{
+			"chain/Dockerfile": `FROM busybox
+							RUN touch /first`,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - build chained Dockerfiles from path")
+}
+
+func TestChainBuildFromAmbiguous(t *testing.T) {
+	name := "testchainbuildfromambiguous"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM ./busybox
+			RUN [ -f /first ]`,
+		map[string]string{
+			"busybox/Dockerfile": `FROM busybox
+								RUN touch /first`,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - build chained Dockerfiles from ambiguos path and image")
+}
+
+func TestChainBuildFromURL(t *testing.T) {
+	name := "testchainbuildfromurl"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"Dockerfile": `FROM busybox
+					RUN touch /first`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, err := fakeContext(fmt.Sprintf(`FROM %s/Dockerfile
+        RUN [ -f /first ]`, server.URL),
+		nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImage(name, fmt.Sprintf(`FROM %s/Dockerfile
+										RUN [ -f /first ]`, server.URL), true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - build chained Dockerfiles from URL")
+}
+
+func TestChainBuildFromGIT(t *testing.T) {
+	name := "testchainbuildfromgit"
+	defer deleteImages(name)
+	git, err := fakeGIT("repo", map[string]string{
+		"Dockerfile": `FROM busybox
+					ADD first /first`,
+		"first": "test git data",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+	if _, err := buildImage(name, fmt.Sprintf(`FROM %s/repo.git
+										RUN [ -f /first ]`, git.URL), true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - build chained Dockerfiles from GIT")
+}
+
 func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	defer deleteImages(name)

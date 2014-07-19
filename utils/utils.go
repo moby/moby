@@ -545,6 +545,37 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
+// CloneGIT clones git path to tmp dir and return path to it.
+func CloneGIT(url string) (string, error) {
+	if !strings.HasPrefix(url, "git://") && !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
+		url = "https://" + url
+	}
+	root, err := ioutil.TempDir("", "docker-build-git")
+	if err != nil {
+		return "", err
+	}
+	if output, err := exec.Command("git", "clone", "--recursive", url, root).CombinedOutput(); err != nil {
+		os.RemoveAll(root)
+		// Output from git is multiline - so flatten it
+		return "", fmt.Errorf("Error trying to use git: %s (%s)", err, strings.Replace(string(output), "\n", "\t", -1))
+	}
+	return root, nil
+}
+
+// DockerfileFromURL downloads dockerfile and returns it as string.
+func DockerfileFromURL(url string) (string, error) {
+	f, err := Download(url)
+	if err != nil {
+		return "", err
+	}
+	defer f.Body.Close()
+	dockerFile, err := ioutil.ReadAll(f.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(dockerFile), nil
+}
+
 // CheckLocalDns looks into the /etc/resolv.conf,
 // it returns true if there is a local nameserver or if there is no nameserver.
 func CheckLocalDns(resolvConf []byte) bool {

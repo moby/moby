@@ -81,32 +81,93 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	}
 }
 
+func (b *buildFile) getContext(name string, cleanup <-chan struct{}) (io.ReadCloser, error) {
+	if utils.IsGIT(name) {
+		root, err := utils.CloneGIT(name)
+		if err != nil {
+			return nil, err
+		}
+		go func() {
+			<-cleanup
+			os.RemoveAll(root)
+		}()
+
+		ctx, err := archive.Tar(root, archive.Uncompressed)
+		if err != nil {
+			return nil, err
+		}
+		return ctx, nil
+	} else if utils.IsURL(name) {
+		dockerFile, err := utils.DockerfileFromURL(name)
+		if err != nil {
+			return nil, err
+		}
+		ctx, err := archive.Generate("Dockerfile", dockerFile)
+		if err != nil {
+			return nil, err
+		}
+		return ctx, nil
+	} else {
+		if !strings.HasPrefix(name, "./") {
+			return nil, fmt.Errorf("Path must be started with ./, got %s", name)
+		}
+		name = path.Join(b.contextPath, name)
+		if _, err := os.Stat(name); err != nil {
+			return nil, err
+		}
+		filename := path.Join(name, "Dockerfile")
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			return nil, fmt.Errorf("no Dockerfile found in %s", name)
+		}
+		return archive.Tar(name, archive.Uncompressed)
+	}
+}
+
 func (b *buildFile) CmdFrom(name string) error {
 	image, err := b.daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if b.daemon.Graph().IsNotExist(err) {
-			remote, tag := utils.ParseRepositoryTag(name)
-			pullRegistryAuth := b.authConfig
-			if len(b.configFile.Configs) > 0 {
-				// The request came with a full auth config file, we prefer to use that
-				endpoint, _, err := registry.ResolveRepositoryName(remote)
+			done := make(chan struct{})
+			ctx, err := b.getContext(name, done)
+			defer close(done)
+			if err != nil {
+				fmt.Fprintf(b.outStream, "%s is not path or url, trying to pull\n", name)
+				remote, tag := utils.ParseRepositoryTag(name)
+				pullRegistryAuth := &registry.AuthConfig{}
+				if len(b.configFile.Configs) > 0 {
+					// The request came with a full auth config file, we prefer to use that
+					endpoint, _, err := registry.ResolveRepositoryName(remote)
+					if err != nil {
+						return err
+					}
+					resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
+					pullRegistryAuth = &resolvedAuth
+				}
+				job := b.srv.Eng.Job("pull", remote, tag)
+				job.SetenvBool("json", b.sf.Json())
+				job.SetenvBool("parallel", true)
+				job.SetenvJson("authConfig", pullRegistryAuth)
+				job.Stdout.Add(b.outOld)
+				if err := job.Run(); err != nil {
+					return err
+				}
+				image, err = b.daemon.Repositories().LookupImage(name)
 				if err != nil {
 					return err
 				}
-				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
-				pullRegistryAuth = &resolvedAuth
-			}
-			job := b.srv.Eng.Job("pull", remote, tag)
-			job.SetenvBool("json", b.sf.Json())
-			job.SetenvBool("parallel", true)
-			job.SetenvJson("authConfig", pullRegistryAuth)
-			job.Stdout.Add(b.outOld)
-			if err := job.Run(); err != nil {
-				return err
-			}
-			image, err = b.daemon.Repositories().LookupImage(name)
-			if err != nil {
-				return err
+			} else {
+				defer ctx.Close()
+				tmpb := NewBuildFile(b.srv, b.outStream, b.errStream, b.verbose,
+					b.utilizeCache, b.rm, b.forceRm, b.outOld, b.sf, b.authConfig, b.configFile)
+
+				id, err := tmpb.Build(ctx)
+				if err != nil {
+					return err
+				}
+				image, err = b.daemon.Repositories().LookupImage(id)
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			return err
