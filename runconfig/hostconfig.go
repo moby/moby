@@ -57,7 +57,7 @@ type HostConfig struct {
 	RestartPolicy   RestartPolicy
 }
 
-// This is used by the create command when you want to both set the
+// This is used by the create command when you want to set both the
 // Config and the HostConfig in the same call
 type ConfigAndHostConfig struct {
 	Config

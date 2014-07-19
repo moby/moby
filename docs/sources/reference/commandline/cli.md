@@ -378,17 +378,17 @@ Creates a new container.
     Usage: docker create [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 
-    -a, --attach=[]            Attach to stdin, stdout or stderr.
+    -a, --attach=[]            Attach to STDIN, STDOUT, STDERR.
     -c, --cpu-shares=0         CPU shares (relative weight)
     --cidfile=""               Write the container ID to the file
-    --dns=[]                   Set custom dns servers
-    --dns-search=[]            Set custom dns search domains
+    --dns=[]                   Set custom DNS servers
+    --dns-search=[]            Set custom DNS search domains
     -e, --env=[]               Set environment variables
     --entrypoint=""            Overwrite the default entrypoint of the image
-    --env-file=[]              Read in a line delimited file of ENV variables
+    --env-file=[]              Read in a line delimited file of environment variables
     --expose=[]                Expose a port from the container without publishing it to your host
     -h, --hostname=""          Container host name
-    -i, --interactive=false    Keep stdin open even if not attached
+    -i, --interactive=false    Keep `STDIN` open even if not attached
     --link=[]                  Add link to another container (name:alias)
     --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
     -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
@@ -397,28 +397,28 @@ Creates a new container.
                                  'bridge': creates a new network stack for the container on the docker bridge
                                  'none': no networking for this container
                                  'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the contaner
+                                 'host': use the host network stack inside the container
     -p, --publish=[]           Publish a container's port to the host
                                  format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                  (use 'docker port' to see the actual mapping)
     -P, --publish-all=false    Publish all exposed ports to the host interfaces
     --privileged=false         Give extended privileges to this container
-    -t, --tty=false            Allocate a pseudo-tty
+    -t, --tty=false            Allocate a pseudo-TTY
     -u, --user=""              Username or UID
     -v, --volume=[]            Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)
     --volumes-from=[]          Mount volumes from the specified container(s)
     -w, --workdir=""           Working directory inside the container
 
 
-The `docker create` command `creates` a writeable container layer over
-the specified image, and prepares it for running the specified
-command. The container id is then printed to stdout. This is similar
-to what `docker run -d <cli_run>`, does except the container is never
-started. You can then use the `docker start <cli_start>` command to
-start the container at any point.
+The `docker create` command creates a writeable container layer over
+the specified image and prepares it for running the specified command.
+The container ID is then printed to `STDOUT`.
+This is similar to `docker run -d` except the container is never started.
+You can then use the `docker start <container_id>` command to start the
+container at any point.
 
 This is useful when you want to set up a container configuration ahead
-of time, so that it is ready to start when you need it.
+of time so that it is ready to start when you need it.
 
 ### Example:
 
