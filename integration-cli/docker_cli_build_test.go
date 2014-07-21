@@ -1747,33 +1747,12 @@ RUN [ "$(cat /testfile)" = 'test!' ]`
 func TestBuildAddTar(t *testing.T) {
 	name := "testbuildaddtar"
 	defer deleteImages(name)
-	checkOutput := func(out string) {
-		n := -1
-		x := ""
-		for i, line := range strings.Split(out, "\n") {
-			if strings.HasPrefix(line, "Step 2") {
-				n = i + 2
-				x = line[strings.Index(line, "cat ")+4:]
-			}
-			if i == n {
-				if line != "Hi" {
-					t.Fatalf("Could not find contents of %s (expected 'Hi' got '%s'", x, line)
-				}
-				n = -2
-			}
-		}
-		if n > -2 {
-			t.Fatalf("Could not find contents of %s in build output", x)
-		}
-	}
 
-	for _, n := range []string{"1", "2"} {
-		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar", n)
-		buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
-		buildCmd.Dir = buildDirectory
-		out, _, err := runCommandWithOutput(buildCmd)
-		errorOut(err, t, fmt.Sprintf("build failed to complete for TestBuildAddTar/%s: %v", n, err))
-		checkOutput(out)
-	}
+        buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar")
+        buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
+        buildCmd.Dir = buildDirectory
+        out, _, err := runCommandWithOutput(buildCmd)
+        errorOut(err, t, fmt.Sprintf("build failed to complete for TestBuildAddTar/%s: %v", n, err))
+
 	logDone("build - ADD tar")
 }
