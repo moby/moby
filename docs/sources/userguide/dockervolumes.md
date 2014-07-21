@@ -59,9 +59,10 @@ absolute path and if the directory doesn't exist Docker will automatically
 create it for you.
 
 > **Note:** 
-> This is not available from a `Dockerfile` due the portability
+> This is not available from a `Dockerfile` due to the portability
 > and sharing purpose of it. As the host directory is, by its nature,
-> host-dependent it might not work all hosts.
+> host-dependent, a host directory specified in a `Dockerfile` probably
+> wouldn't work on all hosts.
 
 Docker defaults to a read-write volume but we can also mount a directory
 read-only.
