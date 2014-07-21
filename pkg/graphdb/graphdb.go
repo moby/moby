@@ -290,7 +290,7 @@ func (db *Database) Parents(name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return db.parents(e, nil)
+	return db.parents(e)
 }
 
 // Return the refrence count for a specified id
@@ -478,7 +478,7 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 	return entities, nil
 }
 
-func (db *Database) parents(e *Entity, parents []string) ([]string, error) {
+func (db *Database) parents(e *Entity) (parents []string, err error) {
 	if e == nil {
 		return parents, nil
 	}
