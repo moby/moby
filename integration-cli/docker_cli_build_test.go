@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -1752,6 +1751,21 @@ func TestBuildAddTar(t *testing.T) {
 	defer deleteImages(name)
 
 	ctx := func() *FakeContext {
+		dockerfile := `
+FROM busybox
+ADD test.tar /
+RUN cat /test/foo | grep Hi
+ADD test.tar /test.tar
+RUN cat /test.tar/test/foo | grep Hi
+ADD test.tar /unlikely-to-exist
+RUN cat /unlikely-to-exist/test/foo | grep Hi
+ADD test.tar /unlikely-to-exist-trailing-slash/
+RUN cat /unlikely-to-exist-trailing-slash/test/foo | grep Hi
+RUN mkdir /existing-directory
+ADD test.tar /existing-directory
+RUN cat /existing-directory/test/foo | grep Hi
+ADD test.tar /existing-directory-trailing-slash/
+RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 		tmpDir, err := ioutil.TempDir("", "fake-context")
 		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
 		if err != nil {
@@ -1774,19 +1788,9 @@ func TestBuildAddTar(t *testing.T) {
 			t.Fatalf("failed to close tar archive: %v", err)
 		}
 
-		dockerfile, err := os.Open(filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar", "Dockerfile"))
-		if err != nil {
-			t.Fatalf("failed to open source dockerfile: %v", err)
-		}
-		defer dockerfile.Close()
-		dest, err := os.Create(filepath.Join(tmpDir, "Dockerfile"))
-		if err != nil {
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			t.Fatalf("failed to open destination dockerfile: %v", err)
 		}
-		if _, err := io.Copy(dest, dockerfile); err != nil {
-			t.Fatalf("failed top copy dockerfile: %v", err)
-		}
-		defer dest.Close()
 		return &FakeContext{Dir: tmpDir}
 	}()
 
