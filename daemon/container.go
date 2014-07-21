@@ -938,7 +938,11 @@ func (container *Container) initializeNetworking() error {
 		if err := container.allocateNetwork(); err != nil {
 			return err
 		}
-		return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+		if container.Config.IPAddress != "" {
+			return container.buildHostnameAndHostsFiles(container.Config.IPAddress)
+		} else {
+			return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+		}
 	}
 	return nil
 }

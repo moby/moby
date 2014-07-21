@@ -20,7 +20,7 @@ docker-run - Run a command in a new container
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
-[**-h**|**--hostname**[=*HOSTNAME*]]
+[**-h**|**--hostname**[=*HOSTNAME:IPADDRESS*]]
 [**-i**|**--interactive**[=*false*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
@@ -132,8 +132,9 @@ developer can expose the port using the EXPOSE parameter of the Dockerfile, 2)
 the operator can use the **--expose** option with **docker run**, or 3) the
 container can be started with the **--link**.
 
-**-h**, **--hostname**=*hostname*
-   Sets the container host name that is available inside the container.
+**-h**, **-hostname**=*hostname:ipaddress*
+   Sets the container host name and ipaddress that is available inside the container.
+If ipaddress is not set, the default interface will be used. 
 
 **-i**, **--interactive**=*true*|*false*
    When set to true, keep stdin open even if not attached. The default is false.
