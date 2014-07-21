@@ -1,5 +1,5 @@
 page_title: Docker HTTPS Setup
-page_description: How to setup docker with https
+page_description: How to set Docker up with https
 page_keywords: docker, example, https, daemon
 
 # Running Docker with https
@@ -7,17 +7,17 @@ page_keywords: docker, example, https, daemon
 By default, Docker runs via a non-networked Unix socket. It can also
 optionally communicate using a HTTP socket.
 
-If you need Docker reachable via the network in a safe manner, you can
-enable TLS by specifying the tlsverify flag and pointing Docker's
-tlscacert flag to a trusted CA certificate.
+If you need Docker to be reachable via the network in a safe manner, you can
+enable TLS by specifying the `tlsverify` flag and pointing Docker's
+`tlscacert` flag to a trusted CA certificate.
 
 In daemon mode, it will only allow connections from clients
 authenticated by a certificate signed by that CA. In client mode, it
 will only connect to servers with a certificate signed by that CA.
 
 > **Warning**: 
-> Using TLS and managing a CA is an advanced topic. Please make you self
-> familiar with OpenSSL, x509 and TLS before using it in production.
+> Using TLS and managing a CA is an advanced topic. Please familiarize yourself
+> with OpenSSL, x509 and TLS before using it in production.
 
 > **Warning**:
 > These TLS commands will only generate a working set of certificates on Linux.
@@ -34,11 +34,11 @@ keys:
     $ openssl req -new -x509 -days 365 -key ca-key.pem -out ca.pem
 
 Now that we have a CA, you can create a server key and certificate
-signing request. Make sure that "Common Name (e.g. server FQDN or YOUR
-name)" matches the hostname you will use to connect to Docker:
+signing request (CSR). Make sure that "Common Name" (i.e. server FQDN or YOUR
+name) matches the hostname you will use to connect to Docker:
 
     $ openssl genrsa -des3 -out server-key.pem 2048
-    $ openssl req -subj '/CN=**<Your Hostname Here>**' -new -key server-key.pem -out server.csr
+    $ openssl req -subj '/CN=<Your Hostname Here>' -new -key server-key.pem -out server.csr
 
 Next we're going to sign the key with our CA:
 
@@ -51,7 +51,7 @@ request:
     $ openssl genrsa -des3 -out client-key.pem 2048
     $ openssl req -subj '/CN=client' -new -key client-key.pem -out client.csr
 
-To make the key suitable for client authentication, create a extensions
+To make the key suitable for client authentication, create an extensions
 config file:
 
     $ echo extendedKeyUsage = clientAuth > extfile.cnf
@@ -61,8 +61,7 @@ Now sign the key:
     $ openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem \
       -out client-cert.pem -extfile extfile.cnf
 
-Finally you need to remove the passphrase from the client and server
-key:
+Finally, you need to remove the passphrase from the client and server key:
 
     $ openssl rsa -in server-key.pem -out server-key.pem
     $ openssl rsa -in client-key.pem -out client-key.pem
@@ -83,9 +82,8 @@ need to provide your client keys, certificates and trusted CA:
 > Docker over TLS should run on TCP port 2376.
 
 > **Warning**: 
-> As shown in the example above, you don't have to run the
-> `docker` client with `sudo` or
-> the `docker` group when you use certificate
+> As shown in the example above, you don't have to run the `docker` client 
+> with `sudo` or the `docker` group when you use certificate
 > authentication. That means anyone with the keys can give any
 > instructions to your Docker daemon, giving them root access to the
 > machine hosting the daemon. Guard these keys as you would a root
@@ -112,20 +110,20 @@ Docker in various other modes by mixing the flags.
 
 ### Daemon modes
 
- - tlsverify, tlscacert, tlscert, tlskey set: Authenticate clients
- - tls, tlscert, tlskey: Do not authenticate clients
+ - `tlsverify`, `tlscacert`, `tlscert`, `tlskey` set: Authenticate clients
+ - `tls`, `tlscert`, `tlskey`: Do not authenticate clients
 
 ### Client modes
 
- - tls: Authenticate server based on public/default CA pool
- - tlsverify, tlscacert: Authenticate server based on given CA
- - tls, tlscert, tlskey: Authenticate with client certificate, do not
+ - `tls`: Authenticate server based on public/default CA pool
+ - `tlsverify`, `tlscacert`: Authenticate server based on given CA
+ - `tls`, `tlscert`, `tlskey`: Authenticate with client certificate, do not
    authenticate server based on given CA
- - tlsverify, tlscacert, tlscert, tlskey: Authenticate with client
-   certificate, authenticate server based on given CA
+ - `tlsverify`, `tlscacert`, `tlscert`, `tlskey`: Authenticate with client
+   certificate and authenticate server based on given CA
 
 The client will send its client certificate if found, so you just need
-to drop your keys into ~/.docker/<ca, cert or key>.pem. Alternatively, if you
+to drop your keys into `~/.docker/<ca, cert or key>.pem`. Alternatively, if you
 want to store your keys in another location, you can specify that location
 using the environment variable `DOCKER_CONFIG`.
 
