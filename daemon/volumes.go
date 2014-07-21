@@ -179,6 +179,18 @@ func createVolumes(container *Container) error {
 		}
 	}
 
+	// Create the dirs for BuildVolumes for backwards compatability
+	for _, volPath := range container.Config.BuildVolumes {
+		// Create the mountpoint
+		source, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
+		if err != nil {
+			return err
+		}
+		if err := createIfNotExists(source, true); err != nil {
+			return err
+		}
+	}
+
 	for volPath := range binds {
 		if err := initializeVolume(container, volPath, binds); err != nil {
 			return err

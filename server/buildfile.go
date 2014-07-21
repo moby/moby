@@ -369,11 +369,14 @@ func (b *buildFile) CmdVolume(args string) error {
 	if err := json.Unmarshal([]byte(args), &volume); err != nil {
 		volume = []string{args}
 	}
-	if b.config.Volumes == nil {
-		b.config.Volumes = map[string]struct{}{}
-	}
 	for _, v := range volume {
-		b.config.Volumes[v] = struct{}{}
+		b.config.BuildVolumes = append(b.config.BuildVolumes, v)
+
+		// This should only be true if we are the on the last build step
+		// Here we want to make sure the volume does get applied
+		if b.config.Volumes != nil {
+			b.config.Volumes[v] = struct{}{}
+		}
 	}
 	if err := b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
 		return err
@@ -797,10 +800,29 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
 		stepN      = 0
 	)
+
+	for volPath := range b.config.Volumes {
+		b.config.BuildVolumes = append(b.config.BuildVolumes, volPath)
+	}
+	b.config.Volumes = nil
+
+	buildSteps := []string{}
 	for _, line := range strings.Split(dockerfile, "\n") {
 		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
 		if len(line) == 0 {
 			continue
+		}
+		buildSteps = append(buildSteps, line)
+	}
+	for i, line := range buildSteps {
+		if (len(buildSteps) - 1) == i {
+			// Apply volumes since this is the last build step
+			if b.config.Volumes == nil {
+				b.config.Volumes = make(map[string]struct{})
+			}
+			for _, volPath := range b.config.BuildVolumes {
+				b.config.Volumes[volPath] = struct{}{}
+			}
 		}
 		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
 			if b.forceRm {
