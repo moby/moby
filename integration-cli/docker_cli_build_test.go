@@ -1,7 +1,10 @@
 package main
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1748,11 +1751,48 @@ func TestBuildAddTar(t *testing.T) {
 	name := "testbuildaddtar"
 	defer deleteImages(name)
 
-        buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar")
-        buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
-        buildCmd.Dir = buildDirectory
-        out, _, err := runCommandWithOutput(buildCmd)
-        errorOut(err, t, fmt.Sprintf("build failed to complete for TestBuildAddTar/%s: %v", n, err))
+	ctx := func() *FakeContext {
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
+		if err != nil {
+			t.Fatalf("failed to create test.tar archive: %v", err)
+		}
+		defer testTar.Close()
+
+		tw := tar.NewWriter(testTar)
+
+		if err := tw.WriteHeader(&tar.Header{
+			Name: "test/foo",
+			Size: 2,
+		}); err != nil {
+			t.Fatalf("failed to write tar file header: %v", err)
+		}
+		if _, err := tw.Write([]byte("Hi")); err != nil {
+			t.Fatalf("failed to write tar file content: %v", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("failed to close tar archive: %v", err)
+		}
+
+		dockerfile, err := os.Open(filepath.Join(workingDirectory, "build_tests", "TestBuildAddTar", "Dockerfile"))
+		if err != nil {
+			t.Fatalf("failed to open source dockerfile: %v", err)
+		}
+		defer dockerfile.Close()
+		dest, err := os.Create(filepath.Join(tmpDir, "Dockerfile"))
+		if err != nil {
+			t.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		if _, err := io.Copy(dest, dockerfile); err != nil {
+			t.Fatalf("failed top copy dockerfile: %v", err)
+		}
+		defer dest.Close()
+		return &FakeContext{Dir: tmpDir}
+	}()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("build failed to complete for TestBuildAddTar: %v", err)
+	}
 
 	logDone("build - ADD tar")
 }
