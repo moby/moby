@@ -135,7 +135,7 @@ like this:
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxify all received signals to the process (even in non-TTY mode). SIGCHLD is not proxied.
+      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
 The `attach` command will allow you to view or
 interact with any running container, detached (`-d`)
@@ -981,7 +981,7 @@ removed before the image is removed.
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
-      --sig-proxy=true           Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
+      --sig-proxy=true           Proxy received signals to the process (even in non-tty mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
       -t, --tty=false            Allocate a pseudo-tty
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
