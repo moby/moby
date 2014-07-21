@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-{% set docker_version = "$VERSION" %}{% set docker_commit = "$GITCOMMIT" %}{% set docker_branch = "$GIT_BRANCH" %}{% set aws_bucket = "$AWS_S3_BUCKET" %}
+  {% set docker_version = "$VERSION" %}{% set major_minor = "$MAJOR_MINOR" %}{% set docker_commit = "$GITCOMMIT" %}{% set docker_branch = "$GIT_BRANCH" %}{% set aws_bucket = "$AWS_S3_BUCKET" %}
   <meta name="docker_version" content="{{ docker_version }}">
   <meta name="docker_git_branch" content="{{ docker_branch }}">
   <meta name="docker_git_commit" content="{{ docker_commit }}">
@@ -52,17 +52,13 @@
         <h1 class="header2">{{ current_page.title }}</h1>
       </div>
       <div class="span5">
-        <div id="versionnav" class="span2 pull-right">
-          <ul class="nav version">
+        <div id="versionnav" class="span3 pull-right">
+          <ul class="nav version pull-right">
             <li class="dropdown">
               <a id="logged-in-header-username" class="dropdown-toggle" data-toggle="dropdown" href="#">
-  	  	  Latest (Version 1.3)
+		      Latest (Version {{ major_minor }})
               </a>
-              <ul class="dropdown-menu pull-right">
-                <li><a href="https://hub.docker.com/">Version 1.3</a></li>
-                <li><a href="https://hub.docker.com/">Version 1.2</a></li>
-                <li><a href="https://hub.docker.com/">Version 1.1</a></li>
-                <li><a href="https://hub.docker.com/">Version 1.0</a></li>
+              <ul id="documentation-version-list" class="dropdown-menu pull-right">
 		<li role="presentation" class="divider"></li>
 		<li> <a class="home-link3 tertiary-nav" href="https://github.com/dotcloud/docker/blob/master/docs/sources/{{ current_page.input_path }}" >Edit on GitHub</a></li>
               </ul>
@@ -148,6 +144,16 @@ piCId = '1482';
   });
   $(document).ready(function() {
     $('#content').css("min-height", $(window).height() - 553 );
+    // load the complete versions list
+    $.get("/versions.html_fragment", function( data ) {
+    	$('#documentation-version-list').prepend(data);
+	//remove any "/v1.1/" bits from font.
+	path = document.location.pathname.replace(/^\/v\d\.\d/, "");
+	$('#documentation-version-list a.version').each(function(i, e) {
+		e.href = e.href+path;
+		$(e).removeClass()
+	});
+    });
   })
   var userName = getCookie('docker_sso_username');
   if (userName) {
