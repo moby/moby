@@ -153,12 +153,22 @@ func main() {
 		if err := builtins.Register(eng); err != nil {
 			log.Fatal(err)
 		}
+
+		// handle the pidfile early. https://github.com/dotcloud/docker/issues/6973
+		if len(*pidfile) > 0 {
+			job := eng.Job("initserverpidfile", *pidfile)
+			if err := job.Run(); err != nil {
+				log.Fatal(err)
+			}
+		}
+
 		// load the daemon in the background so we can immediately start
 		// the http api so that connections don't fail while the daemon
 		// is booting
 		go func() {
 			// Load plugin: httpapi
 			job := eng.Job("initserver")
+			// include the variable here too, for the server config
 			job.Setenv("Pidfile", *pidfile)
 			job.Setenv("Root", realRoot)
 			job.SetenvBool("AutoRestart", *flAutoRestart)

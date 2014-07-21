@@ -72,6 +72,17 @@ func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
 	}
 }
 
+func InitPidfile(job *engine.Job) engine.Status {
+	if len(job.Args) == 0 {
+		return job.Error(fmt.Errorf("no pidfile provided to initialize"))
+	}
+	job.Logf("Creating pidfile")
+	if err := utils.CreatePidFile(job.Args[0]); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
+}
+
 // jobInitApi runs the remote api server `srv` as a daemon,
 // Only one api server can run at the same time - this is enforced by a pidfile.
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
@@ -80,13 +91,6 @@ func InitServer(job *engine.Job) engine.Status {
 	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
 	if err != nil {
 		return job.Error(err)
-	}
-	if srv.daemon.Config().Pidfile != "" {
-		job.Logf("Creating pidfile")
-		if err := utils.CreatePidFile(srv.daemon.Config().Pidfile); err != nil {
-			// FIXME: do we need fatal here instead of returning a job error?
-			log.Fatal(err)
-		}
 	}
 	job.Logf("Setting up signal traps")
 	c := make(chan os.Signal, 1)
