@@ -55,6 +55,7 @@ expect an integer, and they can only be specified once.
                                                    use 'none' to disable container networking
       --bip=""                                   Use this CIDR notation address for the network bridge's IP, not compatible with -b
       --fixed-cidr=""                            IPv4 subnet for fixed IPs (ex: 10.20.0.0/16)
+                                                   this subnet must be nested in the bridge subnet (which is defined by -b or --bip)
       -D, --debug=false                          Enable debug mode
       -d, --daemon=false                         Enable daemon mode
       --dns=[]                                   Force Docker to use specific DNS servers
