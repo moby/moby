@@ -12,6 +12,32 @@ import (
 	"github.com/dotcloud/docker/archive"
 )
 
+func TestBuildAddScriptWithQuotes(t *testing.T) {
+	name := "testbuildaddscriptwithquotes"
+	defer deleteImages(name)
+	dockerfile := `
+FROM busybox
+ADD "test" "/test"
+ENV "FOO" "B\"AR"
+ENV "QUUX" " "
+RUN ["chmod","+x","/test"]
+RUN ["/test"]
+RUN [ "$(cat /testfile)" = 'test!' ]
+RUN [ "${FOO}" = "B\"AR" ]
+RUN [ "${QUUX}" = " " ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"test": "#!/bin/sh\necho 'test!' > /testfile",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add and run script with double-quoting")
+}
+
 func TestBuildCacheADD(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
