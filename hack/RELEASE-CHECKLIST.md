@@ -146,7 +146,7 @@ To make a shared test at http://beta-docs.docker.io:
 (You will need the `awsconfig` file added to the `docs/` dir)
 
 ```bash
-make AWS_S3_BUCKET=beta-docs.docker.io docs-release
+make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 ```
 
 ### 5. Commit and create a pull request to the "release" branch
@@ -267,7 +267,7 @@ git checkout -b docs release || git checkout docs
 git fetch
 git reset --hard origin/release
 git push -f origin docs
-make AWS_S3_BUCKET=docs.docker.com docs-release
+make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
 ```
 
 The docs will appear on http://docs.docker.com/ (though there may be cached
