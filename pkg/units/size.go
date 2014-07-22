@@ -42,15 +42,16 @@ func FromHumanSize(size string) (int64, error) {
 
 	unit := strings.ToLower(matches[2])
 
-	if unit == "k" {
+	switch unit {
+	case "k":
 		theSize *= 1000
-	} else if unit == "m" {
+	case "m":
 		theSize *= 1000 * 1000
-	} else if unit == "g" {
+	case "g":
 		theSize *= 1000 * 1000 * 1000
-	} else if unit == "t" {
+	case "t":
 		theSize *= 1000 * 1000 * 1000 * 1000
-	} else if unit == "p" {
+	case "p":
 		theSize *= 1000 * 1000 * 1000 * 1000 * 1000
 	}
 
@@ -80,13 +81,14 @@ func RAMInBytes(size string) (int64, error) {
 
 	unit := strings.ToLower(matches[2])
 
-	if unit == "k" {
+	switch unit {
+	case "k":
 		memLimit *= 1024
-	} else if unit == "m" {
+	case "m":
 		memLimit *= 1024 * 1024
-	} else if unit == "g" {
+	case "g":
 		memLimit *= 1024 * 1024 * 1024
-	} else if unit == "t" {
+	case "t":
 		memLimit *= 1024 * 1024 * 1024 * 1024
 	}
 
