@@ -61,7 +61,7 @@ func FromHumanSize(size string) (int64, error) {
 // in bytes, kibibytes, mebibytes, gibibytes, or tebibytes and
 // returns the number of bytes, or -1 if the string is unparseable.
 // Units are case-insensitive, and the 'b' suffix is optional.
-func RAMInBytes(size string) (bytes int64, err error) {
+func RAMInBytes(size string) (int64, error) {
 	re, error := regexp.Compile("^(\\d+)([kKmMgGtT])?[bB]?$")
 	if error != nil {
 		return -1, error
