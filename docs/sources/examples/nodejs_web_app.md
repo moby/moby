@@ -127,7 +127,7 @@ Your `Dockerfile` should now look like this:
 ## Building your image
 
 Go to the directory that has your `Dockerfile` and run the following command
-to build a Docker image. The `-t` flag let's you tag your image so it's easier
+to build a Docker image. The `-t` flag lets you tag your image so it's easier
 to find later using the `docker images` command:
 
     $ sudo docker build -t <your username>/centos-node-hello .
