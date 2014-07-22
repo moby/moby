@@ -16,6 +16,9 @@ RUN	pip install mkdocs
 # this version works, the current versions fail in different ways
 RUN	pip install awscli==1.3.9
 
+# make sure the git clone is not an old cache - we've published old versions a few times now
+ENV	CACHE_BUST Jul2014
+
 # get my sitemap.xml branch of mkdocs and use that for now
 RUN	git clone https://github.com/SvenDowideit/mkdocs	&&\
 	cd mkdocs/						&&\
