@@ -146,7 +146,7 @@ To make a shared test at http://beta-docs.docker.io:
 (You will need the `awsconfig` file added to the `docs/` dir)
 
 ```bash
-make AWS_S3_BUCKET=beta-docs.docker.io docs-release
+make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 ```
 
 ### 5. Commit and create a pull request to the "release" branch
@@ -249,6 +249,16 @@ branch afterwards!
 
 ### 11. Update the docs branch
 
+If this is a MAJOR.MINOR.0 release, you need to make an branch for the previous release's
+documentation:
+
+```bash
+git checkout -b docs-$PREVIOUS_MAJOR_MINOR docs
+git fetch
+git reset --hard origin/docs
+git push -f origin docs-$PREVIOUS_MAJOR_MINOR
+```
+
 You will need the `awsconfig` file added to the `docs/` directory to contain the
 s3 credentials for the bucket you are deploying to.
 
@@ -257,12 +267,14 @@ git checkout -b docs release || git checkout docs
 git fetch
 git reset --hard origin/release
 git push -f origin docs
-make AWS_S3_BUCKET=docs.docker.io docs-release
+make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
 ```
 
-The docs will appear on http://docs.docker.io/ (though there may be cached
-versions, so its worth checking http://docs.docker.io.s3-website-us-west-2.amazonaws.com/).
+The docs will appear on http://docs.docker.com/ (though there may be cached
+versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
 For more information about documentation releases, see `docs/README.md`.
+
+Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrome applet.
 
 ### 12. Create a new pull request to merge release back into master
 
