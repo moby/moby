@@ -209,6 +209,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 			}
 			daemon.execDriver.Terminate(cmd)
 		}
+
 		if err := container.Unmount(); err != nil {
 			utils.Debugf("unmount error %s", err)
 		}
@@ -219,20 +220,19 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 		info := daemon.execDriver.Info(container.ID)
 		if !info.IsRunning() {
 			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
+
+			utils.Debugf("Marking as stopped")
+
+			container.State.SetStopped(-127)
+			if err := container.ToDisk(); err != nil {
+				return err
+			}
+
 			if daemon.config.AutoRestart {
 				utils.Debugf("Marking as restarting")
-				if err := container.Unmount(); err != nil {
-					utils.Debugf("restart unmount error %s", err)
-				}
 
 				if containersToStart != nil {
 					*containersToStart = append(*containersToStart, container)
-				}
-			} else {
-				utils.Debugf("Marking as stopped")
-				container.State.SetStopped(-127)
-				if err := container.ToDisk(); err != nil {
-					return err
 				}
 			}
 		}
