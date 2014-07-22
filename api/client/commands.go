@@ -188,6 +188,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			}
 		}
 		context, err = archive.TarWithOptions(root, options)
+		if err != nil {
+			return err
+		}
 	}
 	var body io.Reader
 	// Setup an upload progress bar
