@@ -7,6 +7,15 @@ import (
 	"strings"
 )
 
+var sizeRegex *regexp.Regexp
+
+func init() {
+	var err error
+	if sizeRegex, err = regexp.Compile("^(\\d+)([kKmMgGtTpP])?[bB]?$"); err != nil {
+		panic("Failed to compile the 'size' regular expression")
+	}
+}
+
 // HumanSize returns a human-readable approximation of a size
 // using SI standard (eg. "44kB", "17MB")
 func HumanSize(size int64) string {
@@ -24,12 +33,7 @@ func HumanSize(size int64) string {
 // FromHumanSize returns an integer from a human-readable specification of a size
 // using SI standard (eg. "44kB", "17MB")
 func FromHumanSize(size string) (int64, error) {
-	re, err := regexp.Compile("^(\\d+)([kKmMgGtTpP])?[bB]?$")
-	if err != nil {
-		return -1, fmt.Errorf("%s does not specify not a size", size)
-	}
-
-	matches := re.FindStringSubmatch(size)
+	matches := sizeRegex.FindStringSubmatch(size)
 
 	if len(matches) != 3 {
 		return -1, fmt.Errorf("Invalid size: '%s'", size)
@@ -63,12 +67,7 @@ func FromHumanSize(size string) (int64, error) {
 // returns the number of bytes, or -1 if the string is unparseable.
 // Units are case-insensitive, and the 'b' suffix is optional.
 func RAMInBytes(size string) (int64, error) {
-	re, err := regexp.Compile("^(\\d+)([kKmMgGtTpP])?[bB]?$")
-	if err != nil {
-		return -1, err
-	}
-
-	matches := re.FindStringSubmatch(size)
+	matches := sizeRegex.FindStringSubmatch(size)
 
 	if len(matches) != 3 {
 		return -1, fmt.Errorf("Invalid size: '%s'", size)
