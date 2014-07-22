@@ -152,9 +152,14 @@ directory, and the local "./vendor" directory as necessary.
 
 If you're building a binary that may need to be used on platforms that include
 AppArmor, you will need to set `DOCKER_BUILDTAGS` as follows:
-
 ```bash
 export DOCKER_BUILDTAGS='apparmor'
+```
+
+If you're building a binary that may need to be used on platforms that include
+SELinux, you will need to use the `selinux` build tag:
+```bash
+export DOCKER_BUILDTAGS='selinux'
 ```
 
 There are build tags for disabling graphdrivers as well. By default, support
@@ -175,13 +180,9 @@ To disable aufs:
 export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
 ```
 
-NOTE: if you need to set more than one build tag, space separate them.
-
-If you're building a binary that may need to be used on platforms that include
-SELinux, you will need to set `DOCKER_BUILDTAGS` as follows:
-
+NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='selinux'
+export DOCKER_BUILDTAGS='apparmor selinux exclude_graphdriver_aufs'
 ```
 
 ### Static Daemon
