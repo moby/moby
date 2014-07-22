@@ -1,23 +1,20 @@
 package units
 
 import (
-	"strings"
 	"testing"
 )
 
 func TestHumanSize(t *testing.T) {
-
-	size := strings.Trim(HumanSize(1000), " \t")
-	expect := "1 kB"
-	if size != expect {
-		t.Errorf("1000 -> expected '%s', got '%s'", expect, size)
-	}
-
-	size = strings.Trim(HumanSize(1024), " \t")
-	expect = "1.024 kB"
-	if size != expect {
-		t.Errorf("1024 -> expected '%s', got '%s'", expect, size)
-	}
+	assertEquals(t, "1 kB", HumanSize(1000))
+	assertEquals(t, "1.024 kB", HumanSize(1024))
+	assertEquals(t, "1 MB", HumanSize(1000000))
+	assertEquals(t, "1.049 MB", HumanSize(1048576))
+	assertEquals(t, "2 MB", HumanSize(2*1000*1000))
+	assertEquals(t, "3.42 GB", HumanSize(3.42*1000*1000*1000))
+	assertEquals(t, "5.372 TB", HumanSize(5.372*1000*1000*1000*1000))
+	assertEquals(t, "2.22 PB", HumanSize(2.22*1000*1000*1000*1000*1000))
+	assertEquals(t, "2.22 EB", HumanSize(2.22*1000*1000*1000*1000*1000*1000))
+	assertEquals(t, "7.707 EB", HumanSize(7.707*1000*1000*1000*1000*1000*1000))
 }
 
 func TestFromHumanSize(t *testing.T) {
