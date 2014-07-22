@@ -63,7 +63,7 @@ func FromHumanSize(size string) (int64, error) {
 // returns the number of bytes, or -1 if the string is unparseable.
 // Units are case-insensitive, and the 'b' suffix is optional.
 func RAMInBytes(size string) (int64, error) {
-	re, err := regexp.Compile("^(\\d+)([kKmMgGtT])?[bB]?$")
+	re, err := regexp.Compile("^(\\d+)([kKmMgGtTpP])?[bB]?$")
 	if err != nil {
 		return -1, err
 	}
@@ -90,6 +90,8 @@ func RAMInBytes(size string) (int64, error) {
 		memLimit *= 1024 * 1024 * 1024
 	case "t":
 		memLimit *= 1024 * 1024 * 1024 * 1024
+	case "p":
+		memLimit *= 1024 * 1024 * 1024 * 1024 * 1024
 	}
 
 	return memLimit, nil

@@ -64,7 +64,11 @@ func TestRAMInBytes(t *testing.T) {
 	assertRAMInBytes(t, "32MB", false, 32*1024*1024)
 	assertRAMInBytes(t, "32Gb", false, 32*1024*1024*1024)
 	assertRAMInBytes(t, "32G", false, 32*1024*1024*1024)
+	assertRAMInBytes(t, "32GB", false, 32*1024*1024*1024)
 	assertRAMInBytes(t, "32Tb", false, 32*1024*1024*1024*1024)
+	assertRAMInBytes(t, "8Pb", false, 8*1024*1024*1024*1024*1024)
+	assertRAMInBytes(t, "8PB", false, 8*1024*1024*1024*1024*1024)
+	assertRAMInBytes(t, "8P", false, 8*1024*1024*1024*1024*1024)
 
 	assertRAMInBytes(t, "", true, -1)
 	assertRAMInBytes(t, "hello", true, -1)
