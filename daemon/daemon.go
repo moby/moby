@@ -26,6 +26,7 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/graph"
 	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/pkg/graphdb"
 	"github.com/dotcloud/docker/pkg/namesgenerator"
 	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
@@ -321,6 +322,7 @@ func (daemon *Daemon) restore() error {
 		return err
 	}
 
+	portBindings := make([]nat.PortMap, 0, len(dir))
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
@@ -331,6 +333,8 @@ func (daemon *Daemon) restore() error {
 			utils.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
+
+		portBindings = append(portBindings, container.HostConfig().PortBindings)
 
 		// Ignore the container if it does not support the current driver being used by the graph
 		if container.Driver == "" && currentDriver == "aufs" || container.Driver == currentDriver {
@@ -377,6 +381,10 @@ func (daemon *Daemon) restore() error {
 
 	if !debug {
 		fmt.Printf(": done.\n")
+	}
+
+	if err := portallocator.Restore(portBindings); err != nil {
+		utils.Errorf("Could not restore portallocator state: %v", err)
 	}
 
 	return nil
