@@ -87,8 +87,22 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
+// deprecated, use dockerCmd instead
 func cmd(t *testing.T, args ...string) (string, int, error) {
+	return dockerCmd(t, args...)
+}
+
+func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
+	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	return out, status, err
+}
+
+// execute a docker command in a directory
+func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, error) {
+	dockerCommand := exec.Command(dockerBinary, args...)
+	dockerCommand.Dir = path
+	out, status, err := runCommandWithOutput(dockerCommand)
 	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
 	return out, status, err
 }
