@@ -1593,4 +1593,7 @@ func TestHostsLinkedContainerUpdate(t *testing.T) {
 	}
 
 	deleteAllContainers()
+
+	logDone("run - /etc/hosts updated in parent when restart")
+
 }
