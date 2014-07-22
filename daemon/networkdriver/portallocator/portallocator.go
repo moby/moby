@@ -4,7 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
+
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/trace"
 )
 
 type portMap struct {
@@ -131,6 +135,38 @@ func ReleaseAll() error {
 	mutex.Lock()
 	globalMap = ipMapping{}
 	mutex.Unlock()
+	return nil
+}
+
+// Restore will allow stopped containers from a previous daemon run to be started again.
+func Restore(portBindings []nat.PortMap) error {
+	if len(portBindings) == 0 {
+		return nil
+	}
+	mutex.Lock()
+	defer mutex.Unlock()
+	for _, portMap := range portBindings {
+		for protoPort, bindings := range portMap {
+			proto := protoPort.Proto()
+			for _, binding := range bindings {
+				hostPort, err := strconv.Atoi(binding.HostPort)
+				if err != nil {
+					return fmt.Errorf("could not convert hostPort '%s' to int: %v", binding.HostPort, err)
+				}
+				trace.Debug("binding: %v, proto: %s", binding, proto)
+				protoMap, ok := globalMap[binding.HostIp]
+				if !ok {
+					protoMap = newProtoMap()
+					globalMap[binding.HostIp] = protoMap
+				}
+				m := protoMap[proto]
+				if _, ok := m.p[hostPort]; ok {
+					return NewErrPortAlreadyAllocated(binding.HostIp, hostPort)
+				}
+				m.last = hostPort
+			}
+		}
+	}
 	return nil
 }
 
