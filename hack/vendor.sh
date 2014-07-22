@@ -55,7 +55,7 @@ clone hg code.google.com/p/gosqlite 74691fb6f837
 
 # get Go tip's archive/tar, for xattr support and improved performance
 # TODO after Go 1.4 drops, bump our minimum supported version and drop this vendored dep
-clone hg code.google.com/p/go 17404efd6b02
+clone hg code.google.com/p/go 1b17b3426e3c
 mv src/code.google.com/p/go/src/pkg/archive/tar tmp-tar
 rm -rf src/code.google.com/p/go
 mkdir -p src/code.google.com/p/go/src/pkg/archive
