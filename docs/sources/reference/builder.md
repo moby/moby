@@ -409,7 +409,7 @@ optional but default, you could use a `CMD` instruction:
 
     FROM ubuntu
     CMD ["-l"]
-    ENTRYPOINT ["/usr/bin/ls"]
+    ENTRYPOINT ["ls"]
 
 > **Note**:
 > It is preferable to use the JSON array format for specifying
