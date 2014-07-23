@@ -56,7 +56,7 @@ expect an integer, and they can only be specified once.
       --bip=""                                   Use this CIDR notation address for the network bridge's IP, not compatible with -b
       -d, --daemon=false                         Enable daemon mode
       -D, --debug=false                          Enable debug mode
-      --dns=[]                                   Force docker to use specific DNS servers
+      --dns=[]                                   Force Docker to use specific DNS servers
       --dns-search=[]                            Force Docker to use specific DNS search domains
       -e, --exec-driver="native"                 Force the Docker runtime to use a specific exec driver
       -G, --group="docker"                       Group to assign the unix socket specified by -H when running in daemon mode
@@ -73,8 +73,8 @@ expect an integer, and they can only be specified once.
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
       -r, --restart=true                         Restart previously running containers
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
-      --storage-opt=[]                           Set storage driver options
       --selinux-enabled=false                    Enable selinux support
+      --storage-opt=[]                           Set storage driver options
       --tls=false                                Use TLS; implied by tls-verify flags
       --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here
       --tlscert="/home/sven/.docker/cert.pem"    Path to TLS certificate file
@@ -441,7 +441,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false      Show all images (by default filter out the intermediate image layers)
-      -f, --filter=[]:     Provide filter values (i.e. 'dangling=true')
+      -f, --filter=[]      Provide filter values (i.e. 'dangling=true')
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -735,7 +735,7 @@ Running `docker ps` showing 2 linked containers.
 
 ## pull
 
-    Usage: docker pull [REGISTRY_PATH/]NAME[:TAG]
+    Usage: docker pull NAME[:TAG]
 
     Pull an image or a repository from the registry
 
@@ -864,6 +864,7 @@ removed before the image is removed.
       -a, --attach=[]            Attach to stdin, stdout or stderr.
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cidfile=""               Write the container ID to the file
+      --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
       -d, --detach=false         Detached mode: Run container in the background, print new container id
       --dns=[]                   Set custom dns servers
       --dns-search=[]            Set custom dns search domains
@@ -881,7 +882,7 @@ removed before the image is removed.
                                    'bridge': creates a new network stack for the container on the docker bridge
                                    'none': no networking for this container
                                    'container:<name|id>': reuses another container network stack
-                                   'host': use the host network stack inside the container
+                                   'host': use the host network stack inside the contaner.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)
@@ -1131,9 +1132,9 @@ Search [Docker Hub](https://hub.docker.com) for images
 
     Search the docker index for images
 
-      --no-trunc=false       Don't truncate output
-      -s, --stars=0          Only displays with at least xxx stars
-      --automated=false      Only show automated builds
+      --automated=false    Only show automated builds
+      --no-trunc=false     Don't truncate output
+      -s, --stars=0        Only displays with at least xxx stars
 
 See [*Find Public Images on Docker Hub*](
 /userguide/dockerrepos/#find-public-images-on-docker-hub) for
@@ -1194,3 +1195,4 @@ both Docker client and daemon.
     Usage: docker wait CONTAINER [CONTAINER...]
 
     Block until a container stops, then print its exit code.
+
