@@ -162,8 +162,8 @@ containers also shows `web/db` in the `NAMES` column. This tells us that the
 `web` container is linked to the `db` container in a parent/child relationship.
 
 So what does linking the containers do? Well we've discovered the link creates
-a parent-child relationship between the two containers. The parent container,
-here `web`, can access information on the child container `db`. To do this
+a parent-child relationship between the two containers. The child container,
+here `web`, can access information on the parent container `db`. To do this
 Docker creates a secure tunnel between the containers without the need to
 expose any ports externally on the container. You'll note when we started the
 `db` container we did not use either of the `-P` or `-p` flags. As we're
