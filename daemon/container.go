@@ -422,8 +422,17 @@ func (container *Container) allocateNetwork() error {
 	if container.Config.ExposedPorts != nil {
 		portSpecs = container.Config.ExposedPorts
 	}
+
 	if container.hostConfig.PortBindings != nil {
-		bindings = container.hostConfig.PortBindings
+		for p, b := range container.hostConfig.PortBindings {
+			bindings[p] = []nat.PortBinding{}
+			for _, bb := range b {
+				bindings[p] = append(bindings[p], nat.PortBinding{
+					HostIp:   bb.HostIp,
+					HostPort: bb.HostPort,
+				})
+			}
+		}
 	}
 
 	container.NetworkSettings.PortMapping = nil
@@ -1080,10 +1089,10 @@ func (container *Container) waitForStart() error {
 				c.Close()
 			}
 		}
+		container.State.SetRunning(command.Pid())
 		if err := container.ToDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
-		container.State.SetRunning(command.Pid())
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
