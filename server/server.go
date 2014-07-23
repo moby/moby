@@ -420,8 +420,15 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 
 func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 	for n := name; n != ""; {
+		// get image id
+		job := eng.Job("image_get", n)
+		info, _ := job.Stdout.AddEnv()
+		if err := job.Run(); err != nil {
+			return err
+		}
+		imageId := info.Get("Id")
 		// temporary directory
-		tmpImageDir := path.Join(tempdir, n)
+		tmpImageDir := path.Join(tempdir, imageId)
 		if err := os.Mkdir(tmpImageDir, os.FileMode(0755)); err != nil {
 			if os.IsExist(err) {
 				return nil
@@ -441,7 +448,7 @@ func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		job := eng.Job("image_inspect", n)
+		job = eng.Job("image_inspect", n)
 		job.SetenvBool("raw", true)
 		job.Stdout.Add(json)
 		if err := job.Run(); err != nil {
@@ -460,11 +467,6 @@ func (srv *Server) exportImage(eng *engine.Engine, name, tempdir string) error {
 		}
 
 		// find parent
-		job = eng.Job("image_get", n)
-		info, _ := job.Stdout.AddEnv()
-		if err := job.Run(); err != nil {
-			return err
-		}
 		n = info.Get("Parent")
 	}
 	return nil
