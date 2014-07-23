@@ -6,9 +6,9 @@ docker-rm - Remove one or more containers
 
 # SYNOPSIS
 **docker rm**
-[**-s**|**--stop**[=*false*]]
 [**-k**|**--kill**[=*false*]]
 [**-l**|**--link**[=*false*]]
+[**-s**|**--stop**[=*false*]]
 [**-v**|**--volumes**[=*false*]]
  CONTAINER [CONTAINER...]
 
@@ -20,14 +20,14 @@ remove a running container unless you use the \fB-f\fR option. To see all
 containers on a host use the **docker ps -a** command.
 
 # OPTIONS
-**-s**, **--stop**=*true*|*false*
-   Stop then remove a running container. The default is *false*.
-
 **-k**, **--kill**=*true*|*false*
-   Kill then remove a running container. The default is *false*.
+   Kill and remove a running container. The default is *false*.
 
 **-l**, **--link**=*true*|*false*
    Remove the specified link and not the underlying container. The default is *false*.
+
+**-s**, **--stop**=*true*|*false*
+   Stop and remove a running container. The default is *false*.
 
 **-v**, **--volumes**=*true*|*false*
    Remove the volumes associated with the container. The default is *false*.
@@ -53,3 +53,4 @@ command. The use that name as follows:
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

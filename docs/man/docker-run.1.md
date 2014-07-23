@@ -8,9 +8,12 @@ docker-run - Run a command in a new container
 **docker run**
 [**-a**|**--attach**[=*[]*]]
 [**-c**|**--cpu-shares**[=*0*]]
+[**--cap-add**[=*[]*]]
+[**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
 [**--cpuset**[=*CPUSET*]]
 [**-d**|**--detach**[=*false*]]
+[**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
@@ -34,7 +37,7 @@ docker-run - Run a command in a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
- IMAGE[:TAG] [COMMAND] [ARG...]
+ IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
 
@@ -67,8 +70,14 @@ the same proportion of CPU cycles, but you can tell the kernel to give more
 shares of CPU time to one or more containers when you start them via **docker
 run**.
 
-**--cidfile**=*file*
-   Write the container ID to the file specified.
+**--cap-add**=[]
+   Add Linux capabilities
+
+**--cap-drop**=[]
+   Drop Linux capabilities
+
+**--cidfile**=""
+   Write the container ID to the file
 
 **--cpuset**=""
    CPUs in which to allow execution (0-3, 0,1)
@@ -82,9 +91,11 @@ the detached mode, then you cannot use the **-rm** option.
 
    When attached in the tty mode, you can detach from a running container without
 stopping the process by pressing the keys CTRL-P CTRL-Q.
+**--device**=[]
+   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
 
 **--dns-search**=[]
-   Set custom dns search domains
+   Set custom DNS search domains
 
 **--dns**=*IP-address*
    Set custom DNS servers. This option can be used to override the DNS
@@ -92,6 +103,8 @@ configuration passed to the container. Typically this is necessary when the
 host DNS configuration is invalid for the container (e.g., 127.0.0.1). When this
 is the case the **-dns** flags is necessary for every run.
 
+**-e**, **--env**=[]
+   Set environment variables
 
 **-e**, **-env**=*environment*
    Set environment variables. This option allows you to specify arbitrary
@@ -111,7 +124,7 @@ something else inside the container, so you can override the default ENTRYPOINT
 at runtime by using a **--entrypoint** and a string to specify the new
 ENTRYPOINT.
 **--env-file**=[]
-   Read in a line delimited file of ENV variables
+   Read in a line delimited file of environment variables
 
 **--expose**=*port*
    Expose a port from the container without publishing it to your host. A
@@ -190,23 +203,18 @@ outside of a container on the host.
 
 
 **--rm**=*true*|*false*
-   If set to *true* the container is automatically removed when it exits. The
-default is *false*. This option is incompatible with **-d**.
-
+   Automatically remove the container when it exits (incompatible with -d). The default is *false*.
 
 **--sig-proxy**=*true*|*false*
-   When set to true, proxy received signals to the process (even in
-non-tty mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied. The default is *true*.
+   Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
 
-
-**-t**, **-tty**=*true*|*false*
+**-t**, **--tty**=*true*|*false*
    When set to true Docker can allocate a pseudo-tty and attach to the standard
 input of any container. This can be used, for example, to run a throwaway
 interactive shell. The default is value is false.
 
-
-**-u**, **-user**=*username*,*uid*
-   Set a username or UID for the container.
+**-u**, **--user**=""
+   Username or UID
 
 
 **-v**, **-volume**=*volume*[:ro|:rw]
@@ -374,3 +382,4 @@ changes will also be reflected on the host in /var/db.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

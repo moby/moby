@@ -8,6 +8,7 @@ docker-logs - Fetch the logs of a container
 **docker logs**
 [**-f**|**--follow**[=*false*]]
 [**-t**|**--timestamps**[=*false*]]
+[**--tail**[=*"all"*]]
 CONTAINER
 
 # DESCRIPTION
@@ -27,7 +28,11 @@ then continue streaming new output from the container’s stdout and stderr.
 **-t**, **--timestamps**=*true*|*false*
    Show timestamps. The default is *false*.
 
+**--tail**="all"
+   Output the specified number of lines at the end of logs (defaults to all logs)
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
