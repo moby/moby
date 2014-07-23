@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -343,6 +344,7 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 	tw := tar.NewWriter(writer)
 
 	go func() {
+		twBuf := bufio.NewWriterSize(nil, twBufSize)
 		// In general we log errors here but ignore them because
 		// during e.g. a diff operation the container can continue
 		// mutating the filesystem and we can see transient errors
@@ -365,7 +367,7 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
-				if err := addTarFile(path, change.Path[1:], tw); err != nil {
+				if err := addTarFile(path, change.Path[1:], tw, twBuf); err != nil {
 					utils.Debugf("Can't add file %s to tar: %s\n", path, err)
 				}
 			}

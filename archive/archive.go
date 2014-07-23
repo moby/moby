@@ -131,7 +131,7 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
-func addTarFile(path, name string, tw *tar.Writer) error {
+func addTarFile(path, name string, tw *tar.Writer, twBuf *bufio.Writer) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -181,11 +181,18 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(tw, file); err != nil {
-			file.Close()
+
+		twBuf.Reset(tw)
+		_, err = io.Copy(twBuf, file)
+		file.Close()
+		if err != nil {
 			return err
 		}
-		file.Close()
+		err = twBuf.Flush()
+		if err != nil {
+			return err
+		}
+		twBuf.Reset(nil)
 	}
 
 	return nil
@@ -328,6 +335,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			options.Includes = []string{"."}
 		}
 
+		twBuf := bufio.NewWriterSize(nil, twBufSize)
+
 		for _, include := range options.Includes {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
@@ -355,7 +364,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					}
 				}
 
-				if err := addTarFile(filePath, relFilePath, tw); err != nil {
+				if err := addTarFile(filePath, relFilePath, tw, twBuf); err != nil {
 					utils.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
 				}
 				return nil
@@ -394,6 +403,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	defer decompressedArchive.Close()
 
 	tr := tar.NewReader(decompressedArchive)
+	trBuf := bufio.NewReaderSize(nil, trBufSize)
 
 	var dirs []*tar.Header
 
@@ -439,7 +449,8 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 				}
 			}
 		}
-		if err := createTarFile(path, dest, hdr, tr, options == nil || !options.NoLchown); err != nil {
+		trBuf.Reset(tr)
+		if err := createTarFile(path, dest, hdr, trBuf, options == nil || !options.NoLchown); err != nil {
 			return err
 		}
 
