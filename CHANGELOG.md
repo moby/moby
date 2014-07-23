@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 (2014-07-23)
+
+#### Runtime
++ Fix port allocation for existing containers
++ Fix containers restart on daemon restart
+
+#### Packaging
++ Fix /etc/init.d/docker issue on Debian
+
 ## 1.1.1 (2014-07-09)
 
 #### Builder
