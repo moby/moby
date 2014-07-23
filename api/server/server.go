@@ -728,6 +728,8 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 			if err := job.DecodeEnv(r.Body); err != nil {
 				return err
 			}
+		} else {
+			return fmt.Errorf("Content-Type not supported: %s", r.Header.Get("Content-Type"))
 		}
 	}
 	if err := job.Run(); err != nil {
