@@ -16,9 +16,11 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type (
@@ -61,7 +63,7 @@ func DetectCompression(source []byte) Compression {
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
 	} {
 		if len(source) < len(m) {
-			utils.Debugf("Len too short")
+			log.Debugf("Len too short")
 			continue
 		}
 		if bytes.Compare(m, source[:len(m)]) == 0 {
@@ -83,7 +85,7 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	utils.Debugf("[tar autodetect] n: %v", bs)
+	log.Debugf("[tar autodetect] n: %v", bs)
 
 	compression := DetectCompression(bs)
 
@@ -252,7 +254,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeXGlobalHeader:
-		utils.Debugf("PAX Global Extended Headers found and ignored")
+		log.Debugf("PAX Global Extended Headers found and ignored")
 		return nil
 
 	default:
@@ -340,7 +342,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		for _, include := range options.Includes {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
-					utils.Debugf("Tar: Can't stat file %s to tar: %s\n", srcPath, err)
+					log.Debugf("Tar: Can't stat file %s to tar: %s\n", srcPath, err)
 					return nil
 				}
 
@@ -351,7 +353,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 				skip, err := utils.Matches(relFilePath, options.Excludes)
 				if err != nil {
-					utils.Debugf("Error matching %s\n", relFilePath, err)
+					log.Debugf("Error matching %s\n", relFilePath, err)
 					return err
 				}
 
@@ -363,7 +365,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if err := addTarFile(filePath, relFilePath, tw, twBuf); err != nil {
-					utils.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
+					log.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
 				}
 				return nil
 			})
@@ -371,13 +373,13 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 		// Make sure to check the error on Close.
 		if err := tw.Close(); err != nil {
-			utils.Debugf("Can't close tar writer: %s\n", err)
+			log.Debugf("Can't close tar writer: %s\n", err)
 		}
 		if err := compressWriter.Close(); err != nil {
-			utils.Debugf("Can't close compress writer: %s\n", err)
+			log.Debugf("Can't close compress writer: %s\n", err)
 		}
 		if err := pipeWriter.Close(); err != nil {
-			utils.Debugf("Can't close pipe writer: %s\n", err)
+			log.Debugf("Can't close pipe writer: %s\n", err)
 		}
 	}()
 
@@ -489,7 +491,7 @@ loop:
 // the output of one piped into the other. If either Tar or Untar fails,
 // TarUntar aborts and returns the error.
 func TarUntar(src string, dst string) error {
-	utils.Debugf("TarUntar(%s %s)", src, dst)
+	log.Debugf("TarUntar(%s %s)", src, dst)
 	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
@@ -526,11 +528,11 @@ func CopyWithTar(src, dst string) error {
 		return CopyFileWithTar(src, dst)
 	}
 	// Create dst, copy src's content into it
-	utils.Debugf("Creating dest directory: %s", dst)
+	log.Debugf("Creating dest directory: %s", dst)
 	if err := os.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	utils.Debugf("Calling TarUntar(%s, %s)", src, dst)
+	log.Debugf("Calling TarUntar(%s, %s)", src, dst)
 	return TarUntar(src, dst)
 }
 
@@ -541,7 +543,7 @@ func CopyWithTar(src, dst string) error {
 // If `dst` ends with a trailing slash '/', the final destination path
 // will be `dst/base(src)`.
 func CopyFileWithTar(src, dst string) (err error) {
-	utils.Debugf("CopyFileWithTar(%s, %s)", src, dst)
+	log.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err

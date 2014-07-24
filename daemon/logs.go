@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/tailfile"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/utils"
 )
 
 func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
@@ -47,31 +47,31 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	cLog, err := container.ReadLog("json")
 	if err != nil && os.IsNotExist(err) {
 		// Legacy logs
-		utils.Debugf("Old logs format")
+		log.Debugf("Old logs format")
 		if stdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
-				utils.Errorf("Error reading logs (stdout): %s", err)
+				log.Errorf("Error reading logs (stdout): %s", err)
 			} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
-				utils.Errorf("Error streaming logs (stdout): %s", err)
+				log.Errorf("Error streaming logs (stdout): %s", err)
 			}
 		}
 		if stderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
-				utils.Errorf("Error reading logs (stderr): %s", err)
+				log.Errorf("Error reading logs (stderr): %s", err)
 			} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
-				utils.Errorf("Error streaming logs (stderr): %s", err)
+				log.Errorf("Error streaming logs (stderr): %s", err)
 			}
 		}
 	} else if err != nil {
-		utils.Errorf("Error reading logs (json): %s", err)
+		log.Errorf("Error reading logs (json): %s", err)
 	} else {
 		if tail != "all" {
 			var err error
 			lines, err = strconv.Atoi(tail)
 			if err != nil {
-				utils.Errorf("Failed to parse tail %s, error: %v, show all logs", tail, err)
+				log.Errorf("Failed to parse tail %s, error: %v, show all logs", tail, err)
 				lines = -1
 			}
 		}
@@ -95,7 +95,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 				if err := dec.Decode(l); err == io.EOF {
 					break
 				} else if err != nil {
-					utils.Errorf("Error streaming logs: %s", err)
+					log.Errorf("Error streaming logs: %s", err)
 					break
 				}
 				logLine := l.Log
@@ -127,7 +127,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 		}
 		err := <-errors
 		if err != nil {
-			utils.Errorf("%s", err)
+			log.Errorf("%s", err)
 		}
 	}
 	return engine.StatusOK

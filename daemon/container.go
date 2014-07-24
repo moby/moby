@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,6 +13,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/docker/libcontainer/devices"
+	"github.com/docker/libcontainer/label"
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/execdriver"
@@ -23,13 +25,12 @@ import (
 	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libcontainer/devices"
-	"github.com/docker/libcontainer/label"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -171,7 +172,7 @@ func (container *Container) WriteHostConfig() error {
 func (container *Container) LogEvent(action string) {
 	d := container.daemon
 	if err := d.eng.Job("log", action, container.ID, d.Repositories().ImageName(container.Image)).Run(); err != nil {
-		utils.Errorf("Error logging event %s for %s: %s", action, container.ID, err)
+		log.Errorf("Error logging event %s for %s: %s", action, container.ID, err)
 	}
 }
 
@@ -503,7 +504,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
 	exitCode, err = container.daemon.Run(container, pipes, callback)
 	if err != nil {
-		utils.Errorf("Error running container: %s", err)
+		log.Errorf("Error running container: %s", err)
 	}
 	container.State.SetStopped(exitCode)
 
@@ -519,7 +520,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	// This will cause it to be restarted when the engine is restarted.
 	if container.daemon != nil && container.daemon.eng != nil && !container.daemon.eng.IsShutdown() {
 		if err := container.toDisk(); err != nil {
-			utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
+			log.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
 		}
 	}
 	return err
@@ -536,28 +537,28 @@ func (container *Container) cleanup() {
 	}
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
-			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
+			log.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
 	if err := container.stdout.Clean(); err != nil {
-		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
+		log.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
 	if err := container.stderr.Clean(); err != nil {
-		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
+		log.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 	if container.command != nil && container.command.Terminal != nil {
 		if err := container.command.Terminal.Close(); err != nil {
-			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
+			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
 	if err := container.Unmount(); err != nil {
-		log.Printf("%v: Failed to umount filesystem: %v", container.ID, err)
+		log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
 }
 
 func (container *Container) KillSig(sig int) error {
-	utils.Debugf("Sending %d to %s", sig, container.ID)
+	log.Debugf("Sending %d to %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
 
@@ -606,7 +607,7 @@ func (container *Container) Kill() error {
 	if _, err := container.State.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
 		if pid := container.State.GetPid(); pid != 0 {
-			log.Printf("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
+			log.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				return err
 			}
@@ -624,7 +625,7 @@ func (container *Container) Stop(seconds int) error {
 
 	// 1. Send a SIGTERM
 	if err := container.KillSig(15); err != nil {
-		log.Print("Failed to send SIGTERM to the process, force killing")
+		log.Infof("Failed to send SIGTERM to the process, force killing")
 		if err := container.KillSig(9); err != nil {
 			return err
 		}
@@ -632,7 +633,7 @@ func (container *Container) Stop(seconds int) error {
 
 	// 2. Wait for the process to exit on its own
 	if _, err := container.State.WaitStop(time.Duration(seconds) * time.Second); err != nil {
-		log.Printf("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
+		log.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
 			container.State.WaitStop(-1 * time.Second)
@@ -761,7 +762,7 @@ func (container *Container) GetSize() (int64, int64) {
 	)
 
 	if err := container.Mount(); err != nil {
-		utils.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
+		log.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
 	defer container.Unmount()
@@ -769,7 +770,7 @@ func (container *Container) GetSize() (int64, int64) {
 	if differ, ok := container.daemon.driver.(graphdriver.Differ); ok {
 		sizeRw, err = differ.DiffSize(container.ID)
 		if err != nil {
-			utils.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+			log.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
 			// FIXME: GetSize should return an error. Not changing it now in case
 			// there is a side-effect.
 			sizeRw = -1
@@ -866,7 +867,7 @@ func (container *Container) DisableLink(name string) {
 		if link, exists := container.activeLinks[name]; exists {
 			link.Disable()
 		} else {
-			utils.Debugf("Could not find active link for %s", name)
+			log.Debugf("Could not find active link for %s", name)
 		}
 	}
 }
@@ -978,15 +979,15 @@ func (container *Container) initializeNetworking() error {
 // Make sure the config is compatible with the current kernel
 func (container *Container) verifyDaemonSettings() {
 	if container.Config.Memory > 0 && !container.daemon.sysInfo.MemoryLimit {
-		log.Printf("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		log.Infof("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		container.Config.Memory = 0
 	}
 	if container.Config.Memory > 0 && !container.daemon.sysInfo.SwapLimit {
-		log.Printf("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		log.Infof("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		container.Config.MemorySwap = -1
 	}
 	if container.daemon.sysInfo.IPv4ForwardingDisabled {
-		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
+		log.Infof("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
 }
 
@@ -1123,7 +1124,7 @@ func (container *Container) waitForStart() error {
 		}
 		container.State.SetRunning(command.Pid())
 		if err := container.toDisk(); err != nil {
-			utils.Debugf("%s", err)
+			log.Debugf("%s", err)
 		}
 		close(waitStart)
 	}

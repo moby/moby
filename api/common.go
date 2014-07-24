@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/utils"
 )
 
 const (
@@ -43,7 +43,7 @@ func DisplayablePorts(ports *engine.Table) string {
 func MatchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
+		log.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
 	}
 	return err == nil && mimetype == expectedType
 }

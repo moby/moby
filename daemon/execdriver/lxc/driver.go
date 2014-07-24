@@ -14,13 +14,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kr/pty"
+
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
-	"github.com/kr/pty"
 )
 
 const DriverName = "lxc"
@@ -318,7 +320,7 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		utils.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		log.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
 		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {

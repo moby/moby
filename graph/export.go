@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/utils"
 )
 
 // CmdImageExport exports all images with the given tag. All versions
@@ -30,7 +30,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	}
 	defer os.RemoveAll(tempdir)
 
-	utils.Debugf("Serializing %s", name)
+	log.Debugf("Serializing %s", name)
 
 	rootRepoMap := map[string]Repository{}
 	rootRepo, err := s.Get(name)
@@ -77,7 +77,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 	} else {
-		utils.Debugf("There were no repositories to write")
+		log.Debugf("There were no repositories to write")
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
@@ -89,7 +89,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
 		return job.Error(err)
 	}
-	utils.Debugf("End Serializing %s", name)
+	log.Debugf("End Serializing %s", name)
 	return engine.StatusOK
 }
 

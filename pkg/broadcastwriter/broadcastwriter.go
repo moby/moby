@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/log"
 )
 
 // BroadcastWriter accumulate multiple io.WriteCloser by stream.
@@ -56,7 +56,7 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 			}
 			b, err := json.Marshal(jsonlog.JSONLog{Log: line, Stream: stream, Created: created})
 			if err != nil {
-				log.Printf("Error making JSON log line: %s", err)
+				log.Errorf("Error making JSON log line: %s", err)
 				continue
 			}
 			b = append(b, '\n')

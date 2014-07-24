@@ -226,7 +226,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// parse the '-e' and '--env' after, to allow override
 	envVariables = append(envVariables, flEnv.GetAll()...)
 	// boo, there's no debug output for docker run
-	//utils.Debugf("Environment variables for the container: %#v", envVariables)
+	//log.Debugf("Environment variables for the container: %#v", envVariables)
 
 	netMode, err := parseNetMode(*flNetMode)
 	if err != nil {

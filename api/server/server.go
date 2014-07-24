@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -21,17 +20,18 @@ import (
 	"syscall"
 
 	"code.google.com/p/go.net/websocket"
+	"github.com/docker/libcontainer/user"
+	"github.com/gorilla/mux"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/listenbuffer"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libcontainer/user"
-	"github.com/gorilla/mux"
 )
 
 var (
@@ -88,7 +88,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		log.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
 		http.Error(w, err.Error(), statusCode)
 	}
 }
@@ -439,7 +439,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		stdoutBuffer = bytes.NewBuffer(nil)
 	)
 	if err := config.Decode(r.Body); err != nil {
-		utils.Errorf("%s", err)
+		log.Errorf("%s", err)
 	}
 
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
@@ -878,7 +878,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		job.Stdout.Add(ws)
 		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
-			utils.Errorf("Error attaching websocket: %s", err)
+			log.Errorf("Error attaching websocket: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -1005,7 +1005,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
-		utils.Errorf("%s", err.Error())
+		log.Errorf("%s", err.Error())
 		if strings.Contains(err.Error(), "No such container") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {
@@ -1033,16 +1033,16 @@ func ping(eng *engine.Engine, version version.Version, w http.ResponseWriter, r 
 func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, enableCors bool, dockerVersion version.Version) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
-		utils.Debugf("Calling %s %s", localMethod, localRoute)
+		log.Debugf("Calling %s %s", localMethod, localRoute)
 
 		if logging {
-			log.Println(r.Method, r.RequestURI)
+			log.Infof("%s %s\n", r.Method, r.RequestURI)
 		}
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
+				log.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
 		}
 		version := version.Version(mux.Vars(r)["version"])
@@ -1059,7 +1059,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
-			utils.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			log.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
 			httpError(w, err)
 		}
 	}
@@ -1148,7 +1148,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			utils.Debugf("Registering %s, %s", method, route)
+			log.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localFct := fct
@@ -1238,7 +1238,7 @@ func changeGroup(addr string, nameOrGid string) error {
 		return err
 	}
 
-	utils.Debugf("%s group found. gid: %d", nameOrGid, gid)
+	log.Debugf("%s group found. gid: %d", nameOrGid, gid)
 	return os.Chown(addr, 0, gid)
 }
 
@@ -1309,7 +1309,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 	switch proto {
 	case "tcp":
 		if !strings.HasPrefix(addr, "127.0.0.1") && !job.GetenvBool("TlsVerify") {
-			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			log.Infof("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 	case "unix":
 		socketGroup := job.Getenv("SocketGroup")
@@ -1317,7 +1317,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 			if err := changeGroup(addr, socketGroup); err != nil {
 				if socketGroup == "docker" {
 					// if the user hasn't explicitly specified the group ownership, don't fail on errors.
-					utils.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
+					log.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
 				} else {
 					return err
 				}
@@ -1352,7 +1352,7 @@ func ServeApi(job *engine.Job) engine.Status {
 			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 		}
 		go func() {
-			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
+			log.Infof("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
 		}()
 	}

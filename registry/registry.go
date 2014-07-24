@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -186,17 +187,17 @@ func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
 		Standalone: true,
 	}
 	if err := json.Unmarshal(jsonString, &info); err != nil {
-		utils.Debugf("Error unmarshalling the _ping RegistryInfo: %s", err)
+		log.Debugf("Error unmarshalling the _ping RegistryInfo: %s", err)
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		utils.Debugf("Registry version header: '%s'", hdr)
+		log.Debugf("Registry version header: '%s'", hdr)
 		info.Version = hdr
 	}
-	utils.Debugf("RegistryInfo.Version: %q", info.Version)
+	log.Debugf("RegistryInfo.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-	utils.Debugf("Registry standalone header: '%s'", standalone)
+	log.Debugf("Registry standalone header: '%s'", standalone)
 	// Accepted values are "true" (case-insensitive) and "1".
 	if strings.EqualFold(standalone, "true") || standalone == "1" {
 		info.Standalone = true
@@ -204,7 +205,7 @@ func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
 		// there is a header set, and it is not "true" or "1", so assume fails
 		info.Standalone = false
 	}
-	utils.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
+	log.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
 	return info, nil
 }
 
@@ -274,7 +275,7 @@ func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
 	}
 	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
 	if _, err := pingRegistryEndpoint(endpoint); err != nil {
-		utils.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
+		log.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
 		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
 		if _, err = pingRegistryEndpoint(endpoint); err != nil {
 			//TODO: triggering highland build can be done there without "failing"

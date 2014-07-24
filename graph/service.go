@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/log"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
@@ -173,7 +173,7 @@ func (s *TagStore) CmdTarLayer(job *engine.Job) engine.Status {
 		if written, err := io.Copy(job.Stdout, fs); err != nil {
 			return job.Error(err)
 		} else {
-			utils.Debugf("rendered layer for %s of [%d] size", image.ID, written)
+			log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		}
 
 		return engine.StatusOK
