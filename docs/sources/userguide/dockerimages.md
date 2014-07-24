@@ -267,7 +267,7 @@ updating our APT cache, installing Ruby and RubyGems and then installing the
 Sinatra gem.
 
 > **Note:** 
-> There are [a lot more instructions available to us in a Dockerfile](/reference/builder).
+> There are [a lot more instructions available to use in a Dockerfile](/reference/builder).
 
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
