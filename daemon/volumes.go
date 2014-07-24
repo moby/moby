@@ -55,6 +55,43 @@ func setupMountsForContainer(container *Container) error {
 		mounts = append(mounts, execdriver.Mount{v, r, container.VolumesRW[r], false})
 	}
 
+	for _, link := range container.activeLinks {
+		c := container.daemon.Get(link.Name)
+		if c == nil {
+			return fmt.Errorf("Container %s not found. Impossible to link to it", link.Name)
+		}
+
+		for _, p := range link.Ports {
+			proto := p.Proto()
+			if proto == "unix" {
+				port := p.Port()
+				src, err := symlink.FollowSymlinkInScope(filepath.Join(c.basefs, port), c.basefs)
+				if err != nil {
+					return fmt.Errorf("Source unix port %s error: %s", port, err)
+				}
+
+				stat, err := os.Stat(src)
+				if err != nil {
+					if os.IsNotExist(err) {
+						return fmt.Errorf("Source unix port %s does not exist in %s", port, link.Name)
+					}
+					return fmt.Errorf("Source unix port %s error: %s", port, err)
+				}
+				if stat.Mode()&os.ModeSocket == 0 {
+					return fmt.Errorf("Source unix port %s is not a socket", port)
+				}
+
+				dst := filepath.Join(container.basefs, port)
+
+				if err := createIfNotExists(dst, false); err != nil {
+					return err
+				}
+
+				mounts = append(mounts, execdriver.Mount{src, port, false, false})
+			}
+		}
+	}
+
 	container.command.Mounts = mounts
 
 	return nil
