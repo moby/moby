@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -383,6 +385,21 @@ func TestBindMounts(t *testing.T) {
 	stdout, _ := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
 	if !strings.Contains(stdout, "touch-me") {
 		t.Fatal("Container failed to read from bind mount")
+	}
+
+	// Test recursive bind mount works by default
+	// Create a temporary tmpfs mount.
+	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
+	if err := os.MkdirAll(tmpfsDir, 0777); err != nil {
+		t.Fatalf("failed to mkdir at %s - %s", tmpfsDir, err)
+	}
+	if err := mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""); err != nil {
+		t.Fatalf("failed to create a tmpfs mount at %s - %s", tmpfsDir, err)
+	}
+	writeFile(path.Join(tmpfsDir, "touch-me-again"), "", t)
+	stdout, _ = runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp/tmpfs"}, t)
+	if !strings.Contains(stdout, "touch-me-again") {
+		t.Fatal("Container recursive bind mount test failed. Expected file not found")
 	}
 
 	// test writing to bind mount
