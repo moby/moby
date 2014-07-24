@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/log"
 )
 
 func init() {
@@ -138,7 +138,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 func (d *Driver) Put(id string) {
 	if err := d.DeviceSet.UnmountDevice(id); err != nil {
-		utils.Errorf("Warning: error unmounting device %s: %s\n", id, err)
+		log.Errorf("Warning: error unmounting device %s: %s\n", id, err)
 	}
 }
 

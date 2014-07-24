@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -244,7 +245,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
 		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s", err)
+			log.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 
@@ -484,7 +485,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// Start a process in daemon mode
 		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s", err)
+			log.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 

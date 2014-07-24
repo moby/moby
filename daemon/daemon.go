@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"regexp"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/docker/libcontainer/label"
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/execdriver"
@@ -34,9 +35,9 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libcontainer/label"
 )
 
 // Set the max depth to the aufs default that most
@@ -212,7 +213,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.State.IsRunning() {
-		utils.Debugf("killing old running container %s", container.ID)
+		log.Debugf("killing old running container %s", container.ID)
 
 		existingPid := container.State.Pid
 		container.State.SetStopped(0)
@@ -229,23 +230,23 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 			var err error
 			cmd.Process, err = os.FindProcess(existingPid)
 			if err != nil {
-				utils.Debugf("cannot find existing process for %d", existingPid)
+				log.Debugf("cannot find existing process for %d", existingPid)
 			}
 			daemon.execDriver.Terminate(cmd)
 		}
 
 		if err := container.Unmount(); err != nil {
-			utils.Debugf("unmount error %s", err)
+			log.Debugf("unmount error %s", err)
 		}
 		if err := container.ToDisk(); err != nil {
-			utils.Debugf("saving stopped state to disk %s", err)
+			log.Debugf("saving stopped state to disk %s", err)
 		}
 
 		info := daemon.execDriver.Info(container.ID)
 		if !info.IsRunning() {
-			utils.Debugf("Container %s was supposed to be running but is not.", container.ID)
+			log.Debugf("Container %s was supposed to be running but is not.", container.ID)
 
-			utils.Debugf("Marking as stopped")
+			log.Debugf("Marking as stopped")
 
 			container.State.SetStopped(-127)
 			if err := container.ToDisk(); err != nil {
@@ -253,7 +254,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool, con
 			}
 
 			if daemon.config.AutoRestart {
-				utils.Debugf("Marking as restarting")
+				log.Debugf("Marking as restarting")
 
 				if containersToStart != nil {
 					*containersToStart = append(*containersToStart, container)
@@ -273,7 +274,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 		container.Name = name
 
 		if err := container.ToDisk(); err != nil {
-			utils.Debugf("Error saving container name %s", err)
+			log.Debugf("Error saving container name %s", err)
 		}
 	}
 	return nil
@@ -311,16 +312,16 @@ func (daemon *Daemon) restore() error {
 			fmt.Print(".")
 		}
 		if err != nil {
-			utils.Errorf("Failed to load container %v: %v", id, err)
+			log.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
 
 		// Ignore the container if it does not support the current driver being used by the graph
 		if container.Driver == "" && currentDriver == "aufs" || container.Driver == currentDriver {
-			utils.Debugf("Loaded container %v", container.ID)
+			log.Debugf("Loaded container %v", container.ID)
 			containers[container.ID] = container
 		} else {
-			utils.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+			log.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
 		}
 	}
 
@@ -332,7 +333,7 @@ func (daemon *Daemon) restore() error {
 			e := entities[p]
 			if container, ok := containers[e.ID()]; ok {
 				if err := daemon.register(container, false, &containersToStart); err != nil {
-					utils.Debugf("Failed to register container %s: %s", container.ID, err)
+					log.Debugf("Failed to register container %s: %s", container.ID, err)
 				}
 				delete(containers, e.ID())
 			}
@@ -344,17 +345,17 @@ func (daemon *Daemon) restore() error {
 		// Try to set the default name for a container if it exists prior to links
 		container.Name, err = daemon.generateNewName(container.ID)
 		if err != nil {
-			utils.Debugf("Setting default id - %s", err)
+			log.Debugf("Setting default id - %s", err)
 		}
 		if err := daemon.register(container, false, &containersToStart); err != nil {
-			utils.Debugf("Failed to register container %s: %s", container.ID, err)
+			log.Debugf("Failed to register container %s: %s", container.ID, err)
 		}
 	}
 
 	for _, container := range containersToStart {
-		utils.Debugf("Starting container %d", container.ID)
+		log.Debugf("Starting container %d", container.ID)
 		if err := container.Start(); err != nil {
-			utils.Debugf("Failed to start container %s: %s", container.ID, err)
+			log.Debugf("Failed to start container %s: %s", container.ID, err)
 		}
 	}
 
@@ -687,7 +688,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		log.Fatalf("The Docker daemon needs to be run as root")
 	}
 	if err := checkKernelAndArch(); err != nil {
-		log.Fatal(err)
+		log.Fatalf(err.Error())
 	}
 
 	// set up the TempDir to use a canonical path
@@ -728,7 +729,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if err != nil {
 		return nil, err
 	}
-	utils.Debugf("Using graph driver %s", driver)
+	log.Debugf("Using graph driver %s", driver)
 
 	// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
 	if config.EnableSelinuxSupport && driver.String() == "btrfs" {
@@ -746,7 +747,7 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		return nil, err
 	}
 
-	utils.Debugf("Creating images graph")
+	log.Debugf("Creating images graph")
 	g, err := graph.NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
@@ -758,12 +759,12 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if err != nil {
 		return nil, err
 	}
-	utils.Debugf("Creating volumes graph")
+	log.Debugf("Creating volumes graph")
 	volumes, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
-	utils.Debugf("Creating repository list")
+	log.Debugf("Creating repository list")
 	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
@@ -843,18 +844,18 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	eng.OnShutdown(func() {
 		// FIXME: if these cleanup steps can be called concurrently, register
 		// them as separate handlers to speed up total shutdown time
-		// FIXME: use engine logging instead of utils.Errorf
+		// FIXME: use engine logging instead of log.Errorf
 		if err := daemon.shutdown(); err != nil {
-			utils.Errorf("daemon.shutdown(): %s", err)
+			log.Errorf("daemon.shutdown(): %s", err)
 		}
 		if err := portallocator.ReleaseAll(); err != nil {
-			utils.Errorf("portallocator.ReleaseAll(): %s", err)
+			log.Errorf("portallocator.ReleaseAll(): %s", err)
 		}
 		if err := daemon.driver.Cleanup(); err != nil {
-			utils.Errorf("daemon.driver.Cleanup(): %s", err.Error())
+			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
 		}
 		if err := daemon.containerGraph.Close(); err != nil {
-			utils.Errorf("daemon.containerGraph.Close(): %s", err.Error())
+			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
 		}
 	})
 
@@ -863,20 +864,20 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 func (daemon *Daemon) shutdown() error {
 	group := sync.WaitGroup{}
-	utils.Debugf("starting clean shutdown of all containers...")
+	log.Debugf("starting clean shutdown of all containers...")
 	for _, container := range daemon.List() {
 		c := container
 		if c.State.IsRunning() {
-			utils.Debugf("stopping %s", c.ID)
+			log.Debugf("stopping %s", c.ID)
 			group.Add(1)
 
 			go func() {
 				defer group.Done()
 				if err := c.KillSig(15); err != nil {
-					utils.Debugf("kill 15 error for %s - %s", c.ID, err)
+					log.Debugf("kill 15 error for %s - %s", c.ID, err)
 				}
 				c.State.WaitStop(-1 * time.Second)
-				utils.Debugf("container stopped %s", c.ID)
+				log.Debugf("container stopped %s", c.ID)
 			}()
 		}
 	}
@@ -1037,7 +1038,7 @@ func (daemon *Daemon) checkLocaldns() error {
 		return err
 	}
 	if len(daemon.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		log.Printf("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", DefaultDns)
+		log.Infof("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", DefaultDns)
 		daemon.config.Dns = DefaultDns
 	}
 	return nil
@@ -1088,11 +1089,11 @@ func checkKernelAndArch() error {
 	// the circumstances of pre-3.8 crashes are clearer.
 	// For details see http://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
-		log.Printf("WARNING: %s\n", err)
+		log.Infof("WARNING: %s\n", err)
 	} else {
 		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+				log.Infof("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 			}
 		}
 	}

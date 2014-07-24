@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/sysinit"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/log"
 )
 
 const (
@@ -100,7 +100,7 @@ func init() {
 	}
 
 	if uid := syscall.Geteuid(); uid != 0 {
-		log.Fatal("docker tests need to be run as root")
+		log.Fatalf("docker tests need to be run as root")
 	}
 
 	// Copy dockerinit into our current testing directory, if provided (so we can test a separate dockerinit binary)
@@ -150,7 +150,7 @@ func setupBaseImage() {
 
 func spawnGlobalDaemon() {
 	if globalDaemon != nil {
-		utils.Debugf("Global daemon already exists. Skipping.")
+		log.Debugf("Global daemon already exists. Skipping.")
 		return
 	}
 	t := log.New(os.Stderr, "", 0)
@@ -160,7 +160,7 @@ func spawnGlobalDaemon() {
 
 	// Spawn a Daemon
 	go func() {
-		utils.Debugf("Spawning global daemon for integration tests")
+		log.Debugf("Spawning global daemon for integration tests")
 		listenURL := &url.URL{
 			Scheme: testDaemonProto,
 			Host:   testDaemonAddr,
@@ -210,7 +210,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 
 	// Spawn a Daemon
 	go func() {
-		utils.Debugf("Spawning https daemon for integration tests")
+		log.Debugf("Spawning https daemon for integration tests")
 		listenURL := &url.URL{
 			Scheme: testDaemonHttpsProto,
 			Host:   addr,

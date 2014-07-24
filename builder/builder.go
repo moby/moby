@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -182,11 +183,11 @@ func (b *buildFile) probeCache() (bool, error) {
 			return false, err
 		} else if cache != nil {
 			fmt.Fprintf(b.outStream, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
+			log.Debugf("[BUILDER] Use cached version")
 			b.image = cache.ID
 			return true, nil
 		} else {
-			utils.Debugf("[BUILDER] Cache miss")
+			log.Debugf("[BUILDER] Cache miss")
 		}
 	}
 	return false, nil
@@ -208,7 +209,7 @@ func (b *buildFile) CmdRun(args string) error {
 
 	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
 
-	utils.Debugf("Command to be executed: %v", b.config.Cmd)
+	log.Debugf("Command to be executed: %v", b.config.Cmd)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -298,7 +299,7 @@ func (b *buildFile) CmdEnv(args string) error {
 func (b *buildFile) buildCmdFromJson(args string) []string {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
-		utils.Debugf("Error unmarshalling: %s, setting to /bin/sh -c", err)
+		log.Debugf("Error unmarshalling: %s, setting to /bin/sh -c", err)
 		cmd = []string{"/bin/sh", "-c", args}
 	}
 	return cmd
@@ -471,7 +472,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, d
 		if err := archive.UntarPath(origPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
-			utils.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
+			log.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
 		}
 	}
 
