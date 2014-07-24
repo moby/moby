@@ -84,11 +84,11 @@ via-package-manager#rhelcentosscientific-linux-6):
     # Install Node.js and npm
     RUN     yum install -y npm
 
-To bundle your app's source code inside the Docker image, use the `ADD`
+To bundle your app's source code inside the Docker image, use the `COPY`
 instruction:
 
     # Bundle app source
-    ADD . /src
+    COPY . /src
 
 Install your app dependencies using the `npm` binary:
 
@@ -117,7 +117,7 @@ Your `Dockerfile` should now look like this:
     RUN     yum install -y npm
 
     # Bundle app source
-    ADD . /src
+    COPY . /src
     # Install app dependencies
     RUN cd /src; npm install
 
@@ -127,7 +127,7 @@ Your `Dockerfile` should now look like this:
 ## Building your image
 
 Go to the directory that has your `Dockerfile` and run the following command
-to build a Docker image. The `-t` flag let's you tag your image so it's easier
+to build a Docker image. The `-t` flag lets you tag your image so it's easier
 to find later using the `docker images` command:
 
     $ sudo docker build -t <your username>/centos-node-hello .

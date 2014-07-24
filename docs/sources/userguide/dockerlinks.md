@@ -116,8 +116,8 @@ We can also use `docker inspect` to return the container's name.
 
 > **Note:** 
 > Container names have to be unique. That means you can only call
-> one container `web`. If you want to re-use a container name you must delete the
-> old container with the `docker rm` command before you can create a new
+> one container `web`. If you want to re-use a container name you must delete
+> the old container with the `docker rm` command before you can create a new
 > container with the same name. As an alternative you can use the `--rm`
 > flag with the `docker run` command. This will delete the container
 > immediately after it stops.
@@ -132,6 +132,11 @@ container, this one a database.
 
 Here we've created a new container called `db` using the `training/postgres`
 image, which contains a PostgreSQL database.
+
+We need to delete the `web` container we created previously so we can replace it
+with a linked one:
+
+    $ docker rm -f web
 
 Now let's create a new `web` container and link it with our `db` container.
 
@@ -149,16 +154,16 @@ Let's look at our linked containers using `docker ps`.
 
     $ docker ps
     CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
-    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db
-    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  db/web,web
+    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
+    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
 
-We can see our named containers, `db` and `web`, and we can see that the `web`
-containers also shows `db/web` in the `NAMES` column. This tells us that the
+We can see our named containers, `db` and `web`, and we can see that the `db`
+containers also shows `web/db` in the `NAMES` column. This tells us that the
 `web` container is linked to the `db` container in a parent/child relationship.
 
 So what does linking the containers do? Well we've discovered the link creates
 a parent-child relationship between the two containers. The parent container,
-here `db`, can access information on the child container `web`. To do this
+here `web`, can access information on the child container `db`. To do this
 Docker creates a secure tunnel between the containers without the need to
 expose any ports externally on the container. You'll note when we started the
 `db` container we did not use either of the `-P` or `-p` flags. As we're
@@ -203,6 +208,7 @@ In addition to the environment variables Docker adds a host entry for the
 linked parent to the `/etc/hosts` file. Let's look at this file on the `web`
 container now.
 
+    $ sudo docker run -t -i --rm --link db:db training/webapp /bin/bash
     root@aed84ee21bde:/opt/webapp# cat /etc/hosts
     172.17.0.7  aed84ee21bde
     . . .

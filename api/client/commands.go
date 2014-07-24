@@ -1736,7 +1736,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	var (
 		cmd     = cli.Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
 		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
-		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxify all received signals to the process (even in non-TTY mode). SIGCHLD is not proxied.")
+		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.")
 	)
 
 	if err := cmd.Parse(args); err != nil {
@@ -1862,7 +1862,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 type ports []int
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository")
+	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	if err := cmd.Parse(args); err != nil {
 		return nil

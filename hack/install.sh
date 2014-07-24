@@ -2,7 +2,7 @@
 set -e
 #
 # This script is meant for quick & easy install via:
-#   'curl -sL https://get.docker.io/ | sh'
+#   'curl -sSL https://get.docker.io/ | sh'
 # or:
 #   'wget -qO- https://get.docker.io/ | sh'
 #
@@ -54,7 +54,7 @@ fi
 
 curl=''
 if command_exists curl; then
-	curl='curl -sL'
+	curl='curl -sSL'
 elif command_exists wget; then
 	curl='wget -qO-'
 elif command_exists busybox && busybox --list-modules | grep -q wget; then
@@ -85,7 +85,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
+				$sh_c 'docker run hello-world'
 			) || true
 		fi
 		your_user=your-user
@@ -133,7 +133,7 @@ case "$lsb_dist" in
 		if [ -z "$curl" ]; then
 			apt_get_update
 			( set -x; $sh_c 'sleep 3; apt-get install -y -q curl' )
-			curl='curl -sL'
+			curl='curl -sSL'
 		fi
 		(
 			set -x
@@ -150,7 +150,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run busybox echo "Docker has been successfully installed!"'
+				$sh_c 'docker run hello-world'
 			) || true
 		fi
 		your_user=your-user

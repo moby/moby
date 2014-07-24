@@ -5,8 +5,8 @@ page_keywords: documentation, docs, the docker guide, docker guide, docker, dock
 # Getting Started with Docker Hub
 
 
-This section provides a quick introduction to the [Docker Hub](https://hub.docker.com)
-and will show you how to create an account.
+This section provides a quick introduction to the [Docker Hub](https://hub.docker.com),
+including how to create an account.
 
 The [Docker Hub](https://hub.docker.com) is a centralized resource for working with
 Docker and its components. Docker Hub helps you collaborate with colleagues and get the
@@ -23,7 +23,7 @@ worry, creating an account is simple and free.
 
 ## Creating a Docker Hub Account
 
-There are two ways for you to register and create a Docker Hub account:
+There are two ways for you to register and create an account:
 
 1. Via the web, or
 2. Via the command line.
@@ -31,9 +31,9 @@ There are two ways for you to register and create a Docker Hub account:
 ### Register via the web
 
 Fill in the [sign-up form](https://hub.docker.com/account/signup/) by
-choosing your user name and password and specifying email address. You can also sign up
-for the Docker Weekly mailing list, which has lots of information about what's going on
-in the world of Docker.
+choosing your user name and password and entering a valid email address. You can also
+sign up for the Docker Weekly mailing list, which has lots of information about what's
+going on in the world of Docker.
 
 ![Register using the sign-up page](/userguide/register-web.png)
 
@@ -46,10 +46,9 @@ You can also create a Docker Hub account via the command line with the
 
 ### Confirm your email
 
-Once you've filled in the form, check your email for a welcome message and confirmation
-to activate your account.
+Once you've filled in the form, check your email for a welcome message asking for
+confirmation so we can activate your account.
 
-![Confirm your registration](/userguide/register-confirm.png)
 
 ### Login
 
@@ -61,7 +60,7 @@ Or via the command line with the `docker login` command:
 
     $ sudo docker login
 
-Your Docker Hub account is now active and ready for you to use!
+Your Docker Hub account is now active and ready to use.
 
 ##  Next steps
 

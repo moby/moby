@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-{% set docker_version = "$VERSION" %}{% set docker_commit = "$GITCOMMIT" %}{% set docker_branch = "$GIT_BRANCH" %}{% set aws_bucket = "$AWS_S3_BUCKET" %}
+  {% set docker_version = "$VERSION" %}{% set major_minor = "$MAJOR_MINOR" %}{% set docker_commit = "$GITCOMMIT" %}{% set docker_branch = "$GIT_BRANCH" %}{% set aws_bucket = "$AWS_S3_BUCKET" %}{% set build_date = "$BUILD_DATE" %}
   <meta name="docker_version" content="{{ docker_version }}">
   <meta name="docker_git_branch" content="{{ docker_branch }}">
   <meta name="docker_git_commit" content="{{ docker_commit }}">
+  <meta name="docker_build_date" content="{{ build_date }}">
 
   {% if meta.page_description %}<meta name="description" content="{{ meta.page_description[0] }}">{% endif %}
   {% if meta.page_keywords %}<meta name="keywords" content="{{ meta.page_keywords[0] }}">{% endif %}
@@ -48,11 +49,23 @@
   <div id="content" class="container">
 {% if current_page.title != '**HIDDEN**' %}
     <div class="row" id="top-header">
-      <div class="span8">
+      <div class="span7">
         <h1 class="header2">{{ current_page.title }}</h1>
       </div>
-      <div class="span4 text-right edit-on-github">
-        <a class="home-link3" href="https://github.com/dotcloud/docker/blob/master/docs/sources/{{ current_page.input_path }}" class="tertiary-nav">Edit on GitHub</a>
+      <div class="span5">
+        <div id="versionnav" class="span3 pull-right">
+          <ul class="nav version pull-right">
+            <li class="dropdown">
+              <a id="logged-in-header-username" class="dropdown-toggle" data-toggle="dropdown" href="#">
+		      Latest (Version {{ major_minor }})
+              </a>
+              <ul id="documentation-version-list" class="dropdown-menu pull-right">
+		<li role="presentation" class="divider"></li>
+		<li> <a class="home-link3 tertiary-nav" href="https://github.com/dotcloud/docker/blob/master/docs/sources/{{ current_page.input_path }}" >Edit on GitHub</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 {% endif %}
@@ -132,6 +145,16 @@ piCId = '1482';
   });
   $(document).ready(function() {
     $('#content').css("min-height", $(window).height() - 553 );
+    // load the complete versions list
+    $.get("/versions.html_fragment", function( data ) {
+    	$('#documentation-version-list').prepend(data);
+	//remove any "/v1.1/" bits from font.
+	path = document.location.pathname.replace(/^\/v\d\.\d/, "");
+	$('#documentation-version-list a.version').each(function(i, e) {
+		e.href = e.href+path;
+		$(e).removeClass()
+	});
+    });
   })
   var userName = getCookie('docker_sso_username');
   if (userName) {

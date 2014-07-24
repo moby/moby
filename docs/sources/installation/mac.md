@@ -7,13 +7,13 @@ page_keywords: Docker, Docker documentation, requirements, boot2docker, VirtualB
 > **Note:**
 > Docker is supported on Mac OS X 10.6 "Snow Leopard" or newer.
 
-The Docker Engine uses Linux-specific kernel features, so to run it on OS X
-we need to use a lightweight virtual machine (vm).  You use the OS X Docker client to
+Because the Docker Engine uses Linux-specific kernel features, you'll need to use a
+lightweight virtual machine (VM) to run it on OS X. You use the OS X Docker client to
 control the virtualized Docker Engine to build, run, and manage Docker containers.
 
-To make this process easier, we've designed a helper application called
-[Boot2Docker](https://github.com/boot2docker/boot2docker) that installs the
-virtual machine and runs the Docker daemon.
+To make this process easier, we've built a helper application called
+[Boot2Docker](https://github.com/boot2docker/boot2docker) that installs a
+virtual machine (using VirtualBox) that's all set up to run the Docker daemon.
 
 ## Demonstration
 
@@ -22,50 +22,67 @@ virtual machine and runs the Docker daemon.
 ## Installation
 
 1. Download the latest release of the [Docker for OS X Installer](
-   https://github.com/boot2docker/osx-installer/releases)
+   https://github.com/boot2docker/osx-installer/releases) (Look for the green
+   Boot2Docker-x.x.x.pkg button near the bottom of the page.)
 
-2. Run the installer, which will install VirtualBox and the Boot2Docker management
-   tool.
+2. Run the installer by double-clicking the downloaded package, which will install a
+VirtualBox VM, Docker itself, and the Boot2Docker management tool.
    ![](/installation/images/osx-installer.png)
 
-3. Run the `Boot2Docker` app in the `Applications` folder:
-   ![](/installation/images/osx-Boot2Docker-Start-app.png)
-
-   Or, to initialize Boot2Docker manually, open a terminal and run:
+3. Locate the `Boot2Docker` app in your `Applications` folder and run it.
+   Or, you can initialize Boot2Docker from the command line by running:
 
 	     $ boot2docker init
 	     $ boot2docker start
 	     $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
 
+A terminal window will open and you'll see the virtual machine starting up. 
 Once you have an initialized virtual machine, you can control it with `boot2docker stop`
 and `boot2docker start`.
+
+> **Note:**
+> If you see a message in the terminal that looks something like this:
+>
+>    `To connect the Docker client to the Docker daemon, please set: export 
+DOCKER_HOST=tcp://192.168.59.103:2375`
+> 
+you can safely set the evironment variable as instructed.
+
+View the
+[Boot2Docker ReadMe](https://github.com/boot2docker/boot2docker/blob/master/README.md)
+for more information.
 
 ## Upgrading
 
 1. Download the latest release of the [Docker for OS X Installer](
    https://github.com/boot2docker/osx-installer/releases)
 
-2. Run the installer, which will update VirtualBox and the Boot2Docker management
-   tool.
+2. If Boot2Docker is currently running, stop it with `boot2docker stop`. Then, run
+the installer package, which will update Docker and the Boot2Docker management tool.
 
-3. To upgrade your existing virtual machine, open a terminal and run:
+3. To complete the upgrade, you also need to update your existing virtual machine. Open a
+terminal window and run:
 
         $ boot2docker stop
         $ boot2docker download
         $ boot2docker start
 
+This will download an .iso containing a fresh VM and start it up.
+
 ## Running Docker
 
-From your terminal, you can test that Docker is running with a “hello world” example.
-Start the vm and then run:
+From your terminal, you can test that Docker is running with our small `hello-world`
+example image:
+Start the vm (`boot2docker start`) and then run:
 
-    $ docker run ubuntu echo hello world
+    $ docker run hello-world
 
-This should download the `ubuntu` image and print `hello world`.
+This should download the `hello-world` image, which then creates a small
+container with an executable that prints a brief `Hello from Docker.` message.
 
 ## Container port redirection
 
-The latest version of `boot2docker` sets up a host only network adaptor which provides
+The latest version of `boot2docker` sets up a host-only network adaptor which provides
 access to the container's ports.
 
 If you run a container with an exposed port,
@@ -76,14 +93,16 @@ then you should be able to access that Nginx server using the IP address reporte
 
     $ boot2docker ip
 
-Typically, it is 192.168.59.103, but it could get changed by Virtualbox's DHCP
-implementation.
+Typically, it is 192.168.59.103:2375, but VirtualBox's DHCP implementation might change
+this address in the future.
 
 # Further details
 
-If you are curious, the username for the boot2docker default user is `docker` and the password is `tcuser`.
+If you are curious, the username for the boot2docker default user is `docker` and the
+password is `tcuser`.
 
-The Boot2Docker management tool provides several commands:
+The Boot2Docker management tool provides several additional commands for working with the
+VM and Docker:
 
     $ ./boot2docker
     Usage: ./boot2docker [<options>]

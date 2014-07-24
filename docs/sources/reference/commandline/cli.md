@@ -135,7 +135,7 @@ like this:
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxify all received signals to the process (even in non-TTY mode). SIGCHLD is not proxied.
+      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
 The `attach` command will allow you to view or
 interact with any running container, detached (`-d`)
@@ -756,6 +756,22 @@ value is set to `all` in that case. This behavior may change in the future.
 
     Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
 
+## pause
+
+    Usage: docker pause CONTAINER
+
+    Pause all processes within a container
+
+The `docker pause` command uses the cgroups freezer to suspend all processes in
+a container.  Traditionally when suspending a process the `SIGSTOP` signal is
+used, which is observable by the process being suspended. With the cgroups freezer
+the process is unaware, and unable to capture, that it is being suspended,
+and subsequently resumed.
+
+See the [cgroups freezer documentation]
+(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+further details.
+
 ## ps
 
     Usage: docker ps [OPTIONS]
@@ -909,20 +925,20 @@ removed before the image is removed.
 
     Run a command in a new container
 
-      -a, --attach=[]            Attach to stdin, stdout or stderr.
+      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      -d, --detach=false         Detached mode: Run container in the background, print new container id
-      --dns=[]                   Set custom dns servers
-      --dns-search=[]            Set custom dns search domains
+      -d, --detach=false         Detached mode: run container in the background and print new container ID
+      --dns=[]                   Set custom DNS servers
+      --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
-      --entrypoint=""            Overwrite the default entrypoint of the image
-      --env-file=[]              Read in a line delimited file of ENV variables
+      --entrypoint=""            Overwrite the default ENTRYPOINT of the image
+      --env-file=[]              Read in a line delimited file of environment variables
       --expose=[]                Expose a port from the container without publishing it to your host
       -h, --hostname=""          Container host name
-      -i, --interactive=false    Keep stdin open even if not attached
-      --link=[]                  Add link to another container (name:alias)
+      -i, --interactive=false    Keep STDIN open even if not attached
+      --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       --name=""                  Assign a name to the container
@@ -937,10 +953,10 @@ removed before the image is removed.
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
-      --sig-proxy=true           Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
-      -t, --tty=false            Allocate a pseudo-tty
+      --sig-proxy=true           Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
-      -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
+      -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -1213,7 +1229,7 @@ grace period, SIGKILL
 
 ## tag
 
-    Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
+    Usage: docker tag [OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
     Tag an image into a repository
 
@@ -1228,6 +1244,19 @@ them to [*Share Images via Repositories*](
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Display the running processes of a container
+
+## unpause
+
+    Usage: docker unpause CONTAINER
+
+    Unpause all processes within a container
+
+The `docker unpause` command uses the cgroups freezer to un-suspend all
+processes in a container.
+
+See the [cgroups freezer documentation]
+(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+further details.
 
 ## version
 

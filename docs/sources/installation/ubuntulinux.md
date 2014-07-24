@@ -63,7 +63,7 @@ continue installation.*
 >
 > There is also a simple `curl` script available to help with this process.
 >
->     $ curl -s https://get.docker.io/ubuntu/ | sudo sh
+>     $ curl -sSL https://get.docker.io/ubuntu/ | sudo sh
 
 To verify that everything has worked as expected:
 
@@ -134,7 +134,7 @@ continue installation.*
 > 
 > There is also a simple `curl` script available to help with this process.
 > 
->     $ curl -s https://get.docker.io/ubuntu/ | sudo sh
+>     $ curl -sSL https://get.docker.io/ubuntu/ | sudo sh
 
 Now verify that the installation has worked by downloading the
 `ubuntu` image and launching a container.

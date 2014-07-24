@@ -57,7 +57,7 @@ grasp the context, here are some examples of registries:
 > **Note**:
 > The latter implies that while HTTP is the protocol of choice for a registry,
 > multiple schemes are possible (and in some cases, trivial):
-> 
+>
 >  - HTTP with GET (and PUT for read-write registries);
 >  - local mount point;
 >  - remote docker addressed through SSH.
@@ -335,7 +335,7 @@ Get all of the tags for the given repo.
     - **401** – Requires authorization
     - **404** – Repository not found
 
-`GET /v1/repositories/(namespace)/(repository)/tags/(tag*):
+`GET /v1/repositories/(namespace)/(repository)/tags/(tag*)`
 
 Get a tag for the given repo.
 
@@ -369,7 +369,7 @@ Get a tag for the given repo.
     - **401** – Requires authorization
     - **404** – Tag not found
 
-`DELETE /v1/repositories/(namespace)/(repository)/tags/(tag*):
+`DELETE /v1/repositories/(namespace)/(repository)/tags/(tag*)`
 
 Delete the tag for the repo
 
@@ -402,7 +402,7 @@ Delete the tag for the repo
     - **401** – Requires authorization
     - **404** – Tag not found
 
-`PUT /v1/repositories/(namespace)/(repository)/tags/(tag*):
+`PUT /v1/repositories/(namespace)/(repository)/tags/(tag*)`
 
 Put a tag for the given repo.
 

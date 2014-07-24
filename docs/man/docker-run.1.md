@@ -34,7 +34,7 @@ docker-run - Run a command in a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
- IMAGE [COMMAND] [ARG...]
+ IMAGE[:TAG] [COMMAND] [ARG...]
 
 # DESCRIPTION
 
@@ -195,8 +195,8 @@ default is *false*. This option is incompatible with **-d**.
 
 
 **--sig-proxy**=*true*|*false*
-   When set to true, proxify received signals to the process (even in
-non-tty mode). SIGCHLD is not proxied. The default is *true*.
+   When set to true, proxy received signals to the process (even in
+non-tty mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied. The default is *true*.
 
 
 **-t**, **-tty**=*true*|*false*
@@ -241,7 +241,10 @@ can override the working directory by using the **-w** option.
 
 
 **IMAGE**
-   The image name or ID.
+   The image name or ID. You can specify a version of an image you'd like to run
+   the container with by adding image:tag to the command. For example,
+   `docker run ubuntu:14.04`.
+
 
 
 **COMMAND**
@@ -338,7 +341,7 @@ fedora-data image:
 
 Multiple --volumes-from parameters will bring together multiple data volumes from
 multiple containers. And it's possible to mount the volumes that came from the
-DATA container in yet another container via the fedora-container1 intermidiery
+DATA container in yet another container via the fedora-container1 intermediary
 container, allowing to abstract the actual data source from users of that data:
 
     # docker run --volumes-from=fedora-container1 --name=fedora-container2 -i -t fedora bash

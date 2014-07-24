@@ -328,6 +328,11 @@ instructions have executed we're left with the `324104cde6ad` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
+> **Note:** 
+> An image can't have more than 127 layers regardless of the storage driver.
+> This limitation is set globally to encourage optimization of the overall 
+> size of images.
+
 We can then create a container from our new image.
 
     $ sudo docker run -t -i ouruser/sinatra:v2 /bin/bash
