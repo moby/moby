@@ -19,10 +19,9 @@ func init() {
 // HumanSize returns a human-readable approximation of a size
 // using SI standard (eg. "44kB", "17MB")
 func HumanSize(size int64) string {
-	i := 0
-	var sizef float64
-	sizef = float64(size)
 	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	i := 0
+	sizef := float64(size)
 	for sizef >= 1000.0 {
 		sizef = sizef / 1000.0
 		i++
