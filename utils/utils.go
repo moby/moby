@@ -660,8 +660,16 @@ type StatusError struct {
 	StatusCode int
 }
 
-func (e *StatusError) Error() string {
+func (e StatusError) Error() string {
 	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
+}
+
+// Like fmt.Errorf, except return a StatusError with the given error code.
+func StatusErrorf(code int, format string, args ...interface{}) StatusError {
+	return StatusError{
+		Status:     fmt.Sprintf(format, args...),
+		StatusCode: code,
+	}
 }
 
 func quote(word string, buf *bytes.Buffer) {

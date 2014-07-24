@@ -249,7 +249,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if jerr.Code == 0 {
 			jerr.Code = 1
 		}
-		return &utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
+		return utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
 	return err
 }
@@ -764,8 +764,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		var err error
 		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
 			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-			return &utils.StatusError{StatusCode: 64,
-				Status: "Template parsing error: " + err.Error()}
+			return utils.StatusErrorf(64, "Template parsing error: %s", err.Error())
 		}
 	}
 
@@ -823,7 +822,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return utils.StatusError{StatusCode: status}
 	}
 	return nil
 }
@@ -1845,7 +1844,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return utils.StatusError{StatusCode: status}
 	}
 
 	return nil
@@ -2195,7 +2194,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return utils.StatusError{StatusCode: status}
 	}
 	return nil
 }
