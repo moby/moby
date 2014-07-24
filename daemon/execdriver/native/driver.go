@@ -18,6 +18,7 @@ import (
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
+	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/syncpipe"
 	"github.com/dotcloud/docker/daemon/execdriver"
@@ -161,6 +162,83 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
 	return syscall.Kill(p.Process.Pid, syscall.Signal(sig))
+}
+
+func (d *driver) DevAdd(c *execdriver.Command, src string, dst string, perms string) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+
+	// Build a device from our info.
+	device, err := devices.GetDevice(src, perms)
+	if err != nil {
+		return err
+	}
+	device.Path = dst
+
+	// Update allowed devices in cgroups
+	active.container.Cgroups.AllowedDevices = append(active.container.Cgroups.AllowedDevices, device)
+
+	// Apply changes to live container.
+	if systemd.UseSystemd() {
+		if err := systemd.UpdateAllowedDevices(active.container.Cgroups, c.Process.Pid); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fs.Apply(active.container.Cgroups, c.Process.Pid); err != nil {
+			return err
+		}
+	}
+
+	// Set up the filename for mount namespace.
+	ns_file := fmt.Sprintf("/proc/%d/ns/mnt", c.Process.Pid)
+	// Create the device node in the container.
+	namespaces.NsEnterMknod(ns_file, dst, uint64(device.FileMode), uint(device.MajorNumber), uint(device.MinorNumber))
+
+	return nil
+}
+
+func (d *driver) DevRm(c *execdriver.Command, src string, dst string, perms string) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+
+	// Build a device from our info.
+	device, err := devices.GetDevice(src, perms)
+	if err != nil {
+		return err
+	}
+	device.Path = dst
+
+	// Update allowed devices in cgroups
+	active.container.Cgroups.AllowedDevices = append(active.container.Cgroups.AllowedDevices, device)
+	new_devices := []*devices.Device{}
+	for i := 0; i < len(active.container.Cgroups.AllowedDevices); i++ {
+		if active.container.Cgroups.AllowedDevices[i].Path != device.Path {
+			new_devices = append(new_devices, active.container.Cgroups.AllowedDevices[i])
+		}
+	}
+	active.container.Cgroups.AllowedDevices = new_devices
+
+	// Apply changes to live container.
+	if systemd.UseSystemd() {
+		if err := systemd.UpdateAllowedDevices(active.container.Cgroups, c.Process.Pid); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fs.Apply(active.container.Cgroups, c.Process.Pid); err != nil {
+			return err
+		}
+	}
+
+	// Set up the filename for mount namespace.
+	ns_file := fmt.Sprintf("/proc/%d/ns/mnt", c.Process.Pid)
+	// Remove the device node from the container.
+	namespaces.NsEnterUnlink(ns_file, dst)
+
+	return nil
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {

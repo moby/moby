@@ -371,6 +371,35 @@ path.  Paths are relative to the root of the filesystem.
 
     Copy files/folders from the PATH to the HOSTPATH
 
+## devadd
+
+Attach a device to a running container.
+
+    Usage: docker devadd CONTAINER DEVICE
+
+For example:
+
+    $ sudo docker devadd 4386fb97867d /dev/loop0
+
+The device will be added to the cgroup allowed devices. The docker process will
+enter the namespace of the container and call mknod to create the device in the
+container. The device will have the same mode as the host system device mode
+setting.
+
+## devrm
+
+Detach a device from a running container.
+
+    Usage: docker devrm CONTAINER DEVICE
+
+For example:
+
+    $ sudo docker devrm 4386fb97867d /dev/loop0
+
+The device will be removed from the cgroup allowed devices. The docker process
+will enter the namespace of the container and unlink the device from the
+container.
+
 ## diff
 
 List the changed files and directories in a container᾿s filesystem
@@ -1178,7 +1207,7 @@ device or audio device can be added to an otherwise unprivileged container
 
 ** Security note: **
 
-``--device`` cannot be safely used with ephemeral devices.  Block devices that may be removed should not be added to untrusted containers with ``--device``!
+``--device`` cannot be safely used with ephemeral devices.  Block devices that may be removed should not be added to untrusted containers with ``--device``! Devices may be removed from a container with `docker devrm`.
 
 **A complete example:**
 

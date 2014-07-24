@@ -568,6 +568,20 @@ func (container *Container) KillSig(sig int) error {
 	return container.daemon.Kill(container, sig)
 }
 
+func (container *Container) DevAdd(device string) error {
+	if !container.State.IsRunning() {
+		return nil
+	}
+	return container.daemon.DevAdd(container, device)
+}
+
+func (container *Container) DevRm(device string) error {
+	if !container.State.IsRunning() {
+		return nil
+	}
+	return container.daemon.DevRm(container, device)
+}
+
 func (container *Container) Pause() error {
 	if container.State.IsPaused() {
 		return fmt.Errorf("Container %s is already paused", container.ID)

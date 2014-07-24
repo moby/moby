@@ -57,6 +57,8 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"build", "Build an image from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
 		{"cp", "Copy files/folders from a container's filesystem to the host path"},
+		{"devadd", "Attach a device to a running container"},
+		{"devrm", "Detach a device from a running container"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"export", "Stream the contents of a container as a tar archive"},
@@ -1849,6 +1851,70 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	return nil
+}
+
+func (cli *DockerCli) CmdDevadd(args ...string) error {
+	cmd := cli.Subcmd("devadd", "CONTAINER DEVICE", "Attach a device to a running container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	device := cmd.Arg(1)
+	v := url.Values{}
+
+	v.Set("device", device)
+
+	var encounteredError error
+	_, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, false))
+	if err != nil {
+		return fmt.Errorf("Error: container named %s was not found", name)
+	}
+
+	if _, _, err := readBody(cli.call("POST", "/containers/"+name+"/devadd?"+v.Encode(), nil, false)); err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
+		encounteredError = fmt.Errorf("Error: failed to attach device %s to container named %s", device, name)
+	} else {
+		fmt.Fprintf(cli.out, "%s\n", name)
+	}
+	return encounteredError
+
+}
+
+func (cli *DockerCli) CmdDevrm(args ...string) error {
+	cmd := cli.Subcmd("devrm", "CONTAINER DEVICE", "Detach a device from a running container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	device := cmd.Arg(1)
+	v := url.Values{}
+
+	v.Set("device", device)
+
+	var encounteredError error
+	_, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, false))
+	if err != nil {
+		return fmt.Errorf("Error: container named %s was not found", name)
+	}
+
+	if _, _, err := readBody(cli.call("POST", "/containers/"+name+"/devrm?"+v.Encode(), nil, false)); err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
+		encounteredError = fmt.Errorf("Error: failed to detach device %s from container named %s", device, name)
+	} else {
+		fmt.Fprintf(cli.out, "%s\n", name)
+	}
+	return encounteredError
+
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {

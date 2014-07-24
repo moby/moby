@@ -165,6 +165,46 @@ func postContainersKill(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
+func postContainersDevAdd(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("devadd", vars["name"])
+	device := r.Form.Get("device")
+	if device == "" {
+		return fmt.Errorf("Missing device parameter")
+	}
+	job.Args = append(job.Args, device)
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func postContainersDevRm(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("devrm", vars["name"])
+	device := r.Form.Get("device")
+	if device == "" {
+		return fmt.Errorf("Missing device parameter")
+	}
+	job.Args = append(job.Args, device)
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postContainersPause(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1129,6 +1169,8 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
 			"/containers/create":            postContainersCreate,
+			"/containers/{name:.*}/devadd":  postContainersDevAdd,
+			"/containers/{name:.*}/devrm":   postContainersDevRm,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/pause":   postContainersPause,
 			"/containers/{name:.*}/unpause": postContainersUnpause,
