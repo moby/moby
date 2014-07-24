@@ -15,10 +15,7 @@ const (
 var sizeRegex *regexp.Regexp
 
 func init() {
-	var err error
-	if sizeRegex, err = regexp.Compile("^(\\d+)([kKmMgGtTpP])?[bB]?$"); err != nil {
-		panic("Failed to compile the 'size' regular expression")
-	}
+	sizeRegex = regexp.MustCompile("^(\\d+)([kKmMgGtTpP])?[bB]?$")
 }
 
 var bytePrefixes = [...]string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
