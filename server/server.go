@@ -229,10 +229,10 @@ func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
 		if err != nil {
 			// The signal is not a number, treat it as a string (either like "KILL" or like "SIGKILL")
 			sig = uint64(signal.SignalMap[strings.TrimPrefix(job.Args[1], "SIG")])
-			if sig == 0 {
-				return job.Errorf("Invalid signal: %s", job.Args[1])
-			}
+		}
 
+		if sig == 0 {
+			return job.Errorf("Invalid signal: %s", job.Args[1])
 		}
 	}
 
