@@ -14,15 +14,15 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/syncpipe"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/term"
 )
 
 const (

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/libcontainer/namespaces"
-	"github.com/docker/libcontainer/security/capabilities"
-	"github.com/docker/libcontainer/utils"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/libcontainer/namespaces"
+	"github.com/docker/libcontainer/security/capabilities"
+	"github.com/docker/libcontainer/utils"
 )
 
 func setHostname(hostname string) error {

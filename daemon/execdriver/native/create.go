@@ -8,14 +8,14 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/native/configuration"
+	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/mount"
 	"github.com/docker/libcontainer/security/capabilities"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/execdriver/native/configuration"
-	"github.com/docker/docker/daemon/execdriver/native/template"
 )
 
 // createContainer populates and configures the container type with the

@@ -16,12 +16,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/libcontainer/cgroups"
-	"github.com/docker/libcontainer/label"
-	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/mount/nodes"
 	"github.com/kr/pty"
 )
 

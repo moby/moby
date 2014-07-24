@@ -9,8 +9,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/libcontainer/netlink"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/libcontainer/netlink"
 )
 
 // Clear environment pollution introduced by lxc-start
