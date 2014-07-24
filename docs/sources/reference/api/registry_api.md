@@ -67,6 +67,8 @@ The latter would only require two new commands in docker, e.g.,
 (and optionally doing consistency checks). Authentication and authorization
 are then delegated to SSH (e.g., with public keys).
 
+The default namespace for a private repository is `library`.
+
 # Endpoints
 
 ## Images
@@ -305,7 +307,7 @@ Get all of the tags for the given repo.
 
     **Example Request**:
 
-        GET /v1/repositories/foo/bar/tags HTTP/1.1
+        GET /v1/repositories/reynholm/help-system-server/tags HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -341,7 +343,7 @@ Get a tag for the given repo.
 
     **Example Request**:
 
-        GET /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        GET /v1/repositories/reynholm/help-system-server/tags/latest HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -375,7 +377,7 @@ Delete the tag for the repo
 
     **Example Request**:
 
-        DELETE /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        DELETE /v1/repositories/reynholm/help-system-server/tags/latest HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -408,7 +410,7 @@ Put a tag for the given repo.
 
     **Example Request**:
 
-        PUT /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        PUT /v1/repositories/reynholm/help-system-server/tags/latest HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -446,7 +448,7 @@ Delete a repository
 
     **Example Request**:
 
-        DELETE /v1/repositories/foo/bar/ HTTP/1.1
+        DELETE /v1/repositories/reynholm/help-system-server/ HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
