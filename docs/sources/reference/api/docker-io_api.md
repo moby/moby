@@ -421,7 +421,7 @@ Registering a new account.
         Accept: application/json
         Content-Type: application/json
 
-        {"email": "sam@dotcloud.com",
+        {"email": "sam@docker.com",
          "password": "toto42",
          "username": "foobar"}
 
@@ -468,7 +468,7 @@ Change a password or email address for given user. If you pass in an
         Content-Type: application/json
         Authorization: Basic akmklmasadalkm==
 
-        {"email": "sam@dotcloud.com",
+        {"email": "sam@docker.com",
          "password": "toto42"}
 
     Parameters:

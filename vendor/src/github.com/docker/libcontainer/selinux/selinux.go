@@ -15,8 +15,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/libcontainer/system"
-	"github.com/dotcloud/docker/pkg/mount"
 )
 
 const (

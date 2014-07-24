@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 type Server interface {

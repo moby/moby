@@ -5,7 +5,7 @@ package native
 import (
 	"fmt"
 
-	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver"
 )
 
 func NewDriver(root, initPath string) (execdriver.Driver, error) {

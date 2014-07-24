@@ -539,7 +539,7 @@ values.
     It also allows the container to access local network services
     like D-bus.  This can lead to processes in the container being
     able to do unexpected things like
-    [restart your computer](https://github.com/dotcloud/docker/issues/6401).
+    [restart your computer](https://github.com/docker/docker/issues/6401).
     You should use this option with caution.
 
  *  `--net=container:NAME_or_ID` — Tells Docker to put this container's

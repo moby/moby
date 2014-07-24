@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/docker/libcontainer/label"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/units"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/units"
+	"github.com/docker/docker/utils"
 )
 
 var (

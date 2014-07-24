@@ -88,6 +88,7 @@ void nsenter() {
 	static const struct option longopts[] = {
 		{ "nspid",         required_argument, NULL, 'n' },
 		{ "containerjson", required_argument, NULL, 'c' },
+                { "console",       required_argument, NULL, 't' },
 		{ NULL,            0,                 NULL,  0  }
 	};
 
@@ -95,6 +96,7 @@ void nsenter() {
 	pid_t init_pid = -1;
 	char *init_pid_str = NULL;
 	char *container_json = NULL;
+        char *console = NULL;
 	while ((c = getopt_long_only(argc, argv, "n:s:c:", longopts, NULL)) != -1) {
 		switch (c) {
 		case 'n':
@@ -102,6 +104,9 @@ void nsenter() {
 			break;
 		case 'c':
 			container_json = optarg;
+			break;
+		case 't':
+			console = optarg;
 			break;
 		}
 	}
@@ -120,6 +125,21 @@ void nsenter() {
 
 	argc -= 3;
 	argv += 3;
+
+        if (setsid() == -1) {
+               fprintf(stderr, "setsid failed. Error: %s\n", strerror(errno));
+               exit(1);
+        }
+
+        // before we setns we need to dup the console
+        int consolefd = -1;
+        if (console != NULL) {
+               consolefd = open(console, O_RDWR);
+               if (consolefd < 0) {
+                    fprintf(stderr, "nsenter: failed to open console %s %s\n", console, strerror(errno));
+                    exit(1);
+              }
+        }
 
 	// Setns on all supported namespaces.
 	char ns_dir[PATH_MAX];
@@ -159,6 +179,21 @@ void nsenter() {
 	// We must fork to actually enter the PID namespace.
 	int child = fork();
 	if (child == 0) {
+       if (consolefd != -1) {
+        if (dup2(consolefd, STDIN_FILENO) != 0) {
+            fprintf(stderr, "nsenter: failed to dup 0 %s\n",  strerror(errno));
+            exit(1);
+        }
+        if (dup2(consolefd, STDOUT_FILENO) != STDOUT_FILENO) {
+            fprintf(stderr, "nsenter: failed to dup 1 %s\n",  strerror(errno));
+            exit(1);
+        }
+        if (dup2(consolefd, STDERR_FILENO) != STDERR_FILENO) {
+            fprintf(stderr, "nsenter: failed to dup 2 %s\n",  strerror(errno));
+            exit(1);
+        }
+}
+
 		// Finish executing, let the Go runtime take over.
 		return;
 	} else {

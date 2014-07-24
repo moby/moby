@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
-	"github.com/dotcloud/docker/pkg/symlink"
 )
 
 // default mount point flags
@@ -52,9 +52,17 @@ func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountCon
 	if err := SetupPtmx(rootfs, console, mountConfig.MountLabel); err != nil {
 		return err
 	}
+
+	// stdin, stdout and stderr could be pointing to /dev/null from parent namespace.
+	// Re-open them inside this namespace.
+	if err := reOpenDevNull(rootfs); err != nil {
+		return fmt.Errorf("Failed to reopen /dev/null %s", err)
+	}
+
 	if err := setupDevSymlinks(rootfs); err != nil {
 		return fmt.Errorf("dev symlinks %s", err)
 	}
+
 	if err := syscall.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
@@ -207,4 +215,30 @@ func newSystemMounts(rootfs, mountLabel string, sysReadonly bool, mounts Mounts)
 	systemMounts = append(systemMounts, mount{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: sysMountFlags})
 
 	return systemMounts
+}
+
+// Is stdin, stdout or stderr were to be pointing to '/dev/null',
+// this method will make them point to '/dev/null' from within this namespace.
+func reOpenDevNull(rootfs string) error {
+	var stat, devNullStat syscall.Stat_t
+	file, err := os.Open(filepath.Join(rootfs, "/dev/null"))
+	if err != nil {
+		return fmt.Errorf("Failed to open /dev/null - %s", err)
+	}
+	defer file.Close()
+	if err = syscall.Fstat(int(file.Fd()), &devNullStat); err != nil {
+		return fmt.Errorf("Failed to stat /dev/null - %s", err)
+	}
+	for fd := 0; fd < 3; fd++ {
+		if err = syscall.Fstat(fd, &stat); err != nil {
+			return fmt.Errorf("Failed to stat fd %d - %s", fd, err)
+		}
+		if stat.Rdev == devNullStat.Rdev {
+			// Close and re-open the fd.
+			if err = syscall.Dup2(int(file.Fd()), fd); err != nil {
+				return fmt.Errorf("Failed to dup fd %d to fd %d - %s", file.Fd(), fd)
+			}
+		}
+	}
+	return nil
 }

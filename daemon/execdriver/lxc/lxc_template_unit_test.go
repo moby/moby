@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/libcontainer/devices"
-	"github.com/dotcloud/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver"
 )
 
 func TestLXCConfig(t *testing.T) {

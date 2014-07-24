@@ -67,6 +67,10 @@ func CreateBridge(name string, setMacAddr bool) error {
 	return ErrNotImplemented
 }
 
+func DeleteBridge(name string) error {
+	return ErrNotImplemented
+}
+
 func AddToBridge(iface, master *net.Interface) error {
 	return ErrNotImplemented
 }

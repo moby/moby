@@ -17,19 +17,25 @@ const (
 	VETH_INFO_PEER = 1
 	IFLA_NET_NS_FD = 28
 	SIOC_BRADDBR   = 0x89a0
+	SIOC_BRDELBR   = 0x89a1
 	SIOC_BRADDIF   = 0x89a2
 )
 
 var nextSeqNr uint32
 
 type ifreqHwaddr struct {
-	IfrnName   [16]byte
+	IfrnName   [IFNAMSIZ]byte
 	IfruHwaddr syscall.RawSockaddr
 }
 
 type ifreqIndex struct {
-	IfrnName  [16]byte
+	IfrnName  [IFNAMSIZ]byte
 	IfruIndex int32
+}
+
+type ifreqFlags struct {
+	IfrnName  [IFNAMSIZ]byte
+	Ifruflags uint16
 }
 
 func nativeEndian() binary.ByteOrder {
@@ -843,6 +849,10 @@ func getIfSocket() (fd int, err error) {
 }
 
 func NetworkChangeName(iface *net.Interface, newName string) error {
+	if len(newName) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", newName)
+	}
+
 	fd, err := getIfSocket()
 	if err != nil {
 		return err
@@ -895,13 +905,13 @@ func NetworkCreateVethPair(name1, name2 string) error {
 // Create the actual bridge device.  This is more backward-compatible than
 // netlink.NetworkLinkAdd and works on RHEL 6.
 func CreateBridge(name string, setMacAddr bool) error {
-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+	if len(name) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", name)
+	}
+
+	s, err := getIfSocket()
 	if err != nil {
-		// ipv6 issue, creating with ipv4
-		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	defer syscall.Close(s)
 
@@ -918,21 +928,48 @@ func CreateBridge(name string, setMacAddr bool) error {
 	return nil
 }
 
+// Delete the actual bridge device.
+func DeleteBridge(name string) error {
+	s, err := getIfSocket()
+	if err != nil {
+		return err
+	}
+	defer syscall.Close(s)
+
+	nameBytePtr, err := syscall.BytePtrFromString(name)
+	if err != nil {
+		return err
+	}
+
+	var ifr ifreqFlags
+	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], []byte(name))
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s),
+		syscall.SIOCSIFFLAGS, uintptr(unsafe.Pointer(&ifr))); err != 0 {
+		return err
+	}
+
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s),
+		SIOC_BRDELBR, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
+		return err
+	}
+	return nil
+}
+
 // Add a slave to abridge device.  This is more backward-compatible than
 // netlink.NetworkSetMaster and works on RHEL 6.
 func AddToBridge(iface, master *net.Interface) error {
-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+	if len(master.Name) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", master.Name)
+	}
+
+	s, err := getIfSocket()
 	if err != nil {
-		// ipv6 issue, creating with ipv4
-		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	defer syscall.Close(s)
 
 	ifr := ifreqIndex{}
-	copy(ifr.IfrnName[:], master.Name)
+	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], master.Name)
 	ifr.IfruIndex = int32(iface.Index)
 
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), SIOC_BRADDIF, uintptr(unsafe.Pointer(&ifr))); err != 0 {
@@ -943,9 +980,13 @@ func AddToBridge(iface, master *net.Interface) error {
 }
 
 func setBridgeMacAddress(s int, name string) error {
+	if len(name) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", name)
+	}
+
 	ifr := ifreqHwaddr{}
 	ifr.IfruHwaddr.Family = syscall.ARPHRD_ETHER
-	copy(ifr.IfrnName[:], name)
+	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], name)
 
 	for i := 0; i < 6; i++ {
 		ifr.IfruHwaddr.Data[i] = randIfrDataByte()

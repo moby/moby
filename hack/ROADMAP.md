@@ -3,7 +3,7 @@
 This document is a high-level overview of where we want to take Docker next.
 It is a curated selection of planned improvements which are either important, difficult, or both.
 
-For a more complete view of planned and requested improvements, see [the Github issues](https://github.com/dotcloud/docker/issues).
+For a more complete view of planned and requested improvements, see [the Github issues](https://github.com/docker/docker/issues).
 
 To suggest changes to the roadmap, including additions, please write the change as if it were already in effect, and make a pull request.
 

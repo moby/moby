@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/docker/pkg/networkfs/resolvconf"
 )
 
 // "test123" should be printed by docker run

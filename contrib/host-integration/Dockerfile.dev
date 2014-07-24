@@ -19,7 +19,7 @@ ENV		GOROOT	  /goroot
 ENV		GOPATH	  /go
 ENV		PATH	  $GOROOT/bin:$PATH
 
-RUN		go get github.com/dotcloud/docker && cd /go/src/github.com/dotcloud/docker && git checkout v0.6.3
+RUN		go get github.com/docker/docker && cd /go/src/github.com/docker/docker && git checkout v0.6.3
 ADD		manager.go	/manager/
 RUN		cd /manager && go build -o /usr/bin/manager
 

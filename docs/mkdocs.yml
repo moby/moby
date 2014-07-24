@@ -6,7 +6,7 @@ site_favicon: img/favicon.png
 
 dev_addr: '0.0.0.0:8000'
 
-repo_url: https://github.com/dotcloud/docker/
+repo_url: https://github.com/docker/docker/
 
 docs_dir: sources
 

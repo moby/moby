@@ -12,7 +12,7 @@ notDocs="$(validate_diff --numstat | awk '$3 !~ /^docs\// { print $3 }')"
 # "Username may only contain alphanumeric characters or dashes and cannot begin with a dash"
 githubUsernameRegex='[a-zA-Z0-9][a-zA-Z0-9-]+'
 
-# https://github.com/dotcloud/docker/blob/master/CONTRIBUTING.md#sign-your-work
+# https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work
 dcoPrefix='Docker-DCO-1.1-Signed-off-by:'
 dcoRegex="^$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)> \\(github: ($githubUsernameRegex)\\)$"
 
@@ -48,7 +48,7 @@ else
 			echo 'Please amend each commit to include a properly formatted DCO marker.'
 			echo
 			echo 'Visit the following URL for information about the Docker DCO:'
-			echo ' https://github.com/dotcloud/docker/blob/master/CONTRIBUTING.md#sign-your-work'
+			echo ' https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work'
 			echo
 		} >&2
 		false

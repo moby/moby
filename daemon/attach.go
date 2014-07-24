@@ -3,7 +3,7 @@ package daemon
 import (
 	"io"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {

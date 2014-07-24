@@ -1,5 +1,5 @@
 #
-# See the top level Makefile in https://github.com/dotcloud/docker for usage.
+# See the top level Makefile in https://github.com/docker/docker for usage.
 #
 FROM 		debian:jessie
 MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
@@ -43,7 +43,7 @@ RUN	VERSION=$(cat /docs/VERSION)								&&\
 	sed -i "s/\$BUILD_DATE/$BUILD_DATE/g" /docs/theme/mkdocs/base.html				&&\
 	sed -i "s/\$AWS_S3_BUCKET/$AWS_S3_BUCKET/g" /docs/theme/mkdocs/base.html
 
-# note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
+# note, EXPOSE is only last because of https://github.com/docker/docker/issues/3525
 EXPOSE	8000
 
 CMD 	["mkdocs", "serve"]

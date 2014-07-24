@@ -94,7 +94,7 @@ To learn about Docker in more detail and to answer questions about usage and imp
 *`.dockerignore` support*
 
 You can now add a `.dockerignore` file next to your `Dockerfile` and Docker will ignore files and directories specified in that file when sending the build context to the daemon. 
-Example: https://github.com/dotcloud/docker/blob/master/.dockerignore
+Example: https://github.com/docker/docker/blob/master/.dockerignore
 
 *Pause containers during commit*
 

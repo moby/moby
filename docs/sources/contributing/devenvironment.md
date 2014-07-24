@@ -32,7 +32,7 @@ Again, you can do it in other ways but you need to do more work.
 
 ## Check out the Source
 
-    $ git clone https://git@github.com/dotcloud/docker
+    $ git clone https://git@github.com/docker/docker
     $ cd docker
 
 To checkout a different revision just use `git checkout`
@@ -110,7 +110,7 @@ something like this
     === RUN TestDependencyGraph
     --- PASS: TestDependencyGraph (0.00 seconds)
     PASS
-    ok      github.com/dotcloud/docker/utils        0.017s
+    ok      github.com/docker/docker/utils        0.017s
 
 If $TESTFLAGS is set in the environment, it is passed as extra arguments
 to `go test`. You can use this to select certain tests to run, e.g.,

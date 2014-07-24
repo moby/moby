@@ -6,9 +6,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
+	"github.com/docker/docker/pkg/iptables"
+	"github.com/docker/docker/pkg/proxy"
 )
 
 type mapping struct {

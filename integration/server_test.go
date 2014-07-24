@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runconfig"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/runconfig"
 )
 
 func TestCreateNumberHostname(t *testing.T) {

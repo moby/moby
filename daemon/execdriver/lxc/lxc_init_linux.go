@@ -10,9 +10,9 @@ import (
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/security/capabilities"
 	"github.com/docker/libcontainer/utils"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/daemon/execdriver/native/template"
-	"github.com/dotcloud/docker/pkg/system"
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/docker/pkg/system"
 )
 
 func setHostname(hostname string) error {

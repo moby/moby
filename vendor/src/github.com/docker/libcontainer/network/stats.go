@@ -9,36 +9,37 @@ import (
 )
 
 type NetworkStats struct {
-	RxBytes   uint64 `json:"rx_bytes,omitempty"`
-	RxPackets uint64 `json:"rx_packets,omitempty"`
-	RxErrors  uint64 `json:"rx_errors,omitempty"`
-	RxDropped uint64 `json:"rx_dropped,omitempty"`
-	TxBytes   uint64 `json:"tx_bytes,omitempty"`
-	TxPackets uint64 `json:"tx_packets,omitempty"`
-	TxErrors  uint64 `json:"tx_errors,omitempty"`
-	TxDropped uint64 `json:"tx_dropped,omitempty"`
+	RxBytes   uint64 `json:"rx_bytes"`
+	RxPackets uint64 `json:"rx_packets"`
+	RxErrors  uint64 `json:"rx_errors"`
+	RxDropped uint64 `json:"rx_dropped"`
+	TxBytes   uint64 `json:"tx_bytes"`
+	TxPackets uint64 `json:"tx_packets"`
+	TxErrors  uint64 `json:"tx_errors"`
+	TxDropped uint64 `json:"tx_dropped"`
 }
 
 // Returns the network statistics for the network interfaces represented by the NetworkRuntimeInfo.
-func GetStats(networkState *NetworkState) (NetworkStats, error) {
+func GetStats(networkState *NetworkState) (*NetworkStats, error) {
 	// This can happen if the network runtime information is missing - possible if the container was created by an old version of libcontainer.
 	if networkState.VethHost == "" {
-		return NetworkStats{}, nil
+		return &NetworkStats{}, nil
 	}
 	data, err := readSysfsNetworkStats(networkState.VethHost)
 	if err != nil {
-		return NetworkStats{}, err
+		return nil, err
 	}
 
-	return NetworkStats{
-		RxBytes:   data["rx_bytes"],
-		RxPackets: data["rx_packets"],
-		RxErrors:  data["rx_errors"],
-		RxDropped: data["rx_dropped"],
-		TxBytes:   data["tx_bytes"],
-		TxPackets: data["tx_packets"],
-		TxErrors:  data["tx_errors"],
-		TxDropped: data["tx_dropped"],
+	// Ingress for host veth is from the container. Hence tx_bytes stat on the host veth is actually number of bytes received by the container.
+	return &NetworkStats{
+		RxBytes:   data["tx_bytes"],
+		RxPackets: data["tx_packets"],
+		RxErrors:  data["tx_errors"],
+		RxDropped: data["tx_dropped"],
+		TxBytes:   data["rx_bytes"],
+		TxPackets: data["rx_packets"],
+		TxErrors:  data["rx_errors"],
+		TxDropped: data["rx_dropped"],
 	}, nil
 }
 

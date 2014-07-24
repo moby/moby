@@ -10,7 +10,7 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
 DOCKER_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
-DOCKER_MOUNT := $(if $(BINDDIR),-v "$(CURDIR)/$(BINDDIR):/go/src/github.com/dotcloud/docker/$(BINDDIR)")
+DOCKER_MOUNT := $(if $(BINDDIR),-v "$(CURDIR)/$(BINDDIR):/go/src/github.com/docker/docker/$(BINDDIR)")
 
 DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TESTFLAGS -e TESTDIRS -e DOCKER_GRAPHDRIVER -e DOCKER_EXECDRIVER $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
 # to allow `make DOCSDIR=docs docs-shell`

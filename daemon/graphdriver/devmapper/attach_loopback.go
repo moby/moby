@@ -7,7 +7,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 func stringToLoopName(src string) [LoNameSize]uint8 {

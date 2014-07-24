@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"github.com/dotcloud/docker/nat"
+	"github.com/docker/docker/nat"
 	"testing"
 )
 

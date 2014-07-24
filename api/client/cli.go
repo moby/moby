@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/template"
 
-	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/registry"
+	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/registry"
 )
 
 var funcMap = template.FuncMap{

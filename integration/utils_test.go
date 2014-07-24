@@ -13,14 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
-	"github.com/dotcloud/docker/builtins"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/builtins"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/server"
+	"github.com/docker/docker/utils"
 )
 
 // This file contains utility functions for docker's unit test suite.

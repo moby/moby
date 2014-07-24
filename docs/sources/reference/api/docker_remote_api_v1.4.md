@@ -213,7 +213,7 @@ Return low-level information on the container `id`
                              "Bridge": "",
                              "PortMapping": null
                      },
-                     "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+                     "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
                      "Volumes": {}
         }

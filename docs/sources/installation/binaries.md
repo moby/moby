@@ -23,9 +23,9 @@ runtime:
  - a [properly mounted](
    https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
    cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount
-   point [is](https://github.com/dotcloud/docker/issues/2683)
-   [not](https://github.com/dotcloud/docker/issues/3485)
-   [sufficient](https://github.com/dotcloud/docker/issues/4568))
+   point [is](https://github.com/docker/docker/issues/2683)
+   [not](https://github.com/docker/docker/issues/3485)
+   [sufficient](https://github.com/docker/docker/issues/4568))
 
 ## Check kernel dependencies
 

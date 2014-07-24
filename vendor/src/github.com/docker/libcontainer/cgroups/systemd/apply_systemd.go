@@ -14,9 +14,9 @@ import (
 	"time"
 
 	systemd1 "github.com/coreos/go-systemd/dbus"
+	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/cgroups/fs"
-	"github.com/dotcloud/docker/pkg/systemd"
 	"github.com/godbus/dbus"
 )
 

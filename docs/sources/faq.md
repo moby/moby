@@ -14,8 +14,8 @@ paying.
 ### What open source license are you using?
 
 We are using the Apache License Version 2.0, see it here:
-[https://github.com/dotcloud/docker/blob/master/LICENSE](
-https://github.com/dotcloud/docker/blob/master/LICENSE)
+[https://github.com/docker/docker/blob/master/LICENSE](
+https://github.com/docker/docker/blob/master/LICENSE)
 
 ### Does Docker run on Mac OS X or Windows?
 
@@ -227,7 +227,7 @@ OpenSSL library vulnerable to the [Heartbleed](http://heartbleed.com/) bug.
 
 ### Can I help by adding some questions and answers?
 
-Definitely! You can fork [the repo](https://github.com/dotcloud/docker) and
+Definitely! You can fork [the repo](https://github.com/docker/docker) and
 edit the documentation sources.
 
 ### Where can I find more answers?
@@ -237,7 +237,7 @@ You can find more answers on:
 - [Docker user mailinglist](https://groups.google.com/d/forum/docker-user)
 - [Docker developer mailinglist](https://groups.google.com/d/forum/docker-dev)
 - [IRC, docker on freenode](irc://chat.freenode.net#docker)
-- [GitHub](https://github.com/dotcloud/docker)
+- [GitHub](https://github.com/docker/docker)
 - [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 

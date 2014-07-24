@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/libcontainer"
-	"github.com/dotcloud/docker/pkg/units"
+	"github.com/docker/docker/pkg/units"
 )
 
 type Action func(*libcontainer.Config, interface{}, string) error

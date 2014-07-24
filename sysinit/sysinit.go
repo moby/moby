@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/dotcloud/docker/daemon/execdriver"
-	_ "github.com/dotcloud/docker/daemon/execdriver/lxc"
-	_ "github.com/dotcloud/docker/daemon/execdriver/native"
+	"github.com/docker/docker/daemon/execdriver"
+	_ "github.com/docker/docker/daemon/execdriver/lxc"
+	_ "github.com/docker/docker/daemon/execdriver/native"
 )
 
 func executeProgram(args *execdriver.InitArgs) error {

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/dotcloud/docker/engine"
+	"github.com/docker/docker/engine"
 )
 
 func findFreePort(t *testing.T) int {

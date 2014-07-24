@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 func TestPools(t *testing.T) {
