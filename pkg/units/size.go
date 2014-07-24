@@ -16,17 +16,18 @@ func init() {
 	}
 }
 
+var bytePrefixes = [...]string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+
 // HumanSize returns a human-readable approximation of a size
 // using SI standard (eg. "44kB", "17MB")
 func HumanSize(size int64) string {
-	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
 	i := 0
 	sizef := float64(size)
 	for sizef >= 1000.0 {
 		sizef = sizef / 1000.0
 		i++
 	}
-	return fmt.Sprintf("%.4g %s", sizef, units[i])
+	return fmt.Sprintf("%.4g %s", sizef, bytePrefixes[i])
 }
 
 // FromHumanSize returns an integer from a human-readable specification of a size
