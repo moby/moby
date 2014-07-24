@@ -458,7 +458,100 @@ func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
+func (devices *DeviceSet) getBlockDevice(name string) (*os.File, error) {
+	dirname := devices.loopbackDir()
+	filename := path.Join(dirname, name)
+
+	file, err := os.OpenFile(filename, os.O_RDWR, 0)
+	if file == nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	loopback := FindLoopDeviceFor(file)
+	if loopback == nil {
+		return nil, fmt.Errorf("Unable to find loopback mount for: %s", filename)
+	}
+	return loopback, nil
+}
+
+func (devices *DeviceSet) TrimPool() error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	totalSizeInSectors, _, _, dataTotal, _, _, err := devices.poolStatus()
+	if err != nil {
+		return err
+	}
+	blockSizeInSectors := totalSizeInSectors / dataTotal
+	SectorSize := blockSizeInSectors * 512
+
+	data, err := devices.getBlockDevice("data")
+	if err != nil {
+		return err
+	}
+	defer data.Close()
+
+	dataSize, err := GetBlockDeviceSize(data)
+	if err != nil {
+		return err
+	}
+
+	metadata, err := devices.getBlockDevice("metadata")
+	if err != nil {
+		return err
+	}
+	defer metadata.Close()
+
+	// Suspend the pool so the metadata doesn't change and new blocks
+	// are not loaded
+	if err := suspendDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to suspend pool: %s", err)
+	}
+
+	// Just in case, make sure everything is on disk
+	syscall.Sync()
+
+	ranges, err := readMetadataRanges(metadata.Name())
+	if err != nil {
+		resumeDevice(devices.getPoolName())
+		return err
+	}
+
+	lastEnd := uint64(0)
+
+	for e := ranges.Front(); e != nil; e = e.Next() {
+		r := e.Value.(*Range)
+		// Convert to bytes
+		rBegin := r.begin * SectorSize
+		rEnd := r.end * SectorSize
+
+		if rBegin > lastEnd {
+			if err := BlockDeviceDiscard(data, lastEnd, rBegin-lastEnd); err != nil {
+				return fmt.Errorf("Failing do discard block, leaving pool suspended: %v", err)
+			}
+		}
+		lastEnd = rEnd
+	}
+
+	if dataSize > lastEnd {
+		if err := BlockDeviceDiscard(data, lastEnd, dataSize-lastEnd); err != nil {
+			return fmt.Errorf("Failing do discard block, leaving pool suspended: %v", err)
+		}
+	}
+
+	// Resume the pool
+	if err := resumeDevice(devices.getPoolName()); err != nil {
+		return fmt.Errorf("Unable to resume pool: %s", err)
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) ResizePool(size int64) error {
+	devices.Lock()
+	defer devices.Unlock()
+
 	dirname := devices.loopbackDir()
 	datafilename := path.Join(dirname, "data")
 	metadatafilename := path.Join(dirname, "metadata")
@@ -706,7 +799,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		// on the thin pool when we remove a thinp device, so we do it
 		// manually
 		if err := devices.activateDeviceIfNeeded(info); err == nil {
-			if err := BlockDeviceDiscard(info.DevName()); err != nil {
+			if err := BlockDeviceDiscardAll(info.DevName()); err != nil {
 				utils.Debugf("Error discarding block on device: %s (ignoring)\n", err)
 			}
 		}
@@ -1148,6 +1241,101 @@ func (devices *DeviceSet) Status() *Status {
 	}
 
 	return status
+}
+
+func (devices *DeviceSet) ResizeDevice(hash string, size int64) error {
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	if size < 0 || info.Size > uint64(size) {
+		return fmt.Errorf("Can't shrink devices")
+	}
+
+	devices.Lock()
+	defer devices.Unlock()
+
+	devinfo, err := getInfo(info.Name())
+	if info == nil {
+		return err
+	}
+
+	if devinfo.OpenCount != 0 {
+		return fmt.Errorf("Device in use")
+	}
+
+	if devinfo.Exists != 0 {
+		if err := devices.deactivateDevice(info); err != nil {
+			return err
+		}
+	}
+	oldSize := info.Size
+	info.Size = uint64(size)
+
+	if err := devices.saveMetadata(info); err != nil {
+		info.Size = oldSize
+		return err
+	}
+
+	// Activate with new size
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
+		return err
+	}
+
+	fstype, err := ProbeFsType(info.DevName())
+	if err != nil {
+		return err
+	}
+
+	switch fstype {
+	case "xfs":
+		dir, err := ioutil.TempDir(devices.root, "resizemnt")
+		if err != nil {
+			return err
+		}
+
+		defer os.Remove(dir)
+
+		err = syscall.Mount(info.DevName(), dir, "xfs", syscall.MS_MGC_VAL, "nouuid")
+		if err != nil {
+			return err
+		}
+
+		err = exec.Command("xfs_growfs", dir).Run()
+		if err != nil {
+			syscall.Unmount(dir, 0)
+			return fmt.Errorf("xfs_growfs failed: %v", err)
+		}
+
+		err = syscall.Unmount(dir, 0)
+		if err != nil {
+			return err
+		}
+
+	case "ext4":
+		err = exec.Command("e2fsck", "-f", "-y", info.DevName()).Run()
+		if err != nil {
+			return fmt.Errorf("e2fsck failed: %v", err)
+		}
+
+		err = exec.Command("resize2fs", info.DevName()).Run()
+		if err != nil {
+			return fmt.Errorf("resizee2fs failed: %v", err)
+		}
+
+	default:
+		return fmt.Errorf("Unsupported filesystem %s", fstype)
+	}
+
+	if err := devices.deactivateDevice(info); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {

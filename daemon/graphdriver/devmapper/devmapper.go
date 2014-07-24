@@ -304,7 +304,7 @@ func GetBlockDeviceSize(file *os.File) (uint64, error) {
 	return uint64(size), nil
 }
 
-func BlockDeviceDiscard(path string) error {
+func BlockDeviceDiscardAll(path string) error {
 	file, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
@@ -316,13 +316,21 @@ func BlockDeviceDiscard(path string) error {
 		return err
 	}
 
-	if err := ioctlBlkDiscard(file.Fd(), 0, size); err != nil {
+	if err := BlockDeviceDiscard(file, 0, size); err != nil {
 		return err
 	}
 
 	// Without this sometimes the remove of the device that happens after
 	// discard fails with EBUSY.
 	syscall.Sync()
+
+	return nil
+}
+
+func BlockDeviceDiscard(file *os.File, offset, length uint64) error {
+	if err := ioctlBlkDiscard(file.Fd(), offset, length); err != nil {
+		return err
+	}
 
 	return nil
 }
