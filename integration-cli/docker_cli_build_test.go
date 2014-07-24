@@ -1777,3 +1777,32 @@ func TestBuildAddTar(t *testing.T) {
 	}
 	logDone("build - ADD tar")
 }
+
+func TestBuildFromGIT(t *testing.T) {
+	name := "testbuildfromgit"
+	defer deleteImages(name)
+	git, err := fakeGIT("repo", map[string]string{
+		"Dockerfile": `FROM busybox
+					ADD first /first
+					RUN [ -f /first ]
+					MAINTAINER docker`,
+		"first": "test git data",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	_, err = buildImageFromPath(name, git.RepoURL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Author")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != "docker" {
+		t.Fatal("Maintainer should be docker, got %s", res)
+	}
+	logDone("build - build from GIT")
+}
