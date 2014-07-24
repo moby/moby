@@ -57,6 +57,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/registry"
@@ -795,6 +796,17 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 		kernelVersion = kv.String()
 	}
 
+	operatingSystem := "<unknown>"
+	if s, err := operatingsystem.GetOperatingSystem(); err == nil {
+		operatingSystem = s
+	}
+	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
+		utils.Errorf("Could not determine if daemon is containerized: %v", err)
+		operatingSystem += " (error determining if containerized)"
+	} else if inContainer {
+		operatingSystem += " (containerized)"
+	}
+
 	// if we still have the original dockerinit binary from before we copied it locally, let's return the path to that, since that's more intuitive (the copied path is trivial to derive by hand given VERSION)
 	initPath := utils.DockerInitPath("")
 	if initPath == "" {
@@ -816,6 +828,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.Set("ExecutionDriver", srv.daemon.ExecutionDriver().Name())
 	v.SetInt("NEventsListener", srv.eventPublisher.SubscribersCount())
 	v.Set("KernelVersion", kernelVersion)
+	v.Set("OperatingSystem", operatingSystem)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)

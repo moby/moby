@@ -605,18 +605,19 @@ tar, then the ownerships might not get preserved.
 For example:
 
     $ sudo docker -D info
-    Containers: 16
-    Images: 2138
+    Containers: 14
+    Images: 52
     Storage Driver: btrfs
-    Execution Driver: native-0.1
-    Kernel Version: 3.12.0-1-amd64
+    Execution Driver: native-0.2
+    Kernel Version: 3.13.0-24-generic
+    Operating System: Ubuntu 14.04 LTS
     Debug mode (server): false
     Debug mode (client): true
-    Fds: 16
-    Goroutines: 104
+    Fds: 10
+    Goroutines: 9
     EventsListeners: 0
     Init Path: /usr/bin/docker
-    Sockets: [unix:///var/run/docker.sock tcp://0.0.0.0:4243]
+    Sockets: [unix:///var/run/docker.sock]
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
 
