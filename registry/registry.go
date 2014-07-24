@@ -390,52 +390,42 @@ func (r *Registry) GetRemoteImageJSON(imgID, registry string, token []string) ([
 
 func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string, imgSize int64) (io.ReadCloser, error) {
 	var (
-		retries   = 5
-		headRes   *http.Response
-		client    *http.Client
-		hasResume bool = false
-		imageURL       = fmt.Sprintf("%simages/%s/layer", registry, imgID)
+		retries  = 5
+		client   *http.Client
+		res      *http.Response
+		imageURL = fmt.Sprintf("%simages/%s/layer", registry, imgID)
 	)
-	headReq, err := r.reqFactory.NewRequest("HEAD", imageURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
-	}
-
-	setTokenAuth(headReq, token)
-	for i := 1; i <= retries; i++ {
-		headRes, client, err = r.doRequest(headReq)
-		if err != nil && i == retries {
-			return nil, fmt.Errorf("Eror while making head request: %s\n", err)
-		} else if err != nil {
-			time.Sleep(time.Duration(i) * 5 * time.Second)
-			continue
-		}
-		break
-	}
-
-	if headRes.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
-		hasResume = true
-	}
 
 	req, err := r.reqFactory.NewRequest("GET", imageURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %s\n", err)
 	}
 	setTokenAuth(req, token)
-	if hasResume {
-		utils.Debugf("server supports resume")
-		return utils.ResumableRequestReader(client, req, 5, imgSize), nil
+	for i := 1; i <= retries; i++ {
+		res, client, err = r.doRequest(req)
+		if err != nil {
+			res.Body.Close()
+			if i == retries {
+				return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
+					res.StatusCode, imgID)
+			}
+			time.Sleep(time.Duration(i) * 5 * time.Second)
+			continue
+		}
+		break
 	}
-	utils.Debugf("server doesn't support resume")
-	res, _, err := r.doRequest(req)
-	if err != nil {
-		return nil, err
-	}
+
 	if res.StatusCode != 200 {
 		res.Body.Close()
 		return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
 			res.StatusCode, imgID)
 	}
+
+	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
+		utils.Debugf("server supports resume")
+		return utils.ResumableRequestReaderWithInitialResponse(client, req, 5, imgSize, res), nil
+	}
+	utils.Debugf("server doesn't support resume")
 	return res.Body, nil
 }
 

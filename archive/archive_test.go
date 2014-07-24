@@ -199,3 +199,42 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 		t.Fatalf("%s not found in the archive", "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm")
 	}
 }
+
+func prepareUntarSourceDirectory(numberOfFiles int, targetPath string) (int, error) {
+	fileData := []byte("fooo")
+	for n := 0; n < numberOfFiles; n++ {
+		fileName := fmt.Sprintf("file-%d", n)
+		if err := ioutil.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
+			return 0, err
+		}
+	}
+	totalSize := numberOfFiles * len(fileData)
+	return totalSize, nil
+}
+
+func BenchmarkTarUntar(b *testing.B) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		b.Fatal(err)
+	}
+	tempDir, err := ioutil.TempDir("", "docker-test-untar-destination")
+	if err != nil {
+		b.Fatal(err)
+	}
+	target := path.Join(tempDir, "dest")
+	n, err := prepareUntarSourceDirectory(100, origin)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	defer os.RemoveAll(origin)
+	defer os.RemoveAll(tempDir)
+	for n := 0; n < b.N; n++ {
+		err := TarUntar(origin, target)
+		if err != nil {
+			b.Fatal(err)
+		}
+		os.RemoveAll(target)
+	}
+}

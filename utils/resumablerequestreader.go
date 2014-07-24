@@ -24,6 +24,10 @@ func ResumableRequestReader(c *http.Client, r *http.Request, maxfail uint32, tot
 	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize}
 }
 
+func ResumableRequestReaderWithInitialResponse(c *http.Client, r *http.Request, maxfail uint32, totalsize int64, initialResponse *http.Response) io.ReadCloser {
+	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, currentResponse: initialResponse}
+}
+
 func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
 	if r.client == nil || r.request == nil {
 		return 0, fmt.Errorf("client and request can't be nil\n")
