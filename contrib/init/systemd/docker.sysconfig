@@ -1,0 +1,3 @@
+# This file specifies additional options for docker daemon.
+# To be installed as /etc/sysconfig/docker
+OPTIONS=
