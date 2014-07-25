@@ -94,7 +94,11 @@ func InitServer(job *engine.Job) engine.Status {
 	}
 	job.Logf("Setting up signal traps")
 	c := make(chan os.Signal, 1)
-	gosignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
+	if os.Getenv("DEBUG") == "" {
+		signals = append(signals, syscall.SIGQUIT)
+	}
+	gosignal.Notify(c, signals...)
 	go func() {
 		interruptCount := uint32(0)
 		for sig := range c {
