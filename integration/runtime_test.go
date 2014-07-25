@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	std_log "log"
 
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
@@ -134,7 +135,7 @@ func init() {
 }
 
 func setupBaseImage() {
-	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
+	eng := newTestEngine(std_log.New(os.Stderr, "", 0), false, unitTestStoreBase)
 	job := eng.Job("image_inspect", unitTestImageName)
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
@@ -153,7 +154,7 @@ func spawnGlobalDaemon() {
 		log.Debugf("Global daemon already exists. Skipping.")
 		return
 	}
-	t := log.New(os.Stderr, "", 0)
+	t := std_log.New(os.Stderr, "", 0)
 	eng := NewTestEngine(t)
 	globalEngine = eng
 	globalDaemon = mkDaemonFromEngine(eng, t)
@@ -198,7 +199,7 @@ func spawnRogueHttpsDaemon() {
 }
 
 func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
-	t := log.New(os.Stderr, "", 0)
+	t := std_log.New(os.Stderr, "", 0)
 	root, err := newTestDirectory(unitTestStoreBase)
 	if err != nil {
 		t.Fatal(err)

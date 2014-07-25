@@ -5,14 +5,8 @@ import (
 	"strings"
 	"os"
 	"fmt"
-	"log"
 	"io"
 )
-
-
-type logger struct {
-	*log.Logger
-}
 
 type priority int
 
@@ -40,10 +34,6 @@ func (p priority) String() string {
 	}
 
 	return ""
-}
-
-func New(out io.Writer, prefix string, flag int) *logger {
-	return &logger{Logger: log.New(out, prefix, flag)}
 }
 
 // Debug function, if the debug flag is set, then display. Do nothing otherwise
