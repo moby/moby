@@ -7,7 +7,7 @@ If your experience deviates from this document, please document the changes
 to keep it up-to-date.
 
 It is important to note that this document assumes that the git remote in your
-repository that corresponds to "https://github.com/dotcloud/docker" is named
+repository that corresponds to "https://github.com/docker/docker" is named
 "origin".  If yours is not (for example, if you've chosen to name it "upstream"
 or something similar instead), be sure to adjust the listed snippets for your
 local environment accordingly.  If you are not sure what your upstream remote is
@@ -18,7 +18,7 @@ like:
 
 ```bash
 export GITHUBUSER="YOUR_GITHUB_USER"
-git remote add origin https://github.com/dotcloud/docker.git
+git remote add origin https://github.com/docker/docker.git
 git remote add $GITHUBUSER git@github.com:$GITHUBUSER/docker.git
 ```
 
@@ -155,7 +155,7 @@ make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 git add VERSION CHANGELOG.md
 git commit -m "Bump version to $VERSION"
 git push $GITHUBUSER bump_$VERSION
-echo "https://github.com/$GITHUBUSER/docker/compare/dotcloud:release...$GITHUBUSER:bump_$VERSION?expand=1"
+echo "https://github.com/$GITHUBUSER/docker/compare/docker:release...$GITHUBUSER:bump_$VERSION?expand=1"
 ```
 
 That last command will give you the proper link to visit to ensure that you
@@ -288,7 +288,7 @@ echo ${VERSION#v}-dev > VERSION
 git add VERSION
 git commit -m "Change version to $(cat VERSION)"
 git push $GITHUBUSER merge_release_$VERSION
-echo "https://github.com/$GITHUBUSER/docker/compare/dotcloud:master...$GITHUBUSER:merge_release_$VERSION?expand=1"
+echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:merge_release_$VERSION?expand=1"
 ```
 
 Again, get two maintainers to validate, then merge, then push that pretty

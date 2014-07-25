@@ -144,7 +144,7 @@ if [ -z "$strictDebootstrap" ]; then
 	#  initctl (for some pesky upstart scripts)
 	sudo chroot . dpkg-divert --local --rename --add /sbin/initctl
 	sudo ln -sf /bin/true sbin/initctl
-	# see https://github.com/dotcloud/docker/issues/446#issuecomment-16953173
+	# see https://github.com/docker/docker/issues/446#issuecomment-16953173
 	
 	# shrink the image, since apt makes us fat (wheezy: ~157.5MB vs ~120MB)
 	sudo chroot . apt-get clean

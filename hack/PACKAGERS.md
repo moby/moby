@@ -48,7 +48,7 @@ To build Docker, you will need the following:
 * Go version 1.2 or later
 * A clean checkout of the source added to a valid [Go
   workspace](http://golang.org/doc/code.html#Workspaces) under the path
-  *src/github.com/dotcloud/docker* (unless you plan to use `AUTO_GOPATH`,
+  *src/github.com/docker/docker* (unless you plan to use `AUTO_GOPATH`,
   explained in more detail below).
 
 To build the Docker daemon, you will additionally need:
@@ -145,7 +145,7 @@ export AUTO_GOPATH=1
 ```
 
 This will cause the build scripts to set up a reasonable `GOPATH` that
-automatically and properly includes both dotcloud/docker from the local
+automatically and properly includes both docker/docker from the local
 directory, and the local "./vendor" directory as necessary.
 
 ### `DOCKER_BUILDTAGS`
@@ -271,9 +271,9 @@ installed and available at runtime:
 * a [properly
   mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
   cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount point
-  [is](https://github.com/dotcloud/docker/issues/2683)
-  [not](https://github.com/dotcloud/docker/issues/3485)
-  [sufficient](https://github.com/dotcloud/docker/issues/4568))
+  [is](https://github.com/docker/docker/issues/2683)
+  [not](https://github.com/docker/docker/issues/3485)
+  [sufficient](https://github.com/docker/docker/issues/4568))
 
 Additionally, the Docker client needs the following software to be installed and
 available at runtime:

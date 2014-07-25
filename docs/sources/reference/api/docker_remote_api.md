@@ -374,7 +374,7 @@ Image's name added in the events
 ## v1.3
 
 docker v0.5.0
-[51f6c4a](https://github.com/dotcloud/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
+[51f6c4a](https://github.com/docker/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
 
 ### Full Documentation
 
@@ -414,7 +414,7 @@ Start containers (/containers/<id>/start):
 ## v1.2
 
 docker v0.4.2
-[2e7649b](https://github.com/dotcloud/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
+[2e7649b](https://github.com/docker/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
 
 ### Full Documentation
 
@@ -446,7 +446,7 @@ deleted/untagged.
 ## v1.1
 
 docker v0.4.0
-[a8ae398](https://github.com/dotcloud/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
+[a8ae398](https://github.com/docker/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
 
 ### Full Documentation
 
@@ -473,7 +473,7 @@ Uses json stream instead of HTML hijack, it looks like this:
 ## v1.0
 
 docker v0.3.4
-[8d73740](https://github.com/dotcloud/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
+[8d73740](https://github.com/docker/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
 
 ### Full Documentation
 

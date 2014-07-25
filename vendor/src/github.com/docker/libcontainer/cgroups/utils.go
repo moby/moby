@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dotcloud/docker/pkg/mount"
+	"github.com/docker/docker/pkg/mount"
 )
 
 // https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt
@@ -97,7 +97,7 @@ func GetAllSubsystems() ([]string, error) {
 		text := s.Text()
 		if text[0] != '#' {
 			parts := strings.Fields(text)
-			if len(parts) > 4 && parts[3] != "0" {
+			if len(parts) >= 4 && parts[3] != "0" {
 				subsystems = append(subsystems, parts[0])
 			}
 		}

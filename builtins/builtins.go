@@ -3,14 +3,14 @@ package builtins
 import (
 	"runtime"
 
-	"github.com/dotcloud/docker/api"
-	apiserver "github.com/dotcloud/docker/api/server"
-	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/api"
+	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/daemon/networkdriver/bridge"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/registry"
+	"github.com/docker/docker/server"
+	"github.com/docker/docker/utils"
 )
 
 func Register(eng *engine.Engine) error {

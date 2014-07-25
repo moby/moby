@@ -50,7 +50,7 @@ start() {
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see
-        # https://github.com/dotcloud/docker/issues/5359
+        # https://github.com/docker/docker/issues/5359
         tries=0
         while [ ! -f $pidfile -a $tries -lt 10 ]; do
             sleep 1

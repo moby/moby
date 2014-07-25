@@ -74,7 +74,7 @@ Almost there. Next, we add a hack to get us by the lack of
 `initctl`:
 
     # Hack for initctl
-    # See: https://github.com/dotcloud/docker/issues/1024
+    # See: https://github.com/docker/docker/issues/1024
     RUN dpkg-divert --local --rename --add /sbin/initctl
     RUN ln -s /bin/true /sbin/initctl
 

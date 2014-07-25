@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 // BroadcastWriter accumulate multiple io.WriteCloser by stream.

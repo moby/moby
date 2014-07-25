@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 // Where we store the config file
@@ -20,7 +20,7 @@ const CONFIGFILE = ".dockercfg"
 // Only used for user auth + account creation
 const INDEXSERVER = "https://index.docker.io/v1/"
 
-//const INDEXSERVER = "https://indexstaging-docker.dotcloud.com/v1/"
+//const INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")

@@ -3,7 +3,7 @@ package runconfig
 import (
 	"testing"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 func TestParseLxcConfOpt(t *testing.T) {

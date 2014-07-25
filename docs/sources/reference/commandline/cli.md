@@ -117,7 +117,7 @@ you can also specify individual sockets too `docker -d -H fd://3`. If the
 specified socket activated files aren't found then docker will exit. You
 can find examples of using systemd socket activation with docker and
 systemd in the [docker source tree](
-https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
+https://github.com/docker/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
 (`/var/lib/docker`) and for `/tmp`. TMPDIR and the data directory can be set
@@ -396,9 +396,9 @@ For example:
     A /go
     A /go/src
     A /go/src/github.com
-    A /go/src/github.com/dotcloud
-    A /go/src/github.com/dotcloud/docker
-    A /go/src/github.com/dotcloud/docker/.git
+    A /go/src/github.com/docker
+    A /go/src/github.com/docker/docker
+    A /go/src/github.com/docker/docker/.git
     ....
 
 ## events
@@ -871,7 +871,7 @@ registry or to a self-hosted one.
 
 ### Known Issues (rm)
 
--   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+-   [Issue 197](https://github.com/docker/docker/issues/197) indicates
     that `docker kill` may leave directories behind
     and make it difficult to remove the container.
 
@@ -1008,7 +1008,7 @@ and linking containers.
 
 ### Known Issues (run –volumes-from)
 
-- [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
+- [Issue 2702](https://github.com/docker/docker/issues/2702):
   "lxc-start: Permission denied - failed to mount" could indicate a
   permissions problem with AppArmor. Please see the issue for a
   workaround.

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/runconfig"
+	"github.com/docker/docker/runconfig"
 )
 
 func TestKillDifferentUser(t *testing.T) {

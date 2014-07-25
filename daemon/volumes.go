@@ -8,9 +8,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/symlink"
 )
 
 type BindMap struct {

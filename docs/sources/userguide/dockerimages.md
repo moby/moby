@@ -130,7 +130,7 @@ We can see we've returned a lot of images that use the term `sinatra`. We've
 returned a list of image names, descriptions, Stars (which measure the social
 popularity of images - if a user likes an image then they can "star" it), and
 the Official and Automated build statuses. Official repositories are built and
-maintained by the [Stackbrew](https://github.com/dotcloud/stackbrew) project,
+maintained by the [Stackbrew](https://github.com/docker/stackbrew) project,
 and Automated repositories are [Automated Builds](
 /userguide/dockerrepos/#automated-builds) that allow you to validate the source
 and content of an image.

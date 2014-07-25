@@ -8,9 +8,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/utils"
 )
 
 func init() {

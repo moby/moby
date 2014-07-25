@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/security/capabilities"
-	"github.com/dotcloud/docker/utils"
 )
 
 func TweakCapabilities(basics, adds, drops []string) ([]string, error) {

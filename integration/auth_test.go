@@ -4,10 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/dotcloud/docker/registry"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/registry"
 )
 
 // FIXME: these tests have an external dependency on a staging index hosted
@@ -17,13 +18,13 @@ import (
 
 func TestLogin(t *testing.T) {
 	t.Skip("FIXME: please remove dependency on external services")
-	os.Setenv("DOCKER_INDEX_URL", "https://indexstaging-docker.dotcloud.com")
+	os.Setenv("DOCKER_INDEX_URL", "https://registry-stage.hub.docker.com/v1/")
 	defer os.Setenv("DOCKER_INDEX_URL", "")
 	authConfig := &registry.AuthConfig{
 		Username:      "unittester",
 		Password:      "surlautrerivejetattendrai",
 		Email:         "noise+unittester@docker.com",
-		ServerAddress: "https://indexstaging-docker.dotcloud.com/v1/",
+		ServerAddress: "https://registry-stage.hub.docker.com/v1/",
 	}
 	status, err := registry.Login(authConfig, nil)
 	if err != nil {
@@ -47,7 +48,7 @@ func TestCreateAccount(t *testing.T) {
 		Username:      username,
 		Password:      "test42",
 		Email:         fmt.Sprintf("docker-ut+%s@example.com", token),
-		ServerAddress: "https://indexstaging-docker.dotcloud.com/v1/",
+		ServerAddress: "https://registry-stage.hub.docker.com/v1/",
 	}
 	status, err := registry.Login(authConfig, nil)
 	if err != nil {

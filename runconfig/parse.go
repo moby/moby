@@ -6,12 +6,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/opts"
-	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/sysinfo"
-	"github.com/dotcloud/docker/pkg/units"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/opts"
+	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/units"
+	"github.com/docker/docker/utils"
 )
 
 var (

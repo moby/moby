@@ -1,7 +1,7 @@
 package links
 
 import (
-	"github.com/dotcloud/docker/nat"
+	"github.com/docker/docker/nat"
 	"strings"
 	"testing"
 )

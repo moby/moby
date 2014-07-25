@@ -19,14 +19,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/symlink"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 var (

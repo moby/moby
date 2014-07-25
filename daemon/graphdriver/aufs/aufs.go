@@ -30,11 +30,11 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon/graphdriver"
+	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	mountpk "github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/utils"
 )
 
 var (

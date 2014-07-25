@@ -17,12 +17,12 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 )
 
 var (

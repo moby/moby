@@ -6,7 +6,7 @@ feels wrong or incomplete.
 
 ## Reporting Issues
 
-When reporting [issues](https://github.com/dotcloud/docker/issues) on
+When reporting [issues](https://github.com/docker/docker/issues) on
 GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc).
 Please include:
 
@@ -53,7 +53,7 @@ else is working on the same thing.
 ### Create issues...
 
 Any significant improvement should be documented as [a GitHub
-issue](https://github.com/dotcloud/docker/issues) before anybody
+issue](https://github.com/docker/docker/issues) before anybody
 starts working on it.
 
 ### ...but check for existing issues first!
@@ -180,7 +180,7 @@ One way to automate this, is customize your git `commit.template` by adding
 a `prepare-commit-msg` hook to your Docker repository:
 
 ```
-curl -sSL -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/dotcloud/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
+curl -sSL -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/docker/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
 ```
 
 * Note: the above script expects to find your GitHub user name in `git config --get github.user`

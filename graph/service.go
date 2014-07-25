@@ -3,9 +3,9 @@ package graph
 import (
 	"io"
 
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/utils"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {

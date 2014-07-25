@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/archive"
+	"github.com/docker/docker/archive"
 )
 
 func TestBuildCacheADD(t *testing.T) {

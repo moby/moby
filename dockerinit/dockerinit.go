@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/dotcloud/docker/sysinit"
+	"github.com/docker/docker/sysinit"
 )
 
 func main() {

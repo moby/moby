@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/utils"
 )
 
 const DEFAULTTAG = "latest"

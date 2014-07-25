@@ -6,7 +6,7 @@ set -e
 #
 # Requirements:
 # - The current directory should be a checkout of the docker source code
-#   (http://github.com/dotcloud/docker). Whatever version is checked out
+#   (http://github.com/docker/docker). Whatever version is checked out
 #   will be built.
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
@@ -25,7 +25,7 @@ set -o pipefail
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$(pwd)" != '/go/src/github.com/dotcloud/docker' ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+if [ "$(pwd)" != '/go/src/github.com/docker/docker' ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in the Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
@@ -77,8 +77,8 @@ fi
 
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
-	mkdir -p .gopath/src/github.com/dotcloud
-	ln -sf ../../../.. .gopath/src/github.com/dotcloud/docker
+	mkdir -p .gopath/src/github.com/docker
+	ln -sf ../../../.. .gopath/src/github.com/docker/docker
 	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
 fi
 
@@ -91,8 +91,8 @@ fi
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-w
-	-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
-	-X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'"
+	-X github.com/docker/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X github.com/docker/docker/dockerversion.VERSION "'$VERSION'"
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
@@ -103,7 +103,7 @@ BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
-	-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true
+	-X github.com/docker/docker/dockerversion.IAMSTATIC true
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 
@@ -150,7 +150,7 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		echo '+ go test' $TESTFLAGS "github.com/dotcloud/docker${dir#.}"
+		echo '+ go test' $TESTFLAGS "github.com/docker/docker${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)

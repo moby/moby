@@ -35,7 +35,7 @@ managed by Docker Inc.
    service using tokens
  - It supports different storage backends (S3, cloud files, local FS)
  - It doesn't have a local database
- - [Source Code](https://github.com/dotcloud/docker-registry)
+ - [Source Code](https://github.com/docker/docker-registry)
 
 We expect that there will be multiple registries out there. To help to
 grasp the context, here are some examples of registries:
@@ -479,7 +479,7 @@ file is empty.
     POST /v1/users:
 
     **Body**:
-    {"email": "[sam@dotcloud.com](mailto:sam%40dotcloud.com)",
+    {"email": "[sam@docker.com](mailto:sam%40docker.com)",
     "password": "toto42", "username": "foobar"`}
 
     **Validation**:

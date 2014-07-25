@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/pkg/user"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/console"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/libcontainer/syncpipe"
 	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/utils"
-	"github.com/dotcloud/docker/pkg/user"
 )
 
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.

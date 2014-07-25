@@ -16,13 +16,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/sysinit"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/sysinit"
+	"github.com/docker/docker/utils"
 )
 
 const (

@@ -6,14 +6,15 @@ sudo: false
 
 env:
     - TRAVIS_GLOBAL_WTF=1
-    - _GOOS=linux _GOARCH=amd64
-#    - _GOOS=linux _GOARCH=386 # Travis can't currently do 32bit cgo... (see https://travis-ci.org/tianon/libcontainer/jobs/30126518#L168)
-#    - _GOOS=linux _GOARCH=arm # see https://github.com/moovweb/gvm/issues/22
+    - _GOOS=linux _GOARCH=amd64 CGO_ENABLED=1
+    - _GOOS=linux _GOARCH=amd64 CGO_ENABLED=0
+#    - _GOOS=linux _GOARCH=386 CGO_ENABLED=1 # TODO add this once Travis can handle it (https://github.com/travis-ci/travis-ci/issues/2207#issuecomment-49625061)
+    - _GOOS=linux _GOARCH=386 CGO_ENABLED=0
+    - _GOOS=linux _GOARCH=arm CGO_ENABLED=0
 
 install:
     - mkdir -pv "${GOPATH%%:*}/src/github.com/docker" && [ -d "${GOPATH%%:*}/src/github.com/docker/libcontainer" ] || ln -sv "$(readlink -f .)" "${GOPATH%%:*}/src/github.com/docker/libcontainer"
     - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then
-          export CGO_ENABLED=1;
           gvm cross "$_GOOS" "$_GOARCH";
           export GOOS="$_GOOS" GOARCH="$_GOARCH";
       fi
@@ -30,4 +31,4 @@ script:
     - if [ "$TRAVIS_GLOBAL_WTF" ]; then bash "$DOCKER_PATH/hack/make/validate-dco"; fi
     - if [ "$TRAVIS_GLOBAL_WTF" ]; then bash "$DOCKER_PATH/hack/make/validate-gofmt"; fi
     - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go build -v ./...; fi
-    - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go test -v ./...; fi
+    - if [ -z "$TRAVIS_GLOBAL_WTF" -a "$GOARCH" != 'arm' ]; then go test -test.short -v ./...; fi
