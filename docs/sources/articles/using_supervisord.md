@@ -38,6 +38,7 @@ We can now install our SSH and Apache daemons as well as Supervisor in
 our container.
 
     RUN apt-get install -y openssh-server apache2 supervisor
+    RUN mkdir -p /var/lock/apache2 /var/run/apache2
     RUN mkdir -p /var/run/sshd
     RUN mkdir -p /var/log/supervisor
 
