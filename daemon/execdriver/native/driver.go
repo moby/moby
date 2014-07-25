@@ -70,6 +70,7 @@ type activeContainer struct {
 type driver struct {
 	root             string
 	initPath         string
+	nsinitPath       string
 	activeContainers map[string]*activeContainer
 	sync.Mutex
 }
@@ -83,10 +84,16 @@ func NewDriver(root, initPath string) (*driver, error) {
 	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
+	nsinitPath := filepath.Join(filepath.Dir(initPath), "nsinit")
+
+	if _, err := os.Stat(nsinitPath); err != nil {
+		return nil, fmt.Errorf("Failed to stat %s. Error: %s", nsinitPath, err)
+	}
 
 	return &driver{
 		root:             root,
 		initPath:         initPath,
+		nsinitPath:       nsinitPath,
 		activeContainers: make(map[string]*activeContainer),
 	}, nil
 }

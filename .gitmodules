@@ -1,6 +1,0 @@
-[submodule "vendor/src/github.com/codegangsta/cli"]
-	path = vendor/src/github.com/codegangsta/cli
-	url = git://github.com/codegangsta/cli.git
-[submodule "codegangsta"]
-	path = codegangsta
-	url = git://github.com/codegangsta/cli
