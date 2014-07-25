@@ -1701,8 +1701,6 @@ func (srv *Server) ImageImport(job *engine.Job) engine.Status {
 			u.Path = ""
 		}
 		job.Stdout.Write(sf.FormatStatus("", "Downloading from %s", u))
-		// Download with curl (pretty progress bar)
-		// If curl is not available, fallback to http.Get()
 		resp, err = utils.Download(u.String())
 		if err != nil {
 			return job.Error(err)
