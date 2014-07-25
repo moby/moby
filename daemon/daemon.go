@@ -298,7 +298,7 @@ func (daemon *Daemon) restore() error {
 	)
 
 	if !debug {
-		fmt.Printf("Loading containers: ")
+		log.Infof("Loading containers: ")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
 	if err != nil {
@@ -360,7 +360,7 @@ func (daemon *Daemon) restore() error {
 	}
 
 	if !debug {
-		fmt.Printf(": done.\n")
+		log.Infof(": done.\n")
 	}
 
 	return nil
