@@ -4,13 +4,12 @@ page_keywords: Examples, Usage, user guide, links, linking, docker, documentatio
 
 # Linking Containers Together
 
-In [the Using Docker section](/userguide/usingdocker) we touched on
-connecting to a service running inside a Docker container via a network
-port. This is one of the ways that you can interact with services and
-applications running inside Docker containers. In this section we're
-going to give you a refresher on connecting to a Docker container via a
-network port as well as introduce you to the concepts of container
-linking.
+In [the Using Docker section](/userguide/usingdocker), you saw how to
+connect to a service running inside a Docker container via a network
+port. A port connection is one way you can interact with services and
+applications running inside Docker containers. In this section, we'll briefly revisit
+connecting via a network port and then we'll introduce you to another method of access:
+container linking.
 
 ## Network port mapping refresher
 
@@ -79,8 +78,9 @@ output.
 Network port mappings are not the only way Docker containers can connect
 to one another. Docker also has a linking system that allows you to link
 multiple containers together and share connection information between
-them. Docker linking will create a parent child relationship where the
-parent container can see selected information about its child.
+them. When containers are linked, information about a container can flow from that source
+container to a recipient. This allows the recipient to see selected data describing
+aspects of the source container.
 
 ## Container naming
 
@@ -124,13 +124,15 @@ We can also use `docker inspect` to return the container's name.
 
 ## Container Linking
 
-Links allow containers to discover and securely communicate with each
-other. To create a link you use the `--link` flag. Let's create a new
-container, this one a database.
+Links allow containers to discover and securely communicate information about each
+other. When you set up a link, you create a conduit between a source container and a
+recipient container. The recipient can then access select data about the source.
+To create a link you use the `--link` flag. Let's create a new container, this one a
+database.
 
     $ sudo docker run -d --name db training/postgres
 
-Here we've created a new container called `db` using the `training/postgres`
+This creates a new container called `db` from the `training/postgres`
 image, which contains a PostgreSQL database.
 
 We need to delete the `web` container we created previously so we can replace it
@@ -158,20 +160,21 @@ Let's look at our linked containers using `docker ps`.
     aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
 
 We can see our named containers, `db` and `web`, and we can see that the `db`
-containers also shows `web/db` in the `NAMES` column. This tells us that the
-`web` container is linked to the `db` container in a parent/child relationship.
+container also shows `web/db` in the `NAMES` column. This tells us that the
+`web` container is linked to the `db` container, which allows it to access information
+about the `db` container.
 
-So what does linking the containers do? Well we've discovered the link creates
-a parent-child relationship between the two containers. The child container,
-here `web`, can access information on the parent container `db`. To do this
+So what does linking the containers do? We've learned that a link creates a source
+container that can provide information about itself to a recipient. In our example, the
+recipient, `web`, can access information about the source `db`. To do this,
 Docker creates a secure tunnel between the containers without the need to
-expose any ports externally on the container. You'll note when we started the
-`db` container we did not use either of the `-P` or `-p` flags. As we're
-linking the containers we don't need to expose the PostgreSQL database via the
-network.
+expose any ports externally on the container; you'll note when we started the
+`db` container we did not use either the `-P` or `-p` flags. That's a big benefit of
+linking: we don't need to expose the source container, here the PostgreSQL database, to
+the network.
 
-Docker exposes connectivity information for the parent container inside the
-child container in two ways:
+Docker exposes connectivity information for the source container to the
+recipient container in two ways:
 
 * Environment variables,
 * Updating the `/etc/hosts` file.
@@ -197,15 +200,15 @@ command to list the container's environment variables.
 > will scrub them when spawning shells for connection.
 
 We can see that Docker has created a series of environment variables with
-useful information about our `db` container. Each variable is prefixed with
+useful information about our source `db` container. Each variable is prefixed with
 `DB_` which is populated from the `alias` we specified above. If our `alias`
 were `db1` the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
-on the `db` container. The connection will be secure, private and only the
+on the `db` container. The connection will be secure and private; only the
 linked `web` container will be able to talk to the `db` container.
 
-In addition to the environment variables Docker adds a host entry for the
-linked parent to the `/etc/hosts` file. Let's look at this file on the `web`
+In addition to the environment variables, Docker adds a host entry for the
+source container to the `/etc/hosts` file. Let's look at this file on the `web`
 container now.
 
     $ sudo docker run -t -i --rm --link db:db training/webapp /bin/bash
@@ -227,14 +230,15 @@ that host now via this host name.
     56 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.256 ms
 
 > **Note:** 
-> We had to install `ping` because our container didn't have it.
+> In the example. you'll note you had to install `ping` first because the container
+didn't have it.
 
 We've used the `ping` command to ping the `db` container using it's host entry
 which resolves to `172.17.0.5`. We can make use of this host entry to configure
 an application to make use of our `db` container.
 
 > **Note:** 
-> You can link multiple child containers to a single parent. For
+> You can link multiple recipient containers to a single source. For
 > example, we could have multiple web containers attached to our `db`
 > container.
 
