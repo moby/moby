@@ -138,7 +138,7 @@ contents of the `dbdata` volume to a `backup.tar` file inside our
 `/backup` directory. When the command completes and the container stops
 we'll be left with a backup of our `dbdata` volume.
 
-You could then to restore to the same container, or another that you've made
+You could then restore it to the same container, or another that you've made
 elsewhere. Create a new container.
 
     $ sudo docker run -v /dbdata --name dbdata2 ubuntu /bin/bash
