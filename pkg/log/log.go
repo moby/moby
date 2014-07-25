@@ -9,6 +9,10 @@ import (
 	"io"
 )
 
+const (
+	format = "[%s] %s:%d %s\n"
+)
+
 type logger struct {
 	*log.Logger
 }
@@ -21,24 +25,24 @@ func New(out io.Writer, prefix string, flag int) *logger {
 // If Docker is in damon mode, also send the debug info on the socket
 func Debugf(format string, a ...interface{}) {
 	if os.Getenv("DEBUG") != "" {
-		logf("debug", format, a...)
+		logf(os.Stderr, "debug", format, a...)
 	}
 }
 
 func Infof(format string, a ...interface{}) {
-	logf("info", format, a...)
+	logf(os.Stdout, "info", format, a...)
 }
 
 func Errorf(format string, a ...interface{}) {
-	logf("error", format, a...)
+	logf(os.Stderr, "error", format, a...)
 }
 
 func Fatalf(format string, a ...interface{}) {
-	logf("fatal", format, a...)
+	logf(os.Stderr, "fatal", format, a...)
 	os.Exit(1)
 }
 
-func logf(level string, format string, a ...interface{}) {
+func logf(stream io.Writer, level string, format string, a ...interface{}) {
 	// Retrieve the stack infos
 	_, file, line, ok := runtime.Caller(2)
 	if !ok {
@@ -48,5 +52,5 @@ func logf(level string, format string, a ...interface{}) {
 		file = file[strings.LastIndex(file, "/")+1:]
 	}
 
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("[%s] %s:%d %s\n", level, file, line, format), a...)
+	fmt.Fprintf(stream, fmt.Sprintf(format, level, file, line, format), a...)
 }
