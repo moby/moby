@@ -1777,3 +1777,60 @@ func TestBuildAddTar(t *testing.T) {
 	}
 	logDone("build - ADD tar")
 }
+
+func TestVolumeNotAppliedDuringBuild(t *testing.T) {
+	dockerfile := `
+		FROM busybox
+		VOLUME /foo
+		RUN touch /foo/bar
+		RUN [ -f /foo/bar ]
+	`
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testvolimg", ".")
+	ctx, err := fakeContext(dockerfile, map[string]string{})
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	buildCmd.Dir = ctx.Dir
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testvolimg")
+
+	logDone("build - volumes do not apply during build")
+}
+
+func TestVolumeIsAppliedIfLastBuildStep(t *testing.T) {
+	dockerfile := `
+		FROM busybox
+		RUN mkdir -p /foo && touch /foo/bar
+		VOLUME /foo
+	`
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "testvolimg", ".")
+	ctx, err := fakeContext(dockerfile, map[string]string{})
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	buildCmd.Dir = ctx.Dir
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	runCmd := exec.Command(dockerBinary, "run", "testvolimg", "ls", "-lh", "/foo/bar")
+	out, exitCode, err = runCommandWithOutput(runCmd)
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("Failed to handle volume when it is last build step")
+	}
+
+	deleteImages("testvolimg")
+
+	logDone("build - volume as last build step works")
+}
