@@ -11,4 +11,4 @@ LimitNOFILE=1048576
 LimitNPROC=1048576
 
 [Install]
-WantedBy=multi-user.target
+Also=docker.socket
