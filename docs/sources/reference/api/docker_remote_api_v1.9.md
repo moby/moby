@@ -758,6 +758,13 @@ Insert a file from `url` in the image `name` at `path`
         {"error":"Invalid..."}
         ...
 
+	Query Parameters:
+
+
+
+	-	**url** – The url from where the file is taken
+	-	**path** – The path where the file is stored
+
     Status Codes:
 
     -   **200** – no error
