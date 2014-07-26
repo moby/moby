@@ -6,7 +6,6 @@ Requires=docker.socket
 
 [Service]
 ExecStart=/usr/bin/docker -d -H fd://
-Restart=on-failure
 LimitNOFILE=1048576
 LimitNPROC=1048576
 
