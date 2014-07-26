@@ -75,6 +75,10 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.Set("InitPath", initPath)
 	v.SetInt("NCPU", runtime.NumCPU())
 	v.SetInt64("MemTotal", meminfo.MemTotal)
+	if err := utils.CheckConfig(); err != nil {
+		v.Set("CheckConfig", err.Error())
+	}
+
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
