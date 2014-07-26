@@ -175,6 +175,7 @@ go_compile_test_dir() {
 		cd "$dir"
 		go test "${testcover[@]}" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c
 	)
+	[ $? -ne 0 ] && return 1
 	mkdir -p "$(dirname "$out_file")"
 	mv "$dir/$(basename "$dir").test" "$out_file"
 	echo "Precompiled: github.com/dotcloud/docker${dir#.}"

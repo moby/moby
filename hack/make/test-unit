@@ -38,7 +38,7 @@ bundle_test_unit() {
 			export BUILDFLAGS_FILE="$HOME/buildflags_file"
 			( IFS=$'\n'; echo "${BUILDFLAGS[*]}" ) > "$BUILDFLAGS_FILE"
 
-			echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --env _ go_compile_test_dir
+			echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --halt 2 --env _ go_compile_test_dir
 			rm -rf "$HOME"
 		) else
 			# aww, no "parallel" available - fall back to boring
