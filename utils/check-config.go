@@ -87,7 +87,7 @@ func checkCGroupConfig() error {
 		} else {
 			s = "Non-existent cgroup hierarchy mountpoint"
 		}
-		return fmt.Errorf("%s: (see https://github.com/tianon/cgroupfs-mount)", s)
+		return fmt.Errorf("%s (see https://github.com/tianon/cgroupfs-mount)", s)
 	}
 
 	return nil
@@ -185,12 +185,12 @@ func checkApparmor() error {
 		if _, err := exec.LookPath("apparmor_parser"); err != nil {
 			s := "enabled but apparmor_parser missing"
 			if _, err := exec.LookPath("apt-get"); err == nil {
-				return fmt.Errorf("%s: (use 'apt-get install apparmor' to fix this)", s)
+				return fmt.Errorf("%s (use 'apt-get install apparmor' to fix this)", s)
 			}
 			if _, err := exec.LookPath("yum"); err == nil {
-				return fmt.Errorf("%s: (your best bet is 'yum install apparmor-parser' to fix this)", s)
+				return fmt.Errorf("%s (your best bet is 'yum install apparmor-parser' to fix this)", s)
 			}
-			return fmt.Errorf("%s: (look for an 'apparmor' package for your distribution)", s)
+			return fmt.Errorf("%s (look for an 'apparmor' package for your distribution)", s)
 		}
 	}
 	return nil
