@@ -7,26 +7,24 @@ import (
 	"strings"
 )
 
-type unit int64
-
 // See: http://en.wikipedia.org/wiki/Binary_prefix
 const (
 	// Decimal
-	KB unit = 1000
-	MB      = 1000 * KB
-	GB      = 1000 * MB
-	TB      = 1000 * GB
-	PB      = 1000 * TB
+	KB = 1000
+	MB = 1000 * KB
+	GB = 1000 * MB
+	TB = 1000 * GB
+	PB = 1000 * TB
 
 	// Binary
-	KiB unit = 1024
-	MiB      = 1024 * KiB
-	GiB      = 1024 * MiB
-	TiB      = 1024 * GiB
-	PiB      = 1024 * TiB
+	KiB = 1024
+	MiB = 1024 * KiB
+	GiB = 1024 * MiB
+	TiB = 1024 * GiB
+	PiB = 1024 * TiB
 )
 
-type unitMap map[string]unit
+type unitMap map[string]int64
 
 var (
 	decimalMap = unitMap{"k": KB, "m": MB, "g": GB, "t": TB, "p": PB}
@@ -81,7 +79,7 @@ func parseSize(sizeStr string, uMap unitMap) (int64, error) {
 
 	unitPrefix := strings.ToLower(matches[2])
 	if mul, ok := uMap[unitPrefix]; ok {
-		size *= int64(mul)
+		size *= mul
 	}
 
 	return size, nil
