@@ -44,9 +44,3 @@ func TestHumanDuration(t *testing.T) {
 	assertEquals(t, "2.010959 years", HumanDuration(24*month+2*week))
 	assertEquals(t, "3.164384 years", HumanDuration(3*year+2*month))
 }
-
-func assertEquals(t *testing.T, expected, actual interface{}) {
-	if expected != actual {
-		t.Errorf("Expected '%s' but got '%s'", expected, actual)
-	}
-}
