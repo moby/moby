@@ -125,14 +125,6 @@ func main() {
 			return
 		}
 
-		// set up the TempDir to use a canonical path
-		tmp := os.TempDir()
-		realTmp, err := utils.ReadSymlinkedDirectory(tmp)
-		if err != nil {
-			log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
-		}
-		os.Setenv("TMPDIR", realTmp)
-
 		// get the canonical path to the Docker root directory
 		root := *flRoot
 		var realRoot string
@@ -144,6 +136,15 @@ func main() {
 				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
 			}
 		}
+
+		// set up the TempDir to use a canonical path
+		tmp := utils.TempDir(realRoot)
+		realTmp, err := utils.ReadSymlinkedDirectory(tmp)
+		if err != nil {
+			log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+		}
+		os.Setenv("TMPDIR", realTmp)
+
 		if err := checkKernelAndArch(); err != nil {
 			log.Fatal(err)
 		}
