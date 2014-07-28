@@ -50,7 +50,12 @@ func (p *JSONProgress) String() string {
 	total := units.HumanSize(int64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
 	if width > 110 {
-		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage))
+		// this number can't be negetive gh#7136
+		numSpaces := 0
+		if 50-percentage > 0 {
+			numSpaces = 50 - percentage
+		}
+		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
