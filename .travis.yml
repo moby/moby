@@ -4,7 +4,7 @@
 language: go
 
 # This should match the version in the Dockerfile.
-go: 1.2.1
+go: 1.3
 
 # Let us have pretty experimental Docker-based Travis workers.
 # (These spin up much faster than the VM-based ones.)
