@@ -68,7 +68,7 @@ and above.
 If you are behind a HTTP proxy server, for example in corporate settings, 
 you will need to add this configuration in the Docker *systemd service file*.
 
-Edit file `/lib/systemd/system/docker.service`. Add the following to
+Edit file `/usr/lib/systemd/system/docker.service`. Add the following to
 section `[Service]` :
 
     Environment="HTTP_PROXY=http://proxy.example.com:80/"
