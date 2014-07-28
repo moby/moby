@@ -2615,3 +2615,30 @@ func (cli *DockerCli) CmdMetric(args ...string) error {
 
 	return nil
 }
+
+func (cli *DockerCli) CmdExec(args ...string) error {
+	cmd := cli.Subcmd("exec", "CONTAINER COMMAND [ARGS...]", "Execute command in a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	command := cmd.Arg(1)
+
+	var execData engine.Env
+
+	execData.Set("command", command)
+	execData.SetList("args", cmd.Args()[2:])
+
+	body, _, err := readBody(cli.call("POST", "/containers/"+name+"/exec", execData, false))
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(body))
+
+	return nil
+}

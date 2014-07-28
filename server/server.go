@@ -154,6 +154,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"containers":       srv.Containers,
 		"cgroup":           srv.ContainerCgroup,
 		"metric":           srv.ContainerMetric,
+		"exec":             srv.ContainerExec,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
@@ -2492,6 +2493,36 @@ func (srv *Server) ContainerMetric(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		job.Stdout.Write(b)
+
+		return engine.StatusOK
+	}
+	return job.Errorf("No such container: %s", name)
+}
+
+func (srv *Server) ContainerExec(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name    = job.Args[0]
+		command = job.Getenv("command")
+		args    = job.GetenvList("args")
+	)
+
+	utils.Debugf("name %s, command %s, args %s", name, command, args)
+
+	if container := srv.daemon.Get(name); container != nil {
+		if !container.State.IsRunning() {
+			return job.Errorf("Container %s is not running", name)
+		}
+
+		output, err := srv.daemon.ExecIn(container.ID, command, args)
+		log.Printf("%s", output)
+		job.Setenv("output", string(output))
+		if err != nil {
+			return job.Error(err)
+		}
 
 		return engine.StatusOK
 	}

@@ -1208,6 +1208,40 @@ func getContainersMetric(eng *engine.Engine, version version.Version, w http.Res
 	return job.Run()
 }
 
+func postContainersExec(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var execData engine.Env
+
+	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
+		if err := execData.Decode(r.Body); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	command := execData.Get("command")
+	args := execData.GetList("args")
+
+	job := eng.Job("exec", vars["name"])
+	job.Setenv("command", command)
+	job.SetenvList("args", args)
+
+	err := job.Run()
+	output := job.Getenv("output")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(output))
+		return err
+	}
+	w.Write([]byte(strings.TrimSuffix(output, "\n")))
+
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1335,6 +1369,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/exec/{name:.*}/start":         postContainerExecStart,
 			"/exec/{name:.*}/resize":        postContainerExecResize,
 			"/containers/{name:.*}/cgroup":  postContainersCgroup,
+			"/containers/{name:.*}/exec":    postContainersExec,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
