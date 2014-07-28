@@ -118,7 +118,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from images' -a '(__fish_pri
 complete -c docker -f -n '__fish_docker_no_subcommand' -a import -d 'Create a new filesystem image from the contents of a tarball'
 
 # info
-complete -c docker -f -n '__fish_docker_no_subcommand' -a info -d 'Display system-wide information'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a info -d 'Display system-wide information and component versions'
 
 # inspect
 complete -c docker -f -n '__fish_docker_no_subcommand' -a inspect -d 'Return low-level information on a container'
@@ -246,9 +246,6 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from tag' -a '(__fish_print_
 # top
 complete -c docker -f -n '__fish_docker_no_subcommand' -a top -d 'Lookup the running processes of a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from top' -a '(__fish_print_docker_containers running)' -d "Container"
-
-# version
-complete -c docker -f -n '__fish_docker_no_subcommand' -a version -d 'Show the docker version information'
 
 # wait
 complete -c docker -f -n '__fish_docker_no_subcommand' -a wait -d 'Block until a container stops, then print its exit code'

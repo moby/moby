@@ -29,18 +29,28 @@ There are no available options.
 Here is a sample output:
 
     # docker info
-    Containers: 18
-    Images: 95
-    Storage Driver: devicemapper
-     Pool Name: docker-8:1-170408448-pool
-     Data file: /var/lib/docker/devicemapper/devicemapper/data
-     Metadata file: /var/lib/docker/devicemapper/devicemapper/metadata
-     Data Space Used: 9946.3 Mb
-     Data Space Total: 102400.0 Mb
-     Metadata Space Used: 9.9 Mb
-     Metadata Space Total: 2048.0 Mb
-    Execution Driver: native-0.1
-    Kernel Version: 3.10.0-116.el7.x86_64
+    Client version: 1.1.2
+    Client API version: 1.13
+    Go version (client): go1.2.1
+    Git commit (client): d84a070
+    Server version: 1.1.2
+    Server API version: 1.13
+    Go version (server): go1.2.1
+    Git commit (server): d84a070
+    Containers: 0
+    Images: 4
+    Storage Driver: aufs
+     Root Dir: /var/lib/docker/aufs
+     Dirs: 4
+    Execution Driver: native-0.2
+    Kernel Version: 3.15.3-tinycore64
+    Debug mode (server): true
+    Debug mode (client): false
+    Fds: 9
+    Goroutines: 10
+    EventsListeners: 0
+    Init Path: /usr/local/bin/docker
+    Sockets: [unix:///var/run/docker.sock]
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

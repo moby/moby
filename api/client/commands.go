@@ -63,7 +63,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
-		{"info", "Display system-wide information"},
+		{"info", "Display system-wide information and component versions"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"load", "Load an image from a tar archive"},
@@ -86,7 +86,6 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"tag", "Tag an image into a repository"},
 		{"top", "Lookup the running processes of a container"},
 		{"unpause", "Unpause a paused container"},
-		{"version", "Show the Docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
@@ -406,7 +405,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 	return encounteredError
 }
 
-// 'docker version': show version information
+// DEPRECATED 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
 	fmt.Fprintln(cli.err, "[DEPRECATED] The 'version' command has been deprecated. Displaying 'docker info'")
 	return cli.CmdInfo(args...)
@@ -414,7 +413,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 
 // 'docker info': display system-wide information.
 func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := cli.Subcmd("info", "", "Display system-wide information and versions of docker components")
+	cmd := cli.Subcmd("info", "", "Display system-wide information and component versions")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}

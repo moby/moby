@@ -641,11 +641,6 @@ _docker_top()
 	fi
 }
 
-_docker_version()
-{
-	return
-}
-
 _docker_wait()
 {
 	__docker_containers_all
@@ -685,7 +680,6 @@ _docker()
 			stop
 			tag
 			top
-			version
 			wait
 		"
 

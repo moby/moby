@@ -605,6 +605,14 @@ tar, then the ownerships might not get preserved.
 For example:
 
     $ sudo docker -D info
+    Client version: 1.1.2
+    Client API version: 1.13
+    Go version (client): go1.2.1
+    Git commit (client): d84a070
+    Server version: 1.1.2
+    Server API version: 1.13
+    Go version (server): go1.2.1
+    Git commit (server): d84a070
     Containers: 16
     Images: 2138
     Storage Driver: btrfs
@@ -622,7 +630,7 @@ For example:
 
 The global `-D` option tells all `docker` comands to output debug information.
 
-When sending issue reports, please use `docker version` and `docker -D info` to
+When sending issue reports, please use `docker -D info` to
 ensure we know how your setup is configured.
 
 ## inspect
@@ -1303,15 +1311,6 @@ processes in a container.
 See the [cgroups freezer documentation]
 (https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
 further details.
-
-## version
-
-    Usage: docker version
-
-    Show the Docker version information.
-
-Show the Docker version, API version, Git commit, and Go version of
-both Docker client and daemon.
 
 ## wait
 

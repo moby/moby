@@ -84,8 +84,8 @@ Then follow the regular installation steps.
 
 ## Run your first container!
 
-    # check your docker version
-    $ sudo ./docker version
+    # check your docker --version
+    $ sudo ./docker --version
 
     # run a container and open an interactive shell in the container
     $ sudo ./docker run -i -t ubuntu /bin/bash

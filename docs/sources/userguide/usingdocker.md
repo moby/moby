@@ -29,25 +29,37 @@ flags and arguments.
     # Example:
     $ docker run -i -t ubuntu /bin/bash
 
-Let's see this in action by using the `docker version` command to return
-version information on the currently installed Docker client and daemon.
+Let's see this in action by using the `docker info` command to return
+information on the currently installed Docker client and daemon.
 
-    $ sudo docker version
+    $ sudo docker info
 
 This command will not only provide you the version of Docker client and
 daemon you are using, but also the version of Go (the programming
-language powering Docker).
+language powering Docker), kernel version, and much more.
 
-    Client version: 0.8.0
-    Go version (client): go1.2
-
-    Git commit (client): cc3a8c8
-    Server version: 0.8.0
-
-    Git commit (server): cc3a8c8
-    Go version (server): go1.2
-
-    Last stable version: 0.8.0
+    Client version: 1.1.2
+    Client API version: 1.13
+    Go version (client): go1.2.1
+    Git commit (client): d84a070
+    Server version: 1.1.2
+    Server API version: 1.13
+    Go version (server): go1.2.1
+    Git commit (server): d84a070
+    Containers: 0
+    Images: 4
+    Storage Driver: aufs
+     Root Dir: /var/lib/docker/aufs
+     Dirs: 4
+    Execution Driver: native-0.2
+    Kernel Version: 3.15.3-tinycore64
+    Debug mode (server): true
+    Debug mode (client): false
+    Fds: 9
+    Goroutines: 10
+    EventsListeners: 0
+    Init Path: /usr/local/bin/docker
+    Sockets: [unix:///var/run/docker.sock]
 
 ### Seeing what the Docker client can do
 

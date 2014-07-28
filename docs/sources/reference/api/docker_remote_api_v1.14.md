@@ -1202,33 +1202,6 @@ Display system-wide information
     -   **200** – no error
     -   **500** – server error
 
-### Show the docker version information
-
-`GET /version`
-
-Show the docker version information
-
-    **Example request**:
-
-        GET /version HTTP/1.1
-
-    **Example response**:
-
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {
-             "ApiVersion":"1.12",
-             "Version":"0.2.2",
-             "GitCommit":"5a2a5cc+CHANGES",
-             "GoVersion":"go1.0.3"
-        }
-
-    Status Codes:
-
-    -   **200** – no error
-    -   **500** – server error
-
 ### Ping the docker server
 
 `GET /_ping`
