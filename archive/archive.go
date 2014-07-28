@@ -356,6 +356,10 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 						return err
 					}
 					if matched {
+						if filepath.Clean(relFilePath) == "." {
+							utils.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
+							continue
+						}
 						utils.Debugf("Skipping excluded path: %s", relFilePath)
 						if f.IsDir() {
 							return filepath.SkipDir
