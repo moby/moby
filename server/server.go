@@ -1236,7 +1236,12 @@ func (srv *Server) pullRepository(r *registry.Registry, out io.Writer, localName
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repository %s", askedTag, localName)
+			if _, exists := repoData.ImgList[askedTag]; !exists {
+				return fmt.Errorf("Tag %s not found in repository %s", askedTag, localName)
+			}
+			utils.Debugf("Image with ID matching tag (%s) exists", askedTag)
+			id = askedTag
+			tagsList[askedTag] = id
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
