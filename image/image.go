@@ -1,19 +1,19 @@
 package image
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
 	"time"
-	"encoding/json"
-	"fmt"
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/pkg/log"
 )
 
 type Image struct {

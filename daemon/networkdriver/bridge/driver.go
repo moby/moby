@@ -13,9 +13,9 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/iptables"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/libcontainer/netlink"
 )
 

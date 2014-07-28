@@ -13,8 +13,8 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
 

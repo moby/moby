@@ -1,25 +1,24 @@
 package log
 
 import (
-	"runtime"
-	"strings"
-	"os"
 	"fmt"
 	"io"
+	"os"
+	"runtime"
+	"strings"
 )
 
 type priority int
 
 const (
 	errorFormat = "[%s] %s:%d %s\n"
-	logFormat = "[%s] %s\n"
+	logFormat   = "[%s] %s\n"
 
 	fatal priority = iota
 	error
 	info
 	debug
 )
-
 
 func (p priority) String() string {
 	switch p {

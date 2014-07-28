@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )

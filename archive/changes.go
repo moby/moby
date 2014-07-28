@@ -13,8 +13,8 @@ import (
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/system"
 )
 
 type ChangeType int

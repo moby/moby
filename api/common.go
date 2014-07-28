@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/pkg/log"
 )
 
 const (

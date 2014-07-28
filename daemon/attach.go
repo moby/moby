@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/utils"
 )
 
 func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {

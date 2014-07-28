@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	std_log "log"
 	"net"
 	"net/url"
 	"os"
@@ -14,16 +15,15 @@ import (
 	"syscall"
 	"testing"
 	"time"
-	std_log "log"
 
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/sysinit"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/pkg/log"
 )
 
 const (

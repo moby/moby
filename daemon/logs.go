@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/tailfile"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"

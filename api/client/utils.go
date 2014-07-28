@@ -20,8 +20,8 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )

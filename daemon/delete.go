@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
 )
 
 // FIXME: rename to ContainerRemove for consistency with the CLI command.

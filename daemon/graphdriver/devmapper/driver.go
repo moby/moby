@@ -9,8 +9,8 @@ import (
 	"path"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/mount"
 )
 
 func init() {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/parsers"
 )
 
 // CmdImageExport exports all images with the given tag. All versions

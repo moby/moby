@@ -25,10 +25,10 @@ import (
 	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )

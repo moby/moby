@@ -20,16 +20,16 @@ import (
 	"syscall"
 
 	"code.google.com/p/go.net/websocket"
-	"github.com/gorilla/mux"
 	"github.com/docker/libcontainer/user"
+	"github.com/gorilla/mux"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/listenbuffer"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )

@@ -26,10 +26,10 @@ import (
 
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/pkg/log"
 )
 
 var (

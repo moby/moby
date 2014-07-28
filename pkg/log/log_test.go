@@ -11,9 +11,9 @@ func TestLogFatalf(t *testing.T) {
 	var output *bytes.Buffer
 
 	tests := []struct {
-		Level priority
-		Format string
-		Values []interface{}
+		Level           priority
+		Format          string
+		Values          []interface{}
 		ExpectedPattern string
 	}{
 		{fatal, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[fatal\\] testing.go:\\d+ 1 \\+ 1 = 2"},
