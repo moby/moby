@@ -792,7 +792,7 @@ func TestGetEnabledCors(t *testing.T) {
 
 	r := httptest.NewRecorder()
 
-	req, err := http.NewRequest("GET", "/version", nil)
+	req, err := http.NewRequest("GET", "/info", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

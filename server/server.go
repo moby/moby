@@ -45,6 +45,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemonconfig"
@@ -800,6 +801,13 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	}
 
 	v := &engine.Env{}
+	v.SetJson("Version", dockerversion.VERSION)
+	v.SetJson("ApiVersion", api.APIVERSION)
+	v.Set("GitCommit", dockerversion.GITCOMMIT)
+	v.Set("GoVersion", runtime.Version())
+	v.Set("Os", runtime.GOOS)
+	v.Set("Arch", runtime.GOARCH)
+
 	v.SetInt("Containers", len(srv.daemon.List()))
 	v.SetInt("Images", imgcount)
 	v.Set("Driver", srv.daemon.GraphDriver().String())

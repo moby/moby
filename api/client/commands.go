@@ -408,15 +408,21 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := cli.Subcmd("version", "", "Show the Docker version information.")
+	fmt.Fprintln(cli.err, "[DEPRECATED] The 'version' command has been deprecated. Displaying 'docker info'")
+	return cli.CmdInfo(args...)
+}
+
+// 'docker info': display system-wide information.
+func (cli *DockerCli) CmdInfo(args ...string) error {
+	cmd := cli.Subcmd("info", "", "Display system-wide information and versions of docker components")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
 	if cmd.NArg() > 0 {
 		cmd.Usage()
 		return nil
 	}
+
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
 	}
@@ -427,42 +433,6 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
-	body, _, err := readBody(cli.call("GET", "/version", nil, false))
-	if err != nil {
-		return err
-	}
-
-	out := engine.NewOutput()
-	remoteVersion, err := out.AddEnv()
-	if err != nil {
-		utils.Errorf("Error reading remote version: %s\n", err)
-		return err
-	}
-	if _, err := out.Write(body); err != nil {
-		utils.Errorf("Error reading remote version: %s\n", err)
-		return err
-	}
-	out.Close()
-	fmt.Fprintf(cli.out, "Server version: %s\n", remoteVersion.Get("Version"))
-	if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
-		fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
-	}
-	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
-	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
-	return nil
-}
-
-// 'docker info': display system-wide information.
-func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := cli.Subcmd("info", "", "Display system-wide information")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() > 0 {
-		cmd.Usage()
-		return nil
-	}
-
 	body, _, err := readBody(cli.call("GET", "/info", nil, false))
 	if err != nil {
 		return err
@@ -471,14 +441,21 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	out := engine.NewOutput()
 	remoteInfo, err := out.AddEnv()
 	if err != nil {
+		utils.Errorf("Error reading remote info: %s\n", err)
 		return err
 	}
-
 	if _, err := out.Write(body); err != nil {
 		utils.Errorf("Error reading remote info: %s\n", err)
 		return err
 	}
 	out.Close()
+
+	fmt.Fprintf(cli.out, "Server version: %s\n", remoteInfo.Get("Version"))
+	if apiVersion := remoteInfo.Get("ApiVersion"); apiVersion != "" {
+		fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
+	}
+	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteInfo.Get("GoVersion"))
+	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteInfo.Get("GitCommit"))
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", remoteInfo.GetInt("Containers"))
 	fmt.Fprintf(cli.out, "Images: %d\n", remoteInfo.GetInt("Images"))
