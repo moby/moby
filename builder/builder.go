@@ -1,4 +1,4 @@
-package server
+package builder
 
 import (
 	"crypto/sha256"
@@ -21,6 +21,7 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
@@ -41,7 +42,7 @@ type BuildFile interface {
 
 type buildFile struct {
 	daemon *daemon.Daemon
-	srv    *Server
+	eng    *engine.Engine
 
 	image      string
 	maintainer string
@@ -96,7 +97,7 @@ func (b *buildFile) CmdFrom(name string) error {
 				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
 				pullRegistryAuth = &resolvedAuth
 			}
-			job := b.srv.Eng.Job("pull", remote, tag)
+			job := b.eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())
 			job.SetenvBool("parallel", true)
 			job.SetenvJson("authConfig", pullRegistryAuth)
@@ -167,12 +168,12 @@ func (b *buildFile) CmdMaintainer(name string) error {
 
 // probeCache checks to see if image-caching is enabled (`b.utilizeCache`)
 // and if so attempts to look up the current `b.image` and `b.config` pair
-// in the current server `b.srv`. If an image is found, probeCache returns
+// in the current server `b.daemon`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
 func (b *buildFile) probeCache() (bool, error) {
 	if b.utilizeCache {
-		if cache, err := b.srv.ImageGetCached(b.image, b.config); err != nil {
+		if cache, err := b.daemon.ImageGetCached(b.image, b.config); err != nil {
 			return false, err
 		} else if cache != nil {
 			fmt.Fprintf(b.outStream, " ---> Using cache\n")
@@ -889,10 +890,10 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func NewBuildFile(srv *Server, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(d *daemon.Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
-		daemon:        srv.daemon,
-		srv:           srv,
+		daemon:        d,
+		eng:           eng,
 		config:        &runconfig.Config{},
 		outStream:     outStream,
 		errStream:     errStream,
