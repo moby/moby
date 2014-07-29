@@ -32,7 +32,7 @@ it:
 
     description "Redis container"
     author "Me"
-    start on docker-up
+    start on filesystem and docker-up
     stop on docker-stop
     respawn
     script
