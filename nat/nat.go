@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/parsers"
 )
 
 const (
@@ -103,7 +103,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := utils.PartParser(PortSpecTemplate, rawPort)
+		parts, err := parsers.PartParser(PortSpecTemplate, rawPort)
 		if err != nil {
 			return nil, nil, err
 		}

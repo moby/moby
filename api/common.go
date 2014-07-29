@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/utils"
 )
@@ -17,7 +18,7 @@ const (
 )
 
 func ValidateHost(val string) (string, error) {
-	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
+	host, err := parsers.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
 	if err != nil {
 		return val, err
 	}

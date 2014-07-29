@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/sysinit"
 	"github.com/docker/docker/utils"
 )
@@ -292,10 +293,10 @@ func checkKernelAndArch() error {
 	// without actually causing a kernel panic, so we need this workaround until
 	// the circumstances of pre-3.8 crashes are clearer.
 	// For details see http://github.com/docker/docker/issues/407
-	if k, err := utils.GetKernelVersion(); err != nil {
+	if k, err := kernel.GetKernelVersion(); err != nil {
 		log.Printf("WARNING: %s\n", err)
 	} else {
-		if utils.CompareKernelVersion(k, &utils.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
 				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 			}

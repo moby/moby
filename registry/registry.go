@@ -25,6 +25,7 @@ import (
 
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/utils"
 )
 
@@ -956,7 +957,7 @@ func HTTPRequestFactory(metaHeaders map[string][]string) *utils.HTTPRequestFacto
 	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", dockerversion.VERSION})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"go", runtime.Version()})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", dockerversion.GITCOMMIT})
-	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
 		httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", kernelVersion.String()})
 	}
 	httpVersion = append(httpVersion, &simpleVersionInfo{"os", runtime.GOOS})

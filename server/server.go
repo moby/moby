@@ -54,12 +54,14 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/utils/filters"
 )
 
 func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
@@ -383,7 +385,7 @@ func (srv *Server) ImageExport(job *engine.Job) engine.Status {
 		}
 		if img != nil {
 			// This is a named image like 'busybox:latest'
-			repoName, repoTag := utils.ParseRepositoryTag(name)
+			repoName, repoTag := parsers.ParseRepositoryTag(name)
 			if err := srv.exportImage(job.Eng, img.ID, tempdir); err != nil {
 				return job.Error(err)
 			}
@@ -493,7 +495,7 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 	)
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
-	repoName, tag = utils.ParseRepositoryTag(repoName)
+	repoName, tag = parsers.ParseRepositoryTag(repoName)
 
 	if remoteURL == "" {
 		context = ioutil.NopCloser(job.Stdin)
@@ -789,7 +791,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 		imgcount = len(images)
 	}
 	kernelVersion := "<unknown>"
-	if kv, err := utils.GetKernelVersion(); err == nil {
+	if kv, err := kernel.GetKernelVersion(); err == nil {
 		kernelVersion = kv.String()
 	}
 
@@ -1746,7 +1748,7 @@ func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
 	container, buildWarnings, err := srv.daemon.Create(config, name)
 	if err != nil {
 		if srv.daemon.Graph().IsNotExist(err) {
-			_, tag := utils.ParseRepositoryTag(config.Image)
+			_, tag := parsers.ParseRepositoryTag(config.Image)
 			if tag == "" {
 				tag = graph.DEFAULTTAG
 			}
@@ -1924,7 +1926,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 		tagDeleted    bool
 	)
 
-	repoName, tag = utils.ParseRepositoryTag(name)
+	repoName, tag = parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = graph.DEFAULTTAG
 	}
@@ -1950,7 +1952,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 	//If delete by id, see if the id belong only to one repository
 	if repoName == "" {
 		for _, repoAndTag := range srv.daemon.Repositories().ByID()[img.ID] {
-			parsedRepo, parsedTag := utils.ParseRepositoryTag(repoAndTag)
+			parsedRepo, parsedTag := parsers.ParseRepositoryTag(repoAndTag)
 			if repoName == "" || repoName == parsedRepo {
 				repoName = parsedRepo
 				if parsedTag != "" {

@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -401,92 +400,6 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-type KernelVersionInfo struct {
-	Kernel int
-	Major  int
-	Minor  int
-	Flavor string
-}
-
-func (k *KernelVersionInfo) String() string {
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
-}
-
-// Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, 0 if a == b, 1 it a > b
-func CompareKernelVersion(a, b *KernelVersionInfo) int {
-	if a.Kernel < b.Kernel {
-		return -1
-	} else if a.Kernel > b.Kernel {
-		return 1
-	}
-
-	if a.Major < b.Major {
-		return -1
-	} else if a.Major > b.Major {
-		return 1
-	}
-
-	if a.Minor < b.Minor {
-		return -1
-	} else if a.Minor > b.Minor {
-		return 1
-	}
-
-	return 0
-}
-
-func GetKernelVersion() (*KernelVersionInfo, error) {
-	var (
-		err error
-	)
-
-	uts, err := uname()
-	if err != nil {
-		return nil, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
-
-	return ParseRelease(string(release))
-}
-
-func ParseRelease(release string) (*KernelVersionInfo, error) {
-	var (
-		kernel, major, minor, parsed int
-		flavor, partial              string
-	)
-
-	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
-	// make sure we got all the version numbers.
-	parsed, _ = fmt.Sscanf(release, "%d.%d%s", &kernel, &major, &partial)
-	if parsed < 2 {
-		return nil, errors.New("Can't parse kernel version " + release)
-	}
-
-	// sometimes we have 3.12.25-gentoo, but sometimes we just have 3.12-1-amd64
-	parsed, _ = fmt.Sscanf(partial, ".%d%s", &minor, &flavor)
-	if parsed < 1 {
-		flavor = partial
-	}
-
-	return &KernelVersionInfo{
-		Kernel: kernel,
-		Major:  major,
-		Minor:  minor,
-		Flavor: flavor,
-	}, nil
-}
-
 // FIXME: this is deprecated by CopyWithTar in archive.go
 func CopyDirectory(source, dest string) error {
 	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
@@ -580,80 +493,6 @@ func GetLines(input []byte, commentMarker []byte) [][]byte {
 	return output
 }
 
-// FIXME: Change this not to receive default value as parameter
-func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
-	var (
-		proto string
-		host  string
-		port  int
-	)
-	addr = strings.TrimSpace(addr)
-	switch {
-	case addr == "tcp://":
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	case strings.HasPrefix(addr, "unix://"):
-		proto = "unix"
-		addr = strings.TrimPrefix(addr, "unix://")
-		if addr == "" {
-			addr = defaultUnix
-		}
-	case strings.HasPrefix(addr, "tcp://"):
-		proto = "tcp"
-		addr = strings.TrimPrefix(addr, "tcp://")
-	case strings.HasPrefix(addr, "fd://"):
-		return addr, nil
-	case addr == "":
-		proto = "unix"
-		addr = defaultUnix
-	default:
-		if strings.Contains(addr, "://") {
-			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)
-		}
-		proto = "tcp"
-	}
-
-	if proto != "unix" && strings.Contains(addr, ":") {
-		hostParts := strings.Split(addr, ":")
-		if len(hostParts) != 2 {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		} else {
-			host = defaultHost
-		}
-
-		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
-			port = p
-		} else {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-
-	} else if proto == "tcp" && !strings.Contains(addr, ":") {
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	} else {
-		host = addr
-	}
-	if proto == "unix" {
-		return fmt.Sprintf("%s://%s", proto, host), nil
-	}
-	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
-}
-
-// Get a repos name and returns the right reposName + tag
-// The tag can be confusing because of a port in a repository name.
-//     Ex: localhost.localdomain:5000/samalba/hipache:latest
-func ParseRepositoryTag(repos string) (string, string) {
-	n := strings.LastIndex(repos, ":")
-	if n < 0 {
-		return repos, ""
-	}
-	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
-		return repos[:n], tag
-	}
-	return repos, ""
-}
-
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
 	Status     string
@@ -697,27 +536,6 @@ func ShellQuoteArguments(args []string) string {
 		quote(arg, &buf)
 	}
 	return buf.String()
-}
-
-func PartParser(template, data string) (map[string]string, error) {
-	// ip:public:private
-	var (
-		templateParts = strings.Split(template, ":")
-		parts         = strings.Split(data, ":")
-		out           = make(map[string]string, len(templateParts))
-	)
-	if len(parts) != len(templateParts) {
-		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
-	}
-
-	for i, t := range templateParts {
-		value := ""
-		if len(parts) > i {
-			value = parts[i]
-		}
-		out[t] = value
-	}
-	return out, nil
 }
 
 var globalTestID string
@@ -831,14 +649,6 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
 	}
 	return realPath, nil
-}
-
-func ParseKeyValueOpt(opt string) (string, string, error) {
-	parts := strings.SplitN(opt, "=", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
-	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
 // TreeSize walks a directory tree and returns its total size in bytes.

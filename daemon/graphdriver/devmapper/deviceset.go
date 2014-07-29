@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
@@ -1166,7 +1167,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 
 	foundBlkDiscard := false
 	for _, option := range options {
-		key, val, err := utils.ParseKeyValueOpt(option)
+		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
 			return nil, err
 		}
