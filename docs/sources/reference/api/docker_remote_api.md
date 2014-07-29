@@ -109,6 +109,11 @@ Trusted builds are now Automated Builds - `is_trusted` is now `is_automated`.
 **Removed Insert Endpoint**
 The `insert` endpoint has been removed.
 
+`POST /images/squash`
+
+**New!**
+New request to create images that combine multiple layers in existing images
+
 ## v1.11
 
 ### Full Documentation
