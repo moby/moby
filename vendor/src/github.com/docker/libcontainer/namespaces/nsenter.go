@@ -3,7 +3,6 @@
 package namespaces
 
 /*
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
@@ -12,7 +11,6 @@ package namespaces
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -145,36 +143,31 @@ void nsenter() {
 	char ns_dir[PATH_MAX];
 	memset(ns_dir, 0, PATH_MAX);
 	snprintf(ns_dir, PATH_MAX - 1, "/proc/%d/ns/", init_pid);
-	struct dirent *dent;
-	DIR *dir = opendir(ns_dir);
-	if (dir == NULL) {
-		fprintf(stderr, "nsenter: Failed to open directory \"%s\" with error: \"%s\"\n", ns_dir, strerror(errno));
-		exit(1);
-	}
 
-	while((dent = readdir(dir)) != NULL) {
-		if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0 || strcmp(dent->d_name, "user") == 0) {
-			continue;
-		}
-
-		// Get and open the namespace for the init we are joining..
+	char* namespaces[] = {"ipc", "uts", "net", "pid", "mnt"};
+	const int num = sizeof(namespaces) / sizeof(char*);
+	int i;
+	for (i = 0; i < num; i++) {
 		char buf[PATH_MAX];
 		memset(buf, 0, PATH_MAX);
-		snprintf(buf, PATH_MAX - 1, "%s%s", ns_dir, dent->d_name);
+		snprintf(buf, PATH_MAX - 1, "%s%s", ns_dir, namespaces[i]);
 		int fd = open(buf, O_RDONLY);
 		if (fd == -1) {
-			fprintf(stderr, "nsenter: Failed to open ns file \"%s\" for ns \"%s\" with error: \"%s\"\n", buf, dent->d_name, strerror(errno));
+			// Ignore nonexistent namespaces.
+			if (errno == ENOENT)
+				continue;
+
+			fprintf(stderr, "nsenter: Failed to open ns file \"%s\" for ns \"%s\" with error: \"%s\"\n", buf, namespaces[i], strerror(errno));
 			exit(1);
 		}
 
 		// Set the namespace.
 		if (setns(fd, 0) == -1) {
-			fprintf(stderr, "nsenter: Failed to setns for \"%s\" with error: \"%s\"\n", dent->d_name, strerror(errno));
+			fprintf(stderr, "nsenter: Failed to setns for \"%s\" with error: \"%s\"\n", namespaces[i], strerror(errno));
 			exit(1);
 		}
 		close(fd);
 	}
-	closedir(dir);
 
 	// We must fork to actually enter the PID namespace.
 	int child = fork();

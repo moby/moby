@@ -1,4 +1,4 @@
-// +build linux,!cgo
+// +build !cgo
 
 package system
 

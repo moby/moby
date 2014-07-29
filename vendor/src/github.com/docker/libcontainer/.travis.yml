@@ -21,10 +21,10 @@ install:
     - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go env; fi
     - go get -d -v ./...
     - if [ "$TRAVIS_GLOBAL_WTF" ]; then
-          export DOCKER_PATH="${GOPATH%%:*}/src/github.com/dotcloud/docker";
+          export DOCKER_PATH="${GOPATH%%:*}/src/github.com/docker/docker";
           mkdir -p "$DOCKER_PATH/hack/make";
-          ( cd "$DOCKER_PATH/hack/make" && wget -c 'https://raw.githubusercontent.com/dotcloud/docker/master/hack/make/'{.validate,validate-dco,validate-gofmt} );
-          sed -i 's!dotcloud/docker!docker/libcontainer!' "$DOCKER_PATH/hack/make/.validate";
+          ( cd "$DOCKER_PATH/hack/make" && wget -c 'https://raw.githubusercontent.com/docker/docker/master/hack/make/'{.validate,validate-dco,validate-gofmt} );
+          sed -i 's!docker/docker!docker/libcontainer!' "$DOCKER_PATH/hack/make/.validate";
       fi
 
 script:
