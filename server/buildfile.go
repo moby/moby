@@ -84,9 +84,46 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 func (b *buildFile) CmdFrom(name string) error {
 	image, err := b.daemon.Repositories().LookupImage(name)
 	if err != nil {
-		if b.daemon.Graph().IsNotExist(err) {
+		if !b.daemon.Graph().IsNotExist(err) {
+			return err
+		}
+
+		if strings.HasPrefix(name, "./") {
+
+			// FROM ./path
+
+			name = path.Join(b.contextPath, name)
+			if _, err := os.Stat(name); err != nil {
+				return err
+			}
+			filename := path.Join(name, "Dockerfile")
+			if _, err := os.Stat(filename); os.IsNotExist(err) {
+				return fmt.Errorf("no Dockerfile found in %s", name)
+			}
+			ctx, err := archive.Tar(name, archive.Uncompressed)
+			if err != nil {
+				return fmt.Errorf("unable to tar %s: %v", name, err)
+			}
+
+			defer ctx.Close()
+			tmpb := NewBuildFile(b.srv, b.outStream, b.errStream, b.verbose,
+				b.utilizeCache, b.rm, b.forceRm, b.outOld, b.sf, b.authConfig, b.configFile)
+
+			id, err := tmpb.Build(ctx)
+			if err != nil {
+				return err
+			}
+			image, err = b.daemon.Repositories().LookupImage(id)
+			if err != nil {
+				return err
+			}
+
+		} else {
+
+			// FROM image
+
 			remote, tag := utils.ParseRepositoryTag(name)
-			pullRegistryAuth := b.authConfig
+			pullRegistryAuth := &registry.AuthConfig{}
 			if len(b.configFile.Configs) > 0 {
 				// The request came with a full auth config file, we prefer to use that
 				endpoint, _, err := registry.ResolveRepositoryName(remote)
@@ -96,6 +133,7 @@ func (b *buildFile) CmdFrom(name string) error {
 				resolvedAuth := b.configFile.ResolveAuthConfig(endpoint)
 				pullRegistryAuth = &resolvedAuth
 			}
+
 			job := b.srv.Eng.Job("pull", remote, tag)
 			job.SetenvBool("json", b.sf.Json())
 			job.SetenvBool("parallel", true)
@@ -104,14 +142,14 @@ func (b *buildFile) CmdFrom(name string) error {
 			if err := job.Run(); err != nil {
 				return err
 			}
+
 			image, err = b.daemon.Repositories().LookupImage(name)
 			if err != nil {
 				return err
 			}
-		} else {
-			return err
 		}
 	}
+
 	b.image = image.ID
 	b.config = &runconfig.Config{}
 	if image.Config != nil {

@@ -1191,6 +1191,44 @@ func TestNoContext(t *testing.T) {
 }
 
 // TODO: TestCaching
+func TestChainBuildFromPath(t *testing.T) {
+	name := "testchainbuildfrompath"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM ./chain
+		RUN [ -f /first ]`,
+		map[string]string{
+			"chain/Dockerfile": `FROM busybox
+							RUN touch /first`,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - build chained Dockerfiles from path")
+}
+
+func TestChainBuildFromAmbiguous(t *testing.T) {
+	name := "testchainbuildfromambiguous"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM ./busybox
+			RUN [ -f /first ]`,
+		map[string]string{
+			"busybox/Dockerfile": `FROM busybox
+								RUN touch /first`,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - build chained Dockerfiles from ambiguos path and image")
+}
+
 func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	defer deleteImages(name)
