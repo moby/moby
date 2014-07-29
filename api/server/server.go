@@ -27,10 +27,10 @@ import (
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/systemd"
-	"github.com/docker/docker/pkg/user"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer/user"
 	"github.com/gorilla/mux"
 )
 
