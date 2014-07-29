@@ -20,11 +20,11 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 The current version of the API is v1.14
 
-Calling `/images/<name>/insert` is the same as calling
-`/v1.14/images/<name>/insert`.
+Calling `/info` is the same as calling
+`/v1.14/info`.
 
 You can still call an old version of the API using
-`/v1.13/images/<name>/insert`.
+`/v1.13/info`.
 
 ## v1.14
 
