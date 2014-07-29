@@ -93,9 +93,9 @@ fi
 
 # some rudimentary detection for whether we need to "sudo" our docker calls
 docker=''
-if docker version > /dev/null 2>&1; then
+if docker info > /dev/null 2>&1; then
 	docker='docker'
-elif sudo docker version > /dev/null 2>&1; then
+elif sudo docker info > /dev/null 2>&1; then
 	docker='sudo docker'
 elif command -v docker > /dev/null 2>&1; then
 	docker='docker'

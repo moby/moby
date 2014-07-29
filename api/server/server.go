@@ -143,6 +143,10 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 }
 
 func getVersion(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version.GreaterThanOrEqualTo("1.14") {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
 	w.Header().Set("Content-Type", "application/json")
 	eng.ServeHTTP(w, r)
 	return nil

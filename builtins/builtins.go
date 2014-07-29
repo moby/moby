@@ -20,6 +20,7 @@ func Register(eng *engine.Engine) error {
 	if err := remote(eng); err != nil {
 		return err
 	}
+	// Deprecated. Kept for backwards compatibility
 	if err := eng.Register("version", dockerVersion); err != nil {
 		return err
 	}
@@ -59,7 +60,7 @@ func daemon(eng *engine.Engine) error {
 	return eng.Register("init_networkdriver", bridge.InitDriver)
 }
 
-// builtins jobs independent of any subsystem
+// Deprecated. Kept for backwards compatibility
 func dockerVersion(job *engine.Job) engine.Status {
 	v := &engine.Env{}
 	v.SetJson("Version", dockerversion.VERSION)

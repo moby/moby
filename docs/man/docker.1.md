@@ -178,9 +178,6 @@ inside it)
 **docker-unpause(1)**
   Unpause all processes within a container
 
-**docker-version(1)**
-  Show the Docker version information
-
 **docker-wait(1)**
   Block until a container stops, then print its exit code
 

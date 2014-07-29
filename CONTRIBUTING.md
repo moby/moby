@@ -11,7 +11,6 @@ GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc).
 Please include:
 
 * The output of `uname -a`.
-* The output of `docker version`.
 * The output of `docker -D info`.
 
 Please also include the steps required to reproduce the problem if

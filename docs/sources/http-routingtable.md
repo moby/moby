@@ -4,8 +4,7 @@
 [**/build**](#cap-/build) | [**/commit**](#cap-/commit) |
 [**/containers**](#cap-/containers) | [**/events**](#cap-/events) |
 [**/events:**](#cap-/events:) | [**/images**](#cap-/images) |
-[**/info**](#cap-/info) | [**/v1**](#cap-/v1) |
-[**/version**](#cap-/version)
+[**/info**](#cap-/info) | [**/v1**](#cap-/v1)
 
   -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----
                                                                                                                                                                           
@@ -97,8 +96,6 @@
      [`POST /v1/users`](../reference/api/index_api/#post--v1-users)                                                                                                **
      [`PUT /v1/users/(username)/`](../reference/api/index_api/#put--v1-users-(username)-)                                                                          **
                                                                                                                                                                           
-     **/version**                                                                                                                                                         
-     [`GET /version`](../reference/api/docker_remote_api_v1.9/#get--version)                                                                                       **
   -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----
 
 

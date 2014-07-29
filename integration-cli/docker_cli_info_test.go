@@ -17,7 +17,20 @@ func TestInfoEnsureSucceeds(t *testing.T) {
 		t.Fatal("failed to execute docker info")
 	}
 
-	stringsToCheck := []string{"Containers:", "Execution Driver:", "Kernel Version:"}
+	stringsToCheck := []string{
+		"Client version:",
+		"Client API version:",
+		"Go version (client):",
+		"Git commit (client):",
+		"Server version:",
+		"Server API version:",
+		"Go version (server):",
+		"Git commit (server):",
+
+		"Containers:",
+		"Execution Driver:",
+		"Kernel Version:",
+	}
 
 	for _, linePrefix := range stringsToCheck {
 		if !strings.Contains(out, linePrefix) {

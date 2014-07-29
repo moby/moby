@@ -64,7 +64,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
 		{"import", "Create a new filesystem image from the contents of a tarball"},
-		{"info", "Display system-wide information"},
+		{"info", "Display system-wide information and component versions"},
 		{"inspect", "Return low-level information on a container"},
 		{"kill", "Kill a running container"},
 		{"load", "Load an image from a tar archive"},
@@ -87,7 +87,6 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		{"tag", "Tag an image into a repository"},
 		{"top", "Lookup the running processes of a container"},
 		{"unpause", "Unpause a paused container"},
-		{"version", "Show the Docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
@@ -407,17 +406,23 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 	return encounteredError
 }
 
-// 'docker version': show version information
+// DEPRECATED 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := cli.Subcmd("version", "", "Show the Docker version information.")
+	fmt.Fprintln(cli.err, "[DEPRECATED] The 'version' command has been deprecated. Displaying 'docker info'")
+	return cli.CmdInfo(args...)
+}
+
+// 'docker info': display system-wide information.
+func (cli *DockerCli) CmdInfo(args ...string) error {
+	cmd := cli.Subcmd("info", "", "Display system-wide information and component versions")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
 	if cmd.NArg() > 0 {
 		cmd.Usage()
 		return nil
 	}
+
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
 	}
@@ -428,42 +433,6 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
-	body, _, err := readBody(cli.call("GET", "/version", nil, false))
-	if err != nil {
-		return err
-	}
-
-	out := engine.NewOutput()
-	remoteVersion, err := out.AddEnv()
-	if err != nil {
-		utils.Errorf("Error reading remote version: %s\n", err)
-		return err
-	}
-	if _, err := out.Write(body); err != nil {
-		utils.Errorf("Error reading remote version: %s\n", err)
-		return err
-	}
-	out.Close()
-	fmt.Fprintf(cli.out, "Server version: %s\n", remoteVersion.Get("Version"))
-	if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
-		fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
-	}
-	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
-	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
-	return nil
-}
-
-// 'docker info': display system-wide information.
-func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := cli.Subcmd("info", "", "Display system-wide information")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
-	if cmd.NArg() > 0 {
-		cmd.Usage()
-		return nil
-	}
-
 	body, _, err := readBody(cli.call("GET", "/info", nil, false))
 	if err != nil {
 		return err
@@ -472,14 +441,21 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	out := engine.NewOutput()
 	remoteInfo, err := out.AddEnv()
 	if err != nil {
+		utils.Errorf("Error reading remote info: %s\n", err)
 		return err
 	}
-
 	if _, err := out.Write(body); err != nil {
 		utils.Errorf("Error reading remote info: %s\n", err)
 		return err
 	}
 	out.Close()
+
+	fmt.Fprintf(cli.out, "Server version: %s\n", remoteInfo.Get("Version"))
+	if apiVersion := remoteInfo.Get("ApiVersion"); apiVersion != "" {
+		fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
+	}
+	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteInfo.Get("GoVersion"))
+	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteInfo.Get("GitCommit"))
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", remoteInfo.GetInt("Containers"))
 	fmt.Fprintf(cli.out, "Images: %d\n", remoteInfo.GetInt("Images"))
