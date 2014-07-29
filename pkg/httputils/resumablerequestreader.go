@@ -1,8 +1,9 @@
-package utils
+package httputils
 
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -70,7 +71,7 @@ func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
 		r.cleanUpResponse()
 	}
 	if err != nil && err != io.EOF {
-		Debugf("encountered error during pull and clearing it before resume: %s", err)
+		log.Printf("encountered error during pull and clearing it before resume: %s", err)
 		err = nil
 	}
 	return n, err

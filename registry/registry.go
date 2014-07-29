@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/utils"
 )
 
@@ -423,7 +424,7 @@ func (r *Registry) GetRemoteImageLayer(imgID, registry string, token []string, i
 
 	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
 		utils.Debugf("server supports resume")
-		return utils.ResumableRequestReaderWithInitialResponse(client, req, 5, imgSize, res), nil
+		return httputils.ResumableRequestReaderWithInitialResponse(client, req, 5, imgSize, res), nil
 	}
 	utils.Debugf("server doesn't support resume")
 	return res.Body, nil
