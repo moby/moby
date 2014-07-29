@@ -242,10 +242,7 @@ func (b *buildFile) FindEnvKey(key string) int {
 }
 
 func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
-	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
-	if err != nil {
-		return value, err
-	}
+	exp := regexp.MustCompile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
 	matches := exp.FindAllString(value, -1)
 	for _, match := range matches {
 		match = match[strings.Index(match, "$"):]
@@ -270,8 +267,8 @@ func (b *buildFile) CmdEnv(args string) error {
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ENV format")
 	}
-	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
+	key := strings.TrimSpace(tmp[0])
+	value := strings.TrimSpace(tmp[1])
 
 	envKey := b.FindEnvKey(key)
 	replacedValue, err := b.ReplaceEnvMatches(value)
@@ -487,12 +484,12 @@ func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 		return fmt.Errorf("Invalid %s format", cmdName)
 	}
 
-	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
+	orig, err := b.ReplaceEnvMatches(strings.TrimSpace(tmp[0]))
 	if err != nil {
 		return err
 	}
 
-	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
+	dest, err := b.ReplaceEnvMatches(strings.TrimSpace(tmp[1]))
 	if err != nil {
 		return err
 	}
@@ -798,7 +795,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		stepN      = 0
 	)
 	for _, line := range strings.Split(dockerfile, "\n") {
-		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
+		line = strings.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
@@ -822,12 +819,12 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 // BuildStep parses a single build step from `instruction` and executes it in the current context.
 func (b *buildFile) BuildStep(name, expression string) error {
 	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
-	tmp := strings.SplitN(expression, " ", 2)
+	tmp := regexp.MustCompile("[ \\t]+").Split(expression, 2)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid Dockerfile format")
 	}
-	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-	arguments := strings.Trim(tmp[1], " ")
+	instruction := strings.ToLower(strings.TrimSpace(tmp[0]))
+	arguments := strings.TrimSpace(tmp[1])
 
 	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
 	if !exists {
