@@ -305,7 +305,7 @@ get appended as arguments to the `ENTRYPOINT`.
 
 ## ENTRYPOINT (Default Command to Execute at Runtime)
 
-    --entrypoint="": Overwrite the default entrypoint set by the image
+    --entrypoint=[]: Overwrite the default ENTRYPOINT of the image
 
 The `ENTRYPOINT` of an image is similar to a `COMMAND` because it
 specifies what executable to run when the container starts, but it is

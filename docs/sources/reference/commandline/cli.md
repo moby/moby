@@ -965,7 +965,7 @@ removed before the image is removed.
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
-      --entrypoint=""            Overwrite the default ENTRYPOINT of the image
+      --entrypoint=[]            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
       --expose=[]                Expose a port from the container without publishing it to your host
       -h, --hostname=""          Container host name

@@ -53,6 +53,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flEnvFile     opts.ListOpts
 		flCapAdd      opts.ListOpts
 		flCapDrop     opts.ListOpts
+		flEntrypoint  opts.ListOpts
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
@@ -62,7 +63,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
-		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
 		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
@@ -79,6 +79,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
+	cmd.Var(&flEntrypoint, []string{"#entrypoint", "-entrypoint"}, "Overwrite the default ENTRYPOINT of the image")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
 
@@ -159,7 +160,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	var (
 		parsedArgs = cmd.Args()
 		runCmd     []string
-		entrypoint []string
 		image      string
 	)
 	if len(parsedArgs) >= 1 {
@@ -167,9 +167,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
-	}
-	if *flEntrypoint != "" {
-		entrypoint = []string{*flEntrypoint}
 	}
 
 	lxcConf, err := parseKeyValueOpts(flLxcOpts)
@@ -251,7 +248,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Cmd:             runCmd,
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
-		Entrypoint:      entrypoint,
+		Entrypoint:      flEntrypoint.GetAll(),
 		WorkingDir:      *flWorkingDir,
 	}
 
