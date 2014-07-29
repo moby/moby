@@ -864,6 +864,7 @@ registry or to a self-hosted one.
 
     Remove one or more containers
 
+      -a, --all=false        Select all containers
       -s, --stop=false       Stop and remove a running container
       -k, --kill=false       Kill and remove a running container
       -l, --link=false       Remove the specified link and not the underlying container
