@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os/exec"
 	"strings"
 	"sync"
@@ -8,46 +9,81 @@ import (
 	"time"
 )
 
+const attachWait = 5 * time.Second
+
 func TestMultipleAttachRestart(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--name", "attacher", "-d", "busybox",
-		"/bin/sh", "-c", "sleep 2 && echo hello")
+	defer deleteAllContainers()
 
-	group := sync.WaitGroup{}
-	group.Add(4)
+	endGroup := &sync.WaitGroup{}
+	startGroup := &sync.WaitGroup{}
+	endGroup.Add(3)
+	startGroup.Add(3)
 
-	defer func() {
-		cmd = exec.Command(dockerBinary, "kill", "attacher")
-		if _, err := runCommand(cmd); err != nil {
-			t.Fatal(err)
-		}
-		deleteAllContainers()
+	if err := waitForContainer("attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done"); err != nil {
+		t.Fatal(err)
+	}
+
+	startDone := make(chan struct{})
+	endDone := make(chan struct{})
+
+	go func() {
+		endGroup.Wait()
+		close(endDone)
 	}()
 
 	go func() {
-		defer group.Done()
-		out, _, err := runCommandWithOutput(cmd)
-		if err != nil {
-			t.Fatal(err, out)
-		}
+		startGroup.Wait()
+		close(startDone)
 	}()
-	time.Sleep(500 * time.Millisecond)
 
 	for i := 0; i < 3; i++ {
 		go func() {
-			defer group.Done()
 			c := exec.Command(dockerBinary, "attach", "attacher")
 
-			out, _, err := runCommandWithOutput(c)
+			defer func() {
+				c.Wait()
+				endGroup.Done()
+			}()
+
+			out, err := c.StdoutPipe()
 			if err != nil {
-				t.Fatal(err, out)
+				t.Fatal(err)
 			}
-			if actual := strings.Trim(out, "\r\n"); actual != "hello" {
-				t.Fatalf("unexpected output %s expected hello", actual)
+
+			if _, err := startCommand(c); err != nil {
+				t.Fatal(err)
+			}
+
+			buf := make([]byte, 1024)
+
+			if _, err := out.Read(buf); err != nil && err != io.EOF {
+				t.Fatal(err)
+			}
+
+			startGroup.Done()
+
+			if !strings.Contains(string(buf), "hello") {
+				t.Fatalf("unexpected output %s expected hello\n", string(buf))
 			}
 		}()
 	}
 
-	group.Wait()
+	select {
+	case <-startDone:
+	case <-time.After(attachWait):
+		t.Fatalf("Attaches did not initialize properly")
+	}
+
+	cmd := exec.Command(dockerBinary, "kill", "attacher")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-endDone:
+	case <-time.After(attachWait):
+		t.Fatalf("Attaches did not finish properly")
+	}
 
 	logDone("attach - multiple attach")
 }

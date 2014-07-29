@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func getExitCode(err error) (int, error) {
@@ -133,4 +134,44 @@ func convertSliceOfStringsToMap(input []string) map[string]struct{} {
 		output[v] = struct{}{}
 	}
 	return output
+}
+
+func waitForContainer(contId string, args ...string) error {
+	args = append([]string{"run", "--name", contId}, args...)
+	cmd := exec.Command(dockerBinary, args...)
+	if _, err := runCommand(cmd); err != nil {
+		return err
+	}
+
+	if err := waitRun(contId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func waitRun(contId string) error {
+	after := time.After(5 * time.Second)
+
+	for {
+		cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", contId)
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			return fmt.Errorf("error executing docker inspect: %v", err)
+		}
+
+		if strings.Contains(out, "true") {
+			break
+		}
+
+		select {
+		case <-after:
+			return fmt.Errorf("container did not come up in time")
+		default:
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return nil
 }
