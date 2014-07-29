@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/utils"
 )
 
@@ -78,7 +79,7 @@ func (s *TagStore) CmdTag(job *engine.Job) engine.Status {
 		newName = job.Args[0]
 		oldName = job.Args[1]
 	)
-	newRepo, newTag := utils.ParseRepositoryTag(newName)
+	newRepo, newTag := parsers.ParseRepositoryTag(newName)
 	// FIXME: Set should either parse both old and new name, or neither.
 	// 	the current prototype is inconsistent.
 	if err := s.Set(newRepo, newTag, oldName, true); err != nil {

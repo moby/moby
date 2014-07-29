@@ -1,6 +1,6 @@
 // +build amd64
 
-package utils
+package kernel
 
 import (
 	"syscall"

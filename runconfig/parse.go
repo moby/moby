@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/utils"
@@ -306,7 +307,7 @@ func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
 func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
 	out := make([]utils.KeyValuePair, opts.Len())
 	for i, o := range opts.GetAll() {
-		k, v, err := utils.ParseKeyValueOpt(o)
+		k, v, err := parsers.ParseKeyValueOpt(o)
 		if err != nil {
 			return nil, err
 		}

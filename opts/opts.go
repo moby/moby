@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/parsers"
 )
 
 // ListOpts type
@@ -94,7 +94,7 @@ func ValidateAttach(val string) (string, error) {
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := utils.PartParser("name:alias", val); err != nil {
+	if _, err := parsers.PartParser("name:alias", val); err != nil {
 		return val, err
 	}
 	return val, nil

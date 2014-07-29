@@ -28,13 +28,14 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/utils/filters"
 )
 
 const (
@@ -204,7 +205,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	//Check if the given image name can be resolved
 	if *tag != "" {
-		repository, _ := utils.ParseRepositoryTag(*tag)
+		repository, _ := parsers.ParseRepositoryTag(*tag)
 		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
 			return err
 		}
@@ -1137,7 +1138,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	cli.LoadConfigFile()
 
-	remote, tag := utils.ParseRepositoryTag(name)
+	remote, tag := parsers.ParseRepositoryTag(name)
 
 	// Resolve the Repository name from fqn to hostname + name
 	hostname, _, err := registry.ResolveRepositoryName(remote)
@@ -1210,7 +1211,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		v.Set("tag", *tag)
 	}
 
-	remote, _ = utils.ParseRepositoryTag(remote)
+	remote, _ = parsers.ParseRepositoryTag(remote)
 	// Resolve the Repository name from fqn to hostname + name
 	hostname, _, err := registry.ResolveRepositoryName(remote)
 	if err != nil {
@@ -1393,7 +1394,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		for _, out := range outs.Data {
 			for _, repotag := range out.GetList("RepoTags") {
 
-				repo, tag := utils.ParseRepositoryTag(repotag)
+				repo, tag := parsers.ParseRepositoryTag(repotag)
 				outID := out.Get("Id")
 				if !*noTrunc {
 					outID = utils.TruncateID(outID)
@@ -1594,7 +1595,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 	var (
 		name            = cmd.Arg(0)
-		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+		repository, tag = parsers.ParseRepositoryTag(cmd.Arg(1))
 	)
 
 	if name == "" || len(cmd.Args()) > 2 {
@@ -1918,7 +1919,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	var (
-		repository, tag = utils.ParseRepositoryTag(cmd.Arg(1))
+		repository, tag = parsers.ParseRepositoryTag(cmd.Arg(1))
 		v               = url.Values{}
 	)
 
@@ -1941,7 +1942,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 
 func (cli *DockerCli) pullImage(image string) error {
 	v := url.Values{}
-	repos, tag := utils.ParseRepositoryTag(image)
+	repos, tag := parsers.ParseRepositoryTag(image)
 	// pull only the image tagged 'latest' if no tag was specified
 	if tag == "" {
 		tag = "latest"
