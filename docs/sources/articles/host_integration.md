@@ -32,8 +32,8 @@ it:
 
     description "Redis container"
     author "Me"
-    start on filesystem and started docker
-    stop on runlevel [!2345]
+    start on docker-up
+    stop on docker-stop
     respawn
     script
       /usr/bin/docker start -a redis_server
