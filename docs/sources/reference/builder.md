@@ -449,6 +449,22 @@ instruction. For example:
 The output of the final `pwd` command in this Dockerfile would be
 `/a/b/c`.
 
+## DESCRIPTION
+
+DESCRIPTION [STRING]
+
+The `DESCRIPTION` instruction allows you to describe your Dockerfile. If you
+want a multiline string, supply `\` at the end of the line.
+
+For example:
+
+    DESCRIPTION This is a Dockerfile, of course! \
+    It does some neat things!
+
+This is yielded from the API as well; from the output of `docker inspect [IMAGE]`, 
+in the "Config" section, there is a "Description" element that corresponds to
+this string.
+
 ## ONBUILD
 
     ONBUILD [INSTRUCTION]

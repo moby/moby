@@ -14,6 +14,30 @@ import (
 	"github.com/docker/docker/archive"
 )
 
+func TestBuildDescription(t *testing.T) {
+	name := "testbuilddescription"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  DESCRIPTION hello, is there anyone in there?
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectField(name, "Config.Description")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res != "hello, is there anyone in there?" {
+		t.Fatal("Description did not match the one provided.")
+	}
+}
+
 func TestBuildCacheADD(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
