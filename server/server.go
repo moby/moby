@@ -153,6 +153,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"container_copy":   srv.ContainerCopy,
 		"attach":           srv.ContainerAttach,
 		"logs":             srv.ContainerLogs,
+		"truncate_logs":    srv.ContainerTruncateLogs,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,
 		"load":             srv.ImageLoad,
@@ -1043,9 +1044,10 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		}
 		out.Set("Ports", str)
 		if size {
-			sizeRw, sizeRootFs := container.GetSize()
+			sizeRw, sizeRootFs, sizeLogs := container.GetSize()
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
+			out.SetInt64("SizeLogs", sizeLogs)
 		}
 		outs.Add(out)
 		return nil
@@ -2293,6 +2295,36 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 		if err != nil {
 			utils.Errorf("%s", err)
 		}
+	}
+	return engine.StatusOK
+}
+
+func (srv *Server) ContainerTruncateLogs(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name = job.Args[0]
+	)
+	container := srv.daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	err := container.TruncateLog("json")
+	if err != nil && os.IsNotExist(err) {
+		// Legacy logs
+		utils.Debugf("Old logs format")
+		err := container.TruncateLog("stdout")
+		if err != nil {
+			utils.Errorf("Error truncating logs (stdout): %s", err)
+		}
+		err = container.TruncateLog("stderr")
+		if err != nil {
+			utils.Errorf("Error truncating logs (stderr): %s", err)
+		}
+	} else if err != nil {
+		utils.Errorf("Error truncating logs (json): %s", err)
 	}
 	return engine.StatusOK
 }

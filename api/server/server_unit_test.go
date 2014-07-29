@@ -498,6 +498,26 @@ func TestDeleteContainersWithStopAndKill(t *testing.T) {
 	}
 }
 
+func TestTruncateLogs(t *testing.T) {
+	eng := engine.New()
+	var truncate_logs bool
+	eng.Register("truncate_logs", func(job *engine.Job) engine.Status {
+		truncate_logs = true
+		return engine.StatusOK
+	})
+	r := serveRequest("DELETE", "/containers/test/logs", nil, eng, t)
+	if r.Code != http.StatusNoContent {
+		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusNoContent)
+	}
+	if !truncate_logs {
+		t.Fatal("truncate_logs job was not called")
+	}
+	res := r.Body.String()
+	if len(res) > 0 {
+		t.Fatalf("Output %s, expected no output", res)
+	}
+}
+
 func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *testing.T) *httptest.ResponseRecorder {
 	return serveRequestUsingVersion(method, target, api.APIVERSION, body, eng, t)
 }
