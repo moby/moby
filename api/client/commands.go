@@ -1020,11 +1020,12 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
 	stop := cmd.Bool([]string{"#f", "s", "#-force", "-stop"}, false, "Stop and remove a running container")
 	kill := cmd.Bool([]string{"k", "-kill"}, false, "Kill and remove a running container")
+	all := cmd.Bool([]string{"a", "-all"}, false, "Select all containers")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if cmd.NArg() < 1 && !*all {
 		cmd.Usage()
 		return nil
 	}
@@ -1044,9 +1045,27 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	if *kill {
 		val.Set("kill", "1")
 	}
+	container_names := []string{}
+	if *all {
+		v := url.Values{}
+		v.Set("all", "1")
+		body, _, err := readBody(cli.call("GET", "/containers/json?"+v.Encode(), nil, false))
+		if err != nil {
+			return err
+		}
+		outs := engine.NewTable("Created", 0)
+		if _, err := outs.ReadListFrom(body); err != nil {
+			return err
+		}
+		for _, out := range outs.Data {
+			container_names = append(container_names, out.Get("Id"))
+		}
+	} else {
+		container_names = cmd.Args()
+	}
 
 	var encounteredError error
-	for _, name := range cmd.Args() {
+	for _, name := range container_names {
 		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, false))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
