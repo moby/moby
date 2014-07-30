@@ -767,6 +767,13 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	if os.Geteuid() != 0 {
 		log.Fatalf("The Docker daemon needs to be run as root")
 	}
+	// set up the TempDir to use a canonical path
+	tmp := os.TempDir()
+	realTmp, err := utils.ReadSymlinkedDirectory(tmp)
+	if err != nil {
+		log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+	}
+	os.Setenv("TMPDIR", realTmp)
 	if !config.EnableSelinuxSupport {
 		selinuxSetDisabled()
 	}
