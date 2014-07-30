@@ -1,4 +1,4 @@
-package utils
+package tarsum
 
 import (
 	"bytes"
