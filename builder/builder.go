@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,10 +28,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-)
-
-var (
-	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
 type BuildFile interface {
@@ -793,7 +788,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		return "", err
 	}
 	if len(fileBytes) == 0 {
-		return "", ErrDockerfileEmpty
+		return "", fmt.Errorf("Dockerfile cannot be empty")
 	}
 	var (
 		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
