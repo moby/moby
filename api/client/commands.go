@@ -493,6 +493,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 	fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
+	fmt.Fprintf(cli.out, "Operating System: %s\n", remoteInfo.Get("OperatingSystem"))
 
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", remoteInfo.GetBool("Debug"))
