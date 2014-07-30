@@ -23,27 +23,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// probeCache checks to see if image-caching is enabled (`b.utilizeCache`)
-// and if so attempts to look up the current `b.image` and `b.config` pair
-// in the current server `b.daemon`. If an image is found, probeCache returns
-// `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
-// is any error, it returns `(false, err)`.
-func (b *BuildFile) probeCache() (bool, error) {
-	if b.utilizeCache {
-		if cache, err := b.daemon.ImageGetCached(b.image, b.config); err != nil {
-			return false, err
-		} else if cache != nil {
-			fmt.Fprintf(b.outStream, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
-			b.image = cache.ID
-			return true, nil
-		} else {
-			utils.Debugf("[BUILDER] Cache miss")
-		}
-	}
-	return false, nil
-}
-
 func (b *BuildFile) FindEnvKey(key string) int {
 	for k, envVar := range b.config.Env {
 		envParts := strings.SplitN(envVar, "=", 2)
@@ -364,4 +343,25 @@ func (b *BuildFile) commit(id string, autoCmd []string, comment string) error {
 	b.tmpImages[image.ID] = struct{}{}
 	b.image = image.ID
 	return nil
+}
+
+// probeCache checks to see if image-caching is enabled (`b.utilizeCache`)
+// and if so attempts to look up the current `b.image` and `b.config` pair
+// in the current server `b.daemon`. If an image is found, probeCache returns
+// `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
+// is any error, it returns `(false, err)`.
+func (b *BuildFile) probeCache() (bool, error) {
+	if b.utilizeCache {
+		if cache, err := b.daemon.ImageGetCached(b.image, b.config); err != nil {
+			return false, err
+		} else if cache != nil {
+			fmt.Fprintf(b.outStream, " ---> Using cache\n")
+			utils.Debugf("[BUILDER] Use cached version")
+			b.image = cache.ID
+			return true, nil
+		} else {
+			utils.Debugf("[BUILDER] Cache miss")
+		}
+	}
+	return false, nil
 }

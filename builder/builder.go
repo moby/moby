@@ -55,6 +55,106 @@ type BuildFile struct {
 	sf     *utils.StreamFormatter
 }
 
+func NewBuildFile(d *daemon.Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) *BuildFile {
+	return &BuildFile{
+		daemon:        d,
+		eng:           eng,
+		config:        &runconfig.Config{},
+		outStream:     outStream,
+		errStream:     errStream,
+		tmpContainers: make(map[string]struct{}),
+		tmpImages:     make(map[string]struct{}),
+		verbose:       verbose,
+		utilizeCache:  utilizeCache,
+		rm:            rm,
+		forceRm:       forceRm,
+		sf:            sf,
+		authConfig:    auth,
+		configFile:    authConfigFile,
+		outOld:        outOld,
+	}
+}
+
+func (b *BuildFile) Build(context io.Reader) (string, error) {
+	tmpdirPath, err := ioutil.TempDir("", "docker-build")
+	if err != nil {
+		return "", err
+	}
+
+	decompressedStream, err := archive.DecompressStream(context)
+	if err != nil {
+		return "", err
+	}
+
+	b.context = &utils.TarSum{Reader: decompressedStream, DisableCompression: true}
+	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(tmpdirPath)
+
+	b.contextPath = tmpdirPath
+	filename := path.Join(tmpdirPath, "Dockerfile")
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
+	}
+	fileBytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	if len(fileBytes) == 0 {
+		return "", fmt.Errorf("Dockerfile cannot be empty")
+	}
+	var (
+		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
+		stepN      = 0
+	)
+	for _, line := range strings.Split(dockerfile, "\n") {
+		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
+		if len(line) == 0 {
+			continue
+		}
+		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
+			if b.forceRm {
+				b.clearTmp(b.tmpContainers)
+			}
+			return "", err
+		} else if b.rm {
+			b.clearTmp(b.tmpContainers)
+		}
+		stepN += 1
+	}
+	if b.image != "" {
+		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
+		return b.image, nil
+	}
+	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
+}
+
+// BuildStep parses a single build step from `instruction` and executes it in the current context.
+func (b *BuildFile) BuildStep(name, expression string) error {
+	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
+	tmp := strings.SplitN(expression, " ", 2)
+	if len(tmp) != 2 {
+		return fmt.Errorf("Invalid Dockerfile format")
+	}
+	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
+	arguments := strings.Trim(tmp[1], " ")
+
+	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
+	if !exists {
+		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
+		return nil
+	}
+
+	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
+	if ret != nil {
+		return ret.(error)
+	}
+
+	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
+	return nil
+}
+
 func (b *BuildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
 		tmp := b.daemon.Get(c)
@@ -164,86 +264,6 @@ func (b *BuildFile) addContext(container *daemon.Container, orig, dest string, d
 	return fixPermissions(resPath, 0, 0)
 }
 
-func (b *BuildFile) Build(context io.Reader) (string, error) {
-	tmpdirPath, err := ioutil.TempDir("", "docker-build")
-	if err != nil {
-		return "", err
-	}
-
-	decompressedStream, err := archive.DecompressStream(context)
-	if err != nil {
-		return "", err
-	}
-
-	b.context = &utils.TarSum{Reader: decompressedStream, DisableCompression: true}
-	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
-		return "", err
-	}
-	defer os.RemoveAll(tmpdirPath)
-
-	b.contextPath = tmpdirPath
-	filename := path.Join(tmpdirPath, "Dockerfile")
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
-	}
-	fileBytes, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", err
-	}
-	if len(fileBytes) == 0 {
-		return "", fmt.Errorf("Dockerfile cannot be empty")
-	}
-	var (
-		dockerfile = lineContinuation.ReplaceAllString(stripComments(fileBytes), "")
-		stepN      = 0
-	)
-	for _, line := range strings.Split(dockerfile, "\n") {
-		line = strings.Trim(strings.Replace(line, "\t", " ", -1), " \t\r\n")
-		if len(line) == 0 {
-			continue
-		}
-		if err := b.BuildStep(fmt.Sprintf("%d", stepN), line); err != nil {
-			if b.forceRm {
-				b.clearTmp(b.tmpContainers)
-			}
-			return "", err
-		} else if b.rm {
-			b.clearTmp(b.tmpContainers)
-		}
-		stepN += 1
-	}
-	if b.image != "" {
-		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
-		return b.image, nil
-	}
-	return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
-}
-
-// BuildStep parses a single build step from `instruction` and executes it in the current context.
-func (b *BuildFile) BuildStep(name, expression string) error {
-	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
-	tmp := strings.SplitN(expression, " ", 2)
-	if len(tmp) != 2 {
-		return fmt.Errorf("Invalid Dockerfile format")
-	}
-	instruction := strings.ToLower(strings.Trim(tmp[0], " "))
-	arguments := strings.Trim(tmp[1], " ")
-
-	method, exists := reflect.TypeOf(b).MethodByName("Cmd" + strings.ToUpper(instruction[:1]) + strings.ToLower(instruction[1:]))
-	if !exists {
-		fmt.Fprintf(b.errStream, "# Skipping unknown instruction %s\n", strings.ToUpper(instruction))
-		return nil
-	}
-
-	ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
-	if ret != nil {
-		return ret.(error)
-	}
-
-	fmt.Fprintf(b.outStream, " ---> %s\n", utils.TruncateID(b.image))
-	return nil
-}
-
 func stripComments(raw []byte) string {
 	var (
 		out   []string
@@ -287,24 +307,4 @@ func fixPermissions(destination string, uid, gid int) error {
 		}
 		return nil
 	})
-}
-
-func NewBuildFile(d *daemon.Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) *BuildFile {
-	return &BuildFile{
-		daemon:        d,
-		eng:           eng,
-		config:        &runconfig.Config{},
-		outStream:     outStream,
-		errStream:     errStream,
-		tmpContainers: make(map[string]struct{}),
-		tmpImages:     make(map[string]struct{}),
-		verbose:       verbose,
-		utilizeCache:  utilizeCache,
-		rm:            rm,
-		forceRm:       forceRm,
-		sf:            sf,
-		authConfig:    auth,
-		configFile:    authConfigFile,
-		outOld:        outOld,
-	}
 }
