@@ -105,7 +105,13 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	return eng.Register("container_inspect", daemon.ContainerInspect)
+	if err := eng.Register("container_inspect", daemon.ContainerInspect); err != nil {
+		return err
+	}
+	if err := eng.Register("attach", daemon.ContainerAttach); err != nil {
+		return err
+	}
+	return nil
 }
 
 // List returns an array of all containers registered in the daemon.
