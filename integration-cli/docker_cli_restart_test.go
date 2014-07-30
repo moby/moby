@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDockerRestartStoppedContainer(t *testing.T) {
@@ -49,6 +50,8 @@ func TestDockerRestartRunningContainer(t *testing.T) {
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
+	time.Sleep(1 * time.Second)
+
 	runCmd = exec.Command(dockerBinary, "logs", cleanedContainerID)
 	out, _, err = runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
@@ -64,6 +67,8 @@ func TestDockerRestartRunningContainer(t *testing.T) {
 	runCmd = exec.Command(dockerBinary, "logs", cleanedContainerID)
 	out, _, err = runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
+
+	time.Sleep(1 * time.Second)
 
 	if out != "foobar\nfoobar\n" {
 		t.Errorf("container should've printed 'foobar' twice")
