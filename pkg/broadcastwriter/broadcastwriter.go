@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"sync"
 	"time"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/jsonlog"
 )
 
 // BroadcastWriter accumulate multiple io.WriteCloser by stream.
@@ -19,7 +20,7 @@ type BroadcastWriter struct {
 
 // AddWriter adds new io.WriteCloser for stream.
 // If stream is "", then all writes proceed as is. Otherwise every line from
-// input will be packed to serialized utils.JSONLog.
+// input will be packed to serialized jsonlog.JSONLog.
 func (w *BroadcastWriter) AddWriter(writer io.WriteCloser, stream string) {
 	w.Lock()
 	if _, ok := w.streams[stream]; !ok {
@@ -53,9 +54,9 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 			if stream == "" {
 				continue
 			}
-			b, err := json.Marshal(utils.JSONLog{Log: line, Stream: stream, Created: created})
+			b, err := json.Marshal(jsonlog.JSONLog{Log: line, Stream: stream, Created: created})
 			if err != nil {
-				utils.Errorf("Error making JSON log line: %s", err)
+				log.Printf("Error making JSON log line: %s", err)
 				continue
 			}
 			b = append(b, '\n')
