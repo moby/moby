@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api"
@@ -19,7 +18,6 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/sysinit"
 	"github.com/docker/docker/utils"
 )
@@ -118,12 +116,6 @@ func main() {
 			flag.Usage()
 			return
 		}
-
-
-		if err := checkKernelAndArch(); err != nil {
-			log.Fatal(err)
-		}
-
 		eng := engine.New()
 		// Load builtins
 		if err := builtins.Register(eng); err != nil {
@@ -254,28 +246,4 @@ func main() {
 
 func showVersion() {
 	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
-}
-
-func checkKernelAndArch() error {
-	// Check for unsupported architectures
-	if runtime.GOARCH != "amd64" {
-		return fmt.Errorf("The Docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
-	// Check for unsupported kernel versions
-	// FIXME: it would be cleaner to not test for specific versions, but rather
-	// test for specific functionalities.
-	// Unfortunately we can't test for the feature "does not cause a kernel panic"
-	// without actually causing a kernel panic, so we need this workaround until
-	// the circumstances of pre-3.8 crashes are clearer.
-	// For details see http://github.com/docker/docker/issues/407
-	if k, err := kernel.GetKernelVersion(); err != nil {
-		log.Printf("WARNING: %s\n", err)
-	} else {
-		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
-			}
-		}
-	}
-	return nil
 }
