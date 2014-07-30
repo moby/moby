@@ -120,17 +120,6 @@ func main() {
 		}
 
 
-		// get the canonical path to the Docker root directory
-		root := *flRoot
-		var realRoot string
-		if _, err := os.Stat(root); err != nil && os.IsNotExist(err) {
-			realRoot = root
-		} else {
-			realRoot, err = utils.ReadSymlinkedDirectory(root)
-			if err != nil {
-				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
-			}
-		}
 		if err := checkKernelAndArch(); err != nil {
 			log.Fatal(err)
 		}
@@ -157,7 +146,7 @@ func main() {
 			job := eng.Job("initserver")
 			// include the variable here too, for the server config
 			job.Setenv("Pidfile", *pidfile)
-			job.Setenv("Root", realRoot)
+			job.Setenv("Root", *flRoot)
 			job.SetenvBool("AutoRestart", *flAutoRestart)
 			job.SetenvList("Dns", flDns.GetAll())
 			job.SetenvList("DnsSearch", flDnsSearch.GetAll())
