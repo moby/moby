@@ -114,13 +114,6 @@ func main() {
 	}
 
 	if *flDaemon {
-		if runtime.GOOS != "linux" {
-			log.Fatalf("The Docker daemon is only supported on linux")
-		}
-		if os.Geteuid() != 0 {
-			log.Fatalf("The Docker daemon needs to be run as root")
-		}
-
 		if flag.NArg() != 0 {
 			flag.Usage()
 			return
