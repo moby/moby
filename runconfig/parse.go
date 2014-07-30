@@ -19,8 +19,11 @@ import (
 var (
 	ErrInvalidWorkingDirectory            = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
+	ErrConflictContainerNetworkAndLinks   = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
+	ErrConflictContainerNetworkAndDns     = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
 	ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	ErrConflictNetworkHostname            = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	ErrConflictHostNetworkAndDns          = fmt.Errorf("Conflicting options: --net=host can't be used with --dns. This configuration is invalid.")
 	ErrConflictHostNetworkAndLinks        = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 	ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
 )
@@ -122,6 +125,18 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 
 	if *flNetMode == "host" && flLinks.Len() > 0 {
 		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
+	}
+
+	if *flNetMode == "container" && flLinks.Len() > 0 {
+		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
+	}
+
+	if *flNetMode == "host" && flDns.Len() > 0 {
+		return nil, nil, cmd, ErrConflictHostNetworkAndDns
+	}
+
+	if *flNetMode == "container" && flDns.Len() > 0 {
+		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
 	}
 
 	// If neither -d or -a are set, attach to everything by default
