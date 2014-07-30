@@ -71,6 +71,16 @@ func (srv *Server) Events(job *engine.Job) engine.Status {
 	}
 }
 
+// FIXME: this is a shim to allow breaking up other parts of Server without
+// dragging the sphagetti dependency along.
+func (srv *Server) Log(job *engine.Job) engine.Status {
+	if len(job.Args) != 3 {
+		return job.Errorf("usage: %s ACTION ID FROM", job.Name)
+	}
+	srv.LogEvent(job.Args[0], job.Args[1], job.Args[2])
+	return engine.StatusOK
+}
+
 func (srv *Server) LogEvent(action, id, from string) *utils.JSONMessage {
 	now := time.Now().UTC().Unix()
 	jm := utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
