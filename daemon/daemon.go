@@ -114,6 +114,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("pause", daemon.ContainerPause); err != nil {
 		return err
 	}
+	if err := eng.Register("unpause", daemon.ContainerUnpause); err != nil {
+		return err
+	}
 	return nil
 }
 

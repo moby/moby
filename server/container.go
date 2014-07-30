@@ -31,22 +31,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (srv *Server) ContainerUnpause(job *engine.Job) engine.Status {
-	if n := len(job.Args); n < 1 || n > 2 {
-		return job.Errorf("Usage: %s CONTAINER", job.Name)
-	}
-	name := job.Args[0]
-	container := srv.daemon.Get(name)
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
-	}
-	if err := container.Unpause(); err != nil {
-		return job.Errorf("Cannot unpause container %s: %s", name, err)
-	}
-	srv.LogEvent("unpause", container.ID, srv.daemon.Repositories().ImageName(container.Image))
-	return engine.StatusOK
-}
-
 // ContainerKill send signal to the container
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.

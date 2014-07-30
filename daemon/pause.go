@@ -19,3 +19,19 @@ func (daemon *Daemon) ContainerPause(job *engine.Job) engine.Status {
 	job.Eng.Job("log", "pause", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
 	return engine.StatusOK
 }
+
+func (daemon *Daemon) ContainerUnpause(job *engine.Job) engine.Status {
+	if n := len(job.Args); n < 1 || n > 2 {
+		return job.Errorf("Usage: %s CONTAINER", job.Name)
+	}
+	name := job.Args[0]
+	container := daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+	if err := container.Unpause(); err != nil {
+		return job.Errorf("Cannot unpause container %s: %s", name, err)
+	}
+	job.Eng.Job("log", "unpause", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+	return engine.StatusOK
+}
