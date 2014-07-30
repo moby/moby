@@ -22,6 +22,7 @@ func New() *libcontainer.Config {
 			"SETPCAP",
 			"NET_BIND_SERVICE",
 			"SYS_CHROOT",
+			"SYS_PTRACE",
 			"KILL",
 			"AUDIT_WRITE",
 		},
