@@ -30,13 +30,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-type BuildFile interface {
-	Build(io.Reader) (string, error)
-	CmdFrom(string) error
-	CmdRun(string) error
-}
-
-type buildFile struct {
+type BuildFile struct {
 	daemon *daemon.Daemon
 	eng    *engine.Engine
 
@@ -66,7 +60,7 @@ type buildFile struct {
 	sf     *utils.StreamFormatter
 }
 
-func (b *buildFile) clearTmp(containers map[string]struct{}) {
+func (b *BuildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
 		tmp := b.daemon.Get(c)
 		if err := b.daemon.Destroy(tmp); err != nil {
@@ -78,7 +72,7 @@ func (b *buildFile) clearTmp(containers map[string]struct{}) {
 	}
 }
 
-func (b *buildFile) CmdFrom(name string) error {
+func (b *BuildFile) CmdFrom(name string) error {
 	image, err := b.daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if b.daemon.Graph().IsNotExist(err) {
@@ -144,7 +138,7 @@ func (b *buildFile) CmdFrom(name string) error {
 
 // The ONBUILD command declares a build instruction to be executed in any future build
 // using the current image as a base.
-func (b *buildFile) CmdOnbuild(trigger string) error {
+func (b *BuildFile) CmdOnbuild(trigger string) error {
 	splitTrigger := strings.Split(trigger, " ")
 	triggerInstruction := strings.ToUpper(strings.Trim(splitTrigger[0], " "))
 	switch triggerInstruction {
@@ -157,7 +151,7 @@ func (b *buildFile) CmdOnbuild(trigger string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
-func (b *buildFile) CmdMaintainer(name string) error {
+func (b *BuildFile) CmdMaintainer(name string) error {
 	b.maintainer = name
 	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", name))
 }
@@ -167,7 +161,7 @@ func (b *buildFile) CmdMaintainer(name string) error {
 // in the current server `b.daemon`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
-func (b *buildFile) probeCache() (bool, error) {
+func (b *BuildFile) probeCache() (bool, error) {
 	if b.utilizeCache {
 		if cache, err := b.daemon.ImageGetCached(b.image, b.config); err != nil {
 			return false, err
@@ -183,7 +177,7 @@ func (b *buildFile) probeCache() (bool, error) {
 	return false, nil
 }
 
-func (b *buildFile) CmdRun(args string) error {
+func (b *BuildFile) CmdRun(args string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -228,7 +222,7 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
-func (b *buildFile) FindEnvKey(key string) int {
+func (b *BuildFile) FindEnvKey(key string) int {
 	for k, envVar := range b.config.Env {
 		envParts := strings.SplitN(envVar, "=", 2)
 		if key == envParts[0] {
@@ -238,7 +232,7 @@ func (b *buildFile) FindEnvKey(key string) int {
 	return -1
 }
 
-func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
+func (b *BuildFile) ReplaceEnvMatches(value string) (string, error) {
 	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
 	if err != nil {
 		return value, err
@@ -262,7 +256,7 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 	return value, nil
 }
 
-func (b *buildFile) CmdEnv(args string) error {
+func (b *BuildFile) CmdEnv(args string) error {
 	tmp := strings.SplitN(args, " ", 2)
 	if len(tmp) != 2 {
 		return fmt.Errorf("Invalid ENV format")
@@ -285,7 +279,7 @@ func (b *buildFile) CmdEnv(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
-func (b *buildFile) buildCmdFromJson(args string) []string {
+func (b *BuildFile) buildCmdFromJson(args string) []string {
 	var cmd []string
 	if err := json.Unmarshal([]byte(args), &cmd); err != nil {
 		utils.Debugf("Error unmarshalling: %s, setting to /bin/sh -c", err)
@@ -294,7 +288,7 @@ func (b *buildFile) buildCmdFromJson(args string) []string {
 	return cmd
 }
 
-func (b *buildFile) CmdCmd(args string) error {
+func (b *BuildFile) CmdCmd(args string) error {
 	cmd := b.buildCmdFromJson(args)
 	b.config.Cmd = cmd
 	if err := b.commit("", b.config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
@@ -303,7 +297,7 @@ func (b *buildFile) CmdCmd(args string) error {
 	return nil
 }
 
-func (b *buildFile) CmdEntrypoint(args string) error {
+func (b *BuildFile) CmdEntrypoint(args string) error {
 	entrypoint := b.buildCmdFromJson(args)
 	b.config.Entrypoint = entrypoint
 	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %v", entrypoint)); err != nil {
@@ -312,7 +306,7 @@ func (b *buildFile) CmdEntrypoint(args string) error {
 	return nil
 }
 
-func (b *buildFile) CmdExpose(args string) error {
+func (b *BuildFile) CmdExpose(args string) error {
 	portsTab := strings.Split(args, " ")
 
 	if b.config.ExposedPorts == nil {
@@ -332,20 +326,20 @@ func (b *buildFile) CmdExpose(args string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
-func (b *buildFile) CmdUser(args string) error {
+func (b *BuildFile) CmdUser(args string) error {
 	b.config.User = args
 	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
 }
 
-func (b *buildFile) CmdInsert(args string) error {
+func (b *BuildFile) CmdInsert(args string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
 }
 
-func (b *buildFile) CmdCopy(args string) error {
+func (b *BuildFile) CmdCopy(args string) error {
 	return b.runContextCommand(args, false, false, "COPY")
 }
 
-func (b *buildFile) CmdWorkdir(workdir string) error {
+func (b *BuildFile) CmdWorkdir(workdir string) error {
 	if workdir[0] == '/' {
 		b.config.WorkingDir = workdir
 	} else {
@@ -357,7 +351,7 @@ func (b *buildFile) CmdWorkdir(workdir string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
-func (b *buildFile) CmdVolume(args string) error {
+func (b *BuildFile) CmdVolume(args string) error {
 	if args == "" {
 		return fmt.Errorf("Volume cannot be empty")
 	}
@@ -378,7 +372,7 @@ func (b *buildFile) CmdVolume(args string) error {
 	return nil
 }
 
-func (b *buildFile) checkPathForAddition(orig string) error {
+func (b *BuildFile) checkPathForAddition(orig string) error {
 	origPath := path.Join(b.contextPath, orig)
 	if p, err := filepath.EvalSymlinks(origPath); err != nil {
 		if os.IsNotExist(err) {
@@ -401,7 +395,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func (b *BuildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
 	var (
 		err        error
 		destExists = true
@@ -475,7 +469,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, d
 	return fixPermissions(resPath, 0, 0)
 }
 
-func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *BuildFile) runContextCommand(args string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -649,11 +643,11 @@ func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 	return nil
 }
 
-func (b *buildFile) CmdAdd(args string) error {
+func (b *BuildFile) CmdAdd(args string) error {
 	return b.runContextCommand(args, true, true, "ADD")
 }
 
-func (b *buildFile) create() (*daemon.Container, error) {
+func (b *BuildFile) create() (*daemon.Container, error) {
 	if b.image == "" {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -674,7 +668,7 @@ func (b *buildFile) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *buildFile) run(c *daemon.Container) error {
+func (b *BuildFile) run(c *daemon.Container) error {
 	var errCh chan error
 	if b.verbose {
 		errCh = utils.Go(func() error {
@@ -706,7 +700,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 }
 
 // Commit the container <id> with the autorun command <autoCmd>
-func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
+func (b *BuildFile) commit(id string, autoCmd []string, comment string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
@@ -761,7 +755,7 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 // Long lines can be split with a backslash
 var lineContinuation = regexp.MustCompile(`\\\s*\n`)
 
-func (b *buildFile) Build(context io.Reader) (string, error) {
+func (b *BuildFile) Build(context io.Reader) (string, error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return "", err
@@ -817,7 +811,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 }
 
 // BuildStep parses a single build step from `instruction` and executes it in the current context.
-func (b *buildFile) BuildStep(name, expression string) error {
+func (b *BuildFile) BuildStep(name, expression string) error {
 	fmt.Fprintf(b.outStream, "Step %s : %s\n", name, expression)
 	tmp := strings.SplitN(expression, " ", 2)
 	if len(tmp) != 2 {
@@ -886,8 +880,8 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func NewBuildFile(d *daemon.Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
-	return &buildFile{
+func NewBuildFile(d *daemon.Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) *BuildFile {
+	return &BuildFile{
 		daemon:        d,
 		eng:           eng,
 		config:        &runconfig.Config{},
