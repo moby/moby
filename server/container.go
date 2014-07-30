@@ -31,22 +31,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (srv *Server) ContainerPause(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER", job.Name)
-	}
-	name := job.Args[0]
-	container := srv.daemon.Get(name)
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
-	}
-	if err := container.Pause(); err != nil {
-		return job.Errorf("Cannot pause container %s: %s", name, err)
-	}
-	srv.LogEvent("pause", container.ID, srv.daemon.Repositories().ImageName(container.Image))
-	return engine.StatusOK
-}
-
 func (srv *Server) ContainerUnpause(job *engine.Job) engine.Status {
 	if n := len(job.Args); n < 1 || n > 2 {
 		return job.Errorf("Usage: %s CONTAINER", job.Name)
@@ -797,7 +781,6 @@ func (srv *Server) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	return engine.StatusOK
 }
-
 
 func (srv *Server) ContainerCopy(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 {
