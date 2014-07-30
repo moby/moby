@@ -22,12 +22,12 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/utils/broadcastwriter"
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/label"
 )
