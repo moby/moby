@@ -87,10 +87,13 @@ func (opts *ListOpts) Len() int {
 type ValidatorFctType func(val string) (string, error)
 
 func ValidateAttach(val string) (string, error) {
-	if val != "stdin" && val != "stdout" && val != "stderr" {
-		return val, fmt.Errorf("Unsupported stream name: %s", val)
+	s := strings.ToLower(val)
+	for _, str := range []string{"stdin", "stdout", "stderr"} {
+		if s == str {
+			return s, nil
+		}
 	}
-	return val, nil
+	return val, fmt.Errorf("valid streams are STDIN, STDOUT and STDERR.")
 }
 
 func ValidateLink(val string) (string, error) {
