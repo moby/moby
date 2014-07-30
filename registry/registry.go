@@ -6,6 +6,7 @@ import (
 	_ "crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -642,7 +643,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 	h := sha256.New()
 	h.Write(jsonRaw)
 	h.Write([]byte{'\n'})
-	checksumLayer := &utils.CheckSum{Reader: tarsumLayer, Hash: h}
+	checksumLayer := io.TeeReader(tarsumLayer, h)
 
 	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgID+"/layer", checksumLayer)
 	if err != nil {
@@ -671,7 +672,7 @@ func (r *Registry) PushImageLayerRegistry(imgID string, layer io.Reader, registr
 		return "", "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
 	}
 
-	checksumPayload = "sha256:" + checksumLayer.Sum()
+	checksumPayload = "sha256:" + hex.EncodeToString(h.Sum(nil))
 	return tarsumLayer.Sum(jsonRaw), checksumPayload, nil
 }
 
