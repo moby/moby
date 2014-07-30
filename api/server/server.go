@@ -362,6 +362,24 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	return nil
 }
 
+func getFileSystemsJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var (
+		job = eng.Job("volumes")
+	)
+
+	job.Setenv("dangling", r.Form.Get("dangling"))
+	if version.GreaterThanOrEqualTo("1.5") {
+		streamJSON(job, w, false)
+	}
+	if err := job.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1120,6 +1138,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/filesystems/json":               getFileSystemsJSON,
 		},
 		"POST": {
 			"/auth":                         postAuth,

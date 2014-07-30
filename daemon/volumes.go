@@ -61,62 +61,86 @@ func setupMountsForContainer(container *Container) error {
 }
 
 func applyVolumesFrom(container *Container) error {
+	var (
+		volPath   string
+		mountPath string
+		mountRW   bool
+		hostPath  string
+	)
 	volumesFrom := container.hostConfig.VolumesFrom
 	if len(volumesFrom) > 0 {
-		for _, containerSpec := range volumesFrom {
-			var (
-				mountRW   = true
-				specParts = strings.SplitN(containerSpec, ":", 2)
-			)
+		for _, volSpec := range volumesFrom {
+			volSpec := strings.SplitN(volSpec, ":", 4)
 
-			switch len(specParts) {
-			case 0:
-				return fmt.Errorf("Malformed volumes-from specification: %s", containerSpec)
+			mountRW = true
+			switch len(volSpec) {
 			case 2:
-				switch specParts[1] {
+				switch volSpec[1] {
+				case "rw":
 				case "ro":
 					mountRW = false
-				case "rw": // mountRW is already true
 				default:
-					return fmt.Errorf("Malformed volumes-from specification: %s", containerSpec)
+					volPath = volSpec[1]
 				}
+			case 3:
+				switch volSpec[2] {
+				case "rw":
+				case "ro":
+					mountRW = false
+				default:
+					mountPath = volSpec[2]
+				}
+				volPath = volSpec[1]
+			case 4:
+				switch volSpec[3] {
+				case "rw":
+				case "ro":
+					mountRW = false
+				default:
+					return fmt.Errorf("Malformed volumes-from specification: %s", volSpec)
+				}
+				volPath = volSpec[1]
+				mountPath = volSpec[2]
 			}
 
-			c := container.daemon.Get(specParts[0])
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", specParts[0])
+			c := container.daemon.Get(volSpec[0])
+
+			if volPath != "" {
+				// Check if volume ID or container ID was used
+				if c != nil {
+					hostPath = c.Volumes[volPath]
+				} else {
+					hostPath = container.daemon.Volumes().Root + "/" + volSpec[0]
+				}
+
+				if _, err := os.Stat(hostPath); err != nil && os.IsNotExist(err) {
+					return fmt.Errorf("No such file or dir: %v", hostPath)
+				}
+
+				if mountPath != "" {
+					container.Volumes[mountPath] = hostPath
+					container.VolumesRW[mountPath] = mountRW
+				} else {
+					container.Volumes[volPath] = hostPath
+					container.VolumesRW[volPath] = mountRW
+				}
+			} else {
+				for volPath, id := range c.Volumes {
+					if _, exists := container.Volumes[volPath]; exists {
+						continue
+					}
+
+					_, err := os.Stat(id)
+					if err != nil {
+						return err
+					}
+
+					container.Volumes[volPath] = id
+					if isRw, exists := c.VolumesRW[volPath]; exists {
+						container.VolumesRW[volPath] = isRw && mountRW
+					}
+				}
 			}
-
-			if err := c.Mount(); err != nil {
-				return fmt.Errorf("Container %s failed to mount. Impossible to mount its volumes", specParts[0])
-			}
-			defer c.Unmount()
-
-			for volPath, id := range c.Volumes {
-				if _, exists := container.Volumes[volPath]; exists {
-					continue
-				}
-
-				pth, err := c.getResourcePath(volPath)
-				if err != nil {
-					return err
-				}
-
-				stat, err := os.Stat(pth)
-				if err != nil {
-					return err
-				}
-
-				if err := createIfNotExists(pth, stat.IsDir()); err != nil {
-					return err
-				}
-
-				container.Volumes[volPath] = id
-				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW && mountRW
-				}
-			}
-
 		}
 	}
 	return nil
