@@ -55,6 +55,7 @@
      [`GET /images/(format)`](../reference/api/archive/docker_remote_api_v1.6/#get--images-(format))                                                               **
      [`DELETE /images/(name)`](../reference/api/docker_remote_api_v1.9/#delete--images-(name))                                                                     **
      [`GET /images/(name)/get`](../reference/api/docker_remote_api_v1.9/#get--images-(name)-get)                                                                   **
+     [`GET /images/(name)/fingerprint`](../reference/api/docker_remote_api_v1.9/#get--images-(name)-fingerprint)                                                   **
      [`GET /images/(name)/history`](../reference/api/docker_remote_api_v1.9/#get--images-(name)-history)                                                           **
      [`POST /images/(name)/insert`](../reference/api/docker_remote_api_v1.9/#post--images-(name)-insert)                                                           **
      [`GET /images/(name)/json`](../reference/api/docker_remote_api_v1.9/#get--images-(name)-json)                                                                 **

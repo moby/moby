@@ -99,6 +99,9 @@ unix://[/path/to/socket] to use.
 **docker-export(1)**
   Stream the contents of a container as a tar archive
 
+**docker-fingerprint(1)**
+  Show the fingerprint of an image
+
 **docker-history(1)**
   Show the history of an image
 

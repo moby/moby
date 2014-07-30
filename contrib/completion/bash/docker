@@ -260,6 +260,11 @@ _docker_help()
 	fi
 }
 
+_docker_fingerprint()
+{
+	__docker_image_repos_and_tags_and_ids
+}
+
 _docker_history()
 {
 	case "$cur" in
@@ -661,6 +666,7 @@ _docker()
 			diff
 			events
 			export
+			fingerprint
 			history
 			images
 			import

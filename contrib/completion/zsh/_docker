@@ -207,6 +207,9 @@ __docker_subcommand () {
         (diff|export)
             _arguments '*:containers:__docker_containers'
             ;;
+        (fingerprint)
+            _arguments ':images:__docker_images'
+            ;;
         (history)
             _arguments \
                 '--no-trunc[Do not truncate output]' \

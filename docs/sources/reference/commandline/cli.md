@@ -454,6 +454,33 @@ For example:
 
     $ sudo docker export red_panda > latest.tar
 
+## fingerprint
+
+    Usage: docker fingerprint IMAGE
+
+    Show the fingerprint an image
+
+You can use this fingerprint for signing images, and for verifying
+signatures made by others.  The format of a fingerprint is:
+
+    <namespace>/<name>:<tag>
+    <metadata>
+    <tarsum>
+
+signing the fingerprint asserts that that `<namespace>/<name>:<tag>`
+name applies to the image with that metadata and tarsum.  You can sign
+with:
+
+    $ docker fingerprint debian:7.4 | gpg --detach-sign --armor > debian-7.4.sig 
+
+After transmitting the detached signature and image layers however you
+like (possibly through insecure channels), you can verify the
+signature with:
+
+    $ docker fingerprint debian:7.4 | gpg --verify debian-7.4.sig -
+
+which will use your web of trust to verify the image.
+
 ## history
 
     Usage: docker history [OPTIONS] IMAGE
