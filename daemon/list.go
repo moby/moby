@@ -1,20 +1,21 @@
-// DEPRECATION NOTICE. PLEASE DO NOT ADD ANYTHING TO THIS FILE.
-//
-// For additional commments see server/server.go
-//
-package server
+package daemon
 
 import (
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/graphdb"
+
+	"github.com/docker/docker/engine"
 )
 
-func (srv *Server) Containers(job *engine.Job) engine.Status {
+// List returns an array of all containers registered in the daemon.
+func (daemon *Daemon) List() []*Container {
+	return daemon.containers.List()
+}
+
+func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	var (
 		foundBefore bool
 		displayed   int
@@ -27,28 +28,28 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 	outs := engine.NewTable("Created", 0)
 
 	names := map[string][]string{}
-	srv.daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
+	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
 	}, -1)
 
-	var beforeCont, sinceCont *daemon.Container
+	var beforeCont, sinceCont *Container
 	if before != "" {
-		beforeCont = srv.daemon.Get(before)
+		beforeCont = daemon.Get(before)
 		if beforeCont == nil {
 			return job.Error(fmt.Errorf("Could not find container with name or id %s", before))
 		}
 	}
 
 	if since != "" {
-		sinceCont = srv.daemon.Get(since)
+		sinceCont = daemon.Get(since)
 		if sinceCont == nil {
 			return job.Error(fmt.Errorf("Could not find container with name or id %s", since))
 		}
 	}
 
 	errLast := errors.New("last container")
-	writeCont := func(container *daemon.Container) error {
+	writeCont := func(container *Container) error {
 		container.Lock()
 		defer container.Unlock()
 		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
@@ -72,7 +73,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		out := &engine.Env{}
 		out.Set("Id", container.ID)
 		out.SetList("Names", names[container.ID])
-		out.Set("Image", srv.daemon.Repositories().ImageName(container.Image))
+		out.Set("Image", daemon.Repositories().ImageName(container.Image))
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {
@@ -104,7 +105,7 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 		return nil
 	}
 
-	for _, container := range srv.daemon.List() {
+	for _, container := range daemon.List() {
 		if err := writeCont(container); err != nil {
 			if err != errLast {
 				return job.Error(err)

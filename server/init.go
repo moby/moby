@@ -100,7 +100,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"image_delete": srv.ImageDelete,
 		"events":       srv.Events,
 		"push":         srv.ImagePush,
-		"containers":   srv.Containers,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
