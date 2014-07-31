@@ -120,6 +120,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("kill", daemon.ContainerKill); err != nil {
 		return err
 	}
+	if err := eng.Register("export", daemon.ContainerExport); err != nil {
+		return err
+	}
 	return nil
 }
 
