@@ -678,7 +678,7 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("container_delete", vars["name"])
+	job := eng.Job("delete", vars["name"])
 
 	if version.GreaterThanOrEqualTo("1.14") {
 		job.Setenv("stop", r.Form.Get("stop"))

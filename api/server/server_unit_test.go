@@ -455,7 +455,7 @@ func TestDeleteContainers(t *testing.T) {
 	eng := engine.New()
 	name := "foo"
 	var called bool
-	eng.Register("container_delete", func(job *engine.Job) engine.Status {
+	eng.Register("delete", func(job *engine.Job) engine.Status {
 		called = true
 		if len(job.Args) == 0 {
 			t.Fatalf("Job arguments is empty")
@@ -480,7 +480,7 @@ func TestDeleteContainersWithStopAndKill(t *testing.T) {
 	}
 	eng := engine.New()
 	var called bool
-	eng.Register("container_delete", func(job *engine.Job) engine.Status {
+	eng.Register("delete", func(job *engine.Job) engine.Status {
 		called = true
 		return engine.StatusOK
 	})

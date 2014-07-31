@@ -147,6 +147,11 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("logs", daemon.ContainerLogs); err != nil {
 		return err
 	}
+	// FIXME: rename "delete" to "rm" for consistency with the CLI command
+	// FIXME: rename ContainerDestroy to ContainerRm for consistency with the CLI command
+	if err := eng.Register("delete", daemon.ContainerDestroy); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -306,47 +311,6 @@ func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, strea
 		return err
 	}
 	src.AddWriter(log, stream)
-	return nil
-}
-
-// Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) Destroy(container *Container) error {
-	if container == nil {
-		return fmt.Errorf("The given container is <nil>")
-	}
-
-	element := daemon.containers.Get(container.ID)
-	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
-	}
-
-	if err := container.Stop(3); err != nil {
-		return err
-	}
-
-	// Deregister the container before removing its directory, to avoid race conditions
-	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Delete(container.ID)
-
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		utils.Debugf("Unable to remove container from link graph: %s", err)
-	}
-
-	if err := daemon.driver.Remove(container.ID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
-	}
-
-	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Remove(initID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
-	}
-
-	if err := os.RemoveAll(container.root); err != nil {
-		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
-	}
-
-	selinuxFreeLxcContexts(container.ProcessLabel)
-
 	return nil
 }
 
