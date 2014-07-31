@@ -86,25 +86,24 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
 	for name, handler := range map[string]engine.Handler{
-		"tag":              srv.ImageTag, // FIXME merge with "image_tag"
-		"info":             srv.DockerInfo,
-		"container_delete": srv.ContainerDestroy,
-		"image_export":     srv.ImageExport,
-		"images":           srv.Images,
-		"history":          srv.ImageHistory,
-		"viz":              srv.ImagesViz,
-		"container_copy":   srv.ContainerCopy,
-		"log":              srv.Log,
-		"changes":          srv.ContainerChanges,
-		"top":              srv.ContainerTop,
-		"load":             srv.ImageLoad,
-		"build":            srv.Build,
-		"pull":             srv.ImagePull,
-		"import":           srv.ImageImport,
-		"image_delete":     srv.ImageDelete,
-		"events":           srv.Events,
-		"push":             srv.ImagePush,
-		"containers":       srv.Containers,
+		"tag":            srv.ImageTag, // FIXME merge with "image_tag"
+		"info":           srv.DockerInfo,
+		"image_export":   srv.ImageExport,
+		"images":         srv.Images,
+		"history":        srv.ImageHistory,
+		"viz":            srv.ImagesViz,
+		"container_copy": srv.ContainerCopy,
+		"log":            srv.Log,
+		"changes":        srv.ContainerChanges,
+		"top":            srv.ContainerTop,
+		"load":           srv.ImageLoad,
+		"build":          srv.Build,
+		"pull":           srv.ImagePull,
+		"import":         srv.ImageImport,
+		"image_delete":   srv.ImageDelete,
+		"events":         srv.Events,
+		"push":           srv.ImagePush,
+		"containers":     srv.Containers,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
