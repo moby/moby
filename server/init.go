@@ -86,12 +86,10 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
 	for name, handler := range map[string]engine.Handler{
-		"info":   srv.DockerInfo,
-		"log":    srv.Log,
-		"build":  srv.Build,
-		"pull":   srv.ImagePull,
-		"events": srv.Events,
-		"push":   srv.ImagePush,
+		"info":  srv.DockerInfo,
+		"build": srv.Build,
+		"pull":  srv.ImagePull,
+		"push":  srv.ImagePush,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
@@ -117,12 +115,10 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		return nil, err
 	}
 	srv := &Server{
-		Eng:            eng,
-		daemon:         daemon,
-		pullingPool:    make(map[string]chan struct{}),
-		pushingPool:    make(map[string]chan struct{}),
-		events:         make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		eventPublisher: utils.NewJSONMessagePublisher(),
+		Eng:         eng,
+		daemon:      daemon,
+		pullingPool: make(map[string]chan struct{}),
+		pushingPool: make(map[string]chan struct{}),
 	}
 	daemon.SetServer(srv)
 	return srv, nil

@@ -16,7 +16,7 @@ func (daemon *Daemon) ContainerPause(job *engine.Job) engine.Status {
 	if err := container.Pause(); err != nil {
 		return job.Errorf("Cannot pause container %s: %s", name, err)
 	}
-	job.Eng.Job("log", "pause", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+	container.LogEvent("pause")
 	return engine.StatusOK
 }
 
@@ -32,6 +32,6 @@ func (daemon *Daemon) ContainerUnpause(job *engine.Job) engine.Status {
 	if err := container.Unpause(); err != nil {
 		return job.Errorf("Cannot unpause container %s: %s", name, err)
 	}
-	job.Eng.Job("log", "unpause", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+	container.LogEvent("unpause")
 	return engine.StatusOK
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/events"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/server"
@@ -18,6 +19,9 @@ func Register(eng *engine.Engine) error {
 		return err
 	}
 	if err := remote(eng); err != nil {
+		return err
+	}
+	if err := events.New().Install(eng); err != nil {
 		return err
 	}
 	if err := eng.Register("version", dockerVersion); err != nil {
