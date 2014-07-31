@@ -467,31 +467,6 @@ func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) ContainerStop(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
-	}
-	var (
-		name = job.Args[0]
-		t    = 10
-	)
-	if job.EnvExists("t") {
-		t = job.GetenvInt("t")
-	}
-	if container := srv.daemon.Get(name); container != nil {
-		if !container.State.IsRunning() {
-			return job.Errorf("Container already stopped")
-		}
-		if err := container.Stop(int(t)); err != nil {
-			return job.Errorf("Cannot stop container %s: %s\n", name, err)
-		}
-		srv.LogEvent("stop", container.ID, srv.daemon.Repositories().ImageName(container.Image))
-	} else {
-		return job.Errorf("No such container: %s\n", name)
-	}
-	return engine.StatusOK
-}
-
 func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		return job.Errorf("Usage: %s", job.Name)
