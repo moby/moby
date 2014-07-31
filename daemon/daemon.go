@@ -141,6 +141,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("resize", daemon.ContainerResize); err != nil {
 		return err
 	}
+	if err := eng.Register("commit", daemon.ContainerCommit); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -624,51 +627,6 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 		return err
 	}
 	return nil
-}
-
-// Commit creates a new filesystem image from the current state of a container.
-// The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
-	if pause {
-		container.Pause()
-		defer container.Unpause()
-	}
-
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-	defer container.Unmount()
-
-	rwTar, err := container.ExportRw()
-	if err != nil {
-		return nil, err
-	}
-	defer rwTar.Close()
-
-	// Create a new image from the container's base layers + a new layer from container changes
-	var (
-		containerID, containerImage string
-		containerConfig             *runconfig.Config
-	)
-
-	if container != nil {
-		containerID = container.ID
-		containerImage = container.Image
-		containerConfig = container.Config
-	}
-
-	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Register the image if needed
-	if repository != "" {
-		if err := daemon.repositories.Set(repository, tag, img.ID, true); err != nil {
-			return img, err
-		}
-	}
-	return img, nil
 }
 
 func GetFullContainerName(name string) (string, error) {

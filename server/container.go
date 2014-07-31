@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/tailfile"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -226,38 +225,6 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
-	return engine.StatusOK
-}
-
-func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
-	}
-	name := job.Args[0]
-
-	container := srv.daemon.Get(name)
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
-	}
-
-	var (
-		config    = container.Config
-		newConfig runconfig.Config
-	)
-
-	if err := job.GetenvJson("config", &newConfig); err != nil {
-		return job.Error(err)
-	}
-
-	if err := runconfig.Merge(&newConfig, config); err != nil {
-		return job.Error(err)
-	}
-
-	img, err := srv.daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), job.GetenvBool("pause"), &newConfig)
-	if err != nil {
-		return job.Error(err)
-	}
-	job.Printf("%s\n", img.ID)
 	return engine.StatusOK
 }
 
