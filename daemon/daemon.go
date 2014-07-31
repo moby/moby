@@ -152,6 +152,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("delete", daemon.ContainerDestroy); err != nil {
 		return err
 	}
+	if err := eng.Register("container_copy", daemon.ContainerCopy); err != nil {
+		return err
+	}
 	return nil
 }
 
