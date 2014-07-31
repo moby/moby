@@ -161,12 +161,10 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("top", daemon.ContainerTop); err != nil {
 		return err
 	}
+	if err := eng.Register("containers", daemon.Containers); err != nil {
+		return err
+	}
 	return nil
-}
-
-// List returns an array of all containers registered in the daemon.
-func (daemon *Daemon) List() []*Container {
-	return daemon.containers.List()
 }
 
 // Get looks for a container by the specified ID or name, and returns it.
