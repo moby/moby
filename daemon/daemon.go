@@ -144,6 +144,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("commit", daemon.ContainerCommit); err != nil {
 		return err
 	}
+	if err := eng.Register("logs", daemon.ContainerLogs); err != nil {
+		return err
+	}
 	return nil
 }
 
