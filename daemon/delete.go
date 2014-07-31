@@ -70,7 +70,7 @@ func (daemon *Daemon) ContainerDestroy(job *engine.Job) engine.Status {
 		if err := daemon.Destroy(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
-		job.Eng.Job("log", "destroy", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+		container.LogEvent("destroy")
 
 		if removeVolume {
 			var (

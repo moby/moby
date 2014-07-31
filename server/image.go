@@ -1151,7 +1151,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 			out := &engine.Env{}
 			out.Set("Untagged", repoName+":"+tag)
 			imgs.Add(out)
-			srv.LogEvent("untag", img.ID, "")
+			srv.Eng.Job("log_event", "untag", img.ID, "").Run()
 		}
 	}
 	tags = srv.daemon.Repositories().ByID()[img.ID]
@@ -1169,7 +1169,7 @@ func (srv *Server) DeleteImage(name string, imgs *engine.Table, first, force, no
 			out := &engine.Env{}
 			out.Set("Deleted", img.ID)
 			imgs.Add(out)
-			srv.LogEvent("delete", img.ID, "")
+			srv.Eng.Job("log_event", "untag", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
 				err := srv.DeleteImage(img.Parent, imgs, false, force, noprune)
 				if first {

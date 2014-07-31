@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
 		if err := container.Stop(int(t)); err != nil {
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
-		job.Eng.Job("log", "stop", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+		container.LogEvent("stop")
 	} else {
 		return job.Errorf("No such container: %s\n", name)
 	}

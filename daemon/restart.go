@@ -19,7 +19,7 @@ func (daemon *Daemon) ContainerRestart(job *engine.Job) engine.Status {
 		if err := container.Restart(int(t)); err != nil {
 			return job.Errorf("Cannot restart container %s: %s\n", name, err)
 		}
-		job.Eng.Job("log", "restart", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+		container.LogEvent("restart")
 	} else {
 		return job.Errorf("No such container: %s\n", name)
 	}
