@@ -138,6 +138,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("wait", daemon.ContainerWait); err != nil {
 		return err
 	}
+	if err := eng.Register("resize", daemon.ContainerResize); err != nil {
+		return err
+	}
 	return nil
 }
 
