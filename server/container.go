@@ -386,19 +386,6 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s", job.Name)
-	}
-	name := job.Args[0]
-	if container := srv.daemon.Get(name); container != nil {
-		status, _ := container.State.WaitStop(-1 * time.Second)
-		job.Printf("%d\n", status)
-		return engine.StatusOK
-	}
-	return job.Errorf("%s: no such container: %s", job.Name, name)
-}
-
 func (srv *Server) ContainerResize(job *engine.Job) engine.Status {
 	if len(job.Args) != 3 {
 		return job.Errorf("Not enough arguments. Usage: %s CONTAINER HEIGHT WIDTH\n", job.Name)
