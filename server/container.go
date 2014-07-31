@@ -267,8 +267,6 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 
 	errLast := errors.New("last container")
 	writeCont := func(container *daemon.Container) error {
-		container.Lock()
-		defer container.Unlock()
 		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
