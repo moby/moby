@@ -352,8 +352,9 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				skip, err := utils.Matches(relFilePath, options.Excludes)
 				if err != nil {
 					utils.Debugf("Error matching %s\n", relFilePath, err)
-					return nil
+					return err
 				}
+
 				if skip {
 					if f.IsDir() {
 						return filepath.SkipDir
