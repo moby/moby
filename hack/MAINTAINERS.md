@@ -82,6 +82,18 @@ The relevant maintainers for a pull request can be worked out in 2 steps:
   directory itself does not have a `MAINTAINERS` file, work your way up
   the repo hierarchy until you find one.
 
+As a special exception, changes to documentation files (`docs/*`), if they
+are part of a wider change on the codebase (for example a new feature with
+attached documentation), can be accepted without mandatory LGTM by the
+documentation maintainers. This is to avoid slowing down the review of an
+otherwise perfectly good contributions with endless back and forth on editing
+points which can be handled asynchronously. Documentation maintainers who are
+not satisfied with the details of wording and formatting (a highly subjective topic)
+are encouraged to submit additional edits as a separate patch.
+Note that in that case, the other maintainers are held responsible for the
+quality of the resulting documentation patch. Please don't accept changes
+with inadequate, missing or incorrect documentation!
+
 There is also a `hacks/getmaintainers.sh` script that will print out the 
 maintainers for a specified directory.
 
