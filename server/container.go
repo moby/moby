@@ -408,65 +408,6 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) setHostConfig(container *daemon.Container, hostConfig *runconfig.HostConfig) error {
-	// Validate the HostConfig binds. Make sure that:
-	// the source exists
-	for _, bind := range hostConfig.Binds {
-		splitBind := strings.Split(bind, ":")
-		source := splitBind[0]
-
-		// ensure the source exists on the host
-		_, err := os.Stat(source)
-		if err != nil && os.IsNotExist(err) {
-			err = os.MkdirAll(source, 0755)
-			if err != nil {
-				return fmt.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
-			}
-		}
-	}
-	// Register any links from the host config before starting the container
-	if err := srv.daemon.RegisterLinks(container, hostConfig); err != nil {
-		return err
-	}
-	container.SetHostConfig(hostConfig)
-	container.ToDisk()
-
-	return nil
-}
-
-func (srv *Server) ContainerStart(job *engine.Job) engine.Status {
-	if len(job.Args) < 1 {
-		return job.Errorf("Usage: %s container_id", job.Name)
-	}
-	var (
-		name      = job.Args[0]
-		daemon    = srv.daemon
-		container = daemon.Get(name)
-	)
-
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
-	}
-
-	if container.State.IsRunning() {
-		return job.Errorf("Container already started")
-	}
-
-	// If no environment was set, then no hostconfig was passed.
-	if len(job.Environ()) > 0 {
-		hostConfig := runconfig.ContainerHostConfigFromJob(job)
-		if err := srv.setHostConfig(container, hostConfig); err != nil {
-			return job.Error(err)
-		}
-	}
-	if err := container.Start(); err != nil {
-		return job.Errorf("Cannot start container %s: %s", name, err)
-	}
-	srv.LogEvent("start", container.ID, daemon.Repositories().ImageName(container.Image))
-
-	return engine.StatusOK
-}
-
 func (srv *Server) ContainerWait(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		return job.Errorf("Usage: %s", job.Name)
