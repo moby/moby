@@ -208,18 +208,11 @@ By making a contribution to this project, I certify that:
 
 Then you just add a line to every git commit message:
 
-    Docker-DCO-1.1-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
+    Signed-off-by: Joe Smith <joe.smith@email.com>
 
 Using your real name (sorry, no pseudonyms or anonymous contributions.)
 
-One way to automate this, is customize your git `commit.template` by adding
-a `prepare-commit-msg` hook to your Docker repository:
-
-```
-curl -sSL -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/docker/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
-```
-
-* Note: the above script expects to find your GitHub user name in `git config --get github.user`
+If your git client is properly configured, you can do this automatically with `git commit -s`
 
 #### Small patch exception
 
