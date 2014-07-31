@@ -4,6 +4,38 @@ Want to hack on Docker? Awesome! Here are instructions to get you
 started. They are probably not perfect, please let us know if anything
 feels wrong or incomplete.
 
+## Topics
+
+* [Security Reports](#security-reports)
+* [Design and Cleanup Proposals](#design-and-cleanup-proposals)
+* [Reporting Issues](#reporting-issues)
+* [Build Environment](#build-environment)
+* [Contribution Guidelines](#contribution-guidelines)
+
+## Security Reports
+
+Please **DO NOT** file an issue for security related issues. Please send your
+reports to [security@docker.com](mailto:security@docker.com) instead.
+
+## Design and Cleanup Proposals
+
+When considering a design proposal, we are looking for:
+
+* A description of the problem this design proposal solves
+* An issue -- not a pull request -- that describes what you will take action on
+  * Please prefix your issue with `Proposal:` in the title
+* Please review [the existing Proposals](https://github.com/dotcloud/docker/issues?direction=asc&labels=Proposal&page=1&sort=created&state=open)
+  before reporting a new issue. You can always pair with someone if you both
+  have the same idea.
+
+When considering a cleanup task, we are looking for:
+
+* A description of the refactors made
+  * Please note any logic changes if necessary
+* A pull request with the code
+  * Please prefix your PR's title with `Cleanup:` so we can quickly address it.
+  * Your pull request must remain up to date with master, so rebase as necessary.
+
 ## Reporting Issues
 
 When reporting [issues](https://github.com/docker/docker/issues) on
