@@ -23,9 +23,11 @@ set -e
 
 set -o pipefail
 
+export DOCKER_PKG='github.com/docker/docker'
+
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$(pwd)" != '/go/src/github.com/docker/docker' ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+if [ "$(pwd)" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in the Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
@@ -77,8 +79,8 @@ fi
 
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
-	mkdir -p .gopath/src/github.com/docker
-	ln -sf ../../../.. .gopath/src/github.com/docker/docker
+	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
+	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
 fi
 
@@ -91,8 +93,8 @@ fi
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-w
-	-X github.com/docker/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
-	-X github.com/docker/docker/dockerversion.VERSION "'$VERSION'"
+	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
@@ -103,7 +105,7 @@ BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
-	-X github.com/docker/docker/dockerversion.IAMSTATIC true
+	-X $DOCKER_PKG/dockerversion.IAMSTATIC true
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 
@@ -150,7 +152,7 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		echo '+ go test' $TESTFLAGS "github.com/docker/docker${dir#.}"
+		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
@@ -178,7 +180,7 @@ go_compile_test_dir() {
 	[ $? -ne 0 ] && return 1
 	mkdir -p "$(dirname "$out_file")"
 	mv "$dir/$(basename "$dir").test" "$out_file"
-	echo "Precompiled: github.com/dotcloud/docker${dir#.}"
+	echo "Precompiled: ${DOCKER_PKG}${dir#.}"
 }
 
 # This helper function walks the current directory looking for directories
