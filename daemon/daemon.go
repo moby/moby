@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -753,6 +754,19 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 	return nil
 }
 
+func copyBinary(src, dst string) error {
+	if err := os.Mkdir(path.Dir(dst), 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if _, err := utils.CopyFile(src, dst); err != nil {
+		return err
+	}
+	if err := os.Chmod(dst, 0700); err != nil {
+		return err
+	}
+	return nil
+}
+
 // FIXME: harmonize with NewGraph()
 func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
 	daemon, err := NewDaemonFromDirectory(config, eng)
@@ -878,16 +892,17 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	if sysInitPath != localCopy {
 		// When we find a suitable dockerinit binary (even if it's our local binary), we copy it into config.Root at localCopy for future use (so that the original can go away without that being a problem, for example during a package upgrade).
-		if err := os.Mkdir(path.Dir(localCopy), 0700); err != nil && !os.IsExist(err) {
-			return nil, err
-		}
-		if _, err := utils.CopyFile(sysInitPath, localCopy); err != nil {
-			return nil, err
-		}
-		if err := os.Chmod(localCopy, 0700); err != nil {
+		if err := copyBinary(sysInitPath, localCopy); err != nil {
 			return nil, err
 		}
 		sysInitPath = localCopy
+	}
+
+	nsinitPath := filepath.Join(filepath.Dir(sysInitPath), "nsinit")
+
+	// Create nsinit for use by the native exec driver.
+	if err := copyBinary(sysInitPath, nsinitPath); err != nil {
+		return nil, err
 	}
 
 	sysInfo := sysinfo.New(false)

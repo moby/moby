@@ -20,12 +20,14 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/sysinit"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer/nsinit"
 )
 
 const (
-	defaultCaFile   = "ca.pem"
-	defaultKeyFile  = "key.pem"
-	defaultCertFile = "cert.pem"
+	defaultCaFile    = "ca.pem"
+	defaultKeyFile   = "key.pem"
+	defaultCertFile  = "cert.pem"
+	nsinitBinaryName = "nsinit"
 )
 
 var (
@@ -39,6 +41,12 @@ func main() {
 	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		// Running in init mode
 		sysinit.SysInit()
+		return
+	}
+
+	if selfPath := utils.SelfPath(); strings.Contains(selfPath, nsinitBinaryName) {
+		// Running in nsinit mode
+		nsinit.NsInit()
 		return
 	}
 
