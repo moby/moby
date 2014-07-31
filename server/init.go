@@ -70,6 +70,7 @@ func InitServer(job *engine.Job) engine.Status {
 						if atomic.LoadUint32(&interruptCount) == 1 {
 							utils.RemovePidFile(srv.daemon.Config().Pidfile)
 							srv.Close()
+							os.Exit(0)
 						} else {
 							return
 						}
