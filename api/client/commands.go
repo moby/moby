@@ -163,30 +163,27 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
-		if err = utils.ValidateContextDirectory(root); err != nil {
+		var excludes []string
+		ignore, err := ioutil.ReadFile(path.Join(root, ".dockerignore"))
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
+		}
+		for _, pattern := range strings.Split(string(ignore), "\n") {
+			ok, err := filepath.Match(pattern, "Dockerfile")
+			if err != nil {
+				return fmt.Errorf("Bad .dockerignore pattern: '%s', error: %s", pattern, err)
+			}
+			if ok {
+				return fmt.Errorf("Dockerfile was excluded by .dockerignore pattern '%s'", pattern)
+			}
+			excludes = append(excludes, pattern)
+		}
+		if err = utils.ValidateContextDirectory(root, excludes); err != nil {
 			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
 		}
 		options := &archive.TarOptions{
 			Compression: archive.Uncompressed,
-		}
-		if ignore, err := ioutil.ReadFile(path.Join(root, ".dockerignore")); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
-		} else if err == nil {
-			for _, pattern := range strings.Split(string(ignore), "\n") {
-				if pattern == "" {
-					continue
-				}
-
-				ok, err := filepath.Match(pattern, "Dockerfile")
-				if err != nil {
-					utils.Errorf("Bad .dockerignore pattern: '%s', error: %s", pattern, err)
-					continue
-				}
-				if ok {
-					return fmt.Errorf("Dockerfile was excluded by .dockerignore pattern '%s'", pattern)
-				}
-				options.Excludes = append(options.Excludes, pattern)
-			}
+			Excludes:    excludes,
 		}
 		context, err = archive.TarWithOptions(root, options)
 		if err != nil {
