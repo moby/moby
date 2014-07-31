@@ -294,7 +294,62 @@ echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 13. Rejoice and Evangelize!
+### 13. Boot2Docker builds
+
+Tell the Boot2Docker team that the release is ready, and they will do this step.
+
+#### boot2docker.iso
+
+(This step requires the `docker` executable is already available from `get.docker.io`)
+
+The first step is to trigger an automated build of https://index.docker.io/u/boot2docker/boot2docker/
+
+When that has completed (about 35 minutes),
+
+```bash
+docker pull boot2docker/boot2docker
+docker run --rm boot2docker/boot2docker > boot2docker.iso
+```
+
+Test that the resulting ISO has reasonable values in `/etc/version` and `/etc/boot2docker`,
+and that the `docker version` is as expected, and then upload to the newly created
+https://github.com/boot2docker/boot2docker/releases
+
+#### boot2docker-cli
+
+The first step is to trigger an automated build of https://index.docker.io/u/boot2docker/boot2docker-cli/
+
+And then 
+
+```bash
+docker pull boot2docker/boot2docker-cli
+docker rm b2d
+docker run --name b2d boot2docker/boot2docker-cli
+docker cp b2d:/go/src/github.com/boot2docker/boot2docker-cli/boot2docker-v$VERSION-linux-amd64 .
+docker cp b2d:/go/src/github.com/boot2docker/boot2docker-cli/boot2docker-v$VERSION-darwin-amd64 .
+docker cp b2d:/go/src/github.com/boot2docker/boot2docker-cli/boot2docker-v$VERSION-windows-amd64.exe .
+```
+
+And then upload and release on at https://github.com/boot2docker/boot2docker/releases
+
+#### boot2docker-osx.pkg
+
+This step requires both the boot2docker ISO and boot2docker-cli releases to
+be uploaded and publicly released.
+
+`ssh mac-build` (yes, we need to share the details soon) and run `./build-osx-installer.sh`.
+
+the `~/osx-installer/boot2docker-osx.pkg` file will then be ready for testing,
+and uploading to a prepared https://github.com/boot2docker/osx-installer/releases
+
+#### boot2docker-windows-installer
+
+This step requires both the boot2docker ISO and boot2docker-cli releases to
+be uploaded and publicly released.
+
+Start Sven'd Windows build VM, run inno-setup to build the exe, test and upload
+
+### 14. Rejoice and Evangelize!
 
 Congratulations! You're done.
 
