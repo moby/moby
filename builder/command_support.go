@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (b *BuildFile) FindEnvKey(key string) int {
+func (b *BuildFile) findEnvKey(key string) int {
 	for k, envVar := range b.config.Env {
 		envParts := strings.SplitN(envVar, "=", 2)
 		if key == envParts[0] {
@@ -33,7 +33,7 @@ func (b *BuildFile) FindEnvKey(key string) int {
 	return -1
 }
 
-func (b *BuildFile) ReplaceEnvMatches(value string) (string, error) {
+func (b *BuildFile) replaceEnvMatches(value string) (string, error) {
 	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
 	if err != nil {
 		return value, err
@@ -75,12 +75,12 @@ func (b *BuildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 		return fmt.Errorf("Invalid %s format", cmdName)
 	}
 
-	orig, err := b.ReplaceEnvMatches(strings.Trim(tmp[0], " \t"))
+	orig, err := b.replaceEnvMatches(strings.Trim(tmp[0], " \t"))
 	if err != nil {
 		return err
 	}
 
-	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
+	dest, err := b.replaceEnvMatches(strings.Trim(tmp[1], " \t"))
 	if err != nil {
 		return err
 	}

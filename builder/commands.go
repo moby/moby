@@ -151,8 +151,8 @@ func (b *BuildFile) CmdEnv(args string) error {
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
 
-	envKey := b.FindEnvKey(key)
-	replacedValue, err := b.ReplaceEnvMatches(value)
+	envKey := b.findEnvKey(key)
+	replacedValue, err := b.replaceEnvMatches(value)
 	if err != nil {
 		return err
 	}
