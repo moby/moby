@@ -1,6 +1,6 @@
-page_title: Docker HTTPS Setup
-page_description: How to set Docker up with https
-page_keywords: docker, example, https, daemon
+page_title: Running Docker with HTTPS
+page_description: How to setup and run Docker with HTTPS
+page_keywords: docker, docs, article, example, https, daemon, tls, ca, certificate
 
 # Running Docker with https
 
@@ -11,9 +11,9 @@ If you need Docker to be reachable via the network in a safe manner, you can
 enable TLS by specifying the `tlsverify` flag and pointing Docker's
 `tlscacert` flag to a trusted CA certificate.
 
-In daemon mode, it will only allow connections from clients
-authenticated by a certificate signed by that CA. In client mode, it
-will only connect to servers with a certificate signed by that CA.
+In the daemon mode, it will only allow connections from clients
+authenticated by a certificate signed by that CA. In the client mode,
+it will only connect to servers with a certificate signed by that CA.
 
 > **Warning**: 
 > Using TLS and managing a CA is an advanced topic. Please familiarize yourself
@@ -82,24 +82,24 @@ need to provide your client keys, certificates and trusted CA:
 > Docker over TLS should run on TCP port 2376.
 
 > **Warning**: 
-> As shown in the example above, you don't have to run the `docker` client 
-> with `sudo` or the `docker` group when you use certificate
-> authentication. That means anyone with the keys can give any
-> instructions to your Docker daemon, giving them root access to the
-> machine hosting the daemon. Guard these keys as you would a root
-> password!
+> As shown in the example above, you don't have to run the `docker` client
+> with `sudo` or the `docker` group when you use certificate authentication.
+> That means anyone with the keys can give any instructions to your Docker
+> daemon, giving them root access to the machine hosting the daemon. Guard
+> these keys as you would a root password!
 
-## Secure By Default
+## Secure by default
 
-If you want to secure your Docker client connections by default, you can move the files
-to the `.docker` directory in your home directory. Set the `DOCKER_HOST` variable as well.
+If you want to secure your Docker client connections by default, you can move 
+the files to the `.docker` directory in your home directory - and set the
+`DOCKER_HOST` variable as well.
 
     $ cp ca.pem ~/.docker/ca.pem
     $ cp client-cert.pem ~/.docker/cert.pem
     $ cp client-key.pem ~/.docker/key.pem
     $ export DOCKER_HOST=tcp://:2376
 
-Then you can just run docker with the `--tlsverify` option.
+Then you can just run Docker with the `--tlsverify` option.
 
     $ docker --tlsverify ps
 
@@ -122,10 +122,10 @@ Docker in various other modes by mixing the flags.
  - `tlsverify`, `tlscacert`, `tlscert`, `tlskey`: Authenticate with client
    certificate and authenticate server based on given CA
 
-The client will send its client certificate if found, so you just need
-to drop your keys into `~/.docker/<ca, cert or key>.pem`. Alternatively, if you
-want to store your keys in another location, you can specify that location
-using the environment variable `DOCKER_CONFIG`.
+If found, the client will send its client certificate, so you just need
+to drop your keys into `~/.docker/<ca, cert or key>.pem`. Alternatively,
+if you want to store your keys in another location, you can specify that
+location using the environment variable `DOCKER_CONFIG`.
 
     $ export DOCKER_CONFIG=${HOME}/.dockers/zone1/
     $ docker --tlsverify ps
