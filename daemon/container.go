@@ -1043,9 +1043,12 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 func (container *Container) createDaemonEnvironment(linkedEnv []string) []string {
 	// Setup environment
 	env := []string{
-		"HOME=/",
 		"PATH=" + DefaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
+		// Note: we don't set HOME here because it'll get autoset intelligently
+		// based on the value of USER inside dockerinit, but only if it isn't
+		// set already (ie, that can be overridden by setting HOME via -e or ENV
+		// in a Dockerfile).
 	}
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")

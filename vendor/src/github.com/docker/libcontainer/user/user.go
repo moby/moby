@@ -165,12 +165,13 @@ func parseGroupFile(r io.Reader, filter func(*Group) bool) ([]*Group, error) {
 	return out, nil
 }
 
-// Given a string like "user", "1000", "user:group", "1000:1000", returns the uid, gid, and list of supplementary group IDs, if possible.
-func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) (int, int, []int, error) {
+// Given a string like "user", "1000", "user:group", "1000:1000", returns the uid, gid, list of supplementary group IDs, and home directory, if available and/or applicable.
+func GetUserGroupSupplementaryHome(userSpec string, defaultUid, defaultGid int, defaultHome string) (int, int, []int, string, error) {
 	var (
 		uid      = defaultUid
 		gid      = defaultGid
 		suppGids = []int{}
+		home     = defaultHome
 
 		userArg, groupArg string
 	)
@@ -188,7 +189,7 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 		if userArg == "" {
 			userArg = strconv.Itoa(uid)
 		}
-		return 0, 0, nil, fmt.Errorf("Unable to find user %v: %v", userArg, err)
+		return 0, 0, nil, "", fmt.Errorf("Unable to find user %v: %v", userArg, err)
 	}
 
 	haveUser := users != nil && len(users) > 0
@@ -196,15 +197,16 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 		// if we found any user entries that matched our filter, let's take the first one as "correct"
 		uid = users[0].Uid
 		gid = users[0].Gid
+		home = users[0].Home
 	} else if userArg != "" {
 		// we asked for a user but didn't find them...  let's check to see if we wanted a numeric user
 		uid, err = strconv.Atoi(userArg)
 		if err != nil {
 			// not numeric - we have to bail
-			return 0, 0, nil, fmt.Errorf("Unable to find user %v", userArg)
+			return 0, 0, nil, "", fmt.Errorf("Unable to find user %v", userArg)
 		}
 		if uid < minId || uid > maxId {
-			return 0, 0, nil, ErrRange
+			return 0, 0, nil, "", ErrRange
 		}
 
 		// if userArg couldn't be found in /etc/passwd but is numeric, just roll with it - this is legit
@@ -223,7 +225,7 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 			return false
 		})
 		if err != nil && !os.IsNotExist(err) {
-			return 0, 0, nil, fmt.Errorf("Unable to find groups for user %v: %v", users[0].Name, err)
+			return 0, 0, nil, "", fmt.Errorf("Unable to find groups for user %v: %v", users[0].Name, err)
 		}
 
 		haveGroup := groups != nil && len(groups) > 0
@@ -236,10 +238,10 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 				gid, err = strconv.Atoi(groupArg)
 				if err != nil {
 					// not numeric - we have to bail
-					return 0, 0, nil, fmt.Errorf("Unable to find group %v", groupArg)
+					return 0, 0, nil, "", fmt.Errorf("Unable to find group %v", groupArg)
 				}
 				if gid < minId || gid > maxId {
-					return 0, 0, nil, ErrRange
+					return 0, 0, nil, "", ErrRange
 				}
 
 				// if groupArg couldn't be found in /etc/group but is numeric, just roll with it - this is legit
@@ -252,5 +254,5 @@ func GetUserGroupSupplementary(userSpec string, defaultUid int, defaultGid int) 
 		}
 	}
 
-	return uid, gid, suppGids, nil
+	return uid, gid, suppGids, home, nil
 }

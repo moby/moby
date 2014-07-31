@@ -150,6 +150,10 @@ func (raw *data) parent(subsystem string) (string, error) {
 }
 
 func (raw *data) path(subsystem string) (string, error) {
+	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
+	if filepath.IsAbs(raw.cgroup) {
+		return filepath.Join(raw.root, subsystem, raw.cgroup), nil
+	}
 	parent, err := raw.parent(subsystem)
 	if err != nil {
 		return "", err

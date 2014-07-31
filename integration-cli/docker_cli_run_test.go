@@ -657,7 +657,7 @@ func TestRunTwoConcurrentContainers(t *testing.T) {
 }
 
 func TestEnvironment(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "busybox", "env")
+	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env")
 	cmd.Env = append(os.Environ(),
 		"TRUE=false",
 		"TRICKY=tri\ncky\n",
@@ -676,13 +676,13 @@ func TestEnvironment(t *testing.T) {
 
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME=/",
 		"HOSTNAME=testing",
 		"FALSE=true",
 		"TRUE=false",
 		"TRICKY=tri",
 		"cky",
 		"",
+		"HOME=/root",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {

@@ -2,6 +2,13 @@
 
 package label
 
+// InitLabels returns the process label and file labels to be used within
+// the container.  A list of options can be passed into this function to alter
+// the labels.
+func InitLabels(options []string) (string, string, error) {
+	return "", "", nil
+}
+
 func GenLabels(options string) (string, string, error) {
 	return "", "", nil
 }
@@ -22,7 +29,7 @@ func Relabel(path string, fileLabel string, relabel string) error {
 	return nil
 }
 
-func GetPidCon(pid int) (string, error) {
+func GetPidLabel(pid int) (string, error) {
 	return "", nil
 }
 
