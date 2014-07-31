@@ -123,6 +123,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := eng.Register("export", daemon.ContainerExport); err != nil {
 		return err
 	}
+	if err := eng.Register("create", daemon.ContainerCreate); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -401,38 +404,6 @@ func (daemon *Daemon) restore() error {
 	}
 
 	return nil
-}
-
-// Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) Create(config *runconfig.Config, name string) (*Container, []string, error) {
-	var (
-		container *Container
-		warnings  []string
-	)
-
-	img, err := daemon.repositories.LookupImage(config.Image)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.checkImageDepth(img); err != nil {
-		return nil, nil, err
-	}
-	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
-		return nil, nil, err
-	}
-	if container, err = daemon.newContainer(name, config, img); err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.createRootfs(container, img); err != nil {
-		return nil, nil, err
-	}
-	if err := container.ToDisk(); err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.Register(container); err != nil {
-		return nil, nil, err
-	}
-	return container, warnings, nil
 }
 
 func (daemon *Daemon) checkImageDepth(img *image.Image) error {

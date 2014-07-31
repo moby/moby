@@ -21,9 +21,7 @@ import (
 
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/graphdb"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -260,52 +258,6 @@ func (srv *Server) ContainerCommit(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	job.Printf("%s\n", img.ID)
-	return engine.StatusOK
-}
-
-func (srv *Server) ContainerCreate(job *engine.Job) engine.Status {
-	var name string
-	if len(job.Args) == 1 {
-		name = job.Args[0]
-	} else if len(job.Args) > 1 {
-		return job.Errorf("Usage: %s", job.Name)
-	}
-	config := runconfig.ContainerConfigFromJob(job)
-	if config.Memory != 0 && config.Memory < 524288 {
-		return job.Errorf("Minimum memory limit allowed is 512k")
-	}
-	if config.Memory > 0 && !srv.daemon.SystemConfig().MemoryLimit {
-		job.Errorf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		config.Memory = 0
-	}
-	if config.Memory > 0 && !srv.daemon.SystemConfig().SwapLimit {
-		job.Errorf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		config.MemorySwap = -1
-	}
-	container, buildWarnings, err := srv.daemon.Create(config, name)
-	if err != nil {
-		if srv.daemon.Graph().IsNotExist(err) {
-			_, tag := parsers.ParseRepositoryTag(config.Image)
-			if tag == "" {
-				tag = graph.DEFAULTTAG
-			}
-			return job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
-		}
-		return job.Error(err)
-	}
-	if !container.Config.NetworkDisabled && srv.daemon.SystemConfig().IPv4ForwardingDisabled {
-		job.Errorf("IPv4 forwarding is disabled.\n")
-	}
-	srv.LogEvent("create", container.ID, srv.daemon.Repositories().ImageName(container.Image))
-	// FIXME: this is necessary because daemon.Create might return a nil container
-	// with a non-nil error. This should not happen! Once it's fixed we
-	// can remove this workaround.
-	if container != nil {
-		job.Printf("%s\n", container.ID)
-	}
-	for _, warning := range buildWarnings {
-		job.Errorf("%s\n", warning)
-	}
 	return engine.StatusOK
 }
 
