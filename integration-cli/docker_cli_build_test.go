@@ -475,9 +475,32 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		deleteImages("testlinksok")
 
 	}
+	{
+		// This is used to ensure we don't try to add inaccessible files when they are ignored by a .dockerignore pattern
+		pathToInaccessibleDirectoryBuildDirectory := filepath.Join(buildDirectory, "ignoredinaccessible")
+		pathToDirectoryWithoutReadAccess := filepath.Join(pathToInaccessibleDirectoryBuildDirectory, "directoryWeCantStat")
+		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
+		err := os.Chown(pathToDirectoryWithoutReadAccess, 0, 0)
+		errorOut(err, t, fmt.Sprintf("failed to chown directory to root: %s", err))
+		err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444)
+		errorOut(err, t, fmt.Sprintf("failed to chmod directory to 755: %s", err))
+		err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700)
+		errorOut(err, t, fmt.Sprintf("failed to chmod file to 444: %s", err))
+
+		buildCommandStatement := fmt.Sprintf("%s build -t ignoredinaccessible .", dockerBinary)
+		buildCmd := exec.Command("su", "unprivilegeduser", "-c", buildCommandStatement)
+		buildCmd.Dir = pathToInaccessibleDirectoryBuildDirectory
+		out, exitCode, err := runCommandWithOutput(buildCmd)
+		if err != nil || exitCode != 0 {
+			t.Fatalf("build should have worked: %s %s", err, out)
+		}
+		deleteImages("ignoredinaccessible")
+
+	}
 	deleteImages("inaccessiblefiles")
 	logDone("build - ADD from context with inaccessible files must fail")
 	logDone("build - ADD from context with accessible links must work")
+	logDone("build - ADD from context with ignored inaccessible files must work")
 }
 
 func TestBuildForceRm(t *testing.T) {
