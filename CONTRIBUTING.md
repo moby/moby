@@ -120,8 +120,6 @@ committing your changes. Most editors have plug-ins that do this automatically.
 Pull requests descriptions should be as clear as possible and include a
 reference to all the issues that they address.
 
-Pull requests must not contain commits from other users or branches.
-
 Commit messages must start with a capitalized and short summary (max. 50
 chars) written in the imperative, followed by an optional, more detailed
 explanatory text which is separated from the summary by an empty line.
@@ -131,6 +129,12 @@ suggested modifications and push additional commits to your feature branch. Be
 sure to post a comment after pushing. The new commits will show up in the pull
 request automatically, but the reviewers will not be notified unless you
 comment.
+
+Pull requests must be cleanly rebased ontop of master without multiple branches
+mixed into the PR.
+
+**Git tip**: If your PR no longer merges cleanly, use `rebase master` in your
+feature branch to update your pull request rather than `merge master`.
 
 Before the pull request is merged, make sure that you squash your commits into
 logical units of work using `git rebase -i` and `git push -f`. After every
