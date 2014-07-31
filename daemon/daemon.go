@@ -105,64 +105,32 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	if err := eng.Register("container_inspect", daemon.ContainerInspect); err != nil {
-		return err
-	}
-	if err := eng.Register("attach", daemon.ContainerAttach); err != nil {
-		return err
-	}
-	if err := eng.Register("pause", daemon.ContainerPause); err != nil {
-		return err
-	}
-	if err := eng.Register("unpause", daemon.ContainerUnpause); err != nil {
-		return err
-	}
-	if err := eng.Register("kill", daemon.ContainerKill); err != nil {
-		return err
-	}
-	if err := eng.Register("export", daemon.ContainerExport); err != nil {
-		return err
-	}
-	if err := eng.Register("create", daemon.ContainerCreate); err != nil {
-		return err
-	}
-	if err := eng.Register("stop", daemon.ContainerStop); err != nil {
-		return err
-	}
-	if err := eng.Register("start", daemon.ContainerStart); err != nil {
-		return err
-	}
-	if err := eng.Register("restart", daemon.ContainerRestart); err != nil {
-		return err
-	}
-	if err := eng.Register("wait", daemon.ContainerWait); err != nil {
-		return err
-	}
-	if err := eng.Register("resize", daemon.ContainerResize); err != nil {
-		return err
-	}
-	if err := eng.Register("commit", daemon.ContainerCommit); err != nil {
-		return err
-	}
-	if err := eng.Register("logs", daemon.ContainerLogs); err != nil {
-		return err
-	}
 	// FIXME: rename "delete" to "rm" for consistency with the CLI command
 	// FIXME: rename ContainerDestroy to ContainerRm for consistency with the CLI command
-	if err := eng.Register("delete", daemon.ContainerDestroy); err != nil {
-		return err
-	}
-	if err := eng.Register("container_copy", daemon.ContainerCopy); err != nil {
-		return err
-	}
-	if err := eng.Register("container_changes", daemon.ContainerChanges); err != nil {
-		return err
-	}
-	if err := eng.Register("top", daemon.ContainerTop); err != nil {
-		return err
-	}
-	if err := eng.Register("containers", daemon.Containers); err != nil {
-		return err
+	for name, method := range map[string]engine.Handler{
+		"attach":            daemon.ContainerAttach,
+		"commit":            daemon.ContainerCommit,
+		"container_changes": daemon.ContainerChanges,
+		"container_copy":    daemon.ContainerCopy,
+		"container_inspect": daemon.ContainerInspect,
+		"containers":        daemon.Containers,
+		"create":            daemon.ContainerCreate,
+		"delete":            daemon.ContainerDestroy,
+		"export":            daemon.ContainerExport,
+		"kill":              daemon.ContainerKill,
+		"logs":              daemon.ContainerLogs,
+		"pause":             daemon.ContainerPause,
+		"resize":            daemon.ContainerResize,
+		"restart":           daemon.ContainerRestart,
+		"start":             daemon.ContainerStart,
+		"stop":              daemon.ContainerStop,
+		"top":               daemon.ContainerTop,
+		"unpause":           daemon.ContainerUnpause,
+		"wait":              daemon.ContainerWait,
+	} {
+		if err := eng.Register(name, method); err != nil {
+			return err
+		}
 	}
 	return nil
 }
