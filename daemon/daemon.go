@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
@@ -761,10 +763,38 @@ func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error)
 }
 
 func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
+	if runtime.GOOS != "linux" {
+		log.Fatalf("The Docker daemon is only supported on linux")
+	}
+	if os.Geteuid() != 0 {
+		log.Fatalf("The Docker daemon needs to be run as root")
+	}
+	if err := checkKernelAndArch(); err != nil {
+		log.Fatal(err)
+	}
+
+	// set up the TempDir to use a canonical path
+	tmp := os.TempDir()
+	realTmp, err := utils.ReadSymlinkedDirectory(tmp)
+	if err != nil {
+		log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+	}
+	os.Setenv("TMPDIR", realTmp)
 	if !config.EnableSelinuxSupport {
 		selinuxSetDisabled()
 	}
 
+	// get the canonical path to the Docker root directory
+	var realRoot string
+	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
+		realRoot = config.Root
+	} else {
+		realRoot, err = utils.ReadSymlinkedDirectory(config.Root)
+		if err != nil {
+			log.Fatalf("Unable to get the full path to root (%s): %s", config.Root, err)
+		}
+	}
+	config.Root = realRoot
 	// Create the root directory if it doesn't exists
 	if err := os.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
@@ -1131,4 +1161,28 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 		}
 	}
 	return match, nil
+}
+
+func checkKernelAndArch() error {
+	// Check for unsupported architectures
+	if runtime.GOARCH != "amd64" {
+		return fmt.Errorf("The Docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+	}
+	// Check for unsupported kernel versions
+	// FIXME: it would be cleaner to not test for specific versions, but rather
+	// test for specific functionalities.
+	// Unfortunately we can't test for the feature "does not cause a kernel panic"
+	// without actually causing a kernel panic, so we need this workaround until
+	// the circumstances of pre-3.8 crashes are clearer.
+	// For details see http://github.com/docker/docker/issues/407
+	if k, err := kernel.GetKernelVersion(); err != nil {
+		log.Printf("WARNING: %s\n", err)
+	} else {
+		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+				log.Printf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			}
+		}
+	}
+	return nil
 }
