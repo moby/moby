@@ -316,6 +316,10 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
+		out.SetJson("Config", container.Config)
+		out.SetJson("State", container.State)
+		out.SetJson("NetworkSettings", container.NetworkSettings)
+		out.SetJson("HostConfig", container.HostConfig())
 		outs.Add(out)
 		return nil
 	}
