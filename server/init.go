@@ -92,8 +92,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"restart":          srv.ContainerRestart,
 		"start":            srv.ContainerStart,
 		"kill":             srv.ContainerKill,
-		"pause":            srv.ContainerPause,
-		"unpause":          srv.ContainerUnpause,
 		"wait":             srv.ContainerWait,
 		"tag":              srv.ImageTag, // FIXME merge with "image_tag"
 		"resize":           srv.ContainerResize,
@@ -105,7 +103,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"history":          srv.ImageHistory,
 		"viz":              srv.ImagesViz,
 		"container_copy":   srv.ContainerCopy,
-		"attach":           srv.ContainerAttach,
+		"log":              srv.Log,
 		"logs":             srv.ContainerLogs,
 		"changes":          srv.ContainerChanges,
 		"top":              srv.ContainerTop,

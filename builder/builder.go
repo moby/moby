@@ -684,6 +684,11 @@ func (b *buildFile) run(c *daemon.Container) error {
 	var errCh chan error
 	if b.verbose {
 		errCh = utils.Go(func() error {
+			// FIXME: call the 'attach' job so that daemon.Attach can be made private
+			//
+			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
+			// but without hijacking for stdin. Also, with attach there can be race
+			// condition because of some output already was printed before it.
 			return <-b.daemon.Attach(c, nil, nil, b.outStream, b.errStream)
 		})
 	}
