@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/daemon"
@@ -25,60 +24,10 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
-
-// ContainerKill send signal to the container
-// If no signal is given (sig 0), then Kill with SIGKILL and wait
-// for the container to exit.
-// If a signal is given, then just send it to the container and return.
-func (srv *Server) ContainerKill(job *engine.Job) engine.Status {
-	if n := len(job.Args); n < 1 || n > 2 {
-		return job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
-	}
-	var (
-		name = job.Args[0]
-		sig  uint64
-		err  error
-	)
-
-	// If we have a signal, look at it. Otherwise, do nothing
-	if len(job.Args) == 2 && job.Args[1] != "" {
-		// Check if we passed the signal as a number:
-		// The largest legal signal is 31, so let's parse on 5 bits
-		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
-		if err != nil {
-			// The signal is not a number, treat it as a string (either like "KILL" or like "SIGKILL")
-			sig = uint64(signal.SignalMap[strings.TrimPrefix(job.Args[1], "SIG")])
-		}
-
-		if sig == 0 {
-			return job.Errorf("Invalid signal: %s", job.Args[1])
-		}
-	}
-
-	if container := srv.daemon.Get(name); container != nil {
-		// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
-		if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
-			if err := container.Kill(); err != nil {
-				return job.Errorf("Cannot kill container %s: %s", name, err)
-			}
-			srv.LogEvent("kill", container.ID, srv.daemon.Repositories().ImageName(container.Image))
-		} else {
-			// Otherwise, just send the requested signal
-			if err := container.KillSig(int(sig)); err != nil {
-				return job.Errorf("Cannot kill container %s: %s", name, err)
-			}
-			// FIXME: Add event for signals
-		}
-	} else {
-		return job.Errorf("No such container: %s", name)
-	}
-	return engine.StatusOK
-}
 
 func (srv *Server) ContainerExport(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
