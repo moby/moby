@@ -121,7 +121,6 @@ pages:
 - ['reference/api/docker_remote_api_v1.1.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
-- ['reference/api/docker_io_oauth_api.md', 'Reference', 'Docker Hub OAuth API']
 - ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub Accounts API']
 
 - ['jsearch.md', '**HIDDEN**']
