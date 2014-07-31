@@ -109,6 +109,9 @@ func TestTarUntar(t *testing.T) {
 	if err := ioutil.WriteFile(path.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
 		t.Fatal(err)
 	}
+	if err := ioutil.WriteFile(path.Join(origin, "3"), []byte("will be ignored"), 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, c := range []Compression{
 		Uncompressed,
@@ -116,13 +119,14 @@ func TestTarUntar(t *testing.T) {
 	} {
 		changes, err := tarUntar(t, origin, &TarOptions{
 			Compression: c,
+			Excludes:    []string{"3"},
 		})
 
 		if err != nil {
 			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
 		}
 
-		if len(changes) != 0 {
+		if len(changes) != 1 || changes[0].Path != "/3" {
 			t.Fatalf("Unexpected differences after tarUntar: %v", changes)
 		}
 	}

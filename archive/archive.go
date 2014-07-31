@@ -390,8 +390,16 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
+	if options == nil {
+		options = &TarOptions{}
+	}
+
 	if archive == nil {
 		return fmt.Errorf("Empty archive")
+	}
+
+	if options.Excludes == nil {
+		options.Excludes = []string{}
 	}
 
 	decompressedArchive, err := DecompressStream(archive)
@@ -406,6 +414,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	var dirs []*tar.Header
 
 	// Iterate through the files in the archive.
+loop:
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -418,6 +427,12 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 
 		// Normalize name, for safety and for a simple is-root check
 		hdr.Name = filepath.Clean(hdr.Name)
+
+		for _, exclude := range options.Excludes {
+			if strings.HasPrefix(hdr.Name, exclude) {
+				continue loop
+			}
+		}
 
 		if !strings.HasSuffix(hdr.Name, "/") {
 			// Not the root directory, ensure that the parent directory exists
@@ -448,7 +463,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			}
 		}
 		trBuf.Reset(tr)
-		if err := createTarFile(path, dest, hdr, trBuf, options == nil || !options.NoLchown); err != nil {
+		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown); err != nil {
 			return err
 		}
 
