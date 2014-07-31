@@ -93,7 +93,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"history":      srv.ImageHistory,
 		"viz":          srv.ImagesViz,
 		"log":          srv.Log,
-		"top":          srv.ContainerTop,
 		"load":         srv.ImageLoad,
 		"build":        srv.Build,
 		"pull":         srv.ImagePull,
