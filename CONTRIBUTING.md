@@ -91,9 +91,8 @@ starts working on it.
 ### ...but check for existing issues first!
 
 Please take a moment to check that an issue doesn't already exist
-documenting your bug report or improvement proposal. If it does, it
-never hurts to add a quick "+1" or "I have this problem too". This will
-help prioritize the most common problems and requests.
+documenting your bug report or improvement proposal. If it does,
+don't be afraid to chime in with your own use cases and/or design ideas.
 
 ### Conventions
 
