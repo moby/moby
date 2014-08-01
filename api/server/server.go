@@ -238,7 +238,7 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 		outsLegacy := engine.NewTable("Created", 0)
 		for _, out := range outs.Data {
 			for _, repoTag := range out.GetList("RepoTags") {
-				repo, tag := utils.ParseRepositoryTag(repoTag)
+				repo, tag := parsers.ParseRepositoryTag(repoTag)
 				outLegacy := &engine.Env{}
 				outLegacy.Set("Repository", repo)
 				outLegacy.SetJson("Tag", tag)
