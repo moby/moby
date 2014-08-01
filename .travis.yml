@@ -16,6 +16,7 @@ sudo: false
 # Disable the normal go build.
 install:
   - export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs exclude_graphdriver_devicemapper' # btrfs and devicemapper fail to compile thanks to a couple missing headers (which we can't install thanks to "sudo: false")
+  - export AUTO_GOPATH=1
 
 before_script:
   - env | sort
@@ -23,6 +24,7 @@ before_script:
 script:
   - hack/make.sh validate-dco
   - hack/make.sh validate-gofmt
-  - AUTO_GOPATH=1 ./hack/make.sh dynbinary
+  - ./hack/make.sh dynbinary
+  - DOCKER_CLIENTONLY=1 ./hack/make.sh dynbinary
 
 # vim:set sw=2 ts=2:

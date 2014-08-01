@@ -90,6 +90,10 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
+if [ -z "$DOCKER_CLIENTONLY" ]; then
+	DOCKER_BUILDTAGS+=" daemon"
+fi
+
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-w
