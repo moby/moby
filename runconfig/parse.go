@@ -20,6 +20,7 @@ var (
 	ErrConflictAttachDetach        = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictDetachAutoRemove    = fmt.Errorf("Conflicting options: --rm and -d")
 	ErrConflictDetachForceRemove   = fmt.Errorf("Conflicting options: --force-rm and -d")
+	ErrConflictRemoveForceRemove   = fmt.Errorf("Conflicting options: --rm and --force-rm")
 	ErrConflictNetworkHostname     = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
@@ -116,6 +117,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 	if *flDetach && *flAutoRemove {
 		return nil, nil, cmd, ErrConflictDetachAutoRemove
+	}
+	if *flAutoRemove && *flForceRemove {
+		return nil, nil, cmd, ErrConflictRemoveForceRemove
 	}
 
 	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {

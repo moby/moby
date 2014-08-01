@@ -1995,9 +1995,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		sigProxy, _    = strconv.ParseBool(flSigProxy.Value.String())
 	)
 
-	if forceRemove {
-		autoRemove = true
-	}
 	// Disable sigProxy in case on TTY
 	if config.Tty {
 		sigProxy = false
@@ -2055,19 +2052,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	remove := false
-	defer func() {
-		if !remove {
-			return
-		}
-		if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
-			fmt.Printf("failed to remove container: %s \n", err)
-		}
-	}()
 	if forceRemove {
-		remove = true
+		defer func() {
+			if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
+				fmt.Fprintf(cli.err, "failed to remove container: %s \n", err)
+			}
+		}()
 	}
-
 	for _, warning := range runResult.GetList("Warnings") {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
@@ -2197,8 +2188,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 		if autoRemove {
-			// Autoremove: remove the container
-			remove = true
+			if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
+				fmt.Fprintf(cli.err, "failed to remove container: %s \n", err)
+			}
 		}
 	}
 	if status != 0 {
