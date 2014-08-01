@@ -725,10 +725,12 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 
 	// allow a nil body for backwards compatibility
 	if r.Body != nil {
-		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
-			if err := job.DecodeEnv(r.Body); err != nil {
-				return err
-			}
+		if !api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
+			return fmt.Errorf("Content-Type is not supported: %s", r.Header.Get("Content-Type"))
+		}
+
+		if err := job.DecodeEnv(r.Body); err != nil {
+			return err
 		}
 	}
 	if err := job.Run(); err != nil {
