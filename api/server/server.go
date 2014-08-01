@@ -724,13 +724,16 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	)
 
 	// allow a nil body for backwards compatibility
-	if r.Body != nil {
-		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
-			if err := job.DecodeEnv(r.Body); err != nil {
-				return err
-			}
+	if r.Body != nil && r.ContentLength > 0 {
+		if !api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
+			return fmt.Errorf("Content-Type of application/json is required")
+		}
+
+		if err := job.DecodeEnv(r.Body); err != nil {
+			return err
 		}
 	}
+
 	if err := job.Run(); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
