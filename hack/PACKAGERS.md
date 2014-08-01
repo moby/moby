@@ -301,7 +301,7 @@ by having support for them in the kernel or userspace. A few examples include:
 * LXC execution driver (requires version 1.0 or later of the LXC utility scripts)
 * AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
-* experimental BTRFS graph driver (requires BTRFS support enabled in the kernel)
+* BTRFS graph driver (requires BTRFS support enabled in the kernel)
 
 ## Daemon Init Script
 
