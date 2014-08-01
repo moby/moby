@@ -13,8 +13,8 @@ notDocs="$(validate_diff --numstat | awk '$3 !~ /^docs\// { print $3 }')"
 githubUsernameRegex='[a-zA-Z0-9][a-zA-Z0-9-]+'
 
 # https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work
-dcoPrefix='Docker-DCO-1.1-Signed-off-by:'
-dcoRegex="^$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)> \\(github: ($githubUsernameRegex)\\)$"
+dcoPrefix='Signed-off-by:'
+dcoRegex="^(Docker-DCO-1.1-)?$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)>( \\(github: ($githubUsernameRegex)\\))?$"
 
 check_dco() {
 	grep -qE "$dcoRegex"
