@@ -801,12 +801,6 @@ Push the image `name` on the registry
     {"status":"Pushing..."} {"status":"Pushing", "progress":"1/? (n/a)"}
     {"error":"Invalid..."} ...
 
-    Query Parameters:
-
-     
-
-    -   **registry** – the registry you wan to push, optional
-
     Status Codes:
 
     -   **200** – no error :statuscode 404: no such image :statuscode
