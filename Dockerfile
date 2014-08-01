@@ -27,9 +27,6 @@ docker-version	0.6.1
 FROM	ubuntu:14.04
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
-# PAM workaround
-RUN ln -s -f /bin/true /usr/bin/chfn
-
 # Packaged dependencies
 RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	apt-utils \
