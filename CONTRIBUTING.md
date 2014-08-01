@@ -208,18 +208,16 @@ By making a contribution to this project, I certify that:
 
 Then you just add a line to every git commit message:
 
-    Docker-DCO-1.1-Signed-off-by: Joe Smith <joe.smith@email.com> (github: github_handle)
+    Signed-off-by: Joe Smith <joe.smith@email.com>
 
 Using your real name (sorry, no pseudonyms or anonymous contributions.)
 
-One way to automate this, is customize your git `commit.template` by adding
-a `prepare-commit-msg` hook to your Docker repository:
+If you set your `user.name` and `user.email` git configs, you can sign your
+commit automatically with `git commit -s`.
 
-```
-curl -sSL -o .git/hooks/prepare-commit-msg https://raw.githubusercontent.com/docker/docker/master/contrib/prepare-commit-msg.hook && chmod +x .git/hooks/prepare-commit-msg
-```
-
-* Note: the above script expects to find your GitHub user name in `git config --get github.user`
+Note that the old-style `Docker-DCO-1.1-Signed-off-by: ...` format is still
+accepted, so there is no need to update outstanding pull requests to the new
+format right away, but please do adjust your processes for future contributions.
 
 #### Small patch exception
 
