@@ -1986,11 +1986,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// Retrieve relevant client-side config
 	var (
-		flName        = cmd.Lookup("name")
-		flRm          = cmd.Lookup("rm")
-		flSigProxy    = cmd.Lookup("sig-proxy")
-		autoRemove, _ = strconv.ParseBool(flRm.Value.String())
-		sigProxy, _   = strconv.ParseBool(flSigProxy.Value.String())
+		flName         = cmd.Lookup("name")
+		flRm           = cmd.Lookup("rm")
+		flForceRm      = cmd.Lookup("force-rm")
+		flSigProxy     = cmd.Lookup("sig-proxy")
+		autoRemove, _  = strconv.ParseBool(flRm.Value.String())
+		forceRemove, _ = strconv.ParseBool(flForceRm.Value.String())
+		sigProxy, _    = strconv.ParseBool(flSigProxy.Value.String())
 	)
 
 	// Disable sigProxy in case on TTY
@@ -2050,6 +2052,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
+	if forceRemove {
+		defer func() {
+			if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
+				fmt.Fprintf(cli.err, "failed to remove container: %s \n", err)
+			}
+		}()
+	}
 	for _, warning := range runResult.GetList("Warnings") {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
@@ -2166,30 +2175,21 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	var status int
 
 	// Attached mode
-	if autoRemove {
-		// Autoremove: wait for the container to finish, retrieve
-		// the exit code and remove the container
-		if _, _, err := readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/wait", nil, false)); err != nil {
-			return err
-		}
+	if config.Tty && !autoRemove {
+		// In TTY mode, there is a race. If the process dies too slowly, the state can be update after the getExitCode call
+		// and result in a wrong exit code.
+		// No Autoremove: Simply retrieve the exit code
 		if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
 			return err
 		}
-		if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
+	} else {
+		// In non-tty mode, we can't dettach, so we know we need to wait.
+		if status, err = waitForExit(cli, runResult.Get("Id")); err != nil {
 			return err
 		}
-	} else {
-		if !config.Tty {
-			// In non-tty mode, we can't dettach, so we know we need to wait.
-			if status, err = waitForExit(cli, runResult.Get("Id")); err != nil {
-				return err
-			}
-		} else {
-			// In TTY mode, there is a race. If the process dies too slowly, the state can be update after the getExitCode call
-			// and result in a wrong exit code.
-			// No Autoremove: Simply retrieve the exit code
-			if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
-				return err
+		if autoRemove {
+			if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
+				fmt.Fprintf(cli.err, "failed to remove container: %s \n", err)
 			}
 		}
 	}
