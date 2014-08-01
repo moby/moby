@@ -910,12 +910,6 @@ Push the image `name` on the registry
     > The `X-Registry-Auth` header can be used to
     > include a base64-encoded AuthConfig object.
 
-    Query Parameters:
-
-     
-
-    -   **registry** – the registry you wan to push, optional
-
     Status Codes:
 
     -   **200** – no error :statuscode 404: no such image :statuscode
