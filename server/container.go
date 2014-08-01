@@ -235,8 +235,6 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 
 	errLast := errors.New("last container")
 	writeCont := func(container *daemon.Container) error {
-		container.Lock()
-		defer container.Unlock()
 		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
@@ -286,6 +284,10 @@ func (srv *Server) Containers(job *engine.Job) engine.Status {
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
+		out.SetJson("Config", container.Config)
+		out.SetJson("State", container.State)
+		out.SetJson("NetworkSettings", container.NetworkSettings)
+		out.SetJson("HostConfig", container.HostConfig())
 		outs.Add(out)
 		return nil
 	}
