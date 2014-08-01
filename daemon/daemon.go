@@ -105,24 +105,34 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	if err := eng.Register("container_inspect", daemon.ContainerInspect); err != nil {
-		return err
-	}
-	if err := eng.Register("attach", daemon.ContainerAttach); err != nil {
-		return err
-	}
-	if err := eng.Register("pause", daemon.ContainerPause); err != nil {
-		return err
-	}
-	if err := eng.Register("unpause", daemon.ContainerUnpause); err != nil {
-		return err
+	// FIXME: rename "delete" to "rm" for consistency with the CLI command
+	// FIXME: rename ContainerDestroy to ContainerRm for consistency with the CLI command
+	for name, method := range map[string]engine.Handler{
+		"attach":            daemon.ContainerAttach,
+		"commit":            daemon.ContainerCommit,
+		"container_changes": daemon.ContainerChanges,
+		"container_copy":    daemon.ContainerCopy,
+		"container_inspect": daemon.ContainerInspect,
+		"containers":        daemon.Containers,
+		"create":            daemon.ContainerCreate,
+		"delete":            daemon.ContainerDestroy,
+		"export":            daemon.ContainerExport,
+		"kill":              daemon.ContainerKill,
+		"logs":              daemon.ContainerLogs,
+		"pause":             daemon.ContainerPause,
+		"resize":            daemon.ContainerResize,
+		"restart":           daemon.ContainerRestart,
+		"start":             daemon.ContainerStart,
+		"stop":              daemon.ContainerStop,
+		"top":               daemon.ContainerTop,
+		"unpause":           daemon.ContainerUnpause,
+		"wait":              daemon.ContainerWait,
+	} {
+		if err := eng.Register(name, method); err != nil {
+			return err
+		}
 	}
 	return nil
-}
-
-// List returns an array of all containers registered in the daemon.
-func (daemon *Daemon) List() []*Container {
-	return daemon.containers.List()
 }
 
 // Get looks for a container by the specified ID or name, and returns it.
@@ -279,47 +289,6 @@ func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, strea
 	return nil
 }
 
-// Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) Destroy(container *Container) error {
-	if container == nil {
-		return fmt.Errorf("The given container is <nil>")
-	}
-
-	element := daemon.containers.Get(container.ID)
-	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
-	}
-
-	if err := container.Stop(3); err != nil {
-		return err
-	}
-
-	// Deregister the container before removing its directory, to avoid race conditions
-	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Delete(container.ID)
-
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		utils.Debugf("Unable to remove container from link graph: %s", err)
-	}
-
-	if err := daemon.driver.Remove(container.ID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
-	}
-
-	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Remove(initID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
-	}
-
-	if err := os.RemoveAll(container.root); err != nil {
-		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
-	}
-
-	selinuxFreeLxcContexts(container.ProcessLabel)
-
-	return nil
-}
-
 func (daemon *Daemon) restore() error {
 	var (
 		debug             = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
@@ -395,38 +364,6 @@ func (daemon *Daemon) restore() error {
 	}
 
 	return nil
-}
-
-// Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) Create(config *runconfig.Config, name string) (*Container, []string, error) {
-	var (
-		container *Container
-		warnings  []string
-	)
-
-	img, err := daemon.repositories.LookupImage(config.Image)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.checkImageDepth(img); err != nil {
-		return nil, nil, err
-	}
-	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
-		return nil, nil, err
-	}
-	if container, err = daemon.newContainer(name, config, img); err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.createRootfs(container, img); err != nil {
-		return nil, nil, err
-	}
-	if err := container.ToDisk(); err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.Register(container); err != nil {
-		return nil, nil, err
-	}
-	return container, warnings, nil
 }
 
 func (daemon *Daemon) checkImageDepth(img *image.Image) error {
@@ -632,51 +569,6 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 		return err
 	}
 	return nil
-}
-
-// Commit creates a new filesystem image from the current state of a container.
-// The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
-	if pause {
-		container.Pause()
-		defer container.Unpause()
-	}
-
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-	defer container.Unmount()
-
-	rwTar, err := container.ExportRw()
-	if err != nil {
-		return nil, err
-	}
-	defer rwTar.Close()
-
-	// Create a new image from the container's base layers + a new layer from container changes
-	var (
-		containerID, containerImage string
-		containerConfig             *runconfig.Config
-	)
-
-	if container != nil {
-		containerID = container.ID
-		containerImage = container.Image
-		containerConfig = container.Config
-	}
-
-	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Register the image if needed
-	if repository != "" {
-		if err := daemon.repositories.Set(repository, tag, img.ID, true); err != nil {
-			return img, err
-		}
-	}
-	return img, nil
 }
 
 func GetFullContainerName(name string) (string, error) {
