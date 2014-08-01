@@ -28,8 +28,7 @@ FROM	ubuntu:14.04
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
-RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
-	apt-utils \
+RUN	apt-get update && apt-get install -y \
 	aufs-tools \
 	automake \
 	btrfs-tools \

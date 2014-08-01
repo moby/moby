@@ -28,10 +28,10 @@ Use the following Dockerfile:
     MAINTAINER  SvenDowideit@docker.com
 
     VOLUME      ["/var/cache/apt-cacher-ng"]
-    RUN     apt-get update ; apt-get install -yq apt-cacher-ng
+    RUN     apt-get update && apt-get install -y apt-cacher-ng
 
     EXPOSE      3142
-    CMD     chmod 777 /var/cache/apt-cacher-ng ; /etc/init.d/apt-cacher-ng start ; tail -f /var/log/apt-cacher-ng/*
+    CMD     chmod 777 /var/cache/apt-cacher-ng && /etc/init.d/apt-cacher-ng start && tail -f /var/log/apt-cacher-ng/*
 
 To build the image using:
 
@@ -61,7 +61,7 @@ a local version of a common base:
 
     FROM ubuntu
     RUN  echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/apt.conf.d/01proxy
-    RUN apt-get update ; apt-get install vim git
+    RUN apt-get update && apt-get install -y vim git
 
     # docker build -t my_ubuntu .
 

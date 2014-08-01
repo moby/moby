@@ -65,13 +65,12 @@ The first two steps can be done as part of a Dockerfile, as follows.
     FROM ubuntu
     MAINTAINER Eystein Måløy Stenberg <eytein.stenberg@gmail.com>
 
-    RUN apt-get -y install wget lsb-release unzip ca-certificates
+    RUN apt-get update && apt-get install -y wget lsb-release unzip ca-certificates
 
     # install latest CFEngine
     RUN wget -qO- http://cfengine.com/pub/gpg.key | apt-key add -
     RUN echo "deb http://cfengine.com/pub/apt $(lsb_release -cs) main" > /etc/apt/sources.list.d/cfengine-community.list
-    RUN apt-get update
-    RUN apt-get install cfengine-community
+    RUN apt-get update && apt-get install -y cfengine-community
 
     # install cfe-docker process management policy
     RUN wget https://github.com/estenberg/cfe-docker/archive/master.zip -P /tmp/ && unzip /tmp/master.zip -d /tmp/
@@ -80,7 +79,7 @@ The first two steps can be done as part of a Dockerfile, as follows.
     RUN rm -rf /tmp/cfe-docker-master /tmp/master.zip
 
     # apache2 and openssh are just for testing purposes, install your own apps here
-    RUN apt-get -y install openssh-server apache2
+    RUN apt-get update && apt-get install -y openssh-server apache2
     RUN mkdir -p /var/run/sshd
     RUN echo "root:password" | chpasswd  # need a password for ssh
 
