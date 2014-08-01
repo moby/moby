@@ -12,7 +12,7 @@ func Get(id, parent string) (*cgroups.Stats, error) {
 		Parent: parent,
 	}
 
-	stats, err := fs.GetStats(c)
+	stats, err := fs.GetStatsFix(c)
 
 	if err != nil {
 		return nil, err
