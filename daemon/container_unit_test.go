@@ -89,6 +89,41 @@ func TestParseNetworkOptsPublic(t *testing.T) {
 	}
 }
 
+func TestParseNetworkOptsPublicNoPort(t *testing.T) {
+	ports, bindings, err := nat.ParsePortSpecs([]string{"192.168.1.100"})
+
+	if err == nil {
+		t.Logf("Expected error Invalid containerPort")
+		t.Fail()
+	}
+	if ports != nil {
+		t.Logf("Expected nil got %s", ports)
+		t.Fail()
+	}
+	if bindings != nil {
+		t.Logf("Expected nil got %s", bindings)
+		t.Fail()
+	}
+}
+
+func TestParseNetworkOptsNegativePorts(t *testing.T) {
+	ports, bindings, err := nat.ParsePortSpecs([]string{"192.168.1.100:-1:-1"})
+
+	if err == nil {
+		t.Fail()
+	}
+	t.Logf("%v", len(ports))
+	t.Logf("%v", bindings)
+	if len(ports) != 0 {
+		t.Logf("Expected nil got %s", len(ports))
+		t.Fail()
+	}
+	if len(bindings) != 0 {
+		t.Logf("Expected 0 got %s", len(bindings))
+		t.Fail()
+	}
+}
+
 func TestParseNetworkOptsUdp(t *testing.T) {
 	ports, bindings, err := nat.ParsePortSpecs([]string{"192.168.1.100::6000/udp"})
 	if err != nil {
