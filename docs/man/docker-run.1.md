@@ -17,7 +17,7 @@ docker-run - Run a command in a new container
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
-[**--entrypoint**[=*ENTRYPOINT*]]
+[**--entrypoint**[=*[]*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
@@ -109,7 +109,7 @@ environment variables that are available for the process that will be launched
 inside of the container.
 
 
-**--entrypoint**=*command*
+**--entrypoint**=[]
    This option allows you to overwrite the default entrypoint of the image that
 is set in the Dockerfile. The ENTRYPOINT of an image is similar to a COMMAND
 because it specifies what executable to run when the container starts, but it is
