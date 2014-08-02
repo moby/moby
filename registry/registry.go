@@ -33,6 +33,7 @@ var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	errLoginRequired         = errors.New("Authentication is required.")
+	registry_ssl_no_verify   = os.Getenv("DOCKER_REGISTRY_SSL_NO_VERIFY") == "true"
 )
 
 type TimeoutType uint32
@@ -44,7 +45,7 @@ const (
 )
 
 func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
-	tlsConfig := tls.Config{RootCAs: roots}
+	tlsConfig := tls.Config{RootCAs: roots, InsecureSkipVerify: registry_ssl_no_verify}
 
 	if cert != nil {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
