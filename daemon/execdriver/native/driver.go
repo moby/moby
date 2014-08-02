@@ -15,14 +15,15 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
+	consolepkg "github.com/docker/libcontainer/console"
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/syncpipe"
+	"github.com/docker/libcontainer/system"
 )
 
 const (
@@ -143,8 +144,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		}, args...)
 
 		// set this to nil so that when we set the clone flags anything else is reset
-		c.SysProcAttr = nil
-		system.SetCloneFlags(&c.Cmd, uintptr(namespaces.GetNamespaceFlags(container.Namespaces)))
+		c.SysProcAttr = &syscall.SysProcAttr{
+			Cloneflags: uintptr(namespaces.GetNamespaceFlags(container.Namespaces)),
+		}
 		c.ExtraFiles = []*os.File{child}
 
 		c.Env = container.Env
@@ -285,7 +287,7 @@ type TtyConsole struct {
 }
 
 func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
-	ptyMaster, console, err := system.CreateMasterAndConsole()
+	ptyMaster, console, err := consolepkg.CreateMasterAndConsole()
 	if err != nil {
 		return nil, err
 	}
