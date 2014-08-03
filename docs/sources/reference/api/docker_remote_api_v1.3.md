@@ -755,12 +755,6 @@ Push the image `name` on the registry
         {"error":"Invalid..."}
         ...
 
-    Query Parameters:
-
-     
-
-    -   **registry** – the registry you wan to push, optional
-
     Status Codes:
 
     -   **200** – no error
