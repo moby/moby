@@ -444,7 +444,10 @@ It can be used multiple times in the one `Dockerfile`. If a relative path
 is provided, it will be relative to the path of the previous `WORKDIR`
 instruction. For example:
 
-    WORKDIR /a WORKDIR b WORKDIR c RUN pwd
+    WORKDIR /a
+    WORKDIR b
+    WORKDIR c
+    RUN pwd
 
 The output of the final `pwd` command in this Dockerfile would be
 `/a/b/c`.
