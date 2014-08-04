@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/nat"
@@ -234,6 +235,11 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
 	}
 
+	restartPolicy, err := parseRestartPolicy(*flRestartPolicy)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -272,7 +278,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Devices:         deviceMappings,
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),
-		RestartPolicy:   *flRestartPolicy,
+		RestartPolicy:   restartPolicy,
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
@@ -285,6 +291,38 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
+}
+
+// parseRestartPolicy returns the parsed policy or an error indicating what is incorrect
+func parseRestartPolicy(policy string) (RestartPolicy, error) {
+	p := RestartPolicy{}
+
+	if policy == "" {
+		return p, nil
+	}
+
+	var (
+		parts = strings.Split(policy, ":")
+		name  = parts[0]
+	)
+
+	switch name {
+	case "no", "on-failure", "always":
+		p.Name = name
+
+		if len(parts) == 2 {
+			count, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return p, err
+			}
+
+			p.MaximumRetryCount = count
+		}
+	default:
+		return p, fmt.Errorf("invalid restart policy %s", name)
+	}
+
+	return p, nil
 }
 
 // options will come in the format of name.key=value or name.option

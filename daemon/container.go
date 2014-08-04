@@ -501,6 +501,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		err       error
 		exitCode  int
 		failCount int
+		exit      bool
 
 		policy = container.hostConfig.RestartPolicy
 	)
@@ -522,8 +523,8 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		if exitCode, err = container.daemon.Run(container, pipes, callback); err != nil {
 			failCount++
 
-			if failCount == 100 {
-				container.requestedStop = true
+			if failCount == policy.MaximumRetryCount {
+				exit = true
 			}
 
 			utils.Errorf("Error running container: %s", err)
@@ -561,7 +562,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 			container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
 		}
 
-		if (policy == "always" || (policy == "on-failure" && exitCode != 0)) && !container.requestedStop {
+		if (policy.Name == "always" || (policy.Name == "on-failure" && exitCode != 0)) && !container.requestedStop || !exit {
 			container.command.Cmd = copyCmd(&container.command.Cmd)
 
 			time.Sleep(1 * time.Second)
