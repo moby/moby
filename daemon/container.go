@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -75,6 +76,7 @@ type Container struct {
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
+	RestartCount             int
 
 	Volumes map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
@@ -82,7 +84,8 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks map[string]*links.Link
+	activeLinks   map[string]*links.Link
+	requestedStop bool
 }
 
 func (container *Container) FromDisk() error {
@@ -277,6 +280,7 @@ func (container *Container) Start() (err error) {
 	if container.State.IsRunning() {
 		return nil
 	}
+
 	// if we encounter and error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
@@ -310,9 +314,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	if err := setupMountsForContainer(container); err != nil {
-		return err
-	}
-	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
 
@@ -497,35 +498,105 @@ func (container *Container) releaseNetwork() {
 
 func (container *Container) monitor(callback execdriver.StartCallback) error {
 	var (
-		err      error
-		exitCode int
+		err       error
+		exitCode  int
+		failCount int
 	)
 
-	pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
-	exitCode, err = container.daemon.Run(container, pipes, callback)
-	if err != nil {
-		log.Errorf("Error running container: %s", err)
-	}
-	container.State.SetStopped(exitCode)
+	// reset the restart count
+	container.RestartCount = -1
+	container.requestedStop = false
 
-	// Cleanup
-	container.cleanup()
+	for {
+		container.RestartCount++
 
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-	container.LogEvent("die")
-	// If the engine is shutting down, don't save the container state as stopped.
-	// This will cause it to be restarted when the engine is restarted.
-	if container.daemon != nil && container.daemon.eng != nil && !container.daemon.eng.IsShutdown() {
-		if err := container.toDisk(); err != nil {
-			log.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
+		pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
+		if err := container.startLoggingToDisk(); err != nil {
+			return err
+		}
+
+		if exitCode, err = container.daemon.Run(container, pipes, callback); err != nil {
+			failCount++
+
+			if failCount == 100 {
+				return err
+			}
+
+			utils.Errorf("Error running container: %s", err)
+		}
+
+		// We still wait to set the state as stopped and ensure that the locks were released
+		container.State.SetStopped(exitCode)
+
+		if container.Config.OpenStdin {
+			if err := container.stdin.Close(); err != nil {
+				utils.Errorf("%s: Error close stdin: %s", container.ID, err)
+			}
+		}
+
+		if err := container.stdout.Clean(); err != nil {
+			utils.Errorf("%s: Error close stdout: %s", container.ID, err)
+		}
+
+		if err := container.stderr.Clean(); err != nil {
+			utils.Errorf("%s: Error close stderr: %s", container.ID, err)
+		}
+
+		if container.command != nil && container.command.Terminal != nil {
+			if err := container.command.Terminal.Close(); err != nil {
+				utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
+			}
+		}
+
+		// Re-create a brand new stdin pipe once the container exited
+		if container.Config.OpenStdin {
+			container.stdin, container.stdinPipe = io.Pipe()
+		}
+
+		if container.daemon != nil && container.daemon.srv != nil {
+			container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
+		}
+
+		policy := container.hostConfig.RestartPolicy
+
+		if (policy == "always" || (policy == "on-failure" && exitCode != 0)) && !container.requestedStop {
+			container.command.Cmd = copyCmd(&container.command.Cmd)
+			time.Sleep(1 * time.Second)
+		} else {
+			// do not restart the container, let it die
+			// Cleanup networking and mounts
+			container.cleanup()
+
+			if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
+				// FIXME: here is race condition between two RUN instructions in Dockerfile
+				// because they share same runconfig and change image. Must be fixed
+				// in builder/builder.go
+				if err := container.toDisk(); err != nil {
+					utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
+				}
+			}
+
+			return err
 		}
 	}
-	return err
 }
 
+func copyCmd(c *exec.Cmd) exec.Cmd {
+	return exec.Cmd{
+		Stdin:       c.Stdin,
+		Stdout:      c.Stdout,
+		Stderr:      c.Stderr,
+		Path:        c.Path,
+		Env:         c.Env,
+		ExtraFiles:  c.ExtraFiles,
+		Args:        c.Args,
+		Dir:         c.Dir,
+		SysProcAttr: c.SysProcAttr,
+	}
+}
+
+// cleanup releases any network resources allocated to the container along with any rules
+// around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
 	container.releaseNetwork()
 
@@ -533,22 +604,6 @@ func (container *Container) cleanup() {
 	if container.activeLinks != nil {
 		for _, link := range container.activeLinks {
 			link.Disable()
-		}
-	}
-	if container.Config.OpenStdin {
-		if err := container.stdin.Close(); err != nil {
-			log.Errorf("%s: Error close stdin: %s", container.ID, err)
-		}
-	}
-	if err := container.stdout.Clean(); err != nil {
-		log.Errorf("%s: Error close stdout: %s", container.ID, err)
-	}
-	if err := container.stderr.Clean(); err != nil {
-		log.Errorf("%s: Error close stderr: %s", container.ID, err)
-	}
-	if container.command != nil && container.command.Terminal != nil {
-		if err := container.command.Terminal.Close(); err != nil {
-			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
@@ -570,6 +625,8 @@ func (container *Container) KillSig(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
+	container.requestedStop = true
+
 	return container.daemon.Kill(container, sig)
 }
 
@@ -1122,6 +1179,7 @@ func (container *Container) waitForStart() error {
 				c.Close()
 			}
 		}
+
 		container.State.SetRunning(command.Pid())
 		if err := container.toDisk(); err != nil {
 			log.Debugf("%s", err)

@@ -40,6 +40,7 @@ type HostConfig struct {
 	NetworkMode     NetworkMode
 	CapAdd          []string
 	CapDrop         []string
+	RestartPolicy   string
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -48,6 +49,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
+		RestartPolicy:   job.Getenv("RestartPolicy"),
 	}
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
