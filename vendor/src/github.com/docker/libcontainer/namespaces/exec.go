@@ -133,7 +133,7 @@ func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataP
 	   }
 	*/
 
-	command := exec.Command(init, append([]string{"init"}, args...)...)
+	command := exec.Command(init, append([]string{"init", "--"}, args...)...)
 	// make sure the process is executed inside the context of the rootfs
 	command.Dir = rootfs
 	command.Env = append(os.Environ(), env...)
