@@ -75,13 +75,23 @@ fi
 if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 	lsb_dist='Fedora'
 fi
+if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
+	lsb_dist="$(. /etc/os-release && echo "$NAME" | cut -d' ' -f1)"
+fi
 
 case "$lsb_dist" in
-	Fedora)
-		(
-			set -x
-			$sh_c 'sleep 3; yum -y -q install docker-io'
-		)
+	Amazon|Fedora)
+		if [ "$lsb_dist" = 'Amazon' ]; then
+			(
+				set -x
+				$sh_c 'sleep 3; yum -y -q install docker'
+			)
+		else
+			(
+				set -x
+				$sh_c 'sleep 3; yum -y -q install docker-io'
+			)
+		fi
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
