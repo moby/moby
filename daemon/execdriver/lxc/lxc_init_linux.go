@@ -9,9 +9,9 @@ import (
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/native/template"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/security/capabilities"
+	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/utils"
 )
 
