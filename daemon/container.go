@@ -501,7 +501,14 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		err       error
 		exitCode  int
 		failCount int
+
+		policy = container.hostConfig.RestartPolicy
 	)
+
+	if err := container.startLoggingToDisk(); err != nil {
+		// TODO: crosbymichael cleanup IO, network, and mounts
+		return err
+	}
 
 	// reset the restart count
 	container.RestartCount = -1
@@ -511,15 +518,12 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		container.RestartCount++
 
 		pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
-		if err := container.startLoggingToDisk(); err != nil {
-			return err
-		}
 
 		if exitCode, err = container.daemon.Run(container, pipes, callback); err != nil {
 			failCount++
 
 			if failCount == 100 {
-				return err
+				container.requestedStop = true
 			}
 
 			utils.Errorf("Error running container: %s", err)
@@ -557,27 +561,27 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 			container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
 		}
 
-		policy := container.hostConfig.RestartPolicy
-
 		if (policy == "always" || (policy == "on-failure" && exitCode != 0)) && !container.requestedStop {
 			container.command.Cmd = copyCmd(&container.command.Cmd)
+
 			time.Sleep(1 * time.Second)
-		} else {
-			// do not restart the container, let it die
-			// Cleanup networking and mounts
-			container.cleanup()
 
-			if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
-				// FIXME: here is race condition between two RUN instructions in Dockerfile
-				// because they share same runconfig and change image. Must be fixed
-				// in builder/builder.go
-				if err := container.toDisk(); err != nil {
-					utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
-				}
-			}
-
-			return err
+			continue
 		}
+
+		// Cleanup networking and mounts
+		container.cleanup()
+
+		if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
+			// FIXME: here is race condition between two RUN instructions in Dockerfile
+			// because they share same runconfig and change image. Must be fixed
+			// in builder/builder.go
+			if err := container.toDisk(); err != nil {
+				utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
+			}
+		}
+
+		return err
 	}
 }
 
