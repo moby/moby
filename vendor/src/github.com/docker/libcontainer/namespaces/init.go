@@ -5,7 +5,6 @@ package namespaces
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"syscall"
 
@@ -28,6 +27,8 @@ import (
 // Move this to libcontainer package.
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
+// The caller of Init function has to ensure that the go runtime is locked to an OS thread
+// (using runtime.LockOSThread) else system calls like setns called within Init may not work as intended.
 func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syncPipe *syncpipe.SyncPipe, args []string) (err error) {
 	defer func() {
 		if err != nil {
@@ -86,8 +87,6 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 			return fmt.Errorf("sethostname %s", err)
 		}
 	}
-
-	runtime.LockOSThread()
 
 	if err := apparmor.ApplyProfile(container.AppArmorProfile); err != nil {
 		return fmt.Errorf("set apparmor profile %s: %s", container.AppArmorProfile, err)
