@@ -1453,4 +1453,5 @@ func TestCopyVolumeContent(t *testing.T) {
 	if !(strings.Contains(out, "/hello/local/world") && strings.Contains(out, "/hello/local")) {
 		t.Fatal("Container failed to transfer content to volume")
 	}
+	logDone("run - copy volume content")
 }
