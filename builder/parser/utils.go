@@ -41,7 +41,7 @@ func (node *Node) Dump() string {
 			if len(n.Children) > 0 {
 				str += " " + n.Dump()
 			} else {
-				str += " " + n.Value
+				str += " " + QuoteString(n.Value)
 			}
 		}
 	}

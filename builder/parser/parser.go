@@ -43,7 +43,7 @@ type Node struct {
 
 var (
 	dispatch                map[string]func(string) (*Node, error)
-	TOKEN_WHITESPACE        = regexp.MustCompile(`\s+`)
+	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
 	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\$`)
 	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
 )
@@ -70,6 +70,7 @@ func init() {
 		"entrypoint":     parseMaybeJSON,
 		"expose":         parseStringsWhitespaceDelimited,
 		"volume":         parseMaybeJSON,
+		"insert":         parseIgnore,
 	}
 }
 

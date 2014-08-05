@@ -1,5 +1,5 @@
 (from "brimstone/ubuntu:14.04")
-(cmd)
+(cmd "")
 (entrypoint "/usr/bin/consul" "agent" "-server" "-data-dir=/consul" "-client=0.0.0.0" "-ui-dir=/webui")
 (expose "8500" "8600" "8400" "8301" "8302")
 (run "apt-get update && apt-get install -y unzip wget && apt-get clean && rm -rf /var/lib/apt/lists")

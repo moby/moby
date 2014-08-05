@@ -27,13 +27,11 @@ func parseEnv(rest string) (*Node, error) {
 	node := blankNode()
 	rootnode := node
 	strs := TOKEN_WHITESPACE.Split(rest, 2)
-	node.Value = QuoteString(strs[0])
+	node.Value = strs[0]
 	node.Next = blankNode()
-	node.Next.Value = QuoteString(strs[1])
+	node.Next.Value = strs[1]
 
 	return rootnode, nil
-
-	return node, nil
 }
 
 // parses a whitespace-delimited set of arguments. The result is effectively a
@@ -41,18 +39,25 @@ func parseEnv(rest string) (*Node, error) {
 func parseStringsWhitespaceDelimited(rest string) (*Node, error) {
 	node := blankNode()
 	rootnode := node
+	prevnode := node
 	for _, str := range TOKEN_WHITESPACE.Split(rest, -1) { // use regexp
-		node.Value = QuoteString(str)
+		prevnode = node
+		node.Value = str
 		node.Next = blankNode()
 		node = node.Next
 	}
+
+	// XXX to get around regexp.Split *always* providing an empty string at the
+	// end due to how our loop is constructed, nil out the last node in the
+	// chain.
+	prevnode.Next = nil
 
 	return rootnode, nil
 }
 
 // parsestring just wraps the string in quotes and returns a working node.
 func parseString(rest string) (*Node, error) {
-	return &Node{QuoteString(rest), nil, nil}, nil
+	return &Node{rest, nil, nil}, nil
 }
 
 // parseJSON converts JSON arrays to an AST.
@@ -61,6 +66,7 @@ func parseJSON(rest string) (*Node, error) {
 		myJson   []interface{}
 		next     = blankNode()
 		orignext = next
+		prevnode = next
 	)
 
 	if err := json.Unmarshal([]byte(rest), &myJson); err != nil {
@@ -72,10 +78,13 @@ func parseJSON(rest string) (*Node, error) {
 		case float64:
 			str = strconv.FormatFloat(str.(float64), 'G', -1, 64)
 		}
-		next.Value = QuoteString(str.(string))
+		next.Value = str.(string)
 		next.Next = blankNode()
+		prevnode = next
 		next = next.Next
 	}
+
+	prevnode.Next = nil
 
 	return orignext, nil
 }
@@ -94,6 +103,6 @@ func parseMaybeJSON(rest string) (*Node, error) {
 	}
 
 	node := blankNode()
-	node.Value = QuoteString(rest)
+	node.Value = rest
 	return node, nil
 }

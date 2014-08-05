@@ -6,16 +6,8 @@ import (
 )
 
 var (
-	TOKEN_ESCAPED_QUOTE     = regexp.MustCompile(`\\"`)
-	TOKEN_ESCAPED_ESCAPE    = regexp.MustCompile(`\\\\`)
 	TOKEN_ENV_INTERPOLATION = regexp.MustCompile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
 )
-
-func stripQuotes(str string) string {
-	str = str[1 : len(str)-1]
-	str = TOKEN_ESCAPED_QUOTE.ReplaceAllString(str, `"`)
-	return TOKEN_ESCAPED_ESCAPE.ReplaceAllString(str, `\`)
-}
 
 func replaceEnv(b *buildFile, str string) string {
 	for _, match := range TOKEN_ENV_INTERPOLATION.FindAllString(str, -1) {
