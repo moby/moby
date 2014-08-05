@@ -192,6 +192,11 @@ func main() {
 			log.Fatal("Please specify only one -H")
 		}
 		protoAddrParts := strings.SplitN(flHosts.GetAll()[0], "://", 2)
+		if strings.HasSuffix(flHosts.GetAll()[0], ":2376") {
+			// TODO: detect if the key was defaulted, or was intentionally set to false
+			*flTlsVerify = true
+			log.Print("defaulting --tlsverify=true")
+		}
 
 		var (
 			cli       *client.DockerCli
