@@ -92,24 +92,10 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (srv *Server) SetRunning(status bool) {
-	srv.Lock()
-	defer srv.Unlock()
-
-	srv.running = status
-}
-
-func (srv *Server) IsRunning() bool {
-	srv.RLock()
-	defer srv.RUnlock()
-	return srv.running
-}
-
 func (srv *Server) Close() error {
 	if srv == nil {
 		return nil
 	}
-	srv.SetRunning(false)
 	done := make(chan struct{})
 	go func() {
 		srv.tasks.Wait()
@@ -134,6 +120,5 @@ type Server struct {
 	events         []utils.JSONMessage
 	eventPublisher *utils.JSONMessagePublisher
 	Eng            *engine.Engine
-	running        bool
 	tasks          sync.WaitGroup
 }
