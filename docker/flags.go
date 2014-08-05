@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	dockerConfDir = os.Getenv("DOCKER_CONFIG")
+	dockerCertPath = os.Getenv("DOCKER_CERT_PATH")
 )
 
 func init() {
-	if dockerConfDir == "" {
-		dockerConfDir = filepath.Join(os.Getenv("HOME"), ".docker")
+	if dockerCertPath == "" {
+		dockerCertPath = filepath.Join(os.Getenv("HOME"), ".docker")
 	}
 }
 
@@ -45,16 +45,16 @@ var (
 	flTlsVerify          = flag.Bool([]string{"-tlsverify"}, false, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 	flSelinuxEnabled     = flag.Bool([]string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
 
-	// these are initialized in init() below since their default values depend on dockerConfDir which isn't fully initialized until init() runs
+	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	flCa   *string
 	flCert *string
 	flKey  *string
 )
 
 func init() {
-	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerConfDir, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
-	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerConfDir, defaultCertFile), "Path to TLS certificate file")
-	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerConfDir, defaultKeyFile), "Path to TLS key file")
+	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerCertPath, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
+	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
+	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
 
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	flag.Var(&flDnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
