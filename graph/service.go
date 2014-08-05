@@ -18,6 +18,7 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 	eng.Register("image_export", s.CmdImageExport)
 	eng.Register("history", s.CmdHistory)
 	eng.Register("images", s.CmdImages)
+	eng.Register("viz", s.CmdViz)
 	return nil
 }
 

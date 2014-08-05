@@ -212,36 +212,6 @@ func (srv *Server) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 	return nil
 }
 
-func (srv *Server) ImagesViz(job *engine.Job) engine.Status {
-	images, _ := srv.daemon.Graph().Map()
-	if images == nil {
-		return engine.StatusOK
-	}
-	job.Stdout.Write([]byte("digraph docker {\n"))
-
-	var (
-		parentImage *image.Image
-		err         error
-	)
-	for _, image := range images {
-		parentImage, err = image.GetParent()
-		if err != nil {
-			return job.Errorf("Error while getting parent image: %v", err)
-		}
-		if parentImage != nil {
-			job.Stdout.Write([]byte(" \"" + parentImage.ID + "\" -> \"" + image.ID + "\"\n"))
-		} else {
-			job.Stdout.Write([]byte(" base -> \"" + image.ID + "\" [style=invis]\n"))
-		}
-	}
-
-	for id, repos := range srv.daemon.Repositories().GetRepoRefs() {
-		job.Stdout.Write([]byte(" \"" + id + "\" [label=\"" + id + "\\n" + strings.Join(repos, "\\n") + "\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n"))
-	}
-	job.Stdout.Write([]byte(" base [style=invisible]\n}\n"))
-	return engine.StatusOK
-}
-
 func (srv *Server) ImageTag(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 && len(job.Args) != 3 {
 		return job.Errorf("Usage: %s IMAGE REPOSITORY [TAG]\n", job.Name)
