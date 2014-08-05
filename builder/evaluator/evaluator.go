@@ -57,7 +57,8 @@ type BuildOpts struct {
 	AuthConfigFile  *registry.ConfigFile
 }
 
-func (opts *BuildOpts) NewBuildFile(file io.ReadWriteCloser) (*buildFile, error) {
+func NewBuildFile(file io.ReadWriteCloser, opts *BuildOpts) (*buildFile, error) {
+	defer file.Close()
 	ast, err := parser.Parse(file)
 	if err != nil {
 		return nil, err
