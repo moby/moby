@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -84,8 +83,8 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks   map[string]*links.Link
-	requestedStop bool
+	activeLinks map[string]*links.Link
+	monitor     *containerMonitor
 }
 
 func (container *Container) FromDisk() error {
@@ -496,110 +495,6 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-func (container *Container) monitor(callback execdriver.StartCallback) error {
-	var (
-		err       error
-		exitCode  int
-		failCount int
-		exit      bool
-
-		policy = container.hostConfig.RestartPolicy
-	)
-
-	if err := container.startLoggingToDisk(); err != nil {
-		// TODO: crosbymichael cleanup IO, network, and mounts
-		return err
-	}
-
-	// reset the restart count
-	container.RestartCount = -1
-	container.requestedStop = false
-
-	for {
-		container.RestartCount++
-
-		pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
-
-		if exitCode, err = container.daemon.Run(container, pipes, callback); err != nil {
-			failCount++
-
-			if failCount == policy.MaximumRetryCount {
-				exit = true
-			}
-
-			utils.Errorf("Error running container: %s", err)
-		}
-
-		// We still wait to set the state as stopped and ensure that the locks were released
-		container.State.SetStopped(exitCode)
-
-		if container.Config.OpenStdin {
-			if err := container.stdin.Close(); err != nil {
-				utils.Errorf("%s: Error close stdin: %s", container.ID, err)
-			}
-		}
-
-		if err := container.stdout.Clean(); err != nil {
-			utils.Errorf("%s: Error close stdout: %s", container.ID, err)
-		}
-
-		if err := container.stderr.Clean(); err != nil {
-			utils.Errorf("%s: Error close stderr: %s", container.ID, err)
-		}
-
-		if container.command != nil && container.command.Terminal != nil {
-			if err := container.command.Terminal.Close(); err != nil {
-				utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
-			}
-		}
-
-		// Re-create a brand new stdin pipe once the container exited
-		if container.Config.OpenStdin {
-			container.stdin, container.stdinPipe = io.Pipe()
-		}
-
-		if container.daemon != nil && container.daemon.srv != nil {
-			container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
-		}
-
-		if (policy.Name == "always" || (policy.Name == "on-failure" && exitCode != 0)) && !container.requestedStop || !exit {
-			container.command.Cmd = copyCmd(&container.command.Cmd)
-
-			time.Sleep(1 * time.Second)
-
-			continue
-		}
-
-		// Cleanup networking and mounts
-		container.cleanup()
-
-		if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
-			// FIXME: here is race condition between two RUN instructions in Dockerfile
-			// because they share same runconfig and change image. Must be fixed
-			// in builder/builder.go
-			if err := container.toDisk(); err != nil {
-				utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
-			}
-		}
-
-		return err
-	}
-}
-
-func copyCmd(c *exec.Cmd) exec.Cmd {
-	return exec.Cmd{
-		Stdin:       c.Stdin,
-		Stdout:      c.Stdout,
-		Stderr:      c.Stderr,
-		Path:        c.Path,
-		Env:         c.Env,
-		ExtraFiles:  c.ExtraFiles,
-		Args:        c.Args,
-		Dir:         c.Dir,
-		SysProcAttr: c.SysProcAttr,
-	}
-}
-
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
@@ -630,7 +525,10 @@ func (container *Container) KillSig(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
-	container.requestedStop = true
+
+	// signal to the monitor that it should not restart the container
+	// after we send the kill signal
+	container.monitor.ExitOnNext()
 
 	return container.daemon.Kill(container, sig)
 }
@@ -1174,27 +1072,17 @@ func (container *Container) startLoggingToDisk() error {
 }
 
 func (container *Container) waitForStart() error {
-	waitStart := make(chan struct{})
-	callback := func(command *execdriver.Command) {
-		if command.Tty {
-			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
-			// which we close here.
-			if c, ok := command.Stdout.(io.Closer); ok {
-				c.Close()
-			}
-		}
+	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
-		container.State.SetRunning(command.Pid())
-		if err := container.toDisk(); err != nil {
-			log.Debugf("%s", err)
-		}
+	var (
+		cErr      = utils.Go(container.monitor.Start)
+		waitStart = make(chan struct{})
+	)
+
+	go func() {
+		container.State.WaitRunning(-1 * time.Second)
 		close(waitStart)
-	}
-
-	// We use a callback here instead of a goroutine and an chan for
-	// syncronization purposes
-	cErr := utils.Go(func() error { return container.monitor(callback) })
+	}()
 
 	// Start should not return until the process is actually running
 	select {
