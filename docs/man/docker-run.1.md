@@ -30,6 +30,7 @@ docker-run - Run a command in a new container
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--restart**[=*POLICY*]]
 [**--rm**[=*false*]]
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]

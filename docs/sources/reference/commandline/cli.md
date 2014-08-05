@@ -1223,7 +1223,7 @@ application change:
 
 #### Restart Policies
 
-Using the `--restart` flag on docker run you can specify a restart policy for 
+Using the `--restart` flag on Docker run you can specify a restart policy for 
 how a container should or should not be restarted on exit.
 
 ** no ** - Do not restart the container when it exits.
@@ -1232,19 +1232,19 @@ how a container should or should not be restarted on exit.
 
 ** always ** - Always restart the container reguardless of the exit status.
 
-You can also specify the maximum amount of times docker will try to restart the 
-container when using the ** on-failure ** policy.  The default is that docker will try forever to restart the container.
+You can also specify the maximum amount of times Docker will try to restart the 
+container when using the ** on-failure ** policy.  The default is that Docker will try forever to restart the container.
 
     $ sudo docker run --restart=always redis
 
-This will run the redis container with a restart policy of ** always ** so that if 
-the container exits, docker will restart it.
+This will run the `redis` container with a restart policy of ** always ** so that if 
+the container exits, Docker will restart it.
 
     $ sudo docker run --restart=on-failure:10 redis
 
-This will run the redis container with a restart policy of ** on-failure ** and a 
-maximum restart count of 10.  If the redis container exits with a non-zero exit 
-status more than 10 times in a row docker will abort trying to restart the container.
+This will run the `redis` container with a restart policy of ** on-failure ** and a 
+maximum restart count of 10.  If the `redis` container exits with a non-zero exit 
+status more than 10 times in a row Docker will abort trying to restart the container.
 
 ## save
 
