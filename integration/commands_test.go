@@ -13,7 +13,6 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
@@ -681,71 +680,4 @@ func TestRunCidFileCleanupIfEmpty(t *testing.T) {
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
 	})
-}
-
-func TestContainerOrphaning(t *testing.T) {
-
-	// setup a temporary directory
-	tmpDir, err := ioutil.TempDir("", "project")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// setup a CLI and server
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-	srv := mkServerFromEngine(globalEngine, t)
-
-	// closure to build something
-	buildSomething := func(template string, image string) string {
-		dockerfile := path.Join(tmpDir, "Dockerfile")
-		replacer := strings.NewReplacer("{IMAGE}", unitTestImageID)
-		contents := replacer.Replace(template)
-		ioutil.WriteFile(dockerfile, []byte(contents), 0x777)
-		if err := cli.CmdBuild("-t", image, tmpDir); err != nil {
-			t.Fatal(err)
-		}
-		job := globalEngine.Job("image_get", image)
-		info, _ := job.Stdout.AddEnv()
-		if err := job.Run(); err != nil {
-			t.Fatal(err)
-		}
-		return info.Get("Id")
-	}
-
-	// build an image
-	imageName := "orphan-test"
-	template1 := `
-	from {IMAGE}
-	cmd ["/bin/echo", "holla"]
-	`
-	img1 := buildSomething(template1, imageName)
-
-	// create a container using the fist image
-	if err := cli.CmdRun(imageName); err != nil {
-		t.Fatal(err)
-	}
-
-	// build a new image that splits lineage
-	template2 := `
-	from {IMAGE}
-	cmd ["/bin/echo", "holla"]
-	expose 22
-	`
-	buildSomething(template2, imageName)
-
-	// remove the second image by name
-	resp := engine.NewTable("", 0)
-	if err := srv.DeleteImage(imageName, resp, true, false, false); err == nil {
-		t.Fatal("Expected error, got none")
-	}
-
-	// see if we deleted the first image (and orphaned the container)
-	for _, i := range resp.Data {
-		if img1 == i.Get("Deleted") {
-			t.Fatal("Orphaned image with container")
-		}
-	}
-
 }
