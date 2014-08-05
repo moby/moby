@@ -31,7 +31,7 @@ eventually containers.
 ### options
 
 The devicemapper backend supports some options that you can specify
-when starting the docker daemon using the --storage-opt flags.
+when starting the docker daemon using the `--storage-opt` flags.
 This uses the `dm` prefix and would be used something like `docker -d --storage-opt dm.foo=bar`.
 
 Here is the list of supported options:
