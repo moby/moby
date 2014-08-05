@@ -15,15 +15,15 @@ The default loopback files used are `$graph/devicemapper/data` and
 from docker entities to the corresponding devicemapper volumes is
 stored in the `$graph/devicemapper/json` file (encoded as Json).
 
-In order to support multiple devicemapper graphs on a system the thin
+In order to support multiple devicemapper graphs on a system, the thin
 pool will be named something like: `docker-0:33-19478248-pool`, where
 the `0:33` part is the minor/major device nr and `19478248` is the
 inode number of the $graph directory.
 
-On the thin pool docker automatically creates a base thin device,
+On the thin pool, docker automatically creates a base thin device,
 called something like `docker-0:33-19478248-base` of a fixed
-size. This is automatically formatted on creation and contains just an
-empty filesystem. This device is the base of all docker images and
+size. This is automatically formatted with an empty filesystem on 
+creation. This device is the base of all docker images and
 containers. All base images are snapshots of this device and those
 images are then in turn used as snapshots for other images and
 eventually containers.
