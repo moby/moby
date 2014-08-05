@@ -46,14 +46,6 @@ func mainDaemon() {
 		log.Fatal(err)
 	}
 
-	// handle the pidfile early. https://github.com/docker/docker/issues/6973
-	if len(*pidfile) > 0 {
-		job := eng.Job("initserverpidfile", *pidfile)
-		if err := job.Run(); err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	// load the daemon in the background so we can immediately start
 	// the http api so that connections don't fail while the daemon
 	// is booting

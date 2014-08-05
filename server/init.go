@@ -5,12 +5,9 @@
 package server
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/utils"
 )
 
 func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
@@ -22,17 +19,6 @@ func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
 		defer srv.tasks.Done()
 		return h(job)
 	}
-}
-
-func InitPidfile(job *engine.Job) engine.Status {
-	if len(job.Args) == 0 {
-		return job.Error(fmt.Errorf("no pidfile provided to initialize"))
-	}
-	job.Logf("Creating pidfile")
-	if err := utils.CreatePidFile(job.Args[0]); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
 }
 
 // jobInitApi runs the remote api server `srv` as a daemon,
