@@ -28,25 +28,11 @@ import (
 	"github.com/docker/docker/engine"
 )
 
-func (srv *Server) SetRunning(status bool) {
-	srv.Lock()
-	defer srv.Unlock()
-
-	srv.running = status
-}
-
-func (srv *Server) IsRunning() bool {
-	srv.RLock()
-	defer srv.RUnlock()
-	return srv.running
-}
-
 type Server struct {
 	sync.RWMutex
 	daemon      *daemon.Daemon
 	pullingPool map[string]chan struct{}
 	pushingPool map[string]chan struct{}
 	Eng         *engine.Engine
-	running     bool
 	tasks       sync.WaitGroup
 }

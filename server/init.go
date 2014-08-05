@@ -12,9 +12,6 @@ import (
 
 func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
 	return func(job *engine.Job) engine.Status {
-		if !srv.IsRunning() {
-			return job.Errorf("Server is not running")
-		}
 		srv.tasks.Add(1)
 		defer srv.tasks.Done()
 		return h(job)
@@ -53,7 +50,6 @@ func InitServer(job *engine.Job) engine.Status {
 	if err := srv.daemon.Install(job.Eng); err != nil {
 		return job.Error(err)
 	}
-	srv.SetRunning(true)
 	return engine.StatusOK
 }
 
