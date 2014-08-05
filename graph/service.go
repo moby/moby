@@ -20,6 +20,7 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 	eng.Register("images", s.CmdImages)
 	eng.Register("viz", s.CmdViz)
 	eng.Register("load", s.CmdLoad)
+	eng.Register("import", s.CmdImport)
 	return nil
 }
 

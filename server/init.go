@@ -91,7 +91,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"log":          srv.Log,
 		"build":        srv.Build,
 		"pull":         srv.ImagePull,
-		"import":       srv.ImageImport,
 		"image_delete": srv.ImageDelete,
 		"events":       srv.Events,
 		"push":         srv.ImagePush,
