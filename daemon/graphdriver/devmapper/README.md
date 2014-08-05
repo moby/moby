@@ -7,7 +7,7 @@ module (dm-thinp) to implement CoW snapshots. For each devicemapper
 graph location (typically `/var/lib/docker/devicemapper`, $graph below)
 a thin pool is created based on two block devices, one for data and
 one for metadata.  By default these block devices are created
-automatically by using loopback mounts of automatically creates sparse
+automatically by using loopback mounts of automatically created sparse
 files.
 
 The default loopback files used are `$graph/devicemapper/data` and
