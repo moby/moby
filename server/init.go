@@ -6,15 +6,11 @@ package server
 
 import (
 	"fmt"
-	"log"
-	"os"
-	gosignal "os/signal"
-	"sync/atomic"
-	"syscall"
 
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/utils"
 )
 
@@ -50,38 +46,10 @@ func InitServer(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	job.Logf("Setting up signal traps")
-	c := make(chan os.Signal, 1)
-	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
-	if os.Getenv("DEBUG") == "" {
-		signals = append(signals, syscall.SIGQUIT)
-	}
-	gosignal.Notify(c, signals...)
-	go func() {
-		interruptCount := uint32(0)
-		for sig := range c {
-			go func(sig os.Signal) {
-				log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
-				switch sig {
-				case os.Interrupt, syscall.SIGTERM:
-					// If the user really wants to interrupt, let him do so.
-					if atomic.LoadUint32(&interruptCount) < 3 {
-						atomic.AddUint32(&interruptCount, 1)
-						// Initiate the cleanup only once
-						if atomic.LoadUint32(&interruptCount) == 1 {
-							utils.RemovePidFile(srv.daemon.Config().Pidfile)
-							srv.Close()
-						} else {
-							return
-						}
-					} else {
-						log.Printf("Force shutdown of docker, interrupting cleanup\n")
-					}
-				case syscall.SIGQUIT:
-				}
-				os.Exit(128 + int(sig.(syscall.Signal)))
-			}(sig)
-		}
-	}()
+	signal.Trap(func() {
+		utils.RemovePidFile(srv.daemon.Config().Pidfile)
+		srv.Close()
+	})
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
