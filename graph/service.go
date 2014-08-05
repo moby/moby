@@ -5,13 +5,13 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/utils"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
 	eng.Register("image_set", s.CmdSet)
 	eng.Register("image_tag", s.CmdTag)
+	eng.Register("tag", s.CmdTagLegacy) // FIXME merge with "image_tag"
 	eng.Register("image_get", s.CmdGet)
 	eng.Register("image_inspect", s.CmdLookup)
 	eng.Register("image_tarlayer", s.CmdTarLayer)
@@ -66,29 +66,6 @@ func (s *TagStore) CmdSet(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	if err := s.graph.Register(imgJSON, layer, img); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
-}
-
-// CmdTag assigns a new name and tag to an existing image. If the tag already exists,
-// it is changed and the image previously referenced by the tag loses that reference.
-// This may cause the old image to be garbage-collected if its reference count reaches zero.
-//
-// Syntax: image_tag NEWNAME OLDNAME
-// Example: image_tag shykes/myapp:latest shykes/myapp:1.42.0
-func (s *TagStore) CmdTag(job *engine.Job) engine.Status {
-	if len(job.Args) != 2 {
-		return job.Errorf("usage: %s NEWNAME OLDNAME", job.Name)
-	}
-	var (
-		newName = job.Args[0]
-		oldName = job.Args[1]
-	)
-	newRepo, newTag := parsers.ParseRepositoryTag(newName)
-	// FIXME: Set should either parse both old and new name, or neither.
-	// 	the current prototype is inconsistent.
-	if err := s.Set(newRepo, newTag, oldName, true); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
