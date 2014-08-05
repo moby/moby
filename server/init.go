@@ -89,7 +89,6 @@ func InitServer(job *engine.Job) engine.Status {
 		"tag":          srv.ImageTag, // FIXME merge with "image_tag"
 		"info":         srv.DockerInfo,
 		"log":          srv.Log,
-		"load":         srv.ImageLoad,
 		"build":        srv.Build,
 		"pull":         srv.ImagePull,
 		"import":       srv.ImageImport,

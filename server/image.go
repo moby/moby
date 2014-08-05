@@ -5,7 +5,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -106,110 +105,6 @@ func (srv *Server) Build(job *engine.Job) engine.Status {
 		srv.daemon.Repositories().Set(repoName, tag, id, false)
 	}
 	return engine.StatusOK
-}
-
-// Loads a set of images into the repository. This is the complementary of ImageExport.
-// The input stream is an uncompressed tar ball containing images and metadata.
-func (srv *Server) ImageLoad(job *engine.Job) engine.Status {
-	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
-	if err != nil {
-		return job.Error(err)
-	}
-	defer os.RemoveAll(tmpImageDir)
-
-	var (
-		repoTarFile = path.Join(tmpImageDir, "repo.tar")
-		repoDir     = path.Join(tmpImageDir, "repo")
-	)
-
-	tarFile, err := os.Create(repoTarFile)
-	if err != nil {
-		return job.Error(err)
-	}
-	if _, err := io.Copy(tarFile, job.Stdin); err != nil {
-		return job.Error(err)
-	}
-	tarFile.Close()
-
-	repoFile, err := os.Open(repoTarFile)
-	if err != nil {
-		return job.Error(err)
-	}
-	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
-		return job.Error(err)
-	}
-	if err := archive.Untar(repoFile, repoDir, nil); err != nil {
-		return job.Error(err)
-	}
-
-	dirs, err := ioutil.ReadDir(repoDir)
-	if err != nil {
-		return job.Error(err)
-	}
-
-	for _, d := range dirs {
-		if d.IsDir() {
-			if err := srv.recursiveLoad(job.Eng, d.Name(), tmpImageDir); err != nil {
-				return job.Error(err)
-			}
-		}
-	}
-
-	repositoriesJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
-	if err == nil {
-		repositories := map[string]graph.Repository{}
-		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
-			return job.Error(err)
-		}
-
-		for imageName, tagMap := range repositories {
-			for tag, address := range tagMap {
-				if err := srv.daemon.Repositories().Set(imageName, tag, address, true); err != nil {
-					return job.Error(err)
-				}
-			}
-		}
-	} else if !os.IsNotExist(err) {
-		return job.Error(err)
-	}
-
-	return engine.StatusOK
-}
-
-func (srv *Server) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {
-	if err := eng.Job("image_get", address).Run(); err != nil {
-		utils.Debugf("Loading %s", address)
-
-		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
-		if err != nil {
-			utils.Debugf("Error reading json", err)
-			return err
-		}
-
-		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
-		if err != nil {
-			utils.Debugf("Error reading embedded tar", err)
-			return err
-		}
-		img, err := image.NewImgJSON(imageJson)
-		if err != nil {
-			utils.Debugf("Error unmarshalling json", err)
-			return err
-		}
-		if img.Parent != "" {
-			if !srv.daemon.Graph().Exists(img.Parent) {
-				if err := srv.recursiveLoad(eng, img.Parent, tmpImageDir); err != nil {
-					return err
-				}
-			}
-		}
-		if err := srv.daemon.Graph().Register(imageJson, layer, img); err != nil {
-			return err
-		}
-	}
-	utils.Debugf("Completed processing %s", address)
-
-	return nil
 }
 
 func (srv *Server) ImageTag(job *engine.Job) engine.Status {
