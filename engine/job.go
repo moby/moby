@@ -47,6 +47,11 @@ const (
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
+	if err := job.Eng.checkShutdown(); err != nil {
+		return err
+	}
+	job.Eng.tasks.Add(1)
+	defer job.Eng.tasks.Done()
 	// FIXME: make this thread-safe
 	// FIXME: implement wait
 	if !job.end.IsZero() {
