@@ -120,12 +120,11 @@ systemd in the [docker source tree](
 https://github.com/docker/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/tmp`. TMPDIR and the data directory can be set
-like this:
+(`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:
 
-    TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
-    export TMPDIR=/mnt/disk2/tmp
+    export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 ## attach
