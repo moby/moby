@@ -88,7 +88,6 @@ func InitServer(job *engine.Job) engine.Status {
 	for name, handler := range map[string]engine.Handler{
 		"tag":          srv.ImageTag, // FIXME merge with "image_tag"
 		"info":         srv.DockerInfo,
-		"image_export": srv.ImageExport,
 		"images":       srv.Images,
 		"history":      srv.ImageHistory,
 		"viz":          srv.ImagesViz,
