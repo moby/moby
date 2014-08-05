@@ -17,11 +17,12 @@ import (
 )
 
 var (
-	ErrInvalidWorkingDirectory     = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictAttachDetach        = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove    = fmt.Errorf("Conflicting options: --rm and -d")
-	ErrConflictNetworkHostname     = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
-	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
+	ErrInvalidWorkingDirectory            = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
+	ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
+	ErrConflictNetworkHostname            = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	ErrConflictHostNetworkAndLinks        = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
+	ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
 )
 
 //FIXME Only used in tests
@@ -72,7 +73,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy when the dies")
+		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure, always)")
 		// For documentation purpose
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
@@ -227,8 +228,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 	// parse the '-e' and '--env' after, to allow override
 	envVariables = append(envVariables, flEnv.GetAll()...)
-	// boo, there's no debug output for docker run
-	//log.Debugf("Environment variables for the container: %#v", envVariables)
 
 	netMode, err := parseNetMode(*flNetMode)
 	if err != nil {
@@ -238,6 +237,10 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	restartPolicy, err := parseRestartPolicy(*flRestartPolicy)
 	if err != nil {
 		return nil, nil, cmd, err
+	}
+
+	if *flAutoRemove && (restartPolicy.Name == "always" || restartPolicy.Name == "on-failure") {
+		return nil, nil, cmd, ErrConflictRestartPolicyAndAutoRemove
 	}
 
 	config := &Config{
@@ -307,7 +310,15 @@ func parseRestartPolicy(policy string) (RestartPolicy, error) {
 	)
 
 	switch name {
-	case "no", "on-failure", "always":
+	case "always":
+		p.Name = name
+
+		if len(parts) == 2 {
+			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"always\"")
+		}
+	case "no":
+		// do nothing
+	case "on-failure":
 		p.Name = name
 
 		if len(parts) == 2 {

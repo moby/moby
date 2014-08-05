@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+const defaultTimeIncrement = 100
+
 // containerMonitor monitors the execution of a container's main process.
 // If a restart policy is specified for the cotnainer the monitor will ensure that the
 // process is restarted based on the rules of the policy.  When the container is finally stopped
@@ -19,16 +21,30 @@ import (
 type containerMonitor struct {
 	mux sync.Mutex
 
-	container     *Container
+	// container is the container being monitored
+	container *Container
+
+	// restartPolicy is the being applied to the container monitor
 	restartPolicy runconfig.RestartPolicy
-	failureCount  int
-	shouldStop    bool
+
+	// failureCount is the number of times the container has failed to
+	// start in a row
+	failureCount int
+
+	// shouldStop signals the monitor that the next time the container exits it is
+	// either because docker or the user asked for the container to be stopped
+	shouldStop bool
+
+	// timeIncrement is the amount of time to wait between restarts
+	// this is in milliseconds
+	timeIncrement int
 }
 
 func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *containerMonitor {
 	return &containerMonitor{
 		container:     container,
 		restartPolicy: policy,
+		timeIncrement: defaultTimeIncrement,
 	}
 }
 
@@ -62,7 +78,7 @@ func (m *containerMonitor) Close() error {
 
 // reset resets the container's IO and ensures that the command is able to be executed again
 // by copying the data into a new struct
-func (m *containerMonitor) reset() {
+func (m *containerMonitor) reset(successful bool) {
 	container := m.container
 
 	if container.Config.OpenStdin {
@@ -107,14 +123,29 @@ func (m *containerMonitor) reset() {
 		Dir:         c.Dir,
 		SysProcAttr: c.SysProcAttr,
 	}
+
+	// the container exited successfully so we need to reset the failure counter
+	// and the timeIncrement back to the default values
+	if successful {
+		m.failureCount = 0
+		m.timeIncrement = defaultTimeIncrement
+	} else {
+		// otherwise we need to increment the amount of time we wait before restarting
+		// the process.  We will build up by multiplying the increment by 2
+
+		m.failureCount++
+		m.timeIncrement *= 2
+	}
 }
 
 // Start starts the containers process and monitors it according to the restart policy
 func (m *containerMonitor) Start() error {
 	var (
-		err      error
-		exitCode int
+		err        error
+		exitStatus int
 	)
+
+	// ensure that when the monitor finally exits we release the networking and unmount the rootfs
 	defer m.Close()
 
 	// reset the restart count
@@ -122,31 +153,26 @@ func (m *containerMonitor) Start() error {
 
 	for !m.shouldStop {
 		m.container.RestartCount++
+
 		if err := m.container.startLoggingToDisk(); err != nil {
-			m.reset()
+			m.reset(false)
 
 			return err
 		}
 
 		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
-		if exitCode, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
-			m.failureCount++
-
-			if m.failureCount == m.restartPolicy.MaximumRetryCount {
-				m.ExitOnNext()
-			}
-
+		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
 			utils.Errorf("Error running container: %s", err)
 		}
 
 		// We still wait to set the state as stopped and ensure that the locks were released
-		m.container.State.SetStopped(exitCode)
+		m.container.State.SetStopped(exitStatus)
 
-		m.reset()
+		m.reset(err == nil && exitStatus == 0)
 
-		if m.shouldRestart(exitCode) {
-			time.Sleep(1 * time.Second)
+		if m.shouldRestart(exitStatus) {
+			time.Sleep(time.Duration(m.timeIncrement) * time.Millisecond)
 
 			continue
 		}
@@ -157,16 +183,31 @@ func (m *containerMonitor) Start() error {
 	return err
 }
 
-func (m *containerMonitor) shouldRestart(exitCode int) bool {
+// shouldRestart checks the restart policy and applies the rules to determine if
+// the container's process should be restarted
+func (m *containerMonitor) shouldRestart(exitStatus int) bool {
 	m.mux.Lock()
+	defer m.mux.Unlock()
 
-	shouldRestart := (m.restartPolicy.Name == "always" ||
-		(m.restartPolicy.Name == "on-failure" && exitCode != 0)) &&
-		!m.shouldStop
+	// do not restart if the user or docker has requested that this container be stopped
+	if m.shouldStop {
+		return false
+	}
 
-	m.mux.Unlock()
+	switch m.restartPolicy.Name {
+	case "always":
+		return true
+	case "on-failure":
+		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
+		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount >= max {
+			utils.Debugf("stopping restart of container %s because maximum failure could of %d has been reached", max)
+			return false
+		}
 
-	return shouldRestart
+		return exitStatus != 0
+	}
+
+	return false
 }
 
 // callback ensures that the container's state is properly updated after we

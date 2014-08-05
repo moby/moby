@@ -993,6 +993,7 @@ removed before the image is removed.
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
+      --restart=""               Restart policy to apply when a container exits (no, on-failure, always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --sig-proxy=true           Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
       -t, --tty=false            Allocate a pseudo-TTY
@@ -1219,6 +1220,31 @@ application change:
    volume from the `web` container, setting the workdir to `/var/log/httpd`. The
    `--rm` option means that when the container exits, the container's layer is
    removed.
+
+#### Restart Policies
+
+Using the `--restart` flag on docker run you can specify a restart policy for 
+how a container should or should not be restarted on exit.
+
+** no ** - Do not restart the container when it exits.
+
+** on-failure ** - Restart the container only if it exits with a non zero exit status.
+
+** always ** - Always restart the container reguardless of the exit status.
+
+You can also specify the maximum amount of times docker will try to restart the 
+container when using the ** on-failure ** policy.  The default is that docker will try forever to restart the container.
+
+    $ sudo docker run --restart=always redis
+
+This will run the redis container with a restart policy of ** always ** so that if 
+the container exits, docker will restart it.
+
+    $ sudo docker run --restart=on-failure:10 redis
+
+This will run the redis container with a restart policy of ** on-failure ** and a 
+maximum restart count of 10.  If the redis container exits with a non-zero exit 
+status more than 10 times in a row docker will abort trying to restart the container.
 
 ## save
 
