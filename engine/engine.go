@@ -7,6 +7,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/docker/docker/utils"
 )
@@ -43,14 +45,18 @@ func unregister(name string) {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	handlers map[string]Handler
-	catchall Handler
-	hack     Hack // data for temporary hackery (see hack.go)
-	id       string
-	Stdout   io.Writer
-	Stderr   io.Writer
-	Stdin    io.Reader
-	Logging  bool
+	handlers   map[string]Handler
+	catchall   Handler
+	hack       Hack // data for temporary hackery (see hack.go)
+	id         string
+	Stdout     io.Writer
+	Stderr     io.Writer
+	Stdin      io.Reader
+	Logging    bool
+	tasks      sync.WaitGroup
+	sync.Mutex // lock for shutdown
+	shutdown   bool
+	onShutdown []func() // shutdown handlers
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
@@ -128,6 +134,68 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		job.handler = eng.catchall
 	}
 	return job
+}
+
+// OnShutdown registers a new callback to be called by Shutdown.
+// This is typically used by services to perform cleanup.
+func (eng *Engine) OnShutdown(h func()) {
+	eng.Lock()
+	defer eng.Unlock()
+	eng.onShutdown = append(eng.onShutdown, h)
+}
+
+// Shutdown permanently shuts down eng as follows:
+// - It refuses all new jobs, permanently.
+// - It waits for all active jobs to complete (with no timeout)
+// - It calls all shutdown handlers concurrently (if any)
+// - It returns when all handlers complete, or after 15 seconds,
+//	whichever happens first.
+func (eng *Engine) Shutdown() {
+	eng.Lock()
+	if eng.shutdown {
+		return
+	}
+	eng.shutdown = true
+	eng.Unlock()
+	// We don't need to protect the rest with a lock, to allow
+	// for other calls to immediately fail with "shutdown" instead
+	// of hanging for 15 seconds.
+	// This requires all concurrent calls to check for shutdown, otherwise
+	// it might cause a race.
+
+	// Wait for all jobs to complete
+	eng.tasks.Wait()
+
+	// Call shutdown handlers, if any.
+	// Timeout after 15 seconds.
+	var wg sync.WaitGroup
+	for _, h := range eng.onShutdown {
+		wg.Add(1)
+		go func(h func()) {
+			defer wg.Done()
+			h()
+		}(h)
+	}
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	// Waiting server jobs for 15 seconds, shutdown immediately after that time
+	case <-time.After(time.Second * 15):
+	case <-done:
+	}
+	return
+}
+
+func (eng *Engine) checkShutdown() error {
+	eng.Lock()
+	defer eng.Unlock()
+	if eng.shutdown {
+		return fmt.Errorf("engine shutdown")
+	}
+	return nil
 }
 
 // ParseJob creates a new job from a text description using a shell-like syntax.
