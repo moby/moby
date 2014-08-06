@@ -86,20 +86,12 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
 	for name, handler := range map[string]engine.Handler{
-		"tag":          srv.ImageTag, // FIXME merge with "image_tag"
-		"info":         srv.DockerInfo,
-		"image_export": srv.ImageExport,
-		"images":       srv.Images,
-		"history":      srv.ImageHistory,
-		"viz":          srv.ImagesViz,
-		"log":          srv.Log,
-		"load":         srv.ImageLoad,
-		"build":        srv.Build,
-		"pull":         srv.ImagePull,
-		"import":       srv.ImageImport,
-		"image_delete": srv.ImageDelete,
-		"events":       srv.Events,
-		"push":         srv.ImagePush,
+		"info":   srv.DockerInfo,
+		"log":    srv.Log,
+		"build":  srv.Build,
+		"pull":   srv.ImagePull,
+		"events": srv.Events,
+		"push":   srv.ImagePush,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
