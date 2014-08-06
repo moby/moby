@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/utils"
 )
 
@@ -41,15 +40,11 @@ func InitPidfile(job *engine.Job) engine.Status {
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
+	cfg := daemonconfig.ConfigFromJob(job)
+	srv, err := NewServer(job.Eng, cfg)
 	if err != nil {
 		return job.Error(err)
 	}
-	job.Logf("Setting up signal traps")
-	signal.Trap(func() {
-		utils.RemovePidFile(srv.daemon.Config().Pidfile)
-		srv.Close()
-	})
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/sysinit"
 )
 
@@ -39,6 +40,7 @@ func mainDaemon() {
 	}
 
 	eng := engine.New()
+	signal.Trap(eng.Shutdown)
 	// Load builtins
 	if err := builtins.Register(eng); err != nil {
 		log.Fatal(err)
