@@ -641,6 +641,88 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
+### Modify the devices a container can use during runtime.
+
+`GET /containers/(id)/devices`
+
+**Example request**:
+
+    GET /containers/4fa6e0f0c678/devices HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    {
+        "Devices": [
+            {
+                "Id": "c90e34657806",
+                "PathOnHost": "/dev/deviceNameA",
+                "PathInContainer": "/dev/deviceNameA",
+                "CgroupPermissions": "mrw"
+            },
+            {
+                "Id": "d90e44656806",
+                "PathOnHost": "/dev/deviceNameA",
+                "PathInContainer": "/dev/deviceNameA",
+                "CgroupPermissions": "mrw"
+            }
+        ]
+    }
+
+
+
+`POST /containers/(id)/devices`
+
+**Example request**:
+
+    POST /containers/4fa6e0f0c678/devices HTTP/1.1
+    Content-Type: application/json
+    {
+        "PathOnHost": "/dev/deviceNameA",
+        "PathInContainer": "/dev/deviceNameA",
+        "CgroupPermissions": "mrw"
+    }
+
+**Example response**:
+
+    HTTP/1.1 201 OK
+    Content-Type: application/json
+    {
+        "Id":"f90e34656806"
+    }
+
+
+
+`PUT /containers/(id)/devices/(device_id)`
+
+**Example request**:
+
+    PUT /containers/4fa6e0f0c678/devices/f90e34656806 HTTP/1.1
+    Content-Type: application/json
+    {
+        "PathOnHost": "/dev/deviceNameA",
+        "PathInContainer": "/dev/deviceNameA",
+        "CgroupPermissions": "mrw"
+    }
+
+**Example response**:
+
+    HTTP/1.1 204 OK
+
+
+
+`DELETE /containers/(id)/devices/(device_id)`
+
+**Example request**:
+
+    DELETE /containers/4fa6e0f0c678/devices/f90e34656806 HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 204 OK
+
+
 ### Pause a container
 
 `POST /containers/(id)/pause`
