@@ -318,16 +318,31 @@ func createBridgeIface(name string) error {
 func Allocate(job *engine.Job) engine.Status {
 	var (
 		ip          *net.IP
+		ipRange     *net.IPNet
 		err         error
 		id          = job.Args[0]
-		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+		requestedIP = job.Getenv("RequestedIP")
 	)
 
-	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, &requestedIP)
-	} else {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
+	if requestedIP != "" {
+		if !strings.Contains(requestedIP, "/") {
+			ipAddr := net.ParseIP(requestedIP)
+			if ipAddr == nil {
+				return job.Error(fmt.Errorf("Invalid IP: %s", requestedIP))
+			}
+			if ipAddr.To4 != nil {
+				requestedIP = requestedIP + "/32"
+			} else {
+				requestedIP = requestedIP + "/128"
+			}
+		}
+
+		_, ipRange, err = net.ParseCIDR(requestedIP)
+		if err != nil {
+			return job.Error(fmt.Errorf("Invalid IP range: %s", requestedIP))
+		}
 	}
+	ip, err = ipallocator.RequestIP(bridgeNetwork, ipRange)
 	if err != nil {
 		return job.Error(err)
 	}

@@ -37,7 +37,7 @@ func TestParseRunIP(t *testing.T) {
 	if _, hostConfig := mustParse(t, ""); len(hostConfig.IP) > 0 {
 		t.Fatalf("Config must not contain an IP address when none is specified in the input")
 	}
-	if _, hostConfig := mustParse(t, "--ip 1.2.3"); len(hostConfig.IP) > 0 {
+	if _, hostConfig, err := parse(t, "--ip 1.2.3"); err == nil {
 		t.Fatalf("Expected failure but instead received ip: %v", hostConfig.IP)
 	}
 

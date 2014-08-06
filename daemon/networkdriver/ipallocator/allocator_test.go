@@ -104,9 +104,9 @@ func TestRequesetSpecificIp(t *testing.T) {
 		Mask: []byte{255, 255, 255, 0},
 	}
 
-	ip := net.ParseIP("192.168.1.5")
+	_, ipRange, _ := net.ParseCIDR("192.168.0.5/32")
 
-	if _, err := RequestIP(network, &ip); err != nil {
+	if _, err := RequestIP(network, ipRange); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -125,31 +125,32 @@ func TestConversion(t *testing.T) {
 
 func TestIPAllocator(t *testing.T) {
 	expectedIPs := []net.IP{
-		0: net.IPv4(127, 0, 0, 2),
-		1: net.IPv4(127, 0, 0, 3),
-		2: net.IPv4(127, 0, 0, 4),
-		3: net.IPv4(127, 0, 0, 6),
-		4: net.IPv4(127, 0, 0, 7),
+		0: net.IPv4(127, 0, 0, 6),
+		1: net.IPv4(127, 0, 0, 2),
+		2: net.IPv4(127, 0, 0, 3),
+		3: net.IPv4(127, 0, 0, 4),
 	}
 	expectedStaticIP := net.IPv4(127, 0, 0, 5)
+	_, expectedStaticIPRange, err := net.ParseCIDR("127.0.0.5/32")
 
 	gwIP, n, _ := net.ParseCIDR("127.0.0.1/29")
 	network := &net.IPNet{IP: gwIP, Mask: n.Mask}
 	// Pool after initialisation (f = free, u = used)
-	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f) - 7(f)
+	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
 	//  ↑
 
 	// Allocate a pre-determined IP.
-	// 2(f) - 3(f) - 4(f) - 5(u) - 6(f) - 7(f)
-	//  ↑
-	if ip, err := RequestIP(network, expectedStatic); err != nil {
+	// 2(f) - 3(f) - 4(f) - 5(u) - 6(f)
+	//                       ↑
+	ip, err := RequestIP(network, expectedStaticIPRange)
+	if err != nil {
 		t.Fatal(err)
 	}
-	assertIPEquals(t, expectedStatic, ip)
+	assertIPEquals(t, &expectedStaticIP, ip)
 
-	// Check that we get 5 IPs, from 127.0.0.2–127.0.0.7, in that
+	// Check that we get 4 IPs, from 127.0.0.2–127.0.0.6, in that
 	// order, skipping 127.0.0.5
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 4; i++ {
 		ip, err := RequestIP(network, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -158,62 +159,57 @@ func TestIPAllocator(t *testing.T) {
 		assertIPEquals(t, &expectedIPs[i], ip)
 	}
 	// Before loop begin
-	// 2(f) - 3(f) - 4(f) - 5(u) - 6(f) - 7(f)
-	//  ↑
+	// 2(f) - 3(f) - 4(f) - 5(u) - 6(f)
+	//                       ↑
 
 	// After i = 0
-	// 2(u) - 3(f) - 4(f) - 5(u) - 6(f) - 7(f)
-	//         ↑
-
-	// After i = 1
-	// 2(u) - 3(u) - 4(f) - 5(u) - 6(f) - 7(f)
-	//                ↑
-
-	// After i = 2
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f) - 7(f)
+	// 2(f) - 3(f) - 4(f) - 5(u) - 6(u)
 	//                              ↑
 
-	// After i = 3
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u) - 7(f)
-	//                                     ↑
-
-	// After i = 4
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u) - 7(u)
+	// After i = 1
+	// 2(u) - 3(f) - 4(f) - 5(u) - 6(u)
 	//  ↑
 
+	// After i = 2
+	// 2(u) - 3(u) - 4(f) - 5(u) - 6(u)
+	//         ↑
+
+	// After i = 3
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u)
+	//                ↑
+
 	// Check that there are no more IPs
-	ip, err := RequestIP(network, nil)
+	ip, err = RequestIP(network, nil)
 	if err == nil {
 		t.Fatalf("There shouldn't be any IP addresses at this point, got %s\n", ip)
 	}
 
 	// Release some IPs in non-sequential order
-	if err := ReleaseIP(network, &expectedIPs[3]); err != nil {
+	if err := ReleaseIP(network, &expectedIPs[0]); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f) - 7(u)
-	//  ↑
+	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f)
+	//                ↑
 
 	if err := ReleaseIP(network, &expectedIPs[2]); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(f) - 5(u) - 6(f) - 7(u)
-	//  ↑
+	// 2(u) - 3(f) - 4(u) - 5(u) - 6(f)
+	//                ↑
 
-	if err := ReleaseIP(network, &expectedIPs[4]); err != nil {
+	if err := ReleaseIP(network, &expectedIPs[3]); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(f) - 5(u) - 6(f) - 7(f)
-	//  ↑
+	// 2(u) - 3(f) - 4(f) - 5(u) - 6(f)
+	//                ↑
 	if err := ReleaseIP(network, &expectedStaticIP); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f) - 7(f)
-	//  ↑
+	// 2(u) - 3(f) - 4(f) - 5(f) - 6(f)
+	//                ↑
 
-	// Make sure that IPs are reused in sequential order, starting
-	// with the first released IP
-	newIPs := make([]*net.IP, 3)
+	// Make sure that IPs are reused in sequential order
+	newIPs := make([]*net.IP, 4)
 	for i := 0; i < 4; i++ {
 		ip, err := RequestIP(network, nil)
 		if err != nil {
@@ -222,10 +218,10 @@ func TestIPAllocator(t *testing.T) {
 
 		newIPs[i] = ip
 	}
-	assertIPEquals(t, &expectedIPs[2], newIPs[0])
-	assertIPEquals(t, &expectedStaticIP, newIPs[1])
-	assertIPEquals(t, &expectedIPs[3], newIPs[2])
-	assertIPEquals(t, &expectedIPs[4], newIPs[3])
+	assertIPEquals(t, &expectedStaticIP, newIPs[0])
+	assertIPEquals(t, &expectedIPs[0], newIPs[1])
+	assertIPEquals(t, &expectedIPs[2], newIPs[2])
+	assertIPEquals(t, &expectedIPs[3], newIPs[3])
 
 	_, err = RequestIP(network, nil)
 	if err == nil {

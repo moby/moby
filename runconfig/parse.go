@@ -237,8 +237,11 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 
 	if *flIP != "" {
-		if parsedIP := net.ParseIP(*flIP); parsedIP == nil {
-			return nil, nil, cmd, fmt.Errorf("--ip: invalid ip: %s", *flIP)
+		_, _, err := net.ParseCIDR(*flIP) // first see if it's a CIDR
+		if err != nil {
+			if parsedIP := net.ParseIP(*flIP); parsedIP == nil { // see if it's a plain addr instead
+				return nil, nil, cmd, fmt.Errorf("--ip: invalid ip: %s", *flIP)
+			}
 		}
 	}
 
@@ -280,6 +283,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
 		Privileged:      *flPrivileged,
+		IP:              *flIP,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
