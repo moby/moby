@@ -164,11 +164,20 @@ func (eng *Engine) Shutdown() {
 	// This requires all concurrent calls to check for shutdown, otherwise
 	// it might cause a race.
 
-	// Wait for all jobs to complete
-	eng.tasks.Wait()
+	// Wait for all jobs to complete.
+	// Timeout after 5 seconds.
+	tasksDone := make(chan struct{})
+	go func() {
+		eng.tasks.Wait()
+		close(tasksDone)
+	}()
+	select {
+	case <-time.After(time.Second * 5):
+	case <-tasksDone:
+	}
 
 	// Call shutdown handlers, if any.
-	// Timeout after 15 seconds.
+	// Timeout after 10 seconds.
 	var wg sync.WaitGroup
 	for _, h := range eng.onShutdown {
 		wg.Add(1)
@@ -183,7 +192,7 @@ func (eng *Engine) Shutdown() {
 		close(done)
 	}()
 	select {
-	case <-time.After(time.Second * 15):
+	case <-time.After(time.Second * 10):
 	case <-done:
 	}
 	return
