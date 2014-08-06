@@ -43,7 +43,11 @@ Here is the list of supported options:
     10G. Note, thin devices are inherently "sparse", so a 10G device
     which is mostly empty doesn't use 10 GB of space on the
     pool. However, the filesystem will use more space for the empty
-    case the larger the device is.
+    case the larger the device is. **Warning**: This value affects the
+    system-wide "base" empty filesystem that may already be
+    initialized and inherited by pulled images.  Typically, a change
+    to this value will require additional steps to take effect: 1)
+    stop `docker -d`, 2) `rm -rf /var/lib/docker`, 3) start `docker -d`.
 
     Example use:
 
