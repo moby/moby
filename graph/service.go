@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/engine"
@@ -9,18 +10,24 @@ import (
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
-	eng.Register("image_set", s.CmdSet)
-	eng.Register("image_tag", s.CmdTag)
-	eng.Register("tag", s.CmdTagLegacy) // FIXME merge with "image_tag"
-	eng.Register("image_get", s.CmdGet)
-	eng.Register("image_inspect", s.CmdLookup)
-	eng.Register("image_tarlayer", s.CmdTarLayer)
-	eng.Register("image_export", s.CmdImageExport)
-	eng.Register("history", s.CmdHistory)
-	eng.Register("images", s.CmdImages)
-	eng.Register("viz", s.CmdViz)
-	eng.Register("load", s.CmdLoad)
-	eng.Register("import", s.CmdImport)
+	for name, handler := range map[string]engine.Handler{
+		"image_set":      s.CmdSet,
+		"image_tag":      s.CmdTag,
+		"tag":            s.CmdTagLegacy, // FIXME merge with "image_tag"
+		"image_get":      s.CmdGet,
+		"image_inspect":  s.CmdLookup,
+		"image_tarlayer": s.CmdTarLayer,
+		"image_export":   s.CmdImageExport,
+		"history":        s.CmdHistory,
+		"images":         s.CmdImages,
+		"viz":            s.CmdViz,
+		"load":           s.CmdLoad,
+		"import":         s.CmdImport,
+	} {
+		if err := eng.Register(name, handler); err != nil {
+			return fmt.Errorf("Could not register %q: %v", name, err)
+		}
+	}
 	return nil
 }
 
