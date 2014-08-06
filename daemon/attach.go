@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/utils"
 )
 
@@ -57,7 +58,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 		} else {
 			dec := json.NewDecoder(cLog)
 			for {
-				l := &utils.JSONLog{}
+				l := &jsonlog.JSONLog{}
 
 				if err := dec.Decode(l); err == io.EOF {
 					break
