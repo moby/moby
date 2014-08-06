@@ -94,7 +94,6 @@ type Daemon struct {
 	idIndex        *truncindex.TruncIndex
 	sysInfo        *sysinfo.SysInfo
 	volumes        *graph.Graph
-	srv            Server
 	eng            *engine.Engine
 	config         *daemonconfig.Config
 	containerGraph *graphdb.Database
@@ -1030,10 +1029,6 @@ func (daemon *Daemon) Volumes() *graph.Graph {
 
 func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 	return daemon.containerGraph
-}
-
-func (daemon *Daemon) SetServer(server Server) {
-	daemon.srv = server
 }
 
 func (daemon *Daemon) checkLocaldns() error {

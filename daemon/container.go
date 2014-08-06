@@ -514,9 +514,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-	if container.daemon != nil && container.daemon.srv != nil {
-		container.LogEvent("die")
-	}
+	container.LogEvent("die")
 	// If the engine is shutting down, don't save the container state as stopped.
 	// This will cause it to be restarted when the engine is restarted.
 	if container.daemon != nil && container.daemon.eng != nil && !container.daemon.eng.IsShutdown() {

@@ -64,6 +64,5 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		pullingPool: make(map[string]chan struct{}),
 		pushingPool: make(map[string]chan struct{}),
 	}
-	daemon.SetServer(srv)
 	return srv, nil
 }
