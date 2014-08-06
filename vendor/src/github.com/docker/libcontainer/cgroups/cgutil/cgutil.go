@@ -18,8 +18,8 @@ var createCommand = cli.Command{
 	Name:  "create",
 	Usage: "Create a cgroup container using the supplied configuration and initial process.",
 	Flags: []cli.Flag{
-		cli.StringFlag{"config, c", "cgroup.json", "path to container configuration (cgroups.Cgroup object)"},
-		cli.IntFlag{"pid, p", 0, "pid of the initial process in the container"},
+		cli.StringFlag{Name: "config, c", Value: "cgroup.json", Usage: "path to container configuration (cgroups.Cgroup object)"},
+		cli.IntFlag{Name: "pid, p", Value: 0, Usage: "pid of the initial process in the container"},
 	},
 	Action: createAction,
 }
@@ -28,8 +28,8 @@ var destroyCommand = cli.Command{
 	Name:  "destroy",
 	Usage: "Destroy an existing cgroup container.",
 	Flags: []cli.Flag{
-		cli.StringFlag{"name, n", "", "container name"},
-		cli.StringFlag{"parent, p", "", "container parent"},
+		cli.StringFlag{Name: "name, n", Value: "", Usage: "container name"},
+		cli.StringFlag{Name: "parent, p", Value: "", Usage: "container parent"},
 	},
 	Action: destroyAction,
 }
@@ -38,8 +38,8 @@ var statsCommand = cli.Command{
 	Name:  "stats",
 	Usage: "Get stats for cgroup",
 	Flags: []cli.Flag{
-		cli.StringFlag{"name, n", "", "container name"},
-		cli.StringFlag{"parent, p", "", "container parent"},
+		cli.StringFlag{Name: "name, n", Value: "", Usage: "container name"},
+		cli.StringFlag{Name: "parent, p", Value: "", Usage: "container parent"},
 	},
 	Action: statsAction,
 }
@@ -48,8 +48,8 @@ var pauseCommand = cli.Command{
 	Name:  "pause",
 	Usage: "Pause cgroup",
 	Flags: []cli.Flag{
-		cli.StringFlag{"name, n", "", "container name"},
-		cli.StringFlag{"parent, p", "", "container parent"},
+		cli.StringFlag{Name: "name, n", Value: "", Usage: "container name"},
+		cli.StringFlag{Name: "parent, p", Value: "", Usage: "container parent"},
 	},
 	Action: pauseAction,
 }
@@ -58,8 +58,8 @@ var resumeCommand = cli.Command{
 	Name:  "resume",
 	Usage: "Resume a paused cgroup",
 	Flags: []cli.Flag{
-		cli.StringFlag{"name, n", "", "container name"},
-		cli.StringFlag{"parent, p", "", "container parent"},
+		cli.StringFlag{Name: "name, n", Value: "", Usage: "container name"},
+		cli.StringFlag{Name: "parent, p", Value: "", Usage: "container parent"},
 	},
 	Action: resumeAction,
 }
@@ -68,8 +68,8 @@ var psCommand = cli.Command{
 	Name:  "ps",
 	Usage: "Get list of pids for a cgroup",
 	Flags: []cli.Flag{
-		cli.StringFlag{"name, n", "", "container name"},
-		cli.StringFlag{"parent, p", "", "container parent"},
+		cli.StringFlag{Name: "name, n", Value: "", Usage: "container name"},
+		cli.StringFlag{Name: "parent, p", Value: "", Usage: "container parent"},
 	},
 	Action: psAction,
 }

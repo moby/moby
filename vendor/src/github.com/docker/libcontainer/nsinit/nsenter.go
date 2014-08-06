@@ -2,6 +2,7 @@ package nsinit
 
 import (
 	"log"
+	"strconv"
 
 	"github.com/codegangsta/cli"
 	"github.com/docker/libcontainer/namespaces"
@@ -11,11 +12,6 @@ var nsenterCommand = cli.Command{
 	Name:   "nsenter",
 	Usage:  "init process for entering an existing namespace",
 	Action: nsenterAction,
-	Flags: []cli.Flag{
-		cli.IntFlag{Name: "nspid"},
-		cli.StringFlag{Name: "containerjson"},
-		cli.StringFlag{Name: "console"},
-	},
 }
 
 func nsenterAction(context *cli.Context) {
@@ -25,14 +21,14 @@ func nsenterAction(context *cli.Context) {
 		args = []string{"/bin/bash"}
 	}
 
-	container, err := loadContainerFromJson(context.String("containerjson"))
+	container, err := loadContainerFromJson(context.GlobalString("containerjson"))
 	if err != nil {
 		log.Fatalf("unable to load container: %s", err)
 	}
 
-	nspid := context.Int("nspid")
-	if nspid <= 0 {
-		log.Fatalf("cannot enter into namespaces without valid pid: %q", nspid)
+	nspid, err := strconv.Atoi(context.GlobalString("nspid"))
+	if nspid <= 0 || err != nil {
+		log.Fatalf("cannot enter into namespaces without valid pid: %q - %s", nspid, err)
 	}
 
 	if err := namespaces.NsEnter(container, args); err != nil {

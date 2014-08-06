@@ -36,7 +36,7 @@ func execAction(context *cli.Context) {
 	}
 
 	if state != nil {
-		exitCode, err = runIn(container, state, []string(context.Args()))
+		err = namespaces.ExecIn(container, state, []string(context.Args()))
 	} else {
 		exitCode, err = startContainer(container, dataPath, []string(context.Args()))
 	}
@@ -46,59 +46,6 @@ func execAction(context *cli.Context) {
 	}
 
 	os.Exit(exitCode)
-}
-
-func runIn(container *libcontainer.Config, state *libcontainer.State, args []string) (int, error) {
-	var (
-		master  *os.File
-		console string
-		err     error
-
-		stdin  = os.Stdin
-		stdout = os.Stdout
-		stderr = os.Stderr
-		sigc   = make(chan os.Signal, 10)
-	)
-
-	signal.Notify(sigc)
-
-	if container.Tty {
-		stdin = nil
-		stdout = nil
-		stderr = nil
-
-		master, console, err = consolepkg.CreateMasterAndConsole()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		go io.Copy(master, os.Stdin)
-		go io.Copy(os.Stdout, master)
-
-		state, err := term.SetRawTerminal(os.Stdin.Fd())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		defer term.RestoreTerminal(os.Stdin.Fd(), state)
-	}
-
-	startCallback := func(cmd *exec.Cmd) {
-		go func() {
-			resizeTty(master)
-
-			for sig := range sigc {
-				switch sig {
-				case syscall.SIGWINCH:
-					resizeTty(master)
-				default:
-					cmd.Process.Signal(sig)
-				}
-			}
-		}()
-	}
-
-	return namespaces.RunIn(container, state, args, os.Args[0], stdin, stdout, stderr, console, startCallback)
 }
 
 // startContainer starts the container. Returns the exit status or -1 and an
