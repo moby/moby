@@ -44,7 +44,7 @@ func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
 			if err := container.Kill(); err != nil {
 				return job.Errorf("Cannot kill container %s: %s", name, err)
 			}
-			job.Eng.Job("log", "kill", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+			container.LogEvent("kill")
 		} else {
 			// Otherwise, just send the requested signal
 			if err := container.KillSig(int(sig)); err != nil {

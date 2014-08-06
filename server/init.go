@@ -92,13 +92,11 @@ func InitServer(job *engine.Job) engine.Status {
 		"images":       srv.Images,
 		"history":      srv.ImageHistory,
 		"viz":          srv.ImagesViz,
-		"log":          srv.Log,
 		"load":         srv.ImageLoad,
 		"build":        srv.Build,
 		"pull":         srv.ImagePull,
 		"import":       srv.ImageImport,
 		"image_delete": srv.ImageDelete,
-		"events":       srv.Events,
 		"push":         srv.ImagePush,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
@@ -125,12 +123,10 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		return nil, err
 	}
 	srv := &Server{
-		Eng:            eng,
-		daemon:         daemon,
-		pullingPool:    make(map[string]chan struct{}),
-		pushingPool:    make(map[string]chan struct{}),
-		events:         make([]utils.JSONMessage, 0, 64), //only keeps the 64 last events
-		eventPublisher: utils.NewJSONMessagePublisher(),
+		Eng:         eng,
+		daemon:      daemon,
+		pullingPool: make(map[string]chan struct{}),
+		pushingPool: make(map[string]chan struct{}),
 	}
 	daemon.SetServer(srv)
 	return srv, nil

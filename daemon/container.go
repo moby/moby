@@ -168,6 +168,13 @@ func (container *Container) WriteHostConfig() error {
 	return ioutil.WriteFile(pth, data, 0666)
 }
 
+func (container *Container) LogEvent(action string) {
+	d := container.daemon
+	if err := d.eng.Job("log_event", action, container.ID, d.Repositories().ImageName(container.Image)).Run(); err != nil {
+		utils.Errorf("Error running container: %s", err)
+	}
+}
+
 func (container *Container) getResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
@@ -508,7 +515,7 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
 	if container.daemon != nil && container.daemon.srv != nil {
-		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
+		container.LogEvent("die")
 	}
 	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
 		// FIXME: here is race condition between two RUN instructions in Dockerfile

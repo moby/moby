@@ -23,7 +23,7 @@ func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
 			return job.Errorf("%s: %s", name, err)
 		}
 		// FIXME: factor job-specific LogEvent to engine.Job.Run()
-		job.Eng.Job("log", "export", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+		container.LogEvent("export")
 		return engine.StatusOK
 	}
 	return job.Errorf("No such container: %s", name)
