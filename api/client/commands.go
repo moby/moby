@@ -1823,6 +1823,33 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	return cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), env.GetSubEnv("Config").GetBool("Tty"), nil, cli.out, cli.err, nil)
 }
 
+func (cli *DockerCli) CmdModify(args ...string) error {
+	cmd := cli.Subcmd("modify", "CONTAINER ACTION ARGUMENTS", "Modify the state of a running container")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+	name := cmd.Arg(0)
+	action := cmd.Arg(1)
+	arguments := cmd.Arg(2)
+
+	containerValues := url.Values{}
+	containerValues.Set("name", name)
+	containerValues.Set("action", action)
+	containerValues.Set("arguments", arguments)
+
+	_, _, err := cli.call("PUT", "/containers/"+name+"/modify?"+containerValues.Encode(), nil, false)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	var (
 		cmd     = cli.Subcmd("attach", "CONTAINER", "Attach to a running container")

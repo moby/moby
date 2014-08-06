@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/mount/nodes"
 )
 
@@ -232,6 +233,14 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 	}
 
 	return err
+}
+
+func (d *driver) ModifyDeviceAdd(c *execdriver.Command, device *devices.Device) error {
+	return fmt.Errorf("Device addition is not supported by LXC")
+}
+
+func (d *driver) ModifyDeviceRemove(c *execdriver.Command, device *devices.Device) error {
+	return fmt.Errorf("Device removal is not supported by LXC")
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {

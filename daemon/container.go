@@ -606,6 +606,13 @@ func (container *Container) KillSig(sig int) error {
 	return container.daemon.Kill(container, sig)
 }
 
+func (container *Container) Modify(modifytype string, modifyvalue string) error {
+	if !container.State.IsRunning() {
+		return fmt.Errorf("Container %s is not running", container.ID)
+	}
+	return container.daemon.Modify(container, modifytype, modifyvalue)
+}
+
 func (container *Container) Pause() error {
 	if container.IsPaused() {
 		return fmt.Errorf("Container %s is already paused", container.ID)
