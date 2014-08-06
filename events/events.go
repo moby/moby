@@ -30,7 +30,7 @@ func (e *Events) Install(eng *engine.Engine) error {
 	// Here you should describe public interface
 	jobs := map[string]engine.Handler{
 		"events":            e.Get,
-		"log_event":         e.Log,
+		"log":               e.Log,
 		"subscribers_count": e.SubscribersCount,
 	}
 	for name, job := range jobs {

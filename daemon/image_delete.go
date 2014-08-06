@@ -93,7 +93,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 			out := &engine.Env{}
 			out.Set("Untagged", repoName+":"+tag)
 			imgs.Add(out)
-			eng.Job("log_event", "untag", img.ID, "").Run()
+			eng.Job("log", "untag", img.ID, "").Run()
 		}
 	}
 	tags = daemon.Repositories().ByID()[img.ID]
@@ -111,7 +111,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 			out := &engine.Env{}
 			out.Set("Deleted", img.ID)
 			imgs.Add(out)
-			eng.Job("log_event", "delete", img.ID, "").Run()
+			eng.Job("log", "delete", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
 				err := daemon.DeleteImage(eng, img.Parent, imgs, false, force, noprune)
 				if first {

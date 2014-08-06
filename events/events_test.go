@@ -88,7 +88,7 @@ func TestLogEvents(t *testing.T) {
 		action := fmt.Sprintf("action_%d", i)
 		id := fmt.Sprintf("cont_%d", i)
 		from := fmt.Sprintf("image_%d", i)
-		job := eng.Job("log_event", action, id, from)
+		job := eng.Job("log", action, id, from)
 		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
