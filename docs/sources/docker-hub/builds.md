@@ -60,7 +60,7 @@ from any of your public or private GitHub repositories with a `Dockerfile`.
 
 ### Github Submodules
 
-If your repository contains links to private submodules, you'll need to add a deploy key so that the Docker Hub will be able to clone the repository from Github. 
+If your repository contains links to private submodules, you'll need to add a deploy key so that the Docker Hub will be able to clone the repository from GitHub. 
 
 Your Docker Hub deploy key is located under the "Build Details" menu on the automated build's main page in the Hub. Add this key to your GitHub submodule by viewing the Settings page for the repository on GitHub and selecting "Deploy keys".
 
@@ -81,7 +81,7 @@ Your Docker Hub deploy key is located under the "Build Details" menu on the auto
     <tr>
       <td>2.</td>
       <td><img src="/docker-hub/hub-images/github_deploy_key.png"></td>
-      <td>In your GitHub submodule's repository Settings page, add the deploy key from your Docker Hub automated build.</td>
+      <td>In your GitHub submodule's repository Settings page, add the deploy key from your Docker Hub Automated Build.</td>
     </tr>
   </tbody>
 </table>
