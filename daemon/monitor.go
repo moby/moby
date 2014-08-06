@@ -62,15 +62,13 @@ func (m *containerMonitor) Close() error {
 	// Cleanup networking and mounts
 	m.container.cleanup()
 
-	if m.container.daemon != nil && m.container.daemon.srv != nil && m.container.daemon.srv.IsRunning() {
-		// FIXME: here is race condition between two RUN instructions in Dockerfile
-		// because they share same runconfig and change image. Must be fixed
-		// in builder/builder.go
-		if err := m.container.toDisk(); err != nil {
-			utils.Errorf("Error dumping container %s state to disk: %s\n", m.container.ID, err)
+	// FIXME: here is race condition between two RUN instructions in Dockerfile
+	// because they share same runconfig and change image. Must be fixed
+	// in builder/builder.go
+	if err := m.container.toDisk(); err != nil {
+		utils.Errorf("Error dumping container %s state to disk: %s\n", m.container.ID, err)
 
-			return err
-		}
+		return err
 	}
 
 	return nil
