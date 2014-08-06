@@ -31,6 +31,7 @@ const (
 	unitTestImageIDShort     = "83599e29c455"
 	unitTestNetworkBridge    = "testdockbr0"
 	unitTestStoreBase        = "/var/lib/docker/unit-tests"
+	unitTestDockerTmpdir     = "/var/lib/docker/tmp"
 	testDaemonAddr           = "127.0.0.1:4270"
 	testDaemonProto          = "tcp"
 	testDaemonHttpsProto     = "tcp"
@@ -90,6 +91,7 @@ func init() {
 	// To test other drivers, we need a dedicated driver validation suite.
 	os.Setenv("DOCKER_DRIVER", "vfs")
 	os.Setenv("TEST", "1")
+	os.Setenv("DOCKER_TMPDIR", unitTestDockerTmpdir)
 
 	// Hack to run sys init during unit testing
 	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
