@@ -678,7 +678,10 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 	}
 
 	// set up the TempDir to use a canonical path
-	tmp := os.TempDir()
+	tmp, err := utils.TempDir(config.Root)
+	if err != nil {
+		log.Fatalf("Unable to get the TempDir under %s: %s", config.Root, err)
+	}
 	realTmp, err := utils.ReadSymlinkedDirectory(tmp)
 	if err != nil {
 		log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
