@@ -510,13 +510,17 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.daemon != nil && container.daemon.srv != nil {
 		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
 	}
-	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
-		// FIXME: here is race condition between two RUN instructions in Dockerfile
-		// because they share same runconfig and change image. Must be fixed
-		// in builder/builder.go
-		if err := container.toDisk(); err != nil {
-			utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
-		}
+	// FIXME: during a soft reboot, the host init can interfere with the way Docker tracks "crashed" containers.
+	// As a result, some of the containers running before the reboot may be restarted by Docker, while others may not.
+	// This is because on shutdown, the host init signals all processes (containers and Docker daemon alike) to terminate
+	// gracefully. This happens in undefined order. Therefore some containers may terminate "gracefully" before Docker, and
+	// some after.
+	// * Those containers terminated *before* Docker will be journaled as cleanly stopped, and will not be restarted after reboot.
+	// * Those containers terminated *after* Docker will *not* be journaled as cleanly stopped, and *will* be restarted.
+	//
+	// This is a bug and should be fixed by implementing a more robust auto-restart policy.
+	if err := container.toDisk(); err != nil {
+		utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
 	}
 	return err
 }
