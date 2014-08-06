@@ -13,13 +13,15 @@ env:
     - _GOOS=linux _GOARCH=arm CGO_ENABLED=0
 
 install:
+    - go get code.google.com/p/go.tools/cmd/cover
     - mkdir -pv "${GOPATH%%:*}/src/github.com/docker" && [ -d "${GOPATH%%:*}/src/github.com/docker/libcontainer" ] || ln -sv "$(readlink -f .)" "${GOPATH%%:*}/src/github.com/docker/libcontainer"
     - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then
           gvm cross "$_GOOS" "$_GOARCH";
           export GOOS="$_GOOS" GOARCH="$_GOARCH";
       fi
+    - export GOPATH="$GOPATH:$(pwd)/vendor"
     - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go env; fi
-    - go get -d -v ./...
+    - go get -d -v ./... # TODO remove this if /docker/docker gets purged from our includes
     - if [ "$TRAVIS_GLOBAL_WTF" ]; then
           export DOCKER_PATH="${GOPATH%%:*}/src/github.com/docker/docker";
           mkdir -p "$DOCKER_PATH/hack/make";
@@ -30,5 +32,5 @@ install:
 script:
     - if [ "$TRAVIS_GLOBAL_WTF" ]; then bash "$DOCKER_PATH/hack/make/validate-dco"; fi
     - if [ "$TRAVIS_GLOBAL_WTF" ]; then bash "$DOCKER_PATH/hack/make/validate-gofmt"; fi
-    - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then go build -v ./...; fi
-    - if [ -z "$TRAVIS_GLOBAL_WTF" -a "$GOARCH" != 'arm' ]; then go test -test.short -v ./...; fi
+    - if [ -z "$TRAVIS_GLOBAL_WTF" ]; then make direct-build; fi
+    - if [ -z "$TRAVIS_GLOBAL_WTF" -a "$GOARCH" != 'arm' ]; then make direct-test-short; fi

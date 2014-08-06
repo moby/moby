@@ -27,8 +27,33 @@ func TestCreateBridgeWithMac(t *testing.T) {
 	}
 
 	if _, err := net.InterfaceByName(name); err == nil {
-		t.Fatal("expected error getting interface because bridge was deleted")
+		t.Fatalf("expected error getting interface because %s bridge was deleted", name)
 	}
+}
+
+func TestCreateBridgeLink(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	name := "mybrlink"
+
+	if err := NetworkLinkAdd(name, "bridge"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := net.InterfaceByName(name); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := NetworkLinkDel(name); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := net.InterfaceByName(name); err == nil {
+		t.Fatalf("expected error getting interface because %s bridge was deleted", name)
+	}
+
 }
 
 func TestCreateVethPair(t *testing.T) {

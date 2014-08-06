@@ -63,4 +63,4 @@ mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 
 clone git github.com/godbus/dbus v1
 clone git github.com/coreos/go-systemd v2
-clone git github.com/docker/libcontainer 68ea1234a0b046803aacb2562df0da12eec2b2f9
+clone git github.com/docker/libcontainer 5589d4d879f1d7e31967a927d3e8b98144fbe06b

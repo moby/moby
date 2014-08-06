@@ -19,6 +19,10 @@ func NetworkLinkAdd(name string, linkType string) error {
 	return ErrNotImplemented
 }
 
+func NetworkLinkDel(name string) error {
+	return ErrNotImplemented
+}
+
 func NetworkLinkUp(iface *net.Interface) error {
 	return ErrNotImplemented
 }
