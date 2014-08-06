@@ -45,7 +45,14 @@ func InitPidfile(job *engine.Job) engine.Status {
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
+	cfg := daemonconfig.ConfigFromJob(job)
+	// FIXME: move pidfile management to NewDaemon
+	// For now it needs to happen *before* NewDaemon (and therefore NewServer)
+	// to avoid race conditions with networking setup.
+	if err := utils.CreatePidFile(cfg.Pidfile); err != nil {
+		return job.Error(err)
+	}
+	srv, err := NewServer(job.Eng, cfg)
 	if err != nil {
 		return job.Error(err)
 	}
