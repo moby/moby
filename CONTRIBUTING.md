@@ -242,6 +242,16 @@ Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available.  You don't have to be a
 maintainer to make a difference on the project!
 
+### IRC Meetings
+
+There are two monthly meetings taking place on #docker-dev IRC to accomodate all timezones.
+Anybody can ask for a topic to be discussed prior to the meeting.
+
+If you feel the conversation is going off-topic, feel free to point it out.
+
+For the exact dates and times, have a look at [the irc-minutes repo](https://github.com/docker/irc-minutes).
+They also contain all the notes from previous meetings.
+
 ## Docker Community Guidelines
 
 We want to keep the Docker community awesome, growing and collaborative. We
