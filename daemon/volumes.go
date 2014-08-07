@@ -122,6 +122,31 @@ func applyVolumesFrom(container *Container) error {
 	return nil
 }
 
+func parseBindVolumeSpec(spec string) (BindMap, error) {
+	var (
+		arr       = strings.Split(spec, ":")
+		err error = nil
+		vol BindMap
+	)
+
+	switch len(arr) {
+	case 1:
+		vol.DstPath = spec
+		vol.Mode = "rw"
+	case 2:
+		vol.SrcPath = arr[0]
+		vol.DstPath = arr[1]
+		vol.Mode = "rw"
+	case 3:
+		vol.SrcPath = arr[0]
+		vol.DstPath = arr[1]
+		vol.Mode = arr[2]
+	default:
+		err = fmt.Errorf("Invalid volume specification: %s", spec)
+	}
+	return vol, err
+}
+
 func getBindMap(container *Container) (map[string]BindMap, error) {
 	var (
 		// Create the requested bind mounts
@@ -131,37 +156,18 @@ func getBindMap(container *Container) (map[string]BindMap, error) {
 	)
 
 	for _, bind := range container.hostConfig.Binds {
-		// FIXME: factorize bind parsing in parseBind
-		var (
-			src, dst, mode string
-			arr            = strings.Split(bind, ":")
-		)
-
-		if len(arr) == 2 {
-			src = arr[0]
-			dst = arr[1]
-			mode = "rw"
-		} else if len(arr) == 3 {
-			src = arr[0]
-			dst = arr[1]
-			mode = arr[2]
-		} else {
-			return nil, fmt.Errorf("Invalid bind specification: %s", bind)
+		vol, err := parseBindVolumeSpec(bind)
+		if err != nil {
+			return binds, err
 		}
-
 		// Bail if trying to mount to an illegal destination
 		for _, illegal := range illegalDsts {
-			if dst == illegal {
-				return nil, fmt.Errorf("Illegal bind destination: %s", dst)
+			if vol.DstPath == illegal {
+				return nil, fmt.Errorf("Illegal bind destination: %s", vol.DstPath)
 			}
 		}
 
-		bindMap := BindMap{
-			SrcPath: src,
-			DstPath: dst,
-			Mode:    mode,
-		}
-		binds[filepath.Clean(dst)] = bindMap
+		binds[filepath.Clean(vol.DstPath)] = vol
 	}
 	return binds, nil
 }
