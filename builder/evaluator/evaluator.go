@@ -1,3 +1,22 @@
+// evaluator is the evaluation step in the Dockerfile parse/evaluate pipeline.
+//
+// It incorporates a dispatch table based on the parser.Node values (see the
+// parser package for more information) that are yielded from the parser itself.
+// Calling NewBuilder with the BuildOpts struct can be used to customize the
+// experience for execution purposes only. Parsing is controlled in the parser
+// package, and this division of resposibility should be respected.
+//
+// Please see the jump table targets for the actual invocations, most of which
+// will call out to the functions in internals.go to deal with their tasks.
+//
+// ONBUILD is a special case, which is covered in the onbuild() func in
+// dispatchers.go.
+//
+// The evaluator uses the concept of "steps", which are usually each processable
+// line in the Dockerfile. Each step is numbered and certain actions are taken
+// before and after each step, such as creating an image ID and removing temporary
+// containers and images. Note that ONBUILD creates a kinda-sorta "sub run" which
+// includes its own set of steps (usually only one of them).
 package evaluator
 
 import (
@@ -49,32 +68,40 @@ func init() {
 type envMap map[string]string
 type uniqueMap map[string]struct{}
 
+// internal struct, used to maintain configuration of the Dockerfile's
+// processing as it evaluates the parsing result.
 type buildFile struct {
-	dockerfile *parser.Node
-	env        envMap
-	image      string
-	config     *runconfig.Config
-	options    *BuildOpts
-	maintainer string
+	dockerfile  *parser.Node      // the syntax tree of the dockerfile
+	env         envMap            // map of environment variables
+	image       string            // image name for commit processing
+	config      *runconfig.Config // runconfig for cmd, run, entrypoint etc.
+	options     *BuildOpts        // see below
+	maintainer  string            // maintainer name. could probably be removed.
+	cmdSet      bool              // indicates is CMD was set in current Dockerfile
+	context     *tarsum.TarSum    // the context is a tarball that is uploaded by the client
+	contextPath string            // the path of the temporary directory the local context is unpacked to (server side)
 
-	// cmdSet indicates is CMD was set in current Dockerfile
-	cmdSet bool
-
-	context       *tarsum.TarSum
-	contextPath   string
-	tmpContainers uniqueMap
-	tmpImages     uniqueMap
+	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
+	tmpContainers uniqueMap // a map of containers used for removes
+	tmpImages     uniqueMap // a map of images used for removes
 }
 
 type BuildOpts struct {
-	Daemon         *daemon.Daemon
-	Engine         *engine.Engine
-	OutStream      io.Writer
-	ErrStream      io.Writer
-	Verbose        bool
-	UtilizeCache   bool
-	Remove         bool
-	ForceRemove    bool
+	Daemon *daemon.Daemon
+	Engine *engine.Engine
+
+	// effectively stdio for the run. Because it is not stdio, I said
+	// "Effectively". Do not use stdio anywhere in this package for any reason.
+	OutStream io.Writer
+	ErrStream io.Writer
+
+	Verbose      bool
+	UtilizeCache bool
+
+	// controls how images and containers are handled between steps.
+	Remove      bool
+	ForceRemove bool
+
 	AuthConfig     *registry.AuthConfig
 	AuthConfigFile *registry.ConfigFile
 
@@ -83,6 +110,7 @@ type BuildOpts struct {
 	StreamFormatter *utils.StreamFormatter
 }
 
+// Create a new builder.
 func NewBuilder(opts *BuildOpts) (*buildFile, error) {
 	return &buildFile{
 		dockerfile:    nil,
@@ -94,10 +122,20 @@ func NewBuilder(opts *BuildOpts) (*buildFile, error) {
 	}, nil
 }
 
+// Run the builder with the context. This is the lynchpin of this package. This
+// will (barring errors):
+//
+// * call readContext() which will set up the temporary directory and unpack
+//   the context into it.
+// * read the dockerfile
+// * parse the dockerfile
+// * walk the parse tree and execute it by dispatching to handlers. If Remove
+//   or ForceRemove is set, additional cleanup around containers happens after
+//   processing.
+// * Print a happy message and return the image ID.
+//
 func (b *buildFile) Run(context io.Reader) (string, error) {
-	err := b.readContext(context)
-
-	if err != nil {
+	if err := b.readContext(context); err != nil {
 		return "", err
 	}
 
@@ -131,7 +169,7 @@ func (b *buildFile) Run(context io.Reader) (string, error) {
 	}
 
 	if b.image == "" {
-		return "", fmt.Errorf("No image was generated. This may be because the Dockerfile does not, like, do anything.\n")
+		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
 	}
 
 	fmt.Fprintf(b.options.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -153,6 +191,20 @@ func initRunConfig() *runconfig.Config {
 	}
 }
 
+// This method is the entrypoint to all statement handling routines.
+//
+// Almost all nodes will have this structure:
+// Child[Node, Node, Node] where Child is from parser.Node.Children and each
+// node comes from parser.Node.Next. This forms a "line" with a statement and
+// arguments and we process them in this normalized form by hitting
+// evaluateTable with the leaf nodes of the command and the buildFile object.
+//
+// ONBUILD is a special case; in this case the parser will emit:
+// Child[Node, Child[Node, Node...]] where the first node is the literal
+// "onbuild" and the child entrypoint is the command of the ONBUILD statmeent,
+// such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
+// deal with that, at least until it becomes more of a general concern with new
+// features.
 func (b *buildFile) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 	strs := []string{}

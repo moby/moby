@@ -1,5 +1,12 @@
 package evaluator
 
+// This file contains the dispatchers for each command. Note that
+// `nullDispatch` is not actually a command, but support for commands we parse
+// but do nothing with.
+//
+// See evaluator.go for a higher level discussion of the whole evaluator
+// package.
+
 import (
 	"fmt"
 	"path/filepath"
@@ -10,11 +17,16 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// dispatch with no layer / parsing.
+// dispatch with no layer / parsing. This is effectively not a command.
 func nullDispatch(b *buildFile, args []string) error {
 	return nil
 }
 
+// ENV foo bar
+//
+// Sets the environment variable foo to bar, also makes interpolation
+// in the dockerfile available from the next statement on via ${foo}.
+//
 func env(b *buildFile, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("ENV accepts two arguments")
@@ -29,6 +41,9 @@ func env(b *buildFile, args []string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, b.env[key]))
 }
 
+// MAINTAINER some text <maybe@an.email.address>
+//
+// Sets the maintainer metadata.
 func maintainer(b *buildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("MAINTAINER requires only one argument")
@@ -38,6 +53,11 @@ func maintainer(b *buildFile, args []string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
 }
 
+// ADD foo /path
+//
+// Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
+// exist here. If you do not wish to have this automatic handling, use COPY.
+//
 func add(b *buildFile, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("ADD requires two arguments")
@@ -46,6 +66,10 @@ func add(b *buildFile, args []string) error {
 	return b.runContextCommand(args, true, true, "ADD")
 }
 
+// COPY foo /path
+//
+// Same as 'ADD' but without the tar and remote url handling.
+//
 func dispatchCopy(b *buildFile, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("COPY requires two arguments")
@@ -54,6 +78,10 @@ func dispatchCopy(b *buildFile, args []string) error {
 	return b.runContextCommand(args, false, false, "COPY")
 }
 
+// FROM imagename
+//
+// This sets the image the dockerfile will build on top of.
+//
 func from(b *buildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("FROM requires one argument")
@@ -77,6 +105,15 @@ func from(b *buildFile, args []string) error {
 	return b.processImageFrom(image)
 }
 
+// ONBUILD RUN echo yo
+//
+// ONBUILD triggers run when the image is used in a FROM statement.
+//
+// ONBUILD handling has a lot of special-case functionality, the heading in
+// evaluator.go and comments around dispatch() in the same file explain the
+// special cases. search for 'OnBuild' in internals.go for additional special
+// cases.
+//
 func onbuild(b *buildFile, args []string) error {
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
@@ -92,6 +129,10 @@ func onbuild(b *buildFile, args []string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
+// WORKDIR /tmp
+//
+// Set the working directory for future RUN/CMD/etc statements.
+//
 func workdir(b *buildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("WORKDIR requires exactly one argument")
@@ -111,6 +152,15 @@ func workdir(b *buildFile, args []string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
+// RUN some command yo
+//
+// run a command and commit the image. Args are automatically prepended with
+// 'sh -c' in the event there is only one argument. The difference in
+// processing:
+//
+// RUN echo hi          # sh -c echo hi
+// RUN [ "echo", "hi" ] # echo hi
+//
 func run(b *buildFile, args []string) error {
 	if len(args) == 1 { // literal string command, not an exec array
 		args = append([]string{"/bin/sh", "-c"}, args[0])
@@ -162,6 +212,11 @@ func run(b *buildFile, args []string) error {
 	return nil
 }
 
+// CMD foo
+//
+// Set the default command to run in the container (which may be empty).
+// Argument handling is the same as RUN.
+//
 func cmd(b *buildFile, args []string) error {
 	if len(args) < 2 {
 		args = append([]string{"/bin/sh", "-c"}, args...)
@@ -176,6 +231,14 @@ func cmd(b *buildFile, args []string) error {
 	return nil
 }
 
+// ENTRYPOINT /usr/sbin/nginx
+//
+// Set the entrypoint (which defaults to sh -c) to /usr/sbin/nginx. Will
+// accept the CMD as the arguments to /usr/sbin/nginx.
+//
+// Handles command processing similar to CMD and RUN, only b.config.Entrypoint
+// is initialized at NewBuilder time instead of through argument parsing.
+//
 func entrypoint(b *buildFile, args []string) error {
 	b.config.Entrypoint = args
 
@@ -189,6 +252,11 @@ func entrypoint(b *buildFile, args []string) error {
 	return nil
 }
 
+// EXPOSE 6667/tcp 7000/tcp
+//
+// Expose ports for links and port mappings. This all ends up in
+// b.config.ExposedPorts for runconfig.
+//
 func expose(b *buildFile, args []string) error {
 	portsTab := args
 
@@ -211,6 +279,11 @@ func expose(b *buildFile, args []string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
+// USER foo
+//
+// Set the user to 'foo' for future commands and when running the
+// ENTRYPOINT/CMD at container run time.
+//
 func user(b *buildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("USER requires exactly one argument")
@@ -220,6 +293,11 @@ func user(b *buildFile, args []string) error {
 	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
 }
 
+// VOLUME /foo
+//
+// Expose the volume /foo for use. Will also accept the JSON form, but either
+// way requires exactly one argument.
+//
 func volume(b *buildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("Volume cannot be empty")
@@ -239,6 +317,7 @@ func volume(b *buildFile, args []string) error {
 	return nil
 }
 
+// INSERT is no longer accepted, but we still parse it.
 func insert(b *buildFile, args []string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
 }

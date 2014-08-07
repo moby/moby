@@ -9,6 +9,7 @@ var (
 	TOKEN_ENV_INTERPOLATION = regexp.MustCompile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
 )
 
+// handle environment replacement. Used in dispatcher.
 func replaceEnv(b *buildFile, str string) string {
 	for _, match := range TOKEN_ENV_INTERPOLATION.FindAllString(str, -1) {
 		match = match[strings.Index(match, "$"):]

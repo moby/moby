@@ -1,5 +1,11 @@
 package parser
 
+// line parsers are dispatch calls that parse a single unit of text into a
+// Node object which contains the whole statement. Dockerfiles have varied
+// (but not usually unique, see ONBUILD for a unique example) parsing rules
+// per-command, and these unify the processing in a way that makes it
+// manageable.
+
 import (
 	"encoding/json"
 	"strconv"
@@ -12,6 +18,11 @@ func parseIgnore(rest string) (*Node, error) {
 	return blankNode(), nil
 }
 
+// used for onbuild. Could potentially be used for anything that represents a
+// statement with sub-statements.
+//
+// ONBUILD RUN foo bar -> (onbuild (run foo bar))
+//
 func parseSubCommand(rest string) (*Node, error) {
 	_, child, err := parseLine(rest)
 	if err != nil {

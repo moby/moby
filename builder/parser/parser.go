@@ -8,32 +8,17 @@ import (
 	"strings"
 )
 
-// Node is the building block of the AST this package will create.
+// Node is a structure used to represent a parse tree.
 //
-// Nodes are structured to have a value, next, and child, the latter two of
-// which are Nodes themselves.
+// In the node there are three fields, Value, Next, and Children. Value is the
+// current token's string value. Next is always the next non-child token, and
+// children contains all the children. Here's an example:
 //
-// This terminology is unfortunately rather confusing, so here's a diagram.
-// Anything after the ; is a comment.
+// (value next (child child-next child-next-next) next-next)
 //
-//     (
-//       (run "foo") ; value run, and next is a value foo.
-//       (run "1" "2" "3") ;
-//       (something (really cool))
-//     )
-//
-// Will give you something like this:
-//
-//     &Node{
-//       Value:"",
-//       Child: &Node{Value: "run", Next: &Node{Value: "foo"}, Child: nil},
-//       Next: &Node{Value:"", Child: &Node{Value:"run", Next: &Node{Value:`"1"`....
-//
-// ... and so on.
-//
-// The short and fast rule is that anything that starts with ( is a child of
-// something. Anything which follows a previous statement is a next of
-// something.
+// This data structure is frankly pretty lousy for handling complex languages,
+// but lucky for us the Dockerfile isn't very complicated. This structure
+// works a little more effectively than a "proper" parse tree for our needs.
 //
 type Node struct {
 	Value    string  // actual content
@@ -79,6 +64,7 @@ func blankNode() *Node {
 	return &Node{"", nil, []*Node{}}
 }
 
+// parse a line and return the remainder.
 func parseLine(line string) (string, *Node, error) {
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
