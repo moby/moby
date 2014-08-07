@@ -60,7 +60,7 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 	return imageList, tagsByImage, nil
 }
 
-func (s *TagStore) pushRepository(r *registry.Registry, out io.Writer, localName, remoteName string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
+func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName, remoteName string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	utils.Debugf("Local repo: %s", localRepo)
 	imgList, tagsByImage, err := s.getImageList(localRepo, tag)
@@ -142,7 +142,7 @@ func (s *TagStore) pushRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (s *TagStore) pushImage(r *registry.Registry, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
+func (s *TagStore) pushImage(r *registry.Session, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
 	if err != nil {
@@ -219,7 +219,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	}
 
 	img, err := s.graph.Get(localName)
-	r, err2 := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
+	r, err2 := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
 	if err2 != nil {
 		return job.Error(err2)
 	}

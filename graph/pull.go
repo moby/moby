@@ -55,7 +55,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	r, err := registry.NewRegistry(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, true)
+	r, err := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, true)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -72,7 +72,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (s *TagStore) pullRepository(r *registry.Registry, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
+func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
 	out.Write(sf.FormatStatus("", "Pulling repository %s", localName))
 
 	repoData, err := r.GetRepositoryData(remoteName)
@@ -210,7 +210,7 @@ func (s *TagStore) pullRepository(r *registry.Registry, out io.Writer, localName
 	return nil
 }
 
-func (s *TagStore) pullImage(r *registry.Registry, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
+func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint string, token []string, sf *utils.StreamFormatter) error {
 	history, err := r.GetRemoteHistory(imgID, endpoint, token)
 	if err != nil {
 		return err
