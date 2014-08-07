@@ -105,7 +105,7 @@ func (m *containerMonitor) reset(successful bool) {
 	}
 
 	if container.daemon != nil && container.daemon.srv != nil {
-		container.daemon.srv.LogEvent("die", container.ID, container.daemon.repositories.ImageName(container.Image))
+		container.LogEvent("die")
 	}
 
 	c := container.command.Cmd
