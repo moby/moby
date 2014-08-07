@@ -20,9 +20,7 @@ func (daemon *Daemon) ContainerDestroy(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
-	stop := job.GetenvBool("stop")
-	kill := job.GetenvBool("kill")
-
+	forceRemove := job.GetenvBool("forceRemove")
 	container := daemon.Get(name)
 
 	if removeLink {
@@ -55,11 +53,7 @@ func (daemon *Daemon) ContainerDestroy(job *engine.Job) engine.Status {
 
 	if container != nil {
 		if container.State.IsRunning() {
-			if stop {
-				if err := container.Stop(5); err != nil {
-					return job.Errorf("Could not stop running container, cannot remove - %v", err)
-				}
-			} else if kill {
+			if forceRemove {
 				if err := container.Kill(); err != nil {
 					return job.Errorf("Could not kill running container, cannot remove - %v", err)
 				}

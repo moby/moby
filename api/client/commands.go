@@ -1016,8 +1016,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := cli.Subcmd("rm", "[OPTIONS] CONTAINER [CONTAINER...]", "Remove one or more containers")
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
-	stop := cmd.Bool([]string{"#f", "s", "#-force", "-stop"}, false, "Stop and remove a running container")
-	kill := cmd.Bool([]string{"k", "-kill"}, false, "Kill and remove a running container")
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1026,9 +1025,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	if *stop && *kill {
-		return fmt.Errorf("Conflicting options: -s/--stop and -k/--kill")
-	}
+
 	val := url.Values{}
 	if *v {
 		val.Set("v", "1")
@@ -1036,11 +1033,9 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	if *link {
 		val.Set("link", "1")
 	}
-	if *stop {
-		val.Set("stop", "1")
-	}
-	if *kill {
-		val.Set("kill", "1")
+
+	if *force {
+		val.Set("force", "1")
 	}
 
 	var encounteredError error

@@ -57,40 +57,18 @@ func TestRemoveRunningContainer(t *testing.T) {
 	logDone("rm - running container")
 }
 
-func TestStopAndRemoveRunningContainer(t *testing.T) {
+func TestForceRemoveRunningContainer(t *testing.T) {
 	createRunningContainer(t, "foo")
 
 	// Stop then remove with -s
-	cmd := exec.Command(dockerBinary, "rm", "-s", "foo")
+	cmd := exec.Command(dockerBinary, "rm", "-f", "foo")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
 
 	deleteAllContainers()
 
-	logDone("rm - running container with --stop=true")
-}
-
-func TestKillAndRemoveRunningContainer(t *testing.T) {
-	createRunningContainer(t, "foo")
-
-	// Kill then remove with -k
-	cmd := exec.Command(dockerBinary, "rm", "-k", "foo")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
-
-	deleteAllContainers()
-
-	logDone("rm - running container with --kill=true")
-}
-
-func TestRemoveContainerWithStopAndKill(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "rm", "-sk", "foo")
-	if _, err := runCommand(cmd); err == nil {
-		t.Fatalf("Expected error: can't use stop and kill simulteanously")
-	}
-	logDone("rm - with --stop=true and --kill=true")
+	logDone("rm - running container with --force=true")
 }
 
 func TestContainerOrphaning(t *testing.T) {
