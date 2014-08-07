@@ -130,7 +130,7 @@ case "$1" in
 		;;
 
 	status)
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" docker
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" docker && exit 0 || exit $?
 		;;
 
 	*)
