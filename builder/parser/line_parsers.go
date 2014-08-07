@@ -8,8 +8,13 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
+)
+
+var (
+	dockerFileErrJSONNesting = errors.New("You may not nest arrays in Dockerfile statements.")
 )
 
 // ignore the current argument. This will still leave a command parsed, but
@@ -86,6 +91,8 @@ func parseJSON(rest string) (*Node, error) {
 
 	for _, str := range myJson {
 		switch str.(type) {
+		case []interface{}:
+			return nil, dockerFileErrJSONNesting
 		case float64:
 			str = strconv.FormatFloat(str.(float64), 'G', -1, 64)
 		}
@@ -110,6 +117,8 @@ func parseMaybeJSON(rest string) (*Node, error) {
 		node, err := parseJSON(rest)
 		if err == nil {
 			return node, nil
+		} else if err == dockerFileErrJSONNesting {
+			return nil, err
 		}
 	}
 

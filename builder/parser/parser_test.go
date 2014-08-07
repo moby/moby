@@ -8,9 +8,10 @@ import (
 )
 
 const testDir = "testfiles"
+const negativeTestDir = "testfiles-negative"
 
-func TestTestData(t *testing.T) {
-	f, err := os.Open(testDir)
+func getDirs(t *testing.T, dir string) []os.FileInfo {
+	f, err := os.Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +23,29 @@ func TestTestData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, dir := range dirs {
+	return dirs
+}
+
+func TestTestNegative(t *testing.T) {
+	for _, dir := range getDirs(t, negativeTestDir) {
+		dockerfile := filepath.Join(negativeTestDir, dir.Name(), "Dockerfile")
+
+		df, err := os.Open(dockerfile)
+		if err != nil {
+			t.Fatalf("Dockerfile missing for %s: %s", dir.Name(), err.Error())
+		}
+
+		_, err = Parse(df)
+		if err == nil {
+			t.Fatalf("No error parsing broken dockerfile for %s: %s", dir.Name(), err.Error())
+		}
+
+		df.Close()
+	}
+}
+
+func TestTestData(t *testing.T) {
+	for _, dir := range getDirs(t, testDir) {
 		dockerfile := filepath.Join(testDir, dir.Name(), "Dockerfile")
 		resultfile := filepath.Join(testDir, dir.Name(), "result")
 
