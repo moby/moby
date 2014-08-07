@@ -37,11 +37,7 @@ You can still call an old version of the API using
 `DELETE /containers/(id)`
 
 **New!**
-You can now use the `stop` parameter to stop running containers before removal
-(replace `force`).
-
-**New!**
-You can now use the `kill` parameter to kill running containers before removal.
+When using `force`, the container will be immediately killed with SIGKILL.
 
 `POST /containers/(id)/start`
 

@@ -679,9 +679,7 @@ Remove the container `id` from the filesystem
 
     -   **v** – 1/True/true or 0/False/false, Remove the volumes
         associated to the container. Default false
-    -   **stop** – 1/True/true or 0/False/false, Stop then remove the container.
-        Default false
-    -   **kill** - 1/True/true or 0/False/false, Kill then remove the container.
+    -   **force** - 1/True/true or 0/False/false, Kill then remove the container.
         Default false
 
     Status Codes:

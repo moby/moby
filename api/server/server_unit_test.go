@@ -474,30 +474,6 @@ func TestDeleteContainers(t *testing.T) {
 	}
 }
 
-func TestDeleteContainersWithStopAndKill(t *testing.T) {
-	if api.APIVERSION.LessThan("1.14") {
-		return
-	}
-	eng := engine.New()
-	var called bool
-	eng.Register("delete", func(job *engine.Job) engine.Status {
-		called = true
-		return engine.StatusOK
-	})
-	r := serveRequest("DELETE", "/containers/foo?stop=1&kill=1", nil, eng, t)
-	if r.Code != http.StatusBadRequest {
-		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusBadRequest)
-	}
-	if called {
-		t.Fatalf("container_delete jobs was called, but it shouldn't")
-	}
-	res := strings.TrimSpace(r.Body.String())
-	expected := "Bad parameters: can't use stop and kill simultaneously"
-	if !strings.Contains(res, expected) {
-		t.Fatalf("Output %s, expected %s in it", res, expected)
-	}
-}
-
 func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *testing.T) *httptest.ResponseRecorder {
 	return serveRequestUsingVersion(method, target, api.APIVERSION, body, eng, t)
 }

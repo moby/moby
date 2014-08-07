@@ -680,16 +680,8 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	}
 	job := eng.Job("delete", vars["name"])
 
-	if version.GreaterThanOrEqualTo("1.14") {
-		job.Setenv("stop", r.Form.Get("stop"))
-		job.Setenv("kill", r.Form.Get("kill"))
+	job.Setenv("forceRemove", r.Form.Get("force"))
 
-		if job.GetenvBool("stop") && job.GetenvBool("kill") {
-			return fmt.Errorf("Bad parameters: can't use stop and kill simultaneously")
-		}
-	} else {
-		job.Setenv("stop", r.Form.Get("force"))
-	}
 	job.Setenv("removeVolume", r.Form.Get("v"))
 	job.Setenv("removeLink", r.Form.Get("link"))
 	if err := job.Run(); err != nil {
