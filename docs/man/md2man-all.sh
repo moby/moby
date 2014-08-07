@@ -18,5 +18,5 @@ for FILE in *.md; do
 		continue
 	fi
 	mkdir -p "./man${num}"
-	pandoc -s -t man "$FILE" -o "./man${num}/${name}"
+	go-md2man -in "$FILE" -out "./man${num}/${name}"
 done

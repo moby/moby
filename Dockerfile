@@ -42,7 +42,6 @@ RUN	apt-get update && apt-get install -y \
 	libsqlite3-dev \
 	lxc=1.0* \
 	mercurial \
-	pandoc \
 	parallel \
 	reprepro \
 	ruby1.9.1 \
@@ -63,6 +62,7 @@ RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper
 RUN	curl -sSL https://golang.org/dl/go1.3.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:$PATH
 ENV	GOPATH	/go:/go/src/github.com/docker/docker/vendor
+ENV PATH /go/bin:$PATH
 RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 
 # Compile Go for cross compilation
@@ -79,6 +79,12 @@ RUN	go get code.google.com/p/go.tools/cmd/cover
 
 # TODO replace FPM with some very minimal debhelper stuff
 RUN	gem install --no-rdoc --no-ri fpm --version 1.0.2
+
+# Install man page generator
+RUN mkdir -p /go/src/github.com/cpuguy83 \
+    && git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
+    && cd /go/src/github.com/cpuguy83/go-md2man \
+    && go get -v ./...
 
 # Get the "busybox" image source so we can build locally instead of pulling
 RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
