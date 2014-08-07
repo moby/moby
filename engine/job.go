@@ -32,7 +32,6 @@ type Job struct {
 	handler Handler
 	status  Status
 	end     time.Time
-	onExit  []func()
 }
 
 type Status int
