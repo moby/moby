@@ -171,7 +171,9 @@ or
 **USER**
  -- **USER daemon**
  The USER instruction sets the username or UID that is used when running the
- image.
+ image.  The USER instruction can also set the group or GID that is used.
+ For example:
+ **USER daemon:daemongroup**
 
 **WORKDIR**
  -- **WORKDIR /path/to/workdir**
