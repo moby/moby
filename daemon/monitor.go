@@ -104,9 +104,7 @@ func (m *containerMonitor) reset(successful bool) {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
 
-	if container.daemon != nil && container.daemon.srv != nil {
-		container.LogEvent("die")
-	}
+	container.LogEvent("die")
 
 	c := container.command.Cmd
 
@@ -159,6 +157,8 @@ func (m *containerMonitor) Start() error {
 		}
 
 		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
+
+		m.container.LogEvent("start")
 
 		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
 			utils.Errorf("Error running container: %s", err)
