@@ -196,6 +196,11 @@ container.** These defaults can include an executable, or they can omit
 the executable, in which case you must specify an `ENTRYPOINT`
 instruction as well.
 
+> **Note**:
+> If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
+> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
+> with the JSON array format.
+
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
 
