@@ -140,16 +140,13 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (daemon *Daemon) Get(name string) *Container {
+	if id, err := daemon.idIndex.Get(name); err == nil {
+		return daemon.containers.Get(id)
+	}
 	if c, _ := daemon.GetByName(name); c != nil {
 		return c
 	}
-
-	id, err := daemon.idIndex.Get(name)
-	if err != nil {
-		return nil
-	}
-
-	return daemon.containers.Get(id)
+	return nil
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
