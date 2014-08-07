@@ -40,7 +40,7 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 	if !container.Config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
 		job.Errorf("IPv4 forwarding is disabled.\n")
 	}
-	job.Eng.Job("log", "create", container.ID, daemon.Repositories().ImageName(container.Image)).Run()
+	container.LogEvent("create")
 	// FIXME: this is necessary because daemon.Create might return a nil container
 	// with a non-nil error. This should not happen! Once it's fixed we
 	// can remove this workaround.

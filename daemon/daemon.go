@@ -107,6 +107,7 @@ type Daemon struct {
 func (daemon *Daemon) Install(eng *engine.Engine) error {
 	// FIXME: rename "delete" to "rm" for consistency with the CLI command
 	// FIXME: rename ContainerDestroy to ContainerRm for consistency with the CLI command
+	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"attach":            daemon.ContainerAttach,
 		"commit":            daemon.ContainerCommit,
@@ -127,6 +128,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"top":               daemon.ContainerTop,
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
+		"image_delete":      daemon.ImageDelete, // FIXME: see above
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err

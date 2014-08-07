@@ -67,6 +67,11 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 		initPath = srv.daemon.SystemInitPath()
 	}
 
+	cjob := job.Eng.Job("subscribers_count")
+	env, _ := cjob.Stdout.AddEnv()
+	if err := cjob.Run(); err != nil {
+		return job.Error(err)
+	}
 	v := &engine.Env{}
 	v.SetInt("Containers", len(srv.daemon.List()))
 	v.SetInt("Images", imgcount)
@@ -79,7 +84,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
 	v.Set("ExecutionDriver", srv.daemon.ExecutionDriver().Name())
-	v.SetInt("NEventsListener", srv.eventPublisher.SubscribersCount())
+	v.SetInt("NEventsListener", env.GetInt("count"))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("OperatingSystem", operatingSystem)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
@@ -128,12 +133,10 @@ func (srv *Server) Close() error {
 
 type Server struct {
 	sync.RWMutex
-	daemon         *daemon.Daemon
-	pullingPool    map[string]chan struct{}
-	pushingPool    map[string]chan struct{}
-	events         []utils.JSONMessage
-	eventPublisher *utils.JSONMessagePublisher
-	Eng            *engine.Engine
-	running        bool
-	tasks          sync.WaitGroup
+	daemon      *daemon.Daemon
+	pullingPool map[string]chan struct{}
+	pushingPool map[string]chan struct{}
+	Eng         *engine.Engine
+	running     bool
+	tasks       sync.WaitGroup
 }
