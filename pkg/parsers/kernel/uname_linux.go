@@ -1,5 +1,3 @@
-// +build amd64
-
 package kernel
 
 import (
