@@ -15,24 +15,28 @@ import (
 )
 
 func TestBuildCacheADD(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcacheadd1", ".")
-	buildCmd.Dir = buildDirectory
-	exitCode, err := runCommand(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v", err))
+	var (
+		exitCode int
+		out      string
+		err      error
+	)
+	{
+		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
+		out, exitCode, err = dockerCmdInDir(t, buildDirectory, "build", "-t", "testcacheadd1", ".")
+		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+		if err != nil || exitCode != 0 {
+			t.Fatal("failed to build the image")
+		}
 	}
+	{
+		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "2")
+		out, exitCode, err = dockerCmdInDir(t, buildDirectory, "build", "-t", "testcacheadd2", ".")
+		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
-	buildDirectory = filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "2")
-	buildCmd = exec.Command(dockerBinary, "build", "-t", "testcacheadd2", ".")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+		if err != nil || exitCode != 0 {
+			t.Fatal("failed to build the image")
+		}
 	}
 
 	if strings.Contains(out, "Using cache") {
@@ -47,9 +51,7 @@ func TestBuildCacheADD(t *testing.T) {
 
 func TestBuildSixtySteps(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildSixtySteps")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "foobuildsixtysteps", ".")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "foobuildsixtysteps", ".")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -68,9 +70,7 @@ func TestAddSingleFileToRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", ".")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", ".")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -120,9 +120,7 @@ func TestAddSingleFileToWorkdir(t *testing.T) {
 
 func TestAddSingleFileToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "SingleFileToExistDir")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "SingleFileToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -136,9 +134,7 @@ func TestAddSingleFileToExistDir(t *testing.T) {
 
 func TestAddSingleFileToNonExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "SingleFileToNonExistDir")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "SingleFileToNonExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -152,9 +148,7 @@ func TestAddSingleFileToNonExistDir(t *testing.T) {
 
 func TestAddDirContentToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "DirContentToRoot")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "DirContentToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -168,9 +162,7 @@ func TestAddDirContentToRoot(t *testing.T) {
 
 func TestAddDirContentToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "DirContentToExistDir")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "DirContentToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -193,9 +185,7 @@ func TestAddWholeDirToRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", ".")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", ".")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -209,9 +199,7 @@ func TestAddWholeDirToRoot(t *testing.T) {
 
 func TestAddEtcToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", "EtcToRoot")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "EtcToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -229,9 +217,7 @@ func TestCopySingleFileToRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", ".")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", ".")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -281,9 +267,7 @@ func TestCopySingleFileToWorkdir(t *testing.T) {
 
 func TestCopySingleFileToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "SingleFileToExistDir")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -297,9 +281,7 @@ func TestCopySingleFileToExistDir(t *testing.T) {
 
 func TestCopySingleFileToNonExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "SingleFileToNonExistDir")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToNonExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -313,9 +295,7 @@ func TestCopySingleFileToNonExistDir(t *testing.T) {
 
 func TestCopyDirContentToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DirContentToRoot")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -329,9 +309,7 @@ func TestCopyDirContentToRoot(t *testing.T) {
 
 func TestCopyDirContentToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DirContentToExistDir")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -354,9 +332,7 @@ func TestCopyWholeDirToRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", ".")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", ".")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -370,9 +346,7 @@ func TestCopyWholeDirToRoot(t *testing.T) {
 
 func TestCopyEtcToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "EtcToRoot")
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "EtcToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
 
 	if err != nil || exitCode != 0 {
@@ -465,9 +439,7 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		// This test doesn't require that we run commands as an unprivileged user
 		pathToDirectoryWhichContainsLinks := filepath.Join(buildDirectory, "linksdirectory")
 
-		buildCmd := exec.Command(dockerBinary, "build", "-t", "testlinksok", ".")
-		buildCmd.Dir = pathToDirectoryWhichContainsLinks
-		out, exitCode, err := runCommandWithOutput(buildCmd)
+		out, exitCode, err := dockerCmdInDir(t, pathToDirectoryWhichContainsLinks, "build", "-t", "testlinksok", ".")
 		if err != nil || exitCode != 0 {
 			t.Fatalf("build should have worked: %s %s", err, out)
 		}
@@ -538,9 +510,7 @@ func TestBuildRm(t *testing.T) {
 		}
 
 		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
-		buildCmd := exec.Command(dockerBinary, "build", "--rm", "-t", "testbuildrm", ".")
-		buildCmd.Dir = buildDirectory
-		_, exitCode, err := runCommandWithOutput(buildCmd)
+		_, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "--rm", "-t", "testbuildrm", ".")
 
 		if err != nil || exitCode != 0 {
 			t.Fatal("failed to build the image")
@@ -564,9 +534,7 @@ func TestBuildRm(t *testing.T) {
 		}
 
 		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
-		buildCmd := exec.Command(dockerBinary, "build", "-t", "testbuildrm", ".")
-		buildCmd.Dir = buildDirectory
-		_, exitCode, err := runCommandWithOutput(buildCmd)
+		_, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testbuildrm", ".")
 
 		if err != nil || exitCode != 0 {
 			t.Fatal("failed to build the image")
@@ -590,9 +558,7 @@ func TestBuildRm(t *testing.T) {
 		}
 
 		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
-		buildCmd := exec.Command(dockerBinary, "build", "--rm=false", "-t", "testbuildrm", ".")
-		buildCmd.Dir = buildDirectory
-		_, exitCode, err := runCommandWithOutput(buildCmd)
+		_, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "--rm=false", "-t", "testbuildrm", ".")
 
 		if err != nil || exitCode != 0 {
 			t.Fatal("failed to build the image")
@@ -808,52 +774,53 @@ func TestBuildEntrypoint(t *testing.T) {
 
 // #6445 ensure ONBUILD triggers aren't committed to grandchildren
 func TestBuildOnBuildLimitedInheritence(t *testing.T) {
-	name1 := "testonbuildtrigger1"
-	dockerfile1 := `
+	var (
+		out2, out3 string
+	)
+	{
+		name1 := "testonbuildtrigger1"
+		dockerfile1 := `
 		FROM busybox
 		RUN echo "GRANDPARENT"
 		ONBUILD RUN echo "ONBUILD PARENT"
-	`
-	ctx1, err := fakeContext(dockerfile1, nil)
-	if err != nil {
-		t.Fatal(err)
+		`
+		ctx, err := fakeContext(dockerfile1, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out1, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name1, ".")
+		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out1, err))
+		defer deleteImages(name1)
 	}
-
-	buildCmd := exec.Command(dockerBinary, "build", "-t", name1, ".")
-	buildCmd.Dir = ctx1.Dir
-	out1, _, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out1, err))
-	defer deleteImages(name1)
-
-	name2 := "testonbuildtrigger2"
-	dockerfile2 := `
+	{
+		name2 := "testonbuildtrigger2"
+		dockerfile2 := `
 		FROM testonbuildtrigger1
-	`
-	ctx2, err := fakeContext(dockerfile2, nil)
-	if err != nil {
-		t.Fatal(err)
+		`
+		ctx, err := fakeContext(dockerfile2, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out2, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-t", name2, ".")
+		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out2, err))
+		defer deleteImages(name2)
 	}
-
-	buildCmd = exec.Command(dockerBinary, "build", "-t", name2, ".")
-	buildCmd.Dir = ctx2.Dir
-	out2, _, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out2, err))
-	defer deleteImages(name2)
-
-	name3 := "testonbuildtrigger3"
-	dockerfile3 := `
+	{
+		name3 := "testonbuildtrigger3"
+		dockerfile3 := `
 		FROM testonbuildtrigger2
-	`
-	ctx3, err := fakeContext(dockerfile3, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		`
+		ctx, err := fakeContext(dockerfile3, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	buildCmd = exec.Command(dockerBinary, "build", "-t", name3, ".")
-	buildCmd.Dir = ctx3.Dir
-	out3, _, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out3, err))
-	defer deleteImages(name3)
+		out3, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-t", name3, ".")
+		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out3, err))
+		defer deleteImages(name3)
+	}
 
 	// ONBUILD should be run in second build.
 	if !strings.Contains(out2, "ONBUILD PARENT") {
