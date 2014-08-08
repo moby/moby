@@ -22,6 +22,10 @@ type TagStore struct {
 	graph        *Graph
 	Repositories map[string]Repository
 	sync.Mutex
+	// FIXME: move push/pull-related fields
+	// to a helper type
+	pullingPool map[string]chan struct{}
+	pushingPool map[string]chan struct{}
 }
 
 type Repository map[string]string
@@ -35,6 +39,8 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 		path:         abspath,
 		graph:        graph,
 		Repositories: make(map[string]Repository),
+		pullingPool:  make(map[string]chan struct{}),
+		pushingPool:  make(map[string]chan struct{}),
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
@@ -260,6 +266,49 @@ func validateTagName(name string) error {
 	}
 	if strings.Contains(name, "/") || strings.Contains(name, ":") {
 		return fmt.Errorf("Illegal tag name: %s", name)
+	}
+	return nil
+}
+
+func (s *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	if c, exists := s.pullingPool[key]; exists {
+		return c, fmt.Errorf("pull %s is already in progress", key)
+	}
+	if c, exists := s.pushingPool[key]; exists {
+		return c, fmt.Errorf("push %s is already in progress", key)
+	}
+
+	c := make(chan struct{})
+	switch kind {
+	case "pull":
+		s.pullingPool[key] = c
+	case "push":
+		s.pushingPool[key] = c
+	default:
+		return nil, fmt.Errorf("Unknown pool type")
+	}
+	return c, nil
+}
+
+func (s *TagStore) poolRemove(kind, key string) error {
+	s.Lock()
+	defer s.Unlock()
+	switch kind {
+	case "pull":
+		if c, exists := s.pullingPool[key]; exists {
+			close(c)
+			delete(s.pullingPool, key)
+		}
+	case "push":
+		if c, exists := s.pushingPool[key]; exists {
+			close(c)
+			delete(s.pushingPool, key)
+		}
+	default:
+		return fmt.Errorf("Unknown pool type")
 	}
 	return nil
 }
