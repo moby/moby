@@ -12,22 +12,7 @@ import (
 type Env []string
 
 func (env *Env) Get(key string) (value string) {
-	// FIXME: use Map()
-	for _, kv := range *env {
-		if strings.Index(kv, "=") == -1 {
-			continue
-		}
-		parts := strings.SplitN(kv, "=", 2)
-		if parts[0] != key {
-			continue
-		}
-		if len(parts) < 2 {
-			value = ""
-		} else {
-			value = parts[1]
-		}
-	}
-	return
+	return env.Map()[key]
 }
 
 func (env *Env) Exists(key string) bool {
