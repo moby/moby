@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 ### BEGIN INIT INFO
 # Provides:           docker
@@ -130,7 +131,7 @@ case "$1" in
 		;;
 
 	status)
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" docker
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" "$DOCKER_DESC"
 		;;
 
 	*)
@@ -138,5 +139,3 @@ case "$1" in
 		exit 1
 		;;
 esac
-
-exit 0
