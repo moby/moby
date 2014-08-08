@@ -37,7 +37,7 @@ func TestTestNegative(t *testing.T) {
 
 		_, err = Parse(df)
 		if err == nil {
-			t.Fatalf("No error parsing broken dockerfile for %s: %s", dir.Name(), err.Error())
+			t.Fatalf("No error parsing broken dockerfile for %s", dir.Name())
 		}
 
 		df.Close()

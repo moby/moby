@@ -91,10 +91,11 @@ func parseJSON(rest string) (*Node, error) {
 
 	for _, str := range myJson {
 		switch str.(type) {
-		case []interface{}:
-			return nil, dockerFileErrJSONNesting
+		case string:
 		case float64:
 			str = strconv.FormatFloat(str.(float64), 'G', -1, 64)
+		default:
+			return nil, dockerFileErrJSONNesting
 		}
 		next.Value = str.(string)
 		next.Next = blankNode()
@@ -115,6 +116,7 @@ func parseMaybeJSON(rest string) (*Node, error) {
 
 	if strings.HasPrefix(rest, "[") {
 		node, err := parseJSON(rest)
+
 		if err == nil {
 			return node, nil
 		} else if err == dockerFileErrJSONNesting {
