@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/docker/docker/utils"
 )
 
@@ -100,7 +101,7 @@ func main() {
 	}
 
 	if err := cli.ParseCommands(flag.Args()...); err != nil {
-		if sterr, ok := err.(*utils.StatusError); ok {
+		if sterr, ok := err.(*errorutils.StatusError); ok {
 			if sterr.Status != "" {
 				log.Println(sterr.Status)
 			}

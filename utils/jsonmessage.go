@@ -7,18 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/units"
 )
-
-type JSONError struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-func (e *JSONError) Error() string {
-	return e.Message
-}
 
 type JSONProgress struct {
 	terminalFd uintptr
@@ -73,15 +65,15 @@ func (p *JSONProgress) String() string {
 }
 
 type JSONMessage struct {
-	Stream          string        `json:"stream,omitempty"`
-	Status          string        `json:"status,omitempty"`
-	Progress        *JSONProgress `json:"progressDetail,omitempty"`
-	ProgressMessage string        `json:"progress,omitempty"` //deprecated
-	ID              string        `json:"id,omitempty"`
-	From            string        `json:"from,omitempty"`
-	Time            int64         `json:"time,omitempty"`
-	Error           *JSONError    `json:"errorDetail,omitempty"`
-	ErrorMessage    string        `json:"error,omitempty"` //deprecated
+	Stream          string                `json:"stream,omitempty"`
+	Status          string                `json:"status,omitempty"`
+	Progress        *JSONProgress         `json:"progressDetail,omitempty"`
+	ProgressMessage string                `json:"progress,omitempty"` //deprecated
+	ID              string                `json:"id,omitempty"`
+	From            string                `json:"from,omitempty"`
+	Time            int64                 `json:"time,omitempty"`
+	Error           *errorutils.JSONError `json:"errorDetail,omitempty"`
+	ErrorMessage    string                `json:"error,omitempty"` //deprecated
 }
 
 func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {

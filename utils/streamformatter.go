@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/docker/docker/pkg/errorutils"
 )
 
 type StreamFormatter struct {
@@ -43,9 +45,9 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	if sf.json {
-		jsonError, ok := err.(*JSONError)
+		jsonError, ok := err.(*errorutils.JSONError)
 		if !ok {
-			jsonError = &JSONError{Message: err.Error()}
+			jsonError = &errorutils.JSONError{Message: err.Error()}
 		}
 		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
 			return append(b, streamNewlineBytes...)

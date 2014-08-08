@@ -5,6 +5,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/docker/docker/pkg/errorutils"
 )
 
 func TestFormatStream(t *testing.T) {
@@ -33,7 +35,7 @@ func TestFormatSimpleError(t *testing.T) {
 
 func TestFormatJSONError(t *testing.T) {
 	sf := NewStreamFormatter(true)
-	err := &JSONError{Code: 50, Message: "Json error"}
+	err := &errorutils.JSONError{Code: 50, Message: "Json error"}
 	res := sf.FormatError(err)
 	if string(res) != `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}`+"\r\n" {
 		t.Fatalf("%q", res)
