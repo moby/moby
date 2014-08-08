@@ -148,6 +148,37 @@ func getVersion(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	return nil
 }
 
+//"/help
+func getHelpInfo(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var job = eng.Job("help_info")
+	streamJSON(job, w, true)
+	return job.Run()
+}
+func getHelpInfoCommand(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var job = eng.Job("help_info")
+	streamJSON(job, w, true)
+	job.Setenv("command", vars["command"])
+	return job.Run()
+}
+
+// /help/<command>/<flag>
+func getHelpInfoFlag(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var job = eng.Job("help_info")
+	streamJSON(job, w, true)
+	job.Setenv("command", vars["command"])
+	job.Setenv("flag", vars["flag"])
+	return job.Run()
+}
+
 func postContainersKill(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1102,6 +1133,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/events":                         getEvents,
 			"/info":                           getInfo,
 			"/version":                        getVersion,
+			"/help/{command}/{flag}":          getHelpInfoFlag,
+			"/help/{command}":                 getHelpInfoCommand,
+			"/help":                           getHelpInfo,
 			"/images/json":                    getImagesJSON,
 			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,

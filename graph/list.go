@@ -8,8 +8,13 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/helpinfo"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
+
+func init() {
+	helpinfo.RegisterHelpInfo("images", "filter", helpinfo.Blurb{"dangling = <true>", "shows only images with no name", "(would show in the list as <none>)"})
+}
 
 func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	var (

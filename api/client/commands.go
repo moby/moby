@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/helpinfo"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -1243,6 +1244,20 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	return nil
 }
 
+func GetCommandFlagBlurbs(cli *DockerCli, command, flag string) ([]helpinfo.Blurb, error) {
+	env := engine.Env{}
+	if stream, statusCode, err := cli.call("GET", fmt.Sprintf("/help/%s/%s", command, flag), nil, false); err == nil && statusCode == 200 {
+		if err := env.Decode(stream); err != nil {
+			return nil, err
+		}
+	}
+	blurbs := []helpinfo.Blurb{}
+	if err := env.GetJson("blurbs", &blurbs); err != nil {
+		return nil, err
+	}
+	return blurbs, nil
+}
+
 func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := cli.Subcmd("images", "[OPTIONS] [NAME]", "List images")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
@@ -1253,7 +1268,11 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
 	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
+	blurbs, err := GetCommandFlagBlurbs(cli, "images", "filter")
+	if err != nil {
+		return err
+	}
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Filters include:\n"+helpinfo.UsageFormat(blurbs))
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1486,7 +1505,11 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
 	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
+	blurbs, err := GetCommandFlagBlurbs(cli, "ps", "filter")
+	if err != nil {
+		return err
+	}
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Filters include:\n"+helpinfo.UsageFormat(blurbs))
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
