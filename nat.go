@@ -69,6 +69,10 @@ func SplitProtoPort(rawPort string) (string, string) {
 		return "", ""
 	}
 	if l == 1 {
+		if rawPort == "" {
+			return "", "" // ""/tcp is not valid, ever
+		}
+
 		return "tcp", rawPort
 	}
 	return parts[1], parts[0]
