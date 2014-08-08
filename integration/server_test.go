@@ -100,7 +100,6 @@ func TestMergeConfigOnCommit(t *testing.T) {
 
 func TestRestartKillWait(t *testing.T) {
 	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
 	runtime := mkDaemonFromEngine(eng, t)
 	defer runtime.Nuke()
 
@@ -138,9 +137,8 @@ func TestRestartKillWait(t *testing.T) {
 	}
 
 	eng = newTestEngine(t, false, runtime.Config().Root)
-	srv = mkServerFromEngine(eng, t)
 
-	job = srv.Eng.Job("containers")
+	job = eng.Job("containers")
 	job.SetenvBool("all", true)
 	outs, err = job.Stdout.AddListTable()
 	if err != nil {
@@ -155,7 +153,7 @@ func TestRestartKillWait(t *testing.T) {
 	}
 
 	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
-		job = srv.Eng.Job("wait", outs.Data[0].Get("Id"))
+		job = eng.Job("wait", outs.Data[0].Get("Id"))
 		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
@@ -164,7 +162,6 @@ func TestRestartKillWait(t *testing.T) {
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	eng := NewTestEngine(t)
-	srv := mkServerFromEngine(eng, t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	config, hostConfig, _, err := runconfig.Parse([]string{"-i", unitTestImageID, "/bin/cat"}, nil)
@@ -174,7 +171,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	job := srv.Eng.Job("containers")
+	job := eng.Job("containers")
 	job.SetenvBool("all", true)
 	outs, err := job.Stdout.AddListTable()
 	if err != nil {
@@ -227,7 +224,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job = srv.Eng.Job("containers")
+	job = eng.Job("containers")
 	job.SetenvBool("all", true)
 	outs, err = job.Stdout.AddListTable()
 	if err != nil {

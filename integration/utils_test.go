@@ -17,9 +17,9 @@ import (
 
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/server"
 	"github.com/docker/docker/utils"
 )
 
@@ -153,18 +153,6 @@ func getContainer(eng *engine.Engine, id string, t utils.Fataler) *daemon.Contai
 	return c
 }
 
-func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *server.Server {
-	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
-	if iSrv == nil {
-		panic("Legacy server field not set in engine")
-	}
-	srv, ok := iSrv.(*server.Server)
-	if !ok {
-		panic("Legacy server field in engine does not cast to *server.Server")
-	}
-	return srv
-}
-
 func mkDaemonFromEngine(eng *engine.Engine, t utils.Fataler) *daemon.Daemon {
 	iDaemon := eng.Hack_GetGlobalVar("httpapi.daemon")
 	if iDaemon == nil {
@@ -191,13 +179,22 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 	// Load default plugins
 	builtins.Register(eng)
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
-	job := eng.Job("initserver")
-	job.Setenv("Root", root)
-	job.SetenvBool("AutoRestart", autorestart)
-	job.Setenv("ExecDriver", "native")
-	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
-	job.SetenvBool("EnableCors", true)
-	if err := job.Run(); err != nil {
+	cfg := &daemonconfig.Config{
+		Root:        root,
+		AutoRestart: autorestart,
+		ExecDriver:  "native",
+	}
+	// FIXME: this should be initialized in NewDaemon or somewhere in daemonconfig.
+	// Currently it is copy-pasted from daemonMain()
+	if cfg.Mtu == 0 {
+		cfg.Mtu = daemonconfig.GetDefaultNetworkMtu()
+	}
+	cfg.DisableNetwork = cfg.BridgeIface == daemonconfig.DisableNetworkBridge
+	d, err := daemon.NewDaemon(cfg, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Install(eng); err != nil {
 		t.Fatal(err)
 	}
 	return eng

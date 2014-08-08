@@ -135,6 +135,12 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 			return err
 		}
 	}
+	if err := daemon.Repositories().Install(eng); err != nil {
+		return err
+	}
+	// FIXME: this hack is necessary for legacy integration tests to access
+	// the daemon object.
+	eng.Hack_SetGlobalVar("httpapi.daemon", daemon)
 	return nil
 }
 
