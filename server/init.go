@@ -31,9 +31,7 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
-	for name, handler := range map[string]engine.Handler{
-		"build": srv.Build,
-	} {
+	for name, handler := range map[string]engine.Handler{} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
 		}
