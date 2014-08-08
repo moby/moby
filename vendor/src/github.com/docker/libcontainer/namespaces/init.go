@@ -48,8 +48,8 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 	}
 
 	// We always read this as it is a way to sync with the parent as well
-	networkState, err := syncPipe.ReadFromParent()
-	if err != nil {
+	var networkState *network.NetworkState
+	if err := syncPipe.ReadFromParent(&networkState); err != nil {
 		return err
 	}
 

@@ -2,36 +2,41 @@ package nsinit
 
 import (
 	"log"
-	"strconv"
+	"os"
 
-	"github.com/codegangsta/cli"
+	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/namespaces"
+	_ "github.com/docker/libcontainer/namespaces/nsenter"
+	"github.com/docker/libcontainer/syncpipe"
 )
 
-var nsenterCommand = cli.Command{
-	Name:   "nsenter",
-	Usage:  "init process for entering an existing namespace",
-	Action: nsenterAction,
+func findUserArgs() []string {
+	i := 0
+	for _, a := range os.Args {
+		i++
+
+		if a == "--" {
+			break
+		}
+	}
+
+	return os.Args[i:]
 }
 
-func nsenterAction(context *cli.Context) {
-	args := context.Args()
-
-	if len(args) == 0 {
-		args = []string{"/bin/bash"}
-	}
-
-	container, err := loadContainerFromJson(context.GlobalString("containerjson"))
+// this expects that we already have our namespaces setup by the C initializer
+// we are expected to finalize the namespace and exec the user's application
+func nsenter() {
+	syncPipe, err := syncpipe.NewSyncPipeFromFd(0, 3)
 	if err != nil {
-		log.Fatalf("unable to load container: %s", err)
+		log.Fatalf("unable to create sync pipe: %s", err)
 	}
 
-	nspid, err := strconv.Atoi(context.GlobalString("nspid"))
-	if nspid <= 0 || err != nil {
-		log.Fatalf("cannot enter into namespaces without valid pid: %q - %s", nspid, err)
+	var config *libcontainer.Config
+	if err := syncPipe.ReadFromParent(&config); err != nil {
+		log.Fatalf("reading container config from parent: %s", err)
 	}
 
-	if err := namespaces.NsEnter(container, args); err != nil {
+	if err := namespaces.FinalizeSetns(config, findUserArgs()); err != nil {
 		log.Fatalf("failed to nsenter: %s", err)
 	}
 }

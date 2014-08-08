@@ -3,9 +3,11 @@ package syncpipe
 import (
 	"fmt"
 	"testing"
-
-	"github.com/docker/libcontainer/network"
 )
+
+type testStruct struct {
+	Name string
+}
 
 func TestSendErrorFromChild(t *testing.T) {
 	pipe, err := NewSyncPipe()
@@ -46,16 +48,16 @@ func TestSendPayloadToChild(t *testing.T) {
 
 	expected := "libcontainer"
 
-	if err := pipe.SendToChild(&network.NetworkState{VethHost: expected}); err != nil {
+	if err := pipe.SendToChild(testStruct{Name: expected}); err != nil {
 		t.Fatal(err)
 	}
 
-	payload, err := pipe.ReadFromParent()
-	if err != nil {
+	var s *testStruct
+	if err := pipe.ReadFromParent(&s); err != nil {
 		t.Fatal(err)
 	}
 
-	if payload.VethHost != expected {
-		t.Fatalf("expected veth host %q but received %q", expected, payload.VethHost)
+	if s.Name != expected {
+		t.Fatalf("expected name %q but received %q", expected, s.Name)
 	}
 }

@@ -1,6 +1,6 @@
 // +build linux
 
-package namespaces
+package nsenter
 
 /*
 __attribute__((constructor)) init() {

@@ -36,7 +36,7 @@ func execAction(context *cli.Context) {
 	}
 
 	if state != nil {
-		err = namespaces.ExecIn(container, state, []string(context.Args()))
+		exitCode, err = startInExistingContainer(container, state, context)
 	} else {
 		exitCode, err = startContainer(container, dataPath, []string(context.Args()))
 	}
@@ -46,6 +46,63 @@ func execAction(context *cli.Context) {
 	}
 
 	os.Exit(exitCode)
+}
+
+// the process for execing a new process inside an existing container is that we have to exec ourself
+// with the nsenter argument so that the C code can setns an the namespaces that we require.  Then that
+// code path will drop us into the path that we can do the final setup of the namespace and exec the users
+// application.
+func startInExistingContainer(config *libcontainer.Config, state *libcontainer.State, context *cli.Context) (int, error) {
+	var (
+		master  *os.File
+		console string
+		err     error
+
+		sigc = make(chan os.Signal, 10)
+
+		stdin  = os.Stdin
+		stdout = os.Stdout
+		stderr = os.Stderr
+	)
+	signal.Notify(sigc)
+
+	if config.Tty {
+		stdin = nil
+		stdout = nil
+		stderr = nil
+
+		master, console, err = consolepkg.CreateMasterAndConsole()
+		if err != nil {
+			return -1, err
+		}
+
+		go io.Copy(master, os.Stdin)
+		go io.Copy(os.Stdout, master)
+
+		state, err := term.SetRawTerminal(os.Stdin.Fd())
+		if err != nil {
+			return -1, err
+		}
+
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
+	}
+
+	startCallback := func(cmd *exec.Cmd) {
+		go func() {
+			resizeTty(master)
+
+			for sig := range sigc {
+				switch sig {
+				case syscall.SIGWINCH:
+					resizeTty(master)
+				default:
+					cmd.Process.Signal(sig)
+				}
+			}
+		}()
+	}
+
+	return namespaces.ExecIn(config, state, context.Args(), os.Args[0], stdin, stdout, stderr, console, startCallback)
 }
 
 // startContainer starts the container. Returns the exit status or -1 and an
