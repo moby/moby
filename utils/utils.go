@@ -405,13 +405,6 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-func NewHTTPRequestError(msg string, res *http.Response) error {
-	return &JSONError{
-		Message: msg,
-		Code:    res.StatusCode,
-	}
-}
-
 func IsURL(str string) bool {
 	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
 }
@@ -453,16 +446,6 @@ func GetLines(input []byte, commentMarker []byte) [][]byte {
 		}
 	}
 	return output
-}
-
-// An StatusError reports an unsuccessful exit by a command.
-type StatusError struct {
-	Status     string
-	StatusCode int
-}
-
-func (e *StatusError) Error() string {
-	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
 }
 
 func quote(word string, buf *bytes.Buffer) {

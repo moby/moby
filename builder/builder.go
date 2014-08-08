@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
@@ -715,7 +716,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 
 	// Wait for it to finish
 	if ret, _ := c.State.WaitStop(-1 * time.Second); ret != 0 {
-		err := &utils.JSONError{
+		err := &errorutils.JSONError{
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
 			Code:    ret,
 		}

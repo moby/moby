@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/errorutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/signal"
@@ -242,12 +243,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		headers.Set("Content-Type", "application/tar")
 	}
 	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
-	if jerr, ok := err.(*utils.JSONError); ok {
+	if jerr, ok := err.(*errorutils.JSONError); ok {
 		// If no error code is set, default to 1
 		if jerr.Code == 0 {
 			jerr.Code = 1
 		}
-		return &utils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
+		return &errorutils.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
 	return err
 }
@@ -763,7 +764,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		var err error
 		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
 			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-			return &utils.StatusError{StatusCode: 64,
+			return &errorutils.StatusError{StatusCode: 64,
 				Status: "Template parsing error: " + err.Error()}
 		}
 	}
@@ -822,7 +823,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return &errorutils.StatusError{StatusCode: status}
 	}
 	return nil
 }
@@ -1839,7 +1840,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return &errorutils.StatusError{StatusCode: status}
 	}
 
 	return nil
@@ -2189,7 +2190,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if status != 0 {
-		return &utils.StatusError{StatusCode: status}
+		return &errorutils.StatusError{StatusCode: status}
 	}
 	return nil
 }
