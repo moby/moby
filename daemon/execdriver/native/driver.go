@@ -22,7 +22,6 @@ import (
 	"github.com/docker/libcontainer/cgroups/systemd"
 	consolepkg "github.com/docker/libcontainer/console"
 	"github.com/docker/libcontainer/namespaces"
-	"github.com/docker/libcontainer/syncpipe"
 	"github.com/docker/libcontainer/system"
 )
 
@@ -30,38 +29,6 @@ const (
 	DriverName = "native"
 	Version    = "0.2"
 )
-
-func init() {
-	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		var container *libcontainer.Config
-		f, err := os.Open(filepath.Join(args.Root, "container.json"))
-		if err != nil {
-			return err
-		}
-
-		if err := json.NewDecoder(f).Decode(&container); err != nil {
-			f.Close()
-			return err
-		}
-		f.Close()
-
-		rootfs, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-
-		syncPipe, err := syncpipe.NewSyncPipeFromFd(0, uintptr(args.Pipe))
-		if err != nil {
-			return err
-		}
-
-		if err := namespaces.Init(container, rootfs, args.Console, syncPipe, args.Args); err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
 
 type activeContainer struct {
 	container *libcontainer.Config
@@ -133,13 +100,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	return namespaces.Exec(container, c.Stdin, c.Stdout, c.Stderr, c.Console, c.Rootfs, dataPath, args, func(container *libcontainer.Config, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
-		// we need to join the rootfs because namespaces will setup the rootfs and chroot
-		initPath := filepath.Join(c.Rootfs, c.InitPath)
-
 		c.Path = d.initPath
 		c.Args = append([]string{
-			initPath,
-			"-driver", DriverName,
+			DriverName,
 			"-console", console,
 			"-pipe", "3",
 			"-root", filepath.Join(d.root, c.ID),

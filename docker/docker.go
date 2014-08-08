@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/utils"
 )
 
@@ -23,8 +24,7 @@ const (
 )
 
 func main() {
-	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
-		mainSysinit()
+	if reexec.Init() {
 		return
 	}
 
