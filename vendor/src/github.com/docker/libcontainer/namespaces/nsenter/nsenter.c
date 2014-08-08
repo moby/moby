@@ -71,7 +71,7 @@ int setns(int fd, int nstype)
 void print_usage()
 {
 	fprintf(stderr,
-		"<binary> nsenter --nspid <pid> --containerjson <container_json> -- cmd1 arg1 arg2...\n");
+		"nsenter --nspid <pid> --console <console> -- cmd1 arg1 arg2...\n");
 }
 
 void nsenter()
@@ -80,41 +80,27 @@ void nsenter()
 	char **argv;
 	get_args(&argc, &argv);
 
-	// Ignore if this is not for us.
-	if (argc < 6) {
-		return;
-	}
-	int found_nsenter = 0;
-	for (c = 0; c < argc; ++c) {
-		if (strcmp(argv[c], kNsEnter) == 0) {
-			found_nsenter = 1;
-			break;
-		}
-	}
-	if (!found_nsenter) {
-		return;
-	}
+    // check argv 0 to ensure that we are supposed to setns
+    // we use strncmp to test for a value of "nsenter" but also allows alternate implmentations
+    // after the setns code path to continue to use the argv 0 to determine actions to be run
+    // resulting in the ability to specify "nsenter-mknod", "nsenter-exec", etc...
+    if (strncmp(argv[0], kNsEnter, strlen(kNsEnter)) != 0) {
+        return;
+    }
+
 	static const struct option longopts[] = {
 		{"nspid", required_argument, NULL, 'n'},
-		{"containerjson", required_argument, NULL, 'c'},
-		{"console", optional_argument, NULL, 't'},
+		{"console", required_argument, NULL, 't'},
 		{NULL, 0, NULL, 0}
 	};
 
 	pid_t init_pid = -1;
 	char *init_pid_str = NULL;
-	char *container_json = NULL;
 	char *console = NULL;
-	opterr = 0;
-	while ((c =
-		getopt_long_only(argc, argv, "-n:s:c:", longopts,
-				 NULL)) != -1) {
+	while ((c = getopt_long_only(argc, argv, "n:c:", longopts, NULL)) != -1) {
 		switch (c) {
 		case 'n':
 			init_pid_str = optarg;
-			break;
-		case 'c':
-			container_json = optarg;
 			break;
 		case 't':
 			console = optarg;
@@ -122,11 +108,7 @@ void nsenter()
 		}
 	}
 
-	if (strcmp(argv[optind - 2], kNsEnter) != 0) {
-		return;
-	}
-
-	if (container_json == NULL || init_pid_str == NULL) {
+	if (init_pid_str == NULL) {
 		print_usage();
 		exit(1);
 	}
@@ -228,6 +210,7 @@ void nsenter()
 		} else if (WIFSIGNALED(status)) {
 			kill(getpid(), WTERMSIG(status));
 		}
+
 		exit(1);
 	}
 
