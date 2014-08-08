@@ -86,7 +86,6 @@ func InitServer(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
 	for name, handler := range map[string]engine.Handler{
-		"info":  srv.DockerInfo,
 		"build": srv.Build,
 		"pull":  srv.ImagePull,
 		"push":  srv.ImagePush,
