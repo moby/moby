@@ -96,6 +96,24 @@ then you should be able to access that Nginx server using the IP address reporte
 Typically, it is 192.168.59.103:2375, but VirtualBox's DHCP implementation might change
 this address in the future.
 
+## Container volume support
+
+In OS X, `boot2docker` doesn’t support volumes (i.e. -v /Users/yourname/project1:/data/project1) out of the box since it doesn’t include VirtualBox Guest Additions.  To obtain the
+
+    $ cd ~/.boot2docker
+    $ curl http://static.dockerfiles.io/boot2docker-v1.1.2-virtualbox-guest-additions-v4.3.12.iso > .boot2docker.iso
+    $ boot2docker init
+    $ VBoxManage sharedfolder add boot2docker-vm -name home -hostpath /Users
+    $ boot2docker up
+    
+Once the machine is up, we need to mount the shared folder inside the VM:
+
+    $ boot2docker ssh "sudo modprobe vboxsf && mkdir -v -p /Users && sudo mount -v -t vboxsf  -o uid=0,gid=0 home /Users"
+
+And this should be it. Now you can ...
+
+    docker run -i -t -v /Users/yourname/project1:/data/project1 ubuntu /bin/bash
+
 # Further details
 
 If you are curious, the username for the boot2docker default user is `docker` and the
