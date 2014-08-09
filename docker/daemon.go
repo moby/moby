@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/daemon"
 	_ "github.com/docker/docker/daemon/execdriver/lxc"
 	_ "github.com/docker/docker/daemon/execdriver/native"
-	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -48,8 +47,8 @@ func mainDaemon() {
 	// the http api so that connections don't fail while the daemon
 	// is booting
 	go func() {
-		// FIXME: daemonconfig and CLI flag parsing should be directly integrated
-		cfg := &daemonconfig.Config{
+		// FIXME: daemon config and CLI flag parsing should be directly integrated
+		cfg := &daemon.Config{
 			Pidfile:                     *pidfile,
 			Root:                        *flRoot,
 			AutoRestart:                 *flAutoRestart,
@@ -68,12 +67,12 @@ func mainDaemon() {
 			Mtu:                         *flMtu,
 			Sockets:                     flHosts.GetAll(),
 		}
-		// FIXME this should be initialized in NewDaemon or somewhere in daemonconfig.
+		// FIXME this should be initialized in NewDaemon or somewhere in daemon.
 		// Currently it is copy-pasted in `integration` to create test daemons that work.
 		if cfg.Mtu == 0 {
-			cfg.Mtu = daemonconfig.GetDefaultNetworkMtu()
+			cfg.Mtu = daemon.GetDefaultNetworkMtu()
 		}
-		cfg.DisableNetwork = cfg.BridgeIface == daemonconfig.DisableNetworkBridge
+		cfg.DisableNetwork = cfg.BridgeIface == daemon.DisableNetworkBridge
 
 		d, err := daemon.NewDaemon(cfg, eng)
 		if err != nil {

@@ -17,7 +17,6 @@ import (
 
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -179,17 +178,20 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 	// Load default plugins
 	builtins.Register(eng)
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
-	cfg := &daemonconfig.Config{
+	cfg := &daemon.Config{
 		Root:        root,
 		AutoRestart: autorestart,
 		ExecDriver:  "native",
+		// Either InterContainerCommunication or EnableIptables must be set,
+		// otherwise NewDaemon will fail because of conflicting settings.
+		InterContainerCommunication: true,
 	}
-	// FIXME: this should be initialized in NewDaemon or somewhere in daemonconfig.
+	// FIXME: this should be initialized in NewDaemon
 	// Currently it is copy-pasted from daemonMain()
 	if cfg.Mtu == 0 {
-		cfg.Mtu = daemonconfig.GetDefaultNetworkMtu()
+		cfg.Mtu = daemon.GetDefaultNetworkMtu()
 	}
-	cfg.DisableNetwork = cfg.BridgeIface == daemonconfig.DisableNetworkBridge
+	cfg.DisableNetwork = cfg.BridgeIface == daemon.DisableNetworkBridge
 	d, err := daemon.NewDaemon(cfg, eng)
 	if err != nil {
 		t.Fatal(err)
