@@ -79,15 +79,15 @@ func (allocated *allocatedMap) checkIP(network *net.IPNet, ip *net.IP) (*net.IP,
 // return an available ip if one is currently available.
 func (allocated *allocatedMap) getNextIP(network *net.IPNet, ipReqRange *net.IPNet) (*net.IP, error) {
 	var (
-		ownIPInt           = ipToInt(&network.IP)
-		base, broadcast    = networkdriver.NetworkRange(network)
-		baseInt            = ipToInt(&base)
-		networkFirstInt    = baseInt + 1
-		networkLastInt     = ipToInt(&broadcast) - 1
-		rangeFirstInt      = networkFirstInt
-		rangeLastInt       = networkLastInt
-		subnetAllocatedPos = allocated.last
-		pos                = subnetAllocatedPos - (rangeFirstInt - baseInt) // relative to the start of available addresses
+		ownIPInt        = ipToInt(&network.IP)
+		base, broadcast = networkdriver.NetworkRange(network)
+		baseInt         = ipToInt(&base)
+		networkFirstInt = baseInt + 1
+		networkLastInt  = ipToInt(&broadcast) - 1
+		rangeFirstInt   = networkFirstInt
+		rangeLastInt    = networkLastInt
+		allocatedPos    = allocated.last
+		pos             = allocatedPos - (rangeFirstInt - baseInt) // relative to the start of available addresses
 	)
 
 	if ipReqRange != nil {

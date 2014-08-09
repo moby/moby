@@ -101,6 +101,9 @@ Finally, several networking options can only be provided when calling
  *  `--net=bridge|none|container:NAME_or_ID|host` — see
     [How Docker networks a container](#container-networking)
 
+ *  `--ip=IP_RANGE` — see
+    [How Docker networks a container](#container-networking)
+
  *  `-p SPEC` or `--publish=SPEC` — see
     [Binding container ports](#binding-ports)
 
@@ -523,8 +526,9 @@ The steps with which Docker configures a container are:
     physical interfaces with which this name could collide.
 
 4.  Give the container's `eth0` a new IP address from within the
-    bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge.
+    bridge's range of network addresses, potentially restricted by the
+    `--ip` run flag, and set its default route to the IP address that the
+    Docker host owns on the bridge.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with
@@ -612,6 +616,20 @@ Docker do all of the configuration:
 
 At this point your container should be able to perform networking
 operations as usual.
+
+As mentioned briefly above, `docker run` accepts a `--ip` flag which
+limits the IP pool Docker will use to pick the container's IP address
+from. The value can either be a single IP, or a range specified in CIDR
+notation.  
+For example, the following command would result in Docker using
+`172.17.42.16` through `172.17.42.19` (inclusive) when looking for an
+address to assign to the container:
+
+    $ sudo docker run --ip=172.17.42.16/30 ubuntu bash
+
+Note that the IP range must be within the `docker0` bridge subnet.
+If there is no overlap between the subnet and the provided range, the
+allocator will fail to find an address, and the container will not start.
 
 When you finally exit the shell and Docker cleans up the container, the
 network namespace is destroyed along with our virtual `eth0` — whose
