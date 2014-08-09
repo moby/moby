@@ -106,6 +106,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	} else {
 		term, err = execdriver.NewStdConsole(c, pipes)
 	}
+	if err != nil {
+		return -1, err
+	}
 	c.Terminal = term
 
 	d.Lock()
