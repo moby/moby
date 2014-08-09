@@ -94,7 +94,6 @@ type Daemon struct {
 	idIndex        *truncindex.TruncIndex
 	sysInfo        *sysinfo.SysInfo
 	volumes        *graph.Graph
-	srv            Server
 	eng            *engine.Engine
 	config         *daemonconfig.Config
 	containerGraph *graphdb.Database
@@ -667,6 +666,20 @@ func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error)
 }
 
 func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
+	// Claim the pidfile first, to avoid any and all unexpected race conditions.
+	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
+	if config.Pidfile != "" {
+		if err := utils.CreatePidFile(config.Pidfile); err != nil {
+			return nil, err
+		}
+		eng.OnShutdown(func() {
+			// Always release the pidfile last, just in case
+			utils.RemovePidFile(config.Pidfile)
+		})
+	}
+
+	// Check that the system is supported and we have sufficient privileges
+	// FIXME: return errors instead of calling Fatal
 	if runtime.GOOS != "linux" {
 		log.Fatalf("The Docker daemon is only supported on linux")
 	}
@@ -819,13 +832,32 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		eng:            eng,
 		Sockets:        config.Sockets,
 	}
-
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err
 	}
 	if err := daemon.restore(); err != nil {
 		return nil, err
 	}
+	// Setup shutdown handlers
+	// FIXME: can these shutdown handlers be registered closer to their source?
+	eng.OnShutdown(func() {
+		// FIXME: if these cleanup steps can be called concurrently, register
+		// them as separate handlers to speed up total shutdown time
+		// FIXME: use engine logging instead of utils.Errorf
+		if err := daemon.shutdown(); err != nil {
+			utils.Errorf("daemon.shutdown(): %s", err)
+		}
+		if err := portallocator.ReleaseAll(); err != nil {
+			utils.Errorf("portallocator.ReleaseAll(): %s", err)
+		}
+		if err := daemon.driver.Cleanup(); err != nil {
+			utils.Errorf("daemon.driver.Cleanup(): %s", err.Error())
+		}
+		if err := daemon.containerGraph.Close(); err != nil {
+			utils.Errorf("daemon.containerGraph.Close(): %s", err.Error())
+		}
+	})
+
 	return daemon, nil
 }
 
@@ -850,30 +882,6 @@ func (daemon *Daemon) shutdown() error {
 	}
 	group.Wait()
 
-	return nil
-}
-
-func (daemon *Daemon) Close() error {
-	errorsStrings := []string{}
-	if err := daemon.shutdown(); err != nil {
-		utils.Errorf("daemon.shutdown(): %s", err)
-		errorsStrings = append(errorsStrings, err.Error())
-	}
-	if err := portallocator.ReleaseAll(); err != nil {
-		utils.Errorf("portallocator.ReleaseAll(): %s", err)
-		errorsStrings = append(errorsStrings, err.Error())
-	}
-	if err := daemon.driver.Cleanup(); err != nil {
-		utils.Errorf("daemon.driver.Cleanup(): %s", err.Error())
-		errorsStrings = append(errorsStrings, err.Error())
-	}
-	if err := daemon.containerGraph.Close(); err != nil {
-		utils.Errorf("daemon.containerGraph.Close(): %s", err.Error())
-		errorsStrings = append(errorsStrings, err.Error())
-	}
-	if len(errorsStrings) > 0 {
-		return fmt.Errorf("%s", strings.Join(errorsStrings, ", "))
-	}
 	return nil
 }
 
@@ -967,6 +975,8 @@ func (daemon *Daemon) Kill(c *Container, sig int) error {
 // from the content root, including images, volumes and
 // container filesystems.
 // Again: this will remove your entire docker daemon!
+// FIXME: this is deprecated, and only used in legacy
+// tests. Please remove.
 func (daemon *Daemon) Nuke() error {
 	var wg sync.WaitGroup
 	for _, container := range daemon.List() {
@@ -977,7 +987,6 @@ func (daemon *Daemon) Nuke() error {
 		}(container)
 	}
 	wg.Wait()
-	daemon.Close()
 
 	return os.RemoveAll(daemon.config.Root)
 }
@@ -1020,10 +1029,6 @@ func (daemon *Daemon) Volumes() *graph.Graph {
 
 func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 	return daemon.containerGraph
-}
-
-func (daemon *Daemon) SetServer(server Server) {
-	daemon.srv = server
 }
 
 func (daemon *Daemon) checkLocaldns() error {

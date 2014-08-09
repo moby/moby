@@ -514,13 +514,10 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-	if container.daemon != nil && container.daemon.srv != nil {
-		container.LogEvent("die")
-	}
-	if container.daemon != nil && container.daemon.srv != nil && container.daemon.srv.IsRunning() {
-		// FIXME: here is race condition between two RUN instructions in Dockerfile
-		// because they share same runconfig and change image. Must be fixed
-		// in builder/builder.go
+	container.LogEvent("die")
+	// If the engine is shutting down, don't save the container state as stopped.
+	// This will cause it to be restarted when the engine is restarted.
+	if container.daemon != nil && container.daemon.eng != nil && !container.daemon.eng.IsShutdown() {
 		if err := container.toDisk(); err != nil {
 			utils.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
 		}

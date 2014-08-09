@@ -5,39 +5,17 @@
 package server
 
 import (
-	"fmt"
-	"log"
-	"os"
-	gosignal "os/signal"
-	"sync/atomic"
-	"syscall"
-
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/utils"
 )
 
 func (srv *Server) handlerWrap(h engine.Handler) engine.Handler {
 	return func(job *engine.Job) engine.Status {
-		if !srv.IsRunning() {
-			return job.Errorf("Server is not running")
-		}
 		srv.tasks.Add(1)
 		defer srv.tasks.Done()
 		return h(job)
 	}
-}
-
-func InitPidfile(job *engine.Job) engine.Status {
-	if len(job.Args) == 0 {
-		return job.Error(fmt.Errorf("no pidfile provided to initialize"))
-	}
-	job.Logf("Creating pidfile")
-	if err := utils.CreatePidFile(job.Args[0]); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
 }
 
 // jobInitApi runs the remote api server `srv` as a daemon,
@@ -45,43 +23,11 @@ func InitPidfile(job *engine.Job) engine.Status {
 // The signals SIGINT, SIGQUIT and SIGTERM are intercepted for cleanup.
 func InitServer(job *engine.Job) engine.Status {
 	job.Logf("Creating server")
-	srv, err := NewServer(job.Eng, daemonconfig.ConfigFromJob(job))
+	cfg := daemonconfig.ConfigFromJob(job)
+	srv, err := NewServer(job.Eng, cfg)
 	if err != nil {
 		return job.Error(err)
 	}
-	job.Logf("Setting up signal traps")
-	c := make(chan os.Signal, 1)
-	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
-	if os.Getenv("DEBUG") == "" {
-		signals = append(signals, syscall.SIGQUIT)
-	}
-	gosignal.Notify(c, signals...)
-	go func() {
-		interruptCount := uint32(0)
-		for sig := range c {
-			go func(sig os.Signal) {
-				log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
-				switch sig {
-				case os.Interrupt, syscall.SIGTERM:
-					// If the user really wants to interrupt, let him do so.
-					if atomic.LoadUint32(&interruptCount) < 3 {
-						atomic.AddUint32(&interruptCount, 1)
-						// Initiate the cleanup only once
-						if atomic.LoadUint32(&interruptCount) == 1 {
-							utils.RemovePidFile(srv.daemon.Config().Pidfile)
-							srv.Close()
-						} else {
-							return
-						}
-					} else {
-						log.Printf("Force shutdown of docker, interrupting cleanup\n")
-					}
-				case syscall.SIGQUIT:
-				}
-				os.Exit(128 + int(sig.(syscall.Signal)))
-			}(sig)
-		}
-	}()
 	job.Eng.Hack_SetGlobalVar("httpapi.server", srv)
 	job.Eng.Hack_SetGlobalVar("httpapi.daemon", srv.daemon)
 
@@ -104,7 +50,6 @@ func InitServer(job *engine.Job) engine.Status {
 	if err := srv.daemon.Install(job.Eng); err != nil {
 		return job.Error(err)
 	}
-	srv.SetRunning(true)
 	return engine.StatusOK
 }
 
@@ -119,6 +64,5 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		pullingPool: make(map[string]chan struct{}),
 		pushingPool: make(map[string]chan struct{}),
 	}
-	daemon.SetServer(srv)
 	return srv, nil
 }
