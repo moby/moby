@@ -98,7 +98,7 @@ this address in the future.
 
 ## Container volume support
 
-In OS X, `boot2docker` doesn’t support volumes (i.e. -v /Users/yourname/project1:/data/project1) out of the box since it doesn’t include VirtualBox Guest Additions.  To obtain the
+In OS X, `boot2docker` doesn’t support volumes (i.e. -v /Users/yourname/project1:/data/project1) out of the box since it doesn’t include VirtualBox Guest Additions.  To obtain them:
 
     $ cd ~/.boot2docker
     $ curl http://static.dockerfiles.io/boot2docker-v1.1.2-virtualbox-guest-additions-v4.3.12.iso > .boot2docker.iso
