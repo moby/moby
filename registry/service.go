@@ -82,7 +82,11 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 
-	r, err := NewRegistry(authConfig, HTTPRequestFactory(metaHeaders), IndexServerAddress(), true)
+	hostname, term, err := ResolveRepositoryName(term)
+	if err != nil {
+		return job.Error(err)
+	}
+	r, err := NewRegistry(authConfig, HTTPRequestFactory(metaHeaders), hostname, true)
 	if err != nil {
 		return job.Error(err)
 	}
