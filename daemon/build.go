@@ -374,8 +374,8 @@ func (b *buildFile) CmdEnv(args string) error {
 		env     map[string]string
 		commits []string
 	)
-	if err := json.Unmarshal([]byte(args), &env); err != nil {
-		tmp := strings.SplitN(args, " ", 2)
+	tmp := strings.SplitN(args, " ", 2)
+	if !strings.Contains(tmp[0], "=") {
 		if len(tmp) != 2 {
 			return fmt.Errorf("Invalid ENV format")
 		}
@@ -390,7 +390,12 @@ func (b *buildFile) CmdEnv(args string) error {
 		}
 		commits = append(commits, fmt.Sprintf("%s=%s", key, value))
 	} else {
-		for key, value := range env {
+		var validAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+		for i := range tmp {
+			key, value := strings.SplitN(tmp[i], "=", 2)
+			if !validAlphaNumeric.MatchString(key) || !validAlphaNumeric.MatchString(value) {
+				return fmt.Errorf("Invalid ENV format")
+			}
 			if err := b.buildCmdEnvVar(key, value); err != nil {
 				return err
 			}
