@@ -99,7 +99,7 @@ func main() {
 		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
-	if err := cli.ParseCommands(flag.Args()...); err != nil {
+	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
 			if sterr.Status != "" {
 				log.Println(sterr.Status)
