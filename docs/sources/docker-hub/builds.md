@@ -1,41 +1,43 @@
 page_title: Automated Builds on Docker Hub
 page_description: Docker Hub Automated Builds
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation, trusted, builds, trusted builds, automated builds
+
 # Automated Builds on Docker Hub
 
 ## About Automated Builds
 
-*Automated Builds* are a special feature of Docker Hub which allow you to use
-[Docker Hub's](https://hub.docker.com) build clusters to automatically create images from
-a specified `Dockerfile` and a GitHub or Bitbucket repo (or "context"). The system will
-clone your repository and build the image described by the `Dockerfile` using the
-repository as the context. The resulting automated image will then be uploaded to the
-Docker Hub registry and marked as an *Automated Build*.
+*Automated Builds* are a special feature of Docker Hub which allow you to
+use [Docker Hub's](https://hub.docker.com) build clusters to automatically
+create images from a specified `Dockerfile` and a GitHub or Bitbucket repo
+(or "context"). The system will clone your repository and build the image
+described by the `Dockerfile` using the repository as the context. The
+resulting automated image will then be uploaded to the Docker Hub registry
+and marked as an *Automated Build*.
 
 Automated Builds have several advantages:
 
-* Users of *your* Automated Build can trust that the resulting image was built exactly as
-specified.
+* Users of *your* Automated Build can trust that the resulting
+image was built exactly as specified.
 
-* The `Dockerfile` will be available to anyone with access to your repository
-on the Docker Hub registry. 
+* The `Dockerfile` will be available to anyone with access to
+your repository on the Docker Hub registry. 
 
-* Because the process is automated, Automated Builds help to make sure that your
-repository is always up to date.
+* Because the process is automated, Automated Builds help to
+make sure that your repository is always up to date.
 
-Automated Builds are supported for both public and private repositories on both
-[GitHub](http://github.com) and [Bitbucket](https://bitbucket.org/).
+Automated Builds are supported for both public and private repositories
+on both [GitHub](http://github.com) and [Bitbucket](https://bitbucket.org/).
 
-To use Automated Builds, you must have an 
-[account on Docker Hub](http://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
-and on GitHub and/or Bitbucket. In either case, the account needs to be properly
-validated and activated before you can link to it.
+To use Automated Builds, you must have an [account on Docker Hub](
+http://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
+and on GitHub and/or Bitbucket. In either case, the account needs
+to be properly validated and activated before you can link to it.
 
 ## Setting up Automated Builds with GitHub
 
 In order to set up an Automated Build, you need to first link your
-[Docker Hub](https://hub.docker.com) account with a GitHub account. This
-will allow the registry to see your repositories.
+[Docker Hub](https://hub.docker.com) account with a GitHub account.
+This will allow the registry to see your repositories.
 
 > *Note:* 
 > Automated Builds currently require *read* and *write* access since
@@ -43,26 +45,32 @@ will allow the registry to see your repositories.
 > hook. We have no choice here, this is how GitHub manages permissions, sorry! 
 > We do guarantee nothing else will be touched in your account.
 
-To get started, log into your Docker Hub account and click the "+ Add Repository" button
-at the upper right of the screen. Then select
+To get started, log into your Docker Hub account and click the
+"+ Add Repository" button at the upper right of the screen. Then select
 [Automated Build](https://registry.hub.docker.com/builds/add/).
 
 Select the [GitHub service](https://registry.hub.docker.com/associate/github/).
 
-Then follow the onscreen instructions to authorize and link your GitHub account to Docker
-Hub. Once it is linked, you'll be able to choose a repo from which to create the
-Automatic Build.
+Then follow the onscreen instructions to authorize and link your
+GitHub account to Docker Hub. Once it is linked, you'll be able to
+choose a repo from which to create the Automatic Build.
 
 ### Creating an Automated Build
 
-You can [create an Automated Build](https://registry.hub.docker.com/builds/github/select/)
-from any of your public or private GitHub repositories with a `Dockerfile`.
+You can [create an Automated Build](
+https://registry.hub.docker.com/builds/github/select/) from any of your
+public or private GitHub repositories with a `Dockerfile`.
 
-### Github Submodules
+### GitHub Submodules
 
-If your repository contains links to private submodules, you'll need to add a deploy key so that the Docker Hub will be able to clone the repository from GitHub. 
+If your repository contains links to private submodules, you'll
+need to add a deploy key so that the Docker Hub will be able to
+clone the repository from GitHub. 
 
-Your Docker Hub deploy key is located under the "Build Details" menu on the automated build's main page in the Hub. Add this key to your GitHub submodule by viewing the Settings page for the repository on GitHub and selecting "Deploy keys".
+Your Docker Hub deploy key is located under the "Build Details"
+menu on the automated build's main page in the Hub. Add this key
+to your GitHub submodule by viewing the Settings page for the
+repository on GitHub and selecting "Deploy keys".
 
 <table class="table table-bordered">
   <thead>
@@ -86,16 +94,16 @@ Your Docker Hub deploy key is located under the "Build Details" menu on the auto
   </tbody>
 </table>
      
-### GitHub organizations
+### GitHub Organizations
 
 GitHub organizations will appear once your membership to that organization is
 made public on GitHub. To verify, you can look at the members tab for your
 organization on GitHub.
 
-### GitHub service hooks
+### GitHub Service Hooks
 
-Follow the steps below to configure the GitHub service hooks for your
-Automated Build:
+Follow the steps below to configure the GitHub service
+hooks for your Automated Build:
 
 <table class="table table-bordered">
   <thead>
@@ -127,18 +135,19 @@ Automated Build:
 ## Setting up Automated Builds with Bitbucket
 
 In order to setup an Automated Build, you need to first link your
-[Docker Hub](https://hub.docker.com) account with a Bitbucket account. This
-will allow the registry to see your repositories.
+[Docker Hub](https://hub.docker.com) account with a Bitbucket account.
+This will allow the registry to see your repositories.
 
-To get started, log into your Docker Hub account and click the "+ Add Repository" button at
-the upper right of the screen. Then select [Automated Build](https://registry.hub.docker.com/builds/add/).
+To get started, log into your Docker Hub account and click the
+"+ Add Repository" button at the upper right of the screen. Then
+select [Automated Build](https://registry.hub.docker.com/builds/add/).
 
-Select the [Bitbucket
-source](https://registry.hub.docker.com/associate/bitbucket/).
+Select the [Bitbucket source](
+https://registry.hub.docker.com/associate/bitbucket/).
 
-Then follow the onscreen instructions to authorize and link your Bitbucket account
-to Docker Hub. Once it is linked, you'll be able to choose a repo from which to create
-the Automatic Build.
+Then follow the onscreen instructions to authorize and link your
+Bitbucket account to Docker Hub. Once it is linked, you'll be able
+to choose a repo from which to create the Automatic Build.
 
 ### Creating an Automated Build
 
@@ -148,9 +157,9 @@ public or private Bitbucket repositories with a `Dockerfile`.
 
 ### Adding a Hook
 
-When you link your Docker Hub account, a `POST` hook should get automatically added to
-your Bitbucket repo. Follow the steps below to confirm or modify the Bitbucket hooks for
-your Automated Build:
+When you link your Docker Hub account, a `POST` hook should get automatically
+added to your Bitbucket repo. Follow the steps below to confirm or modify the
+Bitbucket hooks for your Automated Build:
 
 <table class="table table-bordered">
   <thead>
@@ -183,10 +192,10 @@ your Automated Build:
 
 ## The Dockerfile and Automated Builds
 
-During the build process, Docker will copy the contents of your `Dockerfile`. It will
-also add it to the [Docker Hub](https://hub.docker.com) for the Docker community (for
-public repos) or approved team members/orgs (for private repos) to see on the repository
-page.
+During the build process, Docker will copy the contents of your `Dockerfile`.
+It will also add it to the [Docker Hub](https://hub.docker.com) for the Docker
+community (for public repos) or approved team members/orgs (for private repos)
+to see on the repository page.
 
 ## README.md
 
@@ -201,20 +210,20 @@ repository's full description.The build process will look for a
 
 ### Build triggers
 
-If you need a way to trigger Automated Builds outside of GitHub
-or Bitbucket, you can set up a build trigger. When you turn on the build
-trigger for an Automated Build, it will give you a URL to which you can
-send POST requests. This will trigger the Automated Build, much as with a GitHub webhook.
+If you need a way to trigger Automated Builds outside of GitHub or Bitbucket,
+you can set up a build trigger. When you turn on the build trigger for an
+Automated Build, it will give you a URL to which you can send POST requests.
+This will trigger the Automated Build, much as with a GitHub webhook.
 
-Build triggers are available under the Settings menu of each Automated Build repo on the
-Docker Hub.
+Build triggers are available under the Settings menu of each Automated Build
+repo on the Docker Hub.
 
 > **Note:** 
 > You can only trigger one build at a time and no more than one
 > every five minutes. If you already have a build pending, or if you
 > recently submitted a build request, those requests *will be ignored*.
-> To verify everything is working correctly, check the logs of last ten triggers on the
-settings page .
+> To verify everything is working correctly, check the logs of last
+> ten triggers on the settings page .
 
 ### Webhooks
 
@@ -264,12 +273,14 @@ Build's repo.
 
 ### Repository links
 
-Repository links are a way to associate one Automated Build with another. If one
-gets updated,the linking system triggers a rebuild for the other Automated Build.
-This makes it easy to keep all your Automated Builds up to date.
+Repository links are a way to associate one Automated Build with
+another. If one gets updated,the linking system triggers a rebuild
+for the other Automated Build. This makes it easy to keep all your
+Automated Builds up to date.
 
-To add a link, go to the repo for the Automated Build you want to link to and click on
-*Repository Links* under the Settings menu at right. Then, enter the name of the repository that you want have linked.
+To add a link, go to the repo for the Automated Build you want to
+link to and click on *Repository Links* under the Settings menu at
+right. Then, enter the name of the repository that you want have linked.
 
 > **Warning:**
 > You can add more than one repository link, however, you should
