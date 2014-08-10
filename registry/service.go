@@ -90,7 +90,7 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	r, err := NewSession(authConfig, HTTPRequestFactory(metaHeaders), IndexServerAddress(), true)
+	r, err := NewSession(authConfig, HTTPRequestFactory(metaHeaders), hostname, true)
 	if err != nil {
 		return job.Error(err)
 	}
