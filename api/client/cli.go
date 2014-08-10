@@ -15,6 +15,19 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+type DockerCli struct {
+	proto      string
+	addr       string
+	configFile *registry.ConfigFile
+	in         io.ReadCloser
+	out        io.Writer
+	err        io.Writer
+	isTerminal bool
+	terminalFd uintptr
+	tlsConfig  *tls.Config
+	scheme     string
+}
+
 var funcMap = template.FuncMap{
 	"json": func(v interface{}) string {
 		a, _ := json.Marshal(v)
@@ -96,17 +109,4 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 		tlsConfig:  tlsConfig,
 		scheme:     scheme,
 	}
-}
-
-type DockerCli struct {
-	proto      string
-	addr       string
-	configFile *registry.ConfigFile
-	in         io.ReadCloser
-	out        io.Writer
-	err        io.Writer
-	isTerminal bool
-	terminalFd uintptr
-	tlsConfig  *tls.Config
-	scheme     string
 }
