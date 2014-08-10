@@ -225,6 +225,38 @@ Downloading and installing an "all-in-one" .deb or .rpm sounds great at first,
 except if you have no way to figure out that it contains a copy of the
 OpenSSL library vulnerable to the [Heartbleed](http://heartbleed.com/) bug.
 
+### Why is `DEBIAN_FRONTEND=noninteractive` discouraged in Dockerfiles?
+
+When building Docker images on Debian and Ubuntu you may have seen errors like:
+
+    unable to initialize frontend: Dialog
+
+These errors don't stop the image from being built but inform you that the
+installation process tried to open a dialog box, but was unable to. 
+Generally, these errors are safe to ignore.
+
+Some people circumvent these errors by changing the `DEBIAN_FRONTEND` 
+environment variable inside the Dockerfile using:
+
+    ENV DEBIAN_FRONTEND=noninteractive
+
+This prevents the installer from opening dialog boxes during installation 
+which stops the errors.
+
+While this may sound like a good idea, it *may* have side effects. 
+The `DEBIAN_FRONTEND` environment variable will be inherited by all 
+images and containers built from your image, effectively changing
+their behavior. People using those images will run into problems when
+installing software interactively, because installers will not show
+any dialog boxes.
+
+Because of this, and because setting `DEBIAN_FRONTEND` to `noninteractive` is
+mainly a 'cosmetic' change, we *discourage* changing it.
+
+If you *really* need to change its setting, make sure to change it
+back to its [default value](https://www.debian.org/releases/stable/i386/ch05s03.html.en) 
+afterwards.
+
 ### Can I help by adding some questions and answers?
 
 Definitely! You can fork [the repo](https://github.com/docker/docker) and
