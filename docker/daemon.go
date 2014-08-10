@@ -39,12 +39,6 @@ func mainDaemon() {
 	if !daemonCfg.EnableIptables && !daemonCfg.InterContainerCommunication {
 		log.Fatal("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
-
-	// FIXME: move this validation to opts.IpOpt
-	if daemonCfg.DefaultIp == nil {
-		log.Fatalf("Specified --ip is not in correct format \"0.0.0.0\".")
-	}
-
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 	// Load builtins
