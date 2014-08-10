@@ -245,8 +245,11 @@ containers using links (see the [Docker User
 Guide](/userguide/dockerlinks)).
 
 ## ENV
+ENV has 2 forms:
 
-    ENV <key> <value>
+- `ENV <key> <value>` (only one environment variable can be declared in one line)
+- `ENV <key>=<value> [<key>=<value>...]` (multiple environment variables can be declared in a single line)
+
 
 The `ENV` instruction sets the environment variable `<key>` to the value
 `<value>`. This value will be passed to all future `RUN` instructions. This is
@@ -255,6 +258,12 @@ functionally equivalent to prefixing the command with `<key>=<value>`
 The environment variables set using `ENV` will persist when a container is run
 from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
+
+> **Note**:
+> *Please note that you can only use alphanumeric and a very restricted set of special characters(`_, -, $, :, ., /`) when
+> specifying multiple environment variables in a single line.*
+
+
 
 > **Note**:
 > One example where this can cause unexpected consequences, is setting
