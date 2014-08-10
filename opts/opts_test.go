@@ -27,6 +27,12 @@ func TestValidateIPAddress(t *testing.T) {
 
 }
 
+func TestListOpts(t *testing.T) {
+	o := NewListOpts(nil)
+	o.Set("foo")
+	o.String()
+}
+
 func TestValidateDnsSearch(t *testing.T) {
 	valid := []string{
 		`.`,

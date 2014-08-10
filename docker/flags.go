@@ -22,7 +22,7 @@ func init() {
 var (
 	flVersion            = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 	flDaemon             = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
-	flGraphOpts          opts.ListOpts
+	flGraphOpts          = opts.NewListOpts(nil)
 	flDebug              = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flAutoRestart        = flag.Bool([]string{"r", "-restart"}, true, "Restart previously running containers")
 	bridgeName           = flag.String([]string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge\nuse 'none' to disable container networking")

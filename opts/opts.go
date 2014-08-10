@@ -8,23 +8,51 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/api"
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 )
 
+func ListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, nil), names, usage)
+}
+
+func HostListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, api.ValidateHost), names, usage)
+}
+
+func IPListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateIPAddress), names, usage)
+}
+
+func DnsSearchListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateDnsSearch), names, usage)
+}
+
+func IPVar(value *net.IP, names []string, defaultValue, usage string) {
+	flag.Var(NewIpOpt(value, defaultValue), names, usage)
+}
+
 // ListOpts type
 type ListOpts struct {
-	values    []string
+	values    *[]string
 	validator ValidatorFctType
 }
 
 func NewListOpts(validator ValidatorFctType) ListOpts {
-	return ListOpts{
+	var values []string
+	return *newListOptsRef(&values, validator)
+}
+
+func newListOptsRef(values *[]string, validator ValidatorFctType) *ListOpts {
+	return &ListOpts{
+		values:    values,
 		validator: validator,
 	}
 }
 
 func (opts *ListOpts) String() string {
-	return fmt.Sprintf("%v", []string(opts.values))
+	return fmt.Sprintf("%v", []string((*opts.values)))
 }
 
 // Set validates if needed the input value and add it to the
@@ -37,15 +65,15 @@ func (opts *ListOpts) Set(value string) error {
 		}
 		value = v
 	}
-	opts.values = append(opts.values, value)
+	(*opts.values) = append((*opts.values), value)
 	return nil
 }
 
 // Delete remove the given element from the slice.
 func (opts *ListOpts) Delete(key string) {
-	for i, k := range opts.values {
+	for i, k := range *opts.values {
 		if k == key {
-			opts.values = append(opts.values[:i], opts.values[i+1:]...)
+			(*opts.values) = append((*opts.values)[:i], (*opts.values)[i+1:]...)
 			return
 		}
 	}
@@ -56,7 +84,7 @@ func (opts *ListOpts) Delete(key string) {
 // FIXME: can we remove this?
 func (opts *ListOpts) GetMap() map[string]struct{} {
 	ret := make(map[string]struct{})
-	for _, k := range opts.values {
+	for _, k := range *opts.values {
 		ret[k] = struct{}{}
 	}
 	return ret
@@ -65,12 +93,12 @@ func (opts *ListOpts) GetMap() map[string]struct{} {
 // GetAll returns the values' slice.
 // FIXME: Can we remove this?
 func (opts *ListOpts) GetAll() []string {
-	return opts.values
+	return (*opts.values)
 }
 
 // Get checks the existence of the given key.
 func (opts *ListOpts) Get(key string) bool {
-	for _, k := range opts.values {
+	for _, k := range *opts.values {
 		if k == key {
 			return true
 		}
@@ -80,7 +108,7 @@ func (opts *ListOpts) Get(key string) bool {
 
 // Len returns the amount of element in the slice.
 func (opts *ListOpts) Len() int {
-	return len(opts.values)
+	return len((*opts.values))
 }
 
 // Validators
