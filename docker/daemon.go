@@ -30,15 +30,6 @@ func mainDaemon() {
 		flag.Usage()
 		return
 	}
-
-	// FIXME: validate daemon.Config values in a method of daemon.Config
-	if daemonCfg.BridgeIface != "" && daemonCfg.BridgeIP != "" {
-		log.Fatal("You specified -b & --bip, mutually exclusive options. Please specify only one.")
-	}
-
-	if !daemonCfg.EnableIptables && !daemonCfg.InterContainerCommunication {
-		log.Fatal("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
-	}
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 	// Load builtins

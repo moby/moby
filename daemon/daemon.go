@@ -677,6 +677,13 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		// FIXME: GetDefaultNetwork Mtu doesn't need to be public anymore
 		config.Mtu = GetDefaultNetworkMtu()
 	}
+	// Check for mutually incompatible config options
+	if config.BridgeIface != "" && config.BridgeIP != "" {
+		return nil, fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
+	}
+	if !config.EnableIptables && !config.InterContainerCommunication {
+		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+	}
 	// FIXME: DisableNetworkBidge doesn't need to be public anymore
 	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
 
