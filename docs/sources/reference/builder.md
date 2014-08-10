@@ -164,6 +164,11 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+> **Note**:
+> To use a different shell, other than '/bin/sh', use the *exec* form
+> passing in the desired shell. For example,
+> `RUN ["/bin/bash", "-c", "echo hello"]`
+
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like `RUN apt-get
 dist-upgrade -y` will be reused during the next build.  The cache for
