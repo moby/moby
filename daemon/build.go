@@ -388,20 +388,24 @@ func (b *buildFile) CmdEnv(args string) error {
 		commits = append(commits, fmt.Sprintf("%s=%s", key, value))
 	} else {
 		tmp := strings.SplitN(args, " ", -1)
-		var validAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+		var validChars = regexp.MustCompile(`^[a-zA-Z0-9_\-\.\/\$\:]+$`)
 		for i := range tmp {
-			splitTmp := strings.SplitN(tmp[i], "=", 2)
-			var (
-                        key   = strings.Trim(splitTmp[0], " \t")
-                        value = strings.Trim(splitTmp[1], " \t")
-                        )
-			if !validAlphaNumeric.MatchString(key) || !validAlphaNumeric.MatchString(value) {
+			if strings.Contains(tmp[i], "=") {
+				splitTmp := strings.SplitN(tmp[i], "=", 2)
+				var (
+					key   = strings.Trim(splitTmp[0], " \t")
+					value = strings.Trim(splitTmp[1], " \t")
+				)
+				if !validChars.MatchString(key) || !validChars.MatchString(value) {
+					return fmt.Errorf("Invalid ENV format")
+				}
+				if err := b.buildCmdEnvVar(key, value); err != nil {
+					return err
+				}
+				commits = append(commits, fmt.Sprintf("%s=%s", key, value))
+			} else {
 				return fmt.Errorf("Invalid ENV format")
 			}
-			if err := b.buildCmdEnvVar(key, value); err != nil {
-				return err
-			}
-			commits = append(commits, fmt.Sprintf("%s=%s", key, value))
 		}
 	}
 	return b.commit("", b.config.Env, fmt.Sprintf("ENV %s", strings.Join(commits, ", ")))
