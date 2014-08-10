@@ -672,6 +672,14 @@ func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 }
 
 func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
+	// Apply configuration defaults
+	if config.Mtu == 0 {
+		// FIXME: GetDefaultNetwork Mtu doesn't need to be public anymore
+		config.Mtu = GetDefaultNetworkMtu()
+	}
+	// FIXME: DisableNetworkBidge doesn't need to be public anymore
+	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
+
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
 	if config.Pidfile != "" {

@@ -4,7 +4,6 @@ package main
 
 import (
 	"log"
-	"net"
 
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
@@ -18,22 +17,32 @@ import (
 
 const CanDaemon = true
 
+var (
+	daemonCfg = &daemon.Config{}
+)
+
+func init() {
+	daemonCfg.InstallFlags()
+}
+
 func mainDaemon() {
 	if flag.NArg() != 0 {
 		flag.Usage()
 		return
 	}
 
-	if *bridgeName != "" && *bridgeIp != "" {
+	// FIXME: validate daemon.Config values in a method of daemon.Config
+	if daemonCfg.BridgeIface != "" && daemonCfg.BridgeIP != "" {
 		log.Fatal("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
 
-	if !*flEnableIptables && !*flInterContainerComm {
+	if !daemonCfg.EnableIptables && !daemonCfg.InterContainerCommunication {
 		log.Fatal("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
 
-	if net.ParseIP(*flDefaultIp) == nil {
-		log.Fatalf("Specified --ip=%s is not in correct format \"0.0.0.0\".", *flDefaultIp)
+	// FIXME: move this validation to opts.IpOpt
+	if daemonCfg.DefaultIp == nil {
+		log.Fatalf("Specified --ip is not in correct format \"0.0.0.0\".")
 	}
 
 	eng := engine.New()
@@ -47,34 +56,7 @@ func mainDaemon() {
 	// the http api so that connections don't fail while the daemon
 	// is booting
 	go func() {
-		// FIXME: daemon config and CLI flag parsing should be directly integrated
-		cfg := &daemon.Config{
-			Pidfile:                     *pidfile,
-			Root:                        *flRoot,
-			AutoRestart:                 *flAutoRestart,
-			EnableIptables:              *flEnableIptables,
-			EnableIpForward:             *flEnableIpForward,
-			BridgeIP:                    *bridgeIp,
-			BridgeIface:                 *bridgeName,
-			DefaultIp:                   net.ParseIP(*flDefaultIp),
-			InterContainerCommunication: *flInterContainerComm,
-			GraphDriver:                 *flGraphDriver,
-			ExecDriver:                  *flExecDriver,
-			EnableSelinuxSupport:        *flSelinuxEnabled,
-			GraphOptions:                flGraphOpts.GetAll(),
-			Dns:                         flDns.GetAll(),
-			DnsSearch:                   flDnsSearch.GetAll(),
-			Mtu:                         *flMtu,
-			Sockets:                     flHosts.GetAll(),
-		}
-		// FIXME this should be initialized in NewDaemon or somewhere in daemon.
-		// Currently it is copy-pasted in `integration` to create test daemons that work.
-		if cfg.Mtu == 0 {
-			cfg.Mtu = daemon.GetDefaultNetworkMtu()
-		}
-		cfg.DisableNetwork = cfg.BridgeIface == daemon.DisableNetworkBridge
-
-		d, err := daemon.NewDaemon(cfg, eng)
+		d, err := daemon.NewDaemon(daemonCfg, eng)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -91,11 +73,13 @@ func mainDaemon() {
 	log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
 		dockerversion.VERSION,
 		dockerversion.GITCOMMIT,
-		*flExecDriver,
-		*flGraphDriver)
+		daemonCfg.ExecDriver,
+		daemonCfg.GraphDriver,
+	)
 
 	// Serve api
-	job := eng.Job("serveapi", flHosts.GetAll()...)
+	// FIXME: 'Sockets' should not be part of daemon.Config
+	job := eng.Job("serveapi", daemonCfg.Sockets...)
 	job.SetenvBool("Logging", true)
 	job.SetenvBool("EnableCors", *flEnableCors)
 	job.Setenv("Version", dockerversion.VERSION)

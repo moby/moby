@@ -186,12 +186,6 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 		// otherwise NewDaemon will fail because of conflicting settings.
 		InterContainerCommunication: true,
 	}
-	// FIXME: this should be initialized in NewDaemon
-	// Currently it is copy-pasted from daemonMain()
-	if cfg.Mtu == 0 {
-		cfg.Mtu = daemon.GetDefaultNetworkMtu()
-	}
-	cfg.DisableNetwork = cfg.BridgeIface == daemon.DisableNetworkBridge
 	d, err := daemon.NewDaemon(cfg, eng)
 	if err != nil {
 		t.Fatal(err)
