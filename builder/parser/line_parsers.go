@@ -20,7 +20,7 @@ var (
 // ignore the current argument. This will still leave a command parsed, but
 // will not incorporate the arguments into the ast.
 func parseIgnore(rest string) (*Node, error) {
-	return blankNode(), nil
+	return &Node{}, nil
 }
 
 // used for onbuild. Could potentially be used for anything that represents a
@@ -40,11 +40,11 @@ func parseSubCommand(rest string) (*Node, error) {
 // parse environment like statements. Note that this does *not* handle
 // variable interpolation, which will be handled in the evaluator.
 func parseEnv(rest string) (*Node, error) {
-	node := blankNode()
+	node := &Node{}
 	rootnode := node
 	strs := TOKEN_WHITESPACE.Split(rest, 2)
 	node.Value = strs[0]
-	node.Next = blankNode()
+	node.Next = &Node{}
 	node.Next.Value = strs[1]
 
 	return rootnode, nil
@@ -53,13 +53,13 @@ func parseEnv(rest string) (*Node, error) {
 // parses a whitespace-delimited set of arguments. The result is effectively a
 // linked list of string arguments.
 func parseStringsWhitespaceDelimited(rest string) (*Node, error) {
-	node := blankNode()
+	node := &Node{}
 	rootnode := node
 	prevnode := node
 	for _, str := range TOKEN_WHITESPACE.Split(rest, -1) { // use regexp
 		prevnode = node
 		node.Value = str
-		node.Next = blankNode()
+		node.Next = &Node{}
 		node = node.Next
 	}
 
@@ -80,7 +80,7 @@ func parseString(rest string) (*Node, error) {
 func parseJSON(rest string) (*Node, error) {
 	var (
 		myJson   []interface{}
-		next     = blankNode()
+		next     = &Node{}
 		orignext = next
 		prevnode = next
 	)
@@ -98,7 +98,7 @@ func parseJSON(rest string) (*Node, error) {
 			return nil, dockerFileErrJSONNesting
 		}
 		next.Value = str.(string)
-		next.Next = blankNode()
+		next.Next = &Node{}
 		prevnode = next
 		next = next.Next
 	}
@@ -124,7 +124,7 @@ func parseMaybeJSON(rest string) (*Node, error) {
 		}
 	}
 
-	node := blankNode()
+	node := &Node{}
 	node.Value = rest
 	return node, nil
 }

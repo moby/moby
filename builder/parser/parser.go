@@ -59,11 +59,6 @@ func init() {
 	}
 }
 
-// empty node. Useful for managing structure.
-func blankNode() *Node {
-	return &Node{"", nil, []*Node{}}
-}
-
 // parse a line and return the remainder.
 func parseLine(line string) (string, *Node, error) {
 	if line = stripComments(line); line == "" {
@@ -77,7 +72,7 @@ func parseLine(line string) (string, *Node, error) {
 
 	cmd, args := splitCommand(line)
 
-	node := blankNode()
+	node := &Node{}
 	node.Value = cmd
 
 	sexp, err := fullDispatch(cmd, args)
@@ -96,7 +91,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 	var child *Node
 	var line string
 	var err error
-	root := blankNode()
+	root := &Node{}
 	scanner := bufio.NewScanner(rwc)
 
 	for scanner.Scan() {
