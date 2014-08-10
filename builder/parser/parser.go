@@ -88,14 +88,11 @@ func parseLine(line string) (string, *Node, error) {
 // The main parse routine. Handles an io.ReadWriteCloser and returns the root
 // of the AST.
 func Parse(rwc io.Reader) (*Node, error) {
-	var child *Node
-	var line string
-	var err error
 	root := &Node{}
 	scanner := bufio.NewScanner(rwc)
 
 	for scanner.Scan() {
-		line, child, err = parseLine(strings.TrimSpace(scanner.Text()))
+		line, child, err := parseLine(strings.TrimSpace(scanner.Text()))
 		if err != nil {
 			return nil, err
 		}
