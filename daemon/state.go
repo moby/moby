@@ -31,13 +31,12 @@ func (s *State) String() string {
 	s.RLock()
 	defer s.RUnlock()
 
-	if s.Restarting {
-		return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
-	}
-
 	if s.Running {
 		if s.Paused {
 			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+		}
+		if s.Restarting {
+			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
@@ -148,7 +147,10 @@ func (s *State) SetStopped(exitCode int) {
 func (s *State) SetRestarting(exitCode int) {
 	s.Lock()
 	if s.Running {
-		s.Running = false
+		// we should consider the container running when it is restarting because of
+		// all the checks in docker around rm/stop/etc
+		s.Running = true
+		s.Restarting = true
 		s.Pid = 0
 		s.FinishedAt = time.Now().UTC()
 		s.ExitCode = exitCode

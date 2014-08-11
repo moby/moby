@@ -116,15 +116,14 @@ func (m *containerMonitor) Start() error {
 			time.Sleep(time.Duration(m.timeIncrement) * time.Millisecond)
 
 			continue
-		} else {
-			// we still wait to set the state as stopped and ensure that the locks were released
-			m.container.State.SetStopped(exitStatus)
-
-			m.resetContainer()
 		}
 
 		break
 	}
+
+	m.container.State.SetStopped(exitStatus)
+
+	m.resetContainer()
 
 	return err
 }

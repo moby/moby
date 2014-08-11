@@ -530,6 +530,13 @@ func (container *Container) KillSig(sig int) error {
 	// after we send the kill signal
 	container.monitor.ExitOnNext()
 
+	// if the container is currently restarting we do not need to send the signal
+	// to the process.  Telling the monitor that it should exit on it's next event
+	// loop is enough
+	if container.State.IsRestarting() {
+		return nil
+	}
+
 	return container.daemon.Kill(container, sig)
 }
 
