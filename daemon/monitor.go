@@ -164,12 +164,15 @@ func (m *containerMonitor) Start() error {
 			utils.Errorf("Error running container: %s", err)
 		}
 
-		// We still wait to set the state as stopped and ensure that the locks were released
+		// we still wait to set the state as stopped and ensure that the locks were released
 		m.container.State.SetStopped(exitStatus)
 
+		// pass if we exited successfully
 		m.reset(err == nil && exitStatus == 0)
 
 		if m.shouldRestart(exitStatus) {
+			// sleep with a small time increment between each restart to help avoid issues cased by quickly
+			// restarting the container because of some types of errors ( networking cut out, etc... )
 			time.Sleep(time.Duration(m.timeIncrement) * time.Millisecond)
 
 			continue
