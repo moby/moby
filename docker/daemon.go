@@ -63,8 +63,7 @@ func mainDaemon() {
 	)
 
 	// Serve api
-	// FIXME: 'Sockets' should not be part of daemon.Config
-	job := eng.Job("serveapi", daemonCfg.Sockets...)
+	job := eng.Job("serveapi", flHosts...)
 	job.SetenvBool("Logging", true)
 	job.SetenvBool("EnableCors", *flEnableCors)
 	job.Setenv("Version", dockerversion.VERSION)

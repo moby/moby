@@ -66,7 +66,6 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
-	v.SetList("Sockets", daemon.Sockets)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}

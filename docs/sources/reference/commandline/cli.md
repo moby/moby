@@ -616,7 +616,6 @@ For example:
     Goroutines: 9
     EventsListeners: 0
     Init Path: /usr/bin/docker
-    Sockets: [unix:///var/run/docker.sock]
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
 

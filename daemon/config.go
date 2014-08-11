@@ -36,7 +36,6 @@ type Config struct {
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
 	Context                     map[string][]string
-	Sockets                     []string
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -59,7 +58,6 @@ func (config *Config) InstallFlags() {
 	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
 	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
-	opts.HostListVar(&config.Sockets, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode\nspecified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
 }

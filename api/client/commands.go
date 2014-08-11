@@ -505,9 +505,6 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if initPath := remoteInfo.Get("InitPath"); initPath != "" {
 			fmt.Fprintf(cli.out, "Init Path: %s\n", initPath)
 		}
-		if len(remoteInfo.GetList("Sockets")) != 0 {
-			fmt.Fprintf(cli.out, "Sockets: %v\n", remoteInfo.GetList("Sockets"))
-		}
 	}
 
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {

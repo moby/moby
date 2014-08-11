@@ -38,7 +38,7 @@ func main() {
 		os.Setenv("DEBUG", "1")
 	}
 
-	if len(daemonCfg.Sockets) == 0 {
+	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
 		if defaultHost == "" || *flDaemon {
 			// If we do not have a host, default to unix socket
@@ -47,7 +47,7 @@ func main() {
 		if _, err := api.ValidateHost(defaultHost); err != nil {
 			log.Fatal(err)
 		}
-		daemonCfg.Sockets = append(daemonCfg.Sockets, defaultHost)
+		flHosts = append(flHosts, defaultHost)
 	}
 
 	if *flDaemon {
@@ -55,10 +55,10 @@ func main() {
 		return
 	}
 
-	if len(daemonCfg.Sockets) > 1 {
+	if len(flHosts) > 1 {
 		log.Fatal("Please specify only one -H")
 	}
-	protoAddrParts := strings.SplitN(daemonCfg.Sockets[0], "://", 2)
+	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
 	var (
 		cli       *client.DockerCli

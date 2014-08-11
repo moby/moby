@@ -1170,7 +1170,6 @@ Display system-wide information
              "NGoroutines":21,
              "NEventsListener":0,
              "InitPath":"/usr/bin/docker",
-             "Sockets":["unix:///var/run/docker.sock"],
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
