@@ -30,9 +30,7 @@ import (
 
 type Server struct {
 	sync.RWMutex
-	daemon      *daemon.Daemon
-	pullingPool map[string]chan struct{}
-	pushingPool map[string]chan struct{}
-	Eng         *engine.Engine
-	tasks       sync.WaitGroup
+	daemon *daemon.Daemon
+	Eng    *engine.Engine
+	tasks  sync.WaitGroup
 }

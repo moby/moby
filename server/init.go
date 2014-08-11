@@ -33,8 +33,6 @@ func InitServer(job *engine.Job) engine.Status {
 
 	for name, handler := range map[string]engine.Handler{
 		"build": srv.Build,
-		"pull":  srv.ImagePull,
-		"push":  srv.ImagePush,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
@@ -59,10 +57,8 @@ func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error)
 		return nil, err
 	}
 	srv := &Server{
-		Eng:         eng,
-		daemon:      daemon,
-		pullingPool: make(map[string]chan struct{}),
-		pushingPool: make(map[string]chan struct{}),
+		Eng:    eng,
+		daemon: daemon,
 	}
 	return srv, nil
 }
