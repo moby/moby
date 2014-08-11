@@ -260,8 +260,9 @@ from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
 
 > **Note**:
-> *Please note that you can only use alphanumeric and a very restricted set of special characters(`_, -, $, :, ., /`) when
-> specifying multiple environment variables in a single line.*
+> *Please note that you can only use alphanumeric and a very restricted set of
+> special characters(`_, -, $, :, ., /`) when specifying multiple environment
+> variables in a single line.*
 
 
 
