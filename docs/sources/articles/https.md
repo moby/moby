@@ -138,17 +138,17 @@ need to provide your client keys, certificates and trusted CA:
 ## Secure by default
 
 If you want to secure your Docker client connections by default, you can move 
-the files to the `.docker` directory in your home directory - and set the
-`DOCKER_HOST` variable as well.
+the files to the `.docker` directory in your home directory and set the
+`DOCKER_HOST` with the `tcps://` protocol.
 
     $ cp ca.pem ~/.docker/ca.pem
     $ cp cert.pem ~/.docker/cert.pem
     $ cp key.pem ~/.docker/key.pem
-    $ export DOCKER_HOST=tcp://:2376
+    $ export DOCKER_HOST=tcps://:2376
 
-Then you can run Docker with the `--tlsverify` option.
+Then you can run Docker as usual:
 
-    $ docker --tlsverify ps
+    $ docker ps
 
 ## Other modes
 

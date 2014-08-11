@@ -26,6 +26,9 @@ func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
 	case strings.HasPrefix(addr, "tcp://"):
 		proto = "tcp"
 		addr = strings.TrimPrefix(addr, "tcp://")
+	case strings.HasPrefix(addr, "tcps://"):
+		proto = "tcps"
+		addr = strings.TrimPrefix(addr, "tcps://")
 	case strings.HasPrefix(addr, "fd://"):
 		return addr, nil
 	case addr == "":

@@ -1265,10 +1265,15 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 		oldmask = syscall.Umask(0777)
 	}
 
+	listenProto := proto
+	if proto == "tcps" {
+		listenProto = "tcp"
+	}
+
 	if job.GetenvBool("BufferRequests") {
-		l, err = listenbuffer.NewListenBuffer(proto, addr, activationLock)
+		l, err = listenbuffer.NewListenBuffer(listenProto, addr, activationLock)
 	} else {
-		l, err = net.Listen(proto, addr)
+		l, err = net.Listen(listenProto, addr)
 	}
 
 	if proto == "unix" {
@@ -1278,7 +1283,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 		return err
 	}
 
-	if proto != "unix" && (job.GetenvBool("Tls") || job.GetenvBool("TlsVerify")) {
+	if proto != "unix" && (job.GetenvBool("Tls") || job.GetenvBool("TlsVerify") || proto == "tcps") {
 		tlsCert := job.Getenv("TlsCert")
 		tlsKey := job.Getenv("TlsKey")
 		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)

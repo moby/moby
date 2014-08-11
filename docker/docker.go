@@ -95,6 +95,8 @@ func main() {
 
 	if *flTls || *flTlsVerify {
 		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+	} else if protoAddrParts[0] == "tcps" {
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, "tcp", protoAddrParts[1], &tlsConfig)
 	} else {
 		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], nil)
 	}
