@@ -43,7 +43,17 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
 		return job.Error(err)
 	}
-	if err := archive.Untar(repoFile, repoDir, nil); err != nil {
+	images, err := s.graph.Map()
+	if err != nil {
+		return job.Error(err)
+	}
+	excludes := make([]string, len(images))
+	i := 0
+	for k := range images {
+		excludes[i] = k
+		i++
+	}
+	if err := archive.Untar(repoFile, repoDir, &archive.TarOptions{Excludes: excludes}); err != nil {
 		return job.Error(err)
 	}
 
