@@ -70,3 +70,35 @@ func TestCLILimitEvents(t *testing.T) {
 	}
 	logDone("events - limited to 64 entries")
 }
+
+func TestCLIGetEventsContainerEvents(t *testing.T) {
+	cmd(t, "run", "--rm", "busybox", "true")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatal("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) < 4 {
+		t.Fatalf("Missing expected event")
+	}
+	createEvent := strings.Fields(events[len(events)-4])
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+	destroyEvent := strings.Fields(events[len(events)-1])
+	if createEvent[len(createEvent)-1] != "create" {
+		t.Fatalf("event should be create, not %#v", createEvent)
+	}
+	if startEvent[len(startEvent)-1] != "start" {
+		t.Fatalf("event should be pause, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be pause, not %#v", dieEvent)
+	}
+	if destroyEvent[len(destroyEvent)-1] != "destroy" {
+		t.Fatalf("event should be pause, not %#v", destroyEvent)
+	}
+
+	logDone("events - container create, start, die, destroy is logged")
+}
