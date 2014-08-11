@@ -140,3 +140,25 @@ func createRunningContainer(t *testing.T, name string) {
 		t.Fatal(err)
 	}
 }
+
+func TestRmPinnedContainer(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--name", "pinned", "--pin", "busybox", "echo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test removing without force.  Expect this to fail
+	cmdRm := exec.Command(dockerBinary, "rm", "pinned")
+	if _, err := runCommand(cmdRm); err == nil {
+		t.Fatalf("Expected rm to fail for pinned container with no --force")
+	}
+
+	// Test removing with force. Expect to work
+	cmdRmF := exec.Command(dockerBinary, "rm", "--force", "pinned")
+	if out, _, err := runCommandWithOutput(cmdRmF); err != nil {
+		t.Fatalf(out, err)
+	}
+
+	deleteAllContainers()
+	logDone("rm - can only remove pinned container only with --force")
+}

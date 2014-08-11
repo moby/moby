@@ -57,6 +57,15 @@ Setup an exec command in a running container `id`.
 **New!**
 Start an exec command.
 
+**New!**
+Must use `force` to remove a container which has been pinned.
+
+`POST /containers/(id)/start`
+
+The `hostConfig` option now accepts the field `Pinned`, which is a flag that
+allows you to `pin` a container, making it impossible to remove without also
+using `force`
+
 ## v1.14
 
 ### Full Documentation
@@ -69,6 +78,7 @@ Start an exec command.
 
 **New!**
 When using `force`, the container will be immediately killed with SIGKILL.
+
 
 `POST /containers/(id)/start`
 

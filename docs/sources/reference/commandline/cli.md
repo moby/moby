@@ -1150,6 +1150,7 @@ removed before the image is removed.
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                                    (use 'docker port' to see the actual mapping)
+      --pin=false                Pin the container, making it impossible to remove without using --force
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
@@ -1311,6 +1312,11 @@ argument. The container ID may be optionally suffixed with `:ro` or `:rw` to
 mount the volumes in read-only or read-write mode, respectively. By default,
 the volumes are mounted in the same mode (read write or read only) as
 the reference container.
+
+  $ sudo docker run --pin -v /foo --entrypoint /bin/echo mydata
+
+The `--pin` flag tells `docker run` to pin the container. This makes it
+impossible to remove the container without using the `--force` option.
 
 The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
 `STDERR`. This makes it possible to manipulate the output and input as needed.

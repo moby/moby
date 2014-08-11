@@ -56,6 +56,7 @@ type HostConfig struct {
 	CapAdd          []string
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
+	Pinned          bool
 }
 
 // This is used by the create command when you want to set both the
@@ -84,6 +85,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
+		Pinned:          job.GetenvBool("Pinned"),
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
