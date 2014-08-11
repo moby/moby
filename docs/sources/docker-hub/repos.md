@@ -67,7 +67,7 @@ optimized and up-to-date image to power your applications.
 > organization, product or team you can see more information
 > [here](https://github.com/docker/stackbrew).
 
-## Private Docker Repositories
+## Private Repositories
 
 Private repositories allow you to have repositories that contain images
 that you want to keep private, either to your own account or within an
