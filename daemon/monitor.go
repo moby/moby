@@ -35,6 +35,11 @@ type containerMonitor struct {
 	// either because docker or the user asked for the container to be stopped
 	shouldStop bool
 
+	// stopChan is used to signal to the monitor whenever there is a wait for the
+	// next restart so that the timeIncrement is not honored and the user is not
+	// left waiting for nothing to happen during this time
+	stopChan chan struct{}
+
 	// timeIncrement is the amount of time to wait between restarts
 	// this is in milliseconds
 	timeIncrement int
@@ -45,6 +50,7 @@ func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *
 		container:     container,
 		restartPolicy: policy,
 		timeIncrement: defaultTimeIncrement,
+		stopChan:      make(chan struct{}, 1),
 	}
 }
 
@@ -52,7 +58,14 @@ func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *
 // for exits the next time the process dies
 func (m *containerMonitor) ExitOnNext() {
 	m.mux.Lock()
-	m.shouldStop = true
+
+	// we need to protect having a double close of the channel when stop is called
+	// twice or else we will get a panic
+	if !m.shouldStop {
+		m.shouldStop = true
+		close(m.stopChan)
+	}
+
 	m.mux.Unlock()
 }
 
@@ -87,7 +100,7 @@ func (m *containerMonitor) Start() error {
 	// reset the restart count
 	m.container.RestartCount = -1
 
-	for !m.shouldStop {
+	for {
 		m.container.RestartCount++
 
 		if err := m.container.startLoggingToDisk(); err != nil {
@@ -109,21 +122,33 @@ func (m *containerMonitor) Start() error {
 		if m.shouldRestart(exitStatus) {
 			m.container.State.SetRestarting(exitStatus)
 
+			m.container.LogEvent("die")
+
 			m.resetContainer()
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
 			// restarting the container because of some types of errors ( networking cut out, etc... )
-			time.Sleep(time.Duration(m.timeIncrement) * time.Millisecond)
+			m.waitForNextRestart()
+
+			// we need to check this before reentering the loop because the waitForNextRestart could have
+			// been terminated by a request from a user
+			if m.shouldStop {
+				m.container.State.SetStopped(exitStatus)
+
+				return err
+			}
 
 			continue
 		}
 
+		m.container.State.SetStopped(exitStatus)
+
+		m.container.LogEvent("die")
+
+		m.resetContainer()
+
 		break
 	}
-
-	m.container.State.SetStopped(exitStatus)
-
-	m.resetContainer()
 
 	return err
 }
@@ -142,6 +167,15 @@ func (m *containerMonitor) resetMonitor(successful bool) {
 
 		m.failureCount++
 		m.timeIncrement *= 2
+	}
+}
+
+// waitForNextRestart waits with the default time increment to restart the container unless
+// a user or docker asks to container to be stopped
+func (m *containerMonitor) waitForNextRestart() {
+	select {
+	case <-time.After(time.Duration(m.timeIncrement) * time.Millisecond):
+	case <-m.stopChan:
 	}
 }
 
@@ -220,8 +254,6 @@ func (m *containerMonitor) resetContainer() {
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
-
-	container.LogEvent("die")
 
 	c := container.command.Cmd
 
