@@ -30,7 +30,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (b *buildFile) readContext(context io.Reader) error {
+func (b *BuildFile) readContext(context io.Reader) error {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return err
@@ -50,15 +50,15 @@ func (b *buildFile) readContext(context io.Reader) error {
 	return nil
 }
 
-func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
+func (b *BuildFile) commit(id string, autoCmd []string, comment string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
-	b.config.Image = b.image
+	b.Config.Image = b.image
 	if id == "" {
-		cmd := b.config.Cmd
-		b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
-		defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
+		cmd := b.Config.Cmd
+		b.Config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
+		defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
 		if err != nil {
@@ -68,15 +68,15 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 			return nil
 		}
 
-		container, warnings, err := b.options.Daemon.Create(b.config, "")
+		container, warnings, err := b.Options.Daemon.Create(b.Config, "")
 		if err != nil {
 			return err
 		}
 		for _, warning := range warnings {
-			fmt.Fprintf(b.options.OutStream, " ---> [Warning] %s\n", warning)
+			fmt.Fprintf(b.Options.OutStream, " ---> [Warning] %s\n", warning)
 		}
-		b.tmpContainers[container.ID] = struct{}{}
-		fmt.Fprintf(b.options.OutStream, " ---> Running in %s\n", utils.TruncateID(container.ID))
+		b.TmpContainers[container.ID] = struct{}{}
+		fmt.Fprintf(b.Options.OutStream, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
 
 		if err := container.Mount(); err != nil {
@@ -84,25 +84,25 @@ func (b *buildFile) commit(id string, autoCmd []string, comment string) error {
 		}
 		defer container.Unmount()
 	}
-	container := b.options.Daemon.Get(id)
+	container := b.Options.Daemon.Get(id)
 	if container == nil {
 		return fmt.Errorf("An error occured while creating the container")
 	}
 
 	// Note: Actually copy the struct
-	autoConfig := *b.config
+	autoConfig := *b.Config
 	autoConfig.Cmd = autoCmd
 	// Commit the container
-	image, err := b.options.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
+	image, err := b.Options.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
 	if err != nil {
 		return err
 	}
-	b.tmpImages[image.ID] = struct{}{}
+	b.TmpImages[image.ID] = struct{}{}
 	b.image = image.ID
 	return nil
 }
 
-func (b *buildFile) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *BuildFile) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -114,10 +114,10 @@ func (b *buildFile) runContextCommand(args []string, allowRemote bool, allowDeco
 	orig := args[0]
 	dest := args[1]
 
-	cmd := b.config.Cmd
-	b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, orig, dest)}
-	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
-	b.config.Image = b.image
+	cmd := b.Config.Cmd
+	b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, orig, dest)}
+	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+	b.Config.Image = b.image
 
 	var (
 		origPath   = orig
@@ -201,7 +201,7 @@ func (b *buildFile) runContextCommand(args []string, allowRemote bool, allowDeco
 	}
 
 	// Hash path and check the cache
-	if b.options.UtilizeCache {
+	if b.Options.UtilizeCache {
 		var (
 			hash string
 			sums = b.context.GetSums()
@@ -233,7 +233,7 @@ func (b *buildFile) runContextCommand(args []string, allowRemote bool, allowDeco
 				hash = "file:" + h
 			}
 		}
-		b.config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, hash, dest)}
+		b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, hash, dest)}
 		hit, err := b.probeCache()
 		if err != nil {
 			return err
@@ -245,11 +245,11 @@ func (b *buildFile) runContextCommand(args []string, allowRemote bool, allowDeco
 	}
 
 	// Create the container
-	container, _, err := b.options.Daemon.Create(b.config, "")
+	container, _, err := b.Options.Daemon.Create(b.Config, "")
 	if err != nil {
 		return err
 	}
-	b.tmpContainers[container.ID] = struct{}{}
+	b.TmpContainers[container.ID] = struct{}{}
 
 	if err := container.Mount(); err != nil {
 		return err
@@ -269,27 +269,27 @@ func (b *buildFile) runContextCommand(args []string, allowRemote bool, allowDeco
 	return nil
 }
 
-func (b *buildFile) pullImage(name string) (*imagepkg.Image, error) {
+func (b *BuildFile) pullImage(name string) (*imagepkg.Image, error) {
 	remote, tag := parsers.ParseRepositoryTag(name)
-	pullRegistryAuth := b.options.AuthConfig
-	if len(b.options.AuthConfigFile.Configs) > 0 {
+	pullRegistryAuth := b.Options.AuthConfig
+	if len(b.Options.AuthConfigFile.Configs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
 		endpoint, _, err := registry.ResolveRepositoryName(remote)
 		if err != nil {
 			return nil, err
 		}
-		resolvedAuth := b.options.AuthConfigFile.ResolveAuthConfig(endpoint)
+		resolvedAuth := b.Options.AuthConfigFile.ResolveAuthConfig(endpoint)
 		pullRegistryAuth = &resolvedAuth
 	}
-	job := b.options.Engine.Job("pull", remote, tag)
-	job.SetenvBool("json", b.options.StreamFormatter.Json())
+	job := b.Options.Engine.Job("pull", remote, tag)
+	job.SetenvBool("json", b.Options.StreamFormatter.Json())
 	job.SetenvBool("parallel", true)
 	job.SetenvJson("authConfig", pullRegistryAuth)
-	job.Stdout.Add(b.options.OutOld)
+	job.Stdout.Add(b.Options.OutOld)
 	if err := job.Run(); err != nil {
 		return nil, err
 	}
-	image, err := b.options.Daemon.Repositories().LookupImage(name)
+	image, err := b.Options.Daemon.Repositories().LookupImage(name)
 	if err != nil {
 		return nil, err
 	}
@@ -297,23 +297,23 @@ func (b *buildFile) pullImage(name string) (*imagepkg.Image, error) {
 	return image, nil
 }
 
-func (b *buildFile) processImageFrom(img *imagepkg.Image) error {
+func (b *BuildFile) processImageFrom(img *imagepkg.Image) error {
 	b.image = img.ID
-	b.config = &runconfig.Config{}
+	b.Config = &runconfig.Config{}
 	if img.Config != nil {
-		b.config = img.Config
+		b.Config = img.Config
 	}
-	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = append(b.config.Env, "PATH="+daemon.DefaultPathEnv)
+	if b.Config.Env == nil || len(b.Config.Env) == 0 {
+		b.Config.Env = append(b.Config.Env, "PATH="+daemon.DefaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist
-	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
-		fmt.Fprintf(b.options.ErrStream, "# Executing %d build triggers\n", nTriggers)
+	if nTriggers := len(b.Config.OnBuild); nTriggers != 0 {
+		fmt.Fprintf(b.Options.ErrStream, "# Executing %d build triggers\n", nTriggers)
 	}
 
 	// Copy the ONBUILD triggers, and remove them from the config, since the config will be commited.
-	onBuildTriggers := b.config.OnBuild
-	b.config.OnBuild = []string{}
+	onBuildTriggers := b.Config.OnBuild
+	b.Config.OnBuild = []string{}
 
 	// FIXME rewrite this so that builder/parser is used; right now steps in
 	// onbuild are muted because we have no good way to represent the step
@@ -343,17 +343,17 @@ func (b *buildFile) processImageFrom(img *imagepkg.Image) error {
 	return nil
 }
 
-// probeCache checks to see if image-caching is enabled (`b.options.UtilizeCache`)
-// and if so attempts to look up the current `b.image` and `b.config` pair
-// in the current server `b.options.Daemon`. If an image is found, probeCache returns
+// probeCache checks to see if image-caching is enabled (`b.Options.UtilizeCache`)
+// and if so attempts to look up the current `b.image` and `b.Config` pair
+// in the current server `b.Options.Daemon`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
-func (b *buildFile) probeCache() (bool, error) {
-	if b.options.UtilizeCache {
-		if cache, err := b.options.Daemon.ImageGetCached(b.image, b.config); err != nil {
+func (b *BuildFile) probeCache() (bool, error) {
+	if b.Options.UtilizeCache {
+		if cache, err := b.Options.Daemon.ImageGetCached(b.image, b.Config); err != nil {
 			return false, err
 		} else if cache != nil {
-			fmt.Fprintf(b.options.OutStream, " ---> Using cache\n")
+			fmt.Fprintf(b.Options.OutStream, " ---> Using cache\n")
 			utils.Debugf("[BUILDER] Use cached version")
 			b.image = cache.ID
 			return true, nil
@@ -364,37 +364,37 @@ func (b *buildFile) probeCache() (bool, error) {
 	return false, nil
 }
 
-func (b *buildFile) create() (*daemon.Container, error) {
+func (b *BuildFile) create() (*daemon.Container, error) {
 	if b.image == "" {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
-	b.config.Image = b.image
+	b.Config.Image = b.image
 
 	// Create the container
-	c, _, err := b.options.Daemon.Create(b.config, "")
+	c, _, err := b.Options.Daemon.Create(b.Config, "")
 	if err != nil {
 		return nil, err
 	}
-	b.tmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.options.OutStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
+	b.TmpContainers[c.ID] = struct{}{}
+	fmt.Fprintf(b.Options.OutStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	// override the entry point that may have been picked up from the base image
-	c.Path = b.config.Cmd[0]
-	c.Args = b.config.Cmd[1:]
+	c.Path = b.Config.Cmd[0]
+	c.Args = b.Config.Cmd[1:]
 
 	return c, nil
 }
 
-func (b *buildFile) run(c *daemon.Container) error {
+func (b *BuildFile) run(c *daemon.Container) error {
 	var errCh chan error
-	if b.options.Verbose {
+	if b.Options.Verbose {
 		errCh = utils.Go(func() error {
 			// FIXME: call the 'attach' job so that daemon.Attach can be made private
 			//
 			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
 			// but without hijacking for stdin. Also, with attach there can be race
 			// condition because of some output already was printed before it.
-			return <-b.options.Daemon.Attach(c, nil, nil, b.options.OutStream, b.options.ErrStream)
+			return <-b.Options.Daemon.Attach(c, nil, nil, b.Options.OutStream, b.Options.ErrStream)
 		})
 	}
 
@@ -412,7 +412,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 	// Wait for it to finish
 	if ret, _ := c.State.WaitStop(-1 * time.Second); ret != 0 {
 		err := &utils.JSONError{
-			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.config.Cmd, ret),
+			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.Config.Cmd, ret),
 			Code:    ret,
 		}
 		return err
@@ -421,7 +421,7 @@ func (b *buildFile) run(c *daemon.Container) error {
 	return nil
 }
 
-func (b *buildFile) checkPathForAddition(orig string) error {
+func (b *BuildFile) checkPathForAddition(orig string) error {
 	origPath := path.Join(b.contextPath, orig)
 	if p, err := filepath.EvalSymlinks(origPath); err != nil {
 		if os.IsNotExist(err) {
@@ -444,7 +444,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func (b *BuildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
 	var (
 		err        error
 		destExists = true
@@ -549,14 +549,14 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func (b *buildFile) clearTmp(containers map[string]struct{}) {
+func (b *BuildFile) clearTmp(containers map[string]struct{}) {
 	for c := range containers {
-		tmp := b.options.Daemon.Get(c)
-		if err := b.options.Daemon.Destroy(tmp); err != nil {
-			fmt.Fprintf(b.options.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
+		tmp := b.Options.Daemon.Get(c)
+		if err := b.Options.Daemon.Destroy(tmp); err != nil {
+			fmt.Fprintf(b.Options.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 		} else {
 			delete(containers, c)
-			fmt.Fprintf(b.options.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+			fmt.Fprintf(b.Options.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
 		}
 	}
 }

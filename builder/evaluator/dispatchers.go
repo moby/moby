@@ -18,7 +18,7 @@ import (
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
-func nullDispatch(b *buildFile, args []string) error {
+func nullDispatch(b *BuildFile, args []string) error {
 	return nil
 }
 
@@ -27,7 +27,7 @@ func nullDispatch(b *buildFile, args []string) error {
 // Sets the environment variable foo to bar, also makes interpolation
 // in the dockerfile available from the next statement on via ${foo}.
 //
-func env(b *buildFile, args []string) error {
+func env(b *BuildFile, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("ENV accepts two arguments")
 	}
@@ -35,22 +35,22 @@ func env(b *buildFile, args []string) error {
 	// the duplication here is intended to ease the replaceEnv() call's env
 	// handling. This routine gets much shorter with the denormalization here.
 	key := args[0]
-	b.env[key] = args[1]
-	b.config.Env = append(b.config.Env, strings.Join([]string{key, b.env[key]}, "="))
+	b.Env[key] = args[1]
+	b.Config.Env = append(b.Config.Env, strings.Join([]string{key, b.Env[key]}, "="))
 
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, b.env[key]))
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("ENV %s=%s", key, b.Env[key]))
 }
 
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.
-func maintainer(b *buildFile, args []string) error {
+func maintainer(b *BuildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("MAINTAINER requires only one argument")
 	}
 
 	b.maintainer = args[0]
-	return b.commit("", b.config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
 }
 
 // ADD foo /path
@@ -58,7 +58,7 @@ func maintainer(b *buildFile, args []string) error {
 // Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
-func add(b *buildFile, args []string) error {
+func add(b *BuildFile, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("ADD requires two arguments")
 	}
@@ -70,7 +70,7 @@ func add(b *buildFile, args []string) error {
 //
 // Same as 'ADD' but without the tar and remote url handling.
 //
-func dispatchCopy(b *buildFile, args []string) error {
+func dispatchCopy(b *BuildFile, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("COPY requires two arguments")
 	}
@@ -82,16 +82,16 @@ func dispatchCopy(b *buildFile, args []string) error {
 //
 // This sets the image the dockerfile will build on top of.
 //
-func from(b *buildFile, args []string) error {
+func from(b *BuildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("FROM requires one argument")
 	}
 
 	name := args[0]
 
-	image, err := b.options.Daemon.Repositories().LookupImage(name)
+	image, err := b.Options.Daemon.Repositories().LookupImage(name)
 	if err != nil {
-		if b.options.Daemon.Graph().IsNotExist(err) {
+		if b.Options.Daemon.Graph().IsNotExist(err) {
 			image, err = b.pullImage(name)
 		}
 
@@ -114,7 +114,7 @@ func from(b *buildFile, args []string) error {
 // special cases. search for 'OnBuild' in internals.go for additional special
 // cases.
 //
-func onbuild(b *buildFile, args []string) error {
+func onbuild(b *BuildFile, args []string) error {
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
@@ -125,15 +125,15 @@ func onbuild(b *buildFile, args []string) error {
 
 	trigger := strings.Join(args, " ")
 
-	b.config.OnBuild = append(b.config.OnBuild, trigger)
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
+	b.Config.OnBuild = append(b.Config.OnBuild, trigger)
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
 }
 
 // WORKDIR /tmp
 //
 // Set the working directory for future RUN/CMD/etc statements.
 //
-func workdir(b *buildFile, args []string) error {
+func workdir(b *BuildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("WORKDIR requires exactly one argument")
 	}
@@ -141,15 +141,15 @@ func workdir(b *buildFile, args []string) error {
 	workdir := args[0]
 
 	if workdir[0] == '/' {
-		b.config.WorkingDir = workdir
+		b.Config.WorkingDir = workdir
 	} else {
-		if b.config.WorkingDir == "" {
-			b.config.WorkingDir = "/"
+		if b.Config.WorkingDir == "" {
+			b.Config.WorkingDir = "/"
 		}
-		b.config.WorkingDir = filepath.Join(b.config.WorkingDir, workdir)
+		b.Config.WorkingDir = filepath.Join(b.Config.WorkingDir, workdir)
 	}
 
-	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
 // RUN some command yo
@@ -161,7 +161,7 @@ func workdir(b *buildFile, args []string) error {
 // RUN echo hi          # sh -c echo hi
 // RUN [ "echo", "hi" ] # echo hi
 //
-func run(b *buildFile, args []string) error {
+func run(b *BuildFile, args []string) error {
 	if len(args) == 1 { // literal string command, not an exec array
 		args = append([]string{"/bin/sh", "-c"}, args[0])
 	}
@@ -175,14 +175,14 @@ func run(b *buildFile, args []string) error {
 		return err
 	}
 
-	cmd := b.config.Cmd
+	cmd := b.Config.Cmd
 	// set Cmd manually, this is special case only for Dockerfiles
-	b.config.Cmd = config.Cmd
-	runconfig.Merge(b.config, config)
+	b.Config.Cmd = config.Cmd
+	runconfig.Merge(b.Config, config)
 
-	defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
+	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
 
-	utils.Debugf("Command to be executed: %v", b.config.Cmd)
+	utils.Debugf("Command to be executed: %v", b.Config.Cmd)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -217,13 +217,13 @@ func run(b *buildFile, args []string) error {
 // Set the default command to run in the container (which may be empty).
 // Argument handling is the same as RUN.
 //
-func cmd(b *buildFile, args []string) error {
+func cmd(b *BuildFile, args []string) error {
 	if len(args) < 2 {
 		args = append([]string{"/bin/sh", "-c"}, args...)
 	}
 
-	b.config.Cmd = args
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+	b.Config.Cmd = args
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
 		return err
 	}
 
@@ -236,17 +236,17 @@ func cmd(b *buildFile, args []string) error {
 // Set the entrypoint (which defaults to sh -c) to /usr/sbin/nginx. Will
 // accept the CMD as the arguments to /usr/sbin/nginx.
 //
-// Handles command processing similar to CMD and RUN, only b.config.Entrypoint
+// Handles command processing similar to CMD and RUN, only b.Config.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
 //
-func entrypoint(b *buildFile, args []string) error {
-	b.config.Entrypoint = args
+func entrypoint(b *BuildFile, args []string) error {
+	b.Config.Entrypoint = args
 
 	// if there is no cmd in current Dockerfile - cleanup cmd
 	if !b.cmdSet {
-		b.config.Cmd = nil
+		b.Config.Cmd = nil
 	}
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("ENTRYPOINT %v", entrypoint)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %v", entrypoint)); err != nil {
 		return err
 	}
 	return nil
@@ -255,28 +255,28 @@ func entrypoint(b *buildFile, args []string) error {
 // EXPOSE 6667/tcp 7000/tcp
 //
 // Expose ports for links and port mappings. This all ends up in
-// b.config.ExposedPorts for runconfig.
+// b.Config.ExposedPorts for runconfig.
 //
-func expose(b *buildFile, args []string) error {
+func expose(b *BuildFile, args []string) error {
 	portsTab := args
 
-	if b.config.ExposedPorts == nil {
-		b.config.ExposedPorts = make(nat.PortSet)
+	if b.Config.ExposedPorts == nil {
+		b.Config.ExposedPorts = make(nat.PortSet)
 	}
 
-	ports, _, err := nat.ParsePortSpecs(append(portsTab, b.config.PortSpecs...))
+	ports, _, err := nat.ParsePortSpecs(append(portsTab, b.Config.PortSpecs...))
 	if err != nil {
 		return err
 	}
 
 	for port := range ports {
-		if _, exists := b.config.ExposedPorts[port]; !exists {
-			b.config.ExposedPorts[port] = struct{}{}
+		if _, exists := b.Config.ExposedPorts[port]; !exists {
+			b.Config.ExposedPorts[port] = struct{}{}
 		}
 	}
-	b.config.PortSpecs = nil
+	b.Config.PortSpecs = nil
 
-	return b.commit("", b.config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
 }
 
 // USER foo
@@ -284,13 +284,13 @@ func expose(b *buildFile, args []string) error {
 // Set the user to 'foo' for future commands and when running the
 // ENTRYPOINT/CMD at container run time.
 //
-func user(b *buildFile, args []string) error {
+func user(b *BuildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("USER requires exactly one argument")
 	}
 
-	b.config.User = args[0]
-	return b.commit("", b.config.Cmd, fmt.Sprintf("USER %v", args))
+	b.Config.User = args[0]
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("USER %v", args))
 }
 
 // VOLUME /foo
@@ -298,26 +298,26 @@ func user(b *buildFile, args []string) error {
 // Expose the volume /foo for use. Will also accept the JSON form, but either
 // way requires exactly one argument.
 //
-func volume(b *buildFile, args []string) error {
+func volume(b *BuildFile, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("Volume cannot be empty")
 	}
 
 	volume := args
 
-	if b.config.Volumes == nil {
-		b.config.Volumes = map[string]struct{}{}
+	if b.Config.Volumes == nil {
+		b.Config.Volumes = map[string]struct{}{}
 	}
 	for _, v := range volume {
-		b.config.Volumes[v] = struct{}{}
+		b.Config.Volumes[v] = struct{}{}
 	}
-	if err := b.commit("", b.config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
 		return err
 	}
 	return nil
 }
 
 // INSERT is no longer accepted, but we still parse it.
-func insert(b *buildFile, args []string) error {
+func insert(b *BuildFile, args []string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
 }

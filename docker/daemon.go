@@ -5,6 +5,7 @@ package main
 import (
 	"log"
 
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
 	_ "github.com/docker/docker/daemon/execdriver/lxc"
@@ -48,6 +49,10 @@ func mainDaemon() {
 		if err := d.Install(eng); err != nil {
 			log.Fatal(err)
 		}
+
+		b := &builder.BuilderJob{eng, d}
+		b.Install()
+
 		// after the daemon is done setting up we can tell the api to start
 		// accepting connections
 		if err := eng.Job("acceptconnections").Run(); err != nil {

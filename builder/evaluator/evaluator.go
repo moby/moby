@@ -32,21 +32,23 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
+type EnvMap map[string]string
+type UniqueMap map[string]struct{}
+
 var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
-var evaluateTable map[string]func(*buildFile, []string) error
+var evaluateTable map[string]func(*BuildFile, []string) error
 
 func init() {
-	evaluateTable = map[string]func(*buildFile, []string) error{
+	evaluateTable = map[string]func(*BuildFile, []string) error{
 		"env":            env,
 		"maintainer":     maintainer,
 		"add":            add,
@@ -65,25 +67,24 @@ func init() {
 	}
 }
 
-type envMap map[string]string
-type uniqueMap map[string]struct{}
-
 // internal struct, used to maintain configuration of the Dockerfile's
 // processing as it evaluates the parsing result.
-type buildFile struct {
-	dockerfile  *parser.Node      // the syntax tree of the dockerfile
-	env         envMap            // map of environment variables
-	image       string            // image name for commit processing
-	config      *runconfig.Config // runconfig for cmd, run, entrypoint etc.
-	options     *BuildOpts        // see below
-	maintainer  string            // maintainer name. could probably be removed.
-	cmdSet      bool              // indicates is CMD was set in current Dockerfile
-	context     *tarsum.TarSum    // the context is a tarball that is uploaded by the client
-	contextPath string            // the path of the temporary directory the local context is unpacked to (server side)
+type BuildFile struct {
+	Dockerfile *parser.Node      // the syntax tree of the dockerfile
+	Env        EnvMap            // map of environment variables
+	Config     *runconfig.Config // runconfig for cmd, run, entrypoint etc.
+	Options    *BuildOpts        // see below
 
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
-	tmpContainers uniqueMap // a map of containers used for removes
-	tmpImages     uniqueMap // a map of images used for removes
+	TmpContainers UniqueMap // a map of containers used for removes
+	TmpImages     UniqueMap // a map of images used for removes
+
+	image       string         // image name for commit processing
+	maintainer  string         // maintainer name. could probably be removed.
+	cmdSet      bool           // indicates is CMD was set in current Dockerfile
+	context     *tarsum.TarSum // the context is a tarball that is uploaded by the client
+	contextPath string         // the path of the temporary directory the local context is unpacked to (server side)
+
 }
 
 type BuildOpts struct {
@@ -110,18 +111,6 @@ type BuildOpts struct {
 	StreamFormatter *utils.StreamFormatter
 }
 
-// Create a new builder.
-func NewBuilder(opts *BuildOpts) (*buildFile, error) {
-	return &buildFile{
-		dockerfile:    nil,
-		env:           envMap{},
-		config:        initRunConfig(),
-		options:       opts,
-		tmpContainers: make(uniqueMap),
-		tmpImages:     make(uniqueMap),
-	}, nil
-}
-
 // Run the builder with the context. This is the lynchpin of this package. This
 // will (barring errors):
 //
@@ -134,7 +123,7 @@ func NewBuilder(opts *BuildOpts) (*buildFile, error) {
 //   processing.
 // * Print a happy message and return the image ID.
 //
-func (b *buildFile) Run(context io.Reader) (string, error) {
+func (b *BuildFile) Run(context io.Reader) (string, error) {
 	if err := b.readContext(context); err != nil {
 		return "", err
 	}
@@ -155,16 +144,16 @@ func (b *buildFile) Run(context io.Reader) (string, error) {
 		return "", err
 	}
 
-	b.dockerfile = ast
+	b.Dockerfile = ast
 
-	for i, n := range b.dockerfile.Children {
+	for i, n := range b.Dockerfile.Children {
 		if err := b.dispatch(i, n); err != nil {
-			if b.options.ForceRemove {
-				b.clearTmp(b.tmpContainers)
+			if b.Options.ForceRemove {
+				b.clearTmp(b.TmpContainers)
 			}
 			return "", err
-		} else if b.options.Remove {
-			b.clearTmp(b.tmpContainers)
+		} else if b.Options.Remove {
+			b.clearTmp(b.TmpContainers)
 		}
 	}
 
@@ -172,23 +161,8 @@ func (b *buildFile) Run(context io.Reader) (string, error) {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
 	}
 
-	fmt.Fprintf(b.options.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
+	fmt.Fprintf(b.Options.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
 	return b.image, nil
-}
-
-func initRunConfig() *runconfig.Config {
-	return &runconfig.Config{
-		PortSpecs: []string{},
-		// FIXME(erikh) this should be a type that lives in runconfig
-		ExposedPorts: map[nat.Port]struct{}{},
-		Env:          []string{},
-		Cmd:          []string{},
-
-		// FIXME(erikh) this should also be a type in runconfig
-		Volumes:    map[string]struct{}{},
-		Entrypoint: []string{"/bin/sh", "-c"},
-		OnBuild:    []string{},
-	}
 }
 
 // This method is the entrypoint to all statement handling routines.
@@ -197,7 +171,7 @@ func initRunConfig() *runconfig.Config {
 // Child[Node, Node, Node] where Child is from parser.Node.Children and each
 // node comes from parser.Node.Next. This forms a "line" with a statement and
 // arguments and we process them in this normalized form by hitting
-// evaluateTable with the leaf nodes of the command and the buildFile object.
+// evaluateTable with the leaf nodes of the command and the BuildFile object.
 //
 // ONBUILD is a special case; in this case the parser will emit:
 // Child[Node, Child[Node, Node...]] where the first node is the literal
@@ -205,12 +179,12 @@ func initRunConfig() *runconfig.Config {
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
-func (b *buildFile) dispatch(stepN int, ast *parser.Node) error {
+func (b *BuildFile) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 	strs := []string{}
 
 	if cmd == "onbuild" {
-		fmt.Fprintf(b.options.OutStream, "%#v\n", ast.Next.Children[0].Value)
+		fmt.Fprintf(b.Options.OutStream, "%#v\n", ast.Next.Children[0].Value)
 		ast = ast.Next.Children[0]
 		strs = append(strs, ast.Value)
 	}
@@ -220,7 +194,7 @@ func (b *buildFile) dispatch(stepN int, ast *parser.Node) error {
 		strs = append(strs, replaceEnv(b, ast.Value))
 	}
 
-	fmt.Fprintf(b.options.OutStream, "Step %d : %s %s\n", stepN, strings.ToUpper(cmd), strings.Join(strs, " "))
+	fmt.Fprintf(b.Options.OutStream, "Step %d : %s %s\n", stepN, strings.ToUpper(cmd), strings.Join(strs, " "))
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
