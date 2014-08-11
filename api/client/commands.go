@@ -807,25 +807,16 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPort(args ...string) error {
-	cmd := cli.Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port which is NAT-ed to PRIVATE_PORT")
+	cmd := cli.Subcmd("port", "CONTAINER [PRIVATE_PORT]", "Display container:host mappings of ports, if PRIVATE_PORT is specified, only those NAT-ed to PRIVATE_PORT will be showed")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 2 {
+	if cmd.NArg() != 2 && cmd.NArg() != 1 {
 		cmd.Usage()
 		return nil
 	}
 
-	var (
-		port  = cmd.Arg(1)
-		proto = "tcp"
-		parts = strings.SplitN(port, "/", 2)
-	)
-
-	if len(parts) == 2 && len(parts[1]) != 0 {
-		port = parts[0]
-		proto = parts[1]
-	}
+	is_port_speicified := cmd.NArg() == 2
 
 	steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
 	if err != nil {
@@ -841,14 +832,40 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
-	if frontends, exists := ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
-		for _, frontend := range frontends {
-			fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
+	if is_port_speicified {
+		var (
+			port  = cmd.Arg(1)
+			proto = "tcp"
+			parts = strings.SplitN(port, "/", 2)
+		)
+
+		if len(parts) == 2 && len(parts[1]) != 0 {
+			port = parts[0]
+			proto = parts[1]
 		}
+
+		if frontends, exists := ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
+			for _, frontend := range frontends {
+				fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
+			}
+			return nil
+		}
+
+		return fmt.Errorf("Error: No public port '%s' published for %s", cmd.Arg(1), cmd.Arg(0))
+	} else {
+		if len(ports) == 0 {
+			return fmt.Errorf("Error: No public port published for %s", cmd.Arg(0))
+		}
+
+		for private_port, frontends := range ports {
+			fmt.Fprintf(cli.out, "%s\n", private_port)
+			for _, frontend := range frontends {
+				fmt.Fprintf(cli.out, "\t%s:%s\n", frontend.HostIp, frontend.HostPort)
+			}
+		}
+
 		return nil
 	}
-
-	return fmt.Errorf("Error: No public port '%s' published for %s", cmd.Arg(1), cmd.Arg(0))
 }
 
 // 'docker rmi IMAGE' removes all images with the name IMAGE

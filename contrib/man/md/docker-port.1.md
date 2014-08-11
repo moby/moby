@@ -2,13 +2,13 @@
 % William Henry
 % APRIL 2014
 # NAME
-docker-port - Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+docker-port - Display container:host mappings of ports
 
 # SYNOPSIS
 **docker port** CONTAINER PRIVATE_PORT
 
 # DESCRIPTION
-Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+Display container:host mappings of ports, if PRIVATE_PORT is specified, only those NAT-ed to PRIVATE_PORT will be showed
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

@@ -709,9 +709,9 @@ and stderr.
 
 ## port
 
-    Usage: docker port CONTAINER PRIVATE_PORT
+    Usage: docker port CONTAINER [PRIVATE_PORT]
 
-    Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+    Display container:host mappings of ports, if PRIVATE_PORT is specified, only those NAT-ed to PRIVATE_PORT will be showed
 
 ## ps
 

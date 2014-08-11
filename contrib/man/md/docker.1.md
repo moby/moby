@@ -128,7 +128,7 @@ inside it)
   Fetch the logs of a container
 
 **docker-port(1)**
-  Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+  Display container:host mappings of ports
 
 **docker-ps(1)**
   List containers

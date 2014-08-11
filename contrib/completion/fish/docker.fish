@@ -146,7 +146,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -s f -l follow -d
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -a '(__fish_print_docker_containers running)' -d "Container"
 
 # port
-complete -c docker -f -n '__fish_docker_no_subcommand' -a port -d 'Lookup the public-facing port which is NAT-ed to PRIVATE_PORT'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a port -d 'Display container:host mappings of ports, if PRIVATE_PORT is specified, only those NAT-ed to PRIVATE_PORT will be showed'
 complete -c docker -A -f -n '__fish_seen_subcommand_from port' -a '(__fish_print_docker_containers running)' -d "Container"
 
 # ps
