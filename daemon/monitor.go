@@ -74,66 +74,6 @@ func (m *containerMonitor) Close() error {
 	return nil
 }
 
-// reset resets the container's IO and ensures that the command is able to be executed again
-// by copying the data into a new struct
-func (m *containerMonitor) reset(successful bool) {
-	container := m.container
-
-	if container.Config.OpenStdin {
-		if err := container.stdin.Close(); err != nil {
-			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
-		}
-	}
-
-	if err := container.stdout.Clean(); err != nil {
-		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
-	}
-
-	if err := container.stderr.Clean(); err != nil {
-		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
-	}
-
-	if container.command != nil && container.command.Terminal != nil {
-		if err := container.command.Terminal.Close(); err != nil {
-			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
-		}
-	}
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-
-	container.LogEvent("die")
-
-	c := container.command.Cmd
-
-	container.command.Cmd = exec.Cmd{
-		Stdin:       c.Stdin,
-		Stdout:      c.Stdout,
-		Stderr:      c.Stderr,
-		Path:        c.Path,
-		Env:         c.Env,
-		ExtraFiles:  c.ExtraFiles,
-		Args:        c.Args,
-		Dir:         c.Dir,
-		SysProcAttr: c.SysProcAttr,
-	}
-
-	// the container exited successfully so we need to reset the failure counter
-	// and the timeIncrement back to the default values
-	if successful {
-		m.failureCount = 0
-		m.timeIncrement = defaultTimeIncrement
-	} else {
-		// otherwise we need to increment the amount of time we wait before restarting
-		// the process.  We will build up by multiplying the increment by 2
-
-		m.failureCount++
-		m.timeIncrement *= 2
-	}
-}
-
 // Start starts the containers process and monitors it according to the restart policy
 func (m *containerMonitor) Start() error {
 	var (
@@ -151,7 +91,7 @@ func (m *containerMonitor) Start() error {
 		m.container.RestartCount++
 
 		if err := m.container.startLoggingToDisk(); err != nil {
-			m.reset(false)
+			m.resetContainer()
 
 			return err
 		}
@@ -164,24 +104,46 @@ func (m *containerMonitor) Start() error {
 			utils.Errorf("Error running container: %s", err)
 		}
 
-		// we still wait to set the state as stopped and ensure that the locks were released
-		m.container.State.SetStopped(exitStatus)
-
-		// pass if we exited successfully
-		m.reset(err == nil && exitStatus == 0)
+		m.resetMonitor(err == nil && exitStatus == 0)
 
 		if m.shouldRestart(exitStatus) {
+			m.container.State.SetRestarting(exitStatus)
+
+			m.resetContainer()
+
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
 			// restarting the container because of some types of errors ( networking cut out, etc... )
 			time.Sleep(time.Duration(m.timeIncrement) * time.Millisecond)
 
 			continue
+		} else {
+			// we still wait to set the state as stopped and ensure that the locks were released
+			m.container.State.SetStopped(exitStatus)
+
+			m.resetContainer()
 		}
 
 		break
 	}
 
 	return err
+}
+
+// resetMonitor resets the stateful fields on the containerMonitor based on the
+// previous runs success or failure
+func (m *containerMonitor) resetMonitor(successful bool) {
+	// the container exited successfully so we need to reset the failure counter
+	// and the timeIncrement back to the default values
+	if successful {
+		m.failureCount = 0
+		m.timeIncrement = defaultTimeIncrement
+	} else {
+		// otherwise we need to increment the amount of time we wait before restarting
+		// the process.  We will build up by multiplying the increment by 2
+
+		m.failureCount++
+		m.timeIncrement *= 2
+	}
 }
 
 // shouldRestart checks the restart policy and applies the rules to determine if
@@ -227,5 +189,52 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 
 	if err := m.container.ToDisk(); err != nil {
 		utils.Debugf("%s", err)
+	}
+}
+
+// resetContainer resets the container's IO and ensures that the command is able to be executed again
+// by copying the data into a new struct
+func (m *containerMonitor) resetContainer() {
+	container := m.container
+
+	if container.Config.OpenStdin {
+		if err := container.stdin.Close(); err != nil {
+			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
+		}
+	}
+
+	if err := container.stdout.Clean(); err != nil {
+		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
+	}
+
+	if err := container.stderr.Clean(); err != nil {
+		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
+	}
+
+	if container.command != nil && container.command.Terminal != nil {
+		if err := container.command.Terminal.Close(); err != nil {
+			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
+		}
+	}
+
+	// Re-create a brand new stdin pipe once the container exited
+	if container.Config.OpenStdin {
+		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	container.LogEvent("die")
+
+	c := container.command.Cmd
+
+	container.command.Cmd = exec.Cmd{
+		Stdin:       c.Stdin,
+		Stdout:      c.Stdout,
+		Stderr:      c.Stderr,
+		Path:        c.Path,
+		Env:         c.Env,
+		ExtraFiles:  c.ExtraFiles,
+		Args:        c.Args,
+		Dir:         c.Dir,
+		SysProcAttr: c.SysProcAttr,
 	}
 }
