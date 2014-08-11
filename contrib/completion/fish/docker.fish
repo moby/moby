@@ -16,7 +16,7 @@
 
 function __fish_docker_no_subcommand --description 'Test if docker has yet to be given the subcommand'
     for i in (commandline -opc)
-        if contains -- $i attach build commit cp diff events export history images import info insert inspect kill load login logs port ps pull push restart rm rmi run save search start stop tag top version wait
+        if contains -- $i attach build commit cp create diff events export history images import info insert inspect kill load login logs port ps pull push restart rm rmi run save search start stop tag top version wait
             return 1
         end
     end
@@ -87,6 +87,33 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -a '(__fish_pri
 
 # cp
 complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d "Copy files/folders from a container's filesystem to the host path"
+
+# create
+complete -c docker -f -n '__fish_docker_no_subcommand' -a run -d 'Run a command in a new container'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s P -l publish-all -d 'Publish all exposed ports to the host interfaces'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s a -l attach -d 'Attach to stdin, stdout or stderr.'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s c -l cpu-shares -d 'CPU shares (relative weight)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cidfile -d 'Write the container ID to the file'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns -d 'Set custom dns servers'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s e -l env -d 'Set environment variables'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l entrypoint -d 'Overwrite the default entrypoint of the image'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l expose -d 'Expose a port from the container without publishing it to your host'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s h -l hostname -d 'Container host name'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactive -d 'Keep stdin open even if not attached'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container (name:alias)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d 'Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number><optional unit>, where unit = b, k, m or g)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s n -l networking -d 'Enable networking for this container'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s p -l publish -d "Publish a container's port to the host (format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort) (use 'docker port' to see the actual mapping)"
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l privileged -d 'Give extended privileges to this container'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s t -l tty -d 'Allocate a pseudo-tty'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s u -l user -d 'Username or UID'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s v -l volume -d 'Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l volumes-from -d 'Mount volumes from the specified container(s)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s w -l workdir -d 'Working directory inside the container'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -a '(__fish_print_docker_images)' -d "Image"
+
 
 # diff
 complete -c docker -f -n '__fish_docker_no_subcommand' -a diff -d "Inspect changes on a container's filesystem"

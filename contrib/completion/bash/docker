@@ -217,6 +217,75 @@ _docker_cp()
 	fi
 }
 
+_docker_create()
+{
+	case "$prev" in
+		-a|--attach)
+			COMPREPLY=( $( compgen -W 'stdin stdout stderr' -- "$cur" ) )
+			return
+			;;
+		--cidfile|--env-file)
+			_filedir
+			return
+			;;
+		--volumes-from)
+			__docker_containers_all
+			return
+			;;
+		-v|--volume)
+			case "$cur" in
+				*:*)
+					# TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
+					;;
+				'')
+					COMPREPLY=( $( compgen -W '/' -- "$cur" ) )
+					compopt -o nospace
+					;;
+				/*)
+					_filedir
+					compopt -o nospace
+					;;
+			esac
+			return
+			;;
+		-e|--env)
+			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			compopt -o nospace
+			return
+			;;
+		--link)
+			case "$cur" in
+				*:*)
+					;;
+				*)
+					__docker_containers_running
+					COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
+					compopt -o nospace
+					;;
+			esac
+			return
+			;;
+		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf)
+			return
+			;;
+		*)
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir -c --cpu-shares --name -a --attach -v --volume --link -e --env -p --publish --expose --dns --volumes-from --lxc-conf" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf')
+
+			if [ $cword -eq $counter ]; then
+				__docker_image_repos_and_tags_and_ids
+			fi
+			;;
+	esac
+}
+
 _docker_diff()
 {
 	local counter=$(__docker_pos_first_nonflag)
@@ -670,6 +739,7 @@ _docker()
 			build
 			commit
 			cp
+			create
 			diff
 			events
 			exec
