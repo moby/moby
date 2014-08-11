@@ -51,6 +51,21 @@ In the root of the `docker` source directory:
 If you have any issues you need to debug, you can use `make docs-shell` and then
 run `mkdocs serve`
 
+### Building with Boot2Docker
+
+If you are building with `boot2docker` then you will need to open up
+some ports on the VM. You will need to do this when the virtualbox is
+not running, so if it is running now, you should `boot2docker stop`
+and then 
+
+```
+VBoxManage modifyvm "boot2docker-vm" --natpf1 "docsport,tcp,,8000,,8000"
+```
+
+That will expose port 8000 from the VM as
+port 8000 on the host, which nicely matches up with the port used by
+the docs container (*docker-docs*).
+
 ## Style guide
 
 The documentation is written with paragraphs wrapped at 80 column lines to make
