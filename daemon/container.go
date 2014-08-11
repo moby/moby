@@ -505,6 +505,13 @@ func (container *Container) monitor(callback execdriver.StartCallback) error {
 	if err != nil {
 		utils.Errorf("Error running container: %s", err)
 	}
+	// if container state is running, then we are left waitForStart
+	// and dropped container lock
+	// Note: callbacks are hell
+	if container.State.IsRunning() {
+		container.Lock()
+		defer container.Unlock()
+	}
 	container.State.SetStopped(exitCode)
 
 	// Cleanup
