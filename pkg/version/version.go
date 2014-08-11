@@ -12,9 +12,17 @@ func (me Version) compareTo(other Version) int {
 		meTab    = strings.Split(string(me), ".")
 		otherTab = strings.Split(string(other), ".")
 	)
-	for i, s := range meTab {
+
+	max := len(meTab)
+	if len(otherTab) > max {
+		max = len(otherTab)
+	}
+	for i := 0; i < max; i++ {
 		var meInt, otherInt int
-		meInt, _ = strconv.Atoi(s)
+
+		if len(meTab) > i {
+			meInt, _ = strconv.Atoi(meTab[i])
+		}
 		if len(otherTab) > i {
 			otherInt, _ = strconv.Atoi(otherTab[i])
 		}
@@ -24,9 +32,6 @@ func (me Version) compareTo(other Version) int {
 		if otherInt > meInt {
 			return -1
 		}
-	}
-	if len(otherTab) > len(meTab) {
-		return -1
 	}
 	return 0
 }
