@@ -171,7 +171,7 @@ func (container *Container) WriteHostConfig() error {
 func (container *Container) LogEvent(action string) {
 	d := container.daemon
 	if err := d.eng.Job("log", action, container.ID, d.Repositories().ImageName(container.Image)).Run(); err != nil {
-		utils.Errorf("Error running container: %s", err)
+		utils.Errorf("Error logging event %s for %s: %s", action, container.ID, err)
 	}
 }
 
