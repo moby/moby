@@ -102,3 +102,38 @@ func TestCLIGetEventsContainerEvents(t *testing.T) {
 
 	logDone("events - container create, start, die, destroy is logged")
 }
+
+func TestCLIGetEventsImageUntagDelete(t *testing.T) {
+	name := "testimageevents"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER "docker"`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := deleteImages(name); err != nil {
+		t.Fatal(err)
+	}
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatal("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	t.Log(events)
+	events = events[:len(events)-1]
+	if len(events) < 2 {
+		t.Fatalf("Missing expected event")
+	}
+	untagEvent := strings.Fields(events[len(events)-2])
+	deleteEvent := strings.Fields(events[len(events)-1])
+	if untagEvent[len(untagEvent)-1] != "untag" {
+		t.Fatalf("untag should be untag, not %#v", untagEvent)
+	}
+	if deleteEvent[len(deleteEvent)-1] != "delete" {
+		t.Fatalf("delete should be delete, not %#v", deleteEvent)
+	}
+	logDone("events - image untag, delete is logged")
+}
