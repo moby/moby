@@ -266,11 +266,11 @@ These parameters will help you get rid of the following warnings:
 
 ## Troubleshooting
 
-On Linux Mint, the `cgroup-lite` package is not
+On Linux Mint, the `cgroup-lite` and `apparmor` packages are not
 installed by default. Before Docker will work correctly, you will need
 to install this via:
 
-    $ sudo apt-get update && sudo apt-get install cgroup-lite
+    $ sudo apt-get update && sudo apt-get install cgroup-lite apparmor
 
 ## Docker and UFW
 
