@@ -7,6 +7,8 @@ import (
 
 var _zero uintptr
 
+// Returns the size of xattrs and nil error
+// Requires path, takes allocated []byte or nil as last argument
 func Llistxattr(path string, dest []byte) (size int, err error) {
 	pathBytes, err := syscall.BytePtrFromString(path)
 
@@ -30,8 +32,10 @@ func Llistxattr(path string, dest []byte) (size int, err error) {
 	return size, nil
 }
 
-// Returns a nil slice and nil error if the xattr is not set
+// Returns a []byte slice if the xattr is set and nil otherwise
+// Requires path and its attribute as arguments
 func Lgetxattr(path string, attr string) ([]byte, error) {
+	var sz int
 	pathBytes, err := syscall.BytePtrFromString(path)
 	if err != nil {
 		return nil, err
@@ -41,9 +45,12 @@ func Lgetxattr(path string, attr string) ([]byte, error) {
 		return nil, err
 	}
 
-	dest := make([]byte, 128)
+	// Start with a 128 length byte array
+	sz = 128
+	dest := make([]byte, sz)
+
 	destBytes := unsafe.Pointer(&dest[0])
-	sz, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
+	_sz, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
 
 	switch {
 	case errno == syscall.ENODATA:
@@ -51,15 +58,24 @@ func Lgetxattr(path string, attr string) ([]byte, error) {
 	case errno == syscall.ENOTSUP:
 		return nil, errno
 	case errno == syscall.ERANGE:
+		// 128 byte array might just not be good enough,
+		// A dummy buffer is used ``uintptr(0)`` to get real size
+		// of the xattrs on disk
+		_sz, _, errno = syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(unsafe.Pointer(nil)), uintptr(0), 0, 0)
+		sz = int(_sz)
+		if sz < 0 {
+			return nil, errno
+		}
 		dest = make([]byte, sz)
 		destBytes := unsafe.Pointer(&dest[0])
-		sz, _, errno = syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
+		_sz, _, errno = syscall.Syscall6(syscall.SYS_LGETXATTR, uintptr(unsafe.Pointer(pathBytes)), uintptr(unsafe.Pointer(attrBytes)), uintptr(destBytes), uintptr(len(dest)), 0, 0)
 		if errno != 0 {
 			return nil, errno
 		}
 	case errno != 0:
 		return nil, errno
 	}
+	sz = int(_sz)
 	return dest[:sz], nil
 }
 
