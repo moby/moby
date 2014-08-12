@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -16,13 +15,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kr/pty"
+
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
-	"github.com/kr/pty"
 )
 
 const DriverName = "lxc"
@@ -45,7 +46,7 @@ func init() {
 
 		path, err := exec.LookPath(args.Args[0])
 		if err != nil {
-			log.Printf("Unable to locate %v", args.Args[0])
+			log.Infof("Unable to locate %v", args.Args[0])
 			os.Exit(127)
 		}
 		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
@@ -344,7 +345,7 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		utils.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		log.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
 		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {

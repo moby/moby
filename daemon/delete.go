@@ -2,14 +2,13 @@ package daemon
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/log"
 )
 
 // FIXME: rename to ContainerRemove for consistency with the CLI command.
@@ -118,7 +117,7 @@ func (daemon *Daemon) ContainerDestroy(job *engine.Job) engine.Status {
 			for volumeId := range volumes {
 				// If the requested volu
 				if c, exists := usedVolumes[volumeId]; exists {
-					log.Printf("The volume %s is used by the container %s. Impossible to remove it. Skipping.\n", volumeId, c.ID)
+					log.Infof("The volume %s is used by the container %s. Impossible to remove it. Skipping.\n", volumeId, c.ID)
 					continue
 				}
 				if err := daemon.Volumes().Delete(volumeId); err != nil {
@@ -153,7 +152,7 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	daemon.containers.Delete(container.ID)
 
 	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		utils.Debugf("Unable to remove container from link graph: %s", err)
+		log.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
 	if err := daemon.driver.Remove(container.ID); err != nil {
