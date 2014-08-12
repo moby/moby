@@ -1,7 +1,6 @@
 package archive
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -345,7 +345,8 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 	tw := tar.NewWriter(writer)
 
 	go func() {
-		twBuf := bufio.NewWriterSize(nil, twBufSize)
+		twBuf := pools.BufioWriter32KPool.Get(nil)
+		defer pools.BufioWriter32KPool.Put(twBuf)
 		// In general we log errors here but ignore them because
 		// during e.g. a diff operation the container can continue
 		// mutating the filesystem and we can see transient errors

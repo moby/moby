@@ -1,7 +1,6 @@
 package archive
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +10,8 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+
+	"github.com/docker/docker/pkg/pools"
 )
 
 // Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
@@ -33,7 +34,8 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 	}
 
 	tr := tar.NewReader(layer)
-	trBuf := bufio.NewReaderSize(nil, trBufSize)
+	trBuf := pools.BufioReader32KPool.Get(tr)
+	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
 
