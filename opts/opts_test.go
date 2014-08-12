@@ -4,36 +4,30 @@ import (
 	"testing"
 )
 
-func TestValidateIPAddress(t *testing.T) {
-	if ret, err := ValidateIPAddress(`1.2.3.4`); err != nil || ret == "" {
-		t.Fatalf("ValidateIPAddress(`1.2.3.4`) got %s %s", ret, err)
+func TestvalidateIPAddress(t *testing.T) {
+	if ret, err := validateIPAddress(`1.2.3.4`); err != nil || ret == "" {
+		t.Fatalf("validateIPAddress(`1.2.3.4`) got %s %s", ret, err)
 	}
 
-	if ret, err := ValidateIPAddress(`127.0.0.1`); err != nil || ret == "" {
-		t.Fatalf("ValidateIPAddress(`127.0.0.1`) got %s %s", ret, err)
+	if ret, err := validateIPAddress(`127.0.0.1`); err != nil || ret == "" {
+		t.Fatalf("validateIPAddress(`127.0.0.1`) got %s %s", ret, err)
 	}
 
-	if ret, err := ValidateIPAddress(`::1`); err != nil || ret == "" {
-		t.Fatalf("ValidateIPAddress(`::1`) got %s %s", ret, err)
+	if ret, err := validateIPAddress(`::1`); err != nil || ret == "" {
+		t.Fatalf("validateIPAddress(`::1`) got %s %s", ret, err)
 	}
 
-	if ret, err := ValidateIPAddress(`127`); err == nil || ret != "" {
-		t.Fatalf("ValidateIPAddress(`127`) got %s %s", ret, err)
+	if ret, err := validateIPAddress(`127`); err == nil || ret != "" {
+		t.Fatalf("validateIPAddress(`127`) got %s %s", ret, err)
 	}
 
-	if ret, err := ValidateIPAddress(`random invalid string`); err == nil || ret != "" {
-		t.Fatalf("ValidateIPAddress(`random invalid string`) got %s %s", ret, err)
+	if ret, err := validateIPAddress(`random invalid string`); err == nil || ret != "" {
+		t.Fatalf("validateIPAddress(`random invalid string`) got %s %s", ret, err)
 	}
 
 }
 
-func TestListOpts(t *testing.T) {
-	o := NewListOpts(nil)
-	o.Set("foo")
-	o.String()
-}
-
-func TestValidateDnsSearch(t *testing.T) {
+func TestvalidateDnsSearch(t *testing.T) {
 	valid := []string{
 		`.`,
 		`a`,
@@ -77,14 +71,14 @@ func TestValidateDnsSearch(t *testing.T) {
 	}
 
 	for _, domain := range valid {
-		if ret, err := ValidateDnsSearch(domain); err != nil || ret == "" {
-			t.Fatalf("ValidateDnsSearch(`"+domain+"`) got %s %s", ret, err)
+		if ret, err := validateDnsSearch(domain); err != nil || ret == "" {
+			t.Fatalf("validateDnsSearch(`"+domain+"`) got %s %s", ret, err)
 		}
 	}
 
 	for _, domain := range invalid {
-		if ret, err := ValidateDnsSearch(domain); err == nil || ret != "" {
-			t.Fatalf("ValidateDnsSearch(`"+domain+"`) got %s %s", ret, err)
+		if ret, err := validateDnsSearch(domain); err == nil || ret != "" {
+			t.Fatalf("validateDnsSearch(`"+domain+"`) got %s %s", ret, err)
 		}
 	}
 }

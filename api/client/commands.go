@@ -1252,8 +1252,8 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
-	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
+	var flFilter []string
+	opts.ListVar(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1266,7 +1266,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.
 	imageFilterArgs := filters.Args{}
-	for _, f := range flFilter.GetAll() {
+	for _, f := range flFilter {
 		var err error
 		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
 		if err != nil {
@@ -1485,8 +1485,10 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	before := cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
-	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
+	// FIXME: `opts.ListVar` should support arbitrary FlagSets
+	// (currently it only supports the global `flag.Var`.
+	var flFilter []string
+	cmd.Var((*opts.List)(&flFilter), []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1514,7 +1516,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	// Consolidate all filter flags, and sanity check them.
 	// They'll get processed in the daemon/server.
 	psFilterArgs := filters.Args{}
-	for _, f := range flFilter.GetAll() {
+	for _, f := range flFilter {
 		var err error
 		psFilterArgs, err = filters.ParseFlag(f, psFilterArgs)
 		if err != nil {

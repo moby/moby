@@ -3,29 +3,26 @@ package opts
 import (
 	"fmt"
 	"net"
+
+	flag "github.com/docker/docker/pkg/mflag"
 )
 
-type IpOpt struct {
-	*net.IP
+func IPVar(value *net.IP, names []string, defaultValue, usage string) {
+	ip := (*IP)(value)
+	ip.Set(defaultValue)
+	flag.Var(ip, names, usage)
 }
 
-func NewIpOpt(ref *net.IP, defaultVal string) *IpOpt {
-	o := &IpOpt{
-		IP: ref,
-	}
-	o.Set(defaultVal)
-	return o
-}
+type IP net.IP
 
-func (o *IpOpt) Set(val string) error {
-	ip := net.ParseIP(val)
-	if ip == nil {
+func (ip *IP) Set(val string) error {
+	(*ip) = IP(net.ParseIP(val))
+	if (*ip) == nil {
 		return fmt.Errorf("%s is not an ip address", val)
 	}
-	(*o.IP) = net.ParseIP(val)
 	return nil
 }
 
-func (o *IpOpt) String() string {
-	return (*o.IP).String()
+func (ip *IP) String() string {
+	return (*ip).String()
 }
