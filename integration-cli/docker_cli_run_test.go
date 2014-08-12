@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -1480,4 +1482,70 @@ func TestRunCleanupCmdOnEntrypoint(t *testing.T) {
 		t.Fatalf("Expected output root, got %q", out)
 	}
 	logDone("run - cleanup cmd on --entrypoint")
+}
+
+// TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
+func TestRunWorkdirExistsAndIsFile(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-w", "/bin/cat", "busybox")
+	out, exit, err := runCommandWithOutput(runCmd)
+	if !(err != nil && exit == 1 && strings.Contains(out, "Cannot mkdir: /bin/cat is not a directory")) {
+		t.Fatalf("Docker must complains about making dir, but we got out: %s, exit: %d, err: %s", out, exit, err)
+	}
+	logDone("run - error on existing file for workdir")
+}
+
+func TestRunExitOnStdinClose(t *testing.T) {
+	name := "testrunexitonstdinclose"
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "-i", "busybox", "/bin/cat")
+
+	stdin, err := runCmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := runCmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stdin.Write([]byte("hello\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	r := bufio.NewReader(stdout)
+	line, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	line = strings.TrimSpace(line)
+	if line != "hello" {
+		t.Fatalf("Output should be 'hello', got '%q'", line)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
+	finish := make(chan struct{})
+	go func() {
+		if err := runCmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+		close(finish)
+	}()
+	select {
+	case <-finish:
+	case <-time.After(1 * time.Second):
+		t.Fatal("docker run failed to exit on stdin close")
+	}
+	state, err := inspectField(name, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "false" {
+		t.Fatal("Container must be stopped after stdin closing")
+	}
+	logDone("run - exit on stdin closing")
 }
