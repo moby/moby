@@ -55,7 +55,33 @@ All decisions affecting Docker, big and small, follow the same 3 steps:
 
 * Step 3: Accept (`LGTM`) or refuse a pull request. The relevant maintainers do 
 this (see below "Who decides what?")
-
+ + Accepting pull requests
+  - If the pull request appears to be ready to merge, give it a `LGTM`, which
+    stands for "Looks Good To Me".
+  - If the pull request has some small problems that need to be changed, make
+    a comment adressing the issues.
+  - If the changes needed to a PR are small, you can add a "LGTM once the
+    following comments are adressed..." this will reduce needless back and
+    forth.
+  - If the PR only needs a few changes before being merged, any MAINTAINER can
+    make a replacement PR that incorporates the existing commits and fixes the
+    problems before a fast track merge.
+ + Closing pull requests
+  - If a PR appears to be abandoned, after having attempted to contact the
+    original contributor, then a replacement PR may be made.  Once the
+    replacement PR is made, any contributor may close the original one.
+  - If you are not sure if the pull request implements a good feature or you
+    do not understand the purpose of the PR, ask the contributor to provide
+    more documentation.  If the contributor is not able to adequately explain
+    the purpose of the PR, the PR may be closed by any MAINTAINER.
+  - If a MAINTAINER feels that the pull request is sufficiently architecturally
+    flawed, or if the pull request needs significantly more design discussion
+    before being considered, the MAINTAINER should close the pull request with
+    a short explanation of what discussion still needs to be had.  It is
+    important not to leave such pull requests open, as this will waste both the
+    MAINTAINER's time and the contributor's time.  It is not good to string a
+    contributor on for weeks or months, having them make many changes to a PR
+    that will eventually be rejected.
 
 ## Who decides what?
 
