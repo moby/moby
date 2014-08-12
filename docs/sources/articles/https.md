@@ -31,25 +31,64 @@ keys:
 
     $ echo 01 > ca.srl
     $ openssl genrsa -des3 -out ca-key.pem 2048
+    Generating RSA private key, 2048 bit long modulus
+    ......+++
+    ...............+++
+    e is 65537 (0x10001)
+    Enter pass phrase for ca-key.pem:
+    Verifying - Enter pass phrase for ca-key.pem:
     $ openssl req -new -x509 -days 365 -key ca-key.pem -out ca.pem
+    Enter pass phrase for ca-key.pem:
+     You are about to be asked to enter information that will be incorporated
+     into your certificate request.
+     What you are about to enter is what is called a Distinguished Name or a DN.
+     There are quite a few fields but you can leave some blank
+     For some fields there will be a default value,
+     If you enter '.', the field will be left blank.
+     -----
+     Country Name (2 letter code) [AU]:
+     State or Province Name (full name) [Some-State]:Queensland
+     Locality Name (eg, city) []:Brisbane
+     Organization Name (eg, company) [Internet Widgits Pty Ltd]:Docker Inc
+     Organizational Unit Name (eg, section) []:Boot2Docker
+     Common Name (e.g. server FQDN or YOUR name) []:your.host.com
+     Email Address []:Sven@home.org.au
 
 Now that we have a CA, you can create a server key and certificate
 signing request (CSR). Make sure that "Common Name" (i.e. server FQDN or YOUR
 name) matches the hostname you will use to connect to Docker:
 
     $ openssl genrsa -des3 -out server-key.pem 2048
+    Generating RSA private key, 2048 bit long modulus
+    ......................................................+++
+    ............................................+++
+    e is 65537 (0x10001)
+    Enter pass phrase for server-key.pem:
+    Verifying - Enter pass phrase for server-key.pem:
     $ openssl req -subj '/CN=<Your Hostname Here>' -new -key server-key.pem -out server.csr
+    Enter pass phrase for server-key.pem:
 
-Next we're going to sign the key with our CA:
+Next, we're going to sign the key with our CA:
 
     $ openssl x509 -req -days 365 -in server.csr -CA ca.pem -CAkey ca-key.pem \
       -out server-cert.pem
+    Signature ok
+    subject=/CN=your.host.com
+    Getting CA Private Key
+    Enter pass phrase for ca-key.pem:
 
 For client authentication, create a client key and certificate signing
 request:
 
-    $ openssl genrsa -des3 -out client-key.pem 2048
-    $ openssl req -subj '/CN=client' -new -key client-key.pem -out client.csr
+    $ openssl genrsa -des3 -out key.pem 2048
+    Generating RSA private key, 2048 bit long modulus
+    ...............................................+++
+    ...............................................................+++
+    e is 65537 (0x10001)
+    Enter pass phrase for key.pem:
+    Verifying - Enter pass phrase for key.pem:
+    $ openssl req -subj '/CN=client' -new -key key.pem -out client.csr
+    Enter pass phrase for key.pem:
 
 To make the key suitable for client authentication, create an extensions
 config file:
@@ -59,12 +98,20 @@ config file:
 Now sign the key:
 
     $ openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem \
-      -out client-cert.pem -extfile extfile.cnf
+      -out cert.pem -extfile extfile.cnf
+    Signature ok
+    subject=/CN=client
+    Getting CA Private Key
+    Enter pass phrase for ca-key.pem:
 
 Finally, you need to remove the passphrase from the client and server key:
 
     $ openssl rsa -in server-key.pem -out server-key.pem
-    $ openssl rsa -in client-key.pem -out client-key.pem
+    Enter pass phrase for server-key.pem:
+    writing RSA key
+    $ openssl rsa -in key.pem -out key.pem
+    Enter pass phrase for key.pem:
+    writing RSA key
 
 Now you can make the Docker daemon only accept connections from clients
 providing a certificate trusted by our CA:
@@ -75,8 +122,8 @@ providing a certificate trusted by our CA:
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
-    $ docker --tlsverify --tlscacert=ca.pem --tlscert=client-cert.pem --tlskey=client-key.pem \
-      -H=dns-name-of-docker-host:2376
+    $ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
+      -H=dns-name-of-docker-host:2376 version
 
 > **Note**:
 > Docker over TLS should run on TCP port 2376.
@@ -95,11 +142,11 @@ the files to the `.docker` directory in your home directory - and set the
 `DOCKER_HOST` variable as well.
 
     $ cp ca.pem ~/.docker/ca.pem
-    $ cp client-cert.pem ~/.docker/cert.pem
-    $ cp client-key.pem ~/.docker/key.pem
+    $ cp cert.pem ~/.docker/cert.pem
+    $ cp key.pem ~/.docker/key.pem
     $ export DOCKER_HOST=tcp://:2376
 
-Then you can just run Docker with the `--tlsverify` option.
+Then you can run Docker with the `--tlsverify` option.
 
     $ docker --tlsverify ps
 
@@ -127,5 +174,5 @@ to drop your keys into `~/.docker/<ca, cert or key>.pem`. Alternatively,
 if you want to store your keys in another location, you can specify that
 location using the environment variable `DOCKER_CERT_PATH`.
 
-    $ export DOCKER_CERT_PATH=${HOME}/.dockers/zone1/
+    $ export DOCKER_CERT_PATH=${HOME}/.docker/zone1/
     $ docker --tlsverify ps
