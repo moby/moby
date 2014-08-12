@@ -2213,7 +2213,6 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 
 	copyData.Set("Resource", info[1])
-	copyData.Set("HostPath", cmd.Arg(1))
 
 	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, false)
 	if stream != nil {
@@ -2227,7 +2226,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 
 	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
+		if err := archive.Untar(stream, cmd.Arg(1), &archive.TarOptions{NoLchown: true}); err != nil {
 			return err
 		}
 	}
