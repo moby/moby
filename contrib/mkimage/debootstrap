@@ -188,4 +188,6 @@ fi
 	# delete all the apt list files since they're big and get stale quickly
 	rm -rf "$rootfsDir/var/lib/apt/lists"/*
 	# this forces "apt-get update" in dependent images, which is also good
+	
+	mkdir "$rootfsDir/var/lib/apt/lists/partial" # Lucid... "E: Lists directory /var/lib/apt/lists/partial is missing."
 )
