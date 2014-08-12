@@ -7,19 +7,15 @@ import (
 	"net"
 
 	"github.com/docker/docker/builtins"
+	_ "github.com/docker/docker/daemon/execdriver/lxc"
+	_ "github.com/docker/docker/daemon/execdriver/native"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/sysinit"
 )
 
 const CanDaemon = true
-
-func mainSysinit() {
-	// Running in init mode
-	sysinit.SysInit()
-}
 
 func mainDaemon() {
 	if flag.NArg() != 0 {

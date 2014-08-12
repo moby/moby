@@ -20,8 +20,8 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/sysinit"
 	"github.com/docker/docker/utils"
 )
 
@@ -94,8 +94,7 @@ func init() {
 	os.Setenv("DOCKER_TMPDIR", unitTestDockerTmpdir)
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
-		sysinit.SysInit()
+	if reexec.Init() {
 		return
 	}
 

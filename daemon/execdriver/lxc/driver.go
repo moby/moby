@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -27,34 +25,6 @@ import (
 
 const DriverName = "lxc"
 
-func init() {
-	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		runtime.LockOSThread()
-		if err := setupEnv(args); err != nil {
-			return err
-		}
-		if err := setupHostname(args); err != nil {
-			return err
-		}
-		if err := setupNetworking(args); err != nil {
-			return err
-		}
-		if err := finalizeNamespace(args); err != nil {
-			return err
-		}
-
-		path, err := exec.LookPath(args.Args[0])
-		if err != nil {
-			log.Printf("Unable to locate %v", args.Args[0])
-			os.Exit(127)
-		}
-		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
-			return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
-		}
-		panic("Unreachable")
-	})
-}
-
 type driver struct {
 	root       string // root path for the driver to use
 	initPath   string
@@ -67,6 +37,7 @@ func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
 	}
+
 	return &driver{
 		apparmor:   apparmor,
 		root:       root,
@@ -108,8 +79,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"-f", configPath,
 		"--",
 		c.InitPath,
-		"-driver",
-		DriverName,
 	}
 
 	if c.Network.Interface != nil {

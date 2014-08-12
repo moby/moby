@@ -20,49 +20,7 @@ var (
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-var dockerInitFcts map[string]InitFunc
-
-type (
-	StartCallback func(*Command)
-	InitFunc      func(i *InitArgs) error
-)
-
-func RegisterInitFunc(name string, fct InitFunc) error {
-	if dockerInitFcts == nil {
-		dockerInitFcts = make(map[string]InitFunc)
-	}
-	if _, ok := dockerInitFcts[name]; ok {
-		return ErrDriverAlreadyRegistered
-	}
-	dockerInitFcts[name] = fct
-	return nil
-}
-
-func GetInitFunc(name string) (InitFunc, error) {
-	fct, ok := dockerInitFcts[name]
-	if !ok {
-		return nil, ErrDriverNotFound
-	}
-	return fct, nil
-}
-
-// Args provided to the init function for a driver
-type InitArgs struct {
-	User       string
-	Gateway    string
-	Ip         string
-	WorkDir    string
-	Privileged bool
-	Env        []string
-	Args       []string
-	Mtu        int
-	Driver     string
-	Console    string
-	Pipe       int
-	Root       string
-	CapAdd     string
-	CapDrop    string
-}
+type StartCallback func(*Command)
 
 // Driver specific information based on
 // processes registered with the driver
