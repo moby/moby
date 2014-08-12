@@ -43,6 +43,9 @@ type containerMonitor struct {
 	// timeIncrement is the amount of time to wait between restarts
 	// this is in milliseconds
 	timeIncrement int
+
+	// lastStartTime is the time which the monitor last exec'd the container's process
+	lastStartTime time.Time
 }
 
 func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *containerMonitor {
@@ -113,6 +116,8 @@ func (m *containerMonitor) Start() error {
 
 		m.container.LogEvent("start")
 
+		m.lastStartTime = time.Now()
+
 		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
 			utils.Errorf("Error running container: %s", err)
 		}
@@ -154,19 +159,24 @@ func (m *containerMonitor) Start() error {
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
-// previous runs success or failure
+// previous runs success or failure.  Reguardless of success, if the container had
+// an execution time of more than 10s then reset the timer back to the default
 func (m *containerMonitor) resetMonitor(successful bool) {
-	// the container exited successfully so we need to reset the failure counter
-	// and the timeIncrement back to the default values
-	if successful {
-		m.failureCount = 0
+	executionTime := time.Now().Sub(m.lastStartTime).Seconds()
+
+	if executionTime > 10 {
 		m.timeIncrement = defaultTimeIncrement
 	} else {
 		// otherwise we need to increment the amount of time we wait before restarting
 		// the process.  We will build up by multiplying the increment by 2
-
-		m.failureCount++
 		m.timeIncrement *= 2
+	}
+
+	// the container exited successfully so we need to reset the failure counter
+	if successful {
+		m.failureCount = 0
+	} else {
+		m.failureCount++
 	}
 }
 
