@@ -1481,3 +1481,14 @@ func TestRunCleanupCmdOnEntrypoint(t *testing.T) {
 	}
 	logDone("run - cleanup cmd on --entrypoint")
 }
+
+// TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
+func TestRunWorkdirExistsAndIsFile(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-w", "/bin/cat", "busybox")
+	out, exit, err := runCommandWithOutput(runCmd)
+	if !(err != nil && exit == 1 && strings.Contains(out, "Cannot mkdir: /bin/cat is not a directory")) {
+		t.Fatalf("Docker must complains about making dir, but we got out: %s, exit: %d, err: %s", out, exit, err)
+	}
+	logDone("run - error on existing file for workdir")
+}

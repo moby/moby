@@ -113,25 +113,6 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-// TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
-func TestRunWorkdirExistsAndIsFile(t *testing.T) {
-
-	cli := client.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("-w", "/bin/cat", unitTestImageID, "pwd"); err == nil {
-			t.Fatal("should have failed to run when using /bin/cat as working dir.")
-		}
-	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
-
 func TestRunExit(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
