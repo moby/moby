@@ -21,3 +21,19 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 type NopFlusher struct{}
 
 func (f *NopFlusher) Flush() {}
+
+type writeCloserWrapper struct {
+	io.Writer
+	closer func() error
+}
+
+func (r *writeCloserWrapper) Close() error {
+	return r.closer()
+}
+
+func NewWriteCloserWrapper(r io.Writer, closer func() error) io.WriteCloser {
+	return &writeCloserWrapper{
+		Writer: r,
+		closer: closer,
+	}
+}
