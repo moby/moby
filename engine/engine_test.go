@@ -14,6 +14,10 @@ func TestRegister(t *testing.T) {
 	if err := Register("dummy1", nil); err == nil {
 		t.Fatalf("Expecting error, got none")
 	}
+	var _, ok = globalHandlers["dummy1"]
+	if !ok {
+		t.Fatalf("dummy1 not found")
+	}
 	// Register is global so let's cleanup to avoid conflicts
 	defer unregister("dummy1")
 
@@ -33,6 +37,21 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("Expecting error, got none")
 	}
 	defer unregister("dummy2")
+}
+
+func TestRegisterValidHandler(t *testing.T) {
+	h := func(j *Job) Status {
+		j.Logf("%s\n", j.Name)
+		return 42
+	}
+	Register("handler1", h)
+	//making sure it gets unregistered before the t.Fatalf call
+	defer unregister("handler1")
+	var _, ok = globalHandlers["handler1"]
+	if !ok {
+		t.Fatalf("handler1 not found")
+	}
+
 }
 
 func TestJob(t *testing.T) {
