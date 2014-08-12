@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -198,7 +199,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return utils.NewReadCloserWrapper(archive, func() error {
+		return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
 			driver.Put(img.ID)
 			return err
@@ -218,7 +219,7 @@ func (img *Image) TarLayer() (arch archive.Archive, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return utils.NewReadCloserWrapper(archive, func() error {
+	return ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
 		driver.Put(img.ID)
 		return err

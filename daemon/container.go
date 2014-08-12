@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -366,25 +367,25 @@ func (streamConfig *StreamConfig) StdinPipe() (io.WriteCloser, error) {
 func (streamConfig *StreamConfig) StdoutPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	streamConfig.stdout.AddWriter(writer, "")
-	return utils.NewBufReader(reader), nil
+	return ioutils.NewBufReader(reader), nil
 }
 
 func (streamConfig *StreamConfig) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	streamConfig.stderr.AddWriter(writer, "")
-	return utils.NewBufReader(reader), nil
+	return ioutils.NewBufReader(reader), nil
 }
 
 func (streamConfig *StreamConfig) StdoutLogPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
 	streamConfig.stdout.AddWriter(writer, "stdout")
-	return utils.NewBufReader(reader)
+	return ioutils.NewBufReader(reader)
 }
 
 func (streamConfig *StreamConfig) StderrLogPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
 	streamConfig.stderr.AddWriter(writer, "stderr")
-	return utils.NewBufReader(reader)
+	return ioutils.NewBufReader(reader)
 }
 
 func (container *Container) buildHostnameFile() error {
@@ -655,7 +656,7 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return utils.NewReadCloserWrapper(archive, func() error {
+	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
 			container.Unmount()
 			return err
@@ -673,7 +674,7 @@ func (container *Container) Export() (archive.Archive, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return utils.NewReadCloserWrapper(archive, func() error {
+	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
 			container.Unmount()
 			return err
@@ -809,7 +810,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return utils.NewReadCloserWrapper(archive, func() error {
+	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
 			container.Unmount()
 			return err

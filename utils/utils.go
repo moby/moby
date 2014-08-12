@@ -20,6 +20,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 )
 
@@ -157,81 +158,6 @@ func DockerInitPath(localCopy string) string {
 	return ""
 }
 
-type NopWriter struct{}
-
-func (*NopWriter) Write(buf []byte) (int, error) {
-	return len(buf), nil
-}
-
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (w *nopWriteCloser) Close() error { return nil }
-
-func NopWriteCloser(w io.Writer) io.WriteCloser {
-	return &nopWriteCloser{w}
-}
-
-type bufReader struct {
-	sync.Mutex
-	buf    *bytes.Buffer
-	reader io.Reader
-	err    error
-	wait   sync.Cond
-}
-
-func NewBufReader(r io.Reader) *bufReader {
-	reader := &bufReader{
-		buf:    &bytes.Buffer{},
-		reader: r,
-	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
-}
-
-func (r *bufReader) drain() {
-	buf := make([]byte, 1024)
-	for {
-		n, err := r.reader.Read(buf)
-		r.Lock()
-		if err != nil {
-			r.err = err
-		} else {
-			r.buf.Write(buf[0:n])
-		}
-		r.wait.Signal()
-		r.Unlock()
-		if err != nil {
-			break
-		}
-	}
-}
-
-func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.Lock()
-	defer r.Unlock()
-	for {
-		n, err = r.buf.Read(p)
-		if n > 0 {
-			return n, err
-		}
-		if r.err != nil {
-			return 0, r.err
-		}
-		r.wait.Wait()
-	}
-}
-
-func (r *bufReader) Close() error {
-	closer, ok := r.reader.(io.ReadCloser)
-	if !ok {
-		return nil
-	}
-	return closer.Close()
-}
-
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
 		log.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
@@ -340,10 +266,6 @@ func CopyDirectory(source, dest string) error {
 	return nil
 }
 
-type NopFlusher struct{}
-
-func (f *NopFlusher) Flush() {}
-
 type WriteFlusher struct {
 	sync.Mutex
 	w       io.Writer
@@ -370,7 +292,7 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	if f, ok := w.(http.Flusher); ok {
 		flusher = f
 	} else {
-		flusher = &NopFlusher{}
+		flusher = &ioutils.NopFlusher{}
 	}
 	return &WriteFlusher{w: w, flusher: flusher}
 }
@@ -525,22 +447,6 @@ func CopyFile(src, dst string) (int64, error) {
 	}
 	defer df.Close()
 	return io.Copy(df, sf)
-}
-
-type readCloserWrapper struct {
-	io.Reader
-	closer func() error
-}
-
-func (r *readCloserWrapper) Close() error {
-	return r.closer()
-}
-
-func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
-	return &readCloserWrapper{
-		Reader: r,
-		closer: closer,
-	}
 }
 
 // ReplaceOrAppendValues returns the defaults with the overrides either
