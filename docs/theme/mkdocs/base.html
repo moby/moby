@@ -132,17 +132,6 @@ piCId = '1482';
 })();
 </script>
 <script type="text/javascript">
-  // Function to make the sticky header possible
-  var shiftWindow = function() {
-    scrollBy(0, -80);
-  };
-
-  window.addEventListener("hashchange", shiftWindow);
-  $(window).load(function() {
-    if (window.location.hash) {
-      shiftWindow();
-    }
-  });
   $(document).ready(function() {
     $('#content').css("min-height", $(window).height() - 553 );
     // load the complete versions list
