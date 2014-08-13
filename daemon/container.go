@@ -1081,22 +1081,14 @@ func (container *Container) startLoggingToDisk() error {
 func (container *Container) waitForStart() error {
 	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
-	var (
-		cErr      = utils.Go(container.monitor.Start)
-		waitStart = make(chan struct{})
-	)
-
-	go func() {
-		container.State.WaitRunning(-1 * time.Second)
-		close(waitStart)
-	}()
-
-	// Start should not return until the process is actually running
+	// block until we either receive an error from the initial start of the container's
+	// process or until the process is running in the container
 	select {
-	case <-waitStart:
-	case err := <-cErr:
+	case <-container.monitor.startSignal:
+	case err := <-utils.Go(container.monitor.Start):
 		return err
 	}
+
 	return nil
 }
 

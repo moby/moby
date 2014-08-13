@@ -35,6 +35,10 @@ type containerMonitor struct {
 	// either because docker or the user asked for the container to be stopped
 	shouldStop bool
 
+	// startSignal signals with the initial process has launched after calling Start
+	// on the monitor
+	startSignal chan struct{}
+
 	// stopChan is used to signal to the monitor whenever there is a wait for the
 	// next restart so that the timeIncrement is not honored and the user is not
 	// left waiting for nothing to happen during this time
@@ -48,12 +52,15 @@ type containerMonitor struct {
 	lastStartTime time.Time
 }
 
+// newContainerMonitor returns an initialized containerMonitor for the provided container
+// honoring the provided restart policy
 func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *containerMonitor {
 	return &containerMonitor{
 		container:     container,
 		restartPolicy: policy,
 		timeIncrement: defaultTimeIncrement,
 		stopChan:      make(chan struct{}, 1),
+		startSignal:   make(chan struct{}, 1),
 	}
 }
 
@@ -119,6 +126,14 @@ func (m *containerMonitor) Start() error {
 		m.lastStartTime = time.Now()
 
 		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
+			// if we receive an internal error from the initial start of a container then lets
+			// return it instead of entering the restart loop
+			if m.container.RestartCount == 1 {
+				m.resetContainer()
+
+				return err
+			}
+
 			utils.Errorf("Error running container: %s", err)
 		}
 
@@ -229,6 +244,9 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 	}
 
 	m.container.State.SetRunning(command.Pid())
+
+	// signal that the process has started
+	close(m.startSignal)
 
 	if err := m.container.ToDisk(); err != nil {
 		utils.Debugf("%s", err)
