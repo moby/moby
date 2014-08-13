@@ -89,6 +89,7 @@ func init() {
 			{"search", "Search for an image on the Docker Hub"},
 			{"start", "Start a stopped container"},
 			{"stop", "Stop a running container"},
+			{"sweep", "Stop and sweep a running container"},
 			{"tag", "Tag an image into a repository"},
 			{"top", "Lookup the running processes of a container"},
 			{"unpause", "Unpause a paused container"},

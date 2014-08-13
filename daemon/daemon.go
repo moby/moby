@@ -1136,7 +1136,3 @@ func checkKernelAndArch() error {
 func (daemon *Daemon) GetMetric(c *Container) (*cgroups.Stats, error) {
 	return metricdriver.Get(c.ID, daemon.ExecutionDriver().Parent())
 }
-
-func (daemon *Daemon) ExecIn(id, command string, args []string) ([]byte, error) {
-	return execdriver.Exec(id, command, args)
-}

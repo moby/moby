@@ -1026,7 +1026,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	}
 
 	log.Debugf("[devmapper] Unmount(%s)", info.mountPath)
-	if err := syscall.Unmount(info.mountPath, 0); err != nil {
+	if err := syscall.Unmount(info.mountPath, syscall.MNT_DETACH); err != nil {
 		return err
 	}
 	log.Debugf("[devmapper] Unmount done")
@@ -1250,4 +1250,19 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 	}
 
 	return devices, nil
+}
+
+func (devices *DeviceSet) OpenCount(hash string) (int32, error) {
+	devices.Lock()
+	defer devices.Unlock()
+
+	info, _ := devices.lookupDevice(hash)
+	devinfo, err := getInfo(info.Name())
+	if err != nil {
+		return -1, err
+	}
+	if devinfo == nil {
+		return 0, nil
+	}
+	return devinfo.OpenCount, nil
 }

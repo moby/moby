@@ -120,14 +120,3 @@ type Command struct {
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
 }
-
-func Exec(id, command string, args []string) ([]byte, error) {
-	execArgs := []string{id, command}
-	execArgs = append(execArgs, args...)
-	cmd := exec.Command("docker-enter", execArgs...)
-	output, err := cmd.CombinedOutput()
-	// if err != nil {
-	// 	return output, errors.New(string(output))
-	// }
-	return output, err
-}

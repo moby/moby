@@ -723,6 +723,7 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 
 	job.Setenv("removeVolume", r.Form.Get("v"))
 	job.Setenv("removeLink", r.Form.Get("link"))
+	job.Setenv("checkDevice", r.Form.Get("checkDevice"))
 	if err := job.Run(); err != nil {
 		return err
 	}
@@ -1208,37 +1209,21 @@ func getContainersMetric(eng *engine.Engine, version version.Version, w http.Res
 	return job.Run()
 }
 
-func postContainersExec(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersSweep(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var execData engine.Env
+	var job = eng.Job("sweep", vars["name"])
 
-	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
-		if err := execData.Decode(r.Body); err != nil {
-			return err
+	if err := job.Run(); err != nil {
+		if err.Error() == "Container already stopped" {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
 		}
-	} else {
-		return fmt.Errorf("Content-Type not supported: %s", contentType)
-	}
-
-	command := execData.Get("command")
-	args := execData.GetList("args")
-
-	job := eng.Job("exec", vars["name"])
-	job.Setenv("command", command)
-	job.SetenvList("args", args)
-
-	err := job.Run()
-	output := job.Getenv("output")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(output))
 		return err
 	}
-	w.Write([]byte(strings.TrimSuffix(output, "\n")))
-
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -1369,7 +1354,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/exec/{name:.*}/start":         postContainerExecStart,
 			"/exec/{name:.*}/resize":        postContainerExecResize,
 			"/containers/{name:.*}/cgroup":  postContainersCgroup,
-			"/containers/{name:.*}/exec":    postContainersExec,
+			"/containers/{name:.*}/sweep":   postContainersSweep,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

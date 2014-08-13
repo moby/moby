@@ -155,6 +155,7 @@ func InitServer(job *engine.Job) engine.Status {
 		"cgroup":           srv.ContainerCgroup,
 		"metric":           srv.ContainerMetric,
 		"exec":             srv.ContainerExec,
+		"sweep":            srv.ContainerSweep,
 	} {
 		if err := job.Eng.Register(name, srv.handlerWrap(handler)); err != nil {
 			return job.Error(err)
@@ -1753,8 +1754,19 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
 	forceRemove := job.GetenvBool("forceRemove")
+	checkDevice := job.GetenvBool("checkDevice")
 
 	container := srv.daemon.Get(name)
+
+	if checkDevice && container != nil {
+		if deviceIsBusy, err := container.DeviceIsBusy(); err != nil {
+			return job.Errorf("%v", err)
+		} else {
+			if deviceIsBusy {
+				return job.Errorf("Device is busy: %s", name)
+			}
+		}
+	}
 
 	if removeLink {
 		if container == nil {
@@ -2527,6 +2539,28 @@ func (srv *Server) ContainerExec(job *engine.Job) engine.Status {
 		return engine.StatusOK
 	}
 	return job.Errorf("No such container: %s", name)
+}
+
+func (srv *Server) ContainerSweep(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+	var (
+		name = job.Args[0]
+	)
+
+	if container := srv.daemon.Get(name); container != nil {
+		if !container.State.IsRunning() {
+			return job.Errorf("Container already stopped")
+		}
+		if err := container.Sweep(); err != nil {
+			return job.Errorf("Cannot cleanup container %s: %s\n", name, err)
+		}
+		srv.LogEvent("cleanup", container.ID, srv.daemon.Repositories().ImageName(container.Image))
+	} else {
+		return job.Errorf("No such container: %s\n", name)
+	}
+	return engine.StatusOK
 }
 
 func NewServer(eng *engine.Engine, config *daemonconfig.Config) (*Server, error) {
