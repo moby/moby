@@ -1111,6 +1111,7 @@ func (container *Container) startLoggingToDisk() error {
 }
 
 func (container *Container) waitForStart() error {
+	waitStart := make(chan struct{})
 	callback := func(command *execdriver.Command) {
 		if command.Tty {
 			// The callback is called after the process Start()
@@ -1121,21 +1122,15 @@ func (container *Container) waitForStart() error {
 			}
 		}
 		container.State.SetRunning(command.Pid())
-		if err := container.ToDisk(); err != nil {
+		if err := container.toDisk(); err != nil {
 			utils.Debugf("%s", err)
 		}
+		close(waitStart)
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
 	// syncronization purposes
 	cErr := utils.Go(func() error { return container.monitor(callback) })
-
-	waitStart := make(chan struct{})
-
-	go func() {
-		container.State.WaitRunning(-1 * time.Second)
-		close(waitStart)
-	}()
 
 	// Start should not return until the process is actually running
 	select {

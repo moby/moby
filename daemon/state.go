@@ -114,28 +114,24 @@ func (s *State) GetExitCode() int {
 
 func (s *State) SetRunning(pid int) {
 	s.Lock()
-	if !s.Running {
-		s.Running = true
-		s.Paused = false
-		s.ExitCode = 0
-		s.Pid = pid
-		s.StartedAt = time.Now().UTC()
-		close(s.waitChan) // fire waiters for start
-		s.waitChan = make(chan struct{})
-	}
+	s.Running = true
+	s.Paused = false
+	s.ExitCode = 0
+	s.Pid = pid
+	s.StartedAt = time.Now().UTC()
+	close(s.waitChan) // fire waiters for start
+	s.waitChan = make(chan struct{})
 	s.Unlock()
 }
 
 func (s *State) SetStopped(exitCode int) {
 	s.Lock()
-	if s.Running {
-		s.Running = false
-		s.Pid = 0
-		s.FinishedAt = time.Now().UTC()
-		s.ExitCode = exitCode
-		close(s.waitChan) // fire waiters for stop
-		s.waitChan = make(chan struct{})
-	}
+	s.Running = false
+	s.Pid = 0
+	s.FinishedAt = time.Now().UTC()
+	s.ExitCode = exitCode
+	close(s.waitChan) // fire waiters for stop
+	s.waitChan = make(chan struct{})
 	s.Unlock()
 }
 
