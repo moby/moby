@@ -24,7 +24,7 @@ type containerMonitor struct {
 	// container is the container being monitored
 	container *Container
 
-	// restartPolicy is the being applied to the container monitor
+	// restartPolicy is the current policy being applied to the container monitor
 	restartPolicy runconfig.RestartPolicy
 
 	// failureCount is the number of times the container has failed to
@@ -35,8 +35,7 @@ type containerMonitor struct {
 	// either because docker or the user asked for the container to be stopped
 	shouldStop bool
 
-	// startSignal signals with the initial process has launched after calling Start
-	// on the monitor
+	// startSignal is a channel that is closes after the container initially starts
 	startSignal chan struct{}
 
 	// stopChan is used to signal to the monitor whenever there is a wait for the
@@ -196,7 +195,7 @@ func (m *containerMonitor) resetMonitor(successful bool) {
 }
 
 // waitForNextRestart waits with the default time increment to restart the container unless
-// a user or docker asks to container to be stopped
+// a user or docker asks for the container to be stopped
 func (m *containerMonitor) waitForNextRestart() {
 	select {
 	case <-time.After(time.Duration(m.timeIncrement) * time.Millisecond):
@@ -245,8 +244,11 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 
 	m.container.State.SetRunning(command.Pid())
 
-	// signal that the process has started
-	close(m.startSignal)
+	if m.startSignal != nil {
+		// signal that the process has started
+		close(m.startSignal)
+		m.startSignal = nil
+	}
 
 	if err := m.container.ToDisk(); err != nil {
 		utils.Debugf("%s", err)

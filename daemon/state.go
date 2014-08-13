@@ -123,6 +123,7 @@ func (s *State) SetRunning(pid int) {
 	s.Lock()
 	s.Running = true
 	s.Paused = false
+	s.Restarting = false
 	s.ExitCode = 0
 	s.Pid = pid
 	s.StartedAt = time.Now().UTC()
@@ -134,6 +135,7 @@ func (s *State) SetRunning(pid int) {
 func (s *State) SetStopped(exitCode int) {
 	s.Lock()
 	s.Running = false
+	s.Restarting = false
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.ExitCode = exitCode
@@ -146,17 +148,15 @@ func (s *State) SetStopped(exitCode int) {
 // in the middle of a stop and being restarted again
 func (s *State) SetRestarting(exitCode int) {
 	s.Lock()
-	if s.Running {
-		// we should consider the container running when it is restarting because of
-		// all the checks in docker around rm/stop/etc
-		s.Running = true
-		s.Restarting = true
-		s.Pid = 0
-		s.FinishedAt = time.Now().UTC()
-		s.ExitCode = exitCode
-		close(s.waitChan) // fire waiters for stop
-		s.waitChan = make(chan struct{})
-	}
+	// we should consider the container running when it is restarting because of
+	// all the checks in docker around rm/stop/etc
+	s.Running = true
+	s.Restarting = true
+	s.Pid = 0
+	s.FinishedAt = time.Now().UTC()
+	s.ExitCode = exitCode
+	close(s.waitChan) // fire waiters for stop
+	s.waitChan = make(chan struct{})
 	s.Unlock()
 }
 
