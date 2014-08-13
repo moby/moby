@@ -116,6 +116,7 @@ func (proxy *UDPProxy) Run() {
 			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
 			if err != nil {
 				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				proxy.connTrackLock.Unlock()
 				continue
 			}
 			proxy.connTrackTable[*fromKey] = proxyConn
