@@ -27,8 +27,8 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/log"
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/signal"
@@ -1253,7 +1253,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
 	var flFilter []string
-	opts.ListVar(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
+	flag.ListVar(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1485,10 +1485,10 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	before := cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
-	// FIXME: `opts.ListVar` should support arbitrary FlagSets
+	// FIXME: `flag.ListVar` should support arbitrary FlagSets
 	// (currently it only supports the global `flag.Var`.
 	var flFilter []string
-	cmd.Var((*opts.List)(&flFilter), []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
+	cmd.Var((*flag.List)(&flFilter), []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil

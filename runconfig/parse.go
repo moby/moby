@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -79,20 +78,20 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	)
 
 	// FIXME
-	opts.StreamSetVar(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
-	opts.PathPairSetVar(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
-	opts.NamePairListVar(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
-	opts.PathPairListVar(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
-	opts.EnvVar(&flEnv, []string{"e", "-env"}, "Set environment variables")
-	opts.ListVar(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
-	opts.ListVar(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host\nformat: %s\n(use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
-	opts.ListVar(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
-	opts.IPListVar(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
-	opts.DnsSearchListVar(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
-	opts.ListVar(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	opts.ListVar(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-	opts.ListVar(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
-	opts.ListVar(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
+	flag.StreamSetVar(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
+	flag.PathPairSetVar(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
+	flag.NamePairListVar(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
+	flag.PathPairListVar(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
+	flag.EnvVar(&flEnv, []string{"e", "-env"}, "Set environment variables")
+	flag.ListVar(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
+	flag.ListVar(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host\nformat: %s\n(use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
+	flag.ListVar(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
+	flag.IPListVar(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
+	flag.DnsSearchListVar(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
+	flag.ListVar(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
+	flag.ListVar(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	flag.ListVar(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
+	flag.ListVar(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -218,7 +217,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	// collect all the environment variables for the container
 	envVariables := []string{}
 	for _, ef := range flEnvFile {
-		parsedVars, err := opts.ParseEnvFile(ef)
+		parsedVars, err := flag.ParseEnvFile(ef)
 		if err != nil {
 			return nil, nil, cmd, err
 		}

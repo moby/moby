@@ -1,12 +1,11 @@
-package opts
+package mflag
 
 import (
-	"flag"
 	"testing"
 )
 
-func TestSet(t *testing.T) {
-	var l flag.Value = make(Set)
+func TestStringSet(t *testing.T) {
+	var l Value = make(StringSet)
 	l.Set("ga")
 	l.Set("bu")
 	l.Set("meu")

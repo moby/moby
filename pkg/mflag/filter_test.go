@@ -1,13 +1,12 @@
-package opts
+package mflag
 
 import (
-	"flag"
 	"fmt"
 	"testing"
 )
 
 func TestFilter(t *testing.T) {
-	var f flag.Value = Filter(new(List), func(val string) (string, error) {
+	var f Value = Filter(new(List), func(val string) (string, error) {
 		if val == "gloubiboulga" {
 			return "", fmt.Errorf("denied value")
 		}

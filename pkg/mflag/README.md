@@ -13,6 +13,15 @@ Usage of example:
   -s, --string="": a simple string
 ```
 
+* Additional utilities for parsing advanced types:
+
+	* List of strings
+	* List IP addresses, hostnames, DNS domains
+	* Pairs of paths and names (foo:bar)
+	* Unique sets of strings
+	* Custom validators
+	* etc.
+
 ___
 It is very flexible on purpose, so you can do things like:  
 ```

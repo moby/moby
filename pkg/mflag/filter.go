@@ -1,10 +1,8 @@
-package opts
+package mflag
 
-import (
-	flag "github.com/docker/docker/pkg/mflag"
-)
+import ()
 
-func Filter(dst flag.Value, validator func(string) (string, error)) flag.Value {
+func Filter(dst Value, validator func(string) (string, error)) Value {
 	return &filter{
 		Value:     dst,
 		validator: validator,
@@ -12,7 +10,7 @@ func Filter(dst flag.Value, validator func(string) (string, error)) flag.Value {
 }
 
 type filter struct {
-	flag.Value
+	Value
 	validator func(string) (string, error)
 }
 
