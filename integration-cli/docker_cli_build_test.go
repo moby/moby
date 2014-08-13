@@ -106,27 +106,9 @@ func TestBuildAddSingleFileToWorkdir(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testaddimg", ".")
-	buildCmd.Dir = buildDirectory
-	done := make(chan error)
-	go func() {
-		out, exitCode, err := runCommandWithOutput(buildCmd)
-		if err != nil || exitCode != 0 {
-			done <- fmt.Errorf("build failed to complete: %s %v", out, err)
-			return
-		}
-		done <- nil
-	}()
-	select {
-	case <-time.After(5 * time.Second):
-		if err := buildCmd.Process.Kill(); err != nil {
-			fmt.Printf("could not kill build (pid=%d): %v\n", buildCmd.Process.Pid, err)
-		}
-		t.Fatal("build timed out")
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
+	_, exitCode, err := dockerCmdInDirWithTimeout(5*time.Second, buildDirectory, "build", "-t", "testaddimg", ".")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("build failed: %s", err)
 	}
 
 	deleteImages("testaddimg")
@@ -343,27 +325,9 @@ func TestBuildCopySingleFileToWorkdir(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", ".")
-	buildCmd.Dir = buildDirectory
-	done := make(chan error)
-	go func() {
-		out, exitCode, err := runCommandWithOutput(buildCmd)
-		if err != nil || exitCode != 0 {
-			done <- fmt.Errorf("build failed to complete: %s %v", out, err)
-			return
-		}
-		done <- nil
-	}()
-	select {
-	case <-time.After(5 * time.Second):
-		if err := buildCmd.Process.Kill(); err != nil {
-			fmt.Printf("could not kill build (pid=%d): %v\n", buildCmd.Process.Pid, err)
-		}
-		t.Fatal("build timed out")
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
+	_, exitCode, err := dockerCmdInDirWithTimeout(5*time.Second, buildDirectory, "build", "-t", "testcopyimg", ".")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("build failed: %s", err)
 	}
 
 	deleteImages("testcopyimg")

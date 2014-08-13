@@ -345,12 +345,34 @@ func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	return out, status, err
 }
 
+// execute a docker ocmmand with a timeout
+func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
+	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
+	if err != nil {
+		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
+	return out, status, err
+}
+
 // execute a docker command in a directory
 func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, error) {
 	dockerCommand := exec.Command(dockerBinary, args...)
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutput(dockerCommand)
-	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
+	return out, status, err
+}
+
+// execute a docker command in a directory with a timeout
+func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...string) (string, int, error) {
+	dockerCommand := exec.Command(dockerBinary, args...)
+	dockerCommand.Dir = path
+	out, status, err := runCommandWithOutputAndTimeout(dockerCommand, timeout)
+	if err != nil {
+		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
 	return out, status, err
 }
 

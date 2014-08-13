@@ -63,6 +63,31 @@ func runCommandWithStdoutStderr(cmd *exec.Cmd) (stdout string, stderr string, ex
 	return
 }
 
+var ErrCmdTimeout = fmt.Errorf("command timed out")
+
+func runCommandWithOutputAndTimeout(cmd *exec.Cmd, timeout time.Duration) (output string, exitCode int, err error) {
+	done := make(chan error)
+	go func() {
+		output, exitCode, err = runCommandWithOutput(cmd)
+		if err != nil || exitCode != 0 {
+			done <- fmt.Errorf("failed to run command: %s", err)
+			return
+		}
+		done <- nil
+	}()
+	select {
+	case <-time.After(timeout):
+		killFailed := cmd.Process.Kill()
+		if killFailed == nil {
+			fmt.Printf("failed to kill (pid=%d): %v\n", cmd.Process.Pid, err)
+		}
+		err = ErrCmdTimeout
+	case <-done:
+		break
+	}
+	return
+}
+
 func runCommand(cmd *exec.Cmd) (exitCode int, err error) {
 	exitCode = 0
 	err = cmd.Run()
