@@ -21,7 +21,6 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 	_ "github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
-	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -95,11 +94,10 @@ type Daemon struct {
 	sysInfo        *sysinfo.SysInfo
 	volumes        *graph.Graph
 	eng            *engine.Engine
-	config         *daemonconfig.Config
+	config         *Config
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
-	Sockets        []string
 }
 
 // Install installs daemon capabilities to eng.
@@ -664,7 +662,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 }
 
 // FIXME: harmonize with NewGraph()
-func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
+func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 	daemon, err := NewDaemonFromDirectory(config, eng)
 	if err != nil {
 		return nil, err
@@ -672,7 +670,22 @@ func NewDaemon(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error)
 	return daemon, nil
 }
 
-func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*Daemon, error) {
+func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
+	// Apply configuration defaults
+	if config.Mtu == 0 {
+		// FIXME: GetDefaultNetwork Mtu doesn't need to be public anymore
+		config.Mtu = GetDefaultNetworkMtu()
+	}
+	// Check for mutually incompatible config options
+	if config.BridgeIface != "" && config.BridgeIP != "" {
+		return nil, fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
+	}
+	if !config.EnableIptables && !config.InterContainerCommunication {
+		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+	}
+	// FIXME: DisableNetworkBidge doesn't need to be public anymore
+	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
+
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
 	if config.Pidfile != "" {
@@ -837,7 +850,6 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
-		Sockets:        config.Sockets,
 	}
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err
@@ -1010,7 +1022,7 @@ func (daemon *Daemon) Repositories() *graph.TagStore {
 	return daemon.repositories
 }
 
-func (daemon *Daemon) Config() *daemonconfig.Config {
+func (daemon *Daemon) Config() *Config {
 	return daemon.config
 }
 

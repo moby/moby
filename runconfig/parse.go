@@ -45,15 +45,15 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 		flDevices = opts.NewListOpts(opts.ValidatePath)
 
-		flPublish     opts.ListOpts
-		flExpose      opts.ListOpts
+		flPublish     = opts.NewListOpts(nil)
+		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
-		flVolumesFrom opts.ListOpts
-		flLxcOpts     opts.ListOpts
-		flEnvFile     opts.ListOpts
-		flCapAdd      opts.ListOpts
-		flCapDrop     opts.ListOpts
+		flVolumesFrom = opts.NewListOpts(nil)
+		flLxcOpts     = opts.NewListOpts(nil)
+		flEnvFile     = opts.NewListOpts(nil)
+		flCapAdd      = opts.NewListOpts(nil)
+		flCapDrop     = opts.NewListOpts(nil)
 
 		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
