@@ -1,4 +1,4 @@
-package builder
+package daemon
 
 import (
 	"crypto/sha256"
@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -20,7 +21,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/archive"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/parsers"
@@ -31,6 +31,86 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
+
+func (daemon *Daemon) CmdBuild(job *engine.Job) engine.Status {
+	if len(job.Args) != 0 {
+		return job.Errorf("Usage: %s\n", job.Name)
+	}
+	var (
+		remoteURL      = job.Getenv("remote")
+		repoName       = job.Getenv("t")
+		suppressOutput = job.GetenvBool("q")
+		noCache        = job.GetenvBool("nocache")
+		rm             = job.GetenvBool("rm")
+		forceRm        = job.GetenvBool("forcerm")
+		authConfig     = &registry.AuthConfig{}
+		configFile     = &registry.ConfigFile{}
+		tag            string
+		context        io.ReadCloser
+	)
+	job.GetenvJson("authConfig", authConfig)
+	job.GetenvJson("configFile", configFile)
+	repoName, tag = parsers.ParseRepositoryTag(repoName)
+
+	if remoteURL == "" {
+		context = ioutil.NopCloser(job.Stdin)
+	} else if utils.IsGIT(remoteURL) {
+		if !strings.HasPrefix(remoteURL, "git://") {
+			remoteURL = "https://" + remoteURL
+		}
+		root, err := ioutil.TempDir("", "docker-build-git")
+		if err != nil {
+			return job.Error(err)
+		}
+		defer os.RemoveAll(root)
+
+		if output, err := exec.Command("git", "clone", "--recursive", remoteURL, root).CombinedOutput(); err != nil {
+			return job.Errorf("Error trying to use git: %s (%s)", err, output)
+		}
+
+		c, err := archive.Tar(root, archive.Uncompressed)
+		if err != nil {
+			return job.Error(err)
+		}
+		context = c
+	} else if utils.IsURL(remoteURL) {
+		f, err := utils.Download(remoteURL)
+		if err != nil {
+			return job.Error(err)
+		}
+		defer f.Body.Close()
+		dockerFile, err := ioutil.ReadAll(f.Body)
+		if err != nil {
+			return job.Error(err)
+		}
+		c, err := archive.Generate("Dockerfile", string(dockerFile))
+		if err != nil {
+			return job.Error(err)
+		}
+		context = c
+	}
+	defer context.Close()
+
+	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
+	b := NewBuildFile(daemon, daemon.eng,
+		&utils.StdoutFormater{
+			Writer:          job.Stdout,
+			StreamFormatter: sf,
+		},
+		&utils.StderrFormater{
+			Writer:          job.Stdout,
+			StreamFormatter: sf,
+		},
+		!suppressOutput, !noCache, rm, forceRm, job.Stdout, sf, authConfig, configFile)
+	id, err := b.Build(context)
+	if err != nil {
+		return job.Error(err)
+	}
+	if repoName != "" {
+		daemon.Repositories().Set(repoName, tag, id, false)
+	}
+	return engine.StatusOK
+}
 
 var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
@@ -43,7 +123,7 @@ type BuildFile interface {
 }
 
 type buildFile struct {
-	daemon *daemon.Daemon
+	daemon *Daemon
 	eng    *engine.Engine
 
 	image      string
@@ -124,7 +204,7 @@ func (b *buildFile) CmdFrom(name string) error {
 		b.config = image.Config
 	}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = append(b.config.Env, "PATH="+daemon.DefaultPathEnv)
+		b.config.Env = append(b.config.Env, "PATH="+DefaultPathEnv)
 	}
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.config.OnBuild); nTriggers != 0 {
@@ -416,7 +496,7 @@ func (b *buildFile) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *buildFile) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func (b *buildFile) addContext(container *Container, orig, dest string, decompress bool) error {
 	var (
 		err        error
 		destExists = true
@@ -668,7 +748,7 @@ func (b *buildFile) CmdAdd(args string) error {
 	return b.runContextCommand(args, true, true, "ADD")
 }
 
-func (b *buildFile) create() (*daemon.Container, error) {
+func (b *buildFile) create() (*Container, error) {
 	if b.image == "" {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -689,7 +769,7 @@ func (b *buildFile) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *buildFile) run(c *daemon.Container) error {
+func (b *buildFile) run(c *Container) error {
 	var errCh chan error
 	if b.verbose {
 		errCh = utils.Go(func() error {
@@ -906,7 +986,7 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func NewBuildFile(d *daemon.Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
+func NewBuildFile(d *Daemon, eng *engine.Engine, outStream, errStream io.Writer, verbose, utilizeCache, rm bool, forceRm bool, outOld io.Writer, sf *utils.StreamFormatter, auth *registry.AuthConfig, authConfigFile *registry.ConfigFile) BuildFile {
 	return &buildFile{
 		daemon:        d,
 		eng:           eng,

@@ -202,7 +202,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
+	// FIXME: here we don't use NewTestEngine because it configures the daemon with Autorestart=false,
 	// and we want to set it to true.
 
 	eng := newTestEngine(t, true, root)

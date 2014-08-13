@@ -109,6 +109,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"attach":            daemon.ContainerAttach,
+		"build":             daemon.CmdBuild,
 		"commit":            daemon.ContainerCommit,
 		"container_changes": daemon.ContainerChanges,
 		"container_copy":    daemon.ContainerCopy,
@@ -134,6 +135,12 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 			return err
 		}
 	}
+	if err := daemon.Repositories().Install(eng); err != nil {
+		return err
+	}
+	// FIXME: this hack is necessary for legacy integration tests to access
+	// the daemon object.
+	eng.Hack_SetGlobalVar("httpapi.daemon", daemon)
 	return nil
 }
 

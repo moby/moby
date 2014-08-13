@@ -1194,7 +1194,7 @@ func ServeFd(addr string, handle http.Handler) error {
 	chErrors := make(chan error, len(ls))
 
 	// We don't want to start serving on these sockets until the
-	// "initserver" job has completed. Otherwise required handlers
+	// daemon is initialized and installed. Otherwise required handlers
 	// won't be ready.
 	<-activationLock
 

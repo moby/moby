@@ -7,8 +7,10 @@ import (
 	"net"
 
 	"github.com/docker/docker/builtins"
+	"github.com/docker/docker/daemon"
 	_ "github.com/docker/docker/daemon/execdriver/lxc"
 	_ "github.com/docker/docker/daemon/execdriver/native"
+	"github.com/docker/docker/daemonconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -46,27 +48,38 @@ func mainDaemon() {
 	// the http api so that connections don't fail while the daemon
 	// is booting
 	go func() {
-		// Load plugin: httpapi
-		job := eng.Job("initserver")
-		// include the variable here too, for the server config
-		job.Setenv("Pidfile", *pidfile)
-		job.Setenv("Root", *flRoot)
-		job.SetenvBool("AutoRestart", *flAutoRestart)
-		job.SetenvList("Dns", flDns.GetAll())
-		job.SetenvList("DnsSearch", flDnsSearch.GetAll())
-		job.SetenvBool("EnableIptables", *flEnableIptables)
-		job.SetenvBool("EnableIpForward", *flEnableIpForward)
-		job.Setenv("BridgeIface", *bridgeName)
-		job.Setenv("BridgeIP", *bridgeIp)
-		job.Setenv("DefaultIp", *flDefaultIp)
-		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
-		job.Setenv("GraphDriver", *flGraphDriver)
-		job.SetenvList("GraphOptions", flGraphOpts.GetAll())
-		job.Setenv("ExecDriver", *flExecDriver)
-		job.SetenvInt("Mtu", *flMtu)
-		job.SetenvBool("EnableSelinuxSupport", *flSelinuxEnabled)
-		job.SetenvList("Sockets", flHosts.GetAll())
-		if err := job.Run(); err != nil {
+		// FIXME: daemonconfig and CLI flag parsing should be directly integrated
+		cfg := &daemonconfig.Config{
+			Pidfile:                     *pidfile,
+			Root:                        *flRoot,
+			AutoRestart:                 *flAutoRestart,
+			EnableIptables:              *flEnableIptables,
+			EnableIpForward:             *flEnableIpForward,
+			BridgeIP:                    *bridgeIp,
+			BridgeIface:                 *bridgeName,
+			DefaultIp:                   net.ParseIP(*flDefaultIp),
+			InterContainerCommunication: *flInterContainerComm,
+			GraphDriver:                 *flGraphDriver,
+			ExecDriver:                  *flExecDriver,
+			EnableSelinuxSupport:        *flSelinuxEnabled,
+			GraphOptions:                flGraphOpts.GetAll(),
+			Dns:                         flDns.GetAll(),
+			DnsSearch:                   flDnsSearch.GetAll(),
+			Mtu:                         *flMtu,
+			Sockets:                     flHosts.GetAll(),
+		}
+		// FIXME this should be initialized in NewDaemon or somewhere in daemonconfig.
+		// Currently it is copy-pasted in `integration` to create test daemons that work.
+		if cfg.Mtu == 0 {
+			cfg.Mtu = daemonconfig.GetDefaultNetworkMtu()
+		}
+		cfg.DisableNetwork = cfg.BridgeIface == daemonconfig.DisableNetworkBridge
+
+		d, err := daemon.NewDaemon(cfg, eng)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := d.Install(eng); err != nil {
 			log.Fatal(err)
 		}
 		// after the daemon is done setting up we can tell the api to start
@@ -75,7 +88,6 @@ func mainDaemon() {
 			log.Fatal(err)
 		}
 	}()
-
 	// TODO actually have a resolved graphdriver to show?
 	log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
 		dockerversion.VERSION,
