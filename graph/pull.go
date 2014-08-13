@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -85,10 +86,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 		}
 	}
 
-	utils.Debugf("Retrieving the tag list")
+	log.Debugf("Retrieving the tag list")
 	tagsList, err := r.GetRemoteTags(repoData.Endpoints, remoteName, repoData.Tokens)
 	if err != nil {
-		utils.Errorf("%v", err)
+		log.Errorf("%v", err)
 		return err
 	}
 
@@ -100,7 +101,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 		}
 	}
 
-	utils.Debugf("Registering tags")
+	log.Debugf("Registering tags")
 	// If no tag has been specified, pull them all
 	if askedTag == "" {
 		for tag, id := range tagsList {
@@ -119,7 +120,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
-				utils.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
+				log.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
 				if parallel {
 					errors <- nil
 				}
@@ -127,7 +128,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 			}
 
 			if img.Tag == "" {
-				utils.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
+				log.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
 				if parallel {
 					errors <- nil
 				}
@@ -141,7 +142,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 					<-c
 					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
 				} else {
-					utils.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+					log.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
 				}
 				if parallel {
 					errors <- nil
@@ -224,7 +225,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 
 		// ensure no two downloads of the same layer happen at the same time
 		if c, err := s.poolAdd("pull", "layer:"+id); err != nil {
-			utils.Debugf("Image (id: %s) pull is already running, skipping: %v", id, err)
+			log.Debugf("Image (id: %s) pull is already running, skipping: %v", id, err)
 			<-c
 		}
 		defer s.poolRemove("pull", "layer:"+id)

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/log"
 )
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.
@@ -93,22 +93,22 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 
 func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {
 	if err := eng.Job("image_get", address).Run(); err != nil {
-		utils.Debugf("Loading %s", address)
+		log.Debugf("Loading %s", address)
 
 		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
-			utils.Debugf("Error reading json", err)
+			log.Debugf("Error reading json", err)
 			return err
 		}
 
 		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
 		if err != nil {
-			utils.Debugf("Error reading embedded tar", err)
+			log.Debugf("Error reading embedded tar", err)
 			return err
 		}
 		img, err := image.NewImgJSON(imageJson)
 		if err != nil {
-			utils.Debugf("Error unmarshalling json", err)
+			log.Debugf("Error unmarshalling json", err)
 			return err
 		}
 		if img.Parent != "" {
@@ -122,7 +122,7 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 			return err
 		}
 	}
-	utils.Debugf("Completed processing %s", address)
+	log.Debugf("Completed processing %s", address)
 
 	return nil
 }

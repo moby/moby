@@ -3,9 +3,10 @@ package httputils
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/docker/docker/pkg/log"
 )
 
 type resumableRequestReader struct {
@@ -71,7 +72,7 @@ func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
 		r.cleanUpResponse()
 	}
 	if err != nil && err != io.EOF {
-		log.Printf("encountered error during pull and clearing it before resume: %s", err)
+		log.Infof("encountered error during pull and clearing it before resume: %s", err)
 		err = nil
 	}
 	return n, err

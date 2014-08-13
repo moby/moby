@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -54,15 +55,15 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 	if len(imageList) == 0 {
 		return nil, nil, fmt.Errorf("No images found for the requested repository / tag")
 	}
-	utils.Debugf("Image list: %v", imageList)
-	utils.Debugf("Tags by image: %v", tagsByImage)
+	log.Debugf("Image list: %v", imageList)
+	log.Debugf("Tags by image: %v", tagsByImage)
 
 	return imageList, tagsByImage, nil
 }
 
 func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName, remoteName string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
-	utils.Debugf("Local repo: %s", localRepo)
+	log.Debugf("Local repo: %s", localRepo)
 	imgList, tagsByImage, err := s.getImageList(localRepo, tag)
 	if err != nil {
 		return err
@@ -96,9 +97,9 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 		}
 	}
 
-	utils.Debugf("Preparing to push %s with the following images and tags\n", localRepo)
+	log.Debugf("Preparing to push %s with the following images and tags\n", localRepo)
 	for _, data := range imageIndex {
-		utils.Debugf("Pushing ID: %s with Tag: %s\n", data.ID, data.Tag)
+		log.Debugf("Pushing ID: %s with Tag: %s\n", data.ID, data.Tag)
 	}
 
 	// Register all the images in a repository with the registry
@@ -170,7 +171,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, remote, imgID, 
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	utils.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
+	log.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
 
 	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
 	if err != nil {

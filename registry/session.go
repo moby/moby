@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/utils"
 )
@@ -52,7 +53,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, index
 			return nil, err
 		}
 		if info.Standalone {
-			utils.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
+			log.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}
@@ -91,7 +92,7 @@ func (r *Session) GetRemoteHistory(imgID, registry string, token []string) ([]st
 		return nil, fmt.Errorf("Error while reading the http response: %s", err)
 	}
 
-	utils.Debugf("Ancestry: %s", jsonString)
+	log.Debugf("Ancestry: %s", jsonString)
 	history := new([]string)
 	if err := json.Unmarshal(jsonString, history); err != nil {
 		return nil, err
@@ -105,13 +106,13 @@ func (r *Session) LookupRemoteImage(imgID, registry string, token []string) bool
 
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
-		utils.Errorf("Error in LookupRemoteImage %s", err)
+		log.Errorf("Error in LookupRemoteImage %s", err)
 		return false
 	}
 	setTokenAuth(req, token)
 	res, _, err := r.doRequest(req)
 	if err != nil {
-		utils.Errorf("Error in LookupRemoteImage %s", err)
+		log.Errorf("Error in LookupRemoteImage %s", err)
 		return false
 	}
 	res.Body.Close()
@@ -184,10 +185,10 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	}
 
 	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
-		utils.Debugf("server supports resume")
+		log.Debugf("server supports resume")
 		return httputils.ResumableRequestReaderWithInitialResponse(client, req, 5, imgSize, res), nil
 	}
-	utils.Debugf("server doesn't support resume")
+	log.Debugf("server doesn't support resume")
 	return res.Body, nil
 }
 
@@ -210,7 +211,7 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 			return nil, err
 		}
 
-		utils.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
+		log.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		defer res.Body.Close()
 
 		if res.StatusCode != 200 && res.StatusCode != 404 {
@@ -255,7 +256,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	indexEp := r.indexEndpoint
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", indexEp, remote)
 
-	utils.Debugf("[registry] Calling GET %s", repositoryTarget)
+	log.Debugf("[registry] Calling GET %s", repositoryTarget)
 
 	req, err := r.reqFactory.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -324,7 +325,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 
 func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, token []string) error {
 
-	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/checksum")
+	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/checksum")
 
 	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgData.ID+"/checksum", nil)
 	if err != nil {
@@ -361,7 +362,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, t
 // Push a local image to the registry
 func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
 
-	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/json")
+	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/json")
 
 	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", bytes.NewReader(jsonRaw))
 	if err != nil {
@@ -396,7 +397,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 
 func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string, jsonRaw []byte) (checksum string, checksumPayload string, err error) {
 
-	utils.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
+	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
 	tarsumLayer := &tarsum.TarSum{Reader: layer}
 	h := sha256.New()
@@ -483,8 +484,8 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		suffix = "images"
 	}
 	u := fmt.Sprintf("%srepositories/%s/%s", indexEp, remote, suffix)
-	utils.Debugf("[registry] PUT %s", u)
-	utils.Debugf("Image list pushed to index:\n%s", imgListJSON)
+	log.Debugf("[registry] PUT %s", u)
+	log.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
 	if err != nil {
 		return nil, err
@@ -505,7 +506,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 
 	// Redirect if necessary
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
-		utils.Debugf("Redirected to %s", res.Header.Get("Location"))
+		log.Debugf("Redirected to %s", res.Header.Get("Location"))
 		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
 		if err != nil {
 			return nil, err
@@ -534,7 +535,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		}
 		if res.Header.Get("X-Docker-Token") != "" {
 			tokens = res.Header["X-Docker-Token"]
-			utils.Debugf("Auth token: %v", tokens)
+			log.Debugf("Auth token: %v", tokens)
 		} else {
 			return nil, fmt.Errorf("Index response didn't contain an access token")
 		}
@@ -565,7 +566,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 }
 
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
-	utils.Debugf("Index server: %s", r.indexEndpoint)
+	log.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {

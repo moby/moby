@@ -7,12 +7,13 @@ import (
 	"encoding/hex"
 	"hash"
 	"io"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+
+	"github.com/docker/docker/pkg/log"
 )
 
 type TarSum struct {
@@ -170,11 +171,11 @@ func (ts *TarSum) Sum(extra []byte) string {
 		h.Write(extra)
 	}
 	for _, sum := range sums {
-		log.Printf("-->%s<--", sum)
+		log.Infof("-->%s<--", sum)
 		h.Write([]byte(sum))
 	}
 	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
-	log.Printf("checksum processed: %s", checksum)
+	log.Infof("checksum processed: %s", checksum)
 	return checksum
 }
 

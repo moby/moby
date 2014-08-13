@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -36,25 +37,25 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 		cLog, err := container.ReadLog("json")
 		if err != nil && os.IsNotExist(err) {
 			// Legacy logs
-			utils.Debugf("Old logs format")
+			log.Debugf("Old logs format")
 			if stdout {
 				cLog, err := container.ReadLog("stdout")
 				if err != nil {
-					utils.Errorf("Error reading logs (stdout): %s", err)
+					log.Errorf("Error reading logs (stdout): %s", err)
 				} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
-					utils.Errorf("Error streaming logs (stdout): %s", err)
+					log.Errorf("Error streaming logs (stdout): %s", err)
 				}
 			}
 			if stderr {
 				cLog, err := container.ReadLog("stderr")
 				if err != nil {
-					utils.Errorf("Error reading logs (stderr): %s", err)
+					log.Errorf("Error reading logs (stderr): %s", err)
 				} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
-					utils.Errorf("Error streaming logs (stderr): %s", err)
+					log.Errorf("Error streaming logs (stderr): %s", err)
 				}
 			}
 		} else if err != nil {
-			utils.Errorf("Error reading logs (json): %s", err)
+			log.Errorf("Error reading logs (json): %s", err)
 		} else {
 			dec := json.NewDecoder(cLog)
 			for {
@@ -63,7 +64,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 				if err := dec.Decode(l); err == io.EOF {
 					break
 				} else if err != nil {
-					utils.Errorf("Error streaming logs: %s", err)
+					log.Errorf("Error streaming logs: %s", err)
 					break
 				}
 				if l.Stream == "stdout" && stdout {
@@ -88,7 +89,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 			r, w := io.Pipe()
 			go func() {
 				defer w.Close()
-				defer utils.Debugf("Closing buffered stdin pipe")
+				defer log.Debugf("Closing buffered stdin pipe")
 				io.Copy(w, job.Stdin)
 			}()
 			cStdin = r
@@ -131,8 +132,8 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 			errors <- err
 		} else {
 			go func() {
-				utils.Debugf("attach: stdin: begin")
-				defer utils.Debugf("attach: stdin: end")
+				log.Debugf("attach: stdin: begin")
+				defer log.Debugf("attach: stdin: end")
 				// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
 				if container.Config.StdinOnce && !container.Config.Tty {
 					defer cStdin.Close()
@@ -155,7 +156,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 					err = nil
 				}
 				if err != nil {
-					utils.Errorf("attach: stdin: %s", err)
+					log.Errorf("attach: stdin: %s", err)
 				}
 				errors <- err
 			}()
@@ -168,8 +169,8 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 		} else {
 			cStdout = p
 			go func() {
-				utils.Debugf("attach: stdout: begin")
-				defer utils.Debugf("attach: stdout: end")
+				log.Debugf("attach: stdout: begin")
+				defer log.Debugf("attach: stdout: end")
 				// If we are in StdinOnce mode, then close stdin
 				if container.Config.StdinOnce && stdin != nil {
 					defer stdin.Close()
@@ -182,7 +183,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 					err = nil
 				}
 				if err != nil {
-					utils.Errorf("attach: stdout: %s", err)
+					log.Errorf("attach: stdout: %s", err)
 				}
 				errors <- err
 			}()
@@ -193,7 +194,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 				defer stdinCloser.Close()
 			}
 			if cStdout, err := container.StdoutPipe(); err != nil {
-				utils.Errorf("attach: stdout pipe: %s", err)
+				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStdout)
 			}
@@ -206,8 +207,8 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 		} else {
 			cStderr = p
 			go func() {
-				utils.Debugf("attach: stderr: begin")
-				defer utils.Debugf("attach: stderr: end")
+				log.Debugf("attach: stderr: begin")
+				defer log.Debugf("attach: stderr: end")
 				// If we are in StdinOnce mode, then close stdin
 				if container.Config.StdinOnce && stdin != nil {
 					defer stdin.Close()
@@ -220,7 +221,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 					err = nil
 				}
 				if err != nil {
-					utils.Errorf("attach: stderr: %s", err)
+					log.Errorf("attach: stderr: %s", err)
 				}
 				errors <- err
 			}()
@@ -232,7 +233,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 			}
 
 			if cStderr, err := container.StderrPipe(); err != nil {
-				utils.Errorf("attach: stdout pipe: %s", err)
+				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStderr)
 			}
@@ -252,14 +253,14 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
 		// of closing the passed stdin? Add an intermediary io.Pipe?
 		for i := 0; i < nJobs; i += 1 {
-			utils.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
+			log.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
 			if err := <-errors; err != nil {
-				utils.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
+				log.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
 				return err
 			}
-			utils.Debugf("attach: job %d completed successfully", i+1)
+			log.Debugf("attach: job %d completed successfully", i+1)
 		}
-		utils.Debugf("attach: all jobs completed successfully")
+		log.Debugf("attach: all jobs completed successfully")
 		return nil
 	})
 }

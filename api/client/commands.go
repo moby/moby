@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/signal"
@@ -433,11 +434,11 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	out := engine.NewOutput()
 	remoteVersion, err := out.AddEnv()
 	if err != nil {
-		utils.Errorf("Error reading remote version: %s\n", err)
+		log.Errorf("Error reading remote version: %s\n", err)
 		return err
 	}
 	if _, err := out.Write(body); err != nil {
-		utils.Errorf("Error reading remote version: %s\n", err)
+		log.Errorf("Error reading remote version: %s\n", err)
 		return err
 	}
 	out.Close()
@@ -473,7 +474,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	if _, err := out.Write(body); err != nil {
-		utils.Errorf("Error reading remote info: %s\n", err)
+		log.Errorf("Error reading remote info: %s\n", err)
 		return err
 	}
 	out.Close()
@@ -597,10 +598,10 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				utils.Errorf("Unsupported signal: %d. Discarding.", s)
+				log.Errorf("Unsupported signal: %d. Discarding.", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
-				utils.Debugf("Error sending signal: %s", err)
+				log.Debugf("Error sending signal: %s", err)
 			}
 		}
 	}()
@@ -690,7 +691,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	if *openStdin || *attach {
 		if tty && cli.isTerminal {
 			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-				utils.Errorf("Error monitoring TTY size: %s\n", err)
+				log.Errorf("Error monitoring TTY size: %s\n", err)
 			}
 		}
 		return <-cErr
@@ -1827,7 +1828,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	if tty && cli.isTerminal {
 		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-			utils.Debugf("Error monitoring TTY size: %s", err)
+			log.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
 
@@ -2098,9 +2099,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// Block the return until the chan gets closed
 	defer func() {
-		utils.Debugf("End of CmdRun(), Waiting for hijack to finish.")
+		log.Debugf("End of CmdRun(), Waiting for hijack to finish.")
 		if _, ok := <-hijacked; ok {
-			utils.Errorf("Hijack did not finish (chan still open)")
+			log.Errorf("Hijack did not finish (chan still open)")
 		}
 	}()
 
@@ -2146,7 +2147,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	case err := <-errCh:
 		if err != nil {
-			utils.Debugf("Error hijack: %s", err)
+			log.Debugf("Error hijack: %s", err)
 			return err
 		}
 	}
@@ -2158,13 +2159,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
 		if err := cli.monitorTtySize(runResult.Get("Id")); err != nil {
-			utils.Errorf("Error monitoring TTY size: %s\n", err)
+			log.Errorf("Error monitoring TTY size: %s\n", err)
 		}
 	}
 
 	if errCh != nil {
 		if err := <-errCh; err != nil {
-			utils.Debugf("Error hijack: %s", err)
+			log.Debugf("Error hijack: %s", err)
 			return err
 		}
 	}

@@ -3,15 +3,17 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/archive"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 type Image struct {
@@ -87,11 +89,11 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 			}
 		} else {
 			start := time.Now().UTC()
-			utils.Debugf("Start untar layer")
+			log.Debugf("Start untar layer")
 			if err := archive.ApplyLayer(layer, layerData); err != nil {
 				return err
 			}
-			utils.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
+			log.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
 			if img.Parent == "" {
 				if size, err = utils.TreeSize(layer); err != nil {
@@ -299,7 +301,7 @@ func (img *Image) Depth() (int, error) {
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	utils.Debugf("Json string: {%s}", src)
+	log.Debugf("Json string: {%s}", src)
 	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
