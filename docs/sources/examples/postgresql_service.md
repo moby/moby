@@ -84,7 +84,7 @@ Containers*](/userguide/dockerlinks), or we can access it from our host
 
 > **Note**: 
 > The `--rm` removes the container and its image when
-> the container exists successfully.
+> the container exits successfully.
 
 ### Using container linking
 
