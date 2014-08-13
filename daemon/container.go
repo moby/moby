@@ -75,6 +75,7 @@ type Container struct {
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
+	RestartCount             int
 
 	Volumes map[string]string
 	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
@@ -83,6 +84,7 @@ type Container struct {
 	hostConfig *runconfig.HostConfig
 
 	activeLinks map[string]*links.Link
+	monitor     *containerMonitor
 }
 
 func (container *Container) FromDisk() error {
@@ -277,6 +279,7 @@ func (container *Container) Start() (err error) {
 	if container.State.IsRunning() {
 		return nil
 	}
+
 	// if we encounter and error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
@@ -310,9 +313,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	if err := setupMountsForContainer(container); err != nil {
-		return err
-	}
-	if err := container.startLoggingToDisk(); err != nil {
 		return err
 	}
 
@@ -495,37 +495,8 @@ func (container *Container) releaseNetwork() {
 	container.NetworkSettings = &NetworkSettings{}
 }
 
-func (container *Container) monitor(callback execdriver.StartCallback) error {
-	var (
-		err      error
-		exitCode int
-	)
-
-	pipes := execdriver.NewPipes(container.stdin, container.stdout, container.stderr, container.Config.OpenStdin)
-	exitCode, err = container.daemon.Run(container, pipes, callback)
-	if err != nil {
-		log.Errorf("Error running container: %s", err)
-	}
-	container.State.SetStopped(exitCode)
-
-	// Cleanup
-	container.cleanup()
-
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
-	}
-	container.LogEvent("die")
-	// If the engine is shutting down, don't save the container state as stopped.
-	// This will cause it to be restarted when the engine is restarted.
-	if container.daemon != nil && container.daemon.eng != nil && !container.daemon.eng.IsShutdown() {
-		if err := container.toDisk(); err != nil {
-			log.Errorf("Error dumping container %s state to disk: %s\n", container.ID, err)
-		}
-	}
-	return err
-}
-
+// cleanup releases any network resources allocated to the container along with any rules
+// around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
 	container.releaseNetwork()
 
@@ -533,22 +504,6 @@ func (container *Container) cleanup() {
 	if container.activeLinks != nil {
 		for _, link := range container.activeLinks {
 			link.Disable()
-		}
-	}
-	if container.Config.OpenStdin {
-		if err := container.stdin.Close(); err != nil {
-			log.Errorf("%s: Error close stdin: %s", container.ID, err)
-		}
-	}
-	if err := container.stdout.Clean(); err != nil {
-		log.Errorf("%s: Error close stdout: %s", container.ID, err)
-	}
-	if err := container.stderr.Clean(); err != nil {
-		log.Errorf("%s: Error close stderr: %s", container.ID, err)
-	}
-	if container.command != nil && container.command.Terminal != nil {
-		if err := container.command.Terminal.Close(); err != nil {
-			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
@@ -570,6 +525,18 @@ func (container *Container) KillSig(sig int) error {
 	if !container.State.IsRunning() {
 		return nil
 	}
+
+	// signal to the monitor that it should not restart the container
+	// after we send the kill signal
+	container.monitor.ExitOnNext()
+
+	// if the container is currently restarting we do not need to send the signal
+	// to the process.  Telling the monitor that it should exit on it's next event
+	// loop is enough
+	if container.State.IsRestarting() {
+		return nil
+	}
+
 	return container.daemon.Kill(container, sig)
 }
 
@@ -1112,33 +1079,16 @@ func (container *Container) startLoggingToDisk() error {
 }
 
 func (container *Container) waitForStart() error {
-	waitStart := make(chan struct{})
-	callback := func(command *execdriver.Command) {
-		if command.Tty {
-			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
-			// which we close here.
-			if c, ok := command.Stdout.(io.Closer); ok {
-				c.Close()
-			}
-		}
-		container.State.SetRunning(command.Pid())
-		if err := container.toDisk(); err != nil {
-			log.Debugf("%s", err)
-		}
-		close(waitStart)
-	}
+	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
-	// We use a callback here instead of a goroutine and an chan for
-	// syncronization purposes
-	cErr := utils.Go(func() error { return container.monitor(callback) })
-
-	// Start should not return until the process is actually running
+	// block until we either receive an error from the initial start of the container's
+	// process or until the process is running in the container
 	select {
-	case <-waitStart:
-	case err := <-cErr:
+	case <-container.monitor.startSignal:
+	case err := <-utils.Go(container.monitor.Start):
 		return err
 	}
+
 	return nil
 }
 

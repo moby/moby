@@ -25,6 +25,11 @@ type DeviceMapping struct {
 	CgroupPermissions string
 }
 
+type RestartPolicy struct {
+	Name              string
+	MaximumRetryCount int
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
@@ -40,6 +45,7 @@ type HostConfig struct {
 	NetworkMode     NetworkMode
 	CapAdd          []string
 	CapDrop         []string
+	RestartPolicy   RestartPolicy
 }
 
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
@@ -49,9 +55,11 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 	}
+
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
 	job.GetenvJson("Devices", &hostConfig.Devices)
+	job.GetenvJson("RestartPolicy", &hostConfig.RestartPolicy)
 	if Binds := job.GetenvList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds
 	}
@@ -73,5 +81,6 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
 		hostConfig.CapDrop = CapDrop
 	}
+
 	return hostConfig
 }
