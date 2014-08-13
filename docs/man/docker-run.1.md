@@ -172,6 +172,7 @@ and foreground Docker containers.
 **--net**="bridge"
    Set the Network mode for the container
                                'bridge': creates a new network stack for the container on the docker bridge
+			       'bridge:<name>: creates a new network stack for the container on the specified pre-existing bridge'
                                'none': no networking for this container
                                'container:<name|id>': reuses another container network stack
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.

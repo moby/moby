@@ -135,10 +135,11 @@ example, `docker run ubuntu:14.04`.
 
     --dns=[]        : Set custom dns servers for the container
     --net="bridge"  : Set the Network mode for the container
-                                 'bridge': creates a new network stack for the container on the docker bridge
-                                 'none': no networking for this container
-                                 'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the container
+    		    		  'bridge': creates a new network stack for the container on the default docker bridge
+                                  'bridge:<name>': creates a new network stack for the container on the specified pre-existing bridge
+                                  'none': no networking for this container
+                                  'container:<name|id>': reuses another container network stack
+                                  'host': use the host network stack inside the container
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -173,6 +174,16 @@ to the bridge while the other side of the pair will be placed inside the
 container's namespaces in addition to the `loopback` interface.  An IP
 address will be allocated for containers on the bridge's network and
 traffic will be routed though this bridge to the container.
+
+#### Mode: bridge:<name>
+With the networking mode set to `bridge:<name>` a container will use a 
+pre-existing bridge referred to by `name` for its networking setup.
+A pair of veth interfaces will be created in bridge `name` for the container.  
+One side of the veth pair will remain on the host attached to the bridge while 
+the other side of the pair will be placed inside the container's namespaces in 
+addition to the `loopback` interface.  An IP address will be allocated for 
+containers on the bridge's network and trafic will be routed though this bridge 
+to the container.
 
 #### Mode: host
 

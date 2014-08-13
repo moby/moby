@@ -28,6 +28,7 @@ const (
 // Network interface represents the networking stack of a container
 type networkInterface struct {
 	IP           net.IP
+	Bridge       net.IPNet
 	PortMappings []net.Addr // there are mappings to the host interfaces
 }
 
@@ -318,16 +319,27 @@ func createBridgeIface(name string) error {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip          *net.IP
-		err         error
-		id          = job.Args[0]
-		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+		ip                 *net.IP
+		err                error
+		id                 = job.Args[0]
+		requestedIP        = net.ParseIP(job.Getenv("RequestedIP"))
+		requestedBridge    = job.Getenv("RequestedBridge")
+		bridgeNetworkInUse = bridgeNetwork
+		bridgeIfaceInUse   = bridgeIface
 	)
-
+	if requestedBridge != "" && requestedBridge != bridgeIfaceInUse {
+		addr, err := networkdriver.GetIfaceAddr(requestedBridge)
+		if err != nil {
+			return job.Error(fmt.Errorf("Could not obtain details about bridge %s. Error: %s",
+				requestedBridge, err))
+		}
+		bridgeNetworkInUse = addr.(*net.IPNet)
+		bridgeIfaceInUse = requestedBridge
+	}
 	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, &requestedIP)
+		ip, err = ipallocator.RequestIP(bridgeNetworkInUse, &requestedIP)
 	} else {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
+		ip, err = ipallocator.RequestIP(bridgeNetworkInUse, nil)
 	}
 	if err != nil {
 		return job.Error(err)
@@ -335,15 +347,16 @@ func Allocate(job *engine.Job) engine.Status {
 
 	out := engine.Env{}
 	out.Set("IP", ip.String())
-	out.Set("Mask", bridgeNetwork.Mask.String())
-	out.Set("Gateway", bridgeNetwork.IP.String())
-	out.Set("Bridge", bridgeIface)
+	out.Set("Mask", bridgeNetworkInUse.Mask.String())
+	out.Set("Gateway", bridgeNetworkInUse.IP.String())
+	out.Set("Bridge", bridgeIfaceInUse)
 
-	size, _ := bridgeNetwork.Mask.Size()
+	size, _ := bridgeNetworkInUse.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
 
 	currentInterfaces.Set(id, &networkInterface{
-		IP: *ip,
+		IP:     *ip,
+		Bridge: *bridgeNetworkInUse,
 	})
 
 	out.WriteTo(job.Stdout)
@@ -368,7 +381,7 @@ func Release(job *engine.Job) engine.Status {
 		}
 	}
 
-	if err := ipallocator.ReleaseIP(bridgeNetwork, &containerInterface.IP); err != nil {
+	if err := ipallocator.ReleaseIP(&containerInterface.Bridge, &containerInterface.IP); err != nil {
 		log.Printf("Unable to release ip %s\n", err)
 	}
 	return engine.StatusOK
@@ -462,6 +475,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
+		bridge       = job.Getenv("Bridge")
 	)
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
@@ -471,7 +485,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 	for _, p := range ports {
 		port, proto := split(p)
 		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
+			"-i", bridge, "-o", bridge,
 			"-p", proto,
 			"-s", parentIP,
 			"--dport", port,
@@ -483,7 +497,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		}
 
 		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
+			"-i", bridge, "-o", bridge,
 			"-p", proto,
 			"-s", childIP,
 			"--sport", port,

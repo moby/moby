@@ -11,6 +11,7 @@ import (
 type Link struct {
 	ParentIP         string
 	ChildIP          string
+	Bridge           string
 	Name             string
 	ChildEnvironment []string
 	Ports            []nat.Port
@@ -18,7 +19,7 @@ type Link struct {
 	eng              *engine.Engine
 }
 
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}, eng *engine.Engine) (*Link, error) {
+func NewLink(parentIP, childIP, bridge, name string, env []string, exposedPorts map[nat.Port]struct{}, eng *engine.Engine) (*Link, error) {
 
 	var (
 		i     int
@@ -34,6 +35,7 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 		Name:             name,
 		ChildIP:          childIP,
 		ParentIP:         parentIP,
+		Bridge:           bridge,
 		ChildEnvironment: env,
 		Ports:            ports,
 		eng:              eng,
@@ -121,6 +123,7 @@ func (l *Link) toggle(action string, ignoreErrors bool) error {
 
 	job.Setenv("ParentIP", l.ParentIP)
 	job.Setenv("ChildIP", l.ChildIP)
+	job.Setenv("Bridge", l.Bridge)
 	job.SetenvBool("IgnoreErrors", ignoreErrors)
 
 	out := make([]string, len(l.Ports))
