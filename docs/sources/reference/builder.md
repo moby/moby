@@ -271,8 +271,9 @@ container's filesystem at path `<dest>`.
 `<src>` must be the path to a file or directory relative to the source directory
 being built (also called the *context* of the build) or a remote file URL.
 
-`<dest>` is the absolute path to which the source will be copied inside the
-destination container.
+`<dest>` can be an absolute path, or relative to the current `WORKDIR`. The
+`<source>` will be copied to that location in the destination container and
+resulting image.
 
 All new files and directories are created with a UID and GID of 0.
 

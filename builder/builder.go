@@ -361,14 +361,10 @@ func (b *buildFile) CmdCopy(args string) error {
 }
 
 func (b *buildFile) CmdWorkdir(workdir string) error {
-	if workdir[0] == '/' {
-		b.config.WorkingDir = workdir
-	} else {
-		if b.config.WorkingDir == "" {
-			b.config.WorkingDir = "/"
-		}
-		b.config.WorkingDir = filepath.Join(b.config.WorkingDir, workdir)
+	if !filepath.IsAbs(workdir) {
+		workdir = filepath.Join("/", b.config.WorkingDir, workdir)
 	}
+	b.config.WorkingDir = workdir
 	return b.commit("", b.config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
@@ -507,6 +503,15 @@ func (b *buildFile) runContextCommand(args string, allowRemote bool, allowDecomp
 	dest, err := b.ReplaceEnvMatches(strings.Trim(tmp[1], " \t"))
 	if err != nil {
 		return err
+	}
+
+	if !filepath.IsAbs(dest) {
+		newDest := filepath.Join("/", b.config.WorkingDir, dest)
+		if strings.HasSuffix(dest, "/") {
+			// preserve trailing slash
+			newDest += "/"
+		}
+		dest = newDest
 	}
 
 	cmd := b.config.Cmd
