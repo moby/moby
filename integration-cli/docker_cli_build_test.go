@@ -1836,7 +1836,7 @@ func TestBuildFromGIT(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res != "docker" {
-		t.Fatal("Maintainer should be docker, got %s", res)
+		t.Fatalf("Maintainer should be docker, got %s", res)
 	}
 	logDone("build - build from GIT")
 }

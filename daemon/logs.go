@@ -71,7 +71,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 			var err error
 			lines, err = strconv.Atoi(tail)
 			if err != nil {
-				utils.Errorf("Failed to parse tail %s, error: %v, show all logs", err)
+				utils.Errorf("Failed to parse tail %s, error: %v, show all logs", tail, err)
 				lines = -1
 			}
 		}

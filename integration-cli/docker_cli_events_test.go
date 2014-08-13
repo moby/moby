@@ -76,7 +76,7 @@ func TestCLIGetEventsContainerEvents(t *testing.T) {
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
-		t.Fatal("Failed to get events with exit code %d: %s", exitCode, err)
+		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
 	}
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
@@ -119,7 +119,7 @@ func TestCLIGetEventsImageUntagDelete(t *testing.T) {
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
-		t.Fatal("Failed to get events with exit code %d: %s", exitCode, err)
+		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
 	}
 	events := strings.Split(out, "\n")
 	t.Log(events)

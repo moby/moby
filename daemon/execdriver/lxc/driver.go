@@ -64,7 +64,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 	c.Terminal = term
 
-	c.Mounts = append(c.Mounts, execdriver.Mount{d.initPath, c.InitPath, false, true})
+	c.Mounts = append(c.Mounts, execdriver.Mount{
+		Source:      d.initPath,
+		Destination: c.InitPath,
+		Writable:    false,
+		Private:     true,
+	})
 
 	if err := d.generateEnvConfig(c); err != nil {
 		return -1, err
@@ -440,7 +445,12 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 		return err
 	}
 	p := path.Join(d.root, "containers", c.ID, "config.env")
-	c.Mounts = append(c.Mounts, execdriver.Mount{p, "/.dockerenv", false, true})
+	c.Mounts = append(c.Mounts, execdriver.Mount{
+		Source:      p,
+		Destination: "/.dockerenv",
+		Writable:    false,
+		Private:     true,
+	})
 
 	return ioutil.WriteFile(p, data, 0600)
 }
