@@ -51,17 +51,17 @@ func (node *Node) Dump() string {
 
 // performs the dispatch based on the two primal strings, cmd and args. Please
 // look at the dispatch table in parser.go to see how these dispatchers work.
-func fullDispatch(cmd, args string) (*Node, error) {
+func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
 	if _, ok := dispatch[cmd]; !ok {
-		return nil, fmt.Errorf("'%s' is not a valid dockerfile command", cmd)
+		return nil, nil, fmt.Errorf("'%s' is not a valid dockerfile command", cmd)
 	}
 
-	sexp, err := dispatch[cmd](args)
+	sexp, attrs, err := dispatch[cmd](args)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return sexp, nil
+	return sexp, attrs, nil
 }
 
 // splitCommand takes a single line of text and parses out the cmd and args,

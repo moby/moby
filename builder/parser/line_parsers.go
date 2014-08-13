@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	dockerFileErrJSONNesting = errors.New("You may not nest arrays in Dockerfile statements.")
+	errDockerfileJSONNesting = errors.New("You may not nest arrays in Dockerfile statements.")
 )
 
 // ignore the current argument. This will still leave a command parsed, but
 // will not incorporate the arguments into the ast.
-func parseIgnore(rest string) (*Node, error) {
-	return &Node{}, nil
+func parseIgnore(rest string) (*Node, map[string]bool, error) {
+	return &Node{}, nil, nil
 }
 
 // used for onbuild. Could potentially be used for anything that represents a
@@ -28,18 +28,18 @@ func parseIgnore(rest string) (*Node, error) {
 //
 // ONBUILD RUN foo bar -> (onbuild (run foo bar))
 //
-func parseSubCommand(rest string) (*Node, error) {
+func parseSubCommand(rest string) (*Node, map[string]bool, error) {
 	_, child, err := parseLine(rest)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &Node{Children: []*Node{child}}, nil
+	return &Node{Children: []*Node{child}}, nil, nil
 }
 
 // parse environment like statements. Note that this does *not* handle
 // variable interpolation, which will be handled in the evaluator.
-func parseEnv(rest string) (*Node, error) {
+func parseEnv(rest string) (*Node, map[string]bool, error) {
 	node := &Node{}
 	rootnode := node
 	strs := TOKEN_WHITESPACE.Split(rest, 2)
@@ -47,12 +47,12 @@ func parseEnv(rest string) (*Node, error) {
 	node.Next = &Node{}
 	node.Next.Value = strs[1]
 
-	return rootnode, nil
+	return rootnode, nil, nil
 }
 
 // parses a whitespace-delimited set of arguments. The result is effectively a
 // linked list of string arguments.
-func parseStringsWhitespaceDelimited(rest string) (*Node, error) {
+func parseStringsWhitespaceDelimited(rest string) (*Node, map[string]bool, error) {
 	node := &Node{}
 	rootnode := node
 	prevnode := node
@@ -68,16 +68,18 @@ func parseStringsWhitespaceDelimited(rest string) (*Node, error) {
 	// chain.
 	prevnode.Next = nil
 
-	return rootnode, nil
+	return rootnode, nil, nil
 }
 
 // parsestring just wraps the string in quotes and returns a working node.
-func parseString(rest string) (*Node, error) {
-	return &Node{rest, nil, nil}, nil
+func parseString(rest string) (*Node, map[string]bool, error) {
+	n := &Node{}
+	n.Value = rest
+	return n, nil, nil
 }
 
 // parseJSON converts JSON arrays to an AST.
-func parseJSON(rest string) (*Node, error) {
+func parseJSON(rest string) (*Node, map[string]bool, error) {
 	var (
 		myJson   []interface{}
 		next     = &Node{}
@@ -86,7 +88,7 @@ func parseJSON(rest string) (*Node, error) {
 	)
 
 	if err := json.Unmarshal([]byte(rest), &myJson); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, str := range myJson {
@@ -95,7 +97,7 @@ func parseJSON(rest string) (*Node, error) {
 		case float64:
 			str = strconv.FormatFloat(str.(float64), 'G', -1, 64)
 		default:
-			return nil, dockerFileErrJSONNesting
+			return nil, nil, errDockerfileJSONNesting
 		}
 		next.Value = str.(string)
 		next.Next = &Node{}
@@ -105,26 +107,27 @@ func parseJSON(rest string) (*Node, error) {
 
 	prevnode.Next = nil
 
-	return orignext, nil
+	return orignext, map[string]bool{"json": true}, nil
 }
 
 // parseMaybeJSON determines if the argument appears to be a JSON array. If
 // so, passes to parseJSON; if not, quotes the result and returns a single
 // node.
-func parseMaybeJSON(rest string) (*Node, error) {
+func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 	rest = strings.TrimSpace(rest)
 
 	if strings.HasPrefix(rest, "[") {
-		node, err := parseJSON(rest)
+		node, attrs, err := parseJSON(rest)
 
 		if err == nil {
-			return node, nil
-		} else if err == dockerFileErrJSONNesting {
-			return nil, err
+			return node, attrs, nil
+		}
+		if err == errDockerfileJSONNesting {
+			return nil, nil, err
 		}
 	}
 
 	node := &Node{}
 	node.Value = rest
-	return node, nil
+	return node, nil, nil
 }

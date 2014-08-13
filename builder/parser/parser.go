@@ -21,13 +21,14 @@ import (
 // works a little more effectively than a "proper" parse tree for our needs.
 //
 type Node struct {
-	Value    string  // actual content
-	Next     *Node   // the next item in the current sexp
-	Children []*Node // the children of this sexp
+	Value      string          // actual content
+	Next       *Node           // the next item in the current sexp
+	Children   []*Node         // the children of this sexp
+	Attributes map[string]bool // special attributes for this node
 }
 
 var (
-	dispatch                map[string]func(string) (*Node, error)
+	dispatch                map[string]func(string) (*Node, map[string]bool, error)
 	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
 	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\$`)
 	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
@@ -40,7 +41,7 @@ func init() {
 	// reformulating the arguments according to the rules in the parser
 	// functions. Errors are propogated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
-	dispatch = map[string]func(string) (*Node, error){
+	dispatch = map[string]func(string) (*Node, map[string]bool, error){
 		"user":           parseString,
 		"onbuild":        parseSubCommand,
 		"workdir":        parseString,
@@ -75,12 +76,13 @@ func parseLine(line string) (string, *Node, error) {
 	node := &Node{}
 	node.Value = cmd
 
-	sexp, err := fullDispatch(cmd, args)
+	sexp, attrs, err := fullDispatch(cmd, args)
 	if err != nil {
 		return "", nil, err
 	}
 
 	node.Next = sexp
+	node.Attributes = attrs
 
 	return "", node, nil
 }

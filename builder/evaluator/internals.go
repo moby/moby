@@ -21,12 +21,12 @@ import (
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -299,13 +299,15 @@ func (b *BuildFile) pullImage(name string) (*imagepkg.Image, error) {
 
 func (b *BuildFile) processImageFrom(img *imagepkg.Image) error {
 	b.image = img.ID
-	b.Config = &runconfig.Config{}
+
 	if img.Config != nil {
 		b.Config = img.Config
 	}
+
 	if b.Config.Env == nil || len(b.Config.Env) == 0 {
 		b.Config.Env = append(b.Config.Env, "PATH="+daemon.DefaultPathEnv)
 	}
+
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.Config.OnBuild); nTriggers != 0 {
 		fmt.Fprintf(b.Options.ErrStream, "# Executing %d build triggers\n", nTriggers)
@@ -332,7 +334,7 @@ func (b *BuildFile) processImageFrom(img *imagepkg.Image) error {
 		// in this function.
 
 		if f, ok := evaluateTable[strings.ToLower(stepInstruction)]; ok {
-			if err := f(b, splitStep[1:]); err != nil {
+			if err := f(b, splitStep[1:], nil); err != nil {
 				return err
 			}
 		} else {
@@ -354,11 +356,11 @@ func (b *BuildFile) probeCache() (bool, error) {
 			return false, err
 		} else if cache != nil {
 			fmt.Fprintf(b.Options.OutStream, " ---> Using cache\n")
-			utils.Debugf("[BUILDER] Use cached version")
+			log.Debugf("[BUILDER] Use cached version")
 			b.image = cache.ID
 			return true, nil
 		} else {
-			utils.Debugf("[BUILDER] Cache miss")
+			log.Debugf("[BUILDER] Cache miss")
 		}
 	}
 	return false, nil
@@ -423,19 +425,17 @@ func (b *BuildFile) run(c *daemon.Container) error {
 
 func (b *BuildFile) checkPathForAddition(orig string) error {
 	origPath := path.Join(b.contextPath, orig)
-	if p, err := filepath.EvalSymlinks(origPath); err != nil {
+	origPath, err := filepath.EvalSymlinks(origPath)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("%s: no such file or directory", orig)
 		}
 		return err
-	} else {
-		origPath = p
 	}
 	if !strings.HasPrefix(origPath, b.contextPath) {
 		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
-	_, err := os.Stat(origPath)
-	if err != nil {
+	if _, err := os.Stat(origPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("%s: no such file or directory", orig)
 		}
@@ -499,7 +499,7 @@ func (b *BuildFile) addContext(container *daemon.Container, orig, dest string, d
 		if err := archive.UntarPath(origPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
-			utils.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
+			log.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
 		}
 	}
 

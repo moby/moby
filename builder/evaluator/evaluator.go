@@ -38,17 +38,16 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-type EnvMap map[string]string
 type UniqueMap map[string]struct{}
 
 var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
-var evaluateTable map[string]func(*BuildFile, []string) error
+var evaluateTable map[string]func(*BuildFile, []string, map[string]bool) error
 
 func init() {
-	evaluateTable = map[string]func(*BuildFile, []string) error{
+	evaluateTable = map[string]func(*BuildFile, []string, map[string]bool) error{
 		"env":            env,
 		"maintainer":     maintainer,
 		"add":            add,
@@ -71,7 +70,6 @@ func init() {
 // processing as it evaluates the parsing result.
 type BuildFile struct {
 	Dockerfile *parser.Node      // the syntax tree of the dockerfile
-	Env        EnvMap            // map of environment variables
 	Config     *runconfig.Config // runconfig for cmd, run, entrypoint etc.
 	Options    *BuildOpts        // see below
 
@@ -152,7 +150,9 @@ func (b *BuildFile) Run(context io.Reader) (string, error) {
 				b.clearTmp(b.TmpContainers)
 			}
 			return "", err
-		} else if b.Options.Remove {
+		}
+		fmt.Fprintf(b.Options.OutStream, " ---> %s\n", utils.TruncateID(b.image))
+		if b.Options.Remove {
 			b.clearTmp(b.TmpContainers)
 		}
 	}
@@ -181,25 +181,29 @@ func (b *BuildFile) Run(context io.Reader) (string, error) {
 // features.
 func (b *BuildFile) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
+	attrs := ast.Attributes
 	strs := []string{}
+	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
 
 	if cmd == "onbuild" {
 		fmt.Fprintf(b.Options.OutStream, "%#v\n", ast.Next.Children[0].Value)
 		ast = ast.Next.Children[0]
-		strs = append(strs, ast.Value)
+		strs = append(strs, b.replaceEnv(ast.Value))
+		msg += " " + ast.Value
 	}
 
 	for ast.Next != nil {
 		ast = ast.Next
-		strs = append(strs, replaceEnv(b, ast.Value))
+		strs = append(strs, b.replaceEnv(ast.Value))
+		msg += " " + ast.Value
 	}
 
-	fmt.Fprintf(b.Options.OutStream, "Step %d : %s %s\n", stepN, strings.ToUpper(cmd), strings.Join(strs, " "))
+	fmt.Fprintf(b.Options.OutStream, "%s\n", msg)
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		return f(b, strs)
+		return f(b, strs, attrs)
 	}
 
 	return nil
