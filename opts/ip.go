@@ -20,7 +20,7 @@ func NewIpOpt(ref *net.IP, defaultVal string) *IpOpt {
 func (o *IpOpt) Set(val string) error {
 	ip := net.ParseIP(val)
 	if ip == nil {
-		return fmt.Errorf("incorrect IP format")
+		return fmt.Errorf("%s is not an ip address", val)
 	}
 	(*o.IP) = net.ParseIP(val)
 	return nil
