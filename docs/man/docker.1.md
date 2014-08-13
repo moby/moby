@@ -64,9 +64,6 @@ unix://[/path/to/socket] to use.
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
-**-r**=*true*|*false*
-  Restart previously running containers. Default is true.
-
 **-s**=""
   Force the Docker runtime to use a specific storage driver.
 

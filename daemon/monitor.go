@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 const defaultTimeIncrement = 100
@@ -88,7 +88,7 @@ func (m *containerMonitor) Close() error {
 	// because they share same runconfig and change image. Must be fixed
 	// in builder/builder.go
 	if err := m.container.toDisk(); err != nil {
-		utils.Errorf("Error dumping container %s state to disk: %s\n", m.container.ID, err)
+		log.Errorf("Error dumping container %s state to disk: %s\n", m.container.ID, err)
 
 		return err
 	}
@@ -127,13 +127,13 @@ func (m *containerMonitor) Start() error {
 		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
-			if m.container.RestartCount == 1 {
+			if m.container.RestartCount == 0 {
 				m.resetContainer()
 
 				return err
 			}
 
-			utils.Errorf("Error running container: %s", err)
+			log.Errorf("Error running container: %s", err)
 		}
 
 		m.resetMonitor(err == nil && exitStatus == 0)
@@ -220,7 +220,7 @@ func (m *containerMonitor) shouldRestart(exitStatus int) bool {
 	case "on-failure":
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
 		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount >= max {
-			utils.Debugf("stopping restart of container %s because maximum failure could of %d has been reached", max)
+			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached", max)
 			return false
 		}
 
@@ -251,7 +251,7 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 	}
 
 	if err := m.container.ToDisk(); err != nil {
-		utils.Debugf("%s", err)
+		log.Debugf("%s", err)
 	}
 }
 
@@ -262,21 +262,21 @@ func (m *containerMonitor) resetContainer() {
 
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
-			utils.Errorf("%s: Error close stdin: %s", container.ID, err)
+			log.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
 
 	if err := container.stdout.Clean(); err != nil {
-		utils.Errorf("%s: Error close stdout: %s", container.ID, err)
+		log.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
 
 	if err := container.stderr.Clean(); err != nil {
-		utils.Errorf("%s: Error close stderr: %s", container.ID, err)
+		log.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 
 	if container.command != nil && container.command.Terminal != nil {
 		if err := container.command.Terminal.Close(); err != nil {
-			utils.Errorf("%s: Error closing terminal: %s", container.ID, err)
+			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 

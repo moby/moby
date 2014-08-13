@@ -372,10 +372,10 @@ func (daemon *Daemon) restore() error {
 		for _, container := range registeredContainers {
 			if container.hostConfig.RestartPolicy.Name == "always" ||
 				(container.hostConfig.RestartPolicy.Name == "on-failure" && container.State.ExitCode != 0) {
-				utils.Debugf("Starting container %s", container.ID)
+				log.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {
-					utils.Debugf("Failed to start container %s: %s", container.ID, err)
+					log.Debugf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
 		}
