@@ -38,6 +38,7 @@ func Trap(cleanup func()) {
 						if atomic.LoadUint32(&interruptCount) == 1 {
 							// Call cleanup handler
 							cleanup()
+							os.Exit(0)
 						} else {
 							return
 						}
