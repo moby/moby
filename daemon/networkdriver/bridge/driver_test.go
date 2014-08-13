@@ -1,13 +1,18 @@
 package bridge
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/engine"
 )
+
+func init() {
+	// reset the new proxy command for mocking out the userland proxy in tests
+	portmapper.NewProxy = portmapper.NewMockProxyCommand
+}
 
 func findFreePort(t *testing.T) int {
 	l, err := net.Listen("tcp", ":0")
@@ -59,48 +64,5 @@ func TestAllocatePortDetection(t *testing.T) {
 	}
 	if res := AllocatePort(job); res == engine.StatusOK {
 		t.Fatal("Duplicate port allocation granted by AllocatePort")
-	}
-}
-
-func TestAllocatePortReclaim(t *testing.T) {
-	eng := engine.New()
-	eng.Logging = false
-
-	freePort := findFreePort(t)
-
-	// Init driver
-	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != engine.StatusOK {
-		t.Fatal("Failed to initialize network driver")
-	}
-
-	// Allocate interface
-	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != engine.StatusOK {
-		t.Fatal("Failed to allocate network interface")
-	}
-
-	// Occupy port
-	listenAddr := fmt.Sprintf(":%d", freePort)
-	tcpListenAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
-	if err != nil {
-		t.Fatalf("Failed to resolve TCP address '%s'", listenAddr)
-	}
-
-	l, err := net.ListenTCP("tcp", tcpListenAddr)
-	if err != nil {
-		t.Fatalf("Fail to listen on port %d", freePort)
-	}
-
-	// Allocate port, expect failure
-	job = newPortAllocationJob(eng, freePort)
-	if res := AllocatePort(job); res == engine.StatusOK {
-		t.Fatal("Successfully allocated currently used port")
-	}
-
-	// Reclaim port, retry allocation
-	l.Close()
-	if res := AllocatePort(job); res != engine.StatusOK {
-		t.Fatal("Failed to allocate previously reclaimed port")
 	}
 }
