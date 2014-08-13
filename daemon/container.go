@@ -938,7 +938,7 @@ func (container *Container) updateParentsHosts() error {
 		if cid != "0" {
 			c := container.daemon.Get(cid)
 			if !container.daemon.config.DisableNetwork && !container.hostConfig.NetworkMode.IsContainer() && !container.hostConfig.NetworkMode.IsHost() {
-				if err := c.buildHostsFiles(c.NetworkSettings.IPAddress); err != nil {
+				if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
 					return fmt.Errorf("Failed to update parent: %v", err)
 				}
 			}
