@@ -1487,6 +1487,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	before := cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
+	var flFilter opts.ListOpts
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1508,6 +1511,24 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 	if *size {
 		v.Set("size", "1")
+	}
+
+	// Consolidate all filter flags, and sanity check them.
+	// They'll get processed in the daemon/server.
+	psFilterArgs := filters.Args{}
+	for _, f := range flFilter.GetAll() {
+		var err error
+		psFilterArgs, err = filters.ParseFlag(f, psFilterArgs)
+		if err != nil {
+			return err
+		}
+	}
+	if len(psFilterArgs) > 0 {
+		filterJson, err := filters.ToParam(psFilterArgs)
+		if err != nil {
+			return err
+		}
+		v.Set("filters", filterJson)
 	}
 
 	body, _, err := readBody(cli.call("GET", "/containers/json?"+v.Encode(), nil, false))

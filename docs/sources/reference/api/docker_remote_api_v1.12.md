@@ -90,6 +90,8 @@ List containers
         non-running ones.
     -   **size** – 1/True/true or 0/False/false, Show the containers
         sizes
+    -   **filters** – a JSON encoded value of the filters (a map[string][]string)
+        to process on the images list.
 
     Status Codes:
 
@@ -759,7 +761,7 @@ Copy files or folders of container `id`
      
 
     -   **all** – 1/True/true or 0/False/false, default false
-    -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
+    -   **filters** – a JSON encoded value of the filters (a map[string][]string) to process on the images list.
 
 
 
