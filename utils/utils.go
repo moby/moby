@@ -28,12 +28,6 @@ type KeyValuePair struct {
 	Value string
 }
 
-// A common interface to access the Fatal method of
-// both testing.B and testing.T.
-type Fataler interface {
-	Fatal(args ...interface{})
-}
-
 // Go is a basic promise implementation: it wraps calls a function in a goroutine,
 // and returns a channel which will later return the function's return value.
 func Go(f func() error) chan error {

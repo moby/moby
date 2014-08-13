@@ -20,6 +20,12 @@ const (
 	debug
 )
 
+// A common interface to access the Fatal method of
+// both testing.B and testing.T.
+type Fataler interface {
+	Fatal(args ...interface{})
+}
+
 func (p priority) String() string {
 	switch p {
 	case fatal:
