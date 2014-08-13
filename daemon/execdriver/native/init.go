@@ -62,4 +62,5 @@ func initializer() {
 
 func writeError(err error) {
 	fmt.Sprint(os.Stderr, err)
+	os.Exit(1)
 }
