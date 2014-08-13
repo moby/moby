@@ -1,4 +1,4 @@
-package opts
+package mflag
 
 import (
 	"fmt"
@@ -10,28 +10,27 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api"
-	flag "github.com/docker/docker/pkg/mflag"
 )
 
 // HostListVar defines a "list of hostnames" flag with specified name,
 // default value, and usage string. The argument p points to a string variable
 // in which to store the value of the flag.
 func HostListVar(values *[]string, names []string, usage string) {
-	flag.Var(Filter((*List)(values), api.ValidateHost), names, usage)
+	Var(Filter((*List)(values), api.ValidateHost), names, usage)
 }
 
 // IPListVar defines a "list of IP addresses" flag with specified name,
 // default value, and usage string. The argument p points to a list variable
 // in which to store the value of the flag.
 func IPListVar(values *[]string, names []string, usage string) {
-	flag.Var(Filter((*List)(values), validateIPAddress), names, usage)
+	Var(Filter((*List)(values), validateIPAddress), names, usage)
 }
 
 // DnsSearchList defines a "list of DNS search domains" flag with specified name,
 // default value, and usage string. The argument p points to a list variable
 // in which to store the value of the flag.
 func DnsSearchListVar(values *[]string, names []string, usage string) {
-	flag.Var(Filter((*List)(values), validateDnsSearch), names, usage)
+	Var(Filter((*List)(values), validateDnsSearch), names, usage)
 }
 
 // PathPairListVar defines a "list of path pairs" flag with specified name,
@@ -41,7 +40,7 @@ func DnsSearchListVar(values *[]string, names []string, usage string) {
 // A path pair is a string of the form path1[:path2], where path1 and path2
 // are valid filesystem paths.
 func PathPairListVar(values *[]string, names []string, usage string) {
-	flag.Var(Filter((*List)(values), validatePathPair), names, usage)
+	Var(Filter((*List)(values), validatePathPair), names, usage)
 }
 
 // PathPairSetVar defines a "set of unique path pairs" flag with specified name,
@@ -51,7 +50,7 @@ func PathPairListVar(values *[]string, names []string, usage string) {
 // A path pair is a string of the form path1[:path2], where path1 and path2
 // are valid filesystem paths.
 func PathPairSetVar(values *map[string]struct{}, names []string, usage string) {
-	flag.Var(Filter((*Set)(values), validatePathPair), names, usage)
+	Var(Filter((*StringSet)(values), validatePathPair), names, usage)
 }
 
 // NamePairList defines a "set of unique name pairs" flag with specified name,
@@ -60,7 +59,7 @@ func PathPairSetVar(values *map[string]struct{}, names []string, usage string) {
 //
 // A name pair is a string of the form name1:name2.
 func NamePairListVar(values *[]string, names []string, usage string) {
-	flag.Var(Filter((*List)(values), validateNamePair), names, usage)
+	Var(Filter((*List)(values), validateNamePair), names, usage)
 }
 
 // EnvVar defines a "environment" flag with specified name,
@@ -69,7 +68,7 @@ func NamePairListVar(values *[]string, names []string, usage string) {
 //
 // An environment is a list of strings of the form KEY=[VALUE].
 func EnvVar(values *[]string, names []string, usage string) {
-	flag.Var(Filter((*List)(values), validateEnv), names, usage)
+	Var(Filter((*List)(values), validateEnv), names, usage)
 }
 
 // StreamSetVar defines a "set of unique stream names" flag with specified name,
@@ -78,7 +77,7 @@ func EnvVar(values *[]string, names []string, usage string) {
 //
 // A stream name is either "stdin", "stdout" or "stderr" (case insensitive).
 func StreamSetVar(values *map[string]struct{}, names []string, usage string) {
-	flag.Var(Filter((*Set)(values), validateStreamName), names, usage)
+	Var(Filter((*StringSet)(values), validateStreamName), names, usage)
 }
 
 // Validators

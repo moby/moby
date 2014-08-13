@@ -1,12 +1,11 @@
-package opts
+package mflag
 
 import (
-	"flag"
 	"testing"
 )
 
 func TestList(t *testing.T) {
-	var l flag.Value = new(List)
+	var l Value = new(List)
 	l.Set("ga")
 	l.Set("bu")
 	l.Set("zo")

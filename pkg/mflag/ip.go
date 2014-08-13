@@ -1,16 +1,14 @@
-package opts
+package mflag
 
 import (
 	"fmt"
 	"net"
-
-	flag "github.com/docker/docker/pkg/mflag"
 )
 
 func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 	ip := (*IP)(value)
 	ip.Set(defaultValue)
-	flag.Var(ip, names, usage)
+	Var(ip, names, usage)
 }
 
 type IP net.IP
