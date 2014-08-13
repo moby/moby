@@ -486,6 +486,36 @@ func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
 }
 
+// getContainerState returns the exit code of the container
+// and true if it's running
+// the exit code should be ignored if it's running
+func getContainerState(t *testing.T, id string) (int, bool, error) {
+	var (
+		exitStatus int
+		running    bool
+	)
+	out, exitCode, err := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
+	if err != nil || exitCode != 0 {
+		return 0, false, fmt.Errorf("'%s' doesn't exist: %s", id, err)
+	}
+
+	out = strings.Trim(out, "\n")
+	splitOutput := strings.Split(out, " ")
+	if len(splitOutput) != 2 {
+		return 0, false, fmt.Errorf("failed to get container state: output is broken")
+	}
+	if splitOutput[0] == "true" {
+		running = true
+	}
+	if n, err := strconv.Atoi(splitOutput[1]); err == nil {
+		exitStatus = n
+	} else {
+		return 0, false, fmt.Errorf("failed to get container state: couldn't parse integer")
+	}
+
+	return exitStatus, running, nil
+}
+
 func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
