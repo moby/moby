@@ -689,11 +689,12 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 
 func TestBuildEnv(t *testing.T) {
 	name := "testbuildenv"
-	expected := "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
+	expected := "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375 X=y=1]"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
         ENV PORT 2375
+	ENV X y=1
 		RUN [ $(env | grep PORT) = 'PORT=2375' ]`,
 		true)
 	if err != nil {
@@ -707,6 +708,28 @@ func TestBuildEnv(t *testing.T) {
 		t.Fatalf("Env %s, expected %s", res, expected)
 	}
 	logDone("build - env")
+}
+
+func TestBuildMultipleEnv(t *testing.T) {
+	name := "testbuildmultipleenv"
+	expected := "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375 DEBIAN_FRONTEND=noninteractive HOME=/root LC_ALL=en_US.UTF-8]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+        ENV PORT=2375 DEBIAN_FRONTEND=noninteractive HOME=/root LC_ALL=en_US.UTF-8
+                RUN [ $(env | grep PORT) = 'PORT=2375' ]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Env %s, expected %s", res, expected)
+	}
+	logDone("build - multiple env")
 }
 
 func TestBuildCmd(t *testing.T) {
@@ -1733,6 +1756,30 @@ RUN    [ "$(cat $TO)" = "hello" ]`
 		t.Fatal(err)
 	}
 	logDone("build - environment variables usage")
+}
+
+func TestMultipleBuildEnvUsage(t *testing.T) {
+	name := "testbuildenvusage"
+	defer deleteImages(name)
+	dockerfile := `FROM busybox
+ENV    FOO=/foo/baz BAR=/bar FOOPATH=$PATH:$FOO
+ENV    BAZ $BAR
+RUN    [ "$BAR" = "$BAZ" ]
+RUN    [ "$FOOPATH" = "$PATH:/foo/baz" ]
+ENV        FROM=hello/docker/world TO=/docker/world/hello
+ADD    $FROM $TO
+RUN    [ "$(cat $TO)" = "hello" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"hello/docker/world": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - multiple environment variables usage")
 }
 
 func TestBuildAddScript(t *testing.T) {
