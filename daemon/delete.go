@@ -117,7 +117,7 @@ func (daemon *Daemon) ContainerDestroy(job *engine.Job) engine.Status {
 			for volumeId := range volumes {
 				// If the requested volu
 				if c, exists := usedVolumes[volumeId]; exists {
-					log.Infof("The volume %s is used by the container %s. Impossible to remove it. Skipping.\n", volumeId, c.ID)
+					log.Infof("The volume %s is used by the container %s. Impossible to remove it. Skipping.", volumeId, c.ID)
 					continue
 				}
 				if err := daemon.Volumes().Delete(volumeId); err != nil {

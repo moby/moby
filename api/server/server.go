@@ -1036,7 +1036,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		log.Debugf("Calling %s %s", localMethod, localRoute)
 
 		if logging {
-			log.Infof("%s %s\n", r.Method, r.RequestURI)
+			log.Infof("%s %s", r.Method, r.RequestURI)
 		}
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
@@ -1352,7 +1352,7 @@ func ServeApi(job *engine.Job) engine.Status {
 			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 		}
 		go func() {
-			log.Infof("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
+			log.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
 		}()
 	}
