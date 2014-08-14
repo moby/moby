@@ -103,8 +103,17 @@ func (m *containerMonitor) Start() error {
 		exitStatus int
 	)
 
+	// this variable indicates that we under container.Lock
+	underLock := true
+
 	// ensure that when the monitor finally exits we release the networking and unmount the rootfs
-	defer m.Close()
+	defer func() {
+		if !underLock {
+			m.container.Lock()
+			defer m.container.Unlock()
+		}
+		m.Close()
+	}()
 
 	// reset the restart count
 	m.container.RestartCount = -1
@@ -135,6 +144,9 @@ func (m *containerMonitor) Start() error {
 
 			log.Errorf("Error running container: %s", err)
 		}
+
+		// here container.Lock is already lost
+		underLock = false
 
 		m.resetMonitor(err == nil && exitStatus == 0)
 
