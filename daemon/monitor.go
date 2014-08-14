@@ -244,10 +244,12 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 
 	m.container.State.SetRunning(command.Pid())
 
-	if m.startSignal != nil {
-		// signal that the process has started
+	// signal that the process has started
+	// close channel only if not closed
+	select {
+	case <-m.startSignal:
+	default:
 		close(m.startSignal)
-		m.startSignal = nil
 	}
 
 	if err := m.container.ToDisk(); err != nil {
