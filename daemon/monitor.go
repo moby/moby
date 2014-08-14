@@ -58,8 +58,8 @@ func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *
 		container:     container,
 		restartPolicy: policy,
 		timeIncrement: defaultTimeIncrement,
-		stopChan:      make(chan struct{}, 1),
-		startSignal:   make(chan struct{}, 1),
+		stopChan:      make(chan struct{}),
+		startSignal:   make(chan struct{}),
 	}
 }
 
