@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -47,6 +48,16 @@ func (s *State) String() string {
 	}
 
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+}
+
+type jState State
+
+// MarshalJSON for state is needed to avoid race conditions on inspect
+func (s *State) MarshalJSON() ([]byte, error) {
+	s.RLock()
+	b, err := json.Marshal(jState(*s))
+	s.RUnlock()
+	return b, err
 }
 
 func wait(waitChan <-chan struct{}, timeout time.Duration) error {
