@@ -106,11 +106,11 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
 			if err := tcpc.CloseWrite(); err != nil {
-				log.Debugf("Couldn't send EOF: %s\n", err)
+				log.Debugf("Couldn't send EOF: %s", err)
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
-				log.Debugf("Couldn't send EOF: %s\n", err)
+				log.Debugf("Couldn't send EOF: %s", err)
 			}
 		}
 		// Discard errors due to pipe interruption

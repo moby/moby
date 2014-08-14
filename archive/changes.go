@@ -364,19 +364,19 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					ChangeTime: timestamp,
 				}
 				if err := tw.WriteHeader(hdr); err != nil {
-					log.Debugf("Can't write whiteout header: %s\n", err)
+					log.Debugf("Can't write whiteout header: %s", err)
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
 				if err := addTarFile(path, change.Path[1:], tw, twBuf); err != nil {
-					log.Debugf("Can't add file %s to tar: %s\n", path, err)
+					log.Debugf("Can't add file %s to tar: %s", path, err)
 				}
 			}
 		}
 
 		// Make sure to check the error on Close.
 		if err := tw.Close(); err != nil {
-			log.Debugf("Can't close layer: %s\n", err)
+			log.Debugf("Can't close layer: %s", err)
 		}
 		writer.Close()
 	}()

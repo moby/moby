@@ -342,7 +342,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		for _, include := range options.Includes {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
-					log.Debugf("Tar: Can't stat file %s to tar: %s\n", srcPath, err)
+					log.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
 					return nil
 				}
 
@@ -353,7 +353,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 				skip, err := utils.Matches(relFilePath, options.Excludes)
 				if err != nil {
-					log.Debugf("Error matching %s\n", relFilePath, err)
+					log.Debugf("Error matching %s", relFilePath, err)
 					return err
 				}
 
@@ -365,7 +365,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if err := addTarFile(filePath, relFilePath, tw, twBuf); err != nil {
-					log.Debugf("Can't add file %s to tar: %s\n", srcPath, err)
+					log.Debugf("Can't add file %s to tar: %s", srcPath, err)
 				}
 				return nil
 			})
@@ -373,13 +373,13 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 		// Make sure to check the error on Close.
 		if err := tw.Close(); err != nil {
-			log.Debugf("Can't close tar writer: %s\n", err)
+			log.Debugf("Can't close tar writer: %s", err)
 		}
 		if err := compressWriter.Close(); err != nil {
-			log.Debugf("Can't close compress writer: %s\n", err)
+			log.Debugf("Can't close compress writer: %s", err)
 		}
 		if err := pipeWriter.Close(); err != nil {
-			log.Debugf("Can't close pipe writer: %s\n", err)
+			log.Debugf("Can't close pipe writer: %s", err)
 		}
 	}()
 

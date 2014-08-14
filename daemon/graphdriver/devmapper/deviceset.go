@@ -596,7 +596,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 			data, err := devices.ensureImage("data", devices.dataLoopbackSize)
 			if err != nil {
-				log.Debugf("Error device ensureImage (data): %s\n", err)
+				log.Debugf("Error device ensureImage (data): %s", err)
 				return err
 			}
 
@@ -627,7 +627,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 			metadata, err := devices.ensureImage("metadata", devices.metaDataLoopbackSize)
 			if err != nil {
-				log.Debugf("Error device ensureImage (metadata): %s\n", err)
+				log.Debugf("Error device ensureImage (metadata): %s", err)
 				return err
 			}
 
@@ -659,7 +659,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// Setup the base image
 	if doInit {
 		if err := devices.setupBaseImage(); err != nil {
-			log.Debugf("Error device setupBaseImage: %s\n", err)
+			log.Debugf("Error device setupBaseImage: %s", err)
 			return err
 		}
 	}
@@ -686,7 +686,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	deviceId := devices.nextDeviceId
 
 	if err := createSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
-		log.Debugf("Error creating snap device: %s\n", err)
+		log.Debugf("Error creating snap device: %s", err)
 		return err
 	}
 
@@ -695,7 +695,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
 		deleteDevice(devices.getPoolDevName(), deviceId)
-		log.Debugf("Error registering device: %s\n", err)
+		log.Debugf("Error registering device: %s", err)
 		return err
 	}
 	return nil
@@ -708,7 +708,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		// manually
 		if err := devices.activateDeviceIfNeeded(info); err == nil {
 			if err := BlockDeviceDiscard(info.DevName()); err != nil {
-				log.Debugf("Error discarding block on device: %s (ignoring)\n", err)
+				log.Debugf("Error discarding block on device: %s (ignoring)", err)
 			}
 		}
 	}
@@ -716,13 +716,13 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 	devinfo, _ := getInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
 		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
-			log.Debugf("Error removing device: %s\n", err)
+			log.Debugf("Error removing device: %s", err)
 			return err
 		}
 	}
 
 	if err := deleteDevice(devices.getPoolDevName(), info.DeviceId); err != nil {
-		log.Debugf("Error deleting device: %s\n", err)
+		log.Debugf("Error deleting device: %s", err)
 		return err
 	}
 
@@ -735,7 +735,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		devices.devicesLock.Lock()
 		devices.Devices[info.Hash] = info
 		devices.devicesLock.Unlock()
-		log.Debugf("Error removing meta data: %s\n", err)
+		log.Debugf("Error removing meta data: %s", err)
 		return err
 	}
 
@@ -779,7 +779,7 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	// Wait for the unmount to be effective,
 	// by watching the value of Info.OpenCount for the device
 	if err := devices.waitClose(info); err != nil {
-		log.Errorf("Warning: error waiting for device %s to close: %s\n", info.Hash, err)
+		log.Errorf("Warning: error waiting for device %s to close: %s", info.Hash, err)
 	}
 
 	devinfo, err := getInfo(info.Name())
@@ -903,12 +903,12 @@ func (devices *DeviceSet) Shutdown() error {
 			// container. This means it'll go away from the global scope directly,
 			// and the device will be released when that container dies.
 			if err := syscall.Unmount(info.mountPath, syscall.MNT_DETACH); err != nil {
-				log.Debugf("Shutdown unmounting %s, error: %s\n", info.mountPath, err)
+				log.Debugf("Shutdown unmounting %s, error: %s", info.mountPath, err)
 			}
 
 			devices.Lock()
 			if err := devices.deactivateDevice(info); err != nil {
-				log.Debugf("Shutdown deactivate %s , error: %s\n", info.Hash, err)
+				log.Debugf("Shutdown deactivate %s , error: %s", info.Hash, err)
 			}
 			devices.Unlock()
 		}
@@ -920,7 +920,7 @@ func (devices *DeviceSet) Shutdown() error {
 		info.lock.Lock()
 		devices.Lock()
 		if err := devices.deactivateDevice(info); err != nil {
-			log.Debugf("Shutdown deactivate base , error: %s\n", err)
+			log.Debugf("Shutdown deactivate base , error: %s", err)
 		}
 		devices.Unlock()
 		info.lock.Unlock()
@@ -928,7 +928,7 @@ func (devices *DeviceSet) Shutdown() error {
 
 	devices.Lock()
 	if err := devices.deactivatePool(); err != nil {
-		log.Debugf("Shutdown deactivate pool , error: %s\n", err)
+		log.Debugf("Shutdown deactivate pool , error: %s", err)
 	}
 	devices.Unlock()
 

@@ -434,11 +434,11 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	out := engine.NewOutput()
 	remoteVersion, err := out.AddEnv()
 	if err != nil {
-		log.Errorf("Error reading remote version: %s\n", err)
+		log.Errorf("Error reading remote version: %s", err)
 		return err
 	}
 	if _, err := out.Write(body); err != nil {
-		log.Errorf("Error reading remote version: %s\n", err)
+		log.Errorf("Error reading remote version: %s", err)
 		return err
 	}
 	out.Close()
@@ -474,7 +474,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	if _, err := out.Write(body); err != nil {
-		log.Errorf("Error reading remote info: %s\n", err)
+		log.Errorf("Error reading remote info: %s", err)
 		return err
 	}
 	out.Close()
@@ -691,7 +691,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	if *openStdin || *attach {
 		if tty && cli.isTerminal {
 			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
-				log.Errorf("Error monitoring TTY size: %s\n", err)
+				log.Errorf("Error monitoring TTY size: %s", err)
 			}
 		}
 		return <-cErr
@@ -2159,7 +2159,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
 		if err := cli.monitorTtySize(runResult.Get("Id")); err != nil {
-			log.Errorf("Error monitoring TTY size: %s\n", err)
+			log.Errorf("Error monitoring TTY size: %s", err)
 		}
 	}
 

@@ -107,16 +107,16 @@ func init() {
 	if dockerinit := os.Getenv("TEST_DOCKERINIT_PATH"); dockerinit != "" {
 		src, err := os.Open(dockerinit)
 		if err != nil {
-			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s\n", err)
+			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s", err)
 		}
 		defer src.Close()
 		dst, err := os.OpenFile(filepath.Join(filepath.Dir(utils.SelfPath()), "dockerinit"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0555)
 		if err != nil {
-			log.Fatalf("Unable to create dockerinit in test directory: %s\n", err)
+			log.Fatalf("Unable to create dockerinit in test directory: %s", err)
 		}
 		defer dst.Close()
 		if _, err := io.Copy(dst, src); err != nil {
-			log.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s\n", err)
+			log.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s", err)
 		}
 		dst.Close()
 		src.Close()
