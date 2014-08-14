@@ -97,9 +97,9 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 		}
 	}
 
-	log.Debugf("Preparing to push %s with the following images and tags\n", localRepo)
+	log.Debugf("Preparing to push %s with the following images and tags", localRepo)
 	for _, data := range imageIndex {
-		log.Debugf("Pushing ID: %s with Tag: %s\n", data.ID, data.Tag)
+		log.Debugf("Pushing ID: %s with Tag: %s", data.ID, data.Tag)
 	}
 
 	// Register all the images in a repository with the registry

@@ -88,7 +88,7 @@ func (m *containerMonitor) Close() error {
 	// because they share same runconfig and change image. Must be fixed
 	// in builder/builder.go
 	if err := m.container.toDisk(); err != nil {
-		log.Errorf("Error dumping container %s state to disk: %s\n", m.container.ID, err)
+		log.Errorf("Error dumping container %s state to disk: %s", m.container.ID, err)
 
 		return err
 	}

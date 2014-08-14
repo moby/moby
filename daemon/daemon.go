@@ -382,7 +382,7 @@ func (daemon *Daemon) restore() error {
 	}
 
 	if !debug {
-		log.Infof(": done.\n")
+		log.Infof(": done.")
 	}
 
 	return nil
@@ -1074,7 +1074,7 @@ func (daemon *Daemon) checkLocaldns() error {
 		return err
 	}
 	if len(daemon.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		log.Infof("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v\n", DefaultDns)
+		log.Infof("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
 		daemon.config.Dns = DefaultDns
 	}
 	return nil
@@ -1125,7 +1125,7 @@ func checkKernelAndArch() error {
 	// the circumstances of pre-3.8 crashes are clearer.
 	// For details see http://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
-		log.Infof("WARNING: %s\n", err)
+		log.Infof("WARNING: %s", err)
 	} else {
 		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
