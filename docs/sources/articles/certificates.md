@@ -1,44 +1,80 @@
 page_title: Using certificates for repository client verification
-page_description: How to set up per-repository client certificates
-page_keywords: Usage, repository, certificate, root, docker, documentation, examples
+page_description: How to set up and use certificates with a registry to verify access
+page_keywords: Usage, registry, repository, client, root, certificate, docker, apache, ssl, tls, documentation, examples, articles, tutorials
 
 # Using certificates for repository client verification
 
-This lets you specify custom client TLS certificates and CA root for a
-specific registry hostname. Docker will then verify the registry
-against the CA and present the client cert when talking to that
-registry. This allows the registry to verify that the client has a
-proper key, indicating that the client is allowed to access the
-images.
+In [Running Docker with HTTPS](/articles/https), you learned that, by default,
+Docker runs via a non-networked Unix socket and TLS must be enabled in order
+to have the Docker client and the daemon communicate securely over HTTPS.
 
-A custom cert is configured by creating a directory in
-`/etc/docker/certs.d` with the same name as the registry hostname. Inside
-this directory all .crt files are added as CA Roots (if none exists,
-the system default is used) and pair of files `$filename.key` and
-`$filename.cert` indicate a custom certificate to present to the
-registry.
+Now, you will see how to allow the Docker registry (i.e., *a server*) to
+verify that the Docker daemon (i.e., *a client*) has the right to access the
+images being hosted with *certificate-based client-server authentication*.
 
-If there are multiple certificates each one will be tried in
-alphabetical order, proceeding to the next if we get a 403 of 5xx
-response.
+We will show you how to install a Certificate Authority (CA) root certificate
+for the registry and how to set the client TLS certificate for verification.
 
-So, an example setup would be::
+## Understanding the configuration
 
-    /etc/docker/certs.d/
-    └── localhost
-       ├── client.cert
-       ├── client.key
-       └── localhost.crt
+A custom certificate is configured by creating a directory under
+`/etc/docker/certs.d` using the same name as the registry's hostname (e.g.,
+`localhost`). All `*.crt` files are added to this directory as CA roots.
 
-A simple way to test this setup is to use an apache server to host a
-registry. Just copy a registry tree into the apache root,
-[here](http://people.gnome.org/~alexl/v1.tar.gz) is an example one
-containing the busybox image.
+> **Note:**
+> In the absence of any root certificate authorities, Docker
+> will use the system default (i.e., host's root CA set).
 
-Then add this conf file as `/etc/httpd/conf.d/registry.conf`:
+The presence of one or more `<filename>.key/cert` pairs indicates to Docker
+that there are custom certificates required for access to the desired
+repository.
+
+> **Note:**
+> If there are multiple certificates, each will be tried in alphabetical
+> order. If there is an authentication error (e.g., 403, 5xx, etc.), Docker
+> will continue to try with the next certificate.
+
+Our example is set up like this:
+
+    /etc/docker/certs.d/        <-- Certificate directory
+    └── localhost               <-- Hostname
+       ├── client.cert          <-- Client certificate
+       ├── client.key           <-- Client key
+       └── localhost.crt        <-- Registry certificate
+
+## Creating the client certificates
+
+You will use OpenSSL's `genrsa` and `req` commands to first generate an RSA
+key and then use the key to create the certificate request.   
+
+    $ openssl genrsa -out client.key 1024
+    $ openssl req -new -x509 -text -key client.key -out client.cert
+
+> **Warning:**: 
+> Using TLS and managing a CA is an advanced topic.
+> You should be familiar with OpenSSL, x509, and TLS before
+> attempting to use them in production. 
+
+> **Warning:**
+> These TLS commands will only generate a working set of certificates on Linux.
+> The version of OpenSSL in Mac OS X is incompatible with the type of
+> certificate Docker requires.
+
+## Testing the verification setup
+
+You can test this setup by using Apache to host a Docker registry.
+For this purpose, you can copy a registry tree (containing images) inside
+the Apache root.
+
+> **Note:**
+> You can find such an example [here](
+> http://people.gnome.org/~alexl/v1.tar.gz) - which contains the busybox image.
+
+Once you set up the registry, you can use the following Apache configuration
+to implement certificate-based protection.
 
     # This must be in the root context, otherwise it causes a re-negotiation
-    # which is not supported by the tls implementation in go
+    # which is not supported by the TLS implementation in go
     SSLVerifyClient optional_no_ca
 
     <Location /v1>
@@ -50,7 +86,8 @@ Then add this conf file as `/etc/httpd/conf.d/registry.conf`:
     Header set X-Docker-Endpoints "%{custom_host}e"
     </Location>
 
-And this as `/var/www/cgi-bin/cert.cgi`:
+Save the above content as `/etc/httpd/conf.d/registry.conf`, and
+continue with creating a `cert.cgi` file under `/var/www/cgi-bin/`.
 
     #!/bin/bash
     if [ "$HTTPS" != "on" ]; then
@@ -73,11 +110,5 @@ And this as `/var/www/cgi-bin/cert.cgi`:
 
     cat $PATH_TRANSLATED
 
-This will return 403 for all accessed to `/v1` unless any client cert is
-presented. Obviously a real implementation would verify more details
-about the certificate.
-
-Example client certs can be generated with::
-
-    openssl genrsa -out client.key 1024
-    openssl req -new -x509 -text -key client.key -out client.cert
+This CGI script will ensure that all requests to `/v1` *without* a valid
+certificate will be returned with a `403` (i.e., HTTP forbidden) error.
