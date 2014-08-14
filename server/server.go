@@ -1763,7 +1763,8 @@ func (srv *Server) ContainerDestroy(job *engine.Job) engine.Status {
 			return job.Errorf("%v", err)
 		} else {
 			if deviceIsBusy {
-				return job.Errorf("Device is busy: %s", name)
+				job.Logf("Device is busy: %s", name)
+				return job.Errorf("Device is busy")
 			}
 		}
 	}

@@ -1011,7 +1011,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
-	checkDevice := cmd.Bool([]string{"c", "--check-device"}, false, "Check device opencount before remove containers")
+	checkDevice := cmd.Bool([]string{"c", "-check-device"}, false, "Check device opencount before remove containers")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
