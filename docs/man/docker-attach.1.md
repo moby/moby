@@ -14,7 +14,7 @@ docker-attach - Attach to a running container
 If you **docker run** a container in detached mode (**-d**), you can reattach to
 the detached container with **docker attach** using the container's ID or name.
 
-You can detach from the container again (and leave it running) with `CTRL-q 
+You can detach from the container again (and leave it running) with `CTRL-p 
 CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a SIGKILL to the
 container, or `CTRL-\` to get a stacktrace of the Docker client when it quits.
 When you detach from a container the exit code will be returned to
