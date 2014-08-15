@@ -1,4 +1,4 @@
-// evaluator is the evaluation step in the Dockerfile parse/evaluate pipeline.
+// builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
 //
 // It incorporates a dispatch table based on the parser.Node values (see the
 // parser package for more information) that are yielded from the parser itself.
@@ -17,7 +17,7 @@
 // before and after each step, such as creating an image ID and removing temporary
 // containers and images. Note that ONBUILD creates a kinda-sorta "sub run" which
 // includes its own set of steps (usually only one of them).
-package evaluator
+package builder
 
 import (
 	"bytes"

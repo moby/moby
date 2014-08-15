@@ -1,4 +1,4 @@
-package evaluator
+package builder
 
 // internals for handling commands. Covers many areas and a lot of
 // non-contiguous functionality. Please read the comments.
