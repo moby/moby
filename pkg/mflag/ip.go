@@ -22,5 +22,5 @@ func (ip *IP) Set(val string) error {
 }
 
 func (ip *IP) String() string {
-	return (*ip).String()
+	return (net.IP)(*ip).String()
 }
