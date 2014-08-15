@@ -16,6 +16,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// Set the max depth to the aufs default that most
+// kernels are compiled with
+// For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
+const MaxImageDepth = 127
+
 type Image struct {
 	ID              string            `json:"id"`
 	Parent          string            `json:"parent,omitempty"`
@@ -295,6 +300,22 @@ func (img *Image) Depth() (int, error) {
 		}
 	}
 	return count, nil
+}
+
+// CheckDepth returns an error if the depth of an image, as returned
+// by ImageDepth, is too large to support creating a container from it
+// on this daemon.
+func (img *Image) CheckDepth() error {
+	// We add 2 layers to the depth because the container's rw and
+	// init layer add to the restriction
+	depth, err := img.Depth()
+	if err != nil {
+		return err
+	}
+	if depth+2 >= MaxImageDepth {
+		return fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+	}
+	return nil
 }
 
 // Build an Image object from raw json data

@@ -64,7 +64,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, name string) (*Container,
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := daemon.checkImageDepth(img); err != nil {
+	if err := img.CheckDepth(); err != nil {
 		return nil, nil, err
 	}
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {

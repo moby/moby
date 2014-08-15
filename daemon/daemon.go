@@ -39,11 +39,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// Set the max depth to the aufs default that most
-// kernels are compiled with
-// For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
-const MaxImageDepth = 127
-
 var (
 	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
 	validContainerNameChars   = `[a-zA-Z0-9_.-]`
@@ -385,19 +380,6 @@ func (daemon *Daemon) restore() error {
 		log.Infof(": done.")
 	}
 
-	return nil
-}
-
-func (daemon *Daemon) checkImageDepth(img *image.Image) error {
-	// We add 2 layers to the depth because the container's rw and
-	// init layer add to the restriction
-	depth, err := img.Depth()
-	if err != nil {
-		return err
-	}
-	if depth+2 >= MaxImageDepth {
-		return fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
-	}
 	return nil
 }
 
