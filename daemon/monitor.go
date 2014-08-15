@@ -1,12 +1,14 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
 	"os/exec"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/audit"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 )
@@ -165,6 +167,7 @@ func (m *containerMonitor) Start() error {
 			// been terminated by a request from a user
 			if m.shouldStop {
 				m.container.State.SetStopped(exitStatus)
+				audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=stop reason=shutdown vm=%s uuid=%s vm-pid %d", m.container.Name, m.container.ID, m.container.State.GetPid()), true)
 
 				return err
 			}
@@ -172,6 +175,7 @@ func (m *containerMonitor) Start() error {
 			continue
 		}
 
+		audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=stop reason=shutdown vm=%s uuid=%s vm-pid %d", m.container.Name, m.container.ID, m.container.State.GetPid()), true)
 		m.container.State.SetStopped(exitStatus)
 
 		m.container.LogEvent("die")
@@ -264,6 +268,7 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 		close(m.startSignal)
 	}
 
+	audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=start reason=booted vm=%s uuid=%s vm-pid=%d", m.container.Name, m.container.ID, m.container.State.GetPid()), true)
 	if err := m.container.ToDisk(); err != nil {
 		log.Debugf("%s", err)
 	}
