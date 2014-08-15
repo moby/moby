@@ -114,7 +114,7 @@ func OpenPtmx() (*os.File, error) {
 func OpenTerminal(name string, flag int) (*os.File, error) {
 	r, e := syscall.Open(name, flag, 0)
 	if e != nil {
-		return nil, &os.PathError{"open", name, e}
+		return nil, &os.PathError{Op: "open", Path: name, Err: e}
 	}
 	return os.NewFile(uintptr(r), name), nil
 }

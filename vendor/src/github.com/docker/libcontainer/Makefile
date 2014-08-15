@@ -2,7 +2,7 @@
 all:
 	docker build -t docker/libcontainer .
 
-test:
+test: 
 	# we need NET_ADMIN for the netlink tests and SYS_ADMIN for mounting
 	docker run --rm -it --cap-add NET_ADMIN --cap-add SYS_ADMIN docker/libcontainer
 

@@ -3,6 +3,7 @@
 package namespaces
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/syncpipe"
 	"github.com/docker/libcontainer/system"
@@ -18,10 +20,10 @@ import (
 
 // ExecIn reexec's the initPath with the argv 0 rewrite to "nsenter" so that it is able to run the
 // setns code in a single threaded environment joining the existing containers' namespaces.
-func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs []string, initPath string,
+func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs []string, initPath, action string,
 	stdin io.Reader, stdout, stderr io.Writer, console string, startCallback func(*exec.Cmd)) (int, error) {
 
-	args := []string{"nsenter", "--nspid", strconv.Itoa(state.InitPid)}
+	args := []string{fmt.Sprintf("nsenter-%s", action), "--nspid", strconv.Itoa(state.InitPid)}
 
 	if console != "" {
 		args = append(args, "--console", console)
@@ -57,6 +59,11 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 		return -1, err
 	}
 	pipe.CloseChild()
+
+	// Enter cgroups.
+	if err := EnterCgroups(state, cmd.Process.Pid); err != nil {
+		return -1, err
+	}
 
 	if err := pipe.SendToChild(container); err != nil {
 		cmd.Process.Kill()
@@ -100,4 +107,8 @@ func FinalizeSetns(container *libcontainer.Config, args []string) error {
 	}
 
 	panic("unreachable")
+}
+
+func EnterCgroups(state *libcontainer.State, pid int) error {
+	return cgroups.EnterPid(state.CgroupPaths, pid)
 }

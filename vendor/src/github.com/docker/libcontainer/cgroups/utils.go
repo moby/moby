@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -165,4 +166,24 @@ func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 		}
 	}
 	return "", ErrNotFound
+}
+
+func pathExists(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+	return true
+}
+
+func EnterPid(cgroupPaths map[string]string, pid int) error {
+	for _, path := range cgroupPaths {
+		if pathExists(path) {
+			if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"),
+				[]byte(strconv.Itoa(pid)), 0700); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

@@ -21,12 +21,16 @@ var (
 		"perf_event": &PerfEventGroup{},
 		"freezer":    &FreezerGroup{},
 	}
+	CgroupProcesses = "cgroup.procs"
 )
 
 type subsystem interface {
-	Set(*data) error
+	// Returns the stats, as 'stats', corresponding to the cgroup under 'path'.
+	GetStats(path string, stats *cgroups.Stats) error
+	// Removes the cgroup represented by 'data'.
 	Remove(*data) error
-	GetStats(string, *cgroups.Stats) error
+	// Creates and joins the cgroup represented by data.
+	Set(*data) error
 }
 
 type data struct {
@@ -149,6 +153,18 @@ func (raw *data) parent(subsystem string) (string, error) {
 	return filepath.Join(raw.root, subsystem, initPath), nil
 }
 
+func (raw *data) Paths() (map[string]string, error) {
+	paths := make(map[string]string)
+	for sysname := range subsystems {
+		path, err := raw.path(sysname)
+		if err != nil {
+			return nil, err
+		}
+		paths[sysname] = path
+	}
+	return paths, nil
+}
+
 func (raw *data) path(subsystem string) (string, error) {
 	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
 	if filepath.IsAbs(raw.cgroup) {
@@ -169,7 +185,7 @@ func (raw *data) join(subsystem string) (string, error) {
 	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
 		return "", err
 	}
-	if err := writeFile(path, "cgroup.procs", strconv.Itoa(raw.pid)); err != nil {
+	if err := writeFile(path, CgroupProcesses, strconv.Itoa(raw.pid)); err != nil {
 		return "", err
 	}
 	return path, nil

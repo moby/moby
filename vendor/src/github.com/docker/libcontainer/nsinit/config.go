@@ -1,4 +1,4 @@
-package nsinit
+package main
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ var configCommand = cli.Command{
 }
 
 func configAction(context *cli.Context) {
-	container, err := loadContainer()
+	container, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
