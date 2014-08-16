@@ -54,13 +54,13 @@ func (d *Driver) Status() [][2]string {
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
-		{"Pool Blocksize", fmt.Sprintf("%d Kb", s.SectorSize/1024)},
+		{"Pool Blocksize", fmt.Sprintf("%d KiB", s.SectorSize/1024)},
 		{"Data file", s.DataLoopback},
 		{"Metadata file", s.MetadataLoopback},
-		{"Data Space Used", fmt.Sprintf("%.1f Mb", float64(s.Data.Used)/(1024*1024))},
-		{"Data Space Total", fmt.Sprintf("%.1f Mb", float64(s.Data.Total)/(1024*1024))},
-		{"Metadata Space Used", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Used)/(1024*1024))},
-		{"Metadata Space Total", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Total)/(1024*1024))},
+		{"Data Space Used", fmt.Sprintf("%.1f MiB", float64(s.Data.Used)/(1024*1024))},
+		{"Data Space Total", fmt.Sprintf("%.1f MiB", float64(s.Data.Total)/(1024*1024))},
+		{"Metadata Space Used", fmt.Sprintf("%.1f MiB", float64(s.Metadata.Used)/(1024*1024))},
+		{"Metadata Space Total", fmt.Sprintf("%.1f MiB", float64(s.Metadata.Total)/(1024*1024))},
 	}
 	return status
 }
