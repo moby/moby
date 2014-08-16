@@ -40,7 +40,7 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	// TODO: this is only done here because auth and registry need to be merged into one pkg
 	if addr := authConfig.ServerAddress; addr != "" && addr != IndexServerAddress() {
-		endpoint, err := NewEndpoint(addr)
+		endpoint, err := NewEndpoint(addr, true)
 		if err != nil {
 			return job.Error(err)
 		}

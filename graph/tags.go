@@ -23,10 +23,11 @@ var (
 )
 
 type TagStore struct {
-	path         string
-	graph        *Graph
-	mirrors      []string
-	Repositories map[string]Repository
+	path               string
+	graph              *Graph
+	mirrors            []string
+	InsecureRegistries []string
+	Repositories       map[string]Repository
 	sync.Mutex
 	// FIXME: move push/pull-related fields
 	// to a helper type
@@ -54,18 +55,19 @@ func (r Repository) Contains(u Repository) bool {
 	return true
 }
 
-func NewTagStore(path string, graph *Graph, mirrors []string) (*TagStore, error) {
+func NewTagStore(path string, graph *Graph, mirrors []string, insecureRegistries []string) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
 	store := &TagStore{
-		path:         abspath,
-		graph:        graph,
-		mirrors:      mirrors,
-		Repositories: make(map[string]Repository),
-		pullingPool:  make(map[string]chan struct{}),
-		pushingPool:  make(map[string]chan struct{}),
+		path:               abspath,
+		graph:              graph,
+		mirrors:            mirrors,
+		InsecureRegistries: insecureRegistries,
+		Repositories:       make(map[string]Repository),
+		pullingPool:        make(map[string]chan struct{}),
+		pushingPool:        make(map[string]chan struct{}),
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {

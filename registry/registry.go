@@ -213,6 +213,55 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	return hostname, reposName, nil
 }
 
+// this method expands the registry name as used in the prefix of a repo
+// to a full url. if it already is a url, there will be no change.
+func ExpandAndVerifyRegistryUrl(hostname string, secure bool) (endpoint string, err error) {
+	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
+		// if there is no slash after https:// (8 characters) then we have no path in the url
+		if strings.LastIndex(hostname, "/") < 9 {
+			// there is no path given. Expand with default path
+			hostname = hostname + "/v1/"
+		}
+		if _, err := pingRegistryEndpoint(hostname); err != nil {
+			return "", errors.New("Invalid Registry endpoint: " + err.Error())
+		}
+		return hostname, nil
+	}
+
+	// use HTTPS if secure, otherwise use HTTP
+	if secure {
+		endpoint = fmt.Sprintf("https://%s/v1/", hostname)
+	} else {
+		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
+	}
+	_, err = pingRegistryEndpoint(endpoint)
+	if err != nil {
+		//TODO: triggering highland build can be done there without "failing"
+		err = fmt.Errorf("Invalid registry endpoint '%s': %s ", endpoint, err)
+		if secure {
+			err = fmt.Errorf("%s. If this private registry supports only HTTP, please add `--insecure-registry %s` to the daemon's arguments.", err, hostname)
+		}
+		return "", err
+	}
+	return endpoint, nil
+}
+
+// this method verifies if the provided hostname is part of the list of
+// insecure registries and returns false if HTTP should be used
+func IsSecure(hostname string, insecureRegistries []string) (secure bool) {
+	secure = true
+	for _, h := range insecureRegistries {
+		if hostname == h {
+			secure = false
+			break
+		}
+	}
+	if hostname == IndexServerAddress() {
+		secure = true
+	}
+	return
+}
+
 func trustedLocation(req *http.Request) bool {
 	var (
 		trusteds = []string{"docker.com", "docker.io"}
