@@ -70,7 +70,8 @@ expect an integer, and they can only be specified once.
       -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
       -H, --host=[]                              The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --icc=true                                 Enable inter-container communication
-      --ip=0.0.0.0                               Default IP address to use when binding container ports
+      --insecure-registry=[]                     Make these registries use http
+      --ip=0.0.0.0                             Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
       --iptables=true                            Enable Docker's addition of iptables rules

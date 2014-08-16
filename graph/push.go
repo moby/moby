@@ -214,7 +214,9 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.NewEndpoint(hostname)
+	secure := registry.IsSecure(hostname, s.InsecureRegistries)
+
+	endpoint, err := registry.NewEndpoint(hostname, secure)
 	if err != nil {
 		return job.Error(err)
 	}
