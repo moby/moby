@@ -4,10 +4,12 @@ page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, 
 
 # CentOS
 
-While the Docker package is provided by default as part of CentOS-7, 
-it is provided by a community repository for CentOS-6. Please note that 
-this changes the installation instructions slightly between versions. 
- 
+While the Docker package is provided by default as part of CentOS-7,
+it is provided by the EPEL repository for CentOS-6. Please note that
+this changes the installation instructions slightly between versions. If you
+need the latest version, you can always use the latest binary which works on
+kernel 3.8 and above.
+
 These instructions work for CentOS 6 and later. They will likely work for
 other binary compatible EL6 distributions such as Scientific Linux, but
 they haven't been tested.
@@ -24,6 +26,30 @@ Docker is included by default in the CentOS-Extras repository. To install
 simply run the following command.
 
     $ sudo yum install docker
+
+### Manual installation of latest version
+
+While using a package is the recommended way of installing Docker,
+the above package might not be the latest version. If you need the latest
+version, [you can install the binary directly](
+https://docs.docker.com/installation/binaries/).
+
+When installing the binary without a package, you may want
+to integrate Docker with systemd. For this, simply install the two unit files
+(service and socket) from [the github
+repository](https://github.com/docker/docker/tree/master/contrib/init/systemd)
+to `/etc/systemd/system`.
+
+### FirewallD
+
+CentOS-7 introduced firewalld, which is a wrapper around iptables and can
+conflict with Docker.
+
+When firewalld is started or restarted it will remove the `DOCKER` chain
+from iptables, preventing Docker from working properly.
+
+When using systemd, firewalld is started before Docker, but if you
+start or restart firewalld  after Docker, you will have to restart the Docker daemon.
 
 ## Installing Docker - CentOS-6
 Please note that this for CentOS-6, this package is part of [Extra Packages
