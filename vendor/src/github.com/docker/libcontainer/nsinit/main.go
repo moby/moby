@@ -1,38 +1,41 @@
-package nsinit
+package main
 
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/codegangsta/cli"
 )
 
 var (
 	logPath = os.Getenv("log")
-	argvs   = make(map[string]func())
+	argvs   = make(map[string]*rFunc)
 )
 
 func init() {
-	argvs["nsenter"] = nsenter
-}
-
-func preload(context *cli.Context) error {
-	if logPath != "" {
-		if err := openLog(logPath); err != nil {
-			return err
-		}
+	argvs["exec"] = &rFunc{
+		Usage:  "execute a process inside an existing container",
+		Action: nsenterExec,
 	}
 
-	return nil
+	argvs["mknod"] = &rFunc{
+		Usage:  "mknod a device inside an existing container",
+		Action: nsenterMknod,
+	}
+
+	argvs["ip"] = &rFunc{
+		Usage:  "display the container's network interfaces",
+		Action: nsenterIp,
+	}
 }
 
-func NsInit() {
+func main() {
 	// we need to check our argv 0 for any registred functions to run instead of the
 	// normal cli code path
-
-	action, exists := argvs[os.Args[0]]
+	f, exists := argvs[strings.TrimPrefix(os.Args[0], "nsenter-")]
 	if exists {
-		action()
+		runFunc(f)
 
 		return
 	}

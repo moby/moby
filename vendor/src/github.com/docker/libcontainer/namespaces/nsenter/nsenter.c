@@ -31,8 +31,8 @@ void get_args(int *argc, char ***argv)
 		contents_size += kBufSize;
 		contents = (char *)realloc(contents, contents_size);
 		bytes_read =
-		    read(fd, contents + contents_offset,
-			 contents_size - contents_offset);
+			read(fd, contents + contents_offset,
+			     contents_size - contents_offset);
 		contents_offset += bytes_read;
 	}
 	while (bytes_read > 0);
@@ -80,20 +80,20 @@ void nsenter()
 	char **argv;
 	get_args(&argc, &argv);
 
-    // check argv 0 to ensure that we are supposed to setns
-    // we use strncmp to test for a value of "nsenter" but also allows alternate implmentations
-    // after the setns code path to continue to use the argv 0 to determine actions to be run
-    // resulting in the ability to specify "nsenter-mknod", "nsenter-exec", etc...
-    if (strncmp(argv[0], kNsEnter, strlen(kNsEnter)) != 0) {
-        return;
-    }
+	// check argv 0 to ensure that we are supposed to setns
+	// we use strncmp to test for a value of "nsenter" but also allows alternate implmentations
+	// after the setns code path to continue to use the argv 0 to determine actions to be run
+	// resulting in the ability to specify "nsenter-mknod", "nsenter-exec", etc...
+	if (strncmp(argv[0], kNsEnter, strlen(kNsEnter)) != 0) {
+		return;
+	}
 
 	static const struct option longopts[] = {
 		{"nspid", required_argument, NULL, 'n'},
 		{"console", required_argument, NULL, 't'},
 		{NULL, 0, NULL, 0}
 	};
-
+    
 	pid_t init_pid = -1;
 	char *init_pid_str = NULL;
 	char *console = NULL;

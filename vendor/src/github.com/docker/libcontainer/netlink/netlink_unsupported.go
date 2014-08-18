@@ -31,6 +31,10 @@ func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
 	return ErrNotImplemented
 }
 
+func NetworkLinkDelIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
+	return ErrNotImplemented
+}
+
 func AddRoute(destination, source, gateway, device string) error {
 	return ErrNotImplemented
 }

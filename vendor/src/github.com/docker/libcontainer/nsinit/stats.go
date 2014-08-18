@@ -1,4 +1,4 @@
-package nsinit
+package main
 
 import (
 	"encoding/json"
@@ -16,7 +16,7 @@ var statsCommand = cli.Command{
 }
 
 func statsAction(context *cli.Context) {
-	container, err := loadContainer()
+	container, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
