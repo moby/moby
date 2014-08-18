@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api"
@@ -29,6 +28,9 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	defer func() {
 		if started != nil {
 			close(started)
+		}
+		if in != nil {
+			in.Close()
 		}
 	}()
 
@@ -75,16 +77,8 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	if stdout != nil || stderr != nil {
 		receiveStdout = utils.Go(func() (err error) {
 			defer func() {
-				if in != nil {
-					if setRawTerminal && cli.isTerminal {
-						term.RestoreTerminal(cli.terminalFd, oldState)
-					}
-					// For some reason this Close call blocks on darwin..
-					// As the client exists right after, simply discard the close
-					// until we find a better solution.
-					if runtime.GOOS != "darwin" {
-						in.Close()
-					}
+				if in != nil && setRawTerminal && cli.isTerminal {
+					term.RestoreTerminal(cli.terminalFd, oldState)
 				}
 			}()
 
@@ -124,11 +118,9 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 	}
 
-	if !cli.isTerminal {
-		if err := <-sendStdin; err != nil {
-			log.Debugf("Error sendStdin: %s", err)
-			return err
-		}
+	if err := <-sendStdin; err != nil {
+		log.Debugf("Error sendStdin: %s", err)
+		return err
 	}
 	return nil
 }
