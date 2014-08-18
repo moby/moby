@@ -157,7 +157,7 @@ this as the base of all your web application images.
 
 > **Note:** Docker usually gets these base images from
 > [Docker Hub](https://hub.docker.com).
-> 
+
 Docker images are then built from these base images using a simple, descriptive
 set of steps we call *instructions*. Each instruction creates a new layer in our
 image. Instructions include actions like:
