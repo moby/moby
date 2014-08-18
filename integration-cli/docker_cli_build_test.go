@@ -15,38 +15,34 @@ import (
 )
 
 func TestBuildCacheADD(t *testing.T) {
-	var (
-		exitCode int
-		out      string
-		err      error
-	)
-	{
-		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "1")
-		out, exitCode, err = dockerCmdInDir(t, buildDirectory, "build", "-t", "testcacheadd1", ".")
-		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-		if err != nil || exitCode != 0 {
-			t.Fatal("failed to build the image")
-		}
+	name := "testbuildtwoimageswithadd"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"robots.txt": "hello",
+		"index.html": "world",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	{
-		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildCacheADD", "2")
-		out, exitCode, err = dockerCmdInDir(t, buildDirectory, "build", "-t", "testcacheadd2", ".")
-		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-		if err != nil || exitCode != 0 {
-			t.Fatal("failed to build the image")
-		}
+	defer server.Close()
+	if _, err := buildImage(name,
+		fmt.Sprintf(`FROM scratch
+		ADD %s/robots.txt /`, server.URL),
+		true); err != nil {
+		t.Fatal(err)
 	}
-
+	out, _, err := buildImageWithOut(name,
+		fmt.Sprintf(`FROM scratch
+		ADD %s/index.html /`, server.URL),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Contains(out, "Using cache") {
 		t.Fatal("2nd build used cache on ADD, it shouldn't")
 	}
 
-	deleteImages("testcacheadd1")
-	deleteImages("testcacheadd2")
-
-	logDone("build - build two images with ADD")
+	logDone("build - build two images with remote ADD")
 }
 
 func TestBuildSixtySteps(t *testing.T) {
