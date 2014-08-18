@@ -1565,15 +1565,17 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		if !*quiet {
 			var (
-				outCommand = out.Get("Command")
-				ports      = engine.NewTable("", 0)
+				outCommand   = out.Get("Command")
+				ports        = engine.NewTable("", 0)
+				outNamesList = strings.Join(outNames, ",")
 			)
 			outCommand = strconv.Quote(outCommand)
 			if !*noTrunc {
 				outCommand = utils.Trunc(outCommand, 20)
+				outNamesList = outNames[0]
 			}
 			ports.ReadListFrom([]byte(out.Get("Ports")))
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), outNamesList)
 			if *size {
 				if out.GetInt("SizeRootFs") > 0 {
 					fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
