@@ -24,6 +24,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
@@ -57,6 +58,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	for _, command := range [][]string{
 		{"attach", "Attach to a running container"},
 		{"build", "Build an image from a Dockerfile"},
+		{"clean", "Remove all exited containers"},
 		{"commit", "Create a new image from a container's changes"},
 		{"cp", "Copy files/folders from a container's filesystem to the host path"},
 		{"diff", "Inspect changes on a container's filesystem"},
@@ -1049,6 +1051,58 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	return encounteredError
 }
 
+func (cli *DockerCli) CmdClean(args ...string) error {
+	cmd := cli.Subcmd("clean", "[OPTIONS]", "Remove all exited containers.")
+	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the containers")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() > 0 {
+		cmd.Usage()
+		return nil
+	}
+
+	val := url.Values{
+		"all":     []string{"1"},
+		"filters": []string{"{\"status\":[\"" + strconv.Itoa(daemon.StateExited) + "\"]}"},
+	}
+
+	body, _, err := readBody(cli.call("GET", "/containers/json?"+val.Encode(), nil, false))
+	if err != nil {
+		return err
+	}
+
+	outs := engine.NewTable("Created", 0)
+	if _, err := outs.ReadListFrom(body); err != nil {
+		return err
+	}
+
+	var encounteredError error
+
+	for _, out := range outs.Data {
+		val := url.Values{}
+
+		if *v {
+			val.Set("v", "1")
+		}
+
+		names := out.GetList("Names")
+		for idx := range names {
+			name := names[idx][1:]
+			uri := fmt.Sprintf("/containers/%s?%s", name, val.Encode())
+			_, _, err := readBody(cli.call("DELETE", uri, nil, false))
+			if err != nil {
+				fmt.Fprintf(cli.err, "%s\n", err)
+				encounteredError = fmt.Errorf("Error: failed to remove one or more containers")
+			} else {
+				fmt.Fprintf(cli.out, "%s\n", name)
+			}
+		}
+	}
+	return encounteredError
+}
+
 // 'docker kill NAME' kills a running container
 func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := cli.Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container using SIGKILL or a specified signal")
@@ -1487,7 +1541,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
 	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>\nstatus=<int> - containers with status of <int>")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil

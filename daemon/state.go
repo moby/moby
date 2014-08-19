@@ -21,33 +21,63 @@ type State struct {
 	waitChan   chan struct{}
 }
 
+const (
+	StateUnknown    = iota
+	StateRestarting = iota
+	StateRunning    = iota
+	StatePaused     = iota
+	StateExited     = iota
+)
+
 func NewState() *State {
 	return &State{
 		waitChan: make(chan struct{}),
 	}
 }
 
-// String returns a human-readable description of the state
-func (s *State) String() string {
+func (s *State) StatusCode() int {
 	s.RLock()
 	defer s.RUnlock()
 
 	if s.Running {
 		if s.Paused {
-			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+			return StatePaused
 		}
 		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+			return StateRestarting
 		}
-
-		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+		return StateRunning
 	}
 
 	if s.FinishedAt.IsZero() {
+		return StateUnknown
+	}
+	return StateExited
+}
+
+// String returns a human-readable description of the state
+func (s *State) String() string {
+
+	switch s.StatusCode() {
+
+	case StateExited:
+		return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+
+	case StatePaused:
+		return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+
+	case StateRunning:
+		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+
+	case StateRestarting:
+		return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+
+	default:
+	case StateUnknown:
 		return ""
 	}
 
-	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	return ""
 }
 
 type jState State
