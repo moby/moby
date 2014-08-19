@@ -17,7 +17,7 @@ func stringToLoopName(src string) [LoNameSize]uint8 {
 }
 
 func getNextFreeLoopbackIndex() (int, error) {
-	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
+	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0600)
 	if err != nil {
 		return 0, err
 	}
