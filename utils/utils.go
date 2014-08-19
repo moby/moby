@@ -642,8 +642,8 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 			return err
 		}
 		// skip checking if symlinks point to non-existing files, such symlinks can be useful
-		lstat, _ := os.Lstat(filePath)
-		if lstat.Mode()&os.ModeSymlink == os.ModeSymlink {
+		lstat, err := os.Lstat(filePath)
+		if err != nil || lstat.Mode()&os.ModeSymlink == os.ModeSymlink {
 			return err
 		}
 
