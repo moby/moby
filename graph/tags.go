@@ -26,7 +26,7 @@ type TagStore struct {
 	path               string
 	graph              *Graph
 	mirrors            []string
-	InsecureRegistries []string
+	insecureRegistries []string
 	Repositories       map[string]Repository
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -60,11 +60,12 @@ func NewTagStore(path string, graph *Graph, mirrors []string, insecureRegistries
 	if err != nil {
 		return nil, err
 	}
+
 	store := &TagStore{
 		path:               abspath,
 		graph:              graph,
 		mirrors:            mirrors,
-		InsecureRegistries: insecureRegistries,
+		insecureRegistries: insecureRegistries,
 		Repositories:       make(map[string]Repository),
 		pullingPool:        make(map[string]chan struct{}),
 		pushingPool:        make(map[string]chan struct{}),

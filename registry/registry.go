@@ -215,51 +215,45 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 
 // this method expands the registry name as used in the prefix of a repo
 // to a full url. if it already is a url, there will be no change.
-func ExpandAndVerifyRegistryUrl(hostname string, secure bool) (endpoint string, err error) {
-	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
-		// if there is no slash after https:// (8 characters) then we have no path in the url
-		if strings.LastIndex(hostname, "/") < 9 {
-			// there is no path given. Expand with default path
-			hostname = hostname + "/v1/"
-		}
-		if _, err := pingRegistryEndpoint(hostname); err != nil {
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
+func ExpandAndVerifyRegistryUrl(hostname string, secure bool) (string, error) {
+	if hostname == IndexServerAddress() {
 		return hostname, nil
 	}
 
-	// use HTTPS if secure, otherwise use HTTP
+	endpoint := fmt.Sprintf("http://%s/v1/", hostname)
+
 	if secure {
 		endpoint = fmt.Sprintf("https://%s/v1/", hostname)
-	} else {
-		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
 	}
-	_, err = pingRegistryEndpoint(endpoint)
-	if err != nil {
+
+	if _, oerr := pingRegistryEndpoint(endpoint); oerr != nil {
 		//TODO: triggering highland build can be done there without "failing"
-		err = fmt.Errorf("Invalid registry endpoint '%s': %s ", endpoint, err)
+		err := fmt.Errorf("Invalid registry endpoint '%s': %s ", endpoint, oerr)
+
 		if secure {
-			err = fmt.Errorf("%s. If this private registry supports only HTTP, please add `--insecure-registry %s` to the daemon's arguments.", err, hostname)
+			err = fmt.Errorf("%s. If this private registry supports only HTTP, please add `--insecure-registry %s` to the daemon's arguments.", oerr, hostname)
 		}
+
 		return "", err
 	}
+
 	return endpoint, nil
 }
 
 // this method verifies if the provided hostname is part of the list of
 // insecure registries and returns false if HTTP should be used
-func IsSecure(hostname string, insecureRegistries []string) (secure bool) {
-	secure = true
+func IsSecure(hostname string, insecureRegistries []string) bool {
+	if hostname == IndexServerAddress() {
+		return true
+	}
+
 	for _, h := range insecureRegistries {
 		if hostname == h {
-			secure = false
-			break
+			return false
 		}
 	}
-	if hostname == IndexServerAddress() {
-		secure = true
-	}
-	return
+
+	return true
 }
 
 func trustedLocation(req *http.Request) bool {
