@@ -19,21 +19,12 @@ func (b *BuildFile) replaceEnv(str string) string {
 			tmp := strings.SplitN(keyval, "=", 2)
 			if tmp[0] == matchKey {
 				str = strings.Replace(str, match, tmp[1], -1)
+				break
 			}
 		}
 	}
 
 	return str
-}
-
-func (b *BuildFile) FindEnvKey(key string) int {
-	for k, envVar := range b.Config.Env {
-		envParts := strings.SplitN(envVar, "=", 2)
-		if key == envParts[0] {
-			return k
-		}
-	}
-	return -1
 }
 
 func handleJsonArgs(args []string, attributes map[string]bool) []string {

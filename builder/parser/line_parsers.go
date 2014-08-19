@@ -116,18 +116,16 @@ func parseJSON(rest string) (*Node, map[string]bool, error) {
 func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 	rest = strings.TrimSpace(rest)
 
-	if strings.HasPrefix(rest, "[") {
-		node, attrs, err := parseJSON(rest)
+	node, attrs, err := parseJSON(rest)
 
-		if err == nil {
-			return node, attrs, nil
-		}
-		if err == errDockerfileJSONNesting {
-			return nil, nil, err
-		}
+	if err == nil {
+		return node, attrs, nil
+	}
+	if err == errDockerfileJSONNesting {
+		return nil, nil, err
 	}
 
-	node := &Node{}
+	node = &Node{}
 	node.Value = rest
 	return node, nil, nil
 }

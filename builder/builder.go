@@ -10,7 +10,6 @@ func NewBuilder(opts *BuildOpts) *BuildFile {
 		Dockerfile:    nil,
 		Config:        &runconfig.Config{},
 		Options:       opts,
-		TmpContainers: UniqueMap{},
-		TmpImages:     UniqueMap{},
+		TmpContainers: map[string]struct{}{},
 	}
 }

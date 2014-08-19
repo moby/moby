@@ -38,8 +38,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-type UniqueMap map[string]struct{}
-
 var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
@@ -74,8 +72,7 @@ type BuildFile struct {
 	Options    *BuildOpts        // see below
 
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
-	TmpContainers UniqueMap // a map of containers used for removes
-	TmpImages     UniqueMap // a map of images used for removes
+	TmpContainers map[string]struct{} // a map of containers used for removes
 
 	image       string         // image name for commit processing
 	maintainer  string         // maintainer name. could probably be removed.
@@ -147,13 +144,13 @@ func (b *BuildFile) Run(context io.Reader) (string, error) {
 	for i, n := range b.Dockerfile.Children {
 		if err := b.dispatch(i, n); err != nil {
 			if b.Options.ForceRemove {
-				b.clearTmp(b.TmpContainers)
+				b.clearTmp()
 			}
 			return "", err
 		}
 		fmt.Fprintf(b.Options.OutStream, " ---> %s\n", utils.TruncateID(b.image))
 		if b.Options.Remove {
-			b.clearTmp(b.TmpContainers)
+			b.clearTmp()
 		}
 	}
 
@@ -205,6 +202,8 @@ func (b *BuildFile) dispatch(stepN int, ast *parser.Node) error {
 	if f, ok := evaluateTable[cmd]; ok {
 		return f(b, strs, attrs)
 	}
+
+	fmt.Fprintf(b.Options.ErrStream, "# Skipping unknown instruction %s\n", strings.ToUpper(cmd))
 
 	return nil
 }

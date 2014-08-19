@@ -100,8 +100,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 		}
 
 		if line != "" && child == nil {
-			for {
-				scanner.Scan()
+			for scanner.Scan() {
 				newline := strings.TrimSpace(scanner.Text())
 
 				if newline == "" {

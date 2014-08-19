@@ -97,7 +97,6 @@ func (b *BuildFile) commit(id string, autoCmd []string, comment string) error {
 	if err != nil {
 		return err
 	}
-	b.TmpImages[image.ID] = struct{}{}
 	b.image = image.ID
 	return nil
 }
@@ -304,7 +303,7 @@ func (b *BuildFile) processImageFrom(img *imagepkg.Image) error {
 		b.Config = img.Config
 	}
 
-	if b.Config.Env == nil || len(b.Config.Env) == 0 {
+	if len(b.Config.Env) == 0 {
 		b.Config.Env = append(b.Config.Env, "PATH="+daemon.DefaultPathEnv)
 	}
 
@@ -549,13 +548,13 @@ func fixPermissions(destination string, uid, gid int) error {
 	})
 }
 
-func (b *BuildFile) clearTmp(containers map[string]struct{}) {
-	for c := range containers {
+func (b *BuildFile) clearTmp() {
+	for c := range b.TmpContainers {
 		tmp := b.Options.Daemon.Get(c)
 		if err := b.Options.Daemon.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.Options.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 		} else {
-			delete(containers, c)
+			delete(b.TmpContainers, c)
 			fmt.Fprintf(b.Options.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
 		}
 	}
