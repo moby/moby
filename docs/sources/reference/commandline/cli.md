@@ -65,7 +65,7 @@ expect an integer, and they can only be specified once.
       -H, --host=[]                              The socket(s) to bind to in daemon mode
                                                    specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --icc=true                                 Enable inter-container communication
-      --ip="0.0.0.0"                             Default IP address to use when binding container ports
+      --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
       --iptables=true                            Enable Docker's addition of iptables rules
       --mtu=0                                    Set the containers network MTU
@@ -792,7 +792,8 @@ further details.
 
       -a, --all=false       Show all containers. Only running containers are shown by default.
       --before=""           Show only container created before Id or Name, include non-running ones.
-      -f, --filter=[]       Provide filter values (i.e. 'exited=0')
+      -f, --filter=[]       Provide filter values. Valid filters:
+                              exited=<int> - containers with exit code of <int>
       -l, --latest=false    Show only the latest created container, include non-running ones.
       -n=-1                 Show n last created containers, include non-running ones.
       --no-trunc=false      Don't truncate output
@@ -882,7 +883,7 @@ registry or to a self-hosted one.
 
     Remove one or more containers
 
-      -f, --force=false      Force removal of a running container. Uses SIGKILL to stop the container.
+      -f, --force=false      Force the removal of a running container (uses SIGKILL)
       -l, --link=false       Remove the specified link and not the underlying container
       -v, --volumes=false    Remove the volumes associated with the container
 
