@@ -47,7 +47,7 @@ The docker package creates a new group named docker. Users, other than
 root user, need to be part of this group in order to interact with the
 Docker daemon. You can add users with:
 
-    $ sudo usermod -a -G docker <username>
+    $ sudo /usr/sbin/usermod -a -G docker <username>
 
 To verify that everything has worked as expected:
 
