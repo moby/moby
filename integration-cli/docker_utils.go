@@ -240,7 +240,7 @@ func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
 }
 
-func buildImage(name, dockerfile string, useCache bool) (string, error) {
+func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
@@ -250,9 +250,18 @@ func buildImage(name, dockerfile string, useCache bool) (string, error) {
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to build the image: %s", out)
+		return "", out, fmt.Errorf("failed to build the image: %s", out)
 	}
-	return getIDByName(name)
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", out, err
+	}
+	return id, out, nil
+}
+
+func buildImage(name, dockerfile string, useCache bool) (string, error) {
+	id, _, err := buildImageWithOut(name, dockerfile, useCache)
+	return id, err
 }
 
 func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string, error) {
