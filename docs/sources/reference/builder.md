@@ -27,6 +27,19 @@ the build. The build is run by the Docker daemon, not by the CLI, so the
 whole context must be transferred to the daemon. The Docker CLI reports
 "Sending build context to Docker daemon" when the context is sent to the daemon.
 
+> **Warning**
+> Avoid using your root directory, `/`, as the root of the source repository. The 
+> `docker build` command will use whatever directory contains the Dockerfile as the build
+> context(including all of its subdirectories). The build context will be sent to the
+> Docker daemon before building the image, which means if you use `/` as the source
+> repository, the entire contents of your hard drive will get sent to the daemon. You
+> probably don't want that.
+
+In most cases, it's best to put each Dockerfile in an empty directory, and then add only
+the files needed for building that Dockerfile to that directory. To further speed up the
+build, you can exclude files and directories by adding a `.dockerignore` file to the same
+directory.
+
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
