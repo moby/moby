@@ -80,6 +80,8 @@ var (
 		"btrfs",
 		"devicemapper",
 		"vfs",
+		// experimental, has to be enabled manually for now
+		"overlayfs",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")
