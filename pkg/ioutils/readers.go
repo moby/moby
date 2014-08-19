@@ -24,16 +24,29 @@ func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
 
 type bufReader struct {
 	sync.Mutex
-	buf    *bytes.Buffer
-	reader io.Reader
-	err    error
-	wait   sync.Cond
+	buf      *bytes.Buffer
+	reader   io.Reader
+	err      error
+	wait     sync.Cond
+	drainBuf []byte
 }
 
 func NewBufReader(r io.Reader) *bufReader {
 	reader := &bufReader{
-		buf:    &bytes.Buffer{},
-		reader: r,
+		buf:      &bytes.Buffer{},
+		drainBuf: make([]byte, 1024),
+		reader:   r,
+	}
+	reader.wait.L = &reader.Mutex
+	go reader.drain()
+	return reader
+}
+
+func NewBufReaderWithDrainbufAndBuffer(r io.Reader, drainBuffer []byte, buffer *bytes.Buffer) *bufReader {
+	reader := &bufReader{
+		buf:      buffer,
+		drainBuf: drainBuffer,
+		reader:   r,
 	}
 	reader.wait.L = &reader.Mutex
 	go reader.drain()
@@ -41,14 +54,13 @@ func NewBufReader(r io.Reader) *bufReader {
 }
 
 func (r *bufReader) drain() {
-	buf := make([]byte, 1024)
 	for {
-		n, err := r.reader.Read(buf)
+		n, err := r.reader.Read(r.drainBuf)
 		r.Lock()
 		if err != nil {
 			r.err = err
 		} else {
-			r.buf.Write(buf[0:n])
+			r.buf.Write(r.drainBuf[0:n])
 		}
 		r.wait.Signal()
 		r.Unlock()
