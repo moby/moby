@@ -23,6 +23,7 @@ type TarSum struct {
 	gz                 writeCloseFlusher
 	bufTar             *bytes.Buffer
 	bufGz              *bytes.Buffer
+	bufData            [8192]byte
 	h                  hash.Hash
 	sums               map[string]string
 	currentFile        string
@@ -92,7 +93,12 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 	if ts.finished {
 		return ts.bufGz.Read(buf)
 	}
-	buf2 := make([]byte, len(buf), cap(buf))
+	var buf2 []byte
+	if len(buf) > 8192 {
+		buf2 = make([]byte, len(buf), cap(buf))
+	} else {
+		buf2 = ts.bufData[:len(buf)-1]
+	}
 
 	n, err := ts.tarR.Read(buf2)
 	if err != nil {
