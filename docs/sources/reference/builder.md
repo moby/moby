@@ -30,10 +30,10 @@ whole context must be transferred to the daemon. The Docker CLI reports
 > **Warning**
 > Avoid using your root directory, `/`, as the root of the source repository. The 
 > `docker build` command will use whatever directory contains the Dockerfile as the build
-> context(including all of its subdirectories). The build context will be sent to the
+> context (including all of its subdirectories). The build context will be sent to the
 > Docker daemon before building the image, which means if you use `/` as the source
-> repository, the entire contents of your hard drive will get sent to the daemon. You
-> probably don't want that.
+> repository, the entire contents of your hard drive will get sent to the daemon (and
+> thus to the machine running the daemon). You probably don't want that.
 
 In most cases, it's best to put each Dockerfile in an empty directory, and then add only
 the files needed for building that Dockerfile to that directory. To further speed up the
