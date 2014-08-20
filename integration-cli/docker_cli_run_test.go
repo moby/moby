@@ -1549,3 +1549,51 @@ func TestRunExitOnStdinClose(t *testing.T) {
 	}
 	logDone("run - exit on stdin closing")
 }
+
+func TestHostsLinkedContainerUpdate(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	_, err = runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sleep", "5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO fix docker cp and /etc/hosts
+	_, err = runCommand(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "sh", "-c", "while true;do cp /etc/hosts /hosts; done"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = runCommand(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = runCommand(exec.Command(dockerBinary, "restart", "-t", "0", "c1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = runCommand(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, _, err := runCommandWithStdoutStderr(exec.Command("diff", tmpdir+"/1", tmpdir+"/2"))
+	if err == nil {
+		t.Fatalf("Expecting error, got none")
+	}
+	out = stripTrailingCharacters(out)
+	if out == "" {
+		t.Fatalf("expected /etc/hosts to be updated, but wasn't")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - /etc/hosts updated in parent when restart")
+
+}
