@@ -322,7 +322,7 @@ schema.
 
 > **Note:** `docker build` will return a `no such file or directory` error
 > if the file or directory does not exist in the uploaded context. This may
-> happen if there is no context, or if you specify a file that is elsewhere 
+> happen if there is no context, or if you specify a file that is elsewhere
 > on the Host system. The context is limited to the current directory (and its
 > children) for security reasons, and to ensure repeatable builds on remote
 > Docker hosts. This is also the reason why `ADD ../file` will not work.
@@ -824,8 +824,8 @@ Current filters:
 
     $ sudo docker ps -a --filter 'exited=0'
     CONTAINER ID        IMAGE             COMMAND                CREATED             STATUS                   PORTS                      NAMES
-    ea09c3c82f6e        registry:latest   /srv/run.sh            2 weeks ago         Exited (0) 2 weeks ago   127.0.0.1:5000->5000/tcp   desperate_leakey       
-    106ea823fe4e        fedora:latest     /bin/sh -c 'bash -l'   2 weeks ago         Exited (0) 2 weeks ago                              determined_albattani   
+    ea09c3c82f6e        registry:latest   /srv/run.sh            2 weeks ago         Exited (0) 2 weeks ago   127.0.0.1:5000->5000/tcp   desperate_leakey
+    106ea823fe4e        fedora:latest     /bin/sh -c 'bash -l'   2 weeks ago         Exited (0) 2 weeks ago                              determined_albattani
     48ee228c9464        fedora:20         bash                   2 weeks ago         Exited (0) 2 weeks ago                              tender_torvalds
 
 This shows all the containers that have exited with status of '0'
@@ -1145,14 +1145,14 @@ network and environment of the `redis` container via environment variables.
 The `--name` flag will assign the name `console` to the newly created
 container.
 
-    $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+    $ sudo docker run --volumes-from 777f7dc92da7 --volumes-from ba8c0c54f0f2:ro -i -t ubuntu pwd
 
 The `--volumes-from` flag mounts all the defined volumes from the referenced
-containers. Containers can be specified by a comma separated list or by
-repetitions of the `--volumes-from` argument. The container ID may be
-optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
-or read-write mode, respectively. By default, the volumes are mounted in
-the same mode (read write or read only) as the reference container.
+containers. Containers can be specified by repetitions of the `--volumes-from`
+argument. The container ID may be optionally suffixed with `:ro` or `:rw` to
+mount the volumes in read-only or read-write mode, respectively. By default,
+the volumes are mounted in the same mode (read write or read only) as
+the reference container.
 
 The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
 `STDERR`. This makes it possible to manipulate the output and input as needed.
@@ -1223,7 +1223,7 @@ application change:
 
 #### Restart Policies
 
-Using the `--restart` flag on Docker run you can specify a restart policy for 
+Using the `--restart` flag on Docker run you can specify a restart policy for
 how a container should or should not be restarted on exit.
 
 ** no ** - Do not restart the container when it exits.
@@ -1232,18 +1232,18 @@ how a container should or should not be restarted on exit.
 
 ** always ** - Always restart the container reguardless of the exit status.
 
-You can also specify the maximum amount of times Docker will try to restart the 
+You can also specify the maximum amount of times Docker will try to restart the
 container when using the ** on-failure ** policy.  The default is that Docker will try forever to restart the container.
 
     $ sudo docker run --restart=always redis
 
-This will run the `redis` container with a restart policy of ** always ** so that if 
+This will run the `redis` container with a restart policy of ** always ** so that if
 the container exits, Docker will restart it.
 
     $ sudo docker run --restart=on-failure:10 redis
 
-This will run the `redis` container with a restart policy of ** on-failure ** and a 
-maximum restart count of 10.  If the `redis` container exits with a non-zero exit 
+This will run the `redis` container with a restart policy of ** on-failure ** and a
+maximum restart count of 10.  If the `redis` container exits with a non-zero exit
 status more than 10 times in a row Docker will abort trying to restart the container.
 
 ## save
@@ -1294,7 +1294,7 @@ more details on finding shared images from the command line.
       -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
       -i, --interactive=false    Attach container's STDIN
 
-When run on a container that has already been started, 
+When run on a container that has already been started,
 takes no action and succeeds unconditionally.
 
 ## stop
