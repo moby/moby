@@ -76,7 +76,7 @@ func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 		path, err := d.path(sysname)
 		if err != nil {
 			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
-			if err == cgroups.ErrNotFound {
+			if cgroups.IsNotFound(err) {
 				continue
 			}
 
@@ -155,25 +155,45 @@ func (raw *data) parent(subsystem string) (string, error) {
 
 func (raw *data) Paths() (map[string]string, error) {
 	paths := make(map[string]string)
+
 	for sysname := range subsystems {
 		path, err := raw.path(sysname)
 		if err != nil {
+			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
+			if cgroups.IsNotFound(err) {
+				continue
+			}
+
 			return nil, err
 		}
+
 		paths[sysname] = path
 	}
+
 	return paths, nil
 }
 
 func (raw *data) path(subsystem string) (string, error) {
 	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
 	if filepath.IsAbs(raw.cgroup) {
-		return filepath.Join(raw.root, subsystem, raw.cgroup), nil
+		path := filepath.Join(raw.root, subsystem, raw.cgroup)
+
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				return "", cgroups.NewNotFoundError(subsystem)
+			}
+
+			return "", err
+		}
+
+		return path, nil
 	}
+
 	parent, err := raw.parent(subsystem)
 	if err != nil {
 		return "", err
 	}
+
 	return filepath.Join(parent, raw.cgroup), nil
 }
 

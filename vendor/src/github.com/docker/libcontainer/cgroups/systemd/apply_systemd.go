@@ -13,8 +13,7 @@ import (
 	"sync"
 	"time"
 
-	systemd1 "github.com/coreos/go-systemd/dbus"
-	"github.com/docker/docker/pkg/systemd"
+	systemd "github.com/coreos/go-systemd/dbus"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/godbus/dbus"
@@ -30,7 +29,7 @@ type subsystem interface {
 
 var (
 	connLock              sync.Mutex
-	theConn               *systemd1.Conn
+	theConn               *systemd.Conn
 	hasStartTransientUnit bool
 	subsystems            = map[string]subsystem{
 		"devices":    &fs.DevicesGroup{},
@@ -45,7 +44,8 @@ var (
 )
 
 func UseSystemd() bool {
-	if !systemd.SdBooted() {
+	s, err := os.Stat("/run/systemd/system")
+	if err != nil || !s.IsDir() {
 		return false
 	}
 
@@ -54,7 +54,7 @@ func UseSystemd() bool {
 
 	if theConn == nil {
 		var err error
-		theConn, err = systemd1.New()
+		theConn, err = systemd.New()
 		if err != nil {
 			return false
 		}
@@ -88,7 +88,7 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	var (
 		unitName   = getUnitName(c)
 		slice      = "system.slice"
-		properties []systemd1.Property
+		properties []systemd.Property
 		res        = &systemdCgroup{}
 	)
 
@@ -99,27 +99,27 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	}
 
 	properties = append(properties,
-		systemd1.Property{"Slice", dbus.MakeVariant(slice)},
-		systemd1.Property{"Description", dbus.MakeVariant("docker container " + c.Name)},
-		systemd1.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})},
+		systemd.Property{"Slice", dbus.MakeVariant(slice)},
+		systemd.Property{"Description", dbus.MakeVariant("docker container " + c.Name)},
+		systemd.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})},
 	)
 
 	// Always enable accounting, this gets us the same behaviour as the fs implementation,
 	// plus the kernel has some problems with joining the memory cgroup at a later time.
 	properties = append(properties,
-		systemd1.Property{"MemoryAccounting", dbus.MakeVariant(true)},
-		systemd1.Property{"CPUAccounting", dbus.MakeVariant(true)},
-		systemd1.Property{"BlockIOAccounting", dbus.MakeVariant(true)})
+		systemd.Property{"MemoryAccounting", dbus.MakeVariant(true)},
+		systemd.Property{"CPUAccounting", dbus.MakeVariant(true)},
+		systemd.Property{"BlockIOAccounting", dbus.MakeVariant(true)})
 
 	if c.Memory != 0 {
 		properties = append(properties,
-			systemd1.Property{"MemoryLimit", dbus.MakeVariant(uint64(c.Memory))})
+			systemd.Property{"MemoryLimit", dbus.MakeVariant(uint64(c.Memory))})
 	}
 	// TODO: MemoryReservation and MemorySwap not available in systemd
 
 	if c.CpuShares != 0 {
 		properties = append(properties,
-			systemd1.Property{"CPUShares", dbus.MakeVariant(uint64(c.CpuShares))})
+			systemd.Property{"CPUShares", dbus.MakeVariant(uint64(c.CpuShares))})
 	}
 
 	if _, err := theConn.StartTransientUnit(unitName, "replace", properties...); err != nil {
@@ -166,7 +166,7 @@ func (c *systemdCgroup) Paths() (map[string]string, error) {
 		subsystemPath, err := getSubsystemPath(c.cgroup, sysname)
 		if err != nil {
 			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
-			if err == cgroups.ErrNotFound {
+			if cgroups.IsNotFound(err) {
 				continue
 			}
 
@@ -274,7 +274,7 @@ func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 		subsystemPath, err := getSubsystemPath(c, sysname)
 		if err != nil {
 			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
-			if err == cgroups.ErrNotFound {
+			if cgroups.IsNotFound(err) {
 				continue
 			}
 

@@ -59,7 +59,7 @@ rm -rf src/code.google.com/p/go
 mkdir -p src/code.google.com/p/go/src/pkg/archive
 mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 
-clone git github.com/docker/libcontainer 29363e2d2d7b8f62a5f353be333758f83df540a9
+clone git github.com/docker/libcontainer db65c35051d05f3fb218a0e84a11267e0894fe0a
 # see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
 rm -rf src/github.com/docker/libcontainer/vendor
 eval "$(grep '^clone ' src/github.com/docker/libcontainer/update-vendor.sh | grep -v 'github.com/codegangsta/cli')"
