@@ -89,9 +89,11 @@ unix://[/path/to/socket] to use.
 **docker-cp(1)**
   Copy files/folders from a container's filesystem to the host at path
 
+**docker-create(1)**
+  Create a new container
+
 **docker-diff(1)**
   Inspect changes on a container's filesystem
-
 
 **docker-events(1)**
   Get real time events from the server
