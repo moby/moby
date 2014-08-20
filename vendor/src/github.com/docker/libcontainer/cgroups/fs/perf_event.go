@@ -9,7 +9,7 @@ type PerfEventGroup struct {
 
 func (s *PerfEventGroup) Set(d *data) error {
 	// we just want to join this group even though we don't set anything
-	if _, err := d.join("perf_event"); err != nil && err != cgroups.ErrNotFound {
+	if _, err := d.join("perf_event"); err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 	return nil

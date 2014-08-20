@@ -29,7 +29,8 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 			}
 		}
 	}
-	return "", ErrNotFound
+
+	return "", NewNotFoundError(subsystem)
 }
 
 type Mount struct {
@@ -153,19 +154,23 @@ func ReadProcsFile(dir string) ([]int, error) {
 
 func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
+
 	for s.Scan() {
 		if err := s.Err(); err != nil {
 			return "", err
 		}
+
 		text := s.Text()
 		parts := strings.Split(text, ":")
+
 		for _, subs := range strings.Split(parts[1], ",") {
 			if subs == subsystem {
 				return parts[2], nil
 			}
 		}
 	}
-	return "", ErrNotFound
+
+	return "", NewNotFoundError(subsystem)
 }
 
 func pathExists(path string) bool {

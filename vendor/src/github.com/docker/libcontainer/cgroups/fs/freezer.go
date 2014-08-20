@@ -33,7 +33,7 @@ func (s *FreezerGroup) Set(d *data) error {
 			time.Sleep(1 * time.Millisecond)
 		}
 	default:
-		if _, err := d.join("freezer"); err != nil && err != cgroups.ErrNotFound {
+		if _, err := d.join("freezer"); err != nil && !cgroups.IsNotFound(err) {
 			return err
 		}
 	}
