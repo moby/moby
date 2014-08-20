@@ -96,7 +96,7 @@ or
   If you use the shell form of the CMD, the <command> executes in /bin/sh -c:
   **FROM ubuntu**
   **CMD echo "This is a test." | wc -**
-  If you run <command> wihtout a shell, then you must express the command as a
+  If you run <command> without a shell, then you must express the command as a
   JSON arry and give the full path to the executable. This array form is the
   preferred form of CMD. All additional parameters must be individually expressed
   as strings in the array:

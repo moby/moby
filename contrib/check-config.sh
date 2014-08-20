@@ -113,6 +113,23 @@ else
 	echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 fi
 
+if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
+	echo -n '- '
+	if command -v apparmor_parser &> /dev/null; then
+		echo "$(wrap_good 'apparmor' 'enabled and tools installed')"
+	else
+		echo "$(wrap_bad 'apparmor' 'enabled, but apparmor_parser missing')"
+		echo -n '    '
+		if command -v apt-get &> /dev/null; then
+			echo "$(wrap_color '(use "apt-get install apparmor" to fix this)')"
+		elif command -v yum &> /dev/null; then
+			echo "$(wrap_color '(your best bet is "yum install apparmor-parser")')"
+		else
+			echo "$(wrap_color '(look for an "apparmor" package for your distribution)')"
+		fi
+	fi
+fi
+
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES

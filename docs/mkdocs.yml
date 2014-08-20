@@ -6,7 +6,7 @@ site_favicon: img/favicon.png
 
 dev_addr: '0.0.0.0:8000'
 
-repo_url: https://github.com/dotcloud/docker/
+repo_url: https://github.com/docker/docker/
 
 docs_dir: sources
 
@@ -83,6 +83,7 @@ pages:
 - ['articles/security.md', 'Articles', 'Security']
 - ['articles/https.md', 'Articles', 'Running Docker with HTTPS']
 - ['articles/host_integration.md', 'Articles', 'Automatically starting Containers']
+- ['articles/certificates.md', 'Articles', 'Using certificates for repository client verification']
 - ['articles/using_supervisord.md', 'Articles', 'Using Supervisor']
 - ['articles/cfengine_process_management.md', 'Articles', 'Process management with CFEngine']
 - ['articles/puppet.md', 'Articles', 'Using Puppet']
@@ -104,6 +105,7 @@ pages:
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
+- ['reference/api/docker_remote_api_v1.14.md', 'Reference', 'Docker Remote API v1.14']
 - ['reference/api/docker_remote_api_v1.13.md', 'Reference', 'Docker Remote API v1.13']
 - ['reference/api/docker_remote_api_v1.12.md', 'Reference', 'Docker Remote API v1.12']
 - ['reference/api/docker_remote_api_v1.11.md', 'Reference', 'Docker Remote API v1.11']
@@ -119,7 +121,6 @@ pages:
 - ['reference/api/docker_remote_api_v1.1.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
-- ['reference/api/docker_io_oauth_api.md', 'Reference', 'Docker Hub OAuth API']
 - ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub Accounts API']
 
 - ['jsearch.md', '**HIDDEN**']

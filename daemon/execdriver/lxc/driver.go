@@ -3,69 +3,47 @@ package lxc
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/kr/pty"
+
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/utils"
 )
 
 const DriverName = "lxc"
 
-func init() {
-	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		runtime.LockOSThread()
-		if err := setupEnv(args); err != nil {
-			return err
-		}
-		if err := setupHostname(args); err != nil {
-			return err
-		}
-		if err := setupNetworking(args); err != nil {
-			return err
-		}
-		if err := finalizeNamespace(args); err != nil {
-			return err
-		}
-
-		path, err := exec.LookPath(args.Args[0])
-		if err != nil {
-			log.Printf("Unable to locate %v", args.Args[0])
-			os.Exit(127)
-		}
-		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
-			return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
-		}
-		panic("Unreachable")
-	})
-}
-
 type driver struct {
 	root       string // root path for the driver to use
+	initPath   string
 	apparmor   bool
 	sharedRoot bool
 }
 
-func NewDriver(root string, apparmor bool) (*driver, error) {
+func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
 	}
+
 	return &driver{
 		apparmor:   apparmor,
 		root:       root,
+		initPath:   initPath,
 		sharedRoot: rootIsShared(),
 	}, nil
 }
@@ -76,9 +54,25 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	if err := execdriver.SetTerminal(c, pipes); err != nil {
-		return -1, err
+	var (
+		term execdriver.Terminal
+		err  error
+	)
+
+	if c.Tty {
+		term, err = NewTtyConsole(c, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(c, pipes)
 	}
+	c.Terminal = term
+
+	c.Mounts = append(c.Mounts, execdriver.Mount{
+		Source:      d.initPath,
+		Destination: c.InitPath,
+		Writable:    false,
+		Private:     true,
+	})
+
 	if err := d.generateEnvConfig(c); err != nil {
 		return -1, err
 	}
@@ -92,8 +86,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"-f", configPath,
 		"--",
 		c.InitPath,
-		"-driver",
-		DriverName,
 	}
 
 	if c.Network.Interface != nil {
@@ -120,6 +112,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	if c.WorkingDir != "" {
 		params = append(params, "-w", c.WorkingDir)
+	}
+
+	if len(c.CapAdd) > 0 {
+		params = append(params, fmt.Sprintf("-cap-add=%s", strings.Join(c.CapAdd, ":")))
+	}
+
+	if len(c.CapDrop) > 0 {
+		params = append(params, fmt.Sprintf("-cap-drop=%s", strings.Join(c.CapDrop, ":")))
 	}
 
 	params = append(params, "--", c.Entrypoint)
@@ -320,7 +320,7 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		utils.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		log.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
 		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {
@@ -447,7 +447,83 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 		return err
 	}
 	p := path.Join(d.root, "containers", c.ID, "config.env")
-	c.Mounts = append(c.Mounts, execdriver.Mount{p, "/.dockerenv", false, true})
+	c.Mounts = append(c.Mounts, execdriver.Mount{
+		Source:      p,
+		Destination: "/.dockerenv",
+		Writable:    false,
+		Private:     true,
+	})
 
 	return ioutil.WriteFile(p, data, 0600)
+}
+
+type TtyConsole struct {
+	MasterPty *os.File
+	SlavePty  *os.File
+}
+
+func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
+	// lxc is special in that we cannot create the master outside of the container without
+	// opening the slave because we have nothing to provide to the cmd.  We have to open both then do
+	// the crazy setup on command right now instead of passing the console path to lxc and telling it
+	// to open up that console.  we save a couple of openfiles in the native driver because we can do
+	// this.
+	ptyMaster, ptySlave, err := pty.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	tty := &TtyConsole{
+		MasterPty: ptyMaster,
+		SlavePty:  ptySlave,
+	}
+
+	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
+		tty.Close()
+		return nil, err
+	}
+
+	command.Console = tty.SlavePty.Name()
+
+	return tty, nil
+}
+
+func (t *TtyConsole) Master() *os.File {
+	return t.MasterPty
+}
+
+func (t *TtyConsole) Resize(h, w int) error {
+	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+}
+
+func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
+	command.Stdout = t.SlavePty
+	command.Stderr = t.SlavePty
+
+	go func() {
+		if wb, ok := pipes.Stdout.(interface {
+			CloseWriters() error
+		}); ok {
+			defer wb.CloseWriters()
+		}
+
+		io.Copy(pipes.Stdout, t.MasterPty)
+	}()
+
+	if pipes.Stdin != nil {
+		command.Stdin = t.SlavePty
+		command.SysProcAttr.Setctty = true
+
+		go func() {
+			io.Copy(t.MasterPty, pipes.Stdin)
+
+			pipes.Stdin.Close()
+		}()
+	}
+	return nil
+}
+
+func (t *TtyConsole) Close() error {
+	t.SlavePty.Close()
+	return t.MasterPty.Close()
 }

@@ -44,8 +44,8 @@ func TestBlkioStats(t *testing.T) {
 		"blkio.sectors_recursive":          sectorsRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,10 +84,10 @@ func TestBlkioStatsNoSectorsFile(t *testing.T) {
 		"blkio.io_queued_recursive":        queuedRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
-	if err == nil {
-		t.Fatal("Expected to fail, but did not")
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
+	if err != nil {
+		t.Fatalf("Failed unexpectedly: %s", err)
 	}
 }
 
@@ -100,10 +100,10 @@ func TestBlkioStatsNoServiceBytesFile(t *testing.T) {
 		"blkio.sectors_recursive":     sectorsRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
-	if err == nil {
-		t.Fatal("Expected to fail, but did not")
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
+	if err != nil {
+		t.Fatalf("Failed unexpectedly: %s", err)
 	}
 }
 
@@ -116,10 +116,10 @@ func TestBlkioStatsNoServicedFile(t *testing.T) {
 		"blkio.sectors_recursive":          sectorsRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
-	if err == nil {
-		t.Fatal("Expected to fail, but did not")
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
+	if err != nil {
+		t.Fatalf("Failed unexpectedly: %s", err)
 	}
 }
 
@@ -132,10 +132,10 @@ func TestBlkioStatsNoQueuedFile(t *testing.T) {
 		"blkio.sectors_recursive":          sectorsRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
-	if err == nil {
-		t.Fatal("Expected to fail, but did not")
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
+	if err != nil {
+		t.Fatalf("Failed unexpectedly: %s", err)
 	}
 }
 
@@ -149,8 +149,8 @@ func TestBlkioStatsUnexpectedNumberOfFields(t *testing.T) {
 		"blkio.sectors_recursive":          sectorsRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
@@ -166,8 +166,8 @@ func TestBlkioStatsUnexpectedFieldType(t *testing.T) {
 		"blkio.sectors_recursive":          sectorsRecursiveContents,
 	})
 
-	blkio := &blkioGroup{}
-	err := blkio.GetStats(helper.CgroupData, &actualStats)
+	blkio := &BlkioGroup{}
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}

@@ -7,86 +7,80 @@ import (
 	"strings"
 )
 
+// See: http://en.wikipedia.org/wiki/Binary_prefix
+const (
+	// Decimal
+	KB = 1000
+	MB = 1000 * KB
+	GB = 1000 * MB
+	TB = 1000 * GB
+	PB = 1000 * TB
+
+	// Binary
+	KiB = 1024
+	MiB = 1024 * KiB
+	GiB = 1024 * MiB
+	TiB = 1024 * GiB
+	PiB = 1024 * TiB
+)
+
+type unitMap map[string]int64
+
+var (
+	decimalMap = unitMap{"k": KB, "m": MB, "g": GB, "t": TB, "p": PB}
+	binaryMap  = unitMap{"k": KiB, "m": MiB, "g": GiB, "t": TiB, "p": PiB}
+)
+
+var sizeRegex *regexp.Regexp
+
+func init() {
+	sizeRegex = regexp.MustCompile("^(\\d+)([kKmMgGtTpP])?[bB]?$")
+}
+
+var unitAbbrs = [...]string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+
 // HumanSize returns a human-readable approximation of a size
 // using SI standard (eg. "44kB", "17MB")
 func HumanSize(size int64) string {
 	i := 0
-	var sizef float64
-	sizef = float64(size)
-	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	sizef := float64(size)
 	for sizef >= 1000.0 {
 		sizef = sizef / 1000.0
 		i++
 	}
-	return fmt.Sprintf("%.4g %s", sizef, units[i])
+	return fmt.Sprintf("%.4g %s", sizef, unitAbbrs[i])
 }
 
-// FromHumanSize returns an integer from a human-readable specification of a size
-// using SI standard (eg. "44kB", "17MB")
+// FromHumanSize returns an integer from a human-readable specification of a
+// size using SI standard (eg. "44kB", "17MB")
 func FromHumanSize(size string) (int64, error) {
-	re, error := regexp.Compile("^(\\d+)([kKmMgGtTpP])?[bB]?$")
-	if error != nil {
-		return -1, fmt.Errorf("%s does not specify not a size", size)
-	}
-
-	matches := re.FindStringSubmatch(size)
-
-	if len(matches) != 3 {
-		return -1, fmt.Errorf("Invalid size: '%s'", size)
-	}
-
-	theSize, error := strconv.ParseInt(matches[1], 10, 0)
-	if error != nil {
-		return -1, error
-	}
-
-	unit := strings.ToLower(matches[2])
-
-	if unit == "k" {
-		theSize *= 1000
-	} else if unit == "m" {
-		theSize *= 1000 * 1000
-	} else if unit == "g" {
-		theSize *= 1000 * 1000 * 1000
-	} else if unit == "t" {
-		theSize *= 1000 * 1000 * 1000 * 1000
-	} else if unit == "p" {
-		theSize *= 1000 * 1000 * 1000 * 1000 * 1000
-	}
-
-	return theSize, nil
+	return parseSize(size, decimalMap)
 }
 
 // Parses a human-readable string representing an amount of RAM
-// in bytes, kibibytes, mebibytes or gibibytes, and returns the
-// number of bytes, or -1 if the string is unparseable.
+// in bytes, kibibytes, mebibytes, gibibytes, or tebibytes and
+// returns the number of bytes, or -1 if the string is unparseable.
 // Units are case-insensitive, and the 'b' suffix is optional.
-func RAMInBytes(size string) (bytes int64, err error) {
-	re, error := regexp.Compile("^(\\d+)([kKmMgG])?[bB]?$")
-	if error != nil {
-		return -1, error
-	}
+func RAMInBytes(size string) (int64, error) {
+	return parseSize(size, binaryMap)
+}
 
-	matches := re.FindStringSubmatch(size)
-
+// Parses the human-readable size string into the amount it represents
+func parseSize(sizeStr string, uMap unitMap) (int64, error) {
+	matches := sizeRegex.FindStringSubmatch(sizeStr)
 	if len(matches) != 3 {
-		return -1, fmt.Errorf("Invalid size: '%s'", size)
+		return -1, fmt.Errorf("Invalid size: '%s'", sizeStr)
 	}
 
-	memLimit, error := strconv.ParseInt(matches[1], 10, 0)
-	if error != nil {
-		return -1, error
+	size, err := strconv.ParseInt(matches[1], 10, 0)
+	if err != nil {
+		return -1, err
 	}
 
-	unit := strings.ToLower(matches[2])
-
-	if unit == "k" {
-		memLimit *= 1024
-	} else if unit == "m" {
-		memLimit *= 1024 * 1024
-	} else if unit == "g" {
-		memLimit *= 1024 * 1024 * 1024
+	unitPrefix := strings.ToLower(matches[2])
+	if mul, ok := uMap[unitPrefix]; ok {
+		size *= mul
 	}
 
-	return memLimit, nil
+	return size, nil
 }

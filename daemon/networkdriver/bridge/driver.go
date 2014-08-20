@@ -3,20 +3,20 @@ package bridge
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/daemon/networkdriver"
+	"github.com/docker/docker/daemon/networkdriver/ipallocator"
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
+	"github.com/docker/docker/daemon/networkdriver/portmapper"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/iptables"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libcontainer/netlink"
-	"github.com/dotcloud/docker/daemon/networkdriver"
-	"github.com/dotcloud/docker/daemon/networkdriver/ipallocator"
-	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
-	"github.com/dotcloud/docker/daemon/networkdriver/portmapper"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/networkfs/resolvconf"
-	"github.com/dotcloud/docker/utils"
 )
 
 const (
@@ -158,7 +158,7 @@ func InitDriver(job *engine.Job) engine.Status {
 
 	bridgeNetwork = network
 
-	// https://github.com/dotcloud/docker/issues/2768
+	// https://github.com/docker/docker/issues/2768
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeNetwork.IP)
 
 	for name, f := range map[string]engine.Handler{
@@ -176,7 +176,7 @@ func InitDriver(job *engine.Job) engine.Status {
 
 func setupIPTables(addr net.Addr, icc bool) error {
 	// Enable NAT
-	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-d", addr.String(), "-j", "MASQUERADE"}
+	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
 	if !iptables.Exists(natArgs...) {
 		if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
@@ -196,7 +196,7 @@ func setupIPTables(addr net.Addr, icc bool) error {
 		iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
 
 		if !iptables.Exists(dropArgs...) {
-			utils.Debugf("Disable inter-container communication")
+			log.Debugf("Disable inter-container communication")
 			if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
@@ -207,7 +207,7 @@ func setupIPTables(addr net.Addr, icc bool) error {
 		iptables.Raw(append([]string{"-D"}, dropArgs...)...)
 
 		if !iptables.Exists(acceptArgs...) {
-			utils.Debugf("Enable inter-container communication")
+			log.Debugf("Enable inter-container communication")
 			if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
@@ -271,7 +271,7 @@ func createBridge(bridgeIP string) error {
 					ifaceAddr = addr
 					break
 				} else {
-					utils.Debugf("%s %s", addr, err)
+					log.Debugf("%s %s", addr, err)
 				}
 			}
 		}
@@ -280,7 +280,7 @@ func createBridge(bridgeIP string) error {
 	if ifaceAddr == "" {
 		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", bridgeIface, bridgeIface)
 	}
-	utils.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
+	log.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
 
 	if err := createBridgeIface(bridgeIface); err != nil {
 		return err
@@ -306,11 +306,11 @@ func createBridge(bridgeIP string) error {
 }
 
 func createBridgeIface(name string) error {
-	kv, err := utils.GetKernelVersion()
+	kv, err := kernel.GetKernelVersion()
 	// only set the bridge's mac address if the kernel version is > 3.3
 	// before that it was not supported
 	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
-	utils.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
+	log.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
 	return netlink.CreateBridge(name, setBridgeMacAddr)
 }
 
@@ -363,12 +363,12 @@ func Release(job *engine.Job) engine.Status {
 
 	for _, nat := range containerInterface.PortMappings {
 		if err := portmapper.Unmap(nat); err != nil {
-			log.Printf("Unable to unmap port %s: %s", nat, err)
+			log.Infof("Unable to unmap port %s: %s", nat, err)
 		}
 	}
 
 	if err := ipallocator.ReleaseIP(bridgeNetwork, &containerInterface.IP); err != nil {
-		log.Printf("Unable to release ip %s\n", err)
+		log.Infof("Unable to release ip %s", err)
 	}
 	return engine.StatusOK
 }
@@ -415,8 +415,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 			break
 		}
 
-		switch allocerr := err.(type) {
-		case portallocator.ErrPortAlreadyAllocated:
+		if allocerr, ok := err.(portallocator.ErrPortAlreadyAllocated); ok {
 			// There is no point in immediately retrying to map an explicitly
 			// chosen port.
 			if hostPort != 0 {
@@ -426,7 +425,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 			// Automatically chosen 'free' port failed to bind: move on the next.
 			job.Logf("Failed to bind %s for container address %s. Trying another port.", allocerr.IPPort(), container.String())
-		default:
+		} else {
 			// some other error during mapping
 			job.Logf("Received an unexpected error during port allocation: %s", err.Error())
 			break

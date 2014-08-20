@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -10,9 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/system"
 )
 
 type ChangeType int
@@ -343,6 +345,7 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 	tw := tar.NewWriter(writer)
 
 	go func() {
+		twBuf := bufio.NewWriterSize(nil, twBufSize)
 		// In general we log errors here but ignore them because
 		// during e.g. a diff operation the container can continue
 		// mutating the filesystem and we can see transient errors
@@ -361,19 +364,19 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					ChangeTime: timestamp,
 				}
 				if err := tw.WriteHeader(hdr); err != nil {
-					utils.Debugf("Can't write whiteout header: %s\n", err)
+					log.Debugf("Can't write whiteout header: %s", err)
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
-				if err := addTarFile(path, change.Path[1:], tw); err != nil {
-					utils.Debugf("Can't add file %s to tar: %s\n", path, err)
+				if err := addTarFile(path, change.Path[1:], tw, twBuf); err != nil {
+					log.Debugf("Can't add file %s to tar: %s", path, err)
 				}
 			}
 		}
 
 		// Make sure to check the error on Close.
 		if err := tw.Close(); err != nil {
-			utils.Debugf("Can't close layer: %s\n", err)
+			log.Debugf("Can't close layer: %s", err)
 		}
 		writer.Close()
 	}()

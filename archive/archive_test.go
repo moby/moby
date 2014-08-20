@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestCmdStreamLargeStderr(t *testing.T) {
@@ -109,6 +109,9 @@ func TestTarUntar(t *testing.T) {
 	if err := ioutil.WriteFile(path.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
 		t.Fatal(err)
 	}
+	if err := ioutil.WriteFile(path.Join(origin, "3"), []byte("will be ignored"), 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, c := range []Compression{
 		Uncompressed,
@@ -116,13 +119,14 @@ func TestTarUntar(t *testing.T) {
 	} {
 		changes, err := tarUntar(t, origin, &TarOptions{
 			Compression: c,
+			Excludes:    []string{"3"},
 		})
 
 		if err != nil {
 			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
 		}
 
-		if len(changes) != 0 {
+		if len(changes) != 1 || changes[0].Path != "/3" {
 			t.Fatalf("Unexpected differences after tarUntar: %v", changes)
 		}
 	}
@@ -197,5 +201,44 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("%s not found in the archive", "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm")
+	}
+}
+
+func prepareUntarSourceDirectory(numberOfFiles int, targetPath string) (int, error) {
+	fileData := []byte("fooo")
+	for n := 0; n < numberOfFiles; n++ {
+		fileName := fmt.Sprintf("file-%d", n)
+		if err := ioutil.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
+			return 0, err
+		}
+	}
+	totalSize := numberOfFiles * len(fileData)
+	return totalSize, nil
+}
+
+func BenchmarkTarUntar(b *testing.B) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		b.Fatal(err)
+	}
+	tempDir, err := ioutil.TempDir("", "docker-test-untar-destination")
+	if err != nil {
+		b.Fatal(err)
+	}
+	target := path.Join(tempDir, "dest")
+	n, err := prepareUntarSourceDirectory(100, origin)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	defer os.RemoveAll(origin)
+	defer os.RemoveAll(tempDir)
+	for n := 0; n < b.N; n++ {
+		err := TarUntar(origin, target)
+		if err != nil {
+			b.Fatal(err)
+		}
+		os.RemoveAll(target)
 	}
 }

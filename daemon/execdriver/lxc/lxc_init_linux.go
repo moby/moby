@@ -1,24 +1,23 @@
-// +build amd64
-
 package lxc
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/libcontainer/namespaces"
 	"github.com/docker/libcontainer/security/capabilities"
+	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/utils"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/daemon/execdriver/native/template"
-	"github.com/dotcloud/docker/pkg/system"
 )
 
 func setHostname(hostname string) error {
 	return syscall.Sethostname([]byte(hostname))
 }
 
-func finalizeNamespace(args *execdriver.InitArgs) error {
+func finalizeNamespace(args *InitArgs) error {
 	if err := utils.CloseExecFrom(3); err != nil {
 		return err
 	}
@@ -48,8 +47,25 @@ func finalizeNamespace(args *execdriver.InitArgs) error {
 			return fmt.Errorf("clear keep caps %s", err)
 		}
 
+		var (
+			adds  []string
+			drops []string
+		)
+
+		if args.CapAdd != "" {
+			adds = strings.Split(args.CapAdd, ":")
+		}
+		if args.CapDrop != "" {
+			drops = strings.Split(args.CapDrop, ":")
+		}
+
+		caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
+		if err != nil {
+			return err
+		}
+
 		// drop all other capabilities
-		if err := capabilities.DropCapabilities(container.Capabilities); err != nil {
+		if err := capabilities.DropCapabilities(caps); err != nil {
 			return fmt.Errorf("drop capabilities %s", err)
 		}
 	}

@@ -2,11 +2,11 @@ package graph
 
 import (
 	"bytes"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	_ "github.com/dotcloud/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/daemon/graphdriver"
+	_ "github.com/docker/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/utils"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os"
 	"path"
@@ -19,11 +19,19 @@ const (
 )
 
 func fakeTar() (io.Reader, error) {
+	uid := os.Getuid()
+	gid := os.Getgid()
+
 	content := []byte("Hello world!\n")
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	for _, name := range []string{"/etc/postgres/postgres.conf", "/etc/passwd", "/var/log/postgres/postgres.conf"} {
 		hdr := new(tar.Header)
+
+		// Leaving these fields blank requires root privileges
+		hdr.Uid = uid
+		hdr.Gid = gid
+
 		hdr.Size = int64(len(content))
 		hdr.Name = name
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -53,8 +61,6 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &image.Image{ID: testImageID}
-	// FIXME: this fails on Darwin with:
-	// tags_unit_test.go:36: mkdir /var/folders/7g/b3ydb5gx4t94ndr_cljffbt80000gq/T/docker-test569b-tRunner-075013689/vfs/dir/foo/etc/postgres: permission denied
 	if err := graph.Register(nil, archive, img); err != nil {
 		t.Fatal(err)
 	}

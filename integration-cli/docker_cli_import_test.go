@@ -12,8 +12,8 @@ func TestImportDisplay(t *testing.T) {
 	out, _, err := runCommandWithOutput(importCmd)
 	errorOut(err, t, fmt.Sprintf("import failed with errors: %v", err))
 
-	if n := len(strings.Split(out, "\n")); n != 3 {
-		t.Fatalf("display is messed up: %d '\\n' instead of 3", n)
+	if n := strings.Count(out, "\n"); n != 2 {
+		t.Fatalf("display is messed up: %d '\\n' instead of 2", n)
 	}
 
 	logDone("import - cirros was imported and display is fine")

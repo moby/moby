@@ -224,7 +224,7 @@ Return low-level information on the container `id`
                              "Bridge": "",
                              "PortMapping": null
                      },
-                     "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+                     "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
                      "Volumes": {},
                      "HostConfig": {
@@ -861,11 +861,20 @@ Push the image `name` on the registry
         {"error":"Invalid..."}
         ...
 
+    If you wish to push an image on to a private registry, that image must already have been tagged
+    into a repository which references that registry host name and port.  This repository name should 
+    then be used in the URL. This mirrors the flow of the CLI.
+
+    **Example request**:
+
+        POST /images/registry.acme.com:5000/test/push HTTP/1.1    
+    
+
     Query Parameters:
 
      
 
-    -   **registry** – the registry you wan to push, optional
+    -   **tag** – the tag to associate with the image on the registry, optional
 
     Request Headers:
 

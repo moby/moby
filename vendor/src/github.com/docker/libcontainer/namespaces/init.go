@@ -5,7 +5,6 @@ package namespaces
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"syscall"
 
@@ -18,16 +17,19 @@ import (
 	"github.com/docker/libcontainer/network"
 	"github.com/docker/libcontainer/security/capabilities"
 	"github.com/docker/libcontainer/security/restrict"
+	"github.com/docker/libcontainer/syncpipe"
+	"github.com/docker/libcontainer/system"
+	"github.com/docker/libcontainer/user"
 	"github.com/docker/libcontainer/utils"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/pkg/user"
 )
 
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.
 // Move this to libcontainer package.
 // Init is the init process that first runs inside a new namespace to setup mounts, users, networking,
 // and other options required for the new container.
-func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syncPipe *SyncPipe, args []string) (err error) {
+// The caller of Init function has to ensure that the go runtime is locked to an OS thread
+// (using runtime.LockOSThread) else system calls like setns called within Init may not work as intended.
+func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syncPipe *syncpipe.SyncPipe, args []string) (err error) {
 	defer func() {
 		if err != nil {
 			syncPipe.ReportChildError(err)
@@ -46,8 +48,8 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 	}
 
 	// We always read this as it is a way to sync with the parent as well
-	networkState, err := syncPipe.ReadFromParent()
-	if err != nil {
+	var networkState *network.NetworkState
+	if err := syncPipe.ReadFromParent(&networkState); err != nil {
 		return err
 	}
 
@@ -56,7 +58,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 			return err
 		}
 	}
-	if _, err := system.Setsid(); err != nil {
+	if _, err := syscall.Setsid(); err != nil {
 		return fmt.Errorf("setsid %s", err)
 	}
 	if consolePath != "" {
@@ -75,17 +77,16 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 
 	if err := mount.InitializeMountNamespace(rootfs,
 		consolePath,
+		container.RestrictSys,
 		(*mount.MountConfig)(container.MountConfig)); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 
 	if container.Hostname != "" {
-		if err := system.Sethostname(container.Hostname); err != nil {
+		if err := syscall.Sethostname([]byte(container.Hostname)); err != nil {
 			return fmt.Errorf("sethostname %s", err)
 		}
 	}
-
-	runtime.LockOSThread()
 
 	if err := apparmor.ApplyProfile(container.AppArmorProfile); err != nil {
 		return fmt.Errorf("set apparmor profile %s: %s", container.AppArmorProfile, err)
@@ -97,7 +98,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 
 	// TODO: (crosbymichael) make this configurable at the Config level
 	if container.RestrictSys {
-		if err := restrict.Restrict("proc/sys", "proc/sysrq-trigger", "proc/irq", "proc/bus", "sys"); err != nil {
+		if err := restrict.Restrict("proc/sys", "proc/sysrq-trigger", "proc/irq", "proc/bus"); err != nil {
 			return err
 		}
 	}
@@ -117,7 +118,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 		return fmt.Errorf("restore parent death signal %s", err)
 	}
 
-	return system.Execv(args[0], args[0:], container.Env)
+	return system.Execv(args[0], args[0:], os.Environ())
 }
 
 // RestoreParentDeathSignal sets the parent death signal to old.
@@ -150,19 +151,30 @@ func RestoreParentDeathSignal(old int) error {
 
 // SetupUser changes the groups, gid, and uid for the user inside the container
 func SetupUser(u string) error {
-	uid, gid, suppGids, err := user.GetUserGroupSupplementary(u, syscall.Getuid(), syscall.Getgid())
+	uid, gid, suppGids, home, err := user.GetUserGroupSupplementaryHome(u, syscall.Getuid(), syscall.Getgid(), "/")
 	if err != nil {
 		return fmt.Errorf("get supplementary groups %s", err)
 	}
-	if err := system.Setgroups(suppGids); err != nil {
+
+	if err := syscall.Setgroups(suppGids); err != nil {
 		return fmt.Errorf("setgroups %s", err)
 	}
-	if err := system.Setgid(gid); err != nil {
+
+	if err := syscall.Setgid(gid); err != nil {
 		return fmt.Errorf("setgid %s", err)
 	}
-	if err := system.Setuid(uid); err != nil {
+
+	if err := syscall.Setuid(uid); err != nil {
 		return fmt.Errorf("setuid %s", err)
 	}
+
+	// if we didn't get HOME already, set it based on the user's HOME
+	if envHome := os.Getenv("HOME"); envHome == "" {
+		if err := os.Setenv("HOME", home); err != nil {
+			return fmt.Errorf("set HOME %s", err)
+		}
+	}
+
 	return nil
 }
 
@@ -228,7 +240,7 @@ func FinalizeNamespace(container *libcontainer.Config) error {
 	}
 
 	if container.WorkingDir != "" {
-		if err := system.Chdir(container.WorkingDir); err != nil {
+		if err := syscall.Chdir(container.WorkingDir); err != nil {
 			return fmt.Errorf("chdir to %s %s", container.WorkingDir, err)
 		}
 	}

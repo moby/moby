@@ -196,7 +196,7 @@ to the host.
 This won't affect regular web apps; but malicious users will find that
 the arsenal at their disposal has shrunk considerably! By default Docker
 drops all capabilities except [those
-needed](https://github.com/dotcloud/docker/blob/master/daemon/execdriver/native/template/default_template.go),
+needed](https://github.com/docker/docker/blob/master/daemon/execdriver/native/template/default_template.go),
 a whitelist instead of a blacklist approach. You can see a full list of
 available capabilities in [Linux
 manpages](http://man7.org/linux/man-pages/man7/capabilities.7.html).
@@ -204,7 +204,7 @@ manpages](http://man7.org/linux/man-pages/man7/capabilities.7.html).
 Of course, you can always enable extra capabilities if you really need
 them (for instance, if you want to use a FUSE-based filesystem), but by
 default, Docker containers use only a
-[whitelist](https://github.com/dotcloud/docker/blob/master/daemon/execdriver/native/template/default_template.go)
+[whitelist](https://github.com/docker/docker/blob/master/daemon/execdriver/native/template/default_template.go)
 of kernel capabilities by default.
 
 ## Other Kernel Security Features

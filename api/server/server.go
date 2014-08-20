@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -21,16 +20,18 @@ import (
 	"syscall"
 
 	"code.google.com/p/go.net/websocket"
-
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/listenbuffer"
-	"github.com/dotcloud/docker/pkg/systemd"
-	"github.com/dotcloud/docker/pkg/user"
-	"github.com/dotcloud/docker/pkg/version"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/libcontainer/user"
 	"github.com/gorilla/mux"
+
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/listenbuffer"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/systemd"
+	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 )
 
 var (
@@ -87,7 +88,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		utils.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		log.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
 		http.Error(w, err.Error(), statusCode)
 	}
 }
@@ -237,10 +238,10 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 		outsLegacy := engine.NewTable("Created", 0)
 		for _, out := range outs.Data {
 			for _, repoTag := range out.GetList("RepoTags") {
-				parts := strings.Split(repoTag, ":")
+				repo, tag := parsers.ParseRepositoryTag(repoTag)
 				outLegacy := &engine.Env{}
-				outLegacy.Set("Repository", parts[0])
-				outLegacy.Set("Tag", parts[1])
+				outLegacy.Set("Repository", repo)
+				outLegacy.SetJson("Tag", tag)
 				outLegacy.Set("Id", out.Get("Id"))
 				outLegacy.SetInt64("Created", out.GetInt64("Created"))
 				outLegacy.SetInt64("Size", out.GetInt64("Size"))
@@ -301,7 +302,7 @@ func getContainersChanges(eng *engine.Engine, version version.Version, w http.Re
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("changes", vars["name"])
+	var job = eng.Job("container_changes", vars["name"])
 	streamJSON(job, w, false)
 
 	return job.Run()
@@ -338,6 +339,7 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	job.Setenv("since", r.Form.Get("since"))
 	job.Setenv("before", r.Form.Get("before"))
 	job.Setenv("limit", r.Form.Get("limit"))
+	job.Setenv("filters", r.Form.Get("filters"))
 
 	if version.GreaterThanOrEqualTo("1.5") {
 		streamJSON(job, w, false)
@@ -437,7 +439,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		stdoutBuffer = bytes.NewBuffer(nil)
 	)
 	if err := config.Decode(r.Body); err != nil {
-		utils.Errorf("%s", err)
+		log.Errorf("%s", err)
 	}
 
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
@@ -468,6 +470,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 
 	var (
 		image = r.Form.Get("fromImage")
+		repo  = r.Form.Get("repo")
 		tag   = r.Form.Get("tag")
 		job   *engine.Job
 	)
@@ -482,18 +485,24 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		}
 	}
 	if image != "" { //pull
+		if tag == "" {
+			image, tag = parsers.ParseRepositoryTag(image)
+		}
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
 			if strings.HasPrefix(k, "X-Meta-") {
 				metaHeaders[k] = v
 			}
 		}
-		job = eng.Job("pull", r.Form.Get("fromImage"), tag)
+		job = eng.Job("pull", image, tag)
 		job.SetenvBool("parallel", version.GreaterThan("1.3"))
 		job.SetenvJson("metaHeaders", metaHeaders)
 		job.SetenvJson("authConfig", authConfig)
 	} else { //import
-		job = eng.Job("import", r.Form.Get("fromSrc"), r.Form.Get("repo"), tag)
+		if tag == "" {
+			repo, tag = parsers.ParseRepositoryTag(repo)
+		}
+		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
 		job.Stdin.Add(r.Body)
 	}
 
@@ -670,10 +679,12 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("container_delete", vars["name"])
+	job := eng.Job("delete", vars["name"])
+
+	job.Setenv("forceRemove", r.Form.Get("force"))
+
 	job.Setenv("removeVolume", r.Form.Get("v"))
 	job.Setenv("removeLink", r.Form.Get("link"))
-	job.Setenv("forceRemove", r.Form.Get("force"))
 	if err := job.Run(); err != nil {
 		return err
 	}
@@ -706,13 +717,16 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	)
 
 	// allow a nil body for backwards compatibility
-	if r.Body != nil {
-		if api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
-			if err := job.DecodeEnv(r.Body); err != nil {
-				return err
-			}
+	if r.Body != nil && r.ContentLength > 0 {
+		if !api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
+			return fmt.Errorf("Content-Type of application/json is required")
+		}
+
+		if err := job.DecodeEnv(r.Body); err != nil {
+			return err
 		}
 	}
+
 	if err := job.Run(); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
@@ -864,7 +878,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		job.Stdout.Add(ws)
 		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
-			utils.Errorf("Error attaching websocket: %s", err)
+			log.Errorf("Error attaching websocket: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -991,7 +1005,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
 	job.Stdout.Add(w)
 	if err := job.Run(); err != nil {
-		utils.Errorf("%s", err.Error())
+		log.Errorf("%s", err.Error())
 		if strings.Contains(err.Error(), "No such container") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {
@@ -1019,16 +1033,16 @@ func ping(eng *engine.Engine, version version.Version, w http.ResponseWriter, r 
 func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, enableCors bool, dockerVersion version.Version) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
-		utils.Debugf("Calling %s %s", localMethod, localRoute)
+		log.Debugf("Calling %s %s", localMethod, localRoute)
 
 		if logging {
-			log.Println(r.Method, r.RequestURI)
+			log.Infof("%s %s", r.Method, r.RequestURI)
 		}
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				utils.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
+				log.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
 		}
 		version := version.Version(mux.Vars(r)["version"])
@@ -1045,7 +1059,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
-			utils.Errorf("Error making handler: %s", err)
+			log.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
 			httpError(w, err)
 		}
 	}
@@ -1134,7 +1148,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			utils.Debugf("Registering %s, %s", method, route)
+			log.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localFct := fct
@@ -1181,7 +1195,7 @@ func ServeFd(addr string, handle http.Handler) error {
 	chErrors := make(chan error, len(ls))
 
 	// We don't want to start serving on these sockets until the
-	// "initserver" job has completed. Otherwise required handlers
+	// daemon is initialized and installed. Otherwise required handlers
 	// won't be ready.
 	<-activationLock
 
@@ -1224,7 +1238,7 @@ func changeGroup(addr string, nameOrGid string) error {
 		return err
 	}
 
-	utils.Debugf("%s group found. gid: %d", nameOrGid, gid)
+	log.Debugf("%s group found. gid: %d", nameOrGid, gid)
 	return os.Chown(addr, 0, gid)
 }
 
@@ -1295,7 +1309,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 	switch proto {
 	case "tcp":
 		if !strings.HasPrefix(addr, "127.0.0.1") && !job.GetenvBool("TlsVerify") {
-			log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			log.Infof("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 	case "unix":
 		socketGroup := job.Getenv("SocketGroup")
@@ -1303,7 +1317,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 			if err := changeGroup(addr, socketGroup); err != nil {
 				if socketGroup == "docker" {
 					// if the user hasn't explicitly specified the group ownership, don't fail on errors.
-					utils.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
+					log.Debugf("Warning: could not chgrp %s to docker: %s", addr, err.Error())
 				} else {
 					return err
 				}
@@ -1338,7 +1352,7 @@ func ServeApi(job *engine.Job) engine.Status {
 			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 		}
 		go func() {
-			log.Printf("Listening for HTTP on %s (%s)\n", protoAddrParts[0], protoAddrParts[1])
+			log.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
 		}()
 	}

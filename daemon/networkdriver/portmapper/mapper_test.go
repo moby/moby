@@ -1,16 +1,16 @@
 package portmapper
 
 import (
-	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
 	"net"
 	"testing"
+
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
+	"github.com/docker/docker/pkg/iptables"
 )
 
 func init() {
 	// override this func to mock out the proxy server
-	newProxy = proxy.NewStubProxy
+	NewProxy = NewMockProxyCommand
 }
 
 func reset() {
@@ -138,7 +138,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 		}
 
 		if _, err := Map(srcAddr1, dstIp1, portallocator.BeginPortRange); err == nil {
-			t.Fatal("Port %d should be bound but is not", portallocator.BeginPortRange)
+			t.Fatalf("Port %d should be bound but is not", portallocator.BeginPortRange)
 		}
 
 		for _, val := range hosts {

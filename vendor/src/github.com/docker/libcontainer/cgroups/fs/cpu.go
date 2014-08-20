@@ -5,15 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"syscall"
 
 	"github.com/docker/libcontainer/cgroups"
 )
 
-type cpuGroup struct {
+type CpuGroup struct {
 }
 
-func (s *cpuGroup) Set(d *data) error {
+func (s *CpuGroup) Set(d *data) error {
 	// We always want to join the cpu group, to allow fair cpu scheduling
 	// on a container basis
 	dir, err := d.join("cpu")
@@ -38,19 +37,14 @@ func (s *cpuGroup) Set(d *data) error {
 	return nil
 }
 
-func (s *cpuGroup) Remove(d *data) error {
+func (s *CpuGroup) Remove(d *data) error {
 	return removePath(d.path("cpu"))
 }
 
-func (s *cpuGroup) GetStats(d *data, stats *cgroups.Stats) error {
-	path, err := d.path("cpu")
-	if err != nil {
-		return err
-	}
-
+func (s *CpuGroup) GetStats(path string, stats *cgroups.Stats) error {
 	f, err := os.Open(filepath.Join(path, "cpu.stat"))
 	if err != nil {
-		if pathErr, ok := err.(*os.PathError); ok && pathErr.Err == syscall.ENOENT {
+		if os.IsNotExist(err) {
 			return nil
 		}
 		return err

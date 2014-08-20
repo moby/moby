@@ -36,7 +36,7 @@ bundle_ubuntu() {
 	mkdir -p $DIR/etc/default
 	cp contrib/init/sysvinit-debian/docker.default $DIR/etc/default/docker
 	mkdir -p $DIR/lib/systemd/system
-	cp contrib/init/systemd/docker.service $DIR/lib/systemd/system/
+	cp contrib/init/systemd/docker.{service,socket} $DIR/lib/systemd/system/
 
 	# Include contributed completions
 	mkdir -p $DIR/etc/bash_completion.d

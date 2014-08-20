@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
@@ -32,6 +33,7 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 	}
 
 	tr := tar.NewReader(layer)
+	trBuf := bufio.NewReaderSize(nil, trBufSize)
 
 	var dirs []*tar.Header
 
@@ -108,7 +110,8 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 				}
 			}
 
-			srcData := io.Reader(tr)
+			trBuf.Reset(tr)
+			srcData := io.Reader(trBuf)
 			srcHdr := hdr
 
 			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so

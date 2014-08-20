@@ -12,21 +12,25 @@ import (
 
 var (
 	subsystems = map[string]subsystem{
-		"devices":    &devicesGroup{},
-		"memory":     &memoryGroup{},
-		"cpu":        &cpuGroup{},
-		"cpuset":     &cpusetGroup{},
-		"cpuacct":    &cpuacctGroup{},
-		"blkio":      &blkioGroup{},
-		"perf_event": &perfEventGroup{},
-		"freezer":    &freezerGroup{},
+		"devices":    &DevicesGroup{},
+		"memory":     &MemoryGroup{},
+		"cpu":        &CpuGroup{},
+		"cpuset":     &CpusetGroup{},
+		"cpuacct":    &CpuacctGroup{},
+		"blkio":      &BlkioGroup{},
+		"perf_event": &PerfEventGroup{},
+		"freezer":    &FreezerGroup{},
 	}
+	CgroupProcesses = "cgroup.procs"
 )
 
 type subsystem interface {
-	Set(*data) error
+	// Returns the stats, as 'stats', corresponding to the cgroup under 'path'.
+	GetStats(path string, stats *cgroups.Stats) error
+	// Removes the cgroup represented by 'data'.
 	Remove(*data) error
-	GetStats(*data, *cgroups.Stats) error
+	// Creates and joins the cgroup represented by data.
+	Set(*data) error
 }
 
 type data struct {
@@ -52,6 +56,14 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	return d, nil
 }
 
+func Cleanup(c *cgroups.Cgroup) error {
+	d, err := getCgroupData(c, 0)
+	if err != nil {
+		return fmt.Errorf("Could not get Cgroup data %s", err)
+	}
+	return d.Cleanup()
+}
+
 func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 	stats := cgroups.NewStats()
 
@@ -60,10 +72,19 @@ func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
 		return nil, fmt.Errorf("getting CgroupData %s", err)
 	}
 
-	for sysName, sys := range subsystems {
-		// Don't fail if a cgroup hierarchy was not found.
-		if err := sys.GetStats(d, stats); err != nil && err != cgroups.ErrNotFound {
-			return nil, fmt.Errorf("getting stats for system %q %s", sysName, err)
+	for sysname, sys := range subsystems {
+		path, err := d.path(sysname)
+		if err != nil {
+			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
+			if cgroups.IsNotFound(err) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		if err := sys.GetStats(path, stats); err != nil {
+			return nil, err
 		}
 	}
 
@@ -132,11 +153,47 @@ func (raw *data) parent(subsystem string) (string, error) {
 	return filepath.Join(raw.root, subsystem, initPath), nil
 }
 
+func (raw *data) Paths() (map[string]string, error) {
+	paths := make(map[string]string)
+
+	for sysname := range subsystems {
+		path, err := raw.path(sysname)
+		if err != nil {
+			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
+			if cgroups.IsNotFound(err) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		paths[sysname] = path
+	}
+
+	return paths, nil
+}
+
 func (raw *data) path(subsystem string) (string, error) {
+	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
+	if filepath.IsAbs(raw.cgroup) {
+		path := filepath.Join(raw.root, subsystem, raw.cgroup)
+
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				return "", cgroups.NewNotFoundError(subsystem)
+			}
+
+			return "", err
+		}
+
+		return path, nil
+	}
+
 	parent, err := raw.parent(subsystem)
 	if err != nil {
 		return "", err
 	}
+
 	return filepath.Join(parent, raw.cgroup), nil
 }
 
@@ -148,7 +205,7 @@ func (raw *data) join(subsystem string) (string, error) {
 	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
 		return "", err
 	}
-	if err := writeFile(path, "cgroup.procs", strconv.Itoa(raw.pid)); err != nil {
+	if err := writeFile(path, CgroupProcesses, strconv.Itoa(raw.pid)); err != nil {
 		return "", err
 	}
 	return path, nil

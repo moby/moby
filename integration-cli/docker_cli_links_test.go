@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dotcloud/docker/pkg/iptables"
+	"github.com/docker/docker/pkg/iptables"
 )
 
 func TestEtcHostsRegularFile(t *testing.T) {
@@ -93,31 +93,60 @@ func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 }
 
 func TestInspectLinksStarted(t *testing.T) {
+	var (
+		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
+		result   []string
+	)
 	defer deleteAllContainers()
 	cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sleep", "10")
-	links, err := inspectField("testinspectlink", "HostConfig.Links")
+	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expected := "[/container1:/testinspectlink/alias1 /container2:/testinspectlink/alias2]"; links != expected {
-		t.Fatalf("Links %s, but expected %s", links, expected)
+
+	err = unmarshalJSON([]byte(links), &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := convertSliceOfStringsToMap(result)
+
+	equal := deepEqual(expected, output)
+
+	if !equal {
+		t.Fatalf("Links %s, expected %s", result, expected)
 	}
 	logDone("link - links in started container inspect")
 }
 
 func TestInspectLinksStopped(t *testing.T) {
+	var (
+		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
+		result   []string
+	)
 	defer deleteAllContainers()
 	cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
-	links, err := inspectField("testinspectlink", "HostConfig.Links")
+	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expected := "[/container1:/testinspectlink/alias1 /container2:/testinspectlink/alias2]"; links != expected {
-		t.Fatalf("Links %s, but expected %s", links, expected)
+
+	err = unmarshalJSON([]byte(links), &result)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	output := convertSliceOfStringsToMap(result)
+
+	equal := deepEqual(expected, output)
+
+	if !equal {
+		t.Fatalf("Links %s, but expected %s", result, expected)
+	}
+
 	logDone("link - links in stopped container inspect")
 }

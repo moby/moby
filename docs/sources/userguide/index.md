@@ -87,7 +87,7 @@ Go to [Working with Docker Hub](/userguide/dockerrepos).
 * [Docker blog](http://blog.docker.com/)
 * [Docker documentation](http://docs.docker.com/)
 * [Docker Getting Started Guide](http://www.docker.com/gettingstarted/)
-* [Docker code on GitHub](https://github.com/dotcloud/docker)
+* [Docker code on GitHub](https://github.com/docker/docker)
 * [Docker mailing
   list](https://groups.google.com/forum/#!forum/docker-user)
 * Docker on IRC: irc.freenode.net and channel #docker

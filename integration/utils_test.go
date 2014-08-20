@@ -13,14 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
-	"github.com/dotcloud/docker/builtins"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/builtins"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 // This file contains utility functions for docker's unit test suite.
@@ -29,7 +29,7 @@ import (
 
 // Create a temporary daemon suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkDaemon(f utils.Fataler) *daemon.Daemon {
+func mkDaemon(f log.Fataler) *daemon.Daemon {
 	eng := newTestEngine(f, false, "")
 	return mkDaemonFromEngine(eng, f)
 	// FIXME:
@@ -38,7 +38,7 @@ func mkDaemon(f utils.Fataler) *daemon.Daemon {
 	// [...]
 }
 
-func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f utils.Fataler, name string) (shortId string) {
+func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f log.Fataler, name string) (shortId string) {
 	job := eng.Job("create", name)
 	if err := job.ImportEnv(config); err != nil {
 		f.Fatal(err)
@@ -51,23 +51,23 @@ func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f ut
 	return engine.Tail(outputBuffer, 1)
 }
 
-func createTestContainer(eng *engine.Engine, config *runconfig.Config, f utils.Fataler) (shortId string) {
+func createTestContainer(eng *engine.Engine, config *runconfig.Config, f log.Fataler) (shortId string) {
 	return createNamedTestContainer(eng, config, f, "")
 }
 
-func startContainer(eng *engine.Engine, id string, t utils.Fataler) {
+func startContainer(eng *engine.Engine, id string, t log.Fataler) {
 	job := eng.Job("start", id)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func containerRun(eng *engine.Engine, id string, t utils.Fataler) {
+func containerRun(eng *engine.Engine, id string, t log.Fataler) {
 	startContainer(eng, id, t)
 	containerWait(eng, id, t)
 }
 
-func containerFileExists(eng *engine.Engine, id, dir string, t utils.Fataler) bool {
+func containerFileExists(eng *engine.Engine, id, dir string, t log.Fataler) bool {
 	c := getContainer(eng, id, t)
 	if err := c.Mount(); err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func containerFileExists(eng *engine.Engine, id, dir string, t utils.Fataler) bo
 	return true
 }
 
-func containerAttach(eng *engine.Engine, id string, t utils.Fataler) (io.WriteCloser, io.ReadCloser) {
+func containerAttach(eng *engine.Engine, id string, t log.Fataler) (io.WriteCloser, io.ReadCloser) {
 	c := getContainer(eng, id, t)
 	i, err := c.StdinPipe()
 	if err != nil {
@@ -95,31 +95,31 @@ func containerAttach(eng *engine.Engine, id string, t utils.Fataler) (io.WriteCl
 	return i, o
 }
 
-func containerWait(eng *engine.Engine, id string, t utils.Fataler) int {
+func containerWait(eng *engine.Engine, id string, t log.Fataler) int {
 	ex, _ := getContainer(eng, id, t).State.WaitStop(-1 * time.Second)
 	return ex
 }
 
-func containerWaitTimeout(eng *engine.Engine, id string, t utils.Fataler) error {
+func containerWaitTimeout(eng *engine.Engine, id string, t log.Fataler) error {
 	_, err := getContainer(eng, id, t).State.WaitStop(500 * time.Millisecond)
 	return err
 }
 
-func containerKill(eng *engine.Engine, id string, t utils.Fataler) {
+func containerKill(eng *engine.Engine, id string, t log.Fataler) {
 	if err := eng.Job("kill", id).Run(); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func containerRunning(eng *engine.Engine, id string, t utils.Fataler) bool {
+func containerRunning(eng *engine.Engine, id string, t log.Fataler) bool {
 	return getContainer(eng, id, t).State.IsRunning()
 }
 
-func containerAssertExists(eng *engine.Engine, id string, t utils.Fataler) {
+func containerAssertExists(eng *engine.Engine, id string, t log.Fataler) {
 	getContainer(eng, id, t)
 }
 
-func containerAssertNotExists(eng *engine.Engine, id string, t utils.Fataler) {
+func containerAssertNotExists(eng *engine.Engine, id string, t log.Fataler) {
 	daemon := mkDaemonFromEngine(eng, t)
 	if c := daemon.Get(id); c != nil {
 		t.Fatal(fmt.Errorf("Container %s should not exist", id))
@@ -128,7 +128,7 @@ func containerAssertNotExists(eng *engine.Engine, id string, t utils.Fataler) {
 
 // assertHttpNotError expect the given response to not have an error.
 // Otherwise the it causes the test to fail.
-func assertHttpNotError(r *httptest.ResponseRecorder, t utils.Fataler) {
+func assertHttpNotError(r *httptest.ResponseRecorder, t log.Fataler) {
 	// Non-error http status are [200, 400)
 	if r.Code < http.StatusOK || r.Code >= http.StatusBadRequest {
 		t.Fatal(fmt.Errorf("Unexpected http error: %v", r.Code))
@@ -137,14 +137,14 @@ func assertHttpNotError(r *httptest.ResponseRecorder, t utils.Fataler) {
 
 // assertHttpError expect the given response to have an error.
 // Otherwise the it causes the test to fail.
-func assertHttpError(r *httptest.ResponseRecorder, t utils.Fataler) {
+func assertHttpError(r *httptest.ResponseRecorder, t log.Fataler) {
 	// Non-error http status are [200, 400)
 	if !(r.Code < http.StatusOK || r.Code >= http.StatusBadRequest) {
 		t.Fatal(fmt.Errorf("Unexpected http success code: %v", r.Code))
 	}
 }
 
-func getContainer(eng *engine.Engine, id string, t utils.Fataler) *daemon.Container {
+func getContainer(eng *engine.Engine, id string, t log.Fataler) *daemon.Container {
 	daemon := mkDaemonFromEngine(eng, t)
 	c := daemon.Get(id)
 	if c == nil {
@@ -153,19 +153,7 @@ func getContainer(eng *engine.Engine, id string, t utils.Fataler) *daemon.Contai
 	return c
 }
 
-func mkServerFromEngine(eng *engine.Engine, t utils.Fataler) *server.Server {
-	iSrv := eng.Hack_GetGlobalVar("httpapi.server")
-	if iSrv == nil {
-		panic("Legacy server field not set in engine")
-	}
-	srv, ok := iSrv.(*server.Server)
-	if !ok {
-		panic("Legacy server field in engine does not cast to *server.Server")
-	}
-	return srv
-}
-
-func mkDaemonFromEngine(eng *engine.Engine, t utils.Fataler) *daemon.Daemon {
+func mkDaemonFromEngine(eng *engine.Engine, t log.Fataler) *daemon.Daemon {
 	iDaemon := eng.Hack_GetGlobalVar("httpapi.daemon")
 	if iDaemon == nil {
 		panic("Legacy daemon field not set in engine")
@@ -177,7 +165,7 @@ func mkDaemonFromEngine(eng *engine.Engine, t utils.Fataler) *daemon.Daemon {
 	return daemon
 }
 
-func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engine {
+func newTestEngine(t log.Fataler, autorestart bool, root string) *engine.Engine {
 	if root == "" {
 		if dir, err := newTestDirectory(unitTestStoreBase); err != nil {
 			t.Fatal(err)
@@ -191,19 +179,25 @@ func newTestEngine(t utils.Fataler, autorestart bool, root string) *engine.Engin
 	// Load default plugins
 	builtins.Register(eng)
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
-	job := eng.Job("initserver")
-	job.Setenv("Root", root)
-	job.SetenvBool("AutoRestart", autorestart)
-	job.Setenv("ExecDriver", "native")
-	// TestGetEnabledCors and TestOptionsRoute require EnableCors=true
-	job.SetenvBool("EnableCors", true)
-	if err := job.Run(); err != nil {
+	cfg := &daemon.Config{
+		Root:        root,
+		AutoRestart: autorestart,
+		ExecDriver:  "native",
+		// Either InterContainerCommunication or EnableIptables must be set,
+		// otherwise NewDaemon will fail because of conflicting settings.
+		InterContainerCommunication: true,
+	}
+	d, err := daemon.NewDaemon(cfg, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Install(eng); err != nil {
 		t.Fatal(err)
 	}
 	return eng
 }
 
-func NewTestEngine(t utils.Fataler) *engine.Engine {
+func NewTestEngine(t log.Fataler) *engine.Engine {
 	return newTestEngine(t, false, "")
 }
 

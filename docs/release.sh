@@ -27,6 +27,10 @@ if [ "$$AWS_S3_BUCKET" == "docs.docker.com" ]; then
 	fi
 fi
 
+# Remove the last version - 1.0.2-dev -> 1.0
+MAJOR_MINOR="v${VERSION%.*}"
+export MAJOR_MINOR
+
 export BUCKET=$AWS_S3_BUCKET
 
 export AWS_CONFIG_FILE=$(pwd)/awsconfig
@@ -69,7 +73,8 @@ upload_current_documentation() {
 
 	# a really complicated way to send only the files we want
 	# if there are too many in any one set, aws s3 sync seems to fall over with 2 files to go
-	endings=( json html xml css js gif png JPG ttf svg woff)
+	#  versions.html_fragment
+	endings=( json html xml css js gif png JPG ttf svg woff html_fragment )
 	for i in ${endings[@]}; do
 		include=""
 		for j in ${endings[@]}; do
@@ -101,13 +106,16 @@ upload_current_documentation() {
 }
 
 setup_s3
-build_current_documentation
-upload_current_documentation
 
-# Remove the last version - 1.0.2-dev -> 1.0
-MAJOR_MINOR="v${VERSION%.*}"
+# Default to only building the version specific docs so we don't clober the latest by accident with old versions
+if [ "$BUILD_ROOT" == "yes" ]; then
+	echo "Building root documentation"
+	build_current_documentation
+	upload_current_documentation
+fi
 
 #build again with /v1.0/ prefix
 sed -i "s/^site_url:.*/site_url: \/$MAJOR_MINOR\//" mkdocs.yml
+echo "Building the /$MAJOR_MINOR/ documentation"
 build_current_documentation
 upload_current_documentation "/$MAJOR_MINOR/"

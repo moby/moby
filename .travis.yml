@@ -3,10 +3,20 @@
 
 language: go
 
-go: 1.2
+go:
+# This should match the version in the Dockerfile.
+  - 1.3.1
+# Test against older versions too, just for a little extra retrocompat.
+  - 1.2
+
+# Let us have pretty experimental Docker-based Travis workers.
+# (These spin up much faster than the VM-based ones.)
+sudo: false
 
 # Disable the normal go build.
-install: true
+install:
+  - export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs exclude_graphdriver_devicemapper' # btrfs and devicemapper fail to compile thanks to a couple missing headers (which we can't install thanks to "sudo: false")
+  - export AUTO_GOPATH=1
 
 before_script:
   - env | sort
@@ -14,5 +24,7 @@ before_script:
 script:
   - hack/make.sh validate-dco
   - hack/make.sh validate-gofmt
+  - ./hack/make.sh dynbinary
+  - DOCKER_CLIENTONLY=1 ./hack/make.sh dynbinary
 
 # vim:set sw=2 ts=2:

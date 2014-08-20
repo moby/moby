@@ -3,14 +3,14 @@ package runconfig
 import (
 	"testing"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/pkg/parsers"
 )
 
 func TestParseLxcConfOpt(t *testing.T) {
 	opts := []string{"lxc.utsname=docker", "lxc.utsname = docker "}
 
 	for _, o := range opts {
-		k, v, err := utils.ParseKeyValueOpt(o)
+		k, v, err := parsers.ParseKeyValueOpt(o)
 		if err != nil {
 			t.FailNow()
 		}

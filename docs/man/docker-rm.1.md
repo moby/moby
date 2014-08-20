@@ -20,7 +20,7 @@ containers on a host use the **docker ps -a** command.
 
 # OPTIONS
 **-f**, **--force**=*true*|*false*
-   Force removal of running container. The default is *false*.
+   Force the removal of a running container (uses SIGKILL). The default is *false*.
 
 **-l**, **--link**=*true*|*false*
    Remove the specified link and not the underlying container. The default is *false*.
@@ -49,3 +49,5 @@ command. The use that name as follows:
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

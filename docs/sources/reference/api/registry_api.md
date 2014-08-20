@@ -57,7 +57,7 @@ grasp the context, here are some examples of registries:
 > **Note**:
 > The latter implies that while HTTP is the protocol of choice for a registry,
 > multiple schemes are possible (and in some cases, trivial):
-> 
+>
 >  - HTTP with GET (and PUT for read-write registries);
 >  - local mount point;
 >  - remote docker addressed through SSH.
@@ -66,6 +66,8 @@ The latter would only require two new commands in docker, e.g.,
 `registryget` and `registryput`, wrapping access to the local filesystem
 (and optionally doing consistency checks). Authentication and authorization
 are then delegated to SSH (e.g., with public keys).
+
+The default namespace for a private repository is `library`.
 
 # Endpoints
 
@@ -305,7 +307,7 @@ Get all of the tags for the given repo.
 
     **Example Request**:
 
-        GET /v1/repositories/foo/bar/tags HTTP/1.1
+        GET /v1/repositories/reynholm/help-system-server/tags HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -335,13 +337,13 @@ Get all of the tags for the given repo.
     - **401** – Requires authorization
     - **404** – Repository not found
 
-`GET /v1/repositories/(namespace)/(repository)/tags/(tag*):
+`GET /v1/repositories/(namespace)/(repository)/tags/(tag*)`
 
 Get a tag for the given repo.
 
     **Example Request**:
 
-        GET /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        GET /v1/repositories/reynholm/help-system-server/tags/latest HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -369,13 +371,13 @@ Get a tag for the given repo.
     - **401** – Requires authorization
     - **404** – Tag not found
 
-`DELETE /v1/repositories/(namespace)/(repository)/tags/(tag*):
+`DELETE /v1/repositories/(namespace)/(repository)/tags/(tag*)`
 
 Delete the tag for the repo
 
     **Example Request**:
 
-        DELETE /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        DELETE /v1/repositories/reynholm/help-system-server/tags/latest HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -402,13 +404,13 @@ Delete the tag for the repo
     - **401** – Requires authorization
     - **404** – Tag not found
 
-`PUT /v1/repositories/(namespace)/(repository)/tags/(tag*):
+`PUT /v1/repositories/(namespace)/(repository)/tags/(tag*)`
 
 Put a tag for the given repo.
 
     **Example Request**:
 
-        PUT /v1/repositories/foo/bar/tags/latest HTTP/1.1
+        PUT /v1/repositories/reynholm/help-system-server/tags/latest HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -446,7 +448,7 @@ Delete a repository
 
     **Example Request**:
 
-        DELETE /v1/repositories/foo/bar/ HTTP/1.1
+        DELETE /v1/repositories/reynholm/help-system-server/ HTTP/1.1
         Host: registry-1.docker.io
         Accept: application/json
         Content-Type: application/json

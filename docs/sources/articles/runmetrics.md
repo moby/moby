@@ -363,9 +363,9 @@ container, we need to:
 - Execute `ip netns exec <somename> ....`
 
 Please review [*Enumerating Cgroups*](#enumerating-cgroups) to learn how to find
-the cgroup of a pprocess running in the container of which you want to
+the cgroup of a process running in the container of which you want to
 measure network usage. From there, you can examine the pseudo-file named
-`tasks`, which containes the PIDs that are in the
+`tasks`, which contains the PIDs that are in the
 control group (i.e. in the container). Pick any one of them.
 
 Putting everything together, if the "short ID" of a container is held in

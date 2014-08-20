@@ -11,7 +11,7 @@ its own networking, and its own isolated process tree.  The
 defaults related to the binary to run, the networking to expose, and
 more, but `docker run` gives final control to the operator who starts
 the container from the image. That's the main reason
-[*run*](/reference/commandline/cli/#cli-run) has more options than any
+[*run*](/reference/commandline/cli/#run) has more options than any
 other `docker` command.
 
 ## General Form
@@ -21,23 +21,21 @@ The basic `docker run` command takes this form:
     $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
-see [*Option types*](/reference/commandline/cli/#cli-options).
+see [*Option types*](/reference/commandline/cli/#option-types).
 
 The list of `[OPTIONS]` breaks down into two groups:
 
 1. Settings exclusive to operators, including:
-
- - Detached or Foreground running,
- - Container Identification,
- - Network settings, and
- - Runtime Constraints on CPU and Memory
- - Privileges and LXC Configuration
-
-2. Setting shared between operators and developers, where operators can
+     * Detached or Foreground running,
+     * Container Identification,
+     * Network settings, and
+     * Runtime Constraints on CPU and Memory
+     * Privileges and LXC Configuration
+2. Settings shared between operators and developers, where operators can
    override defaults developers set in images at build time.
 
-Together, the `docker run [OPTIONS]` give complete control over runtime
-behavior to the operator, allowing them to override all defaults set by
+Together, the `docker run [OPTIONS]` give the operator complete control over runtime
+behavior, allowing them to override all defaults set by
 the developer during `docker build` and nearly all the defaults set by
 the Docker runtime itself.
 
@@ -55,7 +53,7 @@ following options.
  - [Network Settings](#network-settings)
  - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
- - [Runtime Privilege and LXC Configuration](#runtime-privilege-and-lxc-configuration)
+ - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
 
 ## Detached vs Foreground
 
@@ -88,7 +86,7 @@ and pass along signals. All of that is configurable:
     -i=false        : Keep STDIN open even if not attached
 
 If you do not specify `-a` then Docker will [attach all standard
-streams]( https://github.com/dotcloud/docker/blob/
+streams]( https://github.com/docker/docker/blob/
 75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797). You can
 specify to which of the three standard streams (`STDIN`, `STDOUT`,
 `STDERR`) you'd like to connect instead, as in:
@@ -126,6 +124,12 @@ programs might write out their process ID to a file (you've seen them as
 PID files):
 
     --cidfile="": Write the container ID to the file
+    
+### Image[:tag]
+
+While not strictly a means of identifying a container, you can specify a version of an
+image you'd like to run the container with by adding `image[:tag]` to the command. For
+example, `docker run ubuntu:14.04`.
 
 ## Network Settings
 
@@ -222,8 +226,10 @@ get the same proportion of CPU cycles, but you can tell the kernel to
 give more shares of CPU time to one or more containers when you start
 them via Docker.
 
-## Runtime Privilege and LXC Configuration
+## Runtime Privilege, Linux Capabilities, and LXC Configuration
 
+    --cap-add: Add Linux capabilities
+    --cap-drop: Drop Linux capabilities
     --privileged=false: Give extended privileges to this container
     --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
@@ -231,7 +237,7 @@ By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
 "privileged" container is given access to all devices (see [lxc-template.go](
-https://github.com/dotcloud/docker/blob/master/daemon/execdriver/lxc/lxc_template.go)
+https://github.com/docker/docker/blob/master/daemon/execdriver/lxc/lxc_template.go)
 and documentation on [cgroups devices](
 https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
@@ -242,11 +248,21 @@ host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
 [Docker Blog](http://blog.docker.com/2013/09/docker-can-now-run-within-docker/).
 
+In addition to `--privileged`, the operator can have fine grain control over the
+capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
+list of capabilities that are kept. Both flags support the value `all`, so if the
+operator wants to have all capabilities but `MKNOD` they could use:
+
+    $ docker run --cap-add=ALL --cap-drop=MKNOD ...
+
+For interacting with the network stack, instead of using `--privileged` they
+should use `--cap-add=NET_ADMIN` to modify the network interfaces.
+
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
 using one or more `--lxc-conf` parameters. These can be new parameters or
 override existing parameters from the [lxc-template.go](
-https://github.com/dotcloud/docker/blob/master/daemon/execdriver/lxc/lxc_template.go).
+https://github.com/docker/docker/blob/master/daemon/execdriver/lxc/lxc_template.go).
 Note that in the future, a given host's docker daemon may not use LXC, so this
 is an implementation-specific configuration meant for operators already
 familiar with using LXC directly.
@@ -385,7 +401,7 @@ container running Redis:
     $ docker port 4241164edf6f 6379
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 
-Yet we can get information about the Redis container'sexposed ports
+Yet we can get information about the Redis container's exposed ports
 with `--link`. Choose an alias that will form a
 valid environment variable!
 
@@ -423,8 +439,8 @@ mechanism to communicate with a linked container by its alias:
     --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own documentation
-in section [*Share Directories via
-Volumes*](/userguide/dockervolumes/#volume-def).  A developer can define
+in section [*Managing data in 
+containers*](/userguide/dockervolumes/#volume-def). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

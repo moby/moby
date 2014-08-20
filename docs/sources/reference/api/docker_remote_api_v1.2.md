@@ -206,7 +206,7 @@ Return low-level information on the container `id`
                              "Bridge": "",
                              "PortMapping": null
                      },
-                     "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+                     "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
                      "Volumes": {}
         }
@@ -589,6 +589,13 @@ Insert a file from `url` in the image `name` at `path`
         {"error":"Invalid..."}
         ...
 
+	Query Parameters:
+
+
+
+	-	**url** – The url from where the file is taken
+	-	**path** – The path where the file is stored
+
     Status Codes:
 
     -   **200** – no error
@@ -698,12 +705,6 @@ Push the image `name` on the registry
         {"status":"Pushing", "progress":"1/? (n/a)"}
         {"error":"Invalid..."}
         ...
-
-    Query Parameters:
-
-     
-
-    -   **registry** – the registry you wan to push, optional
 
     Status Codes:
 

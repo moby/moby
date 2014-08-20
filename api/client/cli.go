@@ -10,10 +10,23 @@ import (
 	"strings"
 	"text/template"
 
-	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/registry"
+	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/registry"
 )
+
+type DockerCli struct {
+	proto      string
+	addr       string
+	configFile *registry.ConfigFile
+	in         io.ReadCloser
+	out        io.Writer
+	err        io.Writer
+	isTerminal bool
+	terminalFd uintptr
+	tlsConfig  *tls.Config
+	scheme     string
+}
 
 var funcMap = template.FuncMap{
 	"json": func(v interface{}) string {
@@ -34,7 +47,8 @@ func (cli *DockerCli) getMethod(name string) (func(...string) error, bool) {
 	return method.Interface().(func(...string) error), true
 }
 
-func (cli *DockerCli) ParseCommands(args ...string) error {
+// Cmd executes the specified command
+func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
@@ -96,17 +110,4 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 		tlsConfig:  tlsConfig,
 		scheme:     scheme,
 	}
-}
-
-type DockerCli struct {
-	proto      string
-	addr       string
-	configFile *registry.ConfigFile
-	in         io.ReadCloser
-	out        io.Writer
-	err        io.Writer
-	isTerminal bool
-	terminalFd uintptr
-	tlsConfig  *tls.Config
-	scheme     string
 }

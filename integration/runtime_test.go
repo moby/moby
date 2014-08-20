@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
+	std_log "log"
 	"net"
 	"net/url"
 	"os"
@@ -16,13 +16,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/sysinit"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/reexec"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	unitTestImageIDShort     = "83599e29c455"
 	unitTestNetworkBridge    = "testdockbr0"
 	unitTestStoreBase        = "/var/lib/docker/unit-tests"
+	unitTestDockerTmpdir     = "/var/lib/docker/tmp"
 	testDaemonAddr           = "127.0.0.1:4270"
 	testDaemonProto          = "tcp"
 	testDaemonHttpsProto     = "tcp"
@@ -90,31 +92,31 @@ func init() {
 	// To test other drivers, we need a dedicated driver validation suite.
 	os.Setenv("DOCKER_DRIVER", "vfs")
 	os.Setenv("TEST", "1")
+	os.Setenv("DOCKER_TMPDIR", unitTestDockerTmpdir)
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
-		sysinit.SysInit()
+	if reexec.Init() {
 		return
 	}
 
 	if uid := syscall.Geteuid(); uid != 0 {
-		log.Fatal("docker tests need to be run as root")
+		log.Fatalf("docker tests need to be run as root")
 	}
 
 	// Copy dockerinit into our current testing directory, if provided (so we can test a separate dockerinit binary)
 	if dockerinit := os.Getenv("TEST_DOCKERINIT_PATH"); dockerinit != "" {
 		src, err := os.Open(dockerinit)
 		if err != nil {
-			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s\n", err)
+			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s", err)
 		}
 		defer src.Close()
 		dst, err := os.OpenFile(filepath.Join(filepath.Dir(utils.SelfPath()), "dockerinit"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0555)
 		if err != nil {
-			log.Fatalf("Unable to create dockerinit in test directory: %s\n", err)
+			log.Fatalf("Unable to create dockerinit in test directory: %s", err)
 		}
 		defer dst.Close()
 		if _, err := io.Copy(dst, src); err != nil {
-			log.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s\n", err)
+			log.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s", err)
 		}
 		dst.Close()
 		src.Close()
@@ -132,7 +134,7 @@ func init() {
 }
 
 func setupBaseImage() {
-	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
+	eng := newTestEngine(std_log.New(os.Stderr, "", 0), false, unitTestStoreBase)
 	job := eng.Job("image_inspect", unitTestImageName)
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
@@ -148,17 +150,17 @@ func setupBaseImage() {
 
 func spawnGlobalDaemon() {
 	if globalDaemon != nil {
-		utils.Debugf("Global daemon already exists. Skipping.")
+		log.Debugf("Global daemon already exists. Skipping.")
 		return
 	}
-	t := log.New(os.Stderr, "", 0)
+	t := std_log.New(os.Stderr, "", 0)
 	eng := NewTestEngine(t)
 	globalEngine = eng
 	globalDaemon = mkDaemonFromEngine(eng, t)
 
 	// Spawn a Daemon
 	go func() {
-		utils.Debugf("Spawning global daemon for integration tests")
+		log.Debugf("Spawning global daemon for integration tests")
 		listenURL := &url.URL{
 			Scheme: testDaemonProto,
 			Host:   testDaemonAddr,
@@ -196,19 +198,19 @@ func spawnRogueHttpsDaemon() {
 }
 
 func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
-	t := log.New(os.Stderr, "", 0)
+	t := std_log.New(os.Stderr, "", 0)
 	root, err := newTestDirectory(unitTestStoreBase)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
+	// FIXME: here we don't use NewTestEngine because it configures the daemon with Autorestart=false,
 	// and we want to set it to true.
 
 	eng := newTestEngine(t, true, root)
 
 	// Spawn a Daemon
 	go func() {
-		utils.Debugf("Spawning https daemon for integration tests")
+		log.Debugf("Spawning https daemon for integration tests")
 		listenURL := &url.URL{
 			Scheme: testDaemonHttpsProto,
 			Host:   addr,

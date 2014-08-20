@@ -59,9 +59,10 @@ absolute path and if the directory doesn't exist Docker will automatically
 create it for you.
 
 > **Note:** 
-> This is not available from a `Dockerfile` due the portability
+> This is not available from a `Dockerfile` due to the portability
 > and sharing purpose of it. As the host directory is, by its nature,
-> host-dependent it might not work all hosts.
+> host-dependent, a host directory specified in a `Dockerfile` probably
+> wouldn't work on all hosts.
 
 Docker defaults to a read-write volume but we can also mount a directory
 read-only.
@@ -70,6 +71,24 @@ read-only.
 
 Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
+
+### Mount a Host File as a Data Volume
+
+The `-v` flag can also be used to mount a single file  - instead of *just* 
+directories - from the host machine.
+
+    $ sudo docker run --rm -it -v ~/.bash_history:/.bash_history ubuntu /bin/bash
+
+This will drop you into a bash shell in a new container, you will have your bash 
+history from the host and when you exit the container, the host will have the 
+history of the commands typed while in the container.
+
+> **Note:** 
+> Many tools used to edit files including `vi` and `sed --in-place` may result 
+> in an inode change. Since Docker v1.1.0, this will produce an error such as
+> "*sed: cannot rename ./sedKdJ9Dy: Device or resource busy*". In the case where 
+> you want to edit the mounted file, it is often easiest to instead mount the 
+> parent directory.
 
 ## Creating and mounting a Data Volume Container
 
@@ -80,7 +99,7 @@ it.
 
 Let's create a new named container with a volume to share.
 
-    $ sudo docker run -d -v /dbdata --name dbdata training/postgres
+    $ sudo docker run -d -v /dbdata --name dbdata training/postgres echo Data-only container for postgres
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 
@@ -112,14 +131,14 @@ like so:
 
     $ sudo docker run --volumes-from dbdata -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
 
-Here's we've launched a new container and mounted the volume from the
+Here we've launched a new container and mounted the volume from the
 `dbdata` container. We've then mounted a local host directory as
 `/backup`. Finally, we've passed a command that uses `tar` to backup the
 contents of the `dbdata` volume to a `backup.tar` file inside our
 `/backup` directory. When the command completes and the container stops
 we'll be left with a backup of our `dbdata` volume.
 
-You could then to restore to the same container, or another that you've made
+You could then restore it to the same container, or another that you've made
 elsewhere. Create a new container.
 
     $ sudo docker run -v /dbdata --name dbdata2 ubuntu /bin/bash

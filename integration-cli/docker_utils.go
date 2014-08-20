@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -87,8 +88,22 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
+// deprecated, use dockerCmd instead
 func cmd(t *testing.T, args ...string) (string, int, error) {
+	return dockerCmd(t, args...)
+}
+
+func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
+	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	return out, status, err
+}
+
+// execute a docker command in a directory
+func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, error) {
+	dockerCommand := exec.Command(dockerBinary, args...)
+	dockerCommand.Dir = path
+	out, status, err := runCommandWithOutput(dockerCommand)
 	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
 	return out, status, err
 }
@@ -211,11 +226,21 @@ func inspectField(name, field string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+func inspectFieldJSON(name, field string) (string, error) {
+	format := fmt.Sprintf("{{json .%s}}", field)
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
 }
 
-func buildImage(name, dockerfile string, useCache bool) (string, error) {
+func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
@@ -225,9 +250,18 @@ func buildImage(name, dockerfile string, useCache bool) (string, error) {
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to build the image: %s", out)
+		return "", out, fmt.Errorf("failed to build the image: %s", out)
 	}
-	return getIDByName(name)
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", out, err
+	}
+	return id, out, nil
+}
+
+func buildImage(name, dockerfile string, useCache bool) (string, error) {
+	id, _, err := buildImageWithOut(name, dockerfile, useCache)
+	return id, err
 }
 
 func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string, error) {
@@ -243,4 +277,94 @@ func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string
 		return "", fmt.Errorf("failed to build the image: %s", out)
 	}
 	return getIDByName(name)
+}
+
+func buildImageFromPath(name, path string, useCache bool) (string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, path)
+	buildCmd := exec.Command(dockerBinary, args...)
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to build the image: %s", out)
+	}
+	return getIDByName(name)
+}
+
+type FakeGIT struct {
+	*httptest.Server
+	Root    string
+	RepoURL string
+}
+
+func (g *FakeGIT) Close() {
+	g.Server.Close()
+	os.RemoveAll(g.Root)
+}
+
+func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
+	tmp, err := ioutil.TempDir("", "fake-git-repo")
+	if err != nil {
+		return nil, err
+	}
+	ctx := &FakeContext{tmp}
+	for file, content := range files {
+		if err := ctx.Add(file, content); err != nil {
+			ctx.Close()
+			return nil, err
+		}
+	}
+	defer ctx.Close()
+	curdir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	defer os.Chdir(curdir)
+
+	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("Error trying to init repo: %s (%s)", err, output)
+	}
+	err = os.Chdir(ctx.Dir)
+	if err != nil {
+		return nil, err
+	}
+	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("Error trying to add files to repo: %s (%s)", err, output)
+	}
+	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("Error trying to commit to repo: %s (%s)", err, output)
+	}
+
+	root, err := ioutil.TempDir("", "docker-test-git-repo")
+	if err != nil {
+		return nil, err
+	}
+	repoPath := filepath.Join(root, name+".git")
+	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
+		os.RemoveAll(root)
+		return nil, fmt.Errorf("Error trying to clone --bare: %s (%s)", err, output)
+	}
+	err = os.Chdir(repoPath)
+	if err != nil {
+		os.RemoveAll(root)
+		return nil, err
+	}
+	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
+		os.RemoveAll(root)
+		return nil, fmt.Errorf("Error trying to git update-server-info: %s (%s)", err, output)
+	}
+	err = os.Chdir(curdir)
+	if err != nil {
+		os.RemoveAll(root)
+		return nil, err
+	}
+	handler := http.FileServer(http.Dir(root))
+	server := httptest.NewServer(handler)
+	return &FakeGIT{
+		Server:  server,
+		Root:    root,
+		RepoURL: fmt.Sprintf("%s/%s.git", server.URL, name),
+	}, nil
 }

@@ -2,7 +2,7 @@ package archive
 
 import (
 	"bytes"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io/ioutil"
 )
 

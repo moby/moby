@@ -3,14 +3,14 @@ package builtins
 import (
 	"runtime"
 
-	"github.com/dotcloud/docker/api"
-	apiserver "github.com/dotcloud/docker/api/server"
-	"github.com/dotcloud/docker/daemon/networkdriver/bridge"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/registry"
-	"github.com/dotcloud/docker/server"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/api"
+	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/daemon/networkdriver/bridge"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/events"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/registry"
 )
 
 func Register(eng *engine.Engine) error {
@@ -18,6 +18,9 @@ func Register(eng *engine.Engine) error {
 		return err
 	}
 	if err := remote(eng); err != nil {
+		return err
+	}
+	if err := events.New().Install(eng); err != nil {
 		return err
 	}
 	if err := eng.Register("version", dockerVersion); err != nil {
@@ -50,9 +53,6 @@ func remote(eng *engine.Engine) error {
 // These components should be broken off into plugins of their own.
 //
 func daemon(eng *engine.Engine) error {
-	if err := eng.Register("initserver", server.InitServer); err != nil {
-		return err
-	}
 	return eng.Register("init_networkdriver", bridge.InitDriver)
 }
 
@@ -65,7 +65,7 @@ func dockerVersion(job *engine.Job) engine.Status {
 	v.Set("GoVersion", runtime.Version())
 	v.Set("Os", runtime.GOOS)
 	v.Set("Arch", runtime.GOARCH)
-	if kernelVersion, err := utils.GetKernelVersion(); err == nil {
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
 		v.Set("KernelVersion", kernelVersion.String())
 	}
 	if _, err := v.WriteTo(job.Stdout); err != nil {
