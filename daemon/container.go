@@ -849,18 +849,16 @@ func (container *Container) setupContainerDns() error {
 		daemon = container.daemon
 	)
 
-	if config.NetworkMode == "host" {
-		container.ResolvConfPath = "/etc/resolv.conf"
-		return nil
-	}
-
 	resolvConf, err := resolvconf.Get()
 	if err != nil {
 		return err
 	}
+	container.ResolvConfPath, err = container.getRootResourcePath("resolv.conf")
+	if err != nil {
+		return err
+	}
 
-	// If custom dns exists, then create a resolv.conf for the container
-	if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
+	if config.NetworkMode != "host" && (len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0) {
 		var (
 			dns       = resolvconf.GetNameservers(resolvConf)
 			dnsSearch = resolvconf.GetSearchDomains(resolvConf)
@@ -875,18 +873,9 @@ func (container *Container) setupContainerDns() error {
 		} else if len(daemon.config.DnsSearch) > 0 {
 			dnsSearch = daemon.config.DnsSearch
 		}
-
-		resolvConfPath, err := container.getRootResourcePath("resolv.conf")
-		if err != nil {
-			return err
-		}
-		container.ResolvConfPath = resolvConfPath
-
 		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
-	} else {
-		container.ResolvConfPath = "/etc/resolv.conf"
 	}
-	return nil
+	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
 }
 
 func (container *Container) initializeNetworking() error {

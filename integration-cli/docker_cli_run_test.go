@@ -1549,3 +1549,84 @@ func TestRunExitOnStdinClose(t *testing.T) {
 	}
 	logDone("run - exit on stdin closing")
 }
+
+// Test for #2267
+func TestWriteHostsFileAndNotCommit(t *testing.T) {
+	name := "writehosts"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hosts && cat /etc/hosts")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "test2267") {
+		t.Fatal("/etc/hosts should contain 'test2267'")
+	}
+
+	cmd = exec.Command(dockerBinary, "diff", name)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if len(strings.Trim(out, "\r\n")) != 0 {
+		t.Fatal("diff should be empty")
+	}
+
+	logDone("run - write to /etc/hosts and not commited")
+}
+
+// Test for #2267
+func TestWriteHostnameFileAndNotCommit(t *testing.T) {
+	name := "writehostname"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hostname && cat /etc/hostname")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "test2267") {
+		t.Fatal("/etc/hostname should contain 'test2267'")
+	}
+
+	cmd = exec.Command(dockerBinary, "diff", name)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if len(strings.Trim(out, "\r\n")) != 0 {
+		t.Fatal("diff should be empty")
+	}
+
+	logDone("run - write to /etc/hostname and not commited")
+}
+
+// Test for #2267
+func TestWriteResolvFileAndNotCommit(t *testing.T) {
+	name := "writeresolv"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/resolv.conf && cat /etc/resolv.conf")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "test2267") {
+		t.Fatal("/etc/resolv.conf should contain 'test2267'")
+	}
+
+	cmd = exec.Command(dockerBinary, "diff", name)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if len(strings.Trim(out, "\r\n")) != 0 {
+		t.Fatal("diff should be empty")
+	}
+
+	logDone("run - write to /etc/resolv.conf and not commited")
+}

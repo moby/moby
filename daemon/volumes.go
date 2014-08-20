@@ -50,15 +50,15 @@ func prepareVolumesForContainer(container *Container) error {
 
 func setupMountsForContainer(container *Container) error {
 	mounts := []execdriver.Mount{
-		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
+		{container.ResolvConfPath, "/etc/resolv.conf", true, true},
 	}
 
 	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
+		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", true, true})
 	}
 
 	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
+		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", true, true})
 	}
 
 	// Mount user specified volumes

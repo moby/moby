@@ -731,3 +731,14 @@ usual containers.  But unless you have very specific networking needs
 that drive you to such a solution, it is probably far preferable to use
 `--icc=false` to lock down inter-container communication, as we explored
 earlier.
+
+## Editing networking config files
+
+Starting with Docker v.1.2.0, you can now edit `/etc/hosts`, `/etc/hostname`
+and `/etc/resolve.conf` in a running container. This is useful if you need
+to install bind or other services that might override one of those files.
+
+Note, however, that changes to these files will not be saved by
+`docker commit`, nor will they be saved during `docker run`.
+That means they won't be saved in the image, nor will they persist when a
+container is restarted; they will only "stick" in a running container.
