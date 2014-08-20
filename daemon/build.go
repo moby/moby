@@ -908,7 +908,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		} else if b.rm {
 			b.clearTmp(b.tmpContainers)
 		}
-		stepN += 1
+		stepN++
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
