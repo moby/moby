@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/events"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/registry"
 )
 
 func Register(eng *engine.Engine) error {
@@ -26,7 +25,8 @@ func Register(eng *engine.Engine) error {
 	if err := eng.Register("version", dockerVersion); err != nil {
 		return err
 	}
-	return registry.NewService().Install(eng)
+
+	return nil
 }
 
 // remote: a RESTful api for cross-docker communication
