@@ -46,7 +46,7 @@ start() {
         prestart
         printf "Starting $prog:\t"
         echo "\n$(date)\n" >> $logfile
-        $exec -d $other_args &>> $logfile &
+        $exec -d $other_args >> $logfile 2>&1 &
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see
