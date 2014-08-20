@@ -324,7 +324,7 @@ schema.
 
 > **Note:** `docker build` will return a `no such file or directory` error
 > if the file or directory does not exist in the uploaded context. This may
-> happen if there is no context, or if you specify a file that is elsewhere 
+> happen if there is no context, or if you specify a file that is elsewhere
 > on the Host system. The context is limited to the current directory (and its
 > children) for security reasons, and to ensure repeatable builds on remote
 > Docker hosts. This is also the reason why `ADD ../file` will not work.
@@ -1103,14 +1103,14 @@ network and environment of the `redis` container via environment variables.
 The `--name` flag will assign the name `console` to the newly created
 container.
 
-    $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+    $ sudo docker run --volumes-from 777f7dc92da7 --volumes-from ba8c0c54f0f2:ro -i -t ubuntu pwd
 
 The `--volumes-from` flag mounts all the defined volumes from the referenced
-containers. Containers can be specified by a comma separated list or by
-repetitions of the `--volumes-from` argument. The container ID may be
-optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
-or read-write mode, respectively. By default, the volumes are mounted in
-the same mode (read write or read only) as the reference container.
+containers. Containers can be specified by repetitions of the `--volumes-from`
+argument. The container ID may be optionally suffixed with `:ro` or `:rw` to
+mount the volumes in read-only or read-write mode, respectively. By default,
+the volumes are mounted in the same mode (read write or read only) as
+the reference container.
 
 The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
 `STDERR`. This makes it possible to manipulate the output and input as needed.
@@ -1213,7 +1213,7 @@ more details on finding shared images from the command line.
       -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
       -i, --interactive=false    Attach container's STDIN
 
-When run on a container that has already been started, 
+When run on a container that has already been started,
 takes no action and succeeds unconditionally.
 
 ## stop
