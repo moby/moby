@@ -22,6 +22,26 @@ func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
 	}
 }
 
+type readerErrWrapper struct {
+	reader io.Reader
+	closer func()
+}
+
+func (r *readerErrWrapper) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if err != nil {
+		r.closer()
+	}
+	return n, err
+}
+
+func NewReaderErrWrapper(r io.Reader, closer func()) io.Reader {
+	return &readerErrWrapper{
+		reader: r,
+		closer: closer,
+	}
+}
+
 type bufReader struct {
 	sync.Mutex
 	buf      *bytes.Buffer
