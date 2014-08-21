@@ -412,7 +412,7 @@ The Docker Hub has two main purposes (along with its fancy social features):
  - Authenticate a user as a repos owner (for a central referenced
     repository)
 
-### Without an Docker Hub
+### Without a Docker Hub
 
 Using the Registry without the Docker Hub can be useful to store the images
 on a private network without having to rely on an external entity
@@ -433,7 +433,7 @@ As hinted previously, a standalone registry can also be implemented by
 any HTTP server handling GET/PUT requests (or even only GET requests if
 no write access is necessary).
 
-### With an Docker Hub
+### With a Docker Hub
 
 The Docker Hub data needed by the Registry are simple:
 
