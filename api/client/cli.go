@@ -104,7 +104,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 	}
 
 	if in != nil {
-		if file, ok := out.(*os.File); ok {
+		if file, ok := in.(*os.File); ok {
 			terminalFd = file.Fd()
 			isTerminal = term.IsTerminal(terminalFd)
 		}
