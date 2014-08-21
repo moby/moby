@@ -5,7 +5,7 @@ Markdown, as implemented by [MkDocs](http://mkdocs.org).
 
 The HTML files are built and hosted on `https://docs.docker.com`, and update
 automatically after each change to the master or release branch of [Docker on
-GitHub](https://github.com/dotcloud/docker) thanks to post-commit hooks. The
+GitHub](https://github.com/docker/docker) thanks to post-commit hooks. The
 `docs` branch maps to the "latest" documentation and the `master` (unreleased
 development) branch maps to the "master" documentation.
 

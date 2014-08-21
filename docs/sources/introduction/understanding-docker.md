@@ -55,7 +55,7 @@ Docker's portability and lightweight nature also make dynamically managing
 workloads easy. You can use Docker to quickly scale up or tear down applications
 and services. Docker's speed means that scaling can be near real time.
 
-*Achieving higher density and running more workloads**
+*Achieving higher density and running more workloads*
 
 Docker is lightweight and fast. It provides a viable, cost-effective alternative
 to hypervisor-based virtual machines. This is especially useful in high density
@@ -79,7 +79,7 @@ Docker uses a client-server architecture. The Docker *client* talks to the
 Docker *daemon*, which does the heavy lifting of building, running, and
 distributing your Docker containers. Both the Docker client and the daemon *can*
 run on the same system, or you can connect a Docker client to a remote Docker
-daemon. The Docker client and service communicate via sockets or through a
+daemon. The Docker client and daemon communicate via sockets or through a
 RESTful API.
 
 ![Docker Architecture Diagram](/article-img/architecture.svg)
@@ -157,7 +157,7 @@ this as the base of all your web application images.
 
 > **Note:** Docker usually gets these base images from
 > [Docker Hub](https://hub.docker.com).
-> 
+
 Docker images are then built from these base images using a simple, descriptive
 set of steps we call *instructions*. Each instruction creates a new layer in our
 image. Instructions include actions like:

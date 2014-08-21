@@ -12,7 +12,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 2. Download and configure the [Google Cloud SDK][3] to use your
    project with the following commands:
 
-        $ curl https://sdk.cloud.google.com | bash
+        $ curl -sSL https://sdk.cloud.google.com | bash
         $ gcloud auth login
         $ gcloud config set project <google-cloud-project-id>
 
@@ -20,15 +20,18 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
    (select a zone close to you and the desired instance size)
 
         $ gcloud compute instances create docker-playground \
-          --image https://www.googleapis.com/compute/v1/projects/google-containers/global/images/container-vm-v20140522 \
+          --image container-vm-v20140730 \
+          --image-project google-containers \
           --zone us-central1-a \
           --machine-type f1-micro
 
 4. Connect to the instance using SSH:
 
         $ gcloud compute ssh --zone us-central1-a docker-playground
-        docker-playground:~$ sudo docker run busybox echo 'docker on GCE \o/'
-        docker on GCE \o/
+        $$ docker-playground:~$ sudo docker run hello-world
+	Hello from Docker.
+	This message shows that your installation appears to be working correctly.
+	...
 
 Read more about [deploying Containers on Google Cloud Platform][5].
 

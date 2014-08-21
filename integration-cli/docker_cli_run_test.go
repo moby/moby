@@ -1,15 +1,22 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/networkfs/resolvconf"
 )
 
 // "test123" should be printed by docker run
@@ -654,7 +661,7 @@ func TestRunTwoConcurrentContainers(t *testing.T) {
 }
 
 func TestEnvironment(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "busybox", "env")
+	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env")
 	cmd.Env = append(os.Environ(),
 		"TRUE=false",
 		"TRICKY=tri\ncky\n",
@@ -673,13 +680,13 @@ func TestEnvironment(t *testing.T) {
 
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"HOME=/",
 		"HOSTNAME=testing",
 		"FALSE=true",
 		"TRUE=false",
 		"TRICKY=tri",
 		"cky",
 		"",
+		"HOME=/root",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
@@ -717,6 +724,20 @@ func TestLoopbackWhenNetworkDisabled(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - test container loopback when networking disabled")
+}
+
+func TestNetHostNotAllowedWithLinks(t *testing.T) {
+	_, _, err := cmd(t, "run", "--name", "linked", "busybox", "true")
+
+	cmd := exec.Command(dockerBinary, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
+	_, _, err = runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - don't allow --net=host to be used with links")
 }
 
 func TestLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
@@ -778,6 +799,131 @@ func TestUnPrivilegedCanMknod(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - test un-privileged can mknod")
+}
+
+func TestCapDropInvalid(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=CHPASS", "busybox", "ls")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("run - test --cap-drop=CHPASS invalid")
+}
+
+func TestCapDropCannotMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=MKNOD cannot mknod")
+}
+
+func TestCapDropCannotMknodLowerCase(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=mknod", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=mknod cannot mknod lowercase")
+}
+
+func TestCapDropALLCannotMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=ALL cannot mknod")
+}
+
+func TestCapDropALLAddMknodCannotMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-drop=ALL --cap-add=MKNOD can mknod")
+}
+
+func TestCapAddInvalid(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=CHPASS", "busybox", "ls")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("run - test --cap-add=CHPASS invalid")
+}
+
+func TestCapAddCanDownInterface(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-add=NET_ADMIN can set eth0 down")
+}
+
+func TestCapAddALLCanDownInterface(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=ALL", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		t.Fatalf("expected output ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-add=ALL can set eth0 down")
+}
+
+func TestCapAddALLDropNetAdminCanDownInterface(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-add=ALL", "--cap-drop=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
+		t.Fatalf("expected output not ok received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --cap-add=ALL --cap-drop=NET_ADMIN cannot set eth0 down")
 }
 
 func TestPrivilegedCanMount(t *testing.T) {
@@ -916,6 +1062,22 @@ func TestRunUnprivilegedWithChroot(t *testing.T) {
 	logDone("run - unprivileged with chroot")
 }
 
+func TestAddingOptionalDevices(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/zero:/dev/nulo", "busybox", "sh", "-c", "ls /dev/nulo")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "/dev/nulo" {
+		t.Fatalf("expected output /dev/nulo, received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test --device argument")
+}
+
 func TestModeHostname(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-h=testhostname", "busybox", "cat", "/etc/hostname")
 
@@ -982,4 +1144,489 @@ func TestDisallowBindMountingRootToRoot(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - bind mount /:/ as volume should fail")
+}
+
+// Test recursive bind mount works by default
+func TestDockerRunWithVolumesIsRecursive(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+
+	// Create a temporary tmpfs mount.
+	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
+	if err := os.MkdirAll(tmpfsDir, 0777); err != nil {
+		t.Fatalf("failed to mkdir at %s - %s", tmpfsDir, err)
+	}
+	if err := mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""); err != nil {
+		t.Fatalf("failed to create a tmpfs mount at %s - %s", tmpfsDir, err)
+	}
+
+	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox:latest", "ls", "/tmp/tmpfs")
+	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil && exitCode != 0 {
+		t.Fatal(out, stderr, err)
+	}
+	if !strings.Contains(out, filepath.Base(f.Name())) {
+		t.Fatal("Recursive bind mount test failed. Expected file not found")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes are bind mounted recuursively")
+}
+
+func TestDnsDefaultOptions(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
+
+	actual, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, actual)
+	}
+
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	if actual != string(resolvConf) {
+		t.Fatalf("expected resolv.conf is not the same of actual")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - dns default options")
+}
+
+func TestDnsOptions(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
+	if actual != "nameserver 127.0.0.1 search mydomain" {
+		t.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: '%s'", actual)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
+	if actual != "nameserver 127.0.0.1" {
+		t.Fatalf("expected 'nameserver 127.0.0.1', but says: '%s'", actual)
+	}
+
+	logDone("run - dns options")
+}
+
+func TestDnsOptionsBasedOnHostResolvConf(t *testing.T) {
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	hostNamservers := resolvconf.GetNameservers(resolvConf)
+	hostSearch := resolvconf.GetSearchDomains(resolvConf)
+
+	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actualNameservers := resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "127.0.0.1" {
+		t.Fatalf("expected '127.0.0.1', but says: '%s'", string(actualNameservers[0]))
+	}
+
+	actualSearch := resolvconf.GetSearchDomains([]byte(out))
+	if len(actualSearch) != len(hostSearch) {
+		t.Fatalf("expected '%s' search domain(s), but it has: '%s'", len(hostSearch), len(actualSearch))
+	}
+	for i := range actualSearch {
+		if actualSearch[i] != hostSearch[i] {
+			t.Fatalf("expected '%s' domain, but says: '%s'", actualSearch[i], hostSearch[i])
+		}
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualNameservers := resolvconf.GetNameservers([]byte(out))
+	if len(actualNameservers) != len(hostNamservers) {
+		t.Fatalf("expected '%s' nameserver(s), but it has: '%s'", len(hostNamservers), len(actualNameservers))
+	}
+	for i := range actualNameservers {
+		if actualNameservers[i] != hostNamservers[i] {
+			t.Fatalf("expected '%s' nameserver, but says: '%s'", actualNameservers[i], hostNamservers[i])
+		}
+	}
+
+	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); string(actualSearch[0]) != "mydomain" {
+		t.Fatalf("expected 'mydomain', but says: '%s'", string(actualSearch[0]))
+	}
+
+	deleteAllContainers()
+
+	logDone("run - dns options based on host resolv.conf")
+}
+
+// Regression test for #6983
+func TestAttachStdErrOnlyTTYMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stderr", "busybox", "true")
+
+	exitCode, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	} else if exitCode != 0 {
+		t.Fatalf("Container should have exited with error code 0")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - Attach stderr only with -t")
+}
+
+// Regression test for #6983
+func TestAttachStdOutOnlyTTYMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stdout", "busybox", "true")
+
+	exitCode, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	} else if exitCode != 0 {
+		t.Fatalf("Container should have exited with error code 0")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - Attach stdout only with -t")
+}
+
+// Regression test for #6983
+func TestAttachStdOutAndErrTTYMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stdout", "-a", "stderr", "busybox", "true")
+
+	exitCode, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	} else if exitCode != 0 {
+		t.Fatalf("Container should have exited with error code 0")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - Attach stderr and stdout with -t")
+}
+
+func TestState(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	state, err := inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "true" {
+		t.Fatal("Container state is 'not running'")
+	}
+	pid1, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid1 == "0" {
+		t.Fatal("Container state Pid 0")
+	}
+
+	cmd = exec.Command(dockerBinary, "stop", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	state, err = inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "false" {
+		t.Fatal("Container state is 'running'")
+	}
+	pid2, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid2 == pid1 {
+		t.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
+	}
+
+	cmd = exec.Command(dockerBinary, "start", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	state, err = inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "true" {
+		t.Fatal("Container state is 'not running'")
+	}
+	pid3, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid3 == pid1 {
+		t.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
+	}
+	logDone("run - test container state.")
+}
+
+// Test for #1737
+func TestCopyVolumeUidGid(t *testing.T) {
+	name := "testrunvolumesuidgid"
+	defer deleteImages(name)
+	defer deleteAllContainers()
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		RUN echo 'dockerio:x:1001:' >> /etc/group
+		RUN mkdir -p /hello && touch /hello/test && chown dockerio.dockerio /hello`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that the uid and gid is copied from the image to the volume
+	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "sh", "-c", "ls -l / | grep hello | awk '{print $3\":\"$4}'")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out = strings.TrimSpace(out)
+	if out != "dockerio:dockerio" {
+		t.Fatalf("Wrong /hello ownership: %s, expected dockerio:dockerio", out)
+	}
+
+	logDone("run - copy uid/gid for volume")
+}
+
+// Test for #1582
+func TestCopyVolumeContent(t *testing.T) {
+	name := "testruncopyvolumecontent"
+	defer deleteImages(name)
+	defer deleteAllContainers()
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN mkdir -p /hello/local && echo hello > /hello/local/world`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that the content is copied from the image to the volume
+	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "sh", "-c", "find", "/hello")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !(strings.Contains(out, "/hello/local/world") && strings.Contains(out, "/hello/local")) {
+		t.Fatal("Container failed to transfer content to volume")
+	}
+	logDone("run - copy volume content")
+}
+
+func TestRunCleanupCmdOnEntrypoint(t *testing.T) {
+	name := "testrunmdcleanuponentrypoint"
+	defer deleteImages(name)
+	defer deleteAllContainers()
+	if _, err := buildImage(name,
+		`FROM busybox
+		ENTRYPOINT ["echo"]
+        CMD ["testingpoint"]`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+	runCmd := exec.Command(dockerBinary, "run", "--entrypoint", "whoami", name)
+	out, exit, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("Error: %v, out: %q", err, out)
+	}
+	if exit != 0 {
+		t.Fatalf("expected exit code 0 received %d, out: %q", exit, out)
+	}
+	out = strings.TrimSpace(out)
+	if out != "root" {
+		t.Fatalf("Expected output root, got %q", out)
+	}
+	logDone("run - cleanup cmd on --entrypoint")
+}
+
+// TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
+func TestRunWorkdirExistsAndIsFile(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-w", "/bin/cat", "busybox")
+	out, exit, err := runCommandWithOutput(runCmd)
+	if !(err != nil && exit == 1 && strings.Contains(out, "Cannot mkdir: /bin/cat is not a directory")) {
+		t.Fatalf("Docker must complains about making dir, but we got out: %s, exit: %d, err: %s", out, exit, err)
+	}
+	logDone("run - error on existing file for workdir")
+}
+
+func TestRunExitOnStdinClose(t *testing.T) {
+	name := "testrunexitonstdinclose"
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "-i", "busybox", "/bin/cat")
+
+	stdin, err := runCmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := runCmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stdin.Write([]byte("hello\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	r := bufio.NewReader(stdout)
+	line, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	line = strings.TrimSpace(line)
+	if line != "hello" {
+		t.Fatalf("Output should be 'hello', got '%q'", line)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
+	finish := make(chan struct{})
+	go func() {
+		if err := runCmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+		close(finish)
+	}()
+	select {
+	case <-finish:
+	case <-time.After(1 * time.Second):
+		t.Fatal("docker run failed to exit on stdin close")
+	}
+	state, err := inspectField(name, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "false" {
+		t.Fatal("Container must be stopped after stdin closing")
+	}
+	logDone("run - exit on stdin closing")
+}
+
+// Test for #2267
+func TestWriteHostsFileAndNotCommit(t *testing.T) {
+	name := "writehosts"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hosts && cat /etc/hosts")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "test2267") {
+		t.Fatal("/etc/hosts should contain 'test2267'")
+	}
+
+	cmd = exec.Command(dockerBinary, "diff", name)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if len(strings.Trim(out, "\r\n")) != 0 {
+		t.Fatal("diff should be empty")
+	}
+
+	logDone("run - write to /etc/hosts and not commited")
+}
+
+// Test for #2267
+func TestWriteHostnameFileAndNotCommit(t *testing.T) {
+	name := "writehostname"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hostname && cat /etc/hostname")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "test2267") {
+		t.Fatal("/etc/hostname should contain 'test2267'")
+	}
+
+	cmd = exec.Command(dockerBinary, "diff", name)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if len(strings.Trim(out, "\r\n")) != 0 {
+		t.Fatal("diff should be empty")
+	}
+
+	logDone("run - write to /etc/hostname and not commited")
+}
+
+// Test for #2267
+func TestWriteResolvFileAndNotCommit(t *testing.T) {
+	name := "writeresolv"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/resolv.conf && cat /etc/resolv.conf")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "test2267") {
+		t.Fatal("/etc/resolv.conf should contain 'test2267'")
+	}
+
+	cmd = exec.Command(dockerBinary, "diff", name)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if len(strings.Trim(out, "\r\n")) != 0 {
+		t.Fatal("diff should be empty")
+	}
+
+	logDone("run - write to /etc/resolv.conf and not commited")
 }

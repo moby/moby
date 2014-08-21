@@ -847,7 +847,8 @@ div + .form-inline {
 .navbar #usernav .nav li {
   padding-top: 15px;
 }
-.navbar #usernav .nav li a {
+.navbar #usernav .nav li a,
+#versionnav .nav li a.dropdown-toggle {
   font-size: 14px;
   font-weight: 400;
   color: #394d54;
@@ -856,10 +857,12 @@ div + .form-inline {
   padding: 0 20px 0 0;
   background: url("../img/nav/caret-down-user-icon.svg") no-repeat 100% 50%;
 }
-.navbar #usernav .nav li a:hover {
+.navbar #usernav .nav li a:hover,
+#versionnav .nav li a.dropdown-toggle:hover {
   background-image: url("../img/nav/caret-down-user-icon-over.svg");
 }
-.navbar #usernav .nav li ul li {
+.navbar #usernav .nav li ul li,
+#versionnav .version {
   padding: 0;
   margin: 0;
   height: 28px;
@@ -902,7 +905,7 @@ div + .form-inline {
   margin-bottom: 22px;
 }
 #leftnav .nav {
-  margin: 0;
+  margin: 0, 0, 20px, 0;
 }
 #leftnav .nav > li > a {
   line-height: 22px;

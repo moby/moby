@@ -6,7 +6,7 @@ set -e
 #
 # Requirements:
 # - The current directory should be a checkout of the docker source code
-#   (http://github.com/dotcloud/docker). Whatever version is checked out
+#   (http://github.com/docker/docker). Whatever version is checked out
 #   will be built.
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
@@ -23,9 +23,11 @@ set -e
 
 set -o pipefail
 
+export DOCKER_PKG='github.com/docker/docker'
+
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$(pwd)" != '/go/src/github.com/dotcloud/docker' ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+if [ "$(pwd)" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in the Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
@@ -42,17 +44,17 @@ echo
 DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
-	
+
 	binary
-	
+
 	test-unit
 	test-integration
 	test-integration-cli
-	
+
 	dynbinary
 	dyntest-unit
 	dyntest-integration
-	
+
 	cover
 	cross
 	tgz
@@ -77,8 +79,8 @@ fi
 
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
-	mkdir -p .gopath/src/github.com/dotcloud
-	ln -sf ../../../.. .gopath/src/github.com/dotcloud/docker
+	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
+	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
 fi
 
@@ -88,11 +90,15 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
+if [ -z "$DOCKER_CLIENTONLY" ]; then
+	DOCKER_BUILDTAGS+=" daemon"
+fi
+
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-w
-	-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
-	-X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'"
+	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
@@ -103,7 +109,7 @@ BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
-	-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true
+	-X $DOCKER_PKG/dockerversion.IAMSTATIC true
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 
@@ -150,10 +156,35 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		echo '+ go test' $TESTFLAGS "github.com/dotcloud/docker${dir#.}"
+		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
+}
+
+# Compile phase run by parallel in test-unit. No support for coverpkg
+go_compile_test_dir() {
+	dir=$1
+	out_file="$DEST/precompiled/$dir.test"
+	testcover=()
+	if [ "$HAVE_GO_TEST_COVER" ]; then
+		# if our current go install has -cover, we want to use it :)
+		mkdir -p "$DEST/coverprofiles"
+		coverprofile="docker${dir#.}"
+		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
+		testcover=( -cover -coverprofile "$coverprofile" ) # missing $coverpkg
+	fi
+	if [ "$BUILDFLAGS_FILE" ]; then
+		readarray -t BUILDFLAGS < "$BUILDFLAGS_FILE"
+	fi
+	(
+		cd "$dir"
+		go test "${testcover[@]}" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c
+	)
+	[ $? -ne 0 ] && return 1
+	mkdir -p "$(dirname "$out_file")"
+	mv "$dir/$(basename "$dir").test" "$out_file"
+	echo "Precompiled: ${DOCKER_PKG}${dir#.}"
 }
 
 # This helper function walks the current directory looking for directories

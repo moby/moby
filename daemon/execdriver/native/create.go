@@ -1,3 +1,5 @@
+// +build linux,cgo
+
 package native
 
 import (
@@ -6,14 +8,14 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/native/configuration"
+	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/mount"
 	"github.com/docker/libcontainer/security/capabilities"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/daemon/execdriver/native/configuration"
-	"github.com/dotcloud/docker/daemon/execdriver/native/template"
 )
 
 // createContainer populates and configures the container type with the
@@ -40,6 +42,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 
 	if c.Privileged {
 		if err := d.setPrivileged(container); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := d.setCapabilities(container, c); err != nil {
 			return nil, err
 		}
 	}
@@ -134,6 +140,11 @@ func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 	}
 
 	return nil
+}
+
+func (d *driver) setCapabilities(container *libcontainer.Config, c *execdriver.Command) (err error) {
+	container.Capabilities, err = execdriver.TweakCapabilities(container.Capabilities, c.CapAdd, c.CapDrop)
+	return err
 }
 
 func (d *driver) setupCgroups(container *libcontainer.Config, c *execdriver.Command) error {

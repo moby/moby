@@ -78,8 +78,10 @@ func Build(path string, dns, dnsSearch []string) error {
 		}
 	}
 	if len(dnsSearch) > 0 {
-		if _, err := content.WriteString("search " + strings.Join(dnsSearch, " ") + "\n"); err != nil {
-			return err
+		if searchString := strings.Join(dnsSearch, " "); strings.Trim(searchString, " ") != "." {
+			if _, err := content.WriteString("search " + searchString + "\n"); err != nil {
+				return err
+			}
 		}
 	}
 

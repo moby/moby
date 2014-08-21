@@ -32,7 +32,6 @@ type Job struct {
 	handler Handler
 	status  Status
 	end     time.Time
-	onExit  []func()
 }
 
 type Status int
@@ -47,6 +46,20 @@ const (
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
+	if job.Eng.IsShutdown() {
+		return fmt.Errorf("engine is shutdown")
+	}
+	// FIXME: this is a temporary workaround to avoid Engine.Shutdown
+	// waiting 5 seconds for server/api.ServeApi to complete (which it never will)
+	// everytime the daemon is cleanly restarted.
+	// The permanent fix is to implement Job.Stop and Job.OnStop so that
+	// ServeApi can cooperate and terminate cleanly.
+	if job.Name != "serveapi" {
+		job.Eng.l.Lock()
+		job.Eng.tasks.Add(1)
+		job.Eng.l.Unlock()
+		defer job.Eng.tasks.Done()
+	}
 	// FIXME: make this thread-safe
 	// FIXME: implement wait
 	if !job.end.IsZero() {

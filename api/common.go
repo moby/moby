@@ -5,19 +5,20 @@ import (
 	"mime"
 	"strings"
 
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/pkg/version"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/version"
 )
 
 const (
-	APIVERSION        version.Version = "1.13"
+	APIVERSION        version.Version = "1.14"
 	DEFAULTHTTPHOST                   = "127.0.0.1"
 	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
 )
 
 func ValidateHost(val string) (string, error) {
-	host, err := utils.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
+	host, err := parsers.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
 	if err != nil {
 		return val, err
 	}
@@ -42,7 +43,7 @@ func DisplayablePorts(ports *engine.Table) string {
 func MatchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		utils.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
+		log.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
 	}
 	return err == nil && mimetype == expectedType
 }

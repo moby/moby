@@ -4,48 +4,47 @@ page_keywords: Examples, Usage, user guide, links, linking, docker, documentatio
 
 # Linking Containers Together
 
-In [the Using Docker section](/userguide/usingdocker) we touched on
-connecting to a service running inside a Docker container via a network
-port. This is one of the ways that you can interact with services and
-applications running inside Docker containers. In this section we're
-going to give you a refresher on connecting to a Docker container via a
-network port as well as introduce you to the concepts of container
-linking.
+In [the Using Docker section](/userguide/usingdocker), you saw how you can
+connect to a service running inside a Docker container via a network
+port. But a port connection is only one way you can interact with services and
+applications running inside Docker containers. In this section, we'll briefly revisit
+connecting via a network port and then we'll introduce you to another method of access:
+container linking.
 
 ## Network port mapping refresher
 
-In [the Using Docker section](/userguide/usingdocker) we created a
-container that ran a Python Flask application.
+In [the Using Docker section](/userguide/usingdocker), you created a
+container that ran a Python Flask application:
 
     $ sudo docker run -d -P training/webapp python app.py
 
 > **Note:** 
 > Containers have an internal network and an IP address
-> (remember we used the `docker inspect` command to show the container's
+> (as we saw when we used the `docker inspect` command to show the container's
 > IP address in the [Using Docker](/userguide/usingdocker/) section).
 > Docker can have a variety of network configurations. You can see more
 > information on Docker networking [here](/articles/networking/).
 
-When we created that container we used the `-P` flag to automatically map any
-network ports inside that container to a random high port from the range 49000
-to 49900 on our Docker host.  When we subsequently ran `docker ps` we saw that
-port 5000 was bound to port 49155.
+When that container was created, the `-P` flag was used to automatically map any
+network ports inside it to a random high port from the range 49000
+to 49900 on our Docker host.  Next, when `docker ps` was run, you saw that
+port 5000 in the container was bound to port 49155 on the host.
 
     $ sudo docker ps nostalgic_morse
     CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
-We also saw how we can bind a container's ports to a specific port using
-the `-p` flag.
+You also saw how you can bind a container's ports to a specific port using
+the `-p` flag:
 
     $ sudo docker run -d -p 5000:5000 training/webapp python app.py
 
-And we saw why this isn't such a great idea because it constrains us to
+And you saw why this isn't such a great idea because it constrains you to
 only one container on that specific port.
 
-There are also a few other ways we can configure the `-p` flag. By
+There are also a few other ways you can configure the `-p` flag. By
 default the `-p` flag will bind the specified port to all interfaces on
-the host machine. But we can also specify a binding to a specific
+the host machine. But you can also specify a binding to a specific
 interface, for example only to the `localhost`.
 
     $ sudo docker run -d -p 127.0.0.1:5000:5000 training/webapp python app.py
@@ -53,20 +52,19 @@ interface, for example only to the `localhost`.
 This would bind port 5000 inside the container to port 5000 on the
 `localhost` or `127.0.0.1` interface on the host machine.
 
-Or to bind port 5000 of the container to a dynamic port but only on the
-`localhost` we could:
+Or, to bind port 5000 of the container to a dynamic port but only on the
+`localhost`, you could use:
 
     $ sudo docker run -d -p 127.0.0.1::5000 training/webapp python app.py
 
-We can also bind UDP ports by adding a trailing `/udp`, for example:
+You can also bind UDP ports by adding a trailing `/udp`. For example:
 
     $ sudo docker run -d -p 127.0.0.1:5000:5000/udp training/webapp python app.py
 
-We also saw the useful `docker port` shortcut which showed us the
-current port bindings, this is also useful for showing us specific port
-configurations. For example if we've bound the container port to the
-`localhost` on the host machine this will be shown in the `docker port`
-output.
+You also learned about the useful `docker port` shortcut which showed us the
+current port bindings. This is also useful for showing you specific port
+configurations. For example, if you've bound the container port to the
+`localhost` on the host machine, then the `docker port` output will reflect that.
 
     $ docker port nostalgic_morse 5000
     127.0.0.1:49155
@@ -78,101 +76,110 @@ output.
 
 Network port mappings are not the only way Docker containers can connect
 to one another. Docker also has a linking system that allows you to link
-multiple containers together and share connection information between
-them. Docker linking will create a parent child relationship where the
-parent container can see selected information about its child.
+multiple containers together and send connection information from one to another.
+When containers are linked, information about a source container can be sent to a
+recipient container. This allows the recipient to see selected data describing
+aspects of the source container.
 
 ## Container naming
 
-To perform this linking Docker relies on the names of your containers.
-We've already seen that each container we create has an automatically
-created name, indeed we've become familiar with our old friend
+To establish links, Docker relies on the names of your containers.
+You've already seen that each container you create has an automatically
+created name; indeed you've become familiar with our old friend
 `nostalgic_morse` during this guide. You can also name containers
 yourself. This naming provides two useful functions:
 
-1. It's useful to name containers that do specific functions in a way
+1. It can be useful to name containers that do specific functions in a way
    that makes it easier for you to remember them, for example naming a
-   container with a web application in it `web`.
+   container containing a web application `web`.
 
 2. It provides Docker with a reference point that allows it to refer to other
-   containers, for example link container `web` to container `db`.
+   containers, for example, you can specify to link the container `web` to container `db`.
 
 You can name your container by using the `--name` flag, for example:
 
     $ sudo docker run -d -P --name web training/webapp python app.py
 
-You can see we've launched a new container and used the `--name` flag to
-call the container `web`. We can see the container's name using the
+This launches a new container and uses the `--name` flag to
+name the container `web`. You can see the container's name using the
 `docker ps` command.
 
     $ sudo docker ps -l
     CONTAINER ID  IMAGE                  COMMAND        CREATED       STATUS       PORTS                    NAMES
     aed84ee21bde  training/webapp:latest python app.py  12 hours ago  Up 2 seconds 0.0.0.0:49154->5000/tcp  web
 
-We can also use `docker inspect` to return the container's name.
+You can also use `docker inspect` to return the container's name.
 
     $ sudo docker inspect -f "{{ .Name }}" aed84ee21bde
     /web
 
 > **Note:** 
 > Container names have to be unique. That means you can only call
-> one container `web`. If you want to re-use a container name you must delete the
-> old container with the `docker rm` command before you can create a new
+> one container `web`. If you want to re-use a container name you must delete
+> the old container (with `docker rm`) before you can create a new
 > container with the same name. As an alternative you can use the `--rm`
 > flag with the `docker run` command. This will delete the container
-> immediately after it stops.
+> immediately after it is stopped.
 
 ## Container Linking
 
-Links allow containers to discover and securely communicate with each
-other. To create a link you use the `--link` flag. Let's create a new
-container, this one a database.
+Links allow containers to discover each other and securely transfer information about one
+container to another container. When you set up a link, you create a conduit between a
+source container and a recipient container. The recipient can then access select data
+about the source. To create a link, you use the `--link` flag. First, create a new
+container, this time one containing a database.
 
     $ sudo docker run -d --name db training/postgres
 
-Here we've created a new container called `db` using the `training/postgres`
+This creates a new container called `db` from the `training/postgres`
 image, which contains a PostgreSQL database.
 
-Now let's create a new `web` container and link it with our `db` container.
+Now, you need to delete the `web` container you created previously so you can replace it
+with a linked one:
+
+    $ docker rm -f web
+
+Now, create a new `web` container and link it with your `db` container.
 
     $ sudo docker run -d -P --name web --link db:db training/webapp python app.py
 
-This will link the new `web` container with the `db` container we created
+This will link the new `web` container with the `db` container you created
 earlier. The `--link` flag takes the form:
 
     --link name:alias
 
 Where `name` is the name of the container we're linking to and `alias` is an
-alias for the link name. We'll see how that alias gets used shortly.
+alias for the link name. You'll see how that alias gets used shortly.
 
-Let's look at our linked containers using `docker ps`.
+Next, look at your linked containers using `docker ps`.
 
     $ docker ps
     CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
-    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db
-    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  db/web,web
+    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
+    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
 
-We can see our named containers, `db` and `web`, and we can see that the `web`
-containers also shows `db/web` in the `NAMES` column. This tells us that the
-`web` container is linked to the `db` container in a parent/child relationship.
+You can see your named containers, `db` and `web`, and you can see that the `db`
+container also shows `web/db` in the `NAMES` column. This tells you that the
+`web` container is linked to the `db` container, which allows it to access information
+about the `db` container.
 
-So what does linking the containers do? Well we've discovered the link creates
-a parent-child relationship between the two containers. The parent container,
-here `db`, can access information on the child container `web`. To do this
-Docker creates a secure tunnel between the containers without the need to
-expose any ports externally on the container. You'll note when we started the
-`db` container we did not use either of the `-P` or `-p` flags. As we're
-linking the containers we don't need to expose the PostgreSQL database via the
-network.
+So what does linking the containers actually do? You've learned that a link creates a
+source container that can provide information about itself to a recipient container. In
+our example, the recipient, `web`, can access information about the source `db`. To do
+this, Docker creates a secure tunnel between the containers that doesn't need to
+expose any ports externally on the container; you'll note when we started the
+`db` container we did not use either the `-P` or `-p` flags. That's a big benefit of
+linking: we don't need to expose the source container, here the PostgreSQL database, to
+the network.
 
-Docker exposes connectivity information for the parent container inside the
-child container in two ways:
+Docker exposes connectivity information for the source container to the
+recipient container in two ways:
 
 * Environment variables,
 * Updating the `/etc/hosts` file.
 
-Let's look first at the environment variables Docker sets. Let's run the `env`
-command to list the container's environment variables.
+Docker can set a number of environment variables. You run the `env`
+command to list the specified container's environment variables.
 
 ```
     $ sudo docker run --rm --name web2 --link db:db training/webapp env
@@ -191,26 +198,27 @@ command to list the container's environment variables.
 > container. Similarly, some daemons (such as `sshd`)
 > will scrub them when spawning shells for connection.
 
-We can see that Docker has created a series of environment variables with
-useful information about our `db` container. Each variable is prefixed with
-`DB_` which is populated from the `alias` we specified above. If our `alias`
-were `db1` the variables would be prefixed with `DB1_`. You can use these
+You can see that Docker has created a series of environment variables with
+useful information about the source `db` container. Each variable is prefixed with
+`DB_`, which is populated from the `alias` you specified above. If the `alias`
+were `db1`, the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
-on the `db` container. The connection will be secure, private and only the
+on the `db` container. The connection will be secure and private; only the
 linked `web` container will be able to talk to the `db` container.
 
-In addition to the environment variables Docker adds a host entry for the
-linked parent to the `/etc/hosts` file. Let's look at this file on the `web`
-container now.
+In addition to the environment variables, Docker adds a host entry for the
+source container to the `/etc/hosts` file. Here's an entry for the `web`
+container:
 
+    $ sudo docker run -t -i --rm --link db:db training/webapp /bin/bash
     root@aed84ee21bde:/opt/webapp# cat /etc/hosts
     172.17.0.7  aed84ee21bde
     . . .
     172.17.0.5  db
 
-We can see two relevant host entries. The first is an entry for the `web`
+You can see two relevant host entries. The first is an entry for the `web`
 container that uses the Container ID as a host name. The second entry uses the
-link alias to reference the IP address of the `db` container. Let's try to ping
+link alias to reference the IP address of the `db` container. You can ping
 that host now via this host name.
 
     root@aed84ee21bde:/opt/webapp# apt-get install -yqq inetutils-ping
@@ -221,21 +229,22 @@ that host now via this host name.
     56 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.256 ms
 
 > **Note:** 
-> We had to install `ping` because our container didn't have it.
+> In the example, you'll note you had to install `ping` because it was not included
+> in the container initially.
 
-We've used the `ping` command to ping the `db` container using it's host entry
-which resolves to `172.17.0.5`. We can make use of this host entry to configure
-an application to make use of our `db` container.
+Here, you used the `ping` command to ping the `db` container using its host entry,
+which resolves to `172.17.0.5`. You can use this host entry to configure an application
+to make use of your `db` container.
 
 > **Note:** 
-> You can link multiple child containers to a single parent. For
-> example, we could have multiple web containers attached to our `db`
-> container.
+> You can link multiple recipient containers to a single source. For
+> example, you could have multiple (differently named) web containers attached to your
+>`db` container.
 
 # Next step
 
-Now we know how to link Docker containers together the next step is
-learning how to manage data, volumes and mounts inside our containers.
+Now that you know how to link Docker containers together, the next step is
+learning how to manage data, volumes and mounts inside your containers.
 
 Go to [Managing Data in Containers](/userguide/dockervolumes).
 

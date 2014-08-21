@@ -8,15 +8,29 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/symlink"
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/symlink"
 )
 
-type BindMap struct {
-	SrcPath string
-	DstPath string
-	Mode    string
+type Volume struct {
+	HostPath    string
+	VolPath     string
+	Mode        string
+	isBindMount bool
+}
+
+func (v *Volume) isRw() bool {
+	return v.Mode == "" || strings.ToLower(v.Mode) == "rw"
+}
+
+func (v *Volume) isDir() (bool, error) {
+	stat, err := os.Stat(v.HostPath)
+	if err != nil {
+		return false, err
+	}
+
+	return stat.IsDir(), nil
 }
 
 func prepareVolumesForContainer(container *Container) error {
@@ -36,16 +50,15 @@ func prepareVolumesForContainer(container *Container) error {
 
 func setupMountsForContainer(container *Container) error {
 	mounts := []execdriver.Mount{
-		{container.daemon.sysInitPath, "/.dockerinit", false, true},
-		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
+		{container.ResolvConfPath, "/etc/resolv.conf", true, true},
 	}
 
 	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
+		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", true, true})
 	}
 
 	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})
+		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", true, true})
 	}
 
 	// Mount user specified volumes
@@ -123,181 +136,175 @@ func applyVolumesFrom(container *Container) error {
 	return nil
 }
 
-func getBindMap(container *Container) (map[string]BindMap, error) {
+func parseBindVolumeSpec(spec string) (Volume, error) {
+	var (
+		arr = strings.Split(spec, ":")
+		vol Volume
+	)
+
+	vol.isBindMount = true
+	switch len(arr) {
+	case 1:
+		vol.VolPath = spec
+		vol.Mode = "rw"
+	case 2:
+		vol.HostPath = arr[0]
+		vol.VolPath = arr[1]
+		vol.Mode = "rw"
+	case 3:
+		vol.HostPath = arr[0]
+		vol.VolPath = arr[1]
+		vol.Mode = arr[2]
+	default:
+		return vol, fmt.Errorf("Invalid volume specification: %s", spec)
+	}
+
+	if !filepath.IsAbs(vol.HostPath) {
+		return vol, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", vol.HostPath)
+	}
+
+	return vol, nil
+}
+
+func getBindMap(container *Container) (map[string]Volume, error) {
 	var (
 		// Create the requested bind mounts
-		binds = make(map[string]BindMap)
+		volumes = map[string]Volume{}
 		// Define illegal container destinations
 		illegalDsts = []string{"/", "."}
 	)
 
 	for _, bind := range container.hostConfig.Binds {
-		// FIXME: factorize bind parsing in parseBind
-		var (
-			src, dst, mode string
-			arr            = strings.Split(bind, ":")
-		)
-
-		if len(arr) == 2 {
-			src = arr[0]
-			dst = arr[1]
-			mode = "rw"
-		} else if len(arr) == 3 {
-			src = arr[0]
-			dst = arr[1]
-			mode = arr[2]
-		} else {
-			return nil, fmt.Errorf("Invalid bind specification: %s", bind)
+		vol, err := parseBindVolumeSpec(bind)
+		if err != nil {
+			return volumes, err
 		}
-
 		// Bail if trying to mount to an illegal destination
 		for _, illegal := range illegalDsts {
-			if dst == illegal {
-				return nil, fmt.Errorf("Illegal bind destination: %s", dst)
+			if vol.VolPath == illegal {
+				return nil, fmt.Errorf("Illegal bind destination: %s", vol.VolPath)
 			}
 		}
 
-		bindMap := BindMap{
-			SrcPath: src,
-			DstPath: dst,
-			Mode:    mode,
-		}
-		binds[filepath.Clean(dst)] = bindMap
+		volumes[filepath.Clean(vol.VolPath)] = vol
 	}
-	return binds, nil
+	return volumes, nil
 }
 
 func createVolumes(container *Container) error {
-	binds, err := getBindMap(container)
+	// Get all the bindmounts
+	volumes, err := getBindMap(container)
 	if err != nil {
 		return err
 	}
 
-	// Create the requested volumes if they don't exist
+	// Get all the rest of the volumes
 	for volPath := range container.Config.Volumes {
-		if err := initializeVolume(container, volPath, binds); err != nil {
+		// Make sure the the volume isn't already specified as a bindmount
+		if _, exists := volumes[volPath]; !exists {
+			volumes[volPath] = Volume{
+				VolPath:     volPath,
+				Mode:        "rw",
+				isBindMount: false,
+			}
+		}
+	}
+
+	for _, vol := range volumes {
+		if err = vol.initialize(container); err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
+
+func createVolumeHostPath(container *Container) (string, error) {
+	volumesDriver := container.daemon.volumes.Driver()
+
+	// Do not pass a container as the parameter for the volume creation.
+	// The graph driver using the container's information ( Image ) to
+	// create the parent.
+	c, err := container.daemon.volumes.Create(nil, "", "", "", "", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	hostPath, err := volumesDriver.Get(c.ID, "")
+	if err != nil {
+		return hostPath, fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
+	}
+
+	return hostPath, nil
+}
+
+func (v *Volume) initialize(container *Container) error {
+	var err error
+	v.VolPath = filepath.Clean(v.VolPath)
+
+	// Do not initialize an existing volume
+	if _, exists := container.Volumes[v.VolPath]; exists {
+		return nil
+	}
+
+	// If it's not a bindmount we need to create the dir on the host
+	if !v.isBindMount {
+		v.HostPath, err = createVolumeHostPath(container)
+		if err != nil {
 			return err
 		}
 	}
 
-	for volPath := range binds {
-		if err := initializeVolume(container, volPath, binds); err != nil {
-			return err
-		}
+	hostPath, err := filepath.EvalSymlinks(v.HostPath)
+	if err != nil {
+		return err
+	}
+
+	// Create the mountpoint
+	// This is the path to the volume within the container FS
+	// This differs from `hostPath` in that `hostPath` refers to the place where
+	// the volume data is actually stored on the host
+	fullVolPath, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, v.VolPath), container.basefs)
+	if err != nil {
+		return err
+	}
+
+	container.Volumes[v.VolPath] = hostPath
+	container.VolumesRW[v.VolPath] = v.isRw()
+
+	volIsDir, err := v.isDir()
+	if err != nil {
+		return err
+	}
+	if err := createIfNotExists(fullVolPath, volIsDir); err != nil {
+		return err
+	}
+
+	// Do not copy or change permissions if we are mounting from the host
+	if v.isRw() && !v.isBindMount {
+		return copyExistingContents(fullVolPath, hostPath)
 	}
 	return nil
 }
 
 func createIfNotExists(destination string, isDir bool) error {
-	if _, err := os.Stat(destination); err != nil && os.IsNotExist(err) {
-		if isDir {
-			if err := os.MkdirAll(destination, 0755); err != nil {
-				return err
-			}
-		} else {
-			if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
-				return err
-			}
-
-			f, err := os.OpenFile(destination, os.O_CREATE, 0755)
-			if err != nil {
-				return err
-			}
-			f.Close()
-		}
-	}
-
-	return nil
-}
-
-func initializeVolume(container *Container, volPath string, binds map[string]BindMap) error {
-	volumesDriver := container.daemon.volumes.Driver()
-	volPath = filepath.Clean(volPath)
-
-	// Skip existing volumes
-	if _, exists := container.Volumes[volPath]; exists {
+	if _, err := os.Stat(destination); err == nil || !os.IsNotExist(err) {
 		return nil
 	}
 
-	var (
-		destination string
-		isBindMount bool
-		volIsDir    = true
-
-		srcRW = false
-	)
-
-	// If an external bind is defined for this volume, use that as a source
-	if bindMap, exists := binds[volPath]; exists {
-		isBindMount = true
-		destination = bindMap.SrcPath
-
-		if !filepath.IsAbs(destination) {
-			return fmt.Errorf("%s must be an absolute path", destination)
-		}
-
-		if strings.ToLower(bindMap.Mode) == "rw" {
-			srcRW = true
-		}
-
-		if stat, err := os.Stat(bindMap.SrcPath); err != nil {
-			return err
-		} else {
-			volIsDir = stat.IsDir()
-		}
-	} else {
-		// Do not pass a container as the parameter for the volume creation.
-		// The graph driver using the container's information ( Image ) to
-		// create the parent.
-		c, err := container.daemon.volumes.Create(nil, "", "", "", "", nil, nil)
-		if err != nil {
-			return err
-		}
-
-		destination, err = volumesDriver.Get(c.ID, "")
-		if err != nil {
-			return fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", volumesDriver, c.ID, err)
-		}
-
-		srcRW = true
+	if isDir {
+		return os.MkdirAll(destination, 0755)
 	}
 
-	if p, err := filepath.EvalSymlinks(destination); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
 		return err
-	} else {
-		destination = p
 	}
 
-	// Create the mountpoint
-	source, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, volPath), container.basefs)
+	f, err := os.OpenFile(destination, os.O_CREATE, 0755)
 	if err != nil {
 		return err
 	}
+	f.Close()
 
-	newVolPath, err := filepath.Rel(container.basefs, source)
-	if err != nil {
-		return err
-	}
-	newVolPath = "/" + newVolPath
-
-	if volPath != newVolPath {
-		delete(container.Volumes, volPath)
-		delete(container.VolumesRW, volPath)
-	}
-
-	container.Volumes[volPath] = destination
-	container.VolumesRW[volPath] = srcRW
-
-	if err := createIfNotExists(source, volIsDir); err != nil {
-		return err
-	}
-
-	// Do not copy or change permissions if we are mounting from the host
-	if srcRW && !isBindMount {
-		if err := copyExistingContents(source, destination); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

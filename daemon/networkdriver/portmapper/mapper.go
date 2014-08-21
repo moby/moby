@@ -6,14 +6,13 @@ import (
 	"net"
 	"sync"
 
-	"github.com/dotcloud/docker/daemon/networkdriver/portallocator"
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
+	"github.com/docker/docker/pkg/iptables"
 )
 
 type mapping struct {
 	proto         string
-	userlandProxy proxy.Proxy
+	userlandProxy UserlandProxy
 	host          net.Addr
 	container     net.Addr
 }
@@ -24,7 +23,8 @@ var (
 
 	// udp:ip:port
 	currentMappings = make(map[string]*mapping)
-	newProxy        = proxy.NewProxy
+
+	NewProxy = NewProxyCommand
 )
 
 var (
@@ -37,23 +37,16 @@ func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
 
-func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
+func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err error) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	var (
 		m                 *mapping
-		err               error
 		proto             string
 		allocatedHostPort int
+		proxy             UserlandProxy
 	)
-
-	// release the port on any error during return.
-	defer func() {
-		if err != nil {
-			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
-		}
-	}()
 
 	switch container.(type) {
 	case *net.TCPAddr:
@@ -61,30 +54,41 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
 			return nil, err
 		}
+
 		m = &mapping{
 			proto:     proto,
 			host:      &net.TCPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
+
+		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
 	case *net.UDPAddr:
 		proto = "udp"
 		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
 			return nil, err
 		}
+
 		m = &mapping{
 			proto:     proto,
 			host:      &net.UDPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
+
+		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
 	default:
-		err = ErrUnknownBackendAddressType
-		return nil, err
+		return nil, ErrUnknownBackendAddressType
 	}
+
+	// release the allocated port on any further error during return.
+	defer func() {
+		if err != nil {
+			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
+		}
+	}()
 
 	key := getKey(m.host)
 	if _, exists := currentMappings[key]; exists {
-		err = ErrPortMappedForIP
-		return nil, err
+		return nil, ErrPortMappedForIP
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
@@ -92,17 +96,15 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (net.Addr, error) {
 		return nil, err
 	}
 
-	p, err := newProxy(m.host, m.container)
-	if err != nil {
-		// need to undo the iptables rules before we return
-		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		return nil, err
-	}
-
-	m.userlandProxy = p
+	m.userlandProxy = proxy
 	currentMappings[key] = m
 
-	go p.Run()
+	if err := proxy.Start(); err != nil {
+		// need to undo the iptables rules before we return
+		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+
+		return nil, err
+	}
 
 	return m.host, nil
 }
@@ -117,7 +119,8 @@ func Unmap(host net.Addr) error {
 		return ErrPortNotMapped
 	}
 
-	data.userlandProxy.Close()
+	data.userlandProxy.Stop()
+
 	delete(currentMappings, key)
 
 	containerIP, containerPort := getIPAndPort(data.container)

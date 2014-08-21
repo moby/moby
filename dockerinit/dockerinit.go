@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/dotcloud/docker/sysinit"
+	_ "github.com/docker/docker/daemon/execdriver/lxc"
+	_ "github.com/docker/docker/daemon/execdriver/native"
+	"github.com/docker/docker/reexec"
 )
 
 func main() {
 	// Running in init mode
-	sysinit.SysInit()
-	return
+	reexec.Init()
 }

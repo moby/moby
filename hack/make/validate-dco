@@ -9,13 +9,22 @@ notDocs="$(validate_diff --numstat | awk '$3 !~ /^docs\// { print $3 }')"
 : ${adds:=0}
 : ${dels:=0}
 
+# "Username may only contain alphanumeric characters or dashes and cannot begin with a dash"
+githubUsernameRegex='[a-zA-Z0-9][a-zA-Z0-9-]+'
+
+# https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work
+dcoPrefix='Signed-off-by:'
+dcoRegex="^(Docker-DCO-1.1-)?$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)>( \\(github: ($githubUsernameRegex)\\))?$"
+
+check_dco() {
+	grep -qE "$dcoRegex"
+}
+
 if [ $adds -eq 0 -a $dels -eq 0 ]; then
 	echo '0 adds, 0 deletions; nothing to validate! :)'
 elif [ -z "$notDocs" -a $adds -le 1 -a $dels -le 1 ]; then
 	echo 'Congratulations!  DCO small-patch-exception material!'
 else
-	dcoPrefix='Docker-DCO-1.1-Signed-off-by:'
-	dcoRegex="^$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)> \\(github: (\S+)\\)$"
 	commits=( $(validate_log --format='format:%H%n') )
 	badCommits=()
 	for commit in "${commits[@]}"; do
@@ -23,7 +32,7 @@ else
 			# no content (ie, Merge commit, etc)
 			continue
 		fi
-		if ! git log -1 --format='format:%B' "$commit" | grep -qE "$dcoRegex"; then
+		if ! git log -1 --format='format:%B' "$commit" | check_dco; then
 			badCommits+=( "$commit" )
 		fi
 	done
@@ -39,7 +48,7 @@ else
 			echo 'Please amend each commit to include a properly formatted DCO marker.'
 			echo
 			echo 'Visit the following URL for information about the Docker DCO:'
-			echo ' https://github.com/dotcloud/docker/blob/master/CONTRIBUTING.md#sign-your-work'
+			echo ' https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work'
 			echo
 		} >&2
 		false

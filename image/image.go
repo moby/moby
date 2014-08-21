@@ -3,16 +3,23 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
+
+// Set the max depth to the aufs default that most
+// kernels are compiled with
+// For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
+const MaxImageDepth = 127
 
 type Image struct {
 	ID              string            `json:"id"`
@@ -87,11 +94,11 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 			}
 		} else {
 			start := time.Now().UTC()
-			utils.Debugf("Start untar layer")
+			log.Debugf("Start untar layer")
 			if err := archive.ApplyLayer(layer, layerData); err != nil {
 				return err
 			}
-			utils.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
+			log.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
 			if img.Parent == "" {
 				if size, err = utils.TreeSize(layer); err != nil {
@@ -295,11 +302,27 @@ func (img *Image) Depth() (int, error) {
 	return count, nil
 }
 
+// CheckDepth returns an error if the depth of an image, as returned
+// by ImageDepth, is too large to support creating a container from it
+// on this daemon.
+func (img *Image) CheckDepth() error {
+	// We add 2 layers to the depth because the container's rw and
+	// init layer add to the restriction
+	depth, err := img.Depth()
+	if err != nil {
+		return err
+	}
+	if depth+2 >= MaxImageDepth {
+		return fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+	}
+	return nil
+}
+
 // Build an Image object from raw json data
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	utils.Debugf("Json string: {%s}", src)
+	log.Debugf("Json string: {%s}", src)
 	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err

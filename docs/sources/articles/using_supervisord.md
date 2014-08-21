@@ -28,18 +28,14 @@ new image.
 
     FROM ubuntu:13.04
     MAINTAINER examples@docker.com
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
-    RUN apt-get upgrade -y
 
 ## Installing Supervisor
 
 We can now install our SSH and Apache daemons as well as Supervisor in
 our container.
 
-    RUN apt-get install -y openssh-server apache2 supervisor
-    RUN mkdir -p /var/run/sshd
-    RUN mkdir -p /var/log/supervisor
+    RUN apt-get update && apt-get install -y openssh-server apache2 supervisor
+    RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
 
 Here we're installing the `openssh-server`,
 `apache2` and `supervisor`
@@ -52,7 +48,7 @@ Now let's add a configuration file for Supervisor. The default file is
 called `supervisord.conf` and is located in
 `/etc/supervisor/conf.d/`.
 
-    ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+    COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 Let's see what is inside our `supervisord.conf`
 file.

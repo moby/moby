@@ -37,7 +37,7 @@ func TestStateRunStop(t *testing.T) {
 			t.Fatalf("Pid %v, expected %v", runPid, i+100)
 		}
 		if pid, err := s.WaitRunning(-1 * time.Second); err != nil || pid != i+100 {
-			t.Fatal("WaitRunning returned pid: %v, err: %v, expected pid: %v, err: %v", pid, err, i+100, nil)
+			t.Fatalf("WaitRunning returned pid: %v, err: %v, expected pid: %v, err: %v", pid, err, i+100, nil)
 		}
 
 		stopped := make(chan struct{})
@@ -68,7 +68,7 @@ func TestStateRunStop(t *testing.T) {
 			t.Fatalf("ExitCode %v, expected %v", exitCode, i)
 		}
 		if exitCode, err := s.WaitStop(-1 * time.Second); err != nil || exitCode != i {
-			t.Fatal("WaitStop returned exitCode: %v, err: %v, expected exitCode: %v, err: %v", exitCode, err, i, nil)
+			t.Fatalf("WaitStop returned exitCode: %v, err: %v, expected exitCode: %v, err: %v", exitCode, err, i, nil)
 		}
 	}
 }

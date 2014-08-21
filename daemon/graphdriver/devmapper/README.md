@@ -7,7 +7,7 @@ module (dm-thinp) to implement CoW snapshots. For each devicemapper
 graph location (typically `/var/lib/docker/devicemapper`, $graph below)
 a thin pool is created based on two block devices, one for data and
 one for metadata.  By default these block devices are created
-automatically by using loopback mounts of automatically creates sparse
+automatically by using loopback mounts of automatically created sparse
 files.
 
 The default loopback files used are `$graph/devicemapper/data` and
@@ -15,15 +15,15 @@ The default loopback files used are `$graph/devicemapper/data` and
 from docker entities to the corresponding devicemapper volumes is
 stored in the `$graph/devicemapper/json` file (encoded as Json).
 
-In order to support multiple devicemapper graphs on a system the thin
+In order to support multiple devicemapper graphs on a system, the thin
 pool will be named something like: `docker-0:33-19478248-pool`, where
-the `0:30` part is the minor/major device nr and `19478248` is the
+the `0:33` part is the minor/major device nr and `19478248` is the
 inode number of the $graph directory.
 
-On the thin pool docker automatically creates a base thin device,
+On the thin pool, docker automatically creates a base thin device,
 called something like `docker-0:33-19478248-base` of a fixed
-size. This is automatically formated on creation and contains just an
-empty filesystem. This device is the base of all docker images and
+size. This is automatically formatted with an empty filesystem on
+creation. This device is the base of all docker images and
 containers. All base images are snapshots of this device and those
 images are then in turn used as snapshots for other images and
 eventually containers.
@@ -31,8 +31,8 @@ eventually containers.
 ### options
 
 The devicemapper backend supports some options that you can specify
-when starting the docker daemon using the --storage-opt flags.
-This uses the `dm` prefix and would be used somthing like `docker -d --storage-opt dm.foo=bar`.
+when starting the docker daemon using the `--storage-opt` flags.
+This uses the `dm` prefix and would be used something like `docker -d --storage-opt dm.foo=bar`.
 
 Here is the list of supported options:
 
@@ -43,7 +43,11 @@ Here is the list of supported options:
     10G. Note, thin devices are inherently "sparse", so a 10G device
     which is mostly empty doesn't use 10 GB of space on the
     pool. However, the filesystem will use more space for the empty
-    case the larger the device is.
+    case the larger the device is. **Warning**: This value affects the
+    system-wide "base" empty filesystem that may already be
+    initialized and inherited by pulled images.  Typically, a change
+    to this value will require additional steps to take effect: 1)
+    stop `docker -d`, 2) `rm -rf /var/lib/docker`, 3) start `docker -d`.
 
     Example use:
 
@@ -125,6 +129,15 @@ Here is the list of supported options:
     Example use:
 
     ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
+
+ *  `dm.blocksize`
+
+    Specifies a custom blocksize to use for the thin pool.  The default
+    blocksize is 64K.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.blocksize=512K``
 
  *  `dm.blkdiscard`
 

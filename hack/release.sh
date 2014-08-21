@@ -41,8 +41,8 @@ EOF
 [ "$AWS_ACCESS_KEY" ] || usage
 [ "$AWS_SECRET_KEY" ] || usage
 [ "$GPG_PASSPHRASE" ] || usage
-[ -d /go/src/github.com/dotcloud/docker ] || usage
-cd /go/src/github.com/dotcloud/docker
+[ -d /go/src/github.com/docker/docker ] || usage
+cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
 
 RELEASE_BUNDLES=(
@@ -282,12 +282,16 @@ if [ ! -e /usr/lib/apt/methods/https ]; then
 	apt-get update
 	apt-get install -y apt-transport-https
 fi
+
 # Add the repository to your APT sources
 echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
+
 # Then import the repository key
 apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+
 # Install docker
-apt-get update ; apt-get install -y lxc-docker
+apt-get update
+apt-get install -y lxc-docker
 
 #
 # Alternatively, just use the curl-able install.sh script provided at $(s3_url)
@@ -318,7 +322,7 @@ release_binaries() {
 
 	cat <<EOF | write_to_s3 s3://$BUCKET/builds/index
 # To install, run the following command as root:
-curl -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
+curl -sSL -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
 # Then start docker in daemon mode:
 sudo /usr/local/bin/docker -d
 EOF
@@ -354,7 +358,7 @@ Key-Type: RSA
 Key-Length: 4096
 Passphrase: $GPG_PASSPHRASE
 Name-Real: Docker Release Tool
-Name-Email: docker@dotcloud.com
+Name-Email: docker@docker.com
 Name-Comment: releasedocker
 Expire-Date: 0
 %commit

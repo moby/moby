@@ -2,10 +2,10 @@ package fs
 
 import "github.com/docker/libcontainer/cgroups"
 
-type devicesGroup struct {
+type DevicesGroup struct {
 }
 
-func (s *devicesGroup) Set(d *data) error {
+func (s *DevicesGroup) Set(d *data) error {
 	dir, err := d.join("devices")
 	if err != nil {
 		return err
@@ -25,10 +25,10 @@ func (s *devicesGroup) Set(d *data) error {
 	return nil
 }
 
-func (s *devicesGroup) Remove(d *data) error {
+func (s *DevicesGroup) Remove(d *data) error {
 	return removePath(d.path("devices"))
 }
 
-func (s *devicesGroup) GetStats(d *data, stats *cgroups.Stats) error {
+func (s *DevicesGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }

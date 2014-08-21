@@ -6,8 +6,6 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,20 +18,14 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/dotcloud/docker/dockerversion"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/log"
 )
 
 type KeyValuePair struct {
 	Key   string
 	Value string
-}
-
-// A common interface to access the Fatal method of
-// both testing.B and testing.T.
-type Fataler interface {
-	Fatal(args ...interface{})
 }
 
 // Go is a basic promise implementation: it wraps calls a function in a goroutine,
@@ -55,31 +47,6 @@ func Download(url string) (resp *http.Response, err error) {
 		return nil, fmt.Errorf("Got HTTP status code >= 400: %s", resp.Status)
 	}
 	return resp, nil
-}
-
-func logf(level string, format string, a ...interface{}) {
-	// Retrieve the stack infos
-	_, file, line, ok := runtime.Caller(2)
-	if !ok {
-		file = "<unknown>"
-		line = -1
-	} else {
-		file = file[strings.LastIndex(file, "/")+1:]
-	}
-
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("[%s] %s:%d %s\n", level, file, line, format), a...)
-}
-
-// Debug function, if the debug flag is set, then display. Do nothing otherwise
-// If Docker is in damon mode, also send the debug info on the socket
-func Debugf(format string, a ...interface{}) {
-	if os.Getenv("DEBUG") != "" {
-		logf("debug", format, a...)
-	}
-}
-
-func Errorf(format string, a ...interface{}) {
-	logf("error", format, a...)
 }
 
 func Trunc(s string, maxlen int) string {
@@ -265,131 +232,9 @@ func (r *bufReader) Close() error {
 	return closer.Close()
 }
 
-type WriteBroadcaster struct {
-	sync.Mutex
-	buf     *bytes.Buffer
-	streams map[string](map[io.WriteCloser]struct{})
-}
-
-func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser, stream string) {
-	w.Lock()
-	if _, ok := w.streams[stream]; !ok {
-		w.streams[stream] = make(map[io.WriteCloser]struct{})
-	}
-	w.streams[stream][writer] = struct{}{}
-	w.Unlock()
-}
-
-type JSONLog struct {
-	Log     string    `json:"log,omitempty"`
-	Stream  string    `json:"stream,omitempty"`
-	Created time.Time `json:"time"`
-}
-
-func (jl *JSONLog) Format(format string) (string, error) {
-	if format == "" {
-		return jl.Log, nil
-	}
-	if format == "json" {
-		m, err := json.Marshal(jl)
-		return string(m), err
-	}
-	return fmt.Sprintf("[%s] %s", jl.Created.Format(format), jl.Log), nil
-}
-
-func WriteLog(src io.Reader, dst io.WriteCloser, format string) error {
-	dec := json.NewDecoder(src)
-	for {
-		l := &JSONLog{}
-
-		if err := dec.Decode(l); err == io.EOF {
-			return nil
-		} else if err != nil {
-			Errorf("Error streaming logs: %s", err)
-			return err
-		}
-		line, err := l.Format(format)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(dst, "%s", line)
-	}
-}
-
-type LogFormatter struct {
-	wc         io.WriteCloser
-	timeFormat string
-}
-
-func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
-	created := time.Now().UTC()
-	w.Lock()
-	defer w.Unlock()
-	if writers, ok := w.streams[""]; ok {
-		for sw := range writers {
-			if n, err := sw.Write(p); err != nil || n != len(p) {
-				// On error, evict the writer
-				delete(writers, sw)
-			}
-		}
-	}
-	w.buf.Write(p)
-	lines := []string{}
-	for {
-		line, err := w.buf.ReadString('\n')
-		if err != nil {
-			w.buf.Write([]byte(line))
-			break
-		}
-		lines = append(lines, line)
-	}
-
-	if len(lines) != 0 {
-		for stream, writers := range w.streams {
-			if stream == "" {
-				continue
-			}
-			var lp []byte
-			for _, line := range lines {
-				b, err := json.Marshal(&JSONLog{Log: line, Stream: stream, Created: created})
-				if err != nil {
-					Errorf("Error making JSON log line: %s", err)
-				}
-				lp = append(lp, b...)
-				lp = append(lp, '\n')
-			}
-			for sw := range writers {
-				if _, err := sw.Write(lp); err != nil {
-					delete(writers, sw)
-				}
-			}
-		}
-	}
-	return len(p), nil
-}
-
-func (w *WriteBroadcaster) CloseWriters() error {
-	w.Lock()
-	defer w.Unlock()
-	for _, writers := range w.streams {
-		for w := range writers {
-			w.Close()
-		}
-	}
-	w.streams = make(map[string](map[io.WriteCloser]struct{}))
-	return nil
-}
-
-func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{
-		streams: make(map[string](map[io.WriteCloser]struct{})),
-		buf:     bytes.NewBuffer(nil),
-	}
-}
-
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
+		log.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
 	} else {
 		return len(fds)
 	}
@@ -487,92 +332,6 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-type KernelVersionInfo struct {
-	Kernel int
-	Major  int
-	Minor  int
-	Flavor string
-}
-
-func (k *KernelVersionInfo) String() string {
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
-}
-
-// Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, 0 if a == b, 1 it a > b
-func CompareKernelVersion(a, b *KernelVersionInfo) int {
-	if a.Kernel < b.Kernel {
-		return -1
-	} else if a.Kernel > b.Kernel {
-		return 1
-	}
-
-	if a.Major < b.Major {
-		return -1
-	} else if a.Major > b.Major {
-		return 1
-	}
-
-	if a.Minor < b.Minor {
-		return -1
-	} else if a.Minor > b.Minor {
-		return 1
-	}
-
-	return 0
-}
-
-func GetKernelVersion() (*KernelVersionInfo, error) {
-	var (
-		err error
-	)
-
-	uts, err := uname()
-	if err != nil {
-		return nil, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
-
-	return ParseRelease(string(release))
-}
-
-func ParseRelease(release string) (*KernelVersionInfo, error) {
-	var (
-		kernel, major, minor, parsed int
-		flavor, partial              string
-	)
-
-	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
-	// make sure we got all the version numbers.
-	parsed, _ = fmt.Sscanf(release, "%d.%d%s", &kernel, &major, &partial)
-	if parsed < 2 {
-		return nil, errors.New("Can't parse kernel version " + release)
-	}
-
-	// sometimes we have 3.12.25-gentoo, but sometimes we just have 3.12-1-amd64
-	parsed, _ = fmt.Sscanf(partial, ".%d%s", &minor, &flavor)
-	if parsed < 1 {
-		flavor = partial
-	}
-
-	return &KernelVersionInfo{
-		Kernel: kernel,
-		Major:  major,
-		Minor:  minor,
-		Flavor: flavor,
-	}, nil
-}
-
 // FIXME: this is deprecated by CopyWithTar in archive.go
 func CopyDirectory(source, dest string) error {
 	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
@@ -666,80 +425,6 @@ func GetLines(input []byte, commentMarker []byte) [][]byte {
 	return output
 }
 
-// FIXME: Change this not to receive default value as parameter
-func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
-	var (
-		proto string
-		host  string
-		port  int
-	)
-	addr = strings.TrimSpace(addr)
-	switch {
-	case addr == "tcp://":
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	case strings.HasPrefix(addr, "unix://"):
-		proto = "unix"
-		addr = strings.TrimPrefix(addr, "unix://")
-		if addr == "" {
-			addr = defaultUnix
-		}
-	case strings.HasPrefix(addr, "tcp://"):
-		proto = "tcp"
-		addr = strings.TrimPrefix(addr, "tcp://")
-	case strings.HasPrefix(addr, "fd://"):
-		return addr, nil
-	case addr == "":
-		proto = "unix"
-		addr = defaultUnix
-	default:
-		if strings.Contains(addr, "://") {
-			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)
-		}
-		proto = "tcp"
-	}
-
-	if proto != "unix" && strings.Contains(addr, ":") {
-		hostParts := strings.Split(addr, ":")
-		if len(hostParts) != 2 {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		} else {
-			host = defaultHost
-		}
-
-		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
-			port = p
-		} else {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-
-	} else if proto == "tcp" && !strings.Contains(addr, ":") {
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	} else {
-		host = addr
-	}
-	if proto == "unix" {
-		return fmt.Sprintf("%s://%s", proto, host), nil
-	}
-	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
-}
-
-// Get a repos name and returns the right reposName + tag
-// The tag can be confusing because of a port in a repository name.
-//     Ex: localhost.localdomain:5000/samalba/hipache:latest
-func ParseRepositoryTag(repos string) (string, string) {
-	n := strings.LastIndex(repos, ":")
-	if n < 0 {
-		return repos, ""
-	}
-	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
-		return repos[:n], tag
-	}
-	return repos, ""
-}
-
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
 	Status     string
@@ -783,27 +468,6 @@ func ShellQuoteArguments(args []string) string {
 		quote(arg, &buf)
 	}
 	return buf.String()
-}
-
-func PartParser(template, data string) (map[string]string, error) {
-	// ip:public:private
-	var (
-		templateParts = strings.Split(template, ":")
-		parts         = strings.Split(data, ":")
-		out           = make(map[string]string, len(templateParts))
-	)
-	if len(parts) != len(templateParts) {
-		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
-	}
-
-	for i, t := range templateParts {
-		value := ""
-		if len(parts) > i {
-			value = parts[i]
-		}
-		out[t] = value
-	}
-	return out, nil
 }
 
 var globalTestID string
@@ -919,14 +583,6 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 	return realPath, nil
 }
 
-func ParseKeyValueOpt(opt string) (string, string, error) {
-	parts := strings.SplitN(opt, "=", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
-	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
-}
-
 // TreeSize walks a directory tree and returns its total size in bytes.
 func TreeSize(dir string) (size int64, err error) {
 	data := make(map[uint64]struct{})
@@ -960,13 +616,24 @@ func TreeSize(dir string) (size int64, err error) {
 // ValidateContextDirectory checks if all the contents of the directory
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
-func ValidateContextDirectory(srcPath string) error {
+func ValidateContextDirectory(srcPath string, excludes []string) error {
 	var finalError error
 
 	filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
 		// skip this directory/file if it's not in the path, it won't get added to the context
-		_, err = filepath.Rel(srcPath, filePath)
+		relFilePath, err := filepath.Rel(srcPath, filePath)
 		if err != nil && os.IsPermission(err) {
+			return nil
+		}
+
+		skip, err := Matches(relFilePath, excludes)
+		if err != nil {
+			finalError = err
+		}
+		if skip {
+			if f.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -992,4 +659,33 @@ func ValidateContextDirectory(srcPath string) error {
 		return nil
 	})
 	return finalError
+}
+
+func StringsContainsNoCase(slice []string, s string) bool {
+	for _, ss := range slice {
+		if strings.ToLower(s) == strings.ToLower(ss) {
+			return true
+		}
+	}
+	return false
+}
+
+// Matches returns true if relFilePath matches any of the patterns
+func Matches(relFilePath string, patterns []string) (bool, error) {
+	for _, exclude := range patterns {
+		matched, err := filepath.Match(exclude, relFilePath)
+		if err != nil {
+			log.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
+			return false, err
+		}
+		if matched {
+			if filepath.Clean(relFilePath) == "." {
+				log.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
+				continue
+			}
+			log.Debugf("Skipping excluded path: %s", relFilePath)
+			return true, nil
+		}
+	}
+	return false, nil
 }

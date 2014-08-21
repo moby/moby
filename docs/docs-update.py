@@ -7,6 +7,7 @@
 #       ./docs/update.py /usr/bin/docker
 #
 
+import datetime
 import re
 from sys import argv
 import subprocess
@@ -14,6 +15,9 @@ import os
 import os.path
 
 script, docker_cmd = argv
+
+# date "+%B %Y"
+date_string = datetime.date.today().strftime('%B %Y')
 
 def print_usage(outtext, docker_cmd, command):
     help = ""
@@ -204,9 +208,9 @@ def update_man_pages():
         outtext.write("# HISTORY\n")
         if history != "":
            outtext.write(history+"\n")
-        recent_history_re = re.compile(".*June 2014.*", re.MULTILINE|re.DOTALL)
+        recent_history_re = re.compile(".*"+date_string+".*", re.MULTILINE|re.DOTALL)
         if not recent_history_re.match(history):
-            outtext.write("June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>\n")
+            outtext.write(date_string+", updated by Sven Dowideit <SvenDowideit@home.org.au>\n")
         outtext.close()
 
 # main

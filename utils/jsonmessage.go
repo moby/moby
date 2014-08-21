@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/pkg/units"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/units"
 )
 
 type JSONError struct {
@@ -50,7 +50,12 @@ func (p *JSONProgress) String() string {
 	total := units.HumanSize(int64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
 	if width > 110 {
-		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage))
+		// this number can't be negetive gh#7136
+		numSpaces := 0
+		if 50-percentage > 0 {
+			numSpaces = 50 - percentage
+		}
+		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
@@ -95,7 +100,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return nil
 	}
 	if jm.Time != 0 {
-		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(time.RFC3339Nano))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)

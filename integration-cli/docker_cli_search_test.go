@@ -9,7 +9,7 @@ import (
 
 // search for repos named  "registry" on the central registry
 func TestSearchOnCentralRegistry(t *testing.T) {
-	searchCmd := exec.Command(dockerBinary, "search", "stackbrew/busybox")
+	searchCmd := exec.Command(dockerBinary, "search", "busybox")
 	out, exitCode, err := runCommandWithOutput(searchCmd)
 	errorOut(err, t, fmt.Sprintf("encountered error while searching: %v", err))
 

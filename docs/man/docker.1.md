@@ -64,9 +64,6 @@ unix://[/path/to/socket] to use.
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
-**-r**=*true*|*false*
-  Restart previously running containers. Default is true.
-
 **-s**=""
   Force the Docker runtime to use a specific storage driver.
 
@@ -74,7 +71,7 @@ unix://[/path/to/socket] to use.
   Print version information and quit. Default is false.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false.
+  Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
 # COMMANDS
 **docker-attach(1)**
@@ -123,6 +120,9 @@ inside it)
 
 **docker-login(1)**
   Register or Login to a Docker registry server
+
+**docker-logout(1)**
+  Log the user out of a Docker registry server
 
 **docker-logs(1)**
   Fetch the logs of a container

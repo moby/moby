@@ -1,4 +1,4 @@
-page_title: Remote API v1.12
+page_title: Remote API v1.13
 page_description: API Documentation for Docker
 page_keywords: API, Docker, rcli, REST, documentation
 
@@ -224,7 +224,7 @@ Return low-level information on the container `id`
                              "Bridge": "",
                              "PortMapping": null
                      },
-                     "SysInitPath": "/home/kitty/go/src/github.com/dotcloud/docker/bin/docker",
+                     "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
                      "Volumes": {},
                      "HostConfig": {
@@ -808,30 +808,7 @@ Create an image, either by pull it from the registry or by importing it
     -   **200** – no error
     -   **500** – server error
 
-### Insert a file in an image
 
-`POST /images/(name)/insert`
-
-Insert a file from `url` in the image `name` at `path`
-
-    **Example request**:
-
-        POST /images/test/insert?path=/usr&url=myurl HTTP/1.1
-
-    **Example response**:
-
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {"status":"Inserting..."}
-        {"status":"Inserting", "progress":"1/? (n/a)", "progressDetail":{"current":1}}
-        {"error":"Invalid..."}
-        ...
-
-    Status Codes:
-
-    -   **200** – no error
-    -   **500** – server error
 
 ### Inspect an image
 
@@ -937,11 +914,20 @@ Push the image `name` on the registry
         {"error":"Invalid..."}
         ...
 
+    If you wish to push an image on to a private registry, that image must already have been tagged
+    into a repository which references that registry host name and port.  This repository name should 
+    then be used in the URL. This mirrors the flow of the CLI.
+
+    **Example request**:
+
+        POST /images/registry.acme.com:5000/test/push HTTP/1.1    
+    
+
     Query Parameters:
 
      
 
-    -   **registry** – the registry you wan to push, optional
+    -   **tag** – the tag to associate with the image on the registry, optional
 
     Request Headers:
 
@@ -1184,7 +1170,6 @@ Display system-wide information
              "NGoroutines":21,
              "NEventsListener":0,
              "InitPath":"/usr/bin/docker",
-             "Sockets":["unix:///var/run/docker.sock"],
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,

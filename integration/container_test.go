@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/runconfig"
+	"github.com/docker/docker/runconfig"
 )
 
 func TestKillDifferentUser(t *testing.T) {
@@ -68,37 +68,6 @@ func TestKillDifferentUser(t *testing.T) {
 	// Try stopping twice
 	if err := container.Kill(); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestRestart(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, err := daemon.Create(&runconfig.Config{
-		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"echo", "-n", "foobar"},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-	output, err := container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(output) != "foobar" {
-		t.Error(string(output))
-	}
-
-	// Run the container again and check the output
-	output, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(output) != "foobar" {
-		t.Error(string(output))
 	}
 }
 
@@ -401,100 +370,6 @@ func tempDir(t *testing.T) string {
 	return tmpDir
 }
 
-// Test for #1737
-func TestCopyVolumeUidGid(t *testing.T) {
-	eng := NewTestEngine(t)
-	r := mkDaemonFromEngine(eng, t)
-	defer r.Nuke()
-
-	// Add directory not owned by root
-	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && touch /hello/test && chown daemon.daemon /hello"}, t)
-	defer r.Destroy(container1)
-
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container1.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Test that the uid and gid is copied from the image to the volume
-	tmpDir1 := tempDir(t)
-	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(eng, r, []string{"-v", "/hello", img.ID, "stat", "-c", "%U %G", "/hello"}, t)
-	if !strings.Contains(stdout1, "daemon daemon") {
-		t.Fatal("Container failed to transfer uid and gid to volume")
-	}
-
-	container2, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello && chown daemon.daemon /hello"}, t)
-	defer r.Destroy(container1)
-
-	if container2.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container2.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container2.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-
-	img2, err := r.Commit(container2, "", "", "unit test commited image", "", true, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Test that the uid and gid is copied from the image to the volume
-	tmpDir2 := tempDir(t)
-	defer os.RemoveAll(tmpDir2)
-	stdout2, _ := runContainer(eng, r, []string{"-v", "/hello", img2.ID, "stat", "-c", "%U %G", "/hello"}, t)
-	if !strings.Contains(stdout2, "daemon daemon") {
-		t.Fatal("Container failed to transfer uid and gid to volume")
-	}
-}
-
-// Test for #1582
-func TestCopyVolumeContent(t *testing.T) {
-	eng := NewTestEngine(t)
-	r := mkDaemonFromEngine(eng, t)
-	defer r.Nuke()
-
-	// Put some content in a directory of a container and commit it
-	container1, _, _ := mkContainer(r, []string{"_", "/bin/sh", "-c", "mkdir -p /hello/local && echo hello > /hello/local/world"}, t)
-	defer r.Destroy(container1)
-
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container1.Run(); err != nil {
-		t.Fatal(err)
-	}
-	if container1.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-
-	img, err := r.Commit(container1, "", "", "unit test commited image", "", true, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Test that the content is copied from the image to the volume
-	tmpDir1 := tempDir(t)
-	defer os.RemoveAll(tmpDir1)
-	stdout1, _ := runContainer(eng, r, []string{"-v", "/hello", img.ID, "find", "/hello"}, t)
-	if !(strings.Contains(stdout1, "/hello/local/world") && strings.Contains(stdout1, "/hello/local")) {
-		t.Fatal("Container failed to transfer content to volume")
-	}
-}
-
 func TestBindMounts(t *testing.T) {
 	eng := NewTestEngine(t)
 	r := mkDaemonFromEngine(eng, t)
@@ -524,49 +399,5 @@ func TestBindMounts(t *testing.T) {
 	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
 	if content != "yotta" {
 		t.Fatal("Container failed to write to bind mount file")
-	}
-}
-
-// Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
-func TestRestartWithVolumes(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-
-	container, _, err := daemon.Create(&runconfig.Config{
-		Image:   GetTestImage(daemon).ID,
-		Cmd:     []string{"echo", "-n", "foobar"},
-		Volumes: map[string]struct{}{"/test": {}},
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-
-	for key := range container.Config.Volumes {
-		if key != "/test" {
-			t.Fail()
-		}
-	}
-
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := container.Volumes["/test"]
-	if expected == "" {
-		t.Fail()
-	}
-	// Run the container again to verify the volume path persists
-	_, err = container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	actual := container.Volumes["/test"]
-	if expected != actual {
-		t.Fatalf("Expected volume path: %s Actual path: %s", expected, actual)
 	}
 }

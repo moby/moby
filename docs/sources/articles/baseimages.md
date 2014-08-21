@@ -33,13 +33,13 @@ It can be as simple as this to create an Ubuntu base image:
 There are more example scripts for creating base images in the Docker
 GitHub Repo:
 
- - [BusyBox](https://github.com/dotcloud/docker/blob/master/contrib/mkimage-busybox.sh)
+ - [BusyBox](https://github.com/docker/docker/blob/master/contrib/mkimage-busybox.sh)
  - CentOS / Scientific Linux CERN (SLC) [on Debian/Ubuntu](
-   https://github.com/dotcloud/docker/blob/master/contrib/mkimage-rinse.sh) or
+   https://github.com/docker/docker/blob/master/contrib/mkimage-rinse.sh) or
    [on CentOS/RHEL/SLC/etc.](
-   https://github.com/dotcloud/docker/blob/master/contrib/mkimage-yum.sh)
+   https://github.com/docker/docker/blob/master/contrib/mkimage-yum.sh)
  - [Debian / Ubuntu](
-   https://github.com/dotcloud/docker/blob/master/contrib/mkimage-debootstrap.sh)
+   https://github.com/docker/docker/blob/master/contrib/mkimage-debootstrap.sh)
 
 ## Creating a simple base image using `scratch`
 
@@ -52,7 +52,7 @@ which you can `docker pull`. You can then use that
 image to base your new minimal containers `FROM`:
 
     FROM scratch
-    ADD true-asm /true
+    COPY true-asm /true
     CMD ["/true"]
 
 The Dockerfile above is from extremely minimal image - [tianon/true](

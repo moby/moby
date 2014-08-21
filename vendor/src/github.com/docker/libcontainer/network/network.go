@@ -44,6 +44,14 @@ func SetInterfaceInNamespacePid(name string, nsPid int) error {
 	return netlink.NetworkSetNsPid(iface, nsPid)
 }
 
+func SetInterfaceInNamespaceFd(name string, fd uintptr) error {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.NetworkSetNsFd(iface, int(fd))
+}
+
 func SetInterfaceMaster(name, master string) error {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {

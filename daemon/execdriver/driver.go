@@ -20,47 +20,7 @@ var (
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-var dockerInitFcts map[string]InitFunc
-
-type (
-	StartCallback func(*Command)
-	InitFunc      func(i *InitArgs) error
-)
-
-func RegisterInitFunc(name string, fct InitFunc) error {
-	if dockerInitFcts == nil {
-		dockerInitFcts = make(map[string]InitFunc)
-	}
-	if _, ok := dockerInitFcts[name]; ok {
-		return ErrDriverAlreadyRegistered
-	}
-	dockerInitFcts[name] = fct
-	return nil
-}
-
-func GetInitFunc(name string) (InitFunc, error) {
-	fct, ok := dockerInitFcts[name]
-	if !ok {
-		return nil, ErrDriverNotFound
-	}
-	return fct, nil
-}
-
-// Args provided to the init function for a driver
-type InitArgs struct {
-	User       string
-	Gateway    string
-	Ip         string
-	WorkDir    string
-	Privileged bool
-	Env        []string
-	Args       []string
-	Mtu        int
-	Driver     string
-	Console    string
-	Pipe       int
-	Root       string
-}
+type StartCallback func(*Command)
 
 // Driver specific information based on
 // processes registered with the driver
@@ -140,6 +100,8 @@ type Command struct {
 	Mounts             []Mount             `json:"mounts"`
 	AllowedDevices     []*devices.Device   `json:"allowed_devices"`
 	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
+	CapAdd             []string            `json:"cap_add"`
+	CapDrop            []string            `json:"cap_drop"`
 
 	Terminal     Terminal `json:"-"`             // standard or tty terminal
 	Console      string   `json:"-"`             // dev/console path

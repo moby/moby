@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"github.com/dotcloud/docker/engine"
+	"github.com/docker/docker/engine"
 )
 
 // Service exposes registry capabilities in the standard Engine
@@ -82,7 +82,15 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 
-	r, err := NewRegistry(authConfig, HTTPRequestFactory(metaHeaders), IndexServerAddress(), true)
+	hostname, term, err := ResolveRepositoryName(term)
+	if err != nil {
+		return job.Error(err)
+	}
+	hostname, err = ExpandAndVerifyRegistryUrl(hostname)
+	if err != nil {
+		return job.Error(err)
+	}
+	r, err := NewSession(authConfig, HTTPRequestFactory(metaHeaders), hostname, true)
 	if err != nil {
 		return job.Error(err)
 	}

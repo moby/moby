@@ -1,11 +1,8 @@
-// +build amd64
-
 package netlink
 
 import (
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"sync/atomic"
 	"syscall"
@@ -20,19 +17,25 @@ const (
 	VETH_INFO_PEER = 1
 	IFLA_NET_NS_FD = 28
 	SIOC_BRADDBR   = 0x89a0
+	SIOC_BRDELBR   = 0x89a1
 	SIOC_BRADDIF   = 0x89a2
 )
 
 var nextSeqNr uint32
 
 type ifreqHwaddr struct {
-	IfrnName   [16]byte
+	IfrnName   [IFNAMSIZ]byte
 	IfruHwaddr syscall.RawSockaddr
 }
 
 type ifreqIndex struct {
-	IfrnName  [16]byte
+	IfrnName  [IFNAMSIZ]byte
 	IfruIndex int32
+}
+
+type ifreqFlags struct {
+	IfrnName  [IFNAMSIZ]byte
+	Ifruflags uint16
 }
 
 func nativeEndian() binary.ByteOrder {
@@ -186,13 +189,15 @@ func newRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
 }
 
 func (a *RtAttr) Len() int {
+	if len(a.children) == 0 {
+		return (syscall.SizeofRtAttr + len(a.Data))
+	}
+
 	l := 0
 	for _, child := range a.children {
-		l += child.Len() + syscall.SizeofRtAttr
+		l += child.Len()
 	}
-	if l == 0 {
-		l++
-	}
+	l += syscall.SizeofRtAttr
 	return rtaAlignOf(l + len(a.Data))
 }
 
@@ -200,7 +205,7 @@ func (a *RtAttr) ToWireFormat() []byte {
 	native := nativeEndian()
 
 	length := a.Len()
-	buf := make([]byte, rtaAlignOf(length+syscall.SizeofRtAttr))
+	buf := make([]byte, rtaAlignOf(length))
 
 	if a.Data != nil {
 		copy(buf[4:], a.Data)
@@ -213,11 +218,10 @@ func (a *RtAttr) ToWireFormat() []byte {
 		}
 	}
 
-	if l := uint16(rtaAlignOf(length)); l != 0 {
-		native.PutUint16(buf[0:2], l+1)
+	if l := uint16(length); l != 0 {
+		native.PutUint16(buf[0:2], l)
 	}
 	native.PutUint16(buf[2:4], a.Type)
-
 	return buf
 }
 
@@ -647,30 +651,28 @@ func NetworkSetNsFd(iface *net.Interface, fd int) error {
 	return s.HandleAck(wb.Seq)
 }
 
-// Add an Ip address to an interface. This is identical to:
-// ip addr add $ip/$ipNet dev $iface
-func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
+func networkLinkIpAction(action, flags int, ifa IfAddr) error {
 	s, err := getNetlinkSocket()
 	if err != nil {
 		return err
 	}
 	defer s.Close()
 
-	family := getIpFamily(ip)
+	family := getIpFamily(ifa.IP)
 
-	wb := newNetlinkRequest(syscall.RTM_NEWADDR, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	wb := newNetlinkRequest(action, flags)
 
 	msg := newIfAddrmsg(family)
-	msg.Index = uint32(iface.Index)
-	prefixLen, _ := ipNet.Mask.Size()
+	msg.Index = uint32(ifa.Iface.Index)
+	prefixLen, _ := ifa.IPNet.Mask.Size()
 	msg.Prefixlen = uint8(prefixLen)
 	wb.AddData(msg)
 
 	var ipData []byte
 	if family == syscall.AF_INET {
-		ipData = ip.To4()
+		ipData = ifa.IP.To4()
 	} else {
-		ipData = ip.To16()
+		ipData = ifa.IP.To16()
 	}
 
 	localData := newRtAttr(syscall.IFA_LOCAL, ipData)
@@ -686,6 +688,26 @@ func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
 	return s.HandleAck(wb.Seq)
 }
 
+// Delete an IP address from an interface. This is identical to:
+// ip addr del $ip/$ipNet dev $iface
+func NetworkLinkDelIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
+	return networkLinkIpAction(
+		syscall.RTM_DELADDR,
+		syscall.NLM_F_ACK,
+		IfAddr{iface, ip, ipNet},
+	)
+}
+
+// Add an Ip address to an interface. This is identical to:
+// ip addr add $ip/$ipNet dev $iface
+func NetworkLinkAddIp(iface *net.Interface, ip net.IP, ipNet *net.IPNet) error {
+	return networkLinkIpAction(
+		syscall.RTM_NEWADDR,
+		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK,
+		IfAddr{iface, ip, ipNet},
+	)
+}
+
 func zeroTerminated(s string) []byte {
 	return []byte(s + "\000")
 }
@@ -697,6 +719,10 @@ func nonZeroTerminated(s string) []byte {
 // Add a new network link of a specified type. This is identical to
 // running: ip add link $name type $linkType
 func NetworkLinkAdd(name string, linkType string) error {
+	if name == "" || linkType == "" {
+		return fmt.Errorf("Neither link name nor link type can be empty!")
+	}
+
 	s, err := getNetlinkSocket()
 	if err != nil {
 		return err
@@ -708,15 +734,43 @@ func NetworkLinkAdd(name string, linkType string) error {
 	msg := newIfInfomsg(syscall.AF_UNSPEC)
 	wb.AddData(msg)
 
-	if name != "" {
-		nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name))
-		wb.AddData(nameData)
+	linkInfo := newRtAttr(syscall.IFLA_LINKINFO, nil)
+	newRtAttrChild(linkInfo, IFLA_INFO_KIND, nonZeroTerminated(linkType))
+	wb.AddData(linkInfo)
+
+	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name))
+	wb.AddData(nameData)
+
+	if err := s.Send(wb); err != nil {
+		return err
 	}
 
-	kindData := newRtAttr(IFLA_INFO_KIND, nonZeroTerminated(linkType))
+	return s.HandleAck(wb.Seq)
+}
 
-	infoData := newRtAttr(syscall.IFLA_LINKINFO, kindData.ToWireFormat())
-	wb.AddData(infoData)
+// Delete a network link. This is identical to
+// running: ip link del $name
+func NetworkLinkDel(name string) error {
+	if name == "" {
+		return fmt.Errorf("Network link name can not be empty!")
+	}
+
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+
+	wb := newNetlinkRequest(syscall.RTM_DELLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(iface.Index)
+	wb.AddData(msg)
 
 	if err := s.Send(wb); err != nil {
 		return err
@@ -846,6 +900,10 @@ func getIfSocket() (fd int, err error) {
 }
 
 func NetworkChangeName(iface *net.Interface, newName string) error {
+	if len(newName) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", newName)
+	}
+
 	fd, err := getIfSocket()
 	if err != nil {
 		return err
@@ -898,13 +956,13 @@ func NetworkCreateVethPair(name1, name2 string) error {
 // Create the actual bridge device.  This is more backward-compatible than
 // netlink.NetworkLinkAdd and works on RHEL 6.
 func CreateBridge(name string, setMacAddr bool) error {
-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+	if len(name) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", name)
+	}
+
+	s, err := getIfSocket()
 	if err != nil {
-		// ipv6 issue, creating with ipv4
-		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	defer syscall.Close(s)
 
@@ -921,21 +979,48 @@ func CreateBridge(name string, setMacAddr bool) error {
 	return nil
 }
 
+// Delete the actual bridge device.
+func DeleteBridge(name string) error {
+	s, err := getIfSocket()
+	if err != nil {
+		return err
+	}
+	defer syscall.Close(s)
+
+	nameBytePtr, err := syscall.BytePtrFromString(name)
+	if err != nil {
+		return err
+	}
+
+	var ifr ifreqFlags
+	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], []byte(name))
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s),
+		syscall.SIOCSIFFLAGS, uintptr(unsafe.Pointer(&ifr))); err != 0 {
+		return err
+	}
+
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s),
+		SIOC_BRDELBR, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
+		return err
+	}
+	return nil
+}
+
 // Add a slave to abridge device.  This is more backward-compatible than
 // netlink.NetworkSetMaster and works on RHEL 6.
 func AddToBridge(iface, master *net.Interface) error {
-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
+	if len(master.Name) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", master.Name)
+	}
+
+	s, err := getIfSocket()
 	if err != nil {
-		// ipv6 issue, creating with ipv4
-		s, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_IP)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	defer syscall.Close(s)
 
 	ifr := ifreqIndex{}
-	copy(ifr.IfrnName[:], master.Name)
+	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], master.Name)
 	ifr.IfruIndex = int32(iface.Index)
 
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), SIOC_BRADDIF, uintptr(unsafe.Pointer(&ifr))); err != 0 {
@@ -946,12 +1031,16 @@ func AddToBridge(iface, master *net.Interface) error {
 }
 
 func setBridgeMacAddress(s int, name string) error {
+	if len(name) >= IFNAMSIZ {
+		return fmt.Errorf("Interface name %s too long", name)
+	}
+
 	ifr := ifreqHwaddr{}
 	ifr.IfruHwaddr.Family = syscall.ARPHRD_ETHER
-	copy(ifr.IfrnName[:], name)
+	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], name)
 
 	for i := 0; i < 6; i++ {
-		ifr.IfruHwaddr.Data[i] = int8(rand.Intn(255))
+		ifr.IfruHwaddr.Data[i] = randIfrDataByte()
 	}
 
 	ifr.IfruHwaddr.Data[0] &^= 0x1 // clear multicast bit

@@ -1,4 +1,9 @@
-# Generate AUTHORS: git log --format='%aN <%aE>' | sort -uf
+# Generate AUTHORS: hack/generate-authors.sh
+
+# Tip for finding duplicates (besides scanning the output of AUTHORS for name
+# duplicates that aren't also email duplicates): scan the output of:
+#   git log --format='%aE - %aN' | sort -uf
+
 <charles.hooper@dotcloud.com> <chooper@plumata.com>
 <daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
 <daniel.mizyrycki@dotcloud.com> <mzdaniel@glidelink.net>
@@ -47,8 +52,9 @@ Shih-Yuan Lee <fourdollars@gmail.com>
 Daniel Mizyrycki <daniel.mizyrycki@dotcloud.com> root <root@vagrant-ubuntu-12.10.vagrantup.com>
 Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
 <proppy@google.com> <proppy@aminche.com>
-<michael@crosbymichael.com> <crosby.michael@gmail.com>
-<github@metaliveblog.com> <github@developersupport.net>
+<michael@docker.com> <michael@crosbymichael.com>
+<michael@docker.com> <crosby.michael@gmail.com>
+<github@developersupport.net> <github@metaliveblog.com> 
 <brandon@ifup.org> <brandon@ifup.co>
 <dano@spotify.com> <daniel.norberg@gmail.com>
 <danny@codeaholics.org> <Danny.Yates@mailonline.co.uk>
@@ -78,3 +84,16 @@ Sridhar Ratnakumar <sridharr@activestate.com> <github@srid.name>
 Liang-Chi Hsieh <viirya@gmail.com>
 Aleksa Sarai <cyphar@cyphar.com>
 Will Weaver <monkey@buildingbananas.com>
+Timothy Hobbs <timothyhobbs@seznam.cz>
+Nathan LeClaire <nathan.leclaire@docker.com> <nathan.leclaire@gmail.com>
+Nathan LeClaire <nathan.leclaire@docker.com> <nathanleclaire@gmail.com>
+<github@hollensbe.org> <erik+github@hollensbe.org>
+<github@albersweb.de> <albers@users.noreply.github.com>
+<lsm5@fedoraproject.org> <lsm5@redhat.com>
+<marc@marc-abramowitz.com> <msabramo@gmail.com>
+Matthew Heon <mheon@redhat.com> <mheon@mheonlaptop.redhat.com>
+<bernat@luffy.cx> <vincent@bernat.im>
+<p@pwaller.net> <peter@scraperwiki.com>
+<andrew.weiss@outlook.com> <andrew.weiss@microsoft.com>
+Francisco Carriedo <fcarriedo@gmail.com>
+<julienbordellier@gmail.com> <git@julienbordellier.com>

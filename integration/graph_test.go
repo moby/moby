@@ -2,12 +2,12 @@ package docker
 
 import (
 	"errors"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/graph"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/graph"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"

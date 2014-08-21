@@ -11,10 +11,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/dotcloud/docker/api"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/utils"
 )
 
 func (cli *DockerCli) dial() (net.Conn, error) {
@@ -88,12 +89,12 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			}()
 
 			// When TTY is ON, use regular copy
-			if setRawTerminal {
+			if setRawTerminal && stdout != nil {
 				_, err = io.Copy(stdout, br)
 			} else {
 				_, err = utils.StdCopy(stdout, stderr, br)
 			}
-			utils.Debugf("[hijack] End of stdout")
+			log.Debugf("[hijack] End of stdout")
 			return err
 		})
 	}
@@ -101,15 +102,15 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	sendStdin := utils.Go(func() error {
 		if in != nil {
 			io.Copy(rwc, in)
-			utils.Debugf("[hijack] End of stdin")
+			log.Debugf("[hijack] End of stdin")
 		}
 		if tcpc, ok := rwc.(*net.TCPConn); ok {
 			if err := tcpc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+				log.Debugf("Couldn't send EOF: %s", err)
 			}
 		} else if unixc, ok := rwc.(*net.UnixConn); ok {
 			if err := unixc.CloseWrite(); err != nil {
-				utils.Debugf("Couldn't send EOF: %s\n", err)
+				log.Debugf("Couldn't send EOF: %s", err)
 			}
 		}
 		// Discard errors due to pipe interruption
@@ -118,14 +119,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	if stdout != nil || stderr != nil {
 		if err := <-receiveStdout; err != nil {
-			utils.Debugf("Error receiveStdout: %s", err)
+			log.Debugf("Error receiveStdout: %s", err)
 			return err
 		}
 	}
 
 	if !cli.isTerminal {
 		if err := <-sendStdin; err != nil {
-			utils.Debugf("Error sendStdin: %s", err)
+			log.Debugf("Error sendStdin: %s", err)
 			return err
 		}
 	}

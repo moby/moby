@@ -6,6 +6,6 @@ import (
 )
 
 type ContainerStats struct {
-	NetworkStats network.NetworkStats `json:"network_stats, omitempty"`
-	CgroupStats  *cgroups.Stats       `json:"cgroup_stats, omitempty"`
+	NetworkStats *network.NetworkStats `json:"network_stats,omitempty"`
+	CgroupStats  *cgroups.Stats        `json:"cgroup_stats,omitempty"`
 }

@@ -3,6 +3,7 @@
 package namespaces
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
@@ -12,42 +13,34 @@ import (
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/network"
-	"github.com/dotcloud/docker/pkg/system"
+	"github.com/docker/libcontainer/syncpipe"
+	"github.com/docker/libcontainer/system"
 )
 
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console string, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
-		master  *os.File
-		console string
-		err     error
+		err error
 	)
 
 	// create a pipe so that we can syncronize with the namespaced process and
 	// pass the veth name to the child
-	syncPipe, err := NewSyncPipe()
+	syncPipe, err := syncpipe.NewSyncPipe()
 	if err != nil {
 		return -1, err
 	}
 	defer syncPipe.Close()
 
-	if container.Tty {
-		master, console, err = system.CreateMasterAndConsole()
-		if err != nil {
-			return -1, err
-		}
-		term.SetMaster(master)
-	}
-
-	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.child, args)
-
-	if err := term.Attach(command); err != nil {
-		return -1, err
-	}
-	defer term.Close()
+	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.Child(), args)
+	// Note: these are only used in non-tty mode
+	// if there is a tty for the container it will be opened within the namespace and the
+	// fds will be duped to stdin, stdiout, and stderr
+	command.Stdin = stdin
+	command.Stdout = stdout
+	command.Stderr = stderr
 
 	if err := command.Start(); err != nil {
 		return -1, err
@@ -63,14 +56,19 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	cleaner, err := SetupCgroups(container, command.Process.Pid)
+	cgroupRef, err := SetupCgroups(container, command.Process.Pid)
 	if err != nil {
 		command.Process.Kill()
 		command.Wait()
 		return -1, err
 	}
-	if cleaner != nil {
-		defer cleaner.Cleanup()
+	defer cgroupRef.Cleanup()
+
+	cgroupPaths, err := cgroupRef.Paths()
+	if err != nil {
+		command.Process.Kill()
+		command.Wait()
+		return -1, err
 	}
 
 	var networkState network.NetworkState
@@ -84,6 +82,7 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 		InitPid:       command.Process.Pid,
 		InitStartTime: started,
 		NetworkState:  networkState,
+		CgroupPaths:   cgroupPaths,
 	}
 
 	if err := libcontainer.SaveState(dataPath, state); err != nil {
@@ -109,6 +108,7 @@ func Exec(container *libcontainer.Config, term Terminal, rootfs, dataPath string
 			return -1, err
 		}
 	}
+
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
@@ -139,12 +139,16 @@ func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataP
 	   }
 	*/
 
-	command := exec.Command(init, append([]string{"init"}, args...)...)
+	command := exec.Command(init, append([]string{"init", "--"}, args...)...)
 	// make sure the process is executed inside the context of the rootfs
 	command.Dir = rootfs
 	command.Env = append(os.Environ(), env...)
 
-	system.SetCloneFlags(command, uintptr(GetNamespaceFlags(container.Namespaces)))
+	if command.SysProcAttr == nil {
+		command.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	command.SysProcAttr.Cloneflags = uintptr(GetNamespaceFlags(container.Namespaces))
+
 	command.SysProcAttr.Pdeathsig = syscall.SIGKILL
 	command.ExtraFiles = []*os.File{pipe}
 
@@ -156,17 +160,20 @@ func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataP
 func SetupCgroups(container *libcontainer.Config, nspid int) (cgroups.ActiveCgroup, error) {
 	if container.Cgroups != nil {
 		c := container.Cgroups
+
 		if systemd.UseSystemd() {
 			return systemd.Apply(c, nspid)
 		}
+
 		return fs.Apply(c, nspid)
 	}
+
 	return nil, nil
 }
 
 // InitializeNetworking creates the container's network stack outside of the namespace and moves
 // interfaces into the container's net namespaces if necessary
-func InitializeNetworking(container *libcontainer.Config, nspid int, pipe *SyncPipe, networkState *network.NetworkState) error {
+func InitializeNetworking(container *libcontainer.Config, nspid int, pipe *syncpipe.SyncPipe, networkState *network.NetworkState) error {
 	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
 		if err != nil {

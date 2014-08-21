@@ -1,4 +1,4 @@
-// +build linux,amd64
+// +build linux
 
 package devmapper
 
@@ -8,9 +8,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/pkg/mount"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/mount"
 )
 
 func init() {
@@ -54,6 +54,7 @@ func (d *Driver) Status() [][2]string {
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
+		{"Pool Blocksize", fmt.Sprintf("%d Kb", s.SectorSize/1024)},
 		{"Data file", s.DataLoopback},
 		{"Metadata file", s.MetadataLoopback},
 		{"Data Space Used", fmt.Sprintf("%.1f Mb", float64(s.Data.Used)/(1024*1024))},
@@ -137,7 +138,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 func (d *Driver) Put(id string) {
 	if err := d.DeviceSet.UnmountDevice(id); err != nil {
-		utils.Errorf("Warning: error unmounting device %s: %s\n", id, err)
+		log.Errorf("Warning: error unmounting device %s: %s", id, err)
 	}
 }
 

@@ -24,6 +24,18 @@
   height: 100%;
 }
 
+#leftnav h3 {
+  font-size: 10px;
+  font-weight: 700;
+  color: #394d54;
+  line-height: 1;
+  margin: 0px 0 10px 0;
+  padding-left: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .content-body {
   padding: 0px 0px 0px 20px;
 }
@@ -56,12 +68,9 @@ ol li {
 #nav_menu > #docsnav > #main-nav > li > a {
   color: #253237;
 }
-#nav_menu > #docsnav > #main-nav > li.dd_on_hover > a {
-  color: #5992a3;
-}
 #nav_menu > #docsnav > #main-nav > li.dd_on_hover {
-  background: #b1d5df;
-  color: #5992a3;
+  background: #d3f1fb;
+  color: #253237;
 }
 #nav_menu > #docsnav > #main-nav > li > span > b {
   border-top-color: #b1d5df !important;

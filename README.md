@@ -131,9 +131,8 @@ Here's a typical Docker build process:
 
 ```bash
 FROM ubuntu:12.04
-RUN apt-get update
-RUN apt-get install -q -y python python-pip curl
-RUN curl -L https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
+RUN apt-get update && apt-get install -y python python-pip curl
+RUN curl -sSL https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
 RUN cd helloflask-master && pip install -r requirements.txt
 ```
 
@@ -177,6 +176,9 @@ Under the hood, Docker is built on the following components:
 
 Contributing to Docker
 ======================
+
+[![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
+[![Travis](https://travis-ci.org/docker/docker.svg?branch=master)](https://travis-ci.org/docker/docker)
 
 Want to hack on Docker? Awesome! There are instructions to get you
 started [here](CONTRIBUTING.md).

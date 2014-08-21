@@ -15,10 +15,7 @@ quick access to a test container.
     FROM     ubuntu:12.04
     MAINTAINER Thatcher R. Peskens "thatcher@dotcloud.com"
 
-    # make sure the package repository is up to date
-    RUN apt-get update
-
-    RUN apt-get install -y openssh-server
+    RUN apt-get update && apt-get install -y openssh-server
     RUN mkdir /var/run/sshd
     RUN echo 'root:screencast' |chpasswd
 
@@ -27,7 +24,7 @@ quick access to a test container.
 
 Build the image using:
 
-    $ sudo docker build --rm -t eg_sshd .
+    $ sudo docker build -t eg_sshd .
 
 Then run it. You can then use `docker port` to find out what host port
 the container's port 22 is mapped to:

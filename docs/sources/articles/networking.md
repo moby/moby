@@ -170,12 +170,41 @@ above, will make `/etc/resolv.conf` inside of each container look like
 the `/etc/resolv.conf` of the host machine where the `docker` daemon is
 running.  The options then modify this default configuration.
 
+## Communication between containers and the wider world
+
+<a name="the-world"></a>
+
+Whether a container can talk to the world is governed by one main factor.
+
+Is the host machine willing to forward IP packets?  This is governed
+by the `ip_forward` system parameter.  Packets can only pass between
+containers if this parameter is `1`.  Usually you will simply leave
+the Docker server at its default setting `--ip-forward=true` and
+Docker will go set `ip_forward` to `1` for you when the server
+starts up.  To check the setting or turn it on manually:
+
+    # Usually not necessary: turning on forwarding,
+    # on the host where your Docker server is running
+
+    $ cat /proc/sys/net/ipv4/ip_forward
+    0
+    $ sudo echo 1 > /proc/sys/net/ipv4/ip_forward
+    $ cat /proc/sys/net/ipv4/ip_forward
+    1
+
+Many using Docker will want `ip_forward` to be on, to at
+least make communication *possible* between containers and
+the wider world.
+
+May also be needed for inter-container communication if you are
+in a multiple bridge setup.
+
 ## Communication between containers
 
 <a name="between-containers"></a>
 
 Whether two containers can communicate is governed, at the operating
-system level, by three factors.
+system level, by two factors.
 
 1.  Does the network topology even connect the containers' network
     interfaces?  By default Docker will attach all containers to a
@@ -183,32 +212,14 @@ system level, by three factors.
     between them.  See the later sections of this document for other
     possible topologies.
 
-2.  Is the host machine willing to forward IP packets?  This is governed
-    by the `ip_forward` system parameter.  Packets can only pass between
-    containers if this parameter is `1`.  Usually you will simply leave
-    the Docker server at its default setting `--ip-forward=true` and
-    Docker will go set `ip_forward` to `1` for you when the server
-    starts up.  To check the setting or turn it on manually:
-
-        # Usually not necessary: turning on forwarding,
-        # on the host where your Docker server is running
-
-        $ cat /proc/sys/net/ipv4/ip_forward
-        0
-        $ sudo echo 1 > /proc/sys/net/ipv4/ip_forward
-        $ cat /proc/sys/net/ipv4/ip_forward
-        1
-
-3.  Do your `iptables` allow this particular connection to be made?
+2.  Do your `iptables` allow this particular connection to be made?
     Docker will never make changes to your system `iptables` rules if
     you set `--iptables=false` when the daemon starts.  Otherwise the
     Docker server will add a default rule to the `FORWARD` chain with a
     blanket `ACCEPT` policy if you retain the default `--icc=true`, or
     else will set the policy to `DROP` if `--icc=false`.
 
-Nearly everyone using Docker will want `ip_forward` to be on, to at
-least make communication *possible* between containers.  But it is a
-strategic question whether to leave `--icc=true` or change it to
+It is a strategic question whether to leave `--icc=true` or change it to
 `--icc=false` (on Ubuntu, by editing the `DOCKER_OPTS` variable in
 `/etc/default/docker` and restarting the Docker server) so that
 `iptables` will protect other containers — and the main host — from
@@ -539,7 +550,7 @@ values.
     It also allows the container to access local network services
     like D-bus.  This can lead to processes in the container being
     able to do unexpected things like
-    [restart your computer](https://github.com/dotcloud/docker/issues/6401).
+    [restart your computer](https://github.com/docker/docker/issues/6401).
     You should use this option with caution.
 
  *  `--net=container:NAME_or_ID` — Tells Docker to put this container's
@@ -720,3 +731,14 @@ usual containers.  But unless you have very specific networking needs
 that drive you to such a solution, it is probably far preferable to use
 `--icc=false` to lock down inter-container communication, as we explored
 earlier.
+
+## Editing networking config files
+
+Starting with Docker v.1.2.0, you can now edit `/etc/hosts`, `/etc/hostname`
+and `/etc/resolve.conf` in a running container. This is useful if you need
+to install bind or other services that might override one of those files.
+
+Note, however, that changes to these files will not be saved by
+`docker commit`, nor will they be saved during `docker run`.
+That means they won't be saved in the image, nor will they persist when a
+container is restarted; they will only "stick" in a running container.

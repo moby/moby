@@ -5,7 +5,7 @@ DEST=$1
 
 bundle_test_integration() {
 	LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER" go_test_dir ./integration \
-		"-coverpkg $(find_dirs '*.go' | sed 's,^\.,github.com/dotcloud/docker,g' | paste -d, -s)"
+		"-coverpkg $(find_dirs '*.go' | sed 's,^\.,'$DOCKER_PKG',g' | paste -d, -s)"
 }
 
 # this "grep" hides some really irritating warnings that "go test -coverpkg"

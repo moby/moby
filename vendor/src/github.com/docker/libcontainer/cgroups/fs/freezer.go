@@ -1,18 +1,16 @@
 package fs
 
 import (
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/docker/libcontainer/cgroups"
 )
 
-type freezerGroup struct {
+type FreezerGroup struct {
 }
 
-func (s *freezerGroup) Set(d *data) error {
+func (s *FreezerGroup) Set(d *data) error {
 	switch d.c.Freezer {
 	case cgroups.Frozen, cgroups.Thawed:
 		dir, err := d.path("freezer")
@@ -35,7 +33,7 @@ func (s *freezerGroup) Set(d *data) error {
 			time.Sleep(1 * time.Millisecond)
 		}
 	default:
-		if _, err := d.join("freezer"); err != nil && err != cgroups.ErrNotFound {
+		if _, err := d.join("freezer"); err != nil && !cgroups.IsNotFound(err) {
 			return err
 		}
 	}
@@ -43,29 +41,10 @@ func (s *freezerGroup) Set(d *data) error {
 	return nil
 }
 
-func (s *freezerGroup) Remove(d *data) error {
+func (s *FreezerGroup) Remove(d *data) error {
 	return removePath(d.path("freezer"))
 }
 
-func getFreezerFileData(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
-	return strings.TrimSuffix(string(data), "\n"), err
-}
-
-func (s *freezerGroup) GetStats(d *data, stats *cgroups.Stats) error {
-	path, err := d.path("freezer")
-	if err != nil {
-		return err
-	}
-	var data string
-	if data, err = getFreezerFileData(filepath.Join(path, "freezer.parent_freezing")); err != nil {
-		return err
-	}
-	stats.FreezerStats.ParentState = data
-	if data, err = getFreezerFileData(filepath.Join(path, "freezer.self_freezing")); err != nil {
-		return err
-	}
-	stats.FreezerStats.SelfState = data
-
+func (s *FreezerGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }

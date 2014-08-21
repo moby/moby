@@ -1,7 +1,7 @@
 package vfs
 
 import (
-	"github.com/dotcloud/docker/daemon/graphdriver/graphtest"
+	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"testing"
 )
 

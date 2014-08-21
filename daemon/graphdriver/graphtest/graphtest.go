@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 var (

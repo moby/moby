@@ -12,6 +12,7 @@ func New() *libcontainer.Config {
 		Capabilities: []string{
 			"CHOWN",
 			"DAC_OVERRIDE",
+			"FSETID",
 			"FOWNER",
 			"MKNOD",
 			"NET_RAW",
@@ -22,6 +23,7 @@ func New() *libcontainer.Config {
 			"NET_BIND_SERVICE",
 			"SYS_CHROOT",
 			"KILL",
+			"AUDIT_WRITE",
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,

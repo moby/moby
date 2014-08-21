@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/utils"
 )
 
 var (
@@ -16,9 +16,9 @@ var (
 	REPO     = "foo42/bar"
 )
 
-func spawnTestRegistry(t *testing.T) *Registry {
+func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &AuthConfig{}
-	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
+	r, err := NewSession(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 }
 
 func TestGetRemoteHistory(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	hist, err := r.GetRemoteHistory(IMAGE_ID, makeURL("/v1/"), TOKEN)
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +46,7 @@ func TestGetRemoteHistory(t *testing.T) {
 }
 
 func TestLookupRemoteImage(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	found := r.LookupRemoteImage(IMAGE_ID, makeURL("/v1/"), TOKEN)
 	assertEqual(t, found, true, "Expected remote lookup to succeed")
 	found = r.LookupRemoteImage("abcdef", makeURL("/v1/"), TOKEN)
@@ -54,7 +54,7 @@ func TestLookupRemoteImage(t *testing.T) {
 }
 
 func TestGetRemoteImageJSON(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	json, size, err := r.GetRemoteImageJSON(IMAGE_ID, makeURL("/v1/"), TOKEN)
 	if err != nil {
 		t.Fatal(err)
@@ -71,7 +71,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 }
 
 func TestGetRemoteImageLayer(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 }
 
 func TestGetRemoteTags(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO, TOKEN)
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +102,7 @@ func TestGetRemoteTags(t *testing.T) {
 }
 
 func TestGetRepositoryData(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	parsedUrl, err := url.Parse(makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +123,7 @@ func TestGetRepositoryData(t *testing.T) {
 }
 
 func TestPushImageJSONRegistry(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	imgData := &ImgData{
 		ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
@@ -136,7 +136,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 }
 
 func TestPushImageLayerRegistry(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	layer := strings.NewReader("")
 	_, _, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
 	if err != nil {
@@ -145,7 +145,7 @@ func TestPushImageLayerRegistry(t *testing.T) {
 }
 
 func TestResolveRepositoryName(t *testing.T) {
-	_, _, err := ResolveRepositoryName("https://github.com/dotcloud/docker")
+	_, _, err := ResolveRepositoryName("https://github.com/docker/docker")
 	assertEqual(t, err, ErrInvalidRepositoryName, "Expected error invalid repo name")
 	ep, repo, err := ResolveRepositoryName("fooo/bar")
 	if err != nil {
@@ -171,7 +171,7 @@ func TestResolveRepositoryName(t *testing.T) {
 }
 
 func TestPushRegistryTag(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	err := r.PushRegistryTag("foo42/bar", IMAGE_ID, "stable", makeURL("/v1/"), TOKEN)
 	if err != nil {
 		t.Fatal(err)
@@ -179,7 +179,7 @@ func TestPushRegistryTag(t *testing.T) {
 }
 
 func TestPushImageJSONIndex(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	imgData := []*ImgData{
 		{
 			ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
@@ -207,7 +207,7 @@ func TestPushImageJSONIndex(t *testing.T) {
 }
 
 func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistry(t)
+	r := spawnTestRegistrySession(t)
 	results, err := r.SearchRepositories("fakequery")
 	if err != nil {
 		t.Fatal(err)

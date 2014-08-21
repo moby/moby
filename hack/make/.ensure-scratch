@@ -2,8 +2,8 @@
 
 if ! docker inspect scratch &> /dev/null; then
 	# let's build a "docker save" tarball for "scratch"
-	# see https://github.com/dotcloud/docker/pull/5262
-	# and also https://github.com/dotcloud/docker/issues/4242
+	# see https://github.com/docker/docker/pull/5262
+	# and also https://github.com/docker/docker/issues/4242
 	mkdir -p /docker-scratch
 	(
 		cd /docker-scratch

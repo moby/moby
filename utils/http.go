@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/docker/docker/pkg/log"
 )
 
 // VersionInfo is used to model entities which has a version.
@@ -157,6 +159,6 @@ func (h *HTTPRequestFactory) NewRequest(method, urlStr string, body io.Reader, d
 			return nil, err
 		}
 	}
-	Debugf("%v -- HEADERS: %v", req.URL, req.Header)
+	log.Debugf("%v -- HEADERS: %v", req.URL, req.Header)
 	return req, err
 }

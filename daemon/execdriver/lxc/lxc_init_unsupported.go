@@ -1,8 +1,8 @@
-// +build !linux !amd64
+// +build !linux
 
 package lxc
 
-import "github.com/dotcloud/docker/daemon/execdriver"
+import "github.com/docker/docker/daemon/execdriver"
 
 func setHostname(hostname string) error {
 	panic("Not supported on darwin")

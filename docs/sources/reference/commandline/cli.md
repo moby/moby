@@ -65,15 +65,14 @@ expect an integer, and they can only be specified once.
       -H, --host=[]                              The socket(s) to bind to in daemon mode
                                                    specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --icc=true                                 Enable inter-container communication
-      --ip="0.0.0.0"                             Default IP address to use when binding container ports
+      --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
       --iptables=true                            Enable Docker's addition of iptables rules
       --mtu=0                                    Set the containers network MTU
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
-      -r, --restart=true                         Restart previously running containers
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
-      --selinux-enabled=false                    Enable selinux support
+      --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
       --storage-opt=[]                           Set storage driver options
       --tls=false                                Use TLS; implied by tls-verify flags
       --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here
@@ -117,15 +116,14 @@ you can also specify individual sockets too `docker -d -H fd://3`. If the
 specified socket activated files aren't found then docker will exit. You
 can find examples of using systemd socket activation with docker and
 systemd in the [docker source tree](
-https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/).
+https://github.com/docker/docker/blob/master/contrib/init/systemd/socket-activation/).
 
 Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/tmp`. TMPDIR and the data directory can be set
-like this:
+(`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:
 
-    TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
-    export TMPDIR=/mnt/disk2/tmp
+    export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 ## attach
@@ -135,7 +133,7 @@ like this:
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxify all received signals to the process (even in non-TTY mode). SIGCHLD is not proxied.
+      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
 The `attach` command will allow you to view or
 interact with any running container, detached (`-d`)
@@ -324,7 +322,7 @@ schema.
 
 > **Note:** `docker build` will return a `no such file or directory` error
 > if the file or directory does not exist in the uploaded context. This may
-> happen if there is no context, or if you specify a file that is elsewhere 
+> happen if there is no context, or if you specify a file that is elsewhere
 > on the Host system. The context is limited to the current directory (and its
 > children) for security reasons, and to ensure repeatable builds on remote
 > Docker hosts. This is also the reason why `ADD ../file` will not work.
@@ -396,9 +394,9 @@ For example:
     A /go
     A /go/src
     A /go/src/github.com
-    A /go/src/github.com/dotcloud
-    A /go/src/github.com/dotcloud/docker
-    A /go/src/github.com/dotcloud/docker/.git
+    A /go/src/github.com/docker
+    A /go/src/github.com/docker/docker
+    A /go/src/github.com/docker/docker/.git
     ....
 
 ## events
@@ -425,24 +423,24 @@ You'll need two shells for this example.
 
 **Shell 1: (Again .. now showing events):**
 
-    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
 **Show events in the past from a specified time:**
 
     $ sudo docker events --since 1378216169
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
     $ sudo docker events --since '2013-09-03'
-    [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
     $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
-    [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
 ## export
 
@@ -500,7 +498,7 @@ by default.
     <none>                        <none>              77af4d6b9913        19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5        19 hours ago        1.089 GB
     <none>                        <none>              78a85c484f71        19 hours ago        1.089 GB
-    $ docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
+    docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
     <none>                        <none>              0124422dd9f9        20 hours ago        1.089 GB
     <none>                        <none>              18ad6fad3402        22 hours ago        1.082 GB
     <none>                        <none>              f9f1e26352f0        23 hours ago        1.089 GB
@@ -514,7 +512,7 @@ by default.
     <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
     <none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
-    $ docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
+    docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
     <none>                        <none>              0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        1.089 GB
     <none>                        <none>              18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        1.082 GB
     <none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
@@ -605,18 +603,18 @@ tar, then the ownerships might not get preserved.
 For example:
 
     $ sudo docker -D info
-    Containers: 16
-    Images: 2138
+    Containers: 14
+    Images: 52
     Storage Driver: btrfs
-    Execution Driver: native-0.1
-    Kernel Version: 3.12.0-1-amd64
+    Execution Driver: native-0.2
+    Kernel Version: 3.13.0-24-generic
+    Operating System: Ubuntu 14.04 LTS
     Debug mode (server): false
     Debug mode (client): true
-    Fds: 16
-    Goroutines: 104
+    Fds: 10
+    Goroutines: 9
     EventsListeners: 0
     Init Path: /usr/bin/docker
-    Sockets: [unix:///var/run/docker.sock tcp://0.0.0.0:4243]
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
 
@@ -732,6 +730,16 @@ specify this by adding the server name.
     example:
     $ docker login localhost:8080
 
+## logout
+
+    Usage: docker logout [SERVER]
+
+    Log out from a Docker registry, if no server is specified "https://index.docker.io/v1/" is the default.
+
+For example:
+
+    $ docker logout localhost:8080
+
 ## logs
 
     Usage: docker logs CONTAINER
@@ -750,11 +758,31 @@ the container's `STDOUT` and `STDERR`.
 Passing a negative number or a non-integer to `--tail` is invalid and the
 value is set to `all` in that case. This behavior may change in the future.
 
+The `docker logs --timestamp` commands will add an RFC3339Nano
+timestamp, for example `2014-05-10T17:42:14.999999999Z07:00`, to each
+log entry.
+
 ## port
 
     Usage: docker port CONTAINER PRIVATE_PORT
 
     Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
+
+## pause
+
+    Usage: docker pause CONTAINER
+
+    Pause all processes within a container
+
+The `docker pause` command uses the cgroups freezer to suspend all processes in
+a container.  Traditionally when suspending a process the `SIGSTOP` signal is
+used, which is observable by the process being suspended. With the cgroups freezer
+the process is unaware, and unable to capture, that it is being suspended,
+and subsequently resumed.
+
+See the [cgroups freezer documentation]
+(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+further details.
 
 ## ps
 
@@ -764,6 +792,8 @@ value is set to `all` in that case. This behavior may change in the future.
 
       -a, --all=false       Show all containers. Only running containers are shown by default.
       --before=""           Show only container created before Id or Name, include non-running ones.
+      -f, --filter=[]       Provide filter values. Valid filters:
+                              exited=<int> - containers with exit code of <int>
       -l, --latest=false    Show only the latest created container, include non-running ones.
       -n=-1                 Show n last created containers, include non-running ones.
       --no-trunc=false      Don't truncate output
@@ -780,6 +810,25 @@ Running `docker ps` showing 2 linked containers.
 
 `docker ps` will show only running containers by default. To see all containers:
 `docker ps -a`
+
+### Filtering
+
+The filtering flag (-f or --filter) format is a "key=value" pair. If there is more
+than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
+
+Current filters:
+ * exited (int - the code of exited containers. Only useful with '--all')
+
+
+#### Successfully exited containers
+
+    $ sudo docker ps -a --filter 'exited=0'
+    CONTAINER ID        IMAGE             COMMAND                CREATED             STATUS                   PORTS                      NAMES
+    ea09c3c82f6e        registry:latest   /srv/run.sh            2 weeks ago         Exited (0) 2 weeks ago   127.0.0.1:5000->5000/tcp   desperate_leakey
+    106ea823fe4e        fedora:latest     /bin/sh -c 'bash -l'   2 weeks ago         Exited (0) 2 weeks ago                              determined_albattani
+    48ee228c9464        fedora:20         bash                   2 weeks ago         Exited (0) 2 weeks ago                              tender_torvalds
+
+This shows all the containers that have exited with status of '0'
 
 ## pull
 
@@ -834,13 +883,13 @@ registry or to a self-hosted one.
 
     Remove one or more containers
 
-      -f, --force=false      Force removal of running container
+      -f, --force=false      Force the removal of a running container (uses SIGKILL)
       -l, --link=false       Remove the specified link and not the underlying container
       -v, --volumes=false    Remove the volumes associated with the container
 
 ### Known Issues (rm)
 
--   [Issue 197](https://github.com/dotcloud/docker/issues/197) indicates
+-   [Issue 197](https://github.com/docker/docker/issues/197) indicates
     that `docker kill` may leave directories behind
     and make it difficult to remove the container.
 
@@ -859,7 +908,12 @@ This will remove the underlying link between `/webapp`
 and the `/redis` containers removing all
 network communication.
 
-    $ sudo docker rm $(docker ps -a -q)
+    $ sudo docker rm --force redis
+    redis
+
+The main process inside the container referenced under the link `/redis` will receive
+SIGKILL, then the container will be removed.
+
 
 This command will delete all stopped containers. The command
 `docker ps -a -q` will return all existing container
@@ -909,20 +963,23 @@ removed before the image is removed.
 
     Run a command in a new container
 
-      -a, --attach=[]            Attach to stdin, stdout or stderr.
+      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
       -c, --cpu-shares=0         CPU shares (relative weight)
+      --cap-add=[]               Add Linux capabilities
+      --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      -d, --detach=false         Detached mode: Run container in the background, print new container id
-      --dns=[]                   Set custom dns servers
-      --dns-search=[]            Set custom dns search domains
+      -d, --detach=false         Detached mode: run container in the background and print new container ID
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --dns=[]                   Set custom DNS servers
+      --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
-      --entrypoint=""            Overwrite the default entrypoint of the image
-      --env-file=[]              Read in a line delimited file of ENV variables
+      --entrypoint=""            Overwrite the default ENTRYPOINT of the image
+      --env-file=[]              Read in a line delimited file of environment variables
       --expose=[]                Expose a port from the container without publishing it to your host
       -h, --hostname=""          Container host name
-      -i, --interactive=false    Keep stdin open even if not attached
-      --link=[]                  Add link to another container (name:alias)
+      -i, --interactive=false    Keep STDIN open even if not attached
+      --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       --name=""                  Assign a name to the container
@@ -936,11 +993,12 @@ removed before the image is removed.
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
+      --restart=""               Restart policy to apply when a container exits (no, on-failure, always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
-      --sig-proxy=true           Proxify received signals to the process (even in non-tty mode). SIGCHLD is not proxied.
-      -t, --tty=false            Allocate a pseudo-tty
+      --sig-proxy=true           Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
-      -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
+      -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -960,7 +1018,7 @@ and linking containers.
 
 ### Known Issues (run –volumes-from)
 
-- [Issue 2702](https://github.com/dotcloud/docker/issues/2702):
+- [Issue 2702](https://github.com/docker/docker/issues/2702):
   "lxc-start: Permission denied - failed to mount" could indicate a
   permissions problem with AppArmor. Please see the issue for a
   workaround.
@@ -1087,14 +1145,14 @@ network and environment of the `redis` container via environment variables.
 The `--name` flag will assign the name `console` to the newly created
 container.
 
-    $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+    $ sudo docker run --volumes-from 777f7dc92da7 --volumes-from ba8c0c54f0f2:ro -i -t ubuntu pwd
 
 The `--volumes-from` flag mounts all the defined volumes from the referenced
-containers. Containers can be specified by a comma separated list or by
-repetitions of the `--volumes-from` argument. The container ID may be
-optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
-or read-write mode, respectively. By default, the volumes are mounted in
-the same mode (read write or read only) as the reference container.
+containers. Containers can be specified by repetitions of the `--volumes-from`
+argument. The container ID may be optionally suffixed with `:ro` or `:rw` to
+mount the volumes in read-only or read-write mode, respectively. By default,
+the volumes are mounted in the same mode (read write or read only) as
+the reference container.
 
 The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
 `STDERR`. This makes it possible to manipulate the output and input as needed.
@@ -1117,6 +1175,20 @@ The container's ID will be printed after the build is done and the build
 logs could be retrieved using `docker logs`. This is
 useful if you need to pipe a file or something else into a container and
 retrieve the container's ID once the container has finished running.
+
+   $ sudo docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
+   brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
+   brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
+   crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
+
+It is often necessary to directly expose devices to a container.  ``--device``
+option enables that.  For example, a specific block storage device or loop
+device or audio device can be added to an otherwise unprivileged container
+(without the ``--privileged`` flag) and have the application directly access it.
+
+** Security note: **
+
+``--device`` cannot be safely used with ephemeral devices.  Block devices that may be removed should not be added to untrusted containers with ``--device``!
 
 **A complete example:**
 
@@ -1148,6 +1220,31 @@ application change:
    volume from the `web` container, setting the workdir to `/var/log/httpd`. The
    `--rm` option means that when the container exits, the container's layer is
    removed.
+
+#### Restart Policies
+
+Using the `--restart` flag on Docker run you can specify a restart policy for
+how a container should or should not be restarted on exit.
+
+** no ** - Do not restart the container when it exits.
+
+** on-failure ** - Restart the container only if it exits with a non zero exit status.
+
+** always ** - Always restart the container reguardless of the exit status.
+
+You can also specify the maximum amount of times Docker will try to restart the
+container when using the ** on-failure ** policy.  The default is that Docker will try forever to restart the container.
+
+    $ sudo docker run --restart=always redis
+
+This will run the `redis` container with a restart policy of ** always ** so that if
+the container exits, Docker will restart it.
+
+    $ sudo docker run --restart=on-failure:10 redis
+
+This will run the `redis` container with a restart policy of ** on-failure ** and a
+maximum restart count of 10.  If the `redis` container exits with a non-zero exit
+status more than 10 times in a row Docker will abort trying to restart the container.
 
 ## save
 
@@ -1197,7 +1294,7 @@ more details on finding shared images from the command line.
       -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
       -i, --interactive=false    Attach container's STDIN
 
-When run on a container that has already been started, 
+When run on a container that has already been started,
 takes no action and succeeds unconditionally.
 
 ## stop
@@ -1213,7 +1310,7 @@ grace period, SIGKILL
 
 ## tag
 
-    Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
+    Usage: docker tag [OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
     Tag an image into a repository
 
@@ -1228,6 +1325,19 @@ them to [*Share Images via Repositories*](
     Usage: docker top CONTAINER [ps OPTIONS]
 
     Display the running processes of a container
+
+## unpause
+
+    Usage: docker unpause CONTAINER
+
+    Unpause all processes within a container
+
+The `docker unpause` command uses the cgroups freezer to un-suspend all
+processes in a container.
+
+See the [cgroups freezer documentation]
+(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+further details.
 
 ## version
 

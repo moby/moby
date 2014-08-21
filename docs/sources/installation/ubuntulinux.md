@@ -63,7 +63,7 @@ continue installation.*
 >
 > There is also a simple `curl` script available to help with this process.
 >
->     $ curl -s https://get.docker.io/ubuntu/ | sudo sh
+>     $ curl -sSL https://get.docker.io/ubuntu/ | sudo sh
 
 To verify that everything has worked as expected:
 
@@ -134,7 +134,7 @@ continue installation.*
 > 
 > There is also a simple `curl` script available to help with this process.
 > 
->     $ curl -s https://get.docker.io/ubuntu/ | sudo sh
+>     $ curl -sSL https://get.docker.io/ubuntu/ | sudo sh
 
 Now verify that the installation has worked by downloading the
 `ubuntu` image and launching a container.
@@ -266,11 +266,11 @@ These parameters will help you get rid of the following warnings:
 
 ## Troubleshooting
 
-On Linux Mint, the `cgroup-lite` package is not
+On Linux Mint, the `cgroup-lite` and `apparmor` packages are not
 installed by default. Before Docker will work correctly, you will need
 to install this via:
 
-    $ sudo apt-get update && sudo apt-get install cgroup-lite
+    $ sudo apt-get update && sudo apt-get install cgroup-lite apparmor
 
 ## Docker and UFW
 

@@ -98,11 +98,11 @@ func TestLogsTimestamps(t *testing.T) {
 		t.Fatalf("Expected log %d lines, received %d\n", testLen+1, len(lines))
 	}
 
-	ts := regexp.MustCompile(`^\[.*?\]`)
+	ts := regexp.MustCompile(`^.* `)
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse("["+time.StampMilli+"]", ts.FindString(l))
+			_, err := time.Parse(time.RFC3339Nano+" ", ts.FindString(l))
 			if err != nil {
 				t.Fatalf("Failed to parse timestamp from %v: %v", l, err)
 			}

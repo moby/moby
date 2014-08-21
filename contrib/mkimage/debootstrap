@@ -83,7 +83,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 		Dir::Cache::srcpkgcache "";
 
 		# Note that we do realize this isn't the ideal way to do this, and are always
-		# open to better suggestions (https://github.com/dotcloud/docker/issues).
+		# open to better suggestions (https://github.com/docker/docker/issues).
 	EOF
 
 	# remove apt-cache translations for fast "apt-get update"
@@ -94,6 +94,21 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 	# need them, it's a simple matter to delete this file and "apt-get update". :)
 
 	Acquire::Languages "none";
+	EOF
+
+	echo >&2 "+ echo Acquire::GzipIndexes 'true' > '$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes'"
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes" <<-'EOF'
+	# Since Docker users using "RUN apt-get update && apt-get install -y ..." in
+	# their Dockerfiles don't go delete the lists files afterwards, we want them to
+	# be as small as possible on-disk, so we explicitly request "gz" versions and
+	# tell Apt to keep them gzipped on-disk.
+
+	# For comparison, an "apt-get update" layer without this on a pristine
+	# "debian:wheezy" base image was "29.88 MB", where with this it was only
+	# "8.273 MB".
+
+	Acquire::GzipIndexes "true";
+	Acquire::CompressionTypes::Order:: "gz";
 	EOF
 fi
 
@@ -123,9 +138,9 @@ if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
 					" "$rootfsDir/etc/apt/sources.list"
 					echo "deb http://security.debian.org $suite/updates main" >> "$rootfsDir/etc/apt/sources.list"
 					# LTS
-					if [ "$suite" = 'squeeze' ]; then
+					if [ "$suite" = 'squeeze' -o "$suite" = 'oldstable' ]; then
 						head -1 "$rootfsDir/etc/apt/sources.list" \
-							| sed "s/ $suite / ${suite}-lts /" \
+							| sed "s/ $suite / squeeze-lts /" \
 								>> "$rootfsDir/etc/apt/sources.list"
 					fi
 				)
@@ -173,4 +188,6 @@ fi
 	# delete all the apt list files since they're big and get stale quickly
 	rm -rf "$rootfsDir/var/lib/apt/lists"/*
 	# this forces "apt-get update" in dependent images, which is also good
+	
+	mkdir "$rootfsDir/var/lib/apt/lists/partial" # Lucid... "E: Lists directory /var/lib/apt/lists/partial is missing."
 )

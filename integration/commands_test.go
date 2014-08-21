@@ -7,17 +7,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/dotcloud/docker/api/client"
-	"github.com/dotcloud/docker/daemon"
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/pkg/term"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/utils"
 )
 
 func closeWrap(args ...io.Closer) error {
@@ -116,76 +114,6 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-// TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
-func TestRunWorkdirExistsAndIsFile(t *testing.T) {
-
-	cli := client.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("-w", "/bin/cat", unitTestImageID, "pwd"); err == nil {
-			t.Fatal("should have failed to run when using /bin/cat as working dir.")
-		}
-	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
-
-func TestRunExit(t *testing.T) {
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
-
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c1 := make(chan struct{})
-	go func() {
-		cli.CmdRun("-i", unitTestImageID, "/bin/cat")
-		close(c1)
-	}()
-
-	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	container := globalDaemon.List()[0]
-
-	// Closing /bin/cat stdin, expect it to exit
-	if err := stdin.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	// as the process exited, CmdRun must finish and unblock. Wait for it
-	setTimeout(t, "Waiting for CmdRun timed out", 10*time.Second, func() {
-		<-c1
-
-		go func() {
-			cli.CmdWait(container.ID)
-		}()
-
-		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	// Make sure that the client has been disconnected
-	setTimeout(t, "The client should have been disconnected once the remote process exited.", 2*time.Second, func() {
-		// Expecting pipe i/o error, just check that read does not block
-		stdin.Read([]byte{})
-	})
-
-	// Cleanup pipes
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // Expected behaviour: the process dies when the client disconnects
 func TestRunDisconnect(t *testing.T) {
 
@@ -247,7 +175,7 @@ func TestRunDisconnectTty(t *testing.T) {
 		// We're simulating a disconnect so the return value doesn't matter. What matters is the
 		// fact that CmdRun returns.
 		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s", err)
+			log.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 
@@ -487,7 +415,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// Start a process in daemon mode
 		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			utils.Debugf("Error CmdRun: %s", err)
+			log.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 
@@ -604,132 +532,6 @@ func TestRunErrorBindNonExistingSource(t *testing.T) {
 	})
 }
 
-func TestImagesViz(t *testing.T) {
-	t.Skip("Image viz is deprecated")
-	stdout, stdoutPipe := io.Pipe()
-
-	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	image := buildTestImages(t, globalEngine)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdImages("--viz"); err != nil {
-			t.Fatal(err)
-		}
-		stdoutPipe.Close()
-	}()
-
-	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
-		cmdOutputBytes, err := ioutil.ReadAll(bufio.NewReader(stdout))
-		if err != nil {
-			t.Fatal(err)
-		}
-		cmdOutput := string(cmdOutputBytes)
-
-		regexpStrings := []string{
-			"digraph docker {",
-			fmt.Sprintf("base -> \"%s\" \\[style=invis]", unitTestImageIDShort),
-			fmt.Sprintf("label=\"%s\\\\n%s:latest\"", unitTestImageIDShort, unitTestImageName),
-			fmt.Sprintf("label=\"%s\\\\n%s:%s\"", utils.TruncateID(image.ID), "test", "latest"),
-			"base \\[style=invisible]",
-		}
-
-		compiledRegexps := []*regexp.Regexp{}
-		for _, regexpString := range regexpStrings {
-			regexp, err := regexp.Compile(regexpString)
-			if err != nil {
-				fmt.Println("Error in regex string: ", err)
-				return
-			}
-			compiledRegexps = append(compiledRegexps, regexp)
-		}
-
-		for _, regexp := range compiledRegexps {
-			if !regexp.MatchString(cmdOutput) {
-				t.Fatalf("images --viz content '%s' did not match regexp '%s'", cmdOutput, regexp)
-			}
-		}
-	})
-}
-
-func TestImagesTree(t *testing.T) {
-	t.Skip("Image tree is deprecated")
-	stdout, stdoutPipe := io.Pipe()
-
-	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	image := buildTestImages(t, globalEngine)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdImages("--tree"); err != nil {
-			t.Fatal(err)
-		}
-		stdoutPipe.Close()
-	}()
-
-	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
-		cmdOutputBytes, err := ioutil.ReadAll(bufio.NewReader(stdout))
-		if err != nil {
-			t.Fatal(err)
-		}
-		cmdOutput := string(cmdOutputBytes)
-		regexpStrings := []string{
-			fmt.Sprintf("└─%s Virtual Size: \\d+.\\d+ MB Tags: %s:latest", unitTestImageIDShort, unitTestImageName),
-			"(?m)   └─[0-9a-f]+.*",
-			"(?m)    └─[0-9a-f]+.*",
-			"(?m)      └─[0-9a-f]+.*",
-			fmt.Sprintf("(?m)^        └─%s Virtual Size: \\d+.\\d+ MB Tags: test:latest", utils.TruncateID(image.ID)),
-		}
-
-		compiledRegexps := []*regexp.Regexp{}
-		for _, regexpString := range regexpStrings {
-			regexp, err := regexp.Compile(regexpString)
-			if err != nil {
-				fmt.Println("Error in regex string: ", err)
-				return
-			}
-			compiledRegexps = append(compiledRegexps, regexp)
-		}
-
-		for _, regexp := range compiledRegexps {
-			if !regexp.MatchString(cmdOutput) {
-				t.Fatalf("images --tree content '%s' did not match regexp '%s'", cmdOutput, regexp)
-			}
-		}
-	})
-}
-
-func buildTestImages(t *testing.T, eng *engine.Engine) *image.Image {
-
-	var testBuilder = testContextTemplate{
-		`
-from   {IMAGE}
-run    sh -c 'echo root:testpass > /tmp/passwd'
-run    mkdir -p /var/run/sshd
-run    [ "$(cat /tmp/passwd)" = "root:testpass" ]
-run    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]
-`,
-		nil,
-		nil,
-	}
-	image, err := buildImage(testBuilder, t, eng, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("tag", image.ID, "test").Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	return image
-}
-
 // #2098 - Docker cidFiles only contain short version of the containerId
 //sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 // TestRunCidFile tests that run --cidfile returns the longid
@@ -809,71 +611,4 @@ func TestRunCidFileCleanupIfEmpty(t *testing.T) {
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c
 	})
-}
-
-func TestContainerOrphaning(t *testing.T) {
-
-	// setup a temporary directory
-	tmpDir, err := ioutil.TempDir("", "project")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// setup a CLI and server
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-	srv := mkServerFromEngine(globalEngine, t)
-
-	// closure to build something
-	buildSomething := func(template string, image string) string {
-		dockerfile := path.Join(tmpDir, "Dockerfile")
-		replacer := strings.NewReplacer("{IMAGE}", unitTestImageID)
-		contents := replacer.Replace(template)
-		ioutil.WriteFile(dockerfile, []byte(contents), 0x777)
-		if err := cli.CmdBuild("-t", image, tmpDir); err != nil {
-			t.Fatal(err)
-		}
-		job := globalEngine.Job("image_get", image)
-		info, _ := job.Stdout.AddEnv()
-		if err := job.Run(); err != nil {
-			t.Fatal(err)
-		}
-		return info.Get("Id")
-	}
-
-	// build an image
-	imageName := "orphan-test"
-	template1 := `
-	from {IMAGE}
-	cmd ["/bin/echo", "holla"]
-	`
-	img1 := buildSomething(template1, imageName)
-
-	// create a container using the fist image
-	if err := cli.CmdRun(imageName); err != nil {
-		t.Fatal(err)
-	}
-
-	// build a new image that splits lineage
-	template2 := `
-	from {IMAGE}
-	cmd ["/bin/echo", "holla"]
-	expose 22
-	`
-	buildSomething(template2, imageName)
-
-	// remove the second image by name
-	resp := engine.NewTable("", 0)
-	if err := srv.DeleteImage(imageName, resp, true, false, false); err == nil {
-		t.Fatal("Expected error, got none")
-	}
-
-	// see if we deleted the first image (and orphaned the container)
-	for _, i := range resp.Data {
-		if img1 == i.Get("Deleted") {
-			t.Fatal("Orphaned image with container")
-		}
-	}
-
 }
