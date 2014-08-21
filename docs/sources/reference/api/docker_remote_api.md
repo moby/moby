@@ -34,6 +34,11 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /containers/(id)/logs`
+
+**New!**
+New parameter `follow_retry` allows to follow logs until container is deleted.
+
 ## v1.14
 
 ### Full Documentation

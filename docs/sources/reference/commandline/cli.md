@@ -746,6 +746,7 @@ For example:
 
     Fetch the logs of a container
 
+      -F, --follow-retry=false  Follow log output and retry to follow on container stop
       -f, --follow=false        Follow log output
       -t, --timestamps=false    Show timestamps
       --tail="all"              Output the specified number of lines at the end of logs (defaults to all logs)
@@ -761,6 +762,8 @@ value is set to `all` in that case. This behavior may change in the future.
 The `docker logs --timestamp` commands will add an RFC3339Nano
 timestamp, for example `2014-05-10T17:42:14.999999999Z07:00`, to each
 log entry.
+
+With `-F` logs will be followed until container will be destroyed.
 
 ## port
 
