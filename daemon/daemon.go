@@ -98,8 +98,6 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	// FIXME: rename "delete" to "rm" for consistency with the CLI command
-	// FIXME: rename ContainerDestroy to ContainerRm for consistency with the CLI command
 	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"attach":            daemon.ContainerAttach,
@@ -110,7 +108,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"container_inspect": daemon.ContainerInspect,
 		"containers":        daemon.Containers,
 		"create":            daemon.ContainerCreate,
-		"delete":            daemon.ContainerDestroy,
+		"rm":                daemon.ContainerRm,
 		"export":            daemon.ContainerExport,
 		"info":              daemon.CmdInfo,
 		"kill":              daemon.ContainerKill,

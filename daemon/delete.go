@@ -11,8 +11,7 @@ import (
 	"github.com/docker/docker/pkg/log"
 )
 
-// FIXME: rename to ContainerRemove for consistency with the CLI command.
-func (daemon *Daemon) ContainerDestroy(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
 	}
