@@ -61,6 +61,12 @@ func setupMountsForContainer(container *Container) error {
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", true, true})
 	}
 
+	containerJson, err := container.getRootResourcePath("config.json")
+	if err != nil {
+		return err
+	}
+	mounts = append(mounts, execdriver.Mount{containerJson, "/.container.json", false, true})
+
 	// Mount user specified volumes
 	// Note, these are not private because you may want propagation of (un)mounts from host
 	// volumes. For instance if you use -v /usr:/usr and the host later mounts /usr/share you
