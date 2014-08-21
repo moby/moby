@@ -41,7 +41,9 @@ func (b *Builder) readContext(context io.Reader) error {
 		return err
 	}
 
-	b.context = &tarsum.TarSum{Reader: decompressedStream, DisableCompression: true}
+	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version0); err != nil {
+		return err
+	}
 	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return err
 	}

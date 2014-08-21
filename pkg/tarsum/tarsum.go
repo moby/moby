@@ -22,6 +22,29 @@ const (
 	buf32K = 32 * 1024
 )
 
+// NewTarSum creates a new interface for calculating a fixed time checksum of a
+// tar archive.
+//
+// This is used for calculating checksums of layers of an image, in some cases
+// including the byte payload of the image's json metadata as well, and for
+// calculating the checksums for buildcache.
+func NewTarSum(r io.Reader, dc bool, v Version) (TarSumInterface, error) {
+	if _, ok := tarSumVersions[v]; !ok {
+		return nil, ErrVersionNotImplemented
+	}
+	return &TarSum{Reader: r, DisableCompression: dc, tarSumVersion: v}, nil
+}
+
+// TarSumInterface is the generic interface for calculating fixed time
+// checksums of a tar archive
+type TarSumInterface interface {
+	io.Reader
+	GetSums() map[string]string
+	Sum([]byte) string
+	Version() Version
+}
+
+// TarSum struct is the structure for a Version0 checksum calculation
 type TarSum struct {
 	io.Reader
 	tarR               *tar.Reader
@@ -35,27 +58,15 @@ type TarSum struct {
 	currentFile        string
 	finished           bool
 	first              bool
-	DisableCompression bool
+	DisableCompression bool    // false by default. When false, the output gzip compressed.
+	tarSumVersion      Version // this field is not exported so it can not be mutated during use
 }
 
-type writeCloseFlusher interface {
-	io.WriteCloser
-	Flush() error
+func (ts TarSum) Version() Version {
+	return ts.tarSumVersion
 }
 
-type nopCloseFlusher struct {
-	io.Writer
-}
-
-func (n *nopCloseFlusher) Close() error {
-	return nil
-}
-
-func (n *nopCloseFlusher) Flush() error {
-	return nil
-}
-
-func (ts *TarSum) encodeHeader(h *tar.Header) error {
+func (ts TarSum) selectHeaders(h *tar.Header, v Version) (set [][2]string) {
 	for _, elem := range [][2]string{
 		{"name", h.Name},
 		{"mode", strconv.Itoa(int(h.Mode))},
@@ -69,9 +80,17 @@ func (ts *TarSum) encodeHeader(h *tar.Header) error {
 		{"gname", h.Gname},
 		{"devmajor", strconv.Itoa(int(h.Devmajor))},
 		{"devminor", strconv.Itoa(int(h.Devminor))},
-		// {"atime", strconv.Itoa(int(h.AccessTime.UTC().Unix()))},
-		// {"ctime", strconv.Itoa(int(h.ChangeTime.UTC().Unix()))},
 	} {
+		if v == VersionDev && elem[0] == "mtime" {
+			continue
+		}
+		set = append(set, elem)
+	}
+	return
+}
+
+func (ts *TarSum) encodeHeader(h *tar.Header) error {
+	for _, elem := range ts.selectHeaders(h, ts.Version()) {
 		if _, err := ts.h.Write([]byte(elem[0] + elem[1])); err != nil {
 			return err
 		}
@@ -193,7 +212,7 @@ func (ts *TarSum) Sum(extra []byte) string {
 		log.Debugf("-->%s<--", sum)
 		h.Write([]byte(sum))
 	}
-	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
+	checksum := ts.Version().String() + "+sha256:" + hex.EncodeToString(h.Sum(nil))
 	log.Debugf("checksum processed: %s", checksum)
 	return checksum
 }
