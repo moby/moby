@@ -62,6 +62,8 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		if err := daemon.Destroy(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
+		container.stdout.Clean()
+		container.stderr.Clean()
 		container.LogEvent("destroy")
 
 		if removeVolume {
