@@ -613,7 +613,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		cErr chan error
 		tty  bool
 
-		cmd       = cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
+		cmd       = cli.Subcmd("start", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a stopped container")
 		attach    = cmd.Bool([]string{"a", "-attach"}, false, "Attach container's STDOUT and STDERR and forward all signals to the process")
 		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
 	)
@@ -746,7 +746,7 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container or image")
+	cmd := cli.Subcmd("inspect", "[OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container or image")
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -908,7 +908,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
 	var (
-		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images")
+		cmd     = cli.Subcmd("rmi", "[OPTIONS] IMAGE [IMAGE...]", "Remove one or more images")
 		force   = cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	)
@@ -1748,7 +1748,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	var (
-		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
+		cmd    = cli.Subcmd("logs", "[OPTIONS] CONTAINER", "Fetch the logs of a container")
 		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 		tail   = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
@@ -1865,7 +1865,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := cli.Subcmd("search", "TERM", "Search the Docker Hub for images")
+	cmd := cli.Subcmd("search", "[OPTIONS] TERM", "Search the Docker Hub for images")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	trusted := cmd.Bool([]string{"#t", "#trusted", "#-trusted"}, false, "Only show trusted builds")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
@@ -2254,7 +2254,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 }
 
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to STDOUT by default)")
+	cmd := cli.Subcmd("save", "[OPTIONS] IMAGE", "Save an image to a tar archive (streamed to STDOUT by default)")
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
 
 	if err := cmd.Parse(args); err != nil {
@@ -2284,7 +2284,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 }
 
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN")
+	cmd := cli.Subcmd("load", "[OPTIONS]", "Load an image from a tar archive on STDIN")
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
 
 	if err := cmd.Parse(args); err != nil {
