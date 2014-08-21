@@ -6,6 +6,7 @@ docker-import - Create an empty filesystem image and import the contents of the 
 
 # SYNOPSIS
 **docker import**
+[**--help**]
 URL|- [REPOSITORY[:TAG]]
 
 # DESCRIPTION
@@ -13,7 +14,8 @@ Create a new filesystem image from the contents of a tarball (`.tar`,
 `.tar.gz`, `.tgz`, `.bzip`, `.tar.xz`, `.txz`) into it, then optionally tag it.
 
 # OPTIONS
-There are no available options.
+**--help**
+  Print usage statement
 
 # EXAMPLES
 

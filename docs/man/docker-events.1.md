@@ -6,6 +6,7 @@ docker-events - Get real time events from the server
 
 # SYNOPSIS
 **docker events**
+[**--help**]
 [**--since**[=*SINCE*]]
 [**--until**[=*UNTIL*]]
 
@@ -15,6 +16,9 @@ Get event information from the Docker daemon. Information can include historical
 information and real-time information.
 
 # OPTIONS
+**--help**
+  Print usage statement
+
 **--since**=""
    Show all events created since timestamp
 

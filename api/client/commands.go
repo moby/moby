@@ -48,6 +48,8 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Fprintf(cli.err, "Error: Command not found: %s\n", args[0])
+			fmt.Fprintf(cli.err, "docker: '%s' is not a docker command. See 'docker --help'.\n", args[0])
+			os.Exit(1)
 		} else {
 			method("--help")
 			return nil
@@ -93,7 +95,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	} {
 		help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
-	fmt.Fprintf(cli.err, "%s\n", help)
+	fmt.Fprintf(cli.out, "%s\n", help)
 	return nil
 }
 
@@ -104,12 +106,17 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"#no-cache", "-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	var (
@@ -262,8 +269,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
 	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
 	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	err := cmd.Parse(args)
 	if err != nil {
+		return nil
+	}
+	if *help {
+		cmd.Usage()
 		return nil
 	}
 	serverAddress := registry.IndexServerAddress()
@@ -385,12 +398,17 @@ func (cli *DockerCli) CmdLogout(args ...string) error {
 // 'docker wait': block until a container stops
 func (cli *DockerCli) CmdWait(args ...string) error {
 	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 	var encounteredError error
 	for _, name := range cmd.Args() {
@@ -411,10 +429,8 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() > 0 {
-		cmd.Usage()
-		return nil
+	if cmd.BadArgs(0) {
+		os.Exit(1)
 	}
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
@@ -457,9 +473,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() > 0 {
-		cmd.Usage()
-		return nil
+	if cmd.BadArgs(0) {
+		os.Exit(1)
 	}
 
 	body, _, err := readBody(cli.call("GET", "/info", nil, false))
@@ -531,12 +546,17 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := cli.Subcmd("stop", "[OPTIONS] CONTAINER [CONTAINER...]", "Stop a running container by sending SIGTERM and then SIGKILL after a grace period")
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	v := url.Values{}
@@ -558,12 +578,17 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := cli.Subcmd("restart", "[OPTIONS] CONTAINER [CONTAINER...]", "Restart a running container")
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default is 10 seconds.")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	v := url.Values{}
@@ -616,14 +641,18 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		cmd       = cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container")
 		attach    = cmd.Bool([]string{"a", "-attach"}, false, "Attach container's STDOUT and STDERR and forward all signals to the process")
 		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
+		help      = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	)
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	if *attach || *openStdin {
@@ -704,10 +733,8 @@ func (cli *DockerCli) CmdUnpause(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 1 {
-		cmd.Usage()
-		return nil
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	var encounteredError error
@@ -727,10 +754,8 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 1 {
-		cmd.Usage()
-		return nil
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	var encounteredError error
@@ -748,12 +773,17 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container or image")
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template.")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	var tmpl *template.Template
@@ -827,12 +857,17 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 func (cli *DockerCli) CmdTop(args ...string) error {
 	cmd := cli.Subcmd("top", "CONTAINER [ps OPTIONS]", "Display the running processes of a container")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() == 0 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 	val := url.Values{}
 	if cmd.NArg() > 1 {
@@ -862,12 +897,16 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 
 func (cli *DockerCli) CmdPort(args ...string) error {
 	cmd := cli.Subcmd("port", "CONTAINER PRIVATE_PORT", "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 2 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(2) {
+		os.Exit(1)
 	}
 
 	var (
@@ -912,12 +951,17 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		force   = cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	)
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	v := url.Values{}
@@ -957,13 +1001,17 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	cmd := cli.Subcmd("history", "[OPTIONS] IMAGE", "Show the history of an image")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, false))
@@ -1015,13 +1063,17 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	val := url.Values{}
@@ -1053,13 +1105,17 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := cli.Subcmd("kill", "[OPTIONS] CONTAINER [CONTAINER...]", "Kill a running container using SIGKILL or a specified signal")
 	signal := cmd.String([]string{"s", "-signal"}, "KILL", "Signal to send to the container")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	var encounteredError error
@@ -1076,15 +1132,18 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 
 func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() < 1 {
+	if *help {
 		cmd.Usage()
 		return nil
 	}
-
+	if cmd.BadArgs(2) {
+		os.Exit(1)
+	}
 	var (
 		v          = url.Values{}
 		src        = cmd.Arg(0)
@@ -1117,7 +1176,13 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if *help {
+		cmd.Usage()
 		return nil
 	}
 	name := cmd.Arg(0)
@@ -1183,13 +1248,18 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry")
 	tag := cmd.String([]string{"#t", "#-tag"}, "", "Download tagged image in a repository")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 	var (
 		v      = url.Values{}
@@ -1251,6 +1321,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
@@ -1258,9 +1329,12 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() > 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	// Consolidate all filter flags, and sanity check them early.
@@ -1484,11 +1558,16 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	since := cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show only containers created since Id or Name, include non-running ones.")
 	before := cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
 
 	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if *help {
+		cmd.Usage()
 		return nil
 	}
 	v := url.Values{}
@@ -1601,7 +1680,12 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if *help {
+		cmd.Usage()
 		return nil
 	}
 
@@ -1659,14 +1743,19 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := cli.Subcmd("events", "[OPTIONS]", "Get real time events from the server")
 	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")
 	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 0 {
+	if *help {
 		cmd.Usage()
 		return nil
 	}
+	if cmd.BadArgs(0) {
+		os.Exit(1)
+	}
+
 	var (
 		v   = url.Values{}
 		loc = time.FixedZone(time.Now().Zone())
@@ -1696,13 +1785,17 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 func (cli *DockerCli) CmdExport(args ...string) error {
 	cmd := cli.Subcmd("export", "CONTAINER", "Export the contents of a filesystem as a tar archive to STDOUT")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	if err := cli.stream("GET", "/containers/"+cmd.Arg(0)+"/export", nil, cli.out, nil); err != nil {
@@ -1713,12 +1806,17 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 
 func (cli *DockerCli) CmdDiff(args ...string) error {
 	cmd := cli.Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, false))
@@ -1752,15 +1850,18 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 		tail   = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
+		help   = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	)
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 	name := cmd.Arg(0)
 
@@ -1795,15 +1896,18 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cmd     = cli.Subcmd("attach", "[OPTIONS] CONTAINER", "Attach to a running container")
 		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
 		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.")
+		help    = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	)
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 	name := cmd.Arg(0)
 
@@ -1870,12 +1974,17 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	trusted := cmd.Bool([]string{"#t", "#trusted", "#-trusted"}, false, "Only show trusted builds")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
 	stars := cmd.Int([]string{"s", "#stars", "-stars"}, 0, "Only displays with at least x stars")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	v := url.Values{}
@@ -1922,12 +2031,17 @@ type ports []int
 func (cli *DockerCli) CmdTag(args ...string) error {
 	cmd := cli.Subcmd("tag", "[OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository")
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	if cmd.NArg() != 2 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(2) {
+		os.Exit(1)
 	}
 
 	var (
@@ -1993,6 +2107,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if err != nil {
 		return err
 	}
+	if config == nil {
+		cmd.Usage()
+		return nil
+	}
+
 	if config.Image == "" {
 		cmd.Usage()
 		return nil
@@ -2215,13 +2334,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 func (cli *DockerCli) CmdCp(args ...string) error {
 	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-
-	if cmd.NArg() != 2 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(2) {
+		os.Exit(1)
 	}
 
 	var copyData engine.Env
@@ -2256,14 +2379,17 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 func (cli *DockerCli) CmdSave(args ...string) error {
 	cmd := cli.Subcmd("save", "IMAGE", "Save an image to a tar archive (streamed to STDOUT by default)")
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
-
-	if cmd.NArg() != 1 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(1) {
+		os.Exit(1)
 	}
 
 	var (
@@ -2286,14 +2412,17 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN")
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
+	help := cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
-
-	if cmd.NArg() != 0 {
+	if *help {
 		cmd.Usage()
 		return nil
+	}
+	if cmd.BadArgs(0) {
+		os.Exit(1)
 	}
 
 	var (
