@@ -89,7 +89,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 		scheme = "https"
 	}
 
-	if in != nil {
+	if out != nil {
 		if file, ok := out.(*os.File); ok {
 			terminalFd = file.Fd()
 			isTerminal = term.IsTerminal(terminalFd)
