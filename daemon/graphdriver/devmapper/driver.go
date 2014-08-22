@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/units"
 )
 
 func init() {
@@ -54,13 +55,13 @@ func (d *Driver) Status() [][2]string {
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
-		{"Pool Blocksize", fmt.Sprintf("%d Kb", s.SectorSize/1024)},
+		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(int64(s.SectorSize)))},
 		{"Data file", s.DataLoopback},
 		{"Metadata file", s.MetadataLoopback},
-		{"Data Space Used", fmt.Sprintf("%.1f Mb", float64(s.Data.Used)/(1024*1024))},
-		{"Data Space Total", fmt.Sprintf("%.1f Mb", float64(s.Data.Total)/(1024*1024))},
-		{"Metadata Space Used", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Used)/(1024*1024))},
-		{"Metadata Space Total", fmt.Sprintf("%.1f Mb", float64(s.Metadata.Total)/(1024*1024))},
+		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Used)))},
+		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Total)))},
+		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Used)))},
+		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Total)))},
 	}
 	return status
 }
