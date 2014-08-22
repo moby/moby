@@ -146,6 +146,7 @@ echo 'Optional Features:'
 flags=(
 	MEMCG_SWAP
 	RESOURCE_COUNTERS
+	CGROUP_PERF
 )
 check_flags "${flags[@]}"
 
