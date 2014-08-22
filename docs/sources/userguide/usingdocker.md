@@ -156,9 +156,9 @@ In this case Docker has exposed port 5000 (the default Python Flask
 port) on port 49155.
 
 Network port bindings are very configurable in Docker. In our last
-example the `-P` flag is a shortcut for `-p 5000` that makes port 5000
+example the `-P` flag is a shortcut for `-p 5000` that maps port 5000
 inside the container to a high port (from the range 49000 to 49900) on
-the local Docker host. We can also bind Docker container's to specific
+the local Docker host. We can also bind Docker containers to specific
 ports using the `-p` flag, for example:
 
     $ sudo docker run -d -p 5000:5000 training/webapp python app.py
