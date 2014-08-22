@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0 (2014-08-20)
+
+#### Runtime
++ Make /etc/hosts /etc/resolv.conf and /etc/hostname editable at runtime
++ Auto-restart containers using policies
++ Use /var/lib/docker/tmp for large temporary files
++ `--cap-add` and `--cap-drop` to tweak what linux capability you want
++ `--device` to use devices in containers
+
+#### Client
++ `docker search` on private registries
++ Add `exited` filter to `docker ps --filter`
+* `docker rm -f` now kills instead of stop
++ Support for IPv6 addresses in `--dns` flag
+
+#### Proxy
++ Proxy instances in separate processes
+* Small bug fix on UDP proxy
+
 ## 1.1.2 (2014-07-23)
 
 #### Runtime
