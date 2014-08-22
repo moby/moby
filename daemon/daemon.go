@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
@@ -40,9 +41,10 @@ import (
 )
 
 var (
-	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
-	validContainerNameChars   = `[a-zA-Z0-9_.-]`
-	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
+	DefaultDns                  = []string{"8.8.8.8", "8.8.4.4"}
+	validContainerNameChars     = `[a-zA-Z0-9_.-]`
+	validContainerNamePattern   = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
+	validOldKernelDistributions = []string{"Red Hat Enterprise Linux", "CentOS", "Scientific Linux"}
 )
 
 type contStore struct {
@@ -1110,9 +1112,17 @@ func checkKernelAndArch() error {
 		log.Infof("WARNING: %s", err)
 	} else {
 		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
-			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Infof("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+			os, err := operatingsystem.GetOperatingSystem()
+			if err != nil {
+				log.Infof("WARNING: %s", err)
+			} else {
+				for _, o := range validOldKernelDistributions {
+					if strings.Contains(os, o) {
+						return nil
+					}
+				}
 			}
+			return fmt.Errorf("ERROR: You are running linux kernel version %s, which will be unstable while running docker. Kernels older than 3.8.0 are unsupported. Please upgrade your kernel to 3.8.0 or newer.", k.String())
 		}
 	}
 	return nil
