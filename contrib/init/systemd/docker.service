@@ -5,9 +5,10 @@ After=network.target docker.socket
 Requires=docker.socket
 
 [Service]
-ExecStart=/usr/bin/docker -d -H fd://
+ExecStart=/usr/bin/docker -d
 LimitNOFILE=1048576
 LimitNPROC=1048576
 
 [Install]
+WantedBy=multi-user.target
 Also=docker.socket
