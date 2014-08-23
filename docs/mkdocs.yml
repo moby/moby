@@ -92,7 +92,7 @@ pages:
 - ['articles/ambassador_pattern_linking.md', 'Articles', 'Cross-Host linking using Ambassador Containers']
 - ['articles/runmetrics.md', 'Articles', 'Runtime metrics']
 - ['articles/baseimages.md', 'Articles', 'Creating a Base Image']
-- ['articles/b2d_volume_increase', 'Articles', 'Increasing a Boot2Docker Volume']
+- ['articles/b2d_volume_resize.md', 'Articles', 'Increasing a Boot2Docker Volume']
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']
