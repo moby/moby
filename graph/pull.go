@@ -232,10 +232,12 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 		if !s.graph.Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
 			var (
-				imgJSON []byte
-				imgSize int
-				err     error
-				img     *image.Image
+				imgJSON                            []byte
+				imgSize                            int
+				err                                error
+				img                                *image.Image
+				metadataDownloadStart              = time.Now()
+				layerDownloadStart, layerLoadStart time.Time
 			)
 			retries := 5
 			for j := 1; j <= retries; j++ {
@@ -255,10 +257,11 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
 				} else {
+					log.Debugf("retrieving metadata for %s took %s and %d attempt(s)", id, time.Since(metadataDownloadStart), j)
 					break
 				}
 			}
-
+			layerDownloadStart = time.Now()
 			for j := 1; j <= retries; j++ {
 				// Get the layer
 				status := "Pulling fs layer"
@@ -279,17 +282,26 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				}
 				defer layer.Close()
 
-				err = s.graph.Register(img, imgJSON,
-					utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"))
+				tempLayerFile, err := s.graph.NewTempFileReader(utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading to temp file"))
+				defer tempLayerFile.Close()
 				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
 				} else if err != nil {
 					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
 					return err
-				} else {
-					break
 				}
+				log.Debugf("downloading layer %s with a size of %d bytes took %s and %d attempt(s)", id, imgSize, time.Since(layerDownloadStart), j)
+				layerLoadStart = time.Now()
+				err = s.graph.Register(img, imgJSON,
+					utils.ProgressReader(tempLayerFile, imgSize, out, sf, false, utils.TruncateID(id), "Loading layer"))
+				if err != nil {
+					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error loading layer", nil))
+					return err
+				}
+				log.Debugf("loading layer %s took %s", id, time.Since(layerLoadStart))
+				break
+
 			}
 		}
 		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download complete", nil))

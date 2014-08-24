@@ -246,6 +246,57 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return dir, nil
 }
 
+type tempFileReader struct {
+	*os.File
+	dir string
+}
+
+func (graph *Graph) NewTempFileReader(r io.Reader) (io.ReadCloser, error) {
+	tmp, err := graph.Mktemp("")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			os.RemoveAll(tmp)
+		}
+	}()
+
+	f, err := ioutil.TempFile(tmp, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := io.Copy(f, r); err != nil {
+		return nil, err
+	}
+	if err = f.Sync(); err != nil {
+		return nil, err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, err
+	}
+	_, err = f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	return &tempFileReader{f, tmp}, nil
+}
+
+func (r *tempFileReader) Read(data []byte) (int, error) {
+	n, err := r.File.Read(data)
+	if err != nil {
+		r.File.Close()
+		os.RemoveAll(r.dir)
+	}
+	return n, err
+}
+
+func (r *tempFileReader) Close() error {
+	r.File.Close()
+	return os.Remove(r.File.Name())
+}
+
 // setupInitLayer populates a directory with mountpoints suitable
 // for bind-mounting dockerinit into the container. The mountpoint is simply an
 // empty file at /.dockerinit
