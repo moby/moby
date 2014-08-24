@@ -230,10 +230,10 @@ func populateCommand(c *Container, env []string) error {
 	userSpecifiedDevices := make([]*devices.Device, len(c.hostConfig.Devices))
 	for i, deviceMapping := range c.hostConfig.Devices {
 		device, err := devices.GetDevice(deviceMapping.PathOnHost, deviceMapping.CgroupPermissions)
-		device.Path = deviceMapping.PathInContainer
 		if err != nil {
-			return fmt.Errorf("error gathering device information while adding custom device %s", err)
+			return fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
 		}
+		device.Path = deviceMapping.PathInContainer
 		userSpecifiedDevices[i] = device
 	}
 	allowedDevices := append(devices.DefaultAllowedDevices, userSpecifiedDevices...)
