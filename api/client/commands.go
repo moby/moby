@@ -1101,7 +1101,8 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	if repository != "" {
 		//Check if the given image name can be resolved
-		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		repoClean, _ := parsers.ParseRepositoryTag(repository)
+		if _, _, err := registry.ResolveRepositoryName(repoClean); err != nil {
 			return err
 		}
 	}
