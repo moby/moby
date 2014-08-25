@@ -61,6 +61,17 @@ func TestJob(t *testing.T) {
 	}
 }
 
+func TestEngineShutdown(t *testing.T) {
+	eng := New()
+	if eng.IsShutdown() {
+		t.Fatalf("Engine should not show as shutdown")
+	}
+	eng.Shutdown()
+	if !eng.IsShutdown() {
+		t.Fatalf("Engine should show as shutdown")
+	}
+}
+
 func TestEngineCommands(t *testing.T) {
 	eng := New()
 	handler := func(job *Job) Status { return StatusOK }
