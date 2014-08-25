@@ -213,3 +213,35 @@ func TestLogsTail(t *testing.T) {
 	deleteContainer(cleanedContainerID)
 	logDone("logs - logs tail")
 }
+
+func TestLogsFollowStopped(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
+
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+
+	logsCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
+	if err := logsCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := make(chan struct{})
+	go func() {
+		if err := logsCmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+		close(c)
+	}()
+
+	select {
+	case <-c:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Following logs is hanged")
+	}
+
+	deleteContainer(cleanedContainerID)
+	logDone("logs - logs follow stopped container")
+}

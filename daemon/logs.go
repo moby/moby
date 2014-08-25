@@ -111,7 +111,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 			}
 		}
 	}
-	if follow {
+	if follow && container.State.IsRunning() {
 		errors := make(chan error, 2)
 		if stdout {
 			stdoutPipe := container.StdoutLogPipe()
