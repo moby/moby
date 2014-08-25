@@ -34,7 +34,7 @@ var (
 // will return the next available ip if the ip provided is nil.  If the
 // ip provided is not nil it will validate that the provided ip is available
 // for use or return an error
-func RequestIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
+func RequestIP(network *net.IPNet, ipRange *net.IPNet) (*net.IP, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	key := network.String()
@@ -44,10 +44,7 @@ func RequestIP(network *net.IPNet, ip *net.IP) (*net.IP, error) {
 		allocatedIPs[key] = allocated
 	}
 
-	if ip == nil {
-		return allocated.getNextIP(network)
-	}
-	return allocated.checkIP(network, ip)
+	return allocated.getNextIP(network, ipRange)
 }
 
 // ReleaseIP adds the provided ip back into the pool of
@@ -79,36 +76,53 @@ func (allocated *allocatedMap) checkIP(network *net.IPNet, ip *net.IP) (*net.IP,
 	return ip, nil
 }
 
-// return an available ip if one is currently available.  If not,
-// return the next available ip for the nextwork
-func (allocated *allocatedMap) getNextIP(network *net.IPNet) (*net.IP, error) {
+// return an available ip if one is currently available.
+func (allocated *allocatedMap) getNextIP(network *net.IPNet, ipReqRange *net.IPNet) (*net.IP, error) {
 	var (
-		ownIP    = ipToInt(&network.IP)
-		first, _ = networkdriver.NetworkRange(network)
-		base     = ipToInt(&first)
-		size     = int(networkdriver.NetworkSize(network.Mask))
-		max      = int32(size - 2) // size -1 for the broadcast network, -1 for the gateway network
-		pos      = allocated.last
+		ownIPInt        = ipToInt(&network.IP)
+		base, broadcast = networkdriver.NetworkRange(network)
+		baseInt         = ipToInt(&base)
+		networkFirstInt = baseInt + 1
+		networkLastInt  = ipToInt(&broadcast) - 1
+		rangeFirstInt   = networkFirstInt
+		rangeLastInt    = networkLastInt
+		allocatedPos    = allocated.last
+		pos             = allocatedPos - (rangeFirstInt - baseInt) // relative to the start of available addresses
 	)
 
-	var (
-		firstNetIP = network.IP.To4().Mask(network.Mask)
-		firstAsInt = ipToInt(&firstNetIP) + 1
-	)
+	if ipReqRange != nil {
+		ipReqRangeFirst, ipReqRangeLast := networkdriver.NetworkRange(ipReqRange)
+		ipReqRangeFirstInt := ipToInt(&ipReqRangeFirst)
+		ipReqRangeLastInt := ipToInt(&ipReqRangeLast)
 
-	for i := int32(0); i < max; i++ {
-		pos = pos%max + 1
-		next := int32(base + pos)
+		if rangeFirstInt < ipReqRangeFirstInt {
+			rangeFirstInt = ipReqRangeFirstInt
+		}
+		if rangeLastInt > ipReqRangeLastInt {
+			rangeLastInt = ipReqRangeLastInt
+		}
 
-		if next == ownIP || next == firstAsInt {
+		pos = pos - (ipReqRangeFirstInt - networkFirstInt) // make relative to the new range
+	}
+
+	size := rangeLastInt - rangeFirstInt + 1
+	if pos < 0 || pos > size { // outside of range
+		pos = 0
+	}
+	for i := int32(0); i < size; i++ {
+		pos = (pos + 1) % size
+		ipInt := int32(rangeFirstInt + pos)
+
+		if ipInt == ownIPInt {
 			continue
 		}
-		if _, ok := allocated.p[pos]; ok {
+		allocatedPos := pos + (rangeFirstInt - baseInt)
+		if _, ok := allocated.p[allocatedPos]; ok {
 			continue
 		}
-		allocated.p[pos] = struct{}{}
-		allocated.last = pos
-		return intToIP(next), nil
+		allocated.p[allocatedPos] = struct{}{}
+		allocated.last = allocatedPos
+		return intToIP(ipInt), nil
 	}
 	return nil, ErrNoAvailableIPs
 }

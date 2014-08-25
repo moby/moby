@@ -979,6 +979,7 @@ removed before the image is removed.
       --expose=[]                Expose a port from the container without publishing it to your host
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
+      --ip=""                    Restrict the IP range used to pick the container IP address from
       --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
@@ -1134,8 +1135,26 @@ An example of a file passed with `--env-file`
 
     $ sudo docker run --name console -t -i ubuntu bash
 
-This will create and run a new container with the container name being
-`console`.
+The `--ip` flag lets you restrict the range of IPs docker will pick from when
+determining what IP to allocate to a new container. This can be a single IP,
+or a range specified in CIDR notation.
+
+Note that the address (range) specified must be within Docker's subnet. If it
+isn't, the allocator will not be able to find a suitable IP address, and the
+container will fail to start.  
+This also does not change the subnet that the container will be assigned, only
+the IP address. The container will still receive the default Docker subnet.
+
+Example usage:
+
+    $ sudo docker run --ip 172.17.200.10 ubuntu bash
+
+    $ sudo docker run --ip 172.17.200.10/32 ubuntu bash
+
+    $ sudo docker run --ip 172.17.200.0/24 ubuntu bash
+
+The `--name` flag will create and run a new container with the provided name.  
+The following example will start a container named `console`.
 
     $ sudo docker run --link /redis:redis --name console ubuntu bash
 

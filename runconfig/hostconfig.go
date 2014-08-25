@@ -35,6 +35,7 @@ type HostConfig struct {
 	ContainerIDFile string
 	LxcConf         []utils.KeyValuePair
 	Privileged      bool
+	IP              string
 	PortBindings    nat.PortMap
 	Links           []string
 	PublishAllPorts bool
@@ -54,6 +55,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
+		IP:              job.Getenv("IP"),
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
