@@ -625,7 +625,7 @@ ensure we know how your setup is configured.
 
 ## inspect
 
-    Usage: docker inspect CONTAINER|IMAGE [CONTAINER|IMAGE...]
+    Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
     Return low-level information on a container or image
 
@@ -690,7 +690,7 @@ signal specified with option `--signal`.
 
 ## load
 
-    Usage: docker load
+    Usage: docker load [OPTIONS]
 
     Load an image from a tar archive on STDIN
 
@@ -742,7 +742,7 @@ For example:
 
 ## logs
 
-    Usage: docker logs CONTAINER
+    Usage: docker logs [OPTIONS] CONTAINER
 
     Fetch the logs of a container
 
@@ -832,7 +832,7 @@ This shows all the containers that have exited with status of '0'
 
 ## pull
 
-    Usage: docker pull NAME[:TAG]
+    Usage: docker pull [OPTIONS] NAME[:TAG]
 
     Pull an image or a repository from the registry
 
@@ -922,7 +922,7 @@ delete them. Any running containers will not be deleted.
 
 ## rmi
 
-    Usage: docker rmi IMAGE [IMAGE...]
+    Usage: docker rmi [OPTIONS] IMAGE [IMAGE...]
 
     Remove one or more images
 
@@ -1249,7 +1249,7 @@ Providing a maximum restart limit is only valid for the ** on-failure ** policy.
 
 ## save
 
-    Usage: docker save IMAGE
+    Usage: docker save [OPTIONS] IMAGE
 
     Save an image to a tar archive (streamed to STDOUT by default)
 
@@ -1274,7 +1274,7 @@ It is used to create a backup that can then be used with
 
 Search [Docker Hub](https://hub.docker.com) for images
 
-    Usage: docker search TERM
+    Usage: docker search [OPTIONS] TERM
 
     Search the Docker Hub for images
 
@@ -1288,7 +1288,7 @@ more details on finding shared images from the command line.
 
 ## start
 
-    Usage: docker start CONTAINER [CONTAINER...]
+    Usage: docker start [OPTIONS] CONTAINER [CONTAINER...]
 
     Restart a stopped container
 
