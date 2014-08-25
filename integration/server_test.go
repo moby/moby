@@ -218,7 +218,7 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	job = eng.Job("delete", id)
+	job = eng.Job("rm", id)
 	job.SetenvBool("removeVolume", true)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
