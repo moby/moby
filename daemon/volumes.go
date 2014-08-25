@@ -29,6 +29,10 @@ func (v *Volume) isDir() (bool, error) {
 	return stat.IsDir(), nil
 }
 
+func (v *Volume) GetId() string {
+	return filepath.Base(v.HostPath)
+}
+
 func prepareVolumesForContainer(container *Container) error {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
@@ -188,7 +192,7 @@ func createVolumeHostPath(container *Container) (string, error) {
 	// Do not pass a container as the parameter for the volume creation.
 	// The graph driver using the container's information ( Image ) to
 	// create the parent.
-	c, err := container.daemon.volumes.Create(nil, "", "", "", "", nil, nil)
+	c, err := container.daemon.Volumes().Create(nil, "", "", "", "", nil, nil)
 	if err != nil {
 		return "", err
 	}
@@ -233,6 +237,8 @@ func (v *Volume) initialize(container *Container) error {
 
 	container.Volumes[v.VolPath] = hostPath
 	container.VolumesRW[v.VolPath] = v.isReadWrite
+	container.daemon.volumes.Add(v)
+	container.daemon.volumes.AddRef(v, container)
 
 	volIsDir, err := v.isDir()
 	if err != nil {
@@ -246,6 +252,7 @@ func (v *Volume) initialize(container *Container) error {
 	if v.isReadWrite && !v.isBindMount {
 		return copyExistingContents(fullVolPath, hostPath)
 	}
+
 	return nil
 }
 

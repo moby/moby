@@ -555,9 +555,11 @@ func (b *Builder) clearTmp() {
 		tmp := b.Daemon.Get(c)
 		if err := b.Daemon.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
-		} else {
-			delete(b.TmpContainers, c)
-			fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+			return
 		}
+		volumes, _ := tmp.GetVolumes()
+		b.daemon.RemoveVolumes(volumes)
+		delete(b.TmpContainers, c)
+		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
 	}
 }
