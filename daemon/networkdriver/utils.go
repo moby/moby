@@ -7,8 +7,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/docker/docker/engine"
 	"github.com/docker/libcontainer/netlink"
-	"github.com/dotcloud/docker/engine"
 )
 
 var (

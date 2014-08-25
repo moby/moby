@@ -1,14 +1,14 @@
 package daemon
 
 import (
-	"github.com/dotcloud/docker/daemon/graphdriver/devmapper"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/daemon/graphdriver/devmapper"
+	"github.com/docker/docker/pkg/log"
 )
 
 func (container *Container) Sweep() error {
 	device := "eth0"
 	if _, err := container.daemon.ExecIn(container.ID, "ip", []string{"link", "show", device}); err != nil {
-		utils.Debugf("%s", err)
+		log.Debugf("%s", err)
 	} else {
 		if _, err := container.daemon.ExecIn(container.ID, "ip", []string{"link", "delete", device}); err != nil {
 			return err

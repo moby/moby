@@ -80,31 +80,3 @@ func getPath(id, driver, subsystem string) (string, error) {
 	}
 	return path, nil
 }
-
-func GetStatsFix(c *cgroups.Cgroup) (*cgroups.Stats, error) {
-	var (
-		subsystems = map[string]subsystem{
-			"devices":    &devicesGroup{},
-			"memory":     &memoryGroup{},
-			"cpu":        &cpuGroup{},
-			"cpuset":     &cpusetGroup{},
-			"cpuacct":    &cpuacctGroup{},
-			"perf_event": &perfEventGroup{},
-		}
-	)
-	stats := cgroups.NewStats()
-
-	d, err := getCgroupData(c, 0)
-	if err != nil {
-		return nil, fmt.Errorf("getting CgroupData %s", err)
-	}
-
-	for sysName, sys := range subsystems {
-		// Don't fail if a cgroup hierarchy was not found.
-		if err := sys.GetStats(d, stats); err != nil && err != cgroups.ErrNotFound {
-			return nil, fmt.Errorf("getting stats for system %q %s", sysName, err)
-		}
-	}
-
-	return stats, nil
-}
