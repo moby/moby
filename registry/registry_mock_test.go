@@ -236,6 +236,7 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
+		return
 	}
 	if r.Method == "DELETE" {
 		delete(testRepositories, repositoryName)
@@ -255,10 +256,12 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
+		return
 	}
 	tag, exists := tags[tagName]
 	if !exists {
 		apiError(w, "Tag not found", 404)
+		return
 	}
 	writeResponse(w, tag, 200)
 }
