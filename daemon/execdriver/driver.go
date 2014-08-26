@@ -20,7 +20,7 @@ var (
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-type StartCallback func(*ProcessConfig)
+type StartCallback func(*ProcessConfig, int)
 
 // Driver specific information based on
 // processes registered with the driver
@@ -84,14 +84,13 @@ type Mount struct {
 type ProcessConfig struct {
 	exec.Cmd `json:"-"`
 
-	Privileged   bool     `json:"privileged"`
-	User         string   `json:"user"`
-	Tty          bool     `json:"tty"`
-	Entrypoint   string   `json:"entrypoint"`
-	Arguments    []string `json:"arguments"`
-	Terminal     Terminal `json:"-"`             // standard or tty terminal
-	ContainerPid int      `json:"container_pid"` // the pid for the process inside a container
-	Console      string   `json:"-"`             // dev/console path
+	Privileged bool     `json:"privileged"`
+	User       string   `json:"user"`
+	Tty        bool     `json:"tty"`
+	Entrypoint string   `json:"entrypoint"`
+	Arguments  []string `json:"arguments"`
+	Terminal   Terminal `json:"-"` // standard or tty terminal
+	Console    string   `json:"-"` // dev/console path
 }
 
 // Process wrapps an os/exec.Cmd to add more metadata
@@ -109,12 +108,6 @@ type Command struct {
 	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
 	CapAdd             []string            `json:"cap_add"`
 	CapDrop            []string            `json:"cap_drop"`
-
-	ProcessConfig ProcessConfig `json:"process_config"` // Describes the init process of the container.
-}
-
-// Return the pid of the process
-// If the process is nil -1 will be returned
-func (processConfig *ProcessConfig) Pid() int {
-	return processConfig.ContainerPid
+	ContainerPid       int                 `json:"container_pid"`  // the pid for the process inside a container
+	ProcessConfig      ProcessConfig       `json:"process_config"` // Describes the init process of the container.
 }

@@ -52,6 +52,7 @@ func TestLXCConfig(t *testing.T) {
 			Interface: nil,
 		},
 		AllowedDevices: make([]*devices.Device, 0),
+		ProcessConfig:  execdriver.ProcessConfig{},
 	}
 	p, err := driver.generateLXCConfig(command)
 	if err != nil {

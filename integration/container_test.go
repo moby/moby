@@ -47,8 +47,8 @@ func TestKillDifferentUser(t *testing.T) {
 	})
 
 	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		out, _ := container.StdConfig.StdoutPipe()
-		in, _ := container.StdConfig.StdinPipe()
+		out, _ := container.StdoutPipe()
+		in, _ := container.StdinPipe()
 		if err := assertPipe("hello\n", "hello", out, in, 150); err != nil {
 			t.Fatal(err)
 		}
@@ -87,11 +87,11 @@ func TestRestartStdin(t *testing.T) {
 	}
 	defer daemon.Destroy(container)
 
-	stdin, err := container.StdConfig.StdinPipe()
+	stdin, err := container.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	stdout, err := container.StdConfig.StdoutPipe()
+	stdout, err := container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,11 +117,11 @@ func TestRestartStdin(t *testing.T) {
 	}
 
 	// Restart and try again
-	stdin, err = container.StdConfig.StdinPipe()
+	stdin, err = container.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	stdout, err = container.StdConfig.StdoutPipe()
+	stdout, err = container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,11 +163,11 @@ func TestStdin(t *testing.T) {
 	}
 	defer daemon.Destroy(container)
 
-	stdin, err := container.StdConfig.StdinPipe()
+	stdin, err := container.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	stdout, err := container.StdConfig.StdoutPipe()
+	stdout, err := container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,11 +208,11 @@ func TestTty(t *testing.T) {
 	}
 	defer daemon.Destroy(container)
 
-	stdin, err := container.StdConfig.StdinPipe()
+	stdin, err := container.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	stdout, err := container.StdConfig.StdoutPipe()
+	stdout, err := container.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
