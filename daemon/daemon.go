@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/audit"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/log"
@@ -894,6 +895,7 @@ func (daemon *Daemon) shutdown() error {
 				}
 				c.State.WaitStop(-1 * time.Second)
 				log.Debugf("container stopped %s", c.ID)
+				audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=stop reason=shutdown vm=%s uuid=%s vm-pid=%d", container.Name, container.ID, container.State.GetPid()), true)
 			}()
 		}
 	}
@@ -965,7 +967,11 @@ func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
 }
 
 func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	return daemon.execDriver.Run(c.command, pipes, startCallback)
+	i, err := daemon.execDriver.Run(c.command, pipes, startCallback)
+	if err != nil {
+		audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=start reason=booted vm=%s uuid=%s vm-pid=%d", c.Name, c.ID, c.State.GetPid()), false)
+	}
+	return i, err
 }
 
 func (daemon *Daemon) Pause(c *Container) error {

@@ -1,7 +1,9 @@
 package daemon
 
 import (
+	"fmt"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/audit"
 )
 
 func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
@@ -20,8 +22,10 @@ func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
 			return job.Errorf("Container already stopped")
 		}
 		if err := container.Stop(int(t)); err != nil {
+			audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=stop  uuid=%s", container.ID), false)
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
+		audit.AuditLogUserEvent(audit.AUDIT_VIRT_CONTROL, fmt.Sprintf("virt=docker op=stop uuid=%s", container.ID), true)
 		container.LogEvent("stop")
 	} else {
 		return job.Errorf("No such container: %s\n", name)
