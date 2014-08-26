@@ -85,7 +85,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
 
-	opts := &BuildOpts{
+	builder := &Builder{
 		Daemon: b.Daemon,
 		Engine: b.Engine,
 		OutStream: &utils.StdoutFormater{
@@ -106,7 +106,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		AuthConfigFile:  configFile,
 	}
 
-	id, err := NewBuilder(opts).Run(context)
+	id, err := builder.Run(context)
 	if err != nil {
 		return job.Error(err)
 	}

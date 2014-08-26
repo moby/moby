@@ -10,7 +10,7 @@ var (
 )
 
 // handle environment replacement. Used in dispatcher.
-func (b *BuildFile) replaceEnv(str string) string {
+func (b *Builder) replaceEnv(str string) string {
 	for _, match := range TOKEN_ENV_INTERPOLATION.FindAllString(str, -1) {
 		match = match[strings.Index(match, "$"):]
 		matchKey := strings.Trim(match, "${}")
