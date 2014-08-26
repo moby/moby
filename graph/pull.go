@@ -52,7 +52,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err := registry.NewEndpoint(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -62,7 +62,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	if endpoint == registry.IndexServerAddress() {
+	if endpoint.String() == registry.IndexServerAddress() {
 		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
 		localName = remoteName
 

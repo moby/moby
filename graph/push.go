@@ -214,7 +214,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err := registry.NewEndpoint(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -243,7 +243,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 
 	var token []string
 	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
+	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint.String(), token, sf); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK

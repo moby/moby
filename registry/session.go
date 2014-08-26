@@ -25,15 +25,15 @@ import (
 type Session struct {
 	authConfig    *AuthConfig
 	reqFactory    *utils.HTTPRequestFactory
-	indexEndpoint string
+	indexEndpoint *Endpoint
 	jar           *cookiejar.Jar
 	timeout       TimeoutType
 }
 
-func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, indexEndpoint string, timeout bool) (r *Session, err error) {
+func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpoint *Endpoint, timeout bool) (r *Session, err error) {
 	r = &Session{
 		authConfig:    authConfig,
-		indexEndpoint: indexEndpoint,
+		indexEndpoint: endpoint,
 	}
 
 	if timeout {
@@ -47,13 +47,13 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, index
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
-	if indexEndpoint != IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
-		info, err := pingRegistryEndpoint(indexEndpoint)
+	if r.indexEndpoint.String() != IndexServerAddress() && r.indexEndpoint.URL.Scheme == "https" {
+		info, err := r.indexEndpoint.Ping()
 		if err != nil {
 			return nil, err
 		}
 		if info.Standalone {
-			log.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", indexEndpoint)
+			log.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", r.indexEndpoint.String())
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}
@@ -261,8 +261,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 }
 
 func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
-	indexEp := r.indexEndpoint
-	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", indexEp, remote)
+	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.String(), remote)
 
 	log.Debugf("[registry] Calling GET %s", repositoryTarget)
 
@@ -296,17 +295,13 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 
 	var endpoints []string
 	if res.Header.Get("X-Docker-Endpoints") != "" {
-		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], indexEp)
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// Assume the endpoint is on the same host
-		u, err := url.Parse(indexEp)
-		if err != nil {
-			return nil, err
-		}
-		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", u.Scheme, req.URL.Host))
+		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", r.indexEndpoint.URL.Scheme, req.URL.Host))
 	}
 
 	checksumsJSON, err := ioutil.ReadAll(res.Body)
@@ -474,7 +469,6 @@ func (r *Session) PushRegistryTag(remote, revision, tag, registry string, token 
 
 func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
 	cleanImgList := []*ImgData{}
-	indexEp := r.indexEndpoint
 
 	if validate {
 		for _, elem := range imgList {
@@ -494,7 +488,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	if validate {
 		suffix = "images"
 	}
-	u := fmt.Sprintf("%srepositories/%s/%s", indexEp, remote, suffix)
+	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.String(), remote, suffix)
 	log.Debugf("[registry] PUT %s", u)
 	log.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
@@ -552,7 +546,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		}
 
 		if res.Header.Get("X-Docker-Endpoints") != "" {
-			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], indexEp)
+			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
 			if err != nil {
 				return nil, err
 			}
@@ -578,7 +572,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	log.Debugf("Index server: %s", r.indexEndpoint)
-	u := r.indexEndpoint + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
