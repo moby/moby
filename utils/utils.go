@@ -644,7 +644,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		// skip checking if symlinks point to non-existing files, such symlinks can be useful
 		// also skip named pipes, because they hanging on open
 		lstat, _ := os.Lstat(filePath)
-		if lstat.Mode()&(os.ModeSymlink|os.ModeNamedPipe) != 0 {
+		if lstat != nil && lstat.Mode()&(os.ModeSymlink|os.ModeNamedPipe) != 0 {
 			return nil
 		}
 
