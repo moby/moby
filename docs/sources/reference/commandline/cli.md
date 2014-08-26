@@ -977,7 +977,8 @@ removed before the image is removed.
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
       --expose=[]                Expose a port from the container without publishing it to your host
-      -h, --hostname=""          Container host name
+      -h, --hostname=""          Container host name and ipaddress (optional)
+                                   format: hostname | hostname:ipaddress
       -i, --interactive=false    Keep STDIN open even if not attached
       --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -1167,6 +1168,11 @@ only to the container's `STDIN`.
 This isn't going to print anything unless there's an error because we've
 only attached to the `STDERR` of the container. The container's logs
 still store what's been written to `STDERR` and `STDOUT`.
+
+    $ sudo docker run -it -h docker.com:161.242.195.76 ubuntu:14.04 bash
+
+This shows how to specify the desired ipaddress in /etc/hosts, which allows
+using an alternate container interface (created through piework, for example)
 
     $ cat somefile | sudo docker run -i -a stdin mybuilder dobuild
 
