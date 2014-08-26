@@ -196,13 +196,13 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	container.daemon = daemon
 
 	// Attach to stdout and stderr
-	container.stderr = broadcastwriter.New()
-	container.stdout = broadcastwriter.New()
+	container.StdConfig.stderr = broadcastwriter.New()
+	container.StdConfig.stdout = broadcastwriter.New()
 	// Attach to stdin
 	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
+		container.StdConfig.stdin, container.StdConfig.stdinPipe = io.Pipe()
 	} else {
-		container.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
+		container.StdConfig.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// done
 	daemon.containers.Add(container.ID, container)
@@ -230,7 +230,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 				ID: container.ID,
 			}
 			var err error
-			cmd.Process, err = os.FindProcess(existingPid)
+			cmd.ProcessConfig.Process, err = os.FindProcess(existingPid)
 			if err != nil {
 				log.Debugf("cannot find existing process for %d", existingPid)
 			}

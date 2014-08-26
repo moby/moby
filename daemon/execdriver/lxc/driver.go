@@ -59,12 +59,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		err  error
 	)
 
-	if c.Tty {
-		term, err = NewTtyConsole(c, pipes)
+	if c.ProcessConfig.Tty {
+		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
 	} else {
-		term, err = execdriver.NewStdConsole(c, pipes)
+		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
-	c.Terminal = term
+	c.ProcessConfig.Terminal = term
 
 	c.Mounts = append(c.Mounts, execdriver.Mount{
 		Source:      d.initPath,
@@ -98,11 +98,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"-mtu", strconv.Itoa(c.Network.Mtu),
 	)
 
-	if c.User != "" {
-		params = append(params, "-u", c.User)
+	if c.ProcessConfig.User != "" {
+		params = append(params, "-u", c.ProcessConfig.User)
 	}
 
-	if c.Privileged {
+	if c.ProcessConfig.Privileged {
 		if d.apparmor {
 			params[0] = path.Join(d.root, "lxc-start-unconfined")
 
@@ -122,8 +122,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		params = append(params, fmt.Sprintf("-cap-drop=%s", strings.Join(c.CapDrop, ":")))
 	}
 
-	params = append(params, "--", c.Entrypoint)
-	params = append(params, c.Arguments...)
+	params = append(params, "--", c.ProcessConfig.Entrypoint)
+	params = append(params, c.ProcessConfig.Arguments...)
 
 	if d.sharedRoot {
 		// lxc-start really needs / to be non-shared, or all kinds of stuff break
@@ -149,14 +149,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		aname = name
 	}
-	c.Path = aname
-	c.Args = append([]string{name}, arg...)
+	c.ProcessConfig.Path = aname
+	c.ProcessConfig.Args = append([]string{name}, arg...)
 
 	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
 		return -1, err
 	}
 
-	if err := c.Start(); err != nil {
+	if err := c.ProcessConfig.Start(); err != nil {
 		return -1, err
 	}
 
@@ -166,7 +166,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	)
 
 	go func() {
-		if err := c.Wait(); err != nil {
+		if err := c.ProcessConfig.Wait(); err != nil {
 			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
 				waitErr = err
 			}
@@ -177,17 +177,17 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// Poll lxc for RUNNING status
 	pid, err := d.waitForStart(c, waitLock)
 	if err != nil {
-		if c.Process != nil {
-			c.Process.Kill()
-			c.Wait()
+		if c.ProcessConfig.Process != nil {
+			c.ProcessConfig.Process.Kill()
+			c.ProcessConfig.Wait()
 		}
 		return -1, err
 	}
 
-	c.ContainerPid = pid
+	c.ProcessConfig.ContainerPid = pid
 
 	if startCallback != nil {
-		startCallback(c)
+		startCallback(&c.ProcessConfig)
 	}
 
 	<-waitLock
@@ -198,10 +198,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 /// Return the exit code of the process
 // if the process has not exited -1 will be returned
 func getExitCode(c *execdriver.Command) int {
-	if c.ProcessState == nil {
+	if c.ProcessConfig.ProcessState == nil {
 		return -1
 	}
-	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	return c.ProcessConfig.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
@@ -442,7 +442,7 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 }
 
 func (d *driver) generateEnvConfig(c *execdriver.Command) error {
-	data, err := json.Marshal(c.Env)
+	data, err := json.Marshal(c.ProcessConfig.Env)
 	if err != nil {
 		return err
 	}
@@ -462,7 +462,7 @@ type TtyConsole struct {
 	SlavePty  *os.File
 }
 
-func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyConsole, error) {
+func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes) (*TtyConsole, error) {
 	// lxc is special in that we cannot create the master outside of the container without
 	// opening the slave because we have nothing to provide to the cmd.  We have to open both then do
 	// the crazy setup on command right now instead of passing the console path to lxc and telling it
@@ -478,12 +478,12 @@ func NewTtyConsole(command *execdriver.Command, pipes *execdriver.Pipes) (*TtyCo
 		SlavePty:  ptySlave,
 	}
 
-	if err := tty.AttachPipes(&command.Cmd, pipes); err != nil {
+	if err := tty.AttachPipes(&processConfig.Cmd, pipes); err != nil {
 		tty.Close()
 		return nil, err
 	}
 
-	command.Console = tty.SlavePty.Name()
+	processConfig.Console = tty.SlavePty.Name()
 
 	return tty, nil
 }

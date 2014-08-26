@@ -20,7 +20,7 @@ var (
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-type StartCallback func(*Command)
+type StartCallback func(*ProcessConfig)
 
 // Driver specific information based on
 // processes registered with the driver
@@ -80,20 +80,27 @@ type Mount struct {
 	Private     bool   `json:"private"`
 }
 
-// Process wrapps an os/exec.Cmd to add more metadata
-type Command struct {
+// Describes a process that will be run inside a container.
+type ProcessConfig struct {
 	exec.Cmd `json:"-"`
 
+	Privileged   bool     `json:"privileged"`
+	User         string   `json:"user"`
+	Tty          bool     `json:"tty"`
+	Entrypoint   string   `json:"entrypoint"`
+	Arguments    []string `json:"arguments"`
+	Terminal     Terminal `json:"-"`             // standard or tty terminal
+	ContainerPid int      `json:"container_pid"` // the pid for the process inside a container
+	Console      string   `json:"-"`             // dev/console path
+}
+
+// Process wrapps an os/exec.Cmd to add more metadata
+type Command struct {
 	ID                 string              `json:"id"`
-	Privileged         bool                `json:"privileged"`
-	User               string              `json:"user"`
 	Rootfs             string              `json:"rootfs"`   // root fs of the container
 	InitPath           string              `json:"initpath"` // dockerinit
-	Entrypoint         string              `json:"entrypoint"`
-	Arguments          []string            `json:"arguments"`
 	WorkingDir         string              `json:"working_dir"`
 	ConfigPath         string              `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Tty                bool                `json:"tty"`
 	Network            *Network            `json:"network"`
 	Config             map[string][]string `json:"config"` //  generic values that specific drivers can consume
 	Resources          *Resources          `json:"resources"`
@@ -103,13 +110,11 @@ type Command struct {
 	CapAdd             []string            `json:"cap_add"`
 	CapDrop            []string            `json:"cap_drop"`
 
-	Terminal     Terminal `json:"-"`             // standard or tty terminal
-	Console      string   `json:"-"`             // dev/console path
-	ContainerPid int      `json:"container_pid"` // the pid for the process inside a container
+	ProcessConfig ProcessConfig `json:"process_config"` // Describes the init process of the container.
 }
 
 // Return the pid of the process
 // If the process is nil -1 will be returned
-func (c *Command) Pid() int {
-	return c.ContainerPid
+func (processConfig *ProcessConfig) Pid() int {
+	return processConfig.ContainerPid
 }

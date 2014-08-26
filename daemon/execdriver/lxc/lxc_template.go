@@ -42,7 +42,7 @@ lxc.se_context = {{ .ProcessLabel}}
 # no controlling tty at all
 lxc.tty = 1
 
-{{if .Privileged}}
+{{if .ProcessConfig.Privileged}}
 lxc.cgroup.devices.allow = a
 {{else}}
 # no implicit access to devices
@@ -66,7 +66,7 @@ lxc.pivotdir = lxc_putold
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
 
-{{if .Tty}}
+{{if .ProcessConfig.Tty}}
 lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
 {{end}}
 
@@ -81,7 +81,7 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{end}}
 {{end}}
 
-{{if .Privileged}}
+{{if .ProcessConfig.Privileged}}
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
