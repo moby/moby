@@ -34,7 +34,7 @@ func TestNewDatabase(t *testing.T) {
 	defer destroyTestDb(dbpath)
 }
 
-func TestCreateRootEnity(t *testing.T) {
+func TestCreateRootEntity(t *testing.T) {
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 	root := db.RootEntity()
@@ -91,6 +91,84 @@ func TestCreateChild(t *testing.T) {
 	}
 	if child.ID() != "1" {
 		t.Fail()
+	}
+}
+
+func TestParents(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	for i := 1; i < 6; i++ {
+		a := strconv.Itoa(i)
+		if _, err := db.Set("/"+a, a); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 6; i < 11; i++ {
+		a := strconv.Itoa(i)
+		p := strconv.Itoa(i - 5)
+
+		key := fmt.Sprintf("/%s/%s", p, a)
+
+		if _, err := db.Set(key, a); err != nil {
+			t.Fatal(err)
+		}
+
+		parents, err := db.Parents(key)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(parents) != 1 {
+			t.Fatalf("Expected 2 entries for %s got %d", key, len(parents))
+		}
+
+		if parents[0] != p {
+			t.Fatalf("ID %s received, %s expected", parents[0], p)
+		}
+	}
+}
+
+func TestChildren(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	str := "/"
+	for i := 1; i < 6; i++ {
+		a := strconv.Itoa(i)
+		if _, err := db.Set(str+a, a); err != nil {
+			t.Fatal(err)
+		}
+
+		str = str + a + "/"
+	}
+
+	str = "/"
+	for i := 10; i < 30; i++ { // 20 entities
+		a := strconv.Itoa(i)
+		if _, err := db.Set(str+a, a); err != nil {
+			t.Fatal(err)
+		}
+
+		str = str + a + "/"
+	}
+	entries, err := db.Children("/", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(entries) != 11 {
+		t.Fatalf("Expect 11 entries for / got %d", len(entries))
+	}
+
+	entries, err = db.Children("/", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(entries) != 25 {
+		t.Fatalf("Expect 25 entries for / got %d", len(entries))
 	}
 }
 
