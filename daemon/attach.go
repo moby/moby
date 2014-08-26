@@ -127,7 +127,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 
 	if stdin != nil && container.Config.OpenStdin {
 		nJobs++
-		if cStdin, err := container.StdConfig.StdinPipe(); err != nil {
+		if cStdin, err := container.StdinPipe(); err != nil {
 			errors <- err
 		} else {
 			go func() {
@@ -163,7 +163,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 	}
 	if stdout != nil {
 		nJobs++
-		if p, err := container.StdConfig.StdoutPipe(); err != nil {
+		if p, err := container.StdoutPipe(); err != nil {
 			errors <- err
 		} else {
 			cStdout = p
@@ -192,7 +192,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 			if stdinCloser != nil {
 				defer stdinCloser.Close()
 			}
-			if cStdout, err := container.StdConfig.StdoutPipe(); err != nil {
+			if cStdout, err := container.StdoutPipe(); err != nil {
 				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStdout)
@@ -201,7 +201,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 	}
 	if stderr != nil {
 		nJobs++
-		if p, err := container.StdConfig.StderrPipe(); err != nil {
+		if p, err := container.StderrPipe(); err != nil {
 			errors <- err
 		} else {
 			cStderr = p
@@ -231,7 +231,7 @@ func (daemon *Daemon) Attach(container *Container, stdin io.ReadCloser, stdinClo
 				defer stdinCloser.Close()
 			}
 
-			if cStderr, err := container.StdConfig.StderrPipe(); err != nil {
+			if cStderr, err := container.StderrPipe(); err != nil {
 				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&utils.NopWriter{}, cStderr)

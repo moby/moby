@@ -128,7 +128,7 @@ func (m *containerMonitor) Start() error {
 			return err
 		}
 
-		pipes := execdriver.NewPipes(m.container.StdConfig.stdin, m.container.StdConfig.stdout, m.container.StdConfig.stderr, m.container.Config.OpenStdin)
+		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
 		m.container.LogEvent("start")
 
@@ -233,7 +233,7 @@ func (m *containerMonitor) shouldRestart(exitStatus int) bool {
 
 // callback ensures that the container's state is properly updated after we
 // received ack from the execution drivers
-func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig) {
+func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int) {
 	if processConfig.Tty {
 		// The callback is called after the process Start()
 		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
@@ -243,7 +243,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig) {
 		}
 	}
 
-	m.container.State.setRunning(processConfig.Pid())
+	m.container.State.setRunning(pid)
 
 	// signal that the process has started
 	// close channel only if not closed
@@ -269,16 +269,16 @@ func (m *containerMonitor) resetContainer(lock bool) {
 	}
 
 	if container.Config.OpenStdin {
-		if err := container.StdConfig.stdin.Close(); err != nil {
+		if err := container.stdin.Close(); err != nil {
 			log.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
 
-	if err := container.StdConfig.stdout.Clean(); err != nil {
+	if err := container.stdout.Clean(); err != nil {
 		log.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
 
-	if err := container.StdConfig.stderr.Clean(); err != nil {
+	if err := container.stderr.Clean(); err != nil {
 		log.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 
@@ -290,7 +290,7 @@ func (m *containerMonitor) resetContainer(lock bool) {
 
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
-		container.StdConfig.stdin, container.StdConfig.stdinPipe = io.Pipe()
+		container.stdin, container.stdinPipe = io.Pipe()
 	}
 
 	c := container.command.ProcessConfig.Cmd

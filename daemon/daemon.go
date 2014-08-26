@@ -195,13 +195,13 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	container.daemon = daemon
 
 	// Attach to stdout and stderr
-	container.StdConfig.stderr = broadcastwriter.New()
-	container.StdConfig.stdout = broadcastwriter.New()
+	container.stderr = broadcastwriter.New()
+	container.stdout = broadcastwriter.New()
 	// Attach to stdin
 	if container.Config.OpenStdin {
-		container.StdConfig.stdin, container.StdConfig.stdinPipe = io.Pipe()
+		container.stdin, container.stdinPipe = io.Pipe()
 	} else {
-		container.StdConfig.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
+		container.stdinPipe = utils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// done
 	daemon.containers.Add(container.ID, container)

@@ -611,7 +611,7 @@ func TestRestore(t *testing.T) {
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
-	cStdin, _ := container2.StdConfig.StdinPipe()
+	cStdin, _ := container2.StdinPipe()
 	cStdin.Close()
 	if _, err := container2.State.WaitStop(2 * time.Second); err != nil {
 		t.Fatal(err)

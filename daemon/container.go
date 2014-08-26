@@ -41,7 +41,7 @@ var (
 	ErrContainerStartTimeout = errors.New("The container failed to start due to timed out.")
 )
 
-type StdConfig struct {
+type StreamConfig struct {
 	stdout    *broadcastwriter.BroadcastWriter
 	stderr    *broadcastwriter.BroadcastWriter
 	stdin     io.ReadCloser
@@ -72,8 +72,8 @@ type Container struct {
 	Driver         string
 	ExecDriver     string
 
-	command   *execdriver.Command
-	StdConfig StdConfig
+	command *execdriver.Command
+	StreamConfig
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
@@ -338,7 +338,7 @@ func (container *Container) Run() error {
 }
 
 func (container *Container) Output() (output []byte, err error) {
-	pipe, err := container.StdConfig.StdoutPipe()
+	pipe, err := container.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +351,7 @@ func (container *Container) Output() (output []byte, err error) {
 	return output, err
 }
 
-// StdConfig.StdinPipe returns a WriteCloser which can be used to feed data
+// StreamConfig.StdinPipe returns a WriteCloser which can be used to feed data
 // to the standard input of the container's active process.
 // Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
 // which can be used to retrieve the standard output (and error) generated
@@ -359,31 +359,31 @@ func (container *Container) Output() (output []byte, err error) {
 // copied and delivered to all StdoutPipe and StderrPipe consumers, using
 // a kind of "broadcaster".
 
-func (stdConfig *StdConfig) StdinPipe() (io.WriteCloser, error) {
-	return stdConfig.stdinPipe, nil
+func (streamConfig *StreamConfig) StdinPipe() (io.WriteCloser, error) {
+	return streamConfig.stdinPipe, nil
 }
 
-func (stdConfig *StdConfig) StdoutPipe() (io.ReadCloser, error) {
+func (streamConfig *StreamConfig) StdoutPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	stdConfig.stdout.AddWriter(writer, "")
+	streamConfig.stdout.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
-func (stdConfig *StdConfig) StderrPipe() (io.ReadCloser, error) {
+func (streamConfig *StreamConfig) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	stdConfig.stderr.AddWriter(writer, "")
+	streamConfig.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) StdoutLogPipe() io.ReadCloser {
+func (streamConfig *StreamConfig) StdoutLogPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	container.StdConfig.stdout.AddWriter(writer, "stdout")
+	streamConfig.stdout.AddWriter(writer, "stdout")
 	return utils.NewBufReader(reader)
 }
 
-func (container *Container) StderrLogPipe() io.ReadCloser {
+func (streamConfig *StreamConfig) StderrLogPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	container.StdConfig.stderr.AddWriter(writer, "stderr")
+	streamConfig.stderr.AddWriter(writer, "stderr")
 	return utils.NewBufReader(reader)
 }
 
@@ -1092,11 +1092,11 @@ func (container *Container) startLoggingToDisk() error {
 		return err
 	}
 
-	if err := container.daemon.LogToDisk(container.StdConfig.stdout, pth, "stdout"); err != nil {
+	if err := container.daemon.LogToDisk(container.stdout, pth, "stdout"); err != nil {
 		return err
 	}
 
-	if err := container.daemon.LogToDisk(container.StdConfig.stderr, pth, "stderr"); err != nil {
+	if err := container.daemon.LogToDisk(container.stderr, pth, "stderr"); err != nil {
 		return err
 	}
 

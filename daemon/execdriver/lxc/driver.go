@@ -184,10 +184,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return -1, err
 	}
 
-	c.ProcessConfig.ContainerPid = pid
+	c.ContainerPid = pid
 
 	if startCallback != nil {
-		startCallback(&c.ProcessConfig)
+		startCallback(&c.ProcessConfig, pid)
 	}
 
 	<-waitLock
