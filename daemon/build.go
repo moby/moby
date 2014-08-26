@@ -476,19 +476,17 @@ func (b *buildFile) CmdVolume(args string) error {
 
 func (b *buildFile) checkPathForAddition(orig string) error {
 	origPath := path.Join(b.contextPath, orig)
-	if p, err := filepath.EvalSymlinks(origPath); err != nil {
+	origPath, err := filepath.EvalSymlinks(origPath)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("%s: no such file or directory", orig)
 		}
 		return err
-	} else {
-		origPath = p
 	}
 	if !strings.HasPrefix(origPath, b.contextPath) {
 		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
-	_, err := os.Stat(origPath)
-	if err != nil {
+	if _, err := os.Stat(origPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("%s: no such file or directory", orig)
 		}
@@ -908,7 +906,7 @@ func (b *buildFile) Build(context io.Reader) (string, error) {
 		} else if b.rm {
 			b.clearTmp(b.tmpContainers)
 		}
-		stepN += 1
+		stepN++
 	}
 	if b.image != "" {
 		fmt.Fprintf(b.outStream, "Successfully built %s\n", utils.TruncateID(b.image))
