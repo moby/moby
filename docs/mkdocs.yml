@@ -106,6 +106,7 @@ pages:
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
 - ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
+- ['reference/api/docker_remote_api_v1.15.md', 'Reference', 'Docker Remote API v1.15']
 - ['reference/api/docker_remote_api_v1.14.md', 'Reference', 'Docker Remote API v1.14']
 - ['reference/api/docker_remote_api_v1.13.md', 'Reference', 'Docker Remote API v1.13']
 - ['reference/api/docker_remote_api_v1.12.md', 'Reference', 'Docker Remote API v1.12']

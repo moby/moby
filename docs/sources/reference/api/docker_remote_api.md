@@ -18,13 +18,21 @@ page_keywords: API, Docker, rcli, REST, documentation
    encoded (JSON) string with credentials:
    `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`
 
-The current version of the API is v1.14
+The current version of the API is v1.15
 
 Calling `/info` is the same as calling
-`/v1.14/info`.
+`/v1.15/info`.
 
 You can still call an old version of the API using
-`/v1.13/info`.
+`/v1.14/info`.
+
+## v1.15
+
+### Full Documentation
+
+[*Docker Remote API v1.15*](/reference/api/docker_remote_api_v1.15/)
+
+### What's new
 
 ## v1.14
 
