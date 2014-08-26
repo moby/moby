@@ -128,7 +128,7 @@ func (m *containerMonitor) Start() error {
 			return err
 		}
 
-		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
+		pipes := execdriver.NewPipes(m.container.StdConfig.stdin, m.container.StdConfig.stdout, m.container.StdConfig.stderr, m.container.Config.OpenStdin)
 
 		m.container.LogEvent("start")
 
@@ -233,17 +233,17 @@ func (m *containerMonitor) shouldRestart(exitStatus int) bool {
 
 // callback ensures that the container's state is properly updated after we
 // received ack from the execution drivers
-func (m *containerMonitor) callback(command *execdriver.Command) {
-	if command.Tty {
+func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig) {
+	if processConfig.Tty {
 		// The callback is called after the process Start()
 		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
 		// which we close here.
-		if c, ok := command.Stdout.(io.Closer); ok {
+		if c, ok := processConfig.Stdout.(io.Closer); ok {
 			c.Close()
 		}
 	}
 
-	m.container.State.setRunning(command.Pid())
+	m.container.State.setRunning(processConfig.Pid())
 
 	// signal that the process has started
 	// close channel only if not closed
@@ -269,33 +269,33 @@ func (m *containerMonitor) resetContainer(lock bool) {
 	}
 
 	if container.Config.OpenStdin {
-		if err := container.stdin.Close(); err != nil {
+		if err := container.StdConfig.stdin.Close(); err != nil {
 			log.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
 
-	if err := container.stdout.Clean(); err != nil {
+	if err := container.StdConfig.stdout.Clean(); err != nil {
 		log.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
 
-	if err := container.stderr.Clean(); err != nil {
+	if err := container.StdConfig.stderr.Clean(); err != nil {
 		log.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 
-	if container.command != nil && container.command.Terminal != nil {
-		if err := container.command.Terminal.Close(); err != nil {
+	if container.command != nil && container.command.ProcessConfig.Terminal != nil {
+		if err := container.command.ProcessConfig.Terminal.Close(); err != nil {
 			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
+		container.StdConfig.stdin, container.StdConfig.stdinPipe = io.Pipe()
 	}
 
-	c := container.command.Cmd
+	c := container.command.ProcessConfig.Cmd
 
-	container.command.Cmd = exec.Cmd{
+	container.command.ProcessConfig.Cmd = exec.Cmd{
 		Stdin:       c.Stdin,
 		Stdout:      c.Stdout,
 		Stderr:      c.Stderr,

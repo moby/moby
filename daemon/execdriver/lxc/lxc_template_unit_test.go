@@ -77,9 +77,11 @@ func TestCustomLxcConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	command := &execdriver.Command{
-		ID:         "1",
+	processConfig := execdriver.ProcessConfig{
 		Privileged: false,
+	}
+	command := &execdriver.Command{
+		ID: "1",
 		Config: map[string][]string{
 			"lxc": {
 				"lxc.utsname = docker",
@@ -90,6 +92,7 @@ func TestCustomLxcConfig(t *testing.T) {
 			Mtu:       1500,
 			Interface: nil,
 		},
+		ProcessConfig: processConfig,
 	}
 
 	p, err := driver.generateLXCConfig(command)
