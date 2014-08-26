@@ -1630,3 +1630,17 @@ func TestWriteResolvFileAndNotCommit(t *testing.T) {
 
 	logDone("run - write to /etc/resolv.conf and not commited")
 }
+
+func TestRunWithBadDevice(t *testing.T) {
+	name := "baddevice"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "--device", "/etc", "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("Run should fail with bad device")
+	}
+	expected := `"/etc": not a device node`
+	if !strings.Contains(out, expected) {
+		t.Fatalf("Output should contain %q, actual out: %q", expected, out)
+	}
+	logDone("run - error with bad device")
+}
