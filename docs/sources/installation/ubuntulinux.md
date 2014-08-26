@@ -79,7 +79,7 @@ This installation path should work at all times.
 
 **Linux kernel 3.8**
 
-Due to a bug in LXC, Docker works best on the 3.8 kernel. Precise comes
+Due to a bug in LXC, Docker requires at minimum a 3.8 kernel. Precise comes
 with a 3.2 kernel, so we need to upgrade it. The kernel you'll install
 when following these steps comes with AUFS built in. We also include the
 generic headers to enable packages that depend on them, like ZFS and the
