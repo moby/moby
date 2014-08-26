@@ -89,7 +89,7 @@ kernel. But it is safer to include them if you're not sure.
 
 Please read the installation instructions for backported kernels at
 Ubuntu.org to understand why you also need to install the Xorg packages
-if running Docker on a machine with a graphical environment like Unity.
+when running Docker on a machine with a graphical environment like Unity.
 [LTS Enablement Stack](https://wiki.ubuntu.com/Kernel/LTSEnablementStack) refer to note 5 under
 each version.
 
