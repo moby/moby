@@ -391,7 +391,7 @@ Start the container `id`
 
         {
              "Binds":["/tmp:/tmp"],
-             "LxcConf":{"lxc.utsname":"docker"},
+             "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}],
              "ContainerIDFile": "",
              "Privileged": false,
              "PortBindings": {"22/tcp": [{HostIp:"", HostPort:""}]},
