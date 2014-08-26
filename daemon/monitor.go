@@ -101,15 +101,16 @@ func (m *containerMonitor) Start() error {
 	var (
 		err        error
 		exitStatus int
+		// this variable indicates where we in execution flow:
+		// before Run or after
+		afterRun bool
 	)
-
-	// this variable indicates that we under container.Lock
-	underLock := true
 
 	// ensure that when the monitor finally exits we release the networking and unmount the rootfs
 	defer func() {
-		if !underLock {
+		if afterRun {
 			m.container.Lock()
+			m.container.State.SetStopped(exitStatus)
 			defer m.container.Unlock()
 		}
 		m.Close()
@@ -146,15 +147,13 @@ func (m *containerMonitor) Start() error {
 		}
 
 		// here container.Lock is already lost
-		underLock = false
+		afterRun = true
 
 		m.resetMonitor(err == nil && exitStatus == 0)
 
 		if m.shouldRestart(exitStatus) {
 			m.container.State.SetRestarting(exitStatus)
-
 			m.container.LogEvent("die")
-
 			m.resetContainer()
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
@@ -164,24 +163,14 @@ func (m *containerMonitor) Start() error {
 			// we need to check this before reentering the loop because the waitForNextRestart could have
 			// been terminated by a request from a user
 			if m.shouldStop {
-				m.container.State.SetStopped(exitStatus)
-
 				return err
 			}
-
 			continue
 		}
-
-		m.container.State.SetStopped(exitStatus)
-
 		m.container.LogEvent("die")
-
 		m.resetContainer()
-
-		break
+		return err
 	}
-
-	return err
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
