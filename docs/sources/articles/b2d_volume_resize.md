@@ -6,13 +6,13 @@ page_keywords: boot2docker, volume, virtualbox
 
 If you're using Boot2Docker with a large number of images, or the images you're working 
 with are very large, your pulls might start failing with "no space left on device" errors when
-the Boot2Docker VM's volume runs out of space. The solution is to increase the volume size by 
+the Boot2Docker VM's volume fills up. The solution is to increase the volume size by 
 first cloning it, then resizing it using a disk partitioning tool. 
 
 We'll use [GParted](http://gparted.sourceforge.net/download.php/index.php) 
 since it's a free ISO and works well with VirtualBox.
 
-## 1. Stop Boot2Docker’s VM
+## 1. Stop Boot2Docker
 
 Issue the command to stop the Boot2Docker VM on the command line:
 
@@ -27,7 +27,7 @@ Using the command line VirtualBox tools, clone the VMDK image to a VDI image:
 
     $ vboxmanage clonehd /full/path/to/boot2docker-hd.vmdk /full/path/to/<newVDIimage>.vdi -—format VDI -—variant Standard
 
-## 3. Resize the VDI volume you created
+## 3. Resize the VDI volume
 
 Choose a size that will be appropriate for your needs. If you’re spinning up a lot of containers, 
 or your containers are particularly large, larger will be better:
@@ -67,15 +67,15 @@ the top of the **Boot Order** list.
 
 ## 7. Boot to the disk partitioning ISO
 
-Manually start the Boot2Docker VM, and the disk partitioning ISO should start up. 
+Manually start the Boot2Docker VM in VirtualBox, and the disk partitioning ISO should start up. 
 Using GParted, choose the **GParted Live (default settings)** option. Choose the 
 default keyboard, language, and XWindows settings, and the GParted tool will start 
-up and display the new VDI volume you created. Right click on the VDI and choose 
+up and display the VDI volume you created. Right click on the VDI and choose 
 **Resize/Move**. 
 
 <img src="/articles/b2d_volume_images/gparted.png">
 
-Drag the slider representing the volume to its maximum size, click **Resize/Move**, 
+Drag the slider representing the volume to the maximum available size, click **Resize/Move**, 
 and then **Apply**. 
 
 <img src="/articles/b2d_volume_images/gparted2.png">
@@ -85,9 +85,11 @@ the Boot2Docker VM in VirtualBox.
 
 ## 8. Start the Boot2Docker VM 
 
-Fire up the Boot2Docker VM manually in VirtualBox. The VM should log in automatically, but the credentials are ``docker/tcuser`` if it doesn't. Using the ``df -h`` command, verify that your changes took effect.
+Fire up the Boot2Docker VM manually in VirtualBox. The VM should log in automatically, but 
+the credentials are ``docker/tcuser`` if it doesn't. Using the ``df -h`` command, verify 
+that your changes took effect.
 
-<img src="/images/b2d_volume_images/verify.png">
+<img src="/articles/b2d_volume_images/verify.png">
 
 You’re done!
 
