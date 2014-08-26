@@ -44,7 +44,8 @@ func main() {
 			// If we do not have a host, default to unix socket
 			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
 		}
-		if _, err := api.ValidateHost(defaultHost); err != nil {
+		defaultHost, err := api.ValidateHost(defaultHost)
+		if err != nil {
 			log.Fatal(err)
 		}
 		flHosts = append(flHosts, defaultHost)
