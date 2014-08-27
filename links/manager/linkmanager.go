@@ -1,4 +1,4 @@
-package daemon
+package manager
 
 import (
 	"path"
@@ -7,25 +7,27 @@ import (
 )
 
 type LinkManager struct {
+	dbPath         string
 	containerGraph *graphdb.Database
 }
 
-func NewLinkManager(containerGraph *graphdb.Database) *LinkManager {
-	return &LinkManager{containerGraph}
+func NewLinkManager(dbpath string) (*LinkManager, error) {
+	containerGraph, err := graphdb.NewSqliteConn(dbpath)
+	return &LinkManager{dbpath, containerGraph}, err
 }
 
-func (lm *LinkManager) Create(parent, child *Container, alias string) error {
-	fullName := path.Join(parent.Name, alias)
-	if !lm.containerGraph.Exists(fullName) {
-		_, err := lm.containerGraph.Set(fullName, child.ID)
+func (lm *LinkManager) Close() error {
+	return lm.containerGraph.Close()
+}
+
+func (lm *LinkManager) Create(parentPath, childId, alias string) error {
+	fullPath := path.Join(parentPath, alias)
+	if !lm.containerGraph.Exists(fullPath) {
+		_, err := lm.containerGraph.Set(fullPath, childId)
 		return err
 	}
 	return nil
 }
-
-func (lm *LinkManager) Get()    {}
-func (lm *LinkManager) Update() {}
-func (lm *LinkManager) Delete() {}
 
 func (lm *LinkManager) Purge(name string) error {
 	_, err := lm.containerGraph.Purge(name)

@@ -26,8 +26,8 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/links/manager"
 	"github.com/docker/docker/pkg/broadcastwriter"
-	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -81,22 +81,20 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
-	repository     string
-	sysInitPath    string
-	containers     *contStore
-	graph          *graph.Graph
-	repositories   *graph.TagStore
-	idIndex        *truncindex.TruncIndex
-	sysInfo        *sysinfo.SysInfo
-	volumes        *graph.Graph
-	eng            *engine.Engine
-	config         *Config
-	containerGraph *graphdb.Database
-	driver         graphdriver.Driver
-	execDriver     execdriver.Driver
-
-	names *NameManager
-	links *LinkManager
+	repository   string
+	sysInitPath  string
+	containers   *contStore
+	graph        *graph.Graph
+	repositories *graph.TagStore
+	idIndex      *truncindex.TruncIndex
+	sysInfo      *sysinfo.SysInfo
+	volumes      *graph.Graph
+	eng          *engine.Engine
+	config       *Config
+	driver       graphdriver.Driver
+	execDriver   execdriver.Driver
+	names        *manager.NameManager
+	links        *manager.LinkManager
 }
 
 // Install installs daemon capabilities to eng.
@@ -440,7 +438,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	}
 
 	if err := daemon.names.Create(name, id); err != nil {
-		if err != ErrDuplicateName {
+		if err != manager.ErrDuplicateName {
 			return "", err
 		}
 
@@ -473,7 +471,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 		}
 
 		if err := daemon.names.Create(name, id); err != nil {
-			if err != ErrDuplicateName {
+			if err != manager.ErrDuplicateName {
 				return "", err
 			}
 			continue
@@ -644,7 +642,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
-			if err := daemon.links.Create(container, child, parts["alias"]); err != nil {
+			if err := daemon.links.Create(container.Name, child.ID, parts["alias"]); err != nil {
 				return err
 			}
 		}
@@ -803,7 +801,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	graphdbPath := path.Join(config.Root, "linkgraph.db")
-	graph, err := graphdb.NewSqliteConn(graphdbPath)
+	links, err := manager.NewLinkManager(graphdbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	names, err := manager.NewNameManager(graphdbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -835,22 +838,20 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	daemon := &Daemon{
-		repository:     daemonRepo,
-		containers:     &contStore{s: make(map[string]*Container)},
-		graph:          g,
-		repositories:   repositories,
-		idIndex:        truncindex.NewTruncIndex([]string{}),
-		sysInfo:        sysInfo,
-		volumes:        volumes,
-		config:         config,
-		containerGraph: graph,
-		driver:         driver,
-		sysInitPath:    sysInitPath,
-		execDriver:     ed,
-		eng:            eng,
-
-		names: NewNameManager(graph),
-		links: NewLinkManager(graph),
+		repository:   daemonRepo,
+		containers:   &contStore{s: make(map[string]*Container)},
+		graph:        g,
+		repositories: repositories,
+		idIndex:      truncindex.NewTruncIndex([]string{}),
+		sysInfo:      sysInfo,
+		volumes:      volumes,
+		config:       config,
+		driver:       driver,
+		sysInitPath:  sysInitPath,
+		execDriver:   ed,
+		eng:          eng,
+		names:        names,
+		links:        links,
 	}
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err
@@ -873,8 +874,11 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		if err := daemon.driver.Cleanup(); err != nil {
 			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
 		}
-		if err := daemon.containerGraph.Close(); err != nil {
-			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
+		if err := daemon.links.Close(); err != nil {
+			log.Errorf("daemon.links.Close(): %s", err.Error())
+		}
+		if err := daemon.names.Close(); err != nil {
+			log.Errorf("daemon.names.Close(): %s", err.Error())
 		}
 	})
 
@@ -1048,11 +1052,11 @@ func (daemon *Daemon) Volumes() *graph.Graph {
 }
 
 // FIXME(erikh) remove the next two methods once the refactor is done
-func (daemon *Daemon) LinkManager() *LinkManager {
+func (daemon *Daemon) LinkManager() *manager.LinkManager {
 	return daemon.links
 }
 
-func (daemon *Daemon) NameManager() *NameManager {
+func (daemon *Daemon) NameManager() *manager.NameManager {
 	return daemon.names
 }
 

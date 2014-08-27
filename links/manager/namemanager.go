@@ -1,4 +1,4 @@
-package daemon
+package manager
 
 import (
 	"errors"
@@ -10,11 +10,17 @@ import (
 var ErrDuplicateName = errors.New("Conflict: name already exists.")
 
 type NameManager struct {
+	dbPath         string
 	containerGraph *graphdb.Database
 }
 
-func NewNameManager(containerGraph *graphdb.Database) *NameManager {
-	return &NameManager{containerGraph}
+func NewNameManager(dbpath string) (*NameManager, error) {
+	containerGraph, err := graphdb.NewSqliteConn(dbpath)
+	return &NameManager{dbpath, containerGraph}, err
+}
+
+func (nm *NameManager) Close() error {
+	return nm.containerGraph.Close()
 }
 
 func (nm *NameManager) Create(name, id string) error {
@@ -36,8 +42,6 @@ func (nm *NameManager) Get(name string) (string, error) {
 
 	return entity.ID(), nil
 }
-
-func (nm *NameManager) Update() {}
 
 func (nm *NameManager) Delete(name string) error {
 	return nm.containerGraph.Delete(name)
