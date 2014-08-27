@@ -130,6 +130,15 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	if err := daemon.Repositories().Install(eng); err != nil {
 		return err
 	}
+
+	if err := daemon.links.RegisterJobs(eng); err != nil {
+		return err
+	}
+
+	if err := daemon.names.RegisterJobs(eng); err != nil {
+		return err
+	}
+
 	// FIXME: this hack is necessary for legacy integration tests to access
 	// the daemon object.
 	eng.Hack_SetGlobalVar("httpapi.daemon", daemon)
@@ -437,8 +446,11 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 		name = "/" + name
 	}
 
-	if err := daemon.names.Create(name, id); err != nil {
-		if err != links.ErrDuplicateName {
+	createJob := daemon.eng.Job("create_name")
+	createJob.Setenv("Name", name)
+	createJob.Setenv("ID", id)
+	if err := createJob.Run(); err != nil {
+		if createJob.Getenv("ErrorMsg") != links.ErrDuplicateName.Error() {
 			return "", err
 		}
 
@@ -448,8 +460,11 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 				return "", err
 			}
 
+			deleteJob := daemon.eng.Job("delete_name")
+			deleteJob.Setenv("Name", name)
+
 			// Remove name and continue starting the container
-			if err := daemon.names.Delete(name); err != nil {
+			if err := deleteJob.Run(); err != nil {
 				return "", err
 			}
 		} else {
@@ -470,8 +485,11 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 			name = "/" + name
 		}
 
-		if err := daemon.names.Create(name, id); err != nil {
-			if err != links.ErrDuplicateName {
+		createJob := daemon.eng.Job("create_name")
+		createJob.Setenv("Name", name)
+		createJob.Setenv("ID", id)
+		if err := createJob.Run(); err != nil {
+			if createJob.Getenv("ErrorMsg") != links.ErrDuplicateName.Error() {
 				return "", err
 			}
 			continue
@@ -480,7 +498,10 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 	}
 
 	name = "/" + utils.TruncateID(id)
-	if err := daemon.names.Create(name, id); err != nil {
+	createJob := daemon.eng.Job("create_name")
+	createJob.Setenv("Name", name)
+	createJob.Setenv("ID", id)
+	if err := createJob.Run(); err != nil {
 		return "", err
 	}
 	return name, nil
@@ -586,10 +607,15 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	id, err := daemon.names.Get(fullName)
-	if err != nil {
+
+	getJob := daemon.eng.Job("get_name")
+	getJob.Setenv("Name", fullName)
+
+	if err := getJob.Run(); err != nil {
 		return nil, err
 	}
+	id := getJob.Getenv("Result")
+
 	e := daemon.containers.Get(id)
 	if e == nil {
 		return nil, fmt.Errorf("Could not find container for entity id %s", id)
@@ -642,7 +668,12 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
-			if err := daemon.links.Create(container.Name, child.ID, parts["alias"]); err != nil {
+
+			createJob := daemon.eng.Job("create_link")
+			createJob.Setenv("ParentName", container.Name)
+			createJob.Setenv("ChildID", child.ID)
+			createJob.Setenv("Alias", parts["alias"])
+			if err := createJob.Run(); err != nil {
 				return err
 			}
 		}
