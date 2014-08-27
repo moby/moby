@@ -8,6 +8,7 @@ docker-ps - List containers
 **docker ps**
 [**-a**|**--all**[=*false*]]
 [**--before**[=*BEFORE*]]
+[**--help**]
 [**-f**|**--filter**[=*[]*]]
 [**-l**|**--latest**[=*false*]]
 [**-n**[=*-1*]]
@@ -28,6 +29,9 @@ the running containers.
 
 **--before**=""
    Show only container created before Id or Name, include non-running ones.
+
+**--help**
+  Print usage statement
 
 **-f**, **--filter**=[]
    Provide filter values. Valid filters:

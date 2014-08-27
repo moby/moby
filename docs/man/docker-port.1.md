@@ -6,6 +6,7 @@ docker-port - Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
 
 # SYNOPSIS
 **docker port**
+[**--help**]
 CONTAINER PRIVATE_PORT
 
 # OPTIONS
