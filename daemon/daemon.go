@@ -94,6 +94,9 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+
+	names *NameManager
+	links *LinkManager
 }
 
 // Install installs daemon capabilities to eng.
@@ -320,26 +323,24 @@ func (daemon *Daemon) restore() error {
 
 	registeredContainers := []*Container{}
 
-	if entities := daemon.containerGraph.List("/", -1); entities != nil {
-		for _, p := range entities.Paths() {
-			if !debug {
-				fmt.Print(".")
-			}
-
-			e := entities[p]
-
-			if container, ok := containers[e.ID()]; ok {
-				if err := daemon.register(container, false); err != nil {
-					log.Debugf("Failed to register container %s: %s", container.ID, err)
-				}
-
-				registeredContainers = append(registeredContainers, container)
-
-				// delete from the map so that a new name is not automatically generated
-				delete(containers, e.ID())
-			}
+	daemon.names.Each("/", func(p, id string) error {
+		if !debug {
+			fmt.Print(".")
 		}
-	}
+
+		if container, ok := containers[id]; ok {
+			if err := daemon.register(container, false); err != nil {
+				log.Debugf("Failed to register container %s: %s", container.ID, err)
+			}
+
+			registeredContainers = append(registeredContainers, container)
+
+			// delete from the map so that a new name is not automatically generated
+			delete(containers, id)
+		}
+
+		return nil
+	})
 
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
@@ -438,8 +439,8 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 		name = "/" + name
 	}
 
-	if _, err := daemon.containerGraph.Set(name, id); err != nil {
-		if !graphdb.IsNonUniqueNameError(err) {
+	if err := daemon.names.Create(name, id); err != nil {
+		if err != ErrDuplicateName {
 			return "", err
 		}
 
@@ -450,7 +451,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 			}
 
 			// Remove name and continue starting the container
-			if err := daemon.containerGraph.Delete(name); err != nil {
+			if err := daemon.names.Delete(name); err != nil {
 				return "", err
 			}
 		} else {
@@ -471,8 +472,8 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 			name = "/" + name
 		}
 
-		if _, err := daemon.containerGraph.Set(name, id); err != nil {
-			if !graphdb.IsNonUniqueNameError(err) {
+		if err := daemon.names.Create(name, id); err != nil {
+			if err != ErrDuplicateName {
 				return "", err
 			}
 			continue
@@ -481,7 +482,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 	}
 
 	name = "/" + utils.TruncateID(id)
-	if _, err := daemon.containerGraph.Set(name, id); err != nil {
+	if err := daemon.names.Create(name, id); err != nil {
 		return "", err
 	}
 	return name, nil
@@ -587,13 +588,13 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	entity := daemon.containerGraph.Get(fullName)
-	if entity == nil {
-		return nil, fmt.Errorf("Could not find entity for %s", name)
+	id, err := daemon.names.Get(fullName)
+	if err != nil {
+		return nil, err
 	}
-	e := daemon.containers.Get(entity.ID())
+	e := daemon.containers.Get(id)
 	if e == nil {
-		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
+		return nil, fmt.Errorf("Could not find container for entity id %s", id)
 	}
 	return e, nil
 }
@@ -605,14 +606,14 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 	}
 	children := make(map[string]*Container)
 
-	err = daemon.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
-		c := daemon.Get(e.ID())
+	err = daemon.links.MapChildren(name, func(path, id string) error {
+		c := daemon.Get(id)
 		if c == nil {
-			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
+			return fmt.Errorf("Could not get container for name %s and id %s", id, path)
 		}
-		children[p] = c
+		children[path] = c
 		return nil
-	}, 0)
+	})
 
 	if err != nil {
 		return nil, err
@@ -621,21 +622,12 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 }
 
 func (daemon *Daemon) Parents(name string) ([]string, error) {
-	name, err := GetFullContainerName(name)
+	fullName, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
 	}
 
-	return daemon.containerGraph.Parents(name)
-}
-
-func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error {
-	fullName := path.Join(parent.Name, alias)
-	if !daemon.containerGraph.Exists(fullName) {
-		_, err := daemon.containerGraph.Set(fullName, child.ID)
-		return err
-	}
-	return nil
+	return daemon.links.Parents(fullName)
 }
 
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
@@ -652,7 +644,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
-			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
+			if err := daemon.links.Create(container, child, parts["alias"]); err != nil {
 				return err
 			}
 		}
@@ -856,6 +848,9 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+
+		names: NewNameManager(graph),
+		links: NewLinkManager(graph),
 	}
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err
@@ -1052,8 +1047,13 @@ func (daemon *Daemon) Volumes() *graph.Graph {
 	return daemon.volumes
 }
 
-func (daemon *Daemon) ContainerGraph() *graphdb.Database {
-	return daemon.containerGraph
+// FIXME(erikh) remove the next two methods once the refactor is done
+func (daemon *Daemon) LinkManager() *LinkManager {
+	return daemon.links
+}
+
+func (daemon *Daemon) NameManager() *NameManager {
+	return daemon.names
 }
 
 func (daemon *Daemon) checkLocaldns() error {
