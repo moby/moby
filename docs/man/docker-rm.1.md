@@ -19,9 +19,6 @@ remove a running container unless you use the \fB-f\fR option. To see all
 containers on a host use the **docker ps -a** command.
 
 # OPTIONS
-**--help**
-  Print usage statement
-
 **-f**, **--force**=*true*|*false*
    Force the removal of a running container (uses SIGKILL). The default is *false*.
 

@@ -6,7 +6,6 @@ docker-cp - Copy files/folders from the PATH to the HOSTPATH
 
 # SYNOPSIS
 **docker cp**
-[**--help**]
 CONTAINER:PATH HOSTPATH
 
 # DESCRIPTION
@@ -15,8 +14,7 @@ path. Paths are relative to the root of the filesystem. Files
 can be copied from a running or stopped container.
 
 # OPTIONS
-**--help**
-  Print usage statement
+There are no available options.
 
 # EXAMPLES
 An important shell script file, created in a bash shell, is copied from

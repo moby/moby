@@ -15,19 +15,6 @@ or execute `docker help`:
 
       ...
 
-## Help
-To list the help on any command just execute the command, followed by the `--help` option.
-
-    $ sudo docker run --help
-
-    Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
-
-    Run a command in a new container
-
-      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
-      -c, --cpu-shares=0         CPU shares (relative weight)
-    ...
-
 ## Option types
 
 Single character commandline options can be combined, so rather than

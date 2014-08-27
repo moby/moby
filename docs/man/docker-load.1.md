@@ -6,7 +6,6 @@ docker-load - Load an image from a tar archive on STDIN
 
 # SYNOPSIS
 **docker load**
-[**--help**]
 [**-i**|**--input**[=*INPUT*]]
 
 
@@ -16,9 +15,6 @@ Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.
 
 # OPTIONS
-**--help**
-  Print usage statement
-
 **-i**, **--input**=""
    Read from a tar archive file, instead of STDIN
 

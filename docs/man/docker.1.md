@@ -26,9 +26,6 @@ To see the man page for a command run **man docker <command>**.
 **-D**=*true*|*false*
    Enable debug mode. Default is false.
 
-**--help**
-  Print usage statement
-
 **-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
    The socket(s) to bind to in daemon mode specified using one or more

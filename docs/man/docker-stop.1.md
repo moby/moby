@@ -6,7 +6,6 @@ docker-stop - Stop a running container by sending SIGTERM and then SIGKILL after
 
 # SYNOPSIS
 **docker stop**
-[**--help**]
 [**-t**|**--time**[=*10*]]
  CONTAINER [CONTAINER...]
 
@@ -15,9 +14,6 @@ Stop a running container (Send SIGTERM, and then SIGKILL after
  grace period)
 
 # OPTIONS
-**--help**
-  Print usage statement
-
 **-t**, **--time**=10
    Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
 

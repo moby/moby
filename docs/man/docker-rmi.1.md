@@ -7,7 +7,6 @@ docker-rmi - Remove one or more images
 # SYNOPSIS
 **docker rmi**
 [**-f**|**--force**[=*false*]]
-[**--help**]
 [**--no-prune**[=*false*]]
 IMAGE [IMAGE...]
 
@@ -21,9 +20,6 @@ use the **docker images** command.
 # OPTIONS
 **-f**, **--force**=*true*|*false*
    Force removal of the image. The default is *false*.
-
-**--help**
-  Print usage statement
 
 **--no-prune**=*true*|*false*
    Do not delete untagged parents. The default is *false*.

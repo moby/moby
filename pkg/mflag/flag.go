@@ -395,19 +395,6 @@ func Lookup(name string) *Flag {
 	return CommandLine.formal[name]
 }
 
-func (f *FlagSet) BadArgs(nargs int) bool {
-	if NArg() < nargs {
-		fmt.Fprintf(f.out(), "docker: '%s' requires arguments. See 'docker %s --help'.\n", f.name, f.name)
-		return true
-	} else {
-		if nargs == 0 && NArg() != 0 {
-			fmt.Fprintf(f.out(), "docker: '%s' does not require arguments. See 'docker %s --help'.\n", f.name, f.name)
-			return true
-		}
-	}
-	return false
-}
-
 // Set sets the value of the named flag.
 func (f *FlagSet) Set(name, value string) error {
 	flag, ok := f.formal[name]
@@ -481,7 +468,7 @@ func defaultUsage(f *FlagSet) {
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
 }
 
@@ -770,7 +757,7 @@ func Var(value Value, names []string, usage string) {
 func (f *FlagSet) failf(format string, a ...interface{}) error {
 	err := fmt.Errorf(format, a...)
 	fmt.Fprintln(f.out(), err)
-	fmt.Fprintf(f.out(), "See 'docker %s --help'.\n", f.name)
+	f.usage()
 	return err
 }
 
