@@ -22,9 +22,10 @@ func (e *JSONError) Error() string {
 
 type JSONProgress struct {
 	terminalFd uintptr
-	Current    int   `json:"current,omitempty"`
-	Total      int   `json:"total,omitempty"`
-	Start      int64 `json:"start,omitempty"`
+	Current    int    `json:"current,omitempty"`
+	Speed      string `json:"speed,omitempty"`
+	Total      int    `json:"total,omitempty"`
+	Start      int64  `json:"start,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
@@ -60,9 +61,7 @@ func (p *JSONProgress) String() string {
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
 	if p.Current > 0 && p.Start > 0 && percentage < 50 && width > 50 {
-		fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
-		speed := float64(p.Current) / (float64(fromStart) / float64(time.Second))
-		speedBox = " " + units.HumanSize(int64(speed)) + "/s "
+		speedBox = " " + p.Speed
 	}
 
 	return pbBox + numbersBox + speedBox

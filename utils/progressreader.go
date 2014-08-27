@@ -3,37 +3,32 @@ package utils
 import (
 	"io"
 	"time"
+
+	"github.com/docker/docker/pkg/units"
 )
 
 // Reader with progress bar
 type progressReader struct {
-	reader     io.ReadCloser // Stream to read from
-	output     io.Writer     // Where to send progress bar to
-	progress   JSONProgress
-	lastUpdate int // How many bytes read at least update
-	ID         string
-	action     string
-	sf         *StreamFormatter
-	newLine    bool
+	reader   io.ReadCloser // Stream to read from
+	output   io.Writer     // Where to send progress bar to
+	progress JSONProgress
+	ID       string
+	action   string
+	sf       *StreamFormatter
+	newLine  bool
+
+	stop   chan struct{}
+	ticker *time.Ticker
 }
 
 func (r *progressReader) Read(p []byte) (n int, err error) {
 	read, err := r.reader.Read(p)
-	r.progress.Current += read
-	updateEvery := 1024 * 512 //512kB
-	if r.progress.Total > 0 {
-		// Update progress for every 1% read if 1% < 512kB
-		if increment := int(0.01 * float64(r.progress.Total)); increment < updateEvery {
-			updateEvery = increment
-		}
-	}
-	if r.progress.Current-r.lastUpdate > updateEvery || err != nil {
-		r.output.Write(r.sf.FormatProgress(r.ID, r.action, &r.progress))
-		r.lastUpdate = r.progress.Current
-	}
-	// Send newline when complete
-	if r.newLine && err != nil && read == 0 {
-		r.output.Write(r.sf.FormatStatus("", ""))
+	if err == io.EOF {
+		r.progress.Current = r.progress.Total
+		close(r.stop)
+		r.ticker.Stop()
+	} else {
+		r.progress.Current += read
 	}
 	return read, err
 }
@@ -42,8 +37,33 @@ func (r *progressReader) Close() error {
 	r.output.Write(r.sf.FormatProgress(r.ID, r.action, &r.progress))
 	return r.reader.Close()
 }
+
+func (r *progressReader) Update() {
+	var (
+		previous      int
+		previousSpeed int
+	)
+	for {
+		select {
+		case <-r.ticker.C:
+			speed := 10 * (r.progress.Current - previous)
+			// use median to smooth speed display
+			r.progress.Speed = units.HumanSize(int64((speed+previousSpeed)/2)) + "/s"
+			previous = r.progress.Current
+			previousSpeed = speed
+			r.output.Write(r.sf.FormatProgress(r.ID, r.action, &r.progress))
+		case <-r.stop:
+			r.output.Write(r.sf.FormatProgress(r.ID, r.action, &r.progress))
+			if r.newLine {
+				r.output.Write(r.sf.FormatStatus("", ""))
+			}
+			return
+		}
+	}
+}
+
 func ProgressReader(r io.ReadCloser, size int, output io.Writer, sf *StreamFormatter, newline bool, ID, action string) *progressReader {
-	return &progressReader{
+	pr := progressReader{
 		reader:   r,
 		output:   NewWriteFlusher(output),
 		ID:       ID,
@@ -51,5 +71,9 @@ func ProgressReader(r io.ReadCloser, size int, output io.Writer, sf *StreamForma
 		progress: JSONProgress{Total: size, Start: time.Now().UTC().Unix()},
 		sf:       sf,
 		newLine:  newline,
+		stop:     make(chan struct{}),
+		ticker:   time.NewTicker(100 * time.Millisecond),
 	}
+	go pr.Update()
+	return &pr
 }
