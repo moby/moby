@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
@@ -126,18 +127,17 @@ func Unmap(host net.Addr) error {
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
 	if err := forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		return err
+		// skip "no chain" errors because we can safely release port in this case
+		if !strings.Contains(err.Error(), "No chain/target/match by that name") {
+			return err
+		}
 	}
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		if err := portallocator.ReleasePort(a.IP, "tcp", a.Port); err != nil {
-			return err
-		}
+		return portallocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		if err := portallocator.ReleasePort(a.IP, "udp", a.Port); err != nil {
-			return err
-		}
+		return portallocator.ReleasePort(a.IP, "udp", a.Port)
 	}
 
 	return nil
