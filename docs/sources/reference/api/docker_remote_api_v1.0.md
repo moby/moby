@@ -566,6 +566,13 @@ Insert a file from `url` in the image `name` at `path`
 
         {{ STREAM }}
 
+	Query Parameters:
+
+
+
+	-	**url** – The url from where the file is taken
+	-	**path** – The path where the file is stored
+
     Status Codes:
 
     -   **200** – no error
@@ -669,12 +676,6 @@ Push the image `name` on the registry
         Content-Type: application/vnd.docker.raw-stream
 
         {{ STREAM }}
-
-    Query Parameters:
-
-     
-
-    -   **registry** – the registry you wan to push, optional
 
     Status Codes:
 

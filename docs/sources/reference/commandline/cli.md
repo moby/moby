@@ -324,7 +324,7 @@ schema.
 
 > **Note:** `docker build` will return a `no such file or directory` error
 > if the file or directory does not exist in the uploaded context. This may
-> happen if there is no context, or if you specify a file that is elsewhere 
+> happen if there is no context, or if you specify a file that is elsewhere
 > on the Host system. The context is limited to the current directory (and its
 > children) for security reasons, and to ensure repeatable builds on remote
 > Docker hosts. This is also the reason why `ADD ../file` will not work.
@@ -500,7 +500,7 @@ by default.
     <none>                        <none>              77af4d6b9913        19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5        19 hours ago        1.089 GB
     <none>                        <none>              78a85c484f71        19 hours ago        1.089 GB
-    $ docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
+    docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
     <none>                        <none>              0124422dd9f9        20 hours ago        1.089 GB
     <none>                        <none>              18ad6fad3402        22 hours ago        1.082 GB
     <none>                        <none>              f9f1e26352f0        23 hours ago        1.089 GB
@@ -514,7 +514,7 @@ by default.
     <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
     <none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
-    $ docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
+    docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
     <none>                        <none>              0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        1.089 GB
     <none>                        <none>              18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        1.082 GB
     <none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
@@ -1103,14 +1103,14 @@ network and environment of the `redis` container via environment variables.
 The `--name` flag will assign the name `console` to the newly created
 container.
 
-    $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
+    $ sudo docker run --volumes-from 777f7dc92da7 --volumes-from ba8c0c54f0f2:ro -i -t ubuntu pwd
 
 The `--volumes-from` flag mounts all the defined volumes from the referenced
-containers. Containers can be specified by a comma separated list or by
-repetitions of the `--volumes-from` argument. The container ID may be
-optionally suffixed with `:ro` or `:rw` to mount the volumes in read-only
-or read-write mode, respectively. By default, the volumes are mounted in
-the same mode (read write or read only) as the reference container.
+containers. Containers can be specified by repetitions of the `--volumes-from`
+argument. The container ID may be optionally suffixed with `:ro` or `:rw` to
+mount the volumes in read-only or read-write mode, respectively. By default,
+the volumes are mounted in the same mode (read write or read only) as
+the reference container.
 
 The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
 `STDERR`. This makes it possible to manipulate the output and input as needed.
@@ -1213,7 +1213,7 @@ more details on finding shared images from the command line.
       -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
       -i, --interactive=false    Attach container's STDIN
 
-When run on a container that has already been started, 
+When run on a container that has already been started,
 takes no action and succeeds unconditionally.
 
 ## stop

@@ -366,7 +366,7 @@ Start the container `id`
 
         {
              "Binds":["/tmp:/tmp"],
-             "LxcConf":{"lxc.utsname":"docker"},
+             "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}],
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
              "Privileged":false
@@ -739,6 +739,13 @@ Insert a file from `url` in the image
         {"error":"Invalid..."}
         ...
 
+	Query Parameters:
+
+
+
+	-	**url** – The url from where the file is taken
+	-	**path** – The path where the file is stored
+
     Status Codes:
 
     -   **200** – no error
@@ -846,11 +853,20 @@ Push the image `name` on the registry
         {"error":"Invalid..."}
         ...
 
+    If you wish to push an image on to a private registry, that image must already have been tagged
+    into a repository which references that registry host name and port.  This repository name should 
+    then be used in the URL. This mirrors the flow of the CLI.
+
+    **Example request**:
+
+        POST /images/registry.acme.com:5000/test/push HTTP/1.1    
+    
+
     Query Parameters:
 
      
 
-    -   **registry** – the registry you wan to push, optional
+    -   **tag** – the tag to associate with the image on the registry, optional
 
     Request Headers:
 

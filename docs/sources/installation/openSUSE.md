@@ -47,13 +47,27 @@ The docker package creates a new group named docker. Users, other than
 root user, need to be part of this group in order to interact with the
 Docker daemon. You can add users with:
 
-    $ sudo usermod -a -G docker <username>
+    $ sudo /usr/sbin/usermod -a -G docker <username>
 
 To verify that everything has worked as expected:
 
-    $ sudo docker run --rm -i -t ubuntu /bin/bash
+    $ sudo docker run --rm -i -t opensuse /bin/bash
 
-This should download and import the `ubuntu` image, and then start `bash` in a container. To exit the container type `exit`.
+This should download and import the `opensuse` image, and then start `bash` in
+a container. To exit the container type `exit`.
+
+If you want your containers to be able to access the external network you must
+enable the `net.ipv4.ip_forward` rule.
+This can be done using YaST by browsing to the
+`Network Devices -> Network Settings -> Routing` menu and ensuring that the
+`Enable IPv4 Forwarding` box is checked.
+
+This option cannot be changed when networking is handled by the Network Manager.
+In such cases the `/etc/sysconfig/SuSEfirewall2` file needs to be edited by
+hand to ensure the `FW_ROUTE` flag is set to `yes` like so:
+
+    FW_ROUTE="yes"
+
 
 **Done!**
 

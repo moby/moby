@@ -131,14 +131,14 @@ like so:
 
     $ sudo docker run --volumes-from dbdata -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
 
-Here's we've launched a new container and mounted the volume from the
+Here we've launched a new container and mounted the volume from the
 `dbdata` container. We've then mounted a local host directory as
 `/backup`. Finally, we've passed a command that uses `tar` to backup the
 contents of the `dbdata` volume to a `backup.tar` file inside our
 `/backup` directory. When the command completes and the container stops
 we'll be left with a backup of our `dbdata` volume.
 
-You could then to restore to the same container, or another that you've made
+You could then restore it to the same container, or another that you've made
 elsewhere. Create a new container.
 
     $ sudo docker run -v /dbdata --name dbdata2 ubuntu /bin/bash

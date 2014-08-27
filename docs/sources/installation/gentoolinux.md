@@ -39,6 +39,9 @@ and especially missing kernel configuration flags and/or dependencies,
 https://github.com/tianon/docker-overlay/issues) or ping
 tianon directly in the #docker IRC channel on the freenode network.
 
+Other use flags are described in detail on [tianon's
+blog](https://tianon.github.io/post/2014/05/17/docker-on-gentoo.html).
+
 ## Starting Docker
 
 Ensure that you are running a kernel that includes all the necessary

@@ -29,7 +29,7 @@ FROM debian:wheezy
 MAINTAINER Daniel Mizyrycki <daniel@docker.com>
 
 # Install Iceweasel and "sudo"
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq iceweasel sudo
+RUN apt-get update && apt-get install -y iceweasel sudo
 
 # create sysadmin account
 RUN useradd -m -d /data -p saIVpsc0EVTwA sysadmin

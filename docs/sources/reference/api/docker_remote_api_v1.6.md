@@ -391,7 +391,7 @@ Start the container `id`
 
         {
              "Binds":["/tmp:/tmp"],
-             "LxcConf":{"lxc.utsname":"docker"},
+             "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}],
              "ContainerIDFile": "",
              "Privileged": false,
              "PortBindings": {"22/tcp": [{HostIp:"", HostPort:""}]},
@@ -793,6 +793,13 @@ Insert a file from `url` in the image `name` at `path`
         {"error":"Invalid..."}
         ...
 
+	Query Parameters:
+
+
+
+	-	**url** – The url from where the file is taken
+	-	**path** – The path where the file is stored
+
     Status Codes:
 
     -   **200** – no error
@@ -902,12 +909,6 @@ Push the image `name` on the registry
 
     > The `X-Registry-Auth` header can be used to
     > include a base64-encoded AuthConfig object.
-
-    Query Parameters:
-
-     
-
-    -   **registry** – the registry you wan to push, optional
 
     Status Codes:
 

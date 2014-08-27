@@ -87,9 +87,18 @@ VirtualBox guest additions. If you didn't install the headers for your
 "precise" kernel, then you can skip these headers for the "raring"
 kernel. But it is safer to include them if you're not sure.
 
+Please read the installation instructions for backported kernels at
+Ubuntu.org to understand why you also need to install the Xorg packages
+when running Docker on a machine with a graphical environment like Unity.
+[LTS Enablement Stack](https://wiki.ubuntu.com/Kernel/LTSEnablementStack) refer to note 5 under
+each version.
+
     # install the backported kernel
     $ sudo apt-get update
     $ sudo apt-get install linux-image-generic-lts-raring linux-headers-generic-lts-raring
+    
+    # install the backported kernel and xorg if using Unity/Xorg
+    $ sudo apt-get install --install-recommends linux-generic-lts-raring xserver-xorg-lts-raring libgl1-mesa-glx-lts-raring
 
     # reboot
     $ sudo reboot
@@ -266,11 +275,11 @@ These parameters will help you get rid of the following warnings:
 
 ## Troubleshooting
 
-On Linux Mint, the `cgroup-lite` package is not
+On Linux Mint, the `cgroup-lite` and `apparmor` packages are not
 installed by default. Before Docker will work correctly, you will need
 to install this via:
 
-    $ sudo apt-get update && sudo apt-get install cgroup-lite
+    $ sudo apt-get update && sudo apt-get install cgroup-lite apparmor
 
 ## Docker and UFW
 

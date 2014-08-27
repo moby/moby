@@ -27,6 +27,19 @@ the build. The build is run by the Docker daemon, not by the CLI, so the
 whole context must be transferred to the daemon. The Docker CLI reports
 "Sending build context to Docker daemon" when the context is sent to the daemon.
 
+> **Warning**
+> Avoid using your root directory, `/`, as the root of the source repository. The 
+> `docker build` command will use whatever directory contains the Dockerfile as the build
+> context (including all of its subdirectories). The build context will be sent to the
+> Docker daemon before building the image, which means if you use `/` as the source
+> repository, the entire contents of your hard drive will get sent to the daemon (and
+> thus to the machine running the daemon). You probably don't want that.
+
+In most cases, it's best to put each Dockerfile in an empty directory, and then add only
+the files needed for building that Dockerfile to that directory. To further speed up the
+build, you can exclude files and directories by adding a `.dockerignore` file to the same
+directory.
+
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
@@ -164,6 +177,11 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+> **Note**:
+> To use a different shell, other than '/bin/sh', use the *exec* form
+> passing in the desired shell. For example,
+> `RUN ["/bin/bash", "-c", "echo hello"]`
+
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like `RUN apt-get
 dist-upgrade -y` will be reused during the next build.  The cache for
@@ -195,6 +213,11 @@ then only the last `CMD` will take effect.
 container.** These defaults can include an executable, or they can omit
 the executable, in which case you must specify an `ENTRYPOINT`
 instruction as well.
+
+> **Note**:
+> If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
+> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
+> with the JSON array format.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
@@ -409,7 +432,7 @@ optional but default, you could use a `CMD` instruction:
 
     FROM ubuntu
     CMD ["-l"]
-    ENTRYPOINT ["/usr/bin/ls"]
+    ENTRYPOINT ["ls"]
 
 > **Note**:
 > It is preferable to use the JSON array format for specifying
@@ -444,7 +467,10 @@ It can be used multiple times in the one `Dockerfile`. If a relative path
 is provided, it will be relative to the path of the previous `WORKDIR`
 instruction. For example:
 
-    WORKDIR /a WORKDIR b WORKDIR c RUN pwd
+    WORKDIR /a
+    WORKDIR b
+    WORKDIR c
+    RUN pwd
 
 The output of the final `pwd` command in this Dockerfile would be
 `/a/b/c`.
@@ -516,23 +542,16 @@ For example you might add something like this:
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
 
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
-
-    RUN apt-get install -y inotify-tools nginx apache2 openssh-server
+    RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC
     #
     # VERSION               0.3
 
     FROM ubuntu
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
 
     # Install vnc, xvfb in order to create a 'fake' display and firefox
-    RUN apt-get install -y x11vnc xvfb firefox
+    RUN apt-get update && apt-get install -y x11vnc xvfb firefox
     RUN mkdir /.vnc
     # Setup a password
     RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
