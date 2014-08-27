@@ -13,64 +13,6 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func TestKillDifferentUser(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-
-	container, _, err := daemon.Create(&runconfig.Config{
-		Image:     GetTestImage(daemon).ID,
-		Cmd:       []string{"cat"},
-		OpenStdin: true,
-		User:      "daemon",
-	},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-	// FIXME @shykes: this seems redundant, but is very old, I'm leaving it in case
-	// there is a side effect I'm not seeing.
-	// defer container.stdin.Close()
-
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	if err := container.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for !container.State.IsRunning() {
-			time.Sleep(10 * time.Millisecond)
-		}
-	})
-
-	setTimeout(t, "read/write assertion timed out", 2*time.Second, func() {
-		out, _ := container.StdoutPipe()
-		in, _ := container.StdinPipe()
-		if err := assertPipe("hello\n", "hello", out, in, 150); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	if err := container.Kill(); err != nil {
-		t.Fatal(err)
-	}
-
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	container.State.WaitStop(-1 * time.Second)
-	if container.State.IsRunning() {
-		t.Errorf("Container shouldn't be running")
-	}
-	// Try stopping twice
-	if err := container.Kill(); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestRestartStdin(t *testing.T) {
 	daemon := mkDaemon(t)
 	defer nuke(daemon)
