@@ -6,7 +6,6 @@ docker-pull - Pull an image or a repository from the registry
 
 # SYNOPSIS
 **docker pull**
-[**--help**] 
 NAME[:TAG]
 
 # DESCRIPTION
@@ -17,10 +16,9 @@ images for that repository name are pulled down including any tags.
 It is also possible to specify a non-default registry to pull from.
 
 # OPTIONS
-**--help**
-  Print usage statement
+There are no available options.
 
-# EXAMPLE
+# EXAMPLES
 
 # Pull a repository with multiple images
 

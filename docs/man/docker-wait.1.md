@@ -6,7 +6,6 @@ docker-wait - Block until a container stops, then print its exit code.
 
 # SYNOPSIS
 **docker wait**
-[**--help**]
 CONTAINER [CONTAINER...]
 
 # DESCRIPTION
@@ -14,8 +13,7 @@ CONTAINER [CONTAINER...]
 Block until a container stops, then print its exit code.
 
 # OPTIONS
-**--help**
-  Print usage statement
+There are no available options.
 
 # EXAMPLES
 

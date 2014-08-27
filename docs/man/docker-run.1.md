@@ -21,7 +21,6 @@ docker-run - Run a command in a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
-[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
@@ -132,9 +131,6 @@ containers port can be exposed to other containers in three ways: 1) The
 developer can expose the port using the EXPOSE parameter of the Dockerfile, 2)
 the operator can use the **--expose** option with **docker run**, or 3) the
 container can be started with the **--link**.
-
-**--help**
-  Print usage statement
 
 **-h**, **--hostname**=*hostname*
    Sets the container host name that is available inside the container.

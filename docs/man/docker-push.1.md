@@ -6,7 +6,6 @@ docker-push - Push an image or a repository to the registry
 
 # SYNOPSIS
 **docker push**
-[**--help**]
 NAME[:TAG]
 
 # DESCRIPTION
@@ -16,8 +15,7 @@ image can be pushed to another, perhaps private, registry as demonstrated in
 the example below.
 
 # OPTIONS
-**--help**
-  Print usage statement
+There are no available options.
 
 # EXAMPLES
 

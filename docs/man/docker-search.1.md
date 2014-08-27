@@ -7,7 +7,6 @@ docker-search - Search the Docker Hub for images
 # SYNOPSIS
 **docker search**
 [**--automated**[=*false*]]
-[**--help**]
 [**--no-trunc**[=*false*]]
 [**-s**|**--stars**[=*0*]]
 TERM
@@ -22,9 +21,6 @@ is automated.
 # OPTIONS
 **--automated**=*true*|*false*
    Only show automated builds. The default is *false*.
-
-**--help**
-  Print usage statement
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.

@@ -6,7 +6,6 @@ docker-export - Export the contents of a filesystem as a tar archive to STDOUT
 
 # SYNOPSIS
 **docker export**
-[**--help**]
 CONTAINER
 
 # DESCRIPTION
@@ -15,8 +14,7 @@ container ID or container name. The output is exported to STDOUT and can be
 redirected to a tar file.
 
 # OPTIONS
-**--help**
-  Print usage statement
+There are no available options.
 
 # EXAMPLES
 Export the contents of the container called angry_bell to a tar file

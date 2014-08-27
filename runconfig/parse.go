@@ -3,7 +3,6 @@ package runconfig
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -76,8 +75,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure[:max-retry], always)")
 		// For documentation purpose
-		help = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
-
 		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
 		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
 	)
@@ -169,14 +166,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		entrypoint []string
 		image      string
 	)
-
-	if *help {
-		return nil, nil, cmd, nil
+	if len(parsedArgs) >= 1 {
+		image = cmd.Arg(0)
 	}
-	if cmd.BadArgs(1) {
-		os.Exit(1)
-	}
-	image = cmd.Arg(0)
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}
