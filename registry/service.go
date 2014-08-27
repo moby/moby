@@ -24,6 +24,7 @@ func NewService() *Service {
 // Install installs registry capabilities to eng.
 func (s *Service) Install(eng *engine.Engine) error {
 	eng.Register("auth", s.Auth)
+	eng.Register("register", s.Register)
 	eng.Register("search", s.Search)
 	return nil
 }
@@ -47,6 +48,21 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 		authConfig.ServerAddress = addr
 	}
 	status, err := Login(authConfig, HTTPRequestFactory(nil))
+	if err != nil {
+		return job.Error(err)
+	}
+	job.Printf("%s\n", status)
+	return engine.StatusOK
+}
+
+func (s *Service) Register(job *engine.Job) engine.Status {
+	var (
+		err        error
+		authConfig = &AuthConfig{}
+	)
+
+	job.GetenvJson("authConfig", authConfig)
+	status, err := Register(authConfig, HTTPRequestFactory(nil))
 	if err != nil {
 		return job.Error(err)
 	}
