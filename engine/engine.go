@@ -37,6 +37,15 @@ func Register(name string, handler Handler) error {
 	return nil
 }
 
+func RegisterMap(m map[string]Handler) error {
+	for name, handler := range m {
+		if err := Register(name, handler); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func unregister(name string) {
 	delete(globalHandlers, name)
 }
@@ -65,6 +74,15 @@ func (eng *Engine) Register(name string, handler Handler) error {
 		return fmt.Errorf("Can't overwrite handler for command %s", name)
 	}
 	eng.handlers[name] = handler
+	return nil
+}
+
+func (eng *Engine) RegisterMap(m map[string]Handler) error {
+	for name, handler := range m {
+		if err := eng.Register(name, handler); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
