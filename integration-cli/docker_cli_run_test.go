@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -1643,4 +1644,65 @@ func TestRunWithBadDevice(t *testing.T) {
 		t.Fatalf("Output should contain %q, actual out: %q", expected, out)
 	}
 	logDone("run - error with bad device")
+}
+
+func TestEntrypoint(t *testing.T) {
+	name := "entrypoint"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "--entrypoint", "/bin/echo", "busybox", "-n", "foobar")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	expected := "foobar"
+	if out != expected {
+		t.Fatalf("Output should be %q, actual out: %q", expected, out)
+	}
+	logDone("run - entrypoint")
+}
+
+func TestBindMounts(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "docker-test-container")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+	writeFile(path.Join(tmpDir, "touch-me"), "", t)
+
+	// Test reading from a read-only bind mount
+	cmd := exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox", "ls", "/tmp")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "touch-me") {
+		t.Fatal("Container failed to read from bind mount")
+	}
+
+	// test writing to bind mount
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "busybox", "touch", "/tmp/holla")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
+
+	// test mounting to an illegal destination directory
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
+	_, err = runCommand(cmd)
+	if err == nil {
+		t.Fatal("Container bind mounted illegal directory")
+	}
+
+	// test mount a file
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
+	_, err = runCommand(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
+	expected := "yotta"
+	if content != expected {
+		t.Fatalf("Output should be %q, actual out: %q", expected, content)
+	}
 }
