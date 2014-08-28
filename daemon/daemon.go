@@ -492,7 +492,7 @@ func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
-		config.Hostname = id[:12]
+		config.Hostname = "docker-" + id[:12]
 	}
 }
 
