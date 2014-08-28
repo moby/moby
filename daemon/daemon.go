@@ -621,6 +621,15 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 	return children, nil
 }
 
+func (daemon *Daemon) Parents(name string) ([]string, error) {
+	name, err := GetFullContainerName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return daemon.containerGraph.Parents(name)
+}
+
 func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error {
 	fullName := path.Join(parent.Name, alias)
 	if !daemon.containerGraph.Exists(fullName) {

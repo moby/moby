@@ -150,7 +150,10 @@ Four different options affect container domain name services.
     `CONTAINER_NAME`.  This lets processes inside the new container
     connect to the hostname `ALIAS` without having to know its IP.  The
     `--link=` option is discussed in more detail below, in the section
-    [Communication between containers](#between-containers).
+    [Communication between containers](#between-containers). Because
+    Docker may assign a different IP address to the linked containers
+    on restart, Docker updates the ALIAS entry in the /etc/hosts file
+    of the recipient containers.
 
  *  `--dns=IP_ADDRESS...` — sets the IP addresses added as `server`
     lines to the container's `/etc/resolv.conf` file.  Processes in the

@@ -432,6 +432,9 @@ mechanism to communicate with a linked container by its alias:
     $ docker run -d --name servicename busybox sleep 30
     $ docker run -i -t --link servicename:servicealias busybox ping -c 1 servicealias
 
+If you restart the source container (`servicename` in this case), the recipient
+container's `/etc/hosts` entry will be automatically updated.
+
 ## VOLUME (Shared Filesystems)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].

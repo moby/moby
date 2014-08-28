@@ -241,6 +241,16 @@ to make use of your `db` container.
 > example, you could have multiple (differently named) web containers attached to your
 >`db` container.
 
+If you restart the source container, the linked containers `/etc/hosts` files
+will be automatically updated with the source container's new IP address,
+allowing linked communication to continue.
+
+    $ sudo docker restart db
+    root@aed84ee21bde:/opt/webapp# cat /etc/hosts
+    172.17.0.7  aed84ee21bde
+    . . .
+    172.17.0.9  db
+
 # Next step
 
 Now that you know how to link Docker containers together, the next step is
