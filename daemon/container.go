@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -43,7 +42,7 @@ var (
 )
 
 type Container struct {
-	sync.Mutex
+	*State
 	root   string // Path to the "home" of the container, including metadata.
 	basefs string // Path to the graphdriver mountpoint
 
@@ -55,7 +54,6 @@ type Container struct {
 	Args []string
 
 	Config *runconfig.Config
-	State  *State
 	Image  string
 
 	NetworkSettings *NetworkSettings
@@ -276,7 +274,7 @@ func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
 
-	if container.State.IsRunning() {
+	if container.State.Running {
 		return nil
 	}
 
@@ -526,11 +524,11 @@ func (container *Container) KillSig(sig int) error {
 	defer container.Unlock()
 
 	// We could unpause the container for them rather than returning this error
-	if container.State.IsPaused() {
+	if container.State.Paused {
 		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
 	}
 
-	if !container.State.IsRunning() {
+	if !container.State.Running {
 		return nil
 	}
 
@@ -541,7 +539,7 @@ func (container *Container) KillSig(sig int) error {
 	// if the container is currently restarting we do not need to send the signal
 	// to the process.  Telling the monitor that it should exit on it's next event
 	// loop is enough
-	if container.State.IsRestarting() {
+	if container.State.Restarting {
 		return nil
 	}
 
