@@ -1218,3 +1218,16 @@ func (container *Container) getBindMap() (map[string]*Volume, error) {
 	}
 	return volumes, nil
 }
+
+func (container *Container) derefVolumes() error {
+	volumes, err := container.GetVolumes()
+	if err != nil {
+		return err
+	}
+
+	for _, vol := range volumes {
+		container.daemon.volumes.RemoveRef(vol, container.ID)
+	}
+
+	return nil
+}

@@ -29,6 +29,10 @@ func (v *Volume) isDir() (bool, error) {
 	return stat.IsDir(), nil
 }
 
+func (v *Volume) Id() string {
+	return filepath.Base(v.HostPath)
+}
+
 func prepareVolumesForContainer(container *Container) error {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
@@ -233,6 +237,8 @@ func (v *Volume) initialize(container *Container) error {
 
 	container.Volumes[v.VolPath] = hostPath
 	container.VolumesRW[v.VolPath] = v.isReadWrite
+	container.daemon.volumes.Add(v)
+	container.daemon.volumes.AddRef(v, container)
 
 	volIsDir, err := v.isDir()
 	if err != nil {
@@ -246,6 +252,7 @@ func (v *Volume) initialize(container *Container) error {
 	if v.isReadWrite && !v.isBindMount {
 		return copyExistingContents(fullVolPath, hostPath)
 	}
+
 	return nil
 }
 
