@@ -1,4 +1,4 @@
-package manager
+package links
 
 import (
 	"errors"
@@ -9,21 +9,21 @@ import (
 
 var ErrDuplicateName = errors.New("Conflict: name already exists.")
 
-type NameManager struct {
+type Names struct {
 	dbPath         string
 	containerGraph *graphdb.Database
 }
 
-func NewNameManager(dbpath string) (*NameManager, error) {
+func NewNames(dbpath string) (*Names, error) {
 	containerGraph, err := graphdb.NewSqliteConn(dbpath)
-	return &NameManager{dbpath, containerGraph}, err
+	return &Names{dbpath, containerGraph}, err
 }
 
-func (nm *NameManager) Close() error {
+func (nm *Names) Close() error {
 	return nm.containerGraph.Close()
 }
 
-func (nm *NameManager) Create(name, id string) error {
+func (nm *Names) Create(name, id string) error {
 	_, err := nm.containerGraph.Set(name, id)
 
 	if err != nil && graphdb.IsNonUniqueNameError(err) {
@@ -33,7 +33,7 @@ func (nm *NameManager) Create(name, id string) error {
 	return err
 }
 
-func (nm *NameManager) Get(name string) (string, error) {
+func (nm *Names) Get(name string) (string, error) {
 	entity := nm.containerGraph.Get(name)
 
 	if entity == nil {
@@ -43,11 +43,11 @@ func (nm *NameManager) Get(name string) (string, error) {
 	return entity.ID(), nil
 }
 
-func (nm *NameManager) Delete(name string) error {
+func (nm *Names) Delete(name string) error {
 	return nm.containerGraph.Delete(name)
 }
 
-func (nm *NameManager) Each(query string, queryFunc func(string, string) error) error {
+func (nm *Names) Each(query string, queryFunc func(string, string) error) error {
 	entities := nm.containerGraph.List(query, -1)
 
 	if entities == nil {

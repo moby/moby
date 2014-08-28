@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/links/manager"
+	"github.com/docker/docker/links"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/namesgenerator"
@@ -93,8 +93,8 @@ type Daemon struct {
 	config       *Config
 	driver       graphdriver.Driver
 	execDriver   execdriver.Driver
-	names        *manager.NameManager
-	links        *manager.LinkManager
+	names        *links.Names
+	links        *links.Links
 }
 
 // Install installs daemon capabilities to eng.
@@ -438,7 +438,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	}
 
 	if err := daemon.names.Create(name, id); err != nil {
-		if err != manager.ErrDuplicateName {
+		if err != links.ErrDuplicateName {
 			return "", err
 		}
 
@@ -471,7 +471,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 		}
 
 		if err := daemon.names.Create(name, id); err != nil {
-			if err != manager.ErrDuplicateName {
+			if err != links.ErrDuplicateName {
 				return "", err
 			}
 			continue
@@ -801,12 +801,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	graphdbPath := path.Join(config.Root, "linkgraph.db")
-	links, err := manager.NewLinkManager(graphdbPath)
+	linksObj, err := links.NewLinks(graphdbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	names, err := manager.NewNameManager(graphdbPath)
+	names, err := links.NewNames(graphdbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -851,7 +851,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		execDriver:   ed,
 		eng:          eng,
 		names:        names,
-		links:        links,
+		links:        linksObj,
 	}
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err
@@ -1052,11 +1052,11 @@ func (daemon *Daemon) Volumes() *graph.Graph {
 }
 
 // FIXME(erikh) remove the next two methods once the refactor is done
-func (daemon *Daemon) LinkManager() *manager.LinkManager {
+func (daemon *Daemon) Links() *links.Links {
 	return daemon.links
 }
 
-func (daemon *Daemon) NameManager() *manager.NameManager {
+func (daemon *Daemon) Names() *links.Names {
 	return daemon.names
 }
 
