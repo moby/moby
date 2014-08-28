@@ -230,6 +230,11 @@ func (graph *Graph) TempLayerArchive(id string, compression archive.Compression,
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			os.RemoveAll(tmp)
+		}
+	}()
 	a, err := image.TarLayer()
 	if err != nil {
 		return nil, err
