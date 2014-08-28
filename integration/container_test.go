@@ -1,12 +1,8 @@
 package docker
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
-	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -179,53 +175,6 @@ func TestTty(t *testing.T) {
 	}
 }
 
-func TestEntrypoint(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, err := daemon.Create(
-		&runconfig.Config{
-			Image:      GetTestImage(daemon).ID,
-			Entrypoint: []string{"/bin/echo"},
-			Cmd:        []string{"-n", "foobar"},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-	output, err := container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(output) != "foobar" {
-		t.Error(string(output))
-	}
-}
-
-func TestEntrypointNoCmd(t *testing.T) {
-	daemon := mkDaemon(t)
-	defer nuke(daemon)
-	container, _, err := daemon.Create(
-		&runconfig.Config{
-			Image:      GetTestImage(daemon).ID,
-			Entrypoint: []string{"/bin/echo", "foobar"},
-		},
-		"",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer daemon.Destroy(container)
-	output, err := container.Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Trim(string(output), "\r\n") != "foobar" {
-		t.Error(string(output))
-	}
-}
-
 func BenchmarkRunSequential(b *testing.B) {
 	daemon := mkDaemon(b)
 	defer nuke(daemon)
@@ -301,45 +250,5 @@ func BenchmarkRunParallel(b *testing.B) {
 	}
 	if len(errors) > 0 {
 		b.Fatal(errors)
-	}
-}
-
-func tempDir(t *testing.T) string {
-	tmpDir, err := ioutil.TempDir("", "docker-test-container")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return tmpDir
-}
-
-func TestBindMounts(t *testing.T) {
-	eng := NewTestEngine(t)
-	r := mkDaemonFromEngine(eng, t)
-	defer r.Nuke()
-
-	tmpDir := tempDir(t)
-	defer os.RemoveAll(tmpDir)
-	writeFile(path.Join(tmpDir, "touch-me"), "", t)
-
-	// Test reading from a read-only bind mount
-	stdout, _ := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "_", "ls", "/tmp"}, t)
-	if !strings.Contains(stdout, "touch-me") {
-		t.Fatal("Container failed to read from bind mount")
-	}
-
-	// test writing to bind mount
-	runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "_", "touch", "/tmp/holla"}, t)
-	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
-
-	// test mounting to an illegal destination directory
-	if _, err := runContainer(eng, r, []string{"-v", fmt.Sprintf("%s:.", tmpDir), "_", "ls", "."}, nil); err == nil {
-		t.Fatal("Container bind mounted illegal directory")
-	}
-
-	// test mount a file
-	runContainer(eng, r, []string{"-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "_", "sh", "-c", "echo -n 'yotta' > /tmp/holla"}, t)
-	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
-	if content != "yotta" {
-		t.Fatal("Container failed to write to bind mount file")
 	}
 }
