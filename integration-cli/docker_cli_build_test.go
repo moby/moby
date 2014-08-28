@@ -1463,7 +1463,7 @@ func TestBuildWithVolumeOwnership(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--rm", "testbuildimg", "ls", "-la", "/test")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(out, err)
 	}
 
 	if expected := "drw-------"; !strings.Contains(out, expected) {
