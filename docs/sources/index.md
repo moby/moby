@@ -83,5 +83,67 @@ Docker on a variety of platforms.
 
 ### Docker User Guide
 
-To learn about Docker in more detail and to answer questions about usage and implementation, check out the [Docker User Guide](/userguide/).
+To learn about Docker in more detail and to answer questions about usage and
+implementation, check out the [Docker User Guide](/userguide/).
+
+## Release Notes
+
+**Version 1.2.0**
+
+This version fixes a number of bugs and issues and adds new functions and other
+improvements. These include:
+
+*New restart policies*
+
+We added a `--restart flag` to `docker run` to specify a restart policy for your
+container. Currently, there are three policies available:
+
+`no` – Do not restart the container if it dies. (default)
+`on-failure` – Restart the container if it exits with a non-zero exit code.
+This can also accept an optional maximum restart count (e.g. `on-failure:5`).
+`always` – Always restart the container no matter what exit code is returned.
+This deprecates the `--restart` flag on the Docker daemon.
+
+*New flags for `docker run`: `--cap-add` and `–-cap-drop`*
+
+In previous releases, Docker containers could either be given complete capabilities or
+they could all follow a whitelist of allowed capabilities while dropping all others.
+Further, using `--privileged` would grant all capabilities inside a container, rather than
+applying a whitelist. This was not recommended for production use because it’s really
+unsafe; it’s as if you were directly in the host.
+
+This release introduces two new flags for `docker run` --cap-add and --cap-drop that give
+you fine grain control over the specific capabilities you want grant to a particular
+container.
+
+*New `-–device` flag for `docker run`*
+
+Previously, you could only use devices inside your containers by bind mounting them ( with
+`-v`) in a `--privileged` container. With this release, we introduce the `--device flag`
+to `docker run` which lets you use a device without requiring a privileged container.
+
+
+*Writable `/etc/hosts`, `/etc/hostname` and `/etc/resolv.conf`*
+
+You can now edit `/etc/hosts`, `/etc/hostname` and `/etc/resolve.conf` in a running
+container. This is useful if you need to install bind or other services that might
+override one of those files.
+
+Note, however, that changes to these files are not saved during a docker build and so will
+not be preserved in the resulting image. The changes will only “stick” in a running
+container.
+
+*Docker proxy in a separate process*
+
+The Docker userland proxy that routes outbound traffic to your containers now has its own
+separate process (one process per connection). This greatly reduces the load on the
+daemon, which increases stability and efficiency.
+
+*Other Improvements & Changes*
+
+* When using `docker rm -f`, Docker now kills the container (instead of stopping it) before removing it . If you intend to stop the container cleanly, you can use `docker stop`.
+
+* Added support for IPv6 addresses in `--dns`
+
+* Added search capability in private registries
 
