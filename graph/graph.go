@@ -90,7 +90,6 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	// FIXME: return nil when the image doesn't exist, instead of an error
 	img, err := image.LoadImage(graph.ImageRoot(id))
 	if err != nil {
 		return nil, err
