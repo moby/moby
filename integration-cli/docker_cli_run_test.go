@@ -1722,6 +1722,8 @@ func TestBindMounts(t *testing.T) {
 	if content != expected {
 		t.Fatalf("Output should be %q, actual out: %q", expected, content)
 	}
+
+	logDone("run - bind mounts")
 }
 
 func TestHostsLinkedContainerUpdate(t *testing.T) {

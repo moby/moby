@@ -109,6 +109,8 @@ func TestCommitTTY(t *testing.T) {
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
+
+	logDone("commit - commit tty")
 }
 
 func TestCommitWithHostBindMount(t *testing.T) {
