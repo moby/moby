@@ -118,7 +118,7 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 				}
 			}
 		}
-		if err := s.graph.Register(imageJson, layer, img); err != nil {
+		if err := s.graph.Register(img, imageJson, layer); err != nil {
 			return err
 		}
 	}

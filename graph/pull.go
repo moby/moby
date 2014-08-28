@@ -280,9 +280,8 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				}
 				defer layer.Close()
 
-				err = s.graph.Register(imgJSON,
-					utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"),
-					img)
+				err = s.graph.Register(img, imgJSON,
+					utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"))
 				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue

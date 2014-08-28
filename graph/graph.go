@@ -151,15 +151,14 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 		img.ContainerConfig = *containerConfig
 	}
 
-	if err := graph.Register(nil, layerData, img); err != nil {
+	if err := graph.Register(img, nil, layerData); err != nil {
 		return nil, err
 	}
 	return img, nil
 }
 
 // Register imports a pre-existing image into the graph.
-// FIXME: pass img as first argument
-func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, img *image.Image) (err error) {
+func (graph *Graph) Register(img *image.Image, jsonData []byte, layerData archive.ArchiveReader) (err error) {
 	defer func() {
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.

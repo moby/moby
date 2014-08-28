@@ -61,7 +61,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &image.Image{ID: testImageID}
-	if err := graph.Register(nil, archive, img); err != nil {
+	if err := graph.Register(img, nil, archive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Set(testImageName, "", testImageID, false); err != nil {
