@@ -375,6 +375,23 @@ func TestVolumesFromInReadWriteMode(t *testing.T) {
 	logDone("run - volumes from as read write mount")
 }
 
+func TestVolumesFromInheritsReadOnly(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	// Expect this "rw" mode to be be ignored since the inheritted volume is "ro"
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatal("Expected to inherit read-only volume even when passing in `rw`")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes from ignores `rw` if inherrited volume is `ro`")
+}
+
 // Test for #1351
 func TestApplyVolumesFromBeforeVolumes(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "touch", "/test/foo")
@@ -1182,7 +1199,7 @@ func TestDockerRunWithVolumesIsRecursive(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - volumes are bind mounted recuursively")
+	logDone("run - volumes are bind mounted recursively")
 }
 
 func TestDnsDefaultOptions(t *testing.T) {
