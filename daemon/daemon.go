@@ -80,6 +80,62 @@ func (c *contStore) List() []*Container {
 	return *containers
 }
 
+type volStore struct {
+	s          map[string]*Volume
+	volumes    *graph.Graph
+	refMap     map[string]map[string]struct{}
+	refCounter map[string]int
+	sync.Mutex
+}
+
+func (v *volStore) Add(volume *Volume) {
+	v.Lock()
+	v.s[volume.GetId()] = volume
+	v.Unlock()
+}
+
+func (v *volStore) AddRef(volume *Volume, container *Container) {
+	v.Lock()
+	defer v.Unlock()
+
+	id := volume.GetId()
+	if _, exists := v.refMap[id]; !exists {
+		v.refMap[id] = make(map[string]struct{})
+	}
+
+	v.refMap[id][container.ID] = struct{}{}
+	v.refCounter[id]++
+}
+
+func (v *volStore) RemoveRef(volume *Volume, containerId string) {
+	v.Lock()
+	defer v.Unlock()
+
+	id := volume.GetId()
+	delete(v.refMap[id], containerId)
+	v.refCounter[id]--
+}
+
+func (v *volStore) InUse(id string) (bool, string) {
+	var containerId string
+	v.Lock()
+	defer v.Unlock()
+	if v.refCounter[id] == 0 {
+		return false, ""
+	}
+
+	for cid := range v.refMap[id] {
+		containerId = cid
+		break
+	}
+
+	return true, containerId
+}
+
+func (v *volStore) Driver() graphdriver.Driver {
+	return v.volumes.Driver()
+}
+
 type Daemon struct {
 	repository     string
 	sysInitPath    string
@@ -88,7 +144,7 @@ type Daemon struct {
 	repositories   *graph.TagStore
 	idIndex        *truncindex.TruncIndex
 	sysInfo        *sysinfo.SysInfo
-	volumes        *graph.Graph
+	volumes        *volStore
 	eng            *engine.Engine
 	config         *Config
 	containerGraph *graphdb.Database
@@ -370,6 +426,19 @@ func (daemon *Daemon) restore() error {
 					log.Debugf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
+		}
+	}
+
+	for _, c := range registeredContainers {
+		volumes, err := c.GetVolumes()
+		if err != nil {
+			log.Debugf("Failed to get volumes for container %s", c.ID)
+			continue
+		}
+
+		for _, vol := range volumes {
+			daemon.volumes.Add(vol)
+			daemon.volumes.AddRef(vol, c)
 		}
 	}
 
@@ -785,7 +854,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 	log.Debugf("Creating volumes graph")
-	volumes, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
+	volumeGraph, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
@@ -849,7 +918,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		repositories:   repositories,
 		idIndex:        truncindex.NewTruncIndex([]string{}),
 		sysInfo:        sysInfo,
-		volumes:        volumes,
+		volumes:        &volStore{s: make(map[string]*Volume), volumes: volumeGraph, refCounter: make(map[string]int), refMap: make(map[string]map[string]struct{})},
 		config:         config,
 		containerGraph: graph,
 		driver:         driver,
@@ -1049,7 +1118,7 @@ func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
 }
 
 func (daemon *Daemon) Volumes() *graph.Graph {
-	return daemon.volumes
+	return daemon.volumes.volumes
 }
 
 func (daemon *Daemon) ContainerGraph() *graphdb.Database {
@@ -1098,6 +1167,10 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 		}
 	}
 	return match, nil
+}
+
+func (daemon *Daemon) AddUsedVolume(id string) {
+
 }
 
 func checkKernelAndArch() error {
