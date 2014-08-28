@@ -18,7 +18,7 @@ VirtualBox.
 
 Issue the command to stop the Boot2Docker VM on the command line:
 
-    `$ boot2docker stop`
+    $ boot2docker stop
 
 ## 2. Clone the VMDK image to a VDI image
 
@@ -28,7 +28,7 @@ it.
 
 Using the command line VirtualBox tools, clone the VMDK image to a VDI image:
 
-    `$ vboxmanage clonehd /full/path/to/boot2docker-hd.vmdk /full/path/to/<newVDIimage>.vdi -—format VDI -—variant Standard`
+    $ vboxmanage clonehd /full/path/to/boot2docker-hd.vmdk /full/path/to/<newVDIimage>.vdi -—format VDI -—variant Standard
 
 ## 3. Resize the VDI volume
 
@@ -36,17 +36,17 @@ Choose a size that will be appropriate for your needs. If you’re spinning up a
 lot of containers, or your containers are particularly large, larger will be 
 better:
 
-    `$ vboxmanage modifyhd /full/path/to/<newVDIimage>.vdi —-resize <size in MB>`
+    $ vboxmanage modifyhd /full/path/to/<newVDIimage>.vdi —-resize <size in MB>
 
 ## 4. Download a disk partitioning tool ISO 
 
 To resize the volume, we'll use [GParted](http://gparted.sourceforge.net/download.php/). 
-Once you've downloaded the tool, add the ISO to the Boot2Docker VM’s IDE bus. 
+Once you've downloaded the tool, add the ISO to the Boot2Docker VM IDE bus. 
 You might need to create the bus before you can add the ISO. 
 
-**Note:** 
-It's important that you choose a partitioning tool that is available as an ISO so 
-that the Boot2Docker VM can be booted with it.
+> **Note:** 
+> It's important that you choose a partitioning tool that is available as an ISO so 
+> that the Boot2Docker VM can be booted with it.
 
 <table>
 	<tr>
