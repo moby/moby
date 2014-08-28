@@ -428,3 +428,32 @@ func TestHelp(t *testing.T) {
 		t.Fatal("help was called; should not have been for defined help flag")
 	}
 }
+
+// Test the flag count functions.
+func TestFlagCounts(t *testing.T) {
+	fs := NewFlagSet("help test", ContinueOnError)
+	var flag bool
+	fs.BoolVar(&flag, []string{"flag1"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"#deprecated1"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"f", "flag2"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"#d", "#deprecated2"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"flag3"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"g", "#flag4", "-flag4"}, false, "regular flag")
+
+	if fs.FlagCount() != 10 {
+		t.Fatal("FlagCount wrong. ", fs.FlagCount())
+	}
+	if fs.FlagCountUndeprecated() != 4 {
+		t.Fatal("FlagCountUndeprecated wrong. ", fs.FlagCountUndeprecated())
+	}
+	if fs.NFlag() != 0 {
+		t.Fatal("NFlag wrong. ", fs.NFlag())
+	}
+	err := fs.Parse([]string{"-fd", "-g", "-flag4"})
+	if err != nil {
+		t.Fatal("expected no error for defined -help; got ", err)
+	}
+	if fs.NFlag() != 4 {
+		t.Fatal("NFlag wrong. ", fs.NFlag())
+	}
+}

@@ -101,7 +101,6 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"attach":            daemon.ContainerAttach,
-		"build":             daemon.CmdBuild,
 		"commit":            daemon.ContainerCommit,
 		"container_changes": daemon.ContainerChanges,
 		"container_copy":    daemon.ContainerCopy,
@@ -619,6 +618,15 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 		return nil, err
 	}
 	return children, nil
+}
+
+func (daemon *Daemon) Parents(name string) ([]string, error) {
+	name, err := GetFullContainerName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return daemon.containerGraph.Parents(name)
 }
 
 func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error {

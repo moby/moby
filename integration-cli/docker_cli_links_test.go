@@ -53,6 +53,8 @@ func TestPingUnlinkedContainers(t *testing.T) {
 	} else if exitCode != 1 {
 		errorOut(err, t, fmt.Sprintf("run ping failed with errors: %v", err))
 	}
+
+	logDone("links - ping unlinked container")
 }
 
 func TestPingLinkedContainers(t *testing.T) {
@@ -65,6 +67,8 @@ func TestPingLinkedContainers(t *testing.T) {
 	cmd(t, "kill", idA)
 	cmd(t, "kill", idB)
 	deleteAllContainers()
+
+	logDone("links - ping linked container")
 }
 
 func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {

@@ -472,6 +472,23 @@ var Usage = func() {
 	PrintDefaults()
 }
 
+// FlagCount returns the number of flags that have been defined.
+func (f *FlagSet) FlagCount() int { return len(f.formal) }
+
+// FlagCountUndeprecated returns the number of undeprecated flags that have been defined.
+func (f *FlagSet) FlagCountUndeprecated() int {
+	count := 0
+	for _, flag := range sortFlags(f.formal) {
+		for _, name := range flag.Names {
+			if name[0] != '#' {
+				count++
+				break
+			}
+		}
+	}
+	return count
+}
+
 // NFlag returns the number of flags that have been set.
 func (f *FlagSet) NFlag() int { return len(f.actual) }
 

@@ -40,6 +40,8 @@ func TestBuildHistory(t *testing.T) {
 	}
 
 	deleteImages("testbuildhistory")
+
+	logDone("history - build history")
 }
 
 func TestHistoryExistentImage(t *testing.T) {

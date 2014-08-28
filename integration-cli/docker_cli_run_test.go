@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -372,6 +373,23 @@ func TestVolumesFromInReadWriteMode(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - volumes from as read write mount")
+}
+
+func TestVolumesFromInheritsReadOnly(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	// Expect this "rw" mode to be be ignored since the inheritted volume is "ro"
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatal("Expected to inherit read-only volume even when passing in `rw`")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - volumes from ignores `rw` if inherrited volume is `ro`")
 }
 
 // Test for #1351
@@ -1181,7 +1199,7 @@ func TestDockerRunWithVolumesIsRecursive(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - volumes are bind mounted recuursively")
+	logDone("run - volumes are bind mounted recursively")
 }
 
 func TestDnsDefaultOptions(t *testing.T) {
@@ -1643,4 +1661,114 @@ func TestRunWithBadDevice(t *testing.T) {
 		t.Fatalf("Output should contain %q, actual out: %q", expected, out)
 	}
 	logDone("run - error with bad device")
+}
+
+func TestEntrypoint(t *testing.T) {
+	name := "entrypoint"
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "--entrypoint", "/bin/echo", "busybox", "-n", "foobar")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	expected := "foobar"
+	if out != expected {
+		t.Fatalf("Output should be %q, actual out: %q", expected, out)
+	}
+	logDone("run - entrypoint")
+}
+
+func TestBindMounts(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "docker-test-container")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+	writeFile(path.Join(tmpDir, "touch-me"), "", t)
+
+	// Test reading from a read-only bind mount
+	cmd := exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox", "ls", "/tmp")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "touch-me") {
+		t.Fatal("Container failed to read from bind mount")
+	}
+
+	// test writing to bind mount
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "busybox", "touch", "/tmp/holla")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
+
+	// test mounting to an illegal destination directory
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
+	_, err = runCommand(cmd)
+	if err == nil {
+		t.Fatal("Container bind mounted illegal directory")
+	}
+
+	// test mount a file
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
+	_, err = runCommand(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	content := readFile(path.Join(tmpDir, "holla"), t) // Will fail if the file doesn't exist
+	expected := "yotta"
+	if content != expected {
+		t.Fatalf("Output should be %q, actual out: %q", expected, content)
+	}
+
+	logDone("run - bind mounts")
+}
+
+func TestHostsLinkedContainerUpdate(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sleep", "5"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	// TODO fix docker cp and /etc/hosts
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "sh", "-c", "while true;do cp /etc/hosts /hosts; done"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/1"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "restart", "-t", "0", "c1"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/2"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	out, _, _, err = runCommandWithStdoutStderr(exec.Command("diff", tmpdir+"/1", tmpdir+"/2"))
+	if err == nil {
+		t.Fatalf("Expecting error, got none")
+	}
+	out = stripTrailingCharacters(out)
+	if out == "" {
+		t.Fatalf("expected /etc/hosts to be updated, but wasn't")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - /etc/hosts updated in parent when restart")
 }

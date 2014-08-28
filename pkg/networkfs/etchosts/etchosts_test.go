@@ -72,3 +72,37 @@ func TestBuildNoIP(t *testing.T) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
+
+func TestUpdate(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	if err := Build(file.Name(), "10.11.12.13", "testhostname", "testdomainname", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "10.11.12.13\ttesthostname.testdomainname testhostname\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+
+	if err := Update(file.Name(), "1.1.1.1", "testhostname"); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "1.1.1.1\ttesthostname.testdomainname testhostname\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+}

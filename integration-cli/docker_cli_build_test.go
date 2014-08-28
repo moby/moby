@@ -685,10 +685,11 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 
 func TestBuildEnv(t *testing.T) {
 	name := "testbuildenv"
-	expected := "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
+	expected := "[PATH=/test:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
+		ENV PATH /test:$PATH
         ENV PORT 2375
 		RUN [ $(env | grep PORT) = 'PORT=2375' ]`,
 		true)
@@ -1708,6 +1709,9 @@ func TestBuildEnvUsage(t *testing.T) {
 	name := "testbuildenvusage"
 	defer deleteImages(name)
 	dockerfile := `FROM busybox
+ENV    PATH $HOME/bin:$PATH
+ENV    PATH /tmp:$PATH
+RUN    [ "$PATH" = "/tmp:$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" ]
 ENV    FOO /foo/baz
 ENV    BAR /bar
 ENV    BAZ $BAR
@@ -1717,7 +1721,8 @@ RUN    [ "$FOOPATH" = "$PATH:/foo/baz" ]
 ENV	   FROM hello/docker/world
 ENV    TO /docker/world/hello
 ADD    $FROM $TO
-RUN    [ "$(cat $TO)" = "hello" ]`
+RUN    [ "$(cat $TO)" = "hello" ]
+`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"hello/docker/world": "hello",
 	})

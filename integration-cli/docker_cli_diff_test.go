@@ -88,4 +88,6 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 			t.Errorf("'%s' is shown in the diff but shouldn't", line)
 		}
 	}
+
+	logDone("diff - ensure that only kmsg and ptmx in diff")
 }

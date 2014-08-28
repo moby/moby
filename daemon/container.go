@@ -297,6 +297,9 @@ func (container *Container) Start() (err error) {
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
+	if err := container.updateParentsHosts(); err != nil {
+		return err
+	}
 	container.verifyDaemonSettings()
 	if err := prepareVolumesForContainer(container); err != nil {
 		return err
@@ -390,10 +393,7 @@ func (container *Container) buildHostnameFile() error {
 	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string) error {
-	if err := container.buildHostnameFile(); err != nil {
-		return err
-	}
+func (container *Container) buildHostsFiles(IP string) error {
 
 	hostsPath, err := container.getRootResourcePath("hosts")
 	if err != nil {
@@ -414,6 +414,14 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	}
 
 	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
+}
+
+func (container *Container) buildHostnameAndHostsFiles(IP string) error {
+	if err := container.buildHostnameFile(); err != nil {
+		return err
+	}
+
+	return container.buildHostsFiles(IP)
 }
 
 func (container *Container) allocateNetwork() error {
@@ -878,6 +886,26 @@ func (container *Container) setupContainerDns() error {
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
 }
 
+func (container *Container) updateParentsHosts() error {
+	parents, err := container.daemon.Parents(container.Name)
+	if err != nil {
+		return err
+	}
+	for _, cid := range parents {
+		if cid == "0" {
+			continue
+		}
+
+		c := container.daemon.Get(cid)
+		if c != nil && !container.daemon.config.DisableNetwork && !container.hostConfig.NetworkMode.IsContainer() && !container.hostConfig.NetworkMode.IsHost() {
+			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
+				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
+			}
+		}
+	}
+	return nil
+}
+
 func (container *Container) initializeNetworking() error {
 	var err error
 	if container.hostConfig.NetworkMode.IsHost() {
@@ -1145,4 +1173,48 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	default:
 		return nil, fmt.Errorf("network mode not set to container")
 	}
+}
+
+func (container *Container) GetVolumes() (map[string]*Volume, error) {
+	// Get all the bind-mounts
+	volumes, err := container.getBindMap()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all the normal volumes
+	for volPath, hostPath := range container.Volumes {
+		if _, exists := volumes[volPath]; exists {
+			continue
+		}
+		volumes[volPath] = &Volume{VolPath: volPath, HostPath: hostPath, isReadWrite: container.VolumesRW[volPath]}
+	}
+
+	return volumes, nil
+}
+
+func (container *Container) getBindMap() (map[string]*Volume, error) {
+	var (
+		// Create the requested bind mounts
+		volumes = map[string]*Volume{}
+		// Define illegal container destinations
+		illegalDsts = []string{"/", "."}
+	)
+
+	for _, bind := range container.hostConfig.Binds {
+		vol, err := parseBindVolumeSpec(bind)
+		if err != nil {
+			return nil, err
+		}
+		vol.isBindMount = true
+		// Bail if trying to mount to an illegal destination
+		for _, illegal := range illegalDsts {
+			if vol.VolPath == illegal {
+				return nil, fmt.Errorf("Illegal bind destination: %s", vol.VolPath)
+			}
+		}
+
+		volumes[filepath.Clean(vol.VolPath)] = &vol
+	}
+	return volumes, nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -367,4 +368,37 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 		Root:    root,
 		RepoURL: fmt.Sprintf("%s/%s.git", server.URL, name),
 	}, nil
+}
+
+// Write `content` to the file at path `dst`, creating it if necessary,
+// as well as any missing directories.
+// The file is truncated if it already exists.
+// Call t.Fatal() at the first error.
+func writeFile(dst, content string, t *testing.T) {
+	// Create subdirectories if necessary
+	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil && !os.IsExist(err) {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Write content (truncate if it exists)
+	if _, err := io.Copy(f, strings.NewReader(content)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Return the contents of file at path `src`.
+// Call t.Fatal() at the first error (including if the file doesn't exist)
+func readFile(src string, t *testing.T) (content string) {
+	f, err := os.Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }
