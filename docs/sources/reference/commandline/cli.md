@@ -852,6 +852,8 @@ This shows all the containers that have exited with status of '0'
 
     Pull an image or a repository from the registry
 
+      -a, --all-tags=false    Download all tagged images in the repository
+
 Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) registry.
 
@@ -867,11 +869,13 @@ To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
 
     $ docker pull debian
-    # will pull all the images in the debian repository
+    # will pull only the debian:latest image and its intermediate layers 
     $ docker pull debian:testing
     # will pull only the image named debian:testing and any intermediate layers
-    # it is based on. (Typically the empty `scratch` image, a MAINTAINERs layer,
+    # it is based on. (Typically the empty `scratch` image, a MAINTAINER layer,
     # and the un-tarred base).
+    $ docker pull --all-tags centos
+    # will pull all the images from the centos repository
     $ docker pull registry.hub.docker.com/debian
     # manually specifies the path to the default Docker registry. This could
     # be replaced with the path to a local registry to pull from another source.
