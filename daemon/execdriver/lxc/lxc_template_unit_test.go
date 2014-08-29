@@ -52,6 +52,7 @@ func TestLXCConfig(t *testing.T) {
 			Interface: nil,
 		},
 		AllowedDevices: make([]*devices.Device, 0),
+		ProcessConfig:  execdriver.ProcessConfig{},
 	}
 	p, err := driver.generateLXCConfig(command)
 	if err != nil {
@@ -77,9 +78,11 @@ func TestCustomLxcConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	command := &execdriver.Command{
-		ID:         "1",
+	processConfig := execdriver.ProcessConfig{
 		Privileged: false,
+	}
+	command := &execdriver.Command{
+		ID: "1",
 		Config: map[string][]string{
 			"lxc": {
 				"lxc.utsname = docker",
@@ -90,6 +93,7 @@ func TestCustomLxcConfig(t *testing.T) {
 			Mtu:       1500,
 			Interface: nil,
 		},
+		ProcessConfig: processConfig,
 	}
 
 	p, err := driver.generateLXCConfig(command)

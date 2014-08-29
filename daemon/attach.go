@@ -103,7 +103,6 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 		}
 
 		<-daemon.Attach(container, cStdin, cStdinCloser, cStdout, cStderr)
-
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {

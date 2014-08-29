@@ -23,11 +23,11 @@ import (
 func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, error) {
 	container := template.New()
 
-	container.Hostname = getEnv("HOSTNAME", c.Env)
-	container.Tty = c.Tty
-	container.User = c.User
+	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
+	container.Tty = c.ProcessConfig.Tty
+	container.User = c.ProcessConfig.User
 	container.WorkingDir = c.WorkingDir
-	container.Env = c.Env
+	container.Env = c.ProcessConfig.Env
 	container.Cgroups.Name = c.ID
 	container.Cgroups.AllowedDevices = c.AllowedDevices
 	container.MountConfig.DeviceNodes = c.AutoCreatedDevices
@@ -40,7 +40,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		return nil, err
 	}
 
-	if c.Privileged {
+	if c.ProcessConfig.Privileged {
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
