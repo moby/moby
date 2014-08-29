@@ -81,8 +81,10 @@ func parseLine(line string) (string, *Node, error) {
 		return "", nil, err
 	}
 
-	node.Next = sexp
-	node.Attributes = attrs
+	if sexp.Value != "" || sexp.Next != nil || sexp.Children != nil {
+		node.Next = sexp
+		node.Attributes = attrs
+	}
 
 	return "", node, nil
 }

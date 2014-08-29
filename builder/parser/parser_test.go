@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -69,7 +70,9 @@ func TestTestData(t *testing.T) {
 			t.Fatalf("Error reading %s's result file: %s", dir.Name(), err.Error())
 		}
 
-		if ast.Dump() != string(content) {
+		if ast.Dump()+"\n" != string(content) {
+			fmt.Fprintln(os.Stderr, ast.Dump())
+			fmt.Fprintln(os.Stderr, string(content))
 			t.Fatalf("%s: AST dump of dockerfile does not match result", dir.Name())
 		}
 
