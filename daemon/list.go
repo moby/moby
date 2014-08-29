@@ -28,6 +28,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		size        = job.GetenvBool("size")
 		psFilters   filters.Args
 		filt_exited []int
+		filt_status []int
 	)
 	outs := engine.NewTable("Created", 0)
 
@@ -42,6 +43,16 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 			filt_exited = append(filt_exited, code)
+		}
+	}
+
+	if i, ok := psFilters["status"]; ok {
+		for _, value := range i {
+			code, err := strconv.Atoi(value)
+			if err != nil {
+				return job.Error(err)
+			}
+			filt_status = append(filt_status, code)
 		}
 	}
 
@@ -99,6 +110,20 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return nil
 			}
 		}
+
+		if len(filt_status) > 0 {
+			should_skip := true
+			for _, code := range filt_status {
+				if code == container.State.StatusCode() {
+					should_skip = false
+					break
+				}
+			}
+			if should_skip {
+				return nil
+			}
+		}
+
 		displayed++
 		out := &engine.Env{}
 		out.Set("Id", container.ID)
@@ -121,6 +146,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 		out.SetInt64("Created", container.Created.Unix())
 		out.Set("Status", container.State.String())
+		out.Set("StatusCode", strconv.Itoa(container.State.StatusCode()))
 		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
 		if err != nil {
 			return err

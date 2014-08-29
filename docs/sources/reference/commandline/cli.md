@@ -794,6 +794,7 @@ further details.
       --before=""           Show only container created before Id or Name, include non-running ones.
       -f, --filter=[]       Provide filter values. Valid filters:
                               exited=<int> - containers with exit code of <int>
+                              status=<int> - containers with status of <int> (see below)
       -l, --latest=false    Show only the latest created container, include non-running ones.
       -n=-1                 Show n last created containers, include non-running ones.
       --no-trunc=false      Don't truncate output
@@ -818,6 +819,15 @@ than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bi
 
 Current filters:
  * exited (int - the code of exited containers. Only useful with '--all')
+ * status (int - status of a container. See below for values. Only useful with '--all')
+
+#### Status Filtering
+
+ * 0 - Unknown status
+ * 1 - Container is restarting
+ * 2 - Container is running
+ * 3 - Container is paused
+ * 4 - Container is exited (exit code can be filtered with 'exited=<int>')
 
 
 #### Successfully exited containers
