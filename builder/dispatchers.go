@@ -223,7 +223,7 @@ func run(b *Builder, args []string, attributes map[string]bool) error {
 func cmd(b *Builder, args []string, attributes map[string]bool) error {
 	b.Config.Cmd = handleJsonArgs(args, attributes)
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", cmd)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", b.Config.Cmd)); err != nil {
 		return err
 	}
 
