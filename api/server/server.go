@@ -611,10 +611,18 @@ func getImagesGet(eng *engine.Engine, version version.Version, w http.ResponseWr
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
 	if version.GreaterThan("1.0") {
 		w.Header().Set("Content-Type", "application/x-tar")
 	}
-	job := eng.Job("image_export", vars["name"])
+	var job *engine.Job
+	if name, ok := vars["name"]; ok {
+		job = eng.Job("image_export", name)
+	} else {
+		job = eng.Job("image_export", r.Form["names"]...)
+	}
 	job.Stdout.Add(w)
 	return job.Run()
 }
@@ -1105,6 +1113,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/json":                    getImagesJSON,
 			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,
+			"/images/get":                     getImagesGet,
 			"/images/{name:.*}/get":           getImagesGet,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
