@@ -110,7 +110,7 @@ func (m *containerMonitor) Start() error {
 	defer func() {
 		if afterRun {
 			m.container.Lock()
-			m.container.State.SetStopped(exitStatus)
+			m.container.State.setStopped(exitStatus)
 			defer m.container.Unlock()
 		}
 		m.Close()
@@ -123,7 +123,7 @@ func (m *containerMonitor) Start() error {
 		m.container.RestartCount++
 
 		if err := m.container.startLoggingToDisk(); err != nil {
-			m.resetContainer()
+			m.resetContainer(false)
 
 			return err
 		}
@@ -138,7 +138,7 @@ func (m *containerMonitor) Start() error {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
-				m.resetContainer()
+				m.resetContainer(false)
 
 				return err
 			}
@@ -154,7 +154,7 @@ func (m *containerMonitor) Start() error {
 		if m.shouldRestart(exitStatus) {
 			m.container.State.SetRestarting(exitStatus)
 			m.container.LogEvent("die")
-			m.resetContainer()
+			m.resetContainer(true)
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
 			// restarting the container because of some types of errors ( networking cut out, etc... )
@@ -168,7 +168,7 @@ func (m *containerMonitor) Start() error {
 			continue
 		}
 		m.container.LogEvent("die")
-		m.resetContainer()
+		m.resetContainer(true)
 		return err
 	}
 }
@@ -243,7 +243,7 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 		}
 	}
 
-	m.container.State.SetRunning(command.Pid())
+	m.container.State.setRunning(command.Pid())
 
 	// signal that the process has started
 	// close channel only if not closed
@@ -260,8 +260,13 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 
 // resetContainer resets the container's IO and ensures that the command is able to be executed again
 // by copying the data into a new struct
-func (m *containerMonitor) resetContainer() {
+// if lock is true, then container locked during reset
+func (m *containerMonitor) resetContainer(lock bool) {
 	container := m.container
+	if lock {
+		container.Lock()
+		defer container.Unlock()
+	}
 
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
