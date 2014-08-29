@@ -80,10 +80,9 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
 			return fmt.Errorf("Error: image %s not found", remoteName)
-		} else {
-			// Unexpected HTTP error
-			return err
 		}
+		// Unexpected HTTP error
+		return err
 	}
 
 	log.Debugf("Retrieving the tag list")

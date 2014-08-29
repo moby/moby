@@ -653,9 +653,8 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 			if err != nil && os.IsPermission(err) {
 				finalError = fmt.Errorf("no permission to read from '%s'", filePath)
 				return err
-			} else {
-				currentFile.Close()
 			}
+			currentFile.Close()
 		}
 		return nil
 	})

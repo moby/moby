@@ -170,12 +170,11 @@ func (s *TagStore) CmdTarLayer(job *engine.Job) engine.Status {
 		}
 		defer fs.Close()
 
-		if written, err := io.Copy(job.Stdout, fs); err != nil {
+		written, err := io.Copy(job.Stdout, fs)
+		if err != nil {
 			return job.Error(err)
-		} else {
-			log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		}
-
+		log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		return engine.StatusOK
 	}
 	return job.Errorf("No such image: %s", name)

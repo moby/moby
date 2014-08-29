@@ -288,42 +288,42 @@ func validateTagName(name string) error {
 	return nil
 }
 
-func (s *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
-	s.Lock()
-	defer s.Unlock()
+func (store *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
+	store.Lock()
+	defer store.Unlock()
 
-	if c, exists := s.pullingPool[key]; exists {
+	if c, exists := store.pullingPool[key]; exists {
 		return c, fmt.Errorf("pull %s is already in progress", key)
 	}
-	if c, exists := s.pushingPool[key]; exists {
+	if c, exists := store.pushingPool[key]; exists {
 		return c, fmt.Errorf("push %s is already in progress", key)
 	}
 
 	c := make(chan struct{})
 	switch kind {
 	case "pull":
-		s.pullingPool[key] = c
+		store.pullingPool[key] = c
 	case "push":
-		s.pushingPool[key] = c
+		store.pushingPool[key] = c
 	default:
 		return nil, fmt.Errorf("Unknown pool type")
 	}
 	return c, nil
 }
 
-func (s *TagStore) poolRemove(kind, key string) error {
-	s.Lock()
-	defer s.Unlock()
+func (store *TagStore) poolRemove(kind, key string) error {
+	store.Lock()
+	defer store.Unlock()
 	switch kind {
 	case "pull":
-		if c, exists := s.pullingPool[key]; exists {
+		if c, exists := store.pullingPool[key]; exists {
 			close(c)
-			delete(s.pullingPool, key)
+			delete(store.pullingPool, key)
 		}
 	case "push":
-		if c, exists := s.pushingPool[key]; exists {
+		if c, exists := store.pushingPool[key]; exists {
 			close(c)
-			delete(s.pushingPool, key)
+			delete(store.pushingPool, key)
 		}
 	default:
 		return fmt.Errorf("Unknown pool type")
