@@ -440,7 +440,7 @@ func TestFlagCounts(t *testing.T) {
 	fs.BoolVar(&flag, []string{"flag3"}, false, "regular flag")
 	fs.BoolVar(&flag, []string{"g", "#flag4", "-flag4"}, false, "regular flag")
 
-	if fs.FlagCount() != 10 {
+	if fs.FlagCount() != 6 {
 		t.Fatal("FlagCount wrong. ", fs.FlagCount())
 	}
 	if fs.FlagCountUndeprecated() != 4 {
@@ -455,5 +455,52 @@ func TestFlagCounts(t *testing.T) {
 	}
 	if fs.NFlag() != 4 {
 		t.Fatal("NFlag wrong. ", fs.NFlag())
+	}
+}
+
+// Show up bug in sortFlags
+func TestSortFlags(t *testing.T) {
+	fs := NewFlagSet("help TestSortFlags", ContinueOnError)
+
+	var err error
+
+	var b bool
+	fs.BoolVar(&b, []string{"b", "-banana"}, false, "usage")
+
+	err = fs.Parse([]string{"--banana=true"})
+	if err != nil {
+		t.Fatal("expected no error; got ", err)
+	}
+
+	count := 0
+
+	fs.VisitAll(func(flag *Flag) {
+		count++
+		if flag == nil {
+			t.Fatal("VisitAll should not return a nil flag")
+		}
+	})
+	flagcount := fs.FlagCount()
+	if flagcount != count {
+		t.Fatalf("FlagCount (%d) != number (%d) of elements visited", flagcount, count)
+	}
+	// Make sure its idempotent
+	if flagcount != fs.FlagCount() {
+		t.Fatalf("FlagCount (%d) != fs.FlagCount() (%d) of elements visited", flagcount, fs.FlagCount())
+	}
+
+	count = 0
+	fs.Visit(func(flag *Flag) {
+		count++
+		if flag == nil {
+			t.Fatal("Visit should not return a nil flag")
+		}
+	})
+	nflag := fs.NFlag()
+	if nflag != count {
+		t.Fatalf("NFlag (%d) != number (%d) of elements visited", nflag, count)
+	}
+	if nflag != fs.NFlag() {
+		t.Fatalf("NFlag (%d) != fs.NFlag() (%d) of elements visited", nflag, fs.NFlag())
 	}
 }
