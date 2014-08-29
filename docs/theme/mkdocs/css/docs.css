@@ -305,6 +305,10 @@ ol li {
   white-space: pre;
 }
 
+.content-body strong {
+  font-weight: bold;
+}
+
 #leftnav .nav.nav-tabs li a {
   line-height: 20px !important;
   padding-top: 15px !important;
