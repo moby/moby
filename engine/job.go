@@ -17,8 +17,7 @@ import (
 // environment variables, standard streams for input, output and error, and
 // an exit status which can indicate success (0) or error (anything else).
 //
-// One slight variation is that jobs report their status as a string. The
-// string "0" indicates success, and any other strings indicates an error.
+// For status, 0 indicates success, and any other integers indicates an error.
 // This allows for richer error reporting.
 //
 type Job struct {
