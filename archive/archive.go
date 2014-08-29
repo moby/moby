@@ -650,36 +650,47 @@ func CmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
 func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
-	f, err := ioutil.TempFile(dir, "")
+	var (
+		err error
+		f   *os.File
+		st  os.FileInfo
+	)
+	defer func() {
+		if err != nil {
+			os.RemoveAll(dir)
+		}
+	}()
+	f, err = ioutil.TempFile(dir, "")
 	if err != nil {
 		return nil, err
 	}
-	if _, err := io.Copy(f, src); err != nil {
+	if _, err = io.Copy(f, src); err != nil {
 		return nil, err
 	}
 	if err = f.Sync(); err != nil {
 		return nil, err
 	}
-	if _, err := f.Seek(0, 0); err != nil {
+	if _, err = f.Seek(0, 0); err != nil {
 		return nil, err
 	}
-	st, err := f.Stat()
+	st, err = f.Stat()
 	if err != nil {
 		return nil, err
 	}
 	size := st.Size()
-	return &TempArchive{f, size}, nil
+	return &TempArchive{f, size, dir}, nil
 }
 
 type TempArchive struct {
 	*os.File
 	Size int64 // Pre-computed from Stat().Size() as a convenience
+	dir  string
 }
 
 func (archive *TempArchive) Read(data []byte) (int, error) {
 	n, err := archive.File.Read(data)
 	if err != nil {
-		os.Remove(archive.File.Name())
+		os.RemoveAll(archive.dir)
 	}
 	return n, err
 }
