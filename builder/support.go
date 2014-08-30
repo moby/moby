@@ -28,10 +28,14 @@ func (b *Builder) replaceEnv(str string) string {
 }
 
 func handleJsonArgs(args []string, attributes map[string]bool) []string {
+	if len(args) == 0 {
+		return []string{}
+	}
+
 	if attributes != nil && attributes["json"] {
 		return args
 	}
 
 	// literal string command, not an exec array
-	return append([]string{"/bin/sh", "-c", strings.Join(args, " ")})
+	return []string{strings.Join(args, " ")}
 }

@@ -168,11 +168,17 @@ func workdir(b *Builder, args []string, attributes map[string]bool) error {
 func run(b *Builder, args []string, attributes map[string]bool) error {
 	args = handleJsonArgs(args, attributes)
 
+	if len(args) == 1 {
+		args = append([]string{"/bin/sh", "-c"}, args[0])
+	}
+
+	args = append([]string{b.image}, args...)
+
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 
-	config, _, _, err := runconfig.Parse(append([]string{b.image}, args...), nil)
+	config, _, _, err := runconfig.Parse(args, nil)
 	if err != nil {
 		return err
 	}
@@ -223,11 +229,18 @@ func run(b *Builder, args []string, attributes map[string]bool) error {
 func cmd(b *Builder, args []string, attributes map[string]bool) error {
 	b.Config.Cmd = handleJsonArgs(args, attributes)
 
+	if !attributes["json"] && len(b.Config.Entrypoint) == 0 {
+		b.Config.Entrypoint = []string{"/bin/sh", "-c"}
+	}
+
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", b.Config.Cmd)); err != nil {
 		return err
 	}
 
-	b.cmdSet = true
+	if len(args) != 0 {
+		b.cmdSet = true
+	}
+
 	return nil
 }
 
@@ -242,7 +255,10 @@ func cmd(b *Builder, args []string, attributes map[string]bool) error {
 func entrypoint(b *Builder, args []string, attributes map[string]bool) error {
 	b.Config.Entrypoint = handleJsonArgs(args, attributes)
 
-	// if there is no cmd in current Dockerfile - cleanup cmd
+	if len(b.Config.Entrypoint) == 0 {
+		b.Config.Entrypoint = []string{"/bin/sh", "-c"}
+	}
+
 	if !b.cmdSet {
 		b.Config.Cmd = nil
 	}

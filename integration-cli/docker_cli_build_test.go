@@ -1184,7 +1184,7 @@ func TestContextTarNoCompression(t *testing.T) {
 	testContextTar(t, archive.Uncompressed)
 }
 
-func TestNoContext(t *testing.T) {
+func TestBuildNoContext(t *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "nocontext", "-")
 	buildCmd.Stdin = strings.NewReader("FROM busybox\nCMD echo ok\n")
 
@@ -1898,4 +1898,25 @@ func TestBuildCleanupCmdOnEntrypoint(t *testing.T) {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	logDone("build - cleanup cmd on ENTRYPOINT")
+}
+
+func TestBuildClearCmd(t *testing.T) {
+	name := "testbuildclearcmd"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`From scratch
+   ENTRYPOINT ["/bin/bash"]
+   CMD []`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectFieldJSON(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != "[]" {
+		t.Fatalf("Cmd %s, expected %s", res, "[]")
+	}
+	logDone("build - clearcmd")
 }
