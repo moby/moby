@@ -993,7 +993,7 @@ removed before the image is removed.
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
-      --restart=""               Restart policy to apply when a container exits (no, on-failure, always)
+      --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --sig-proxy=true           Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
       -t, --tty=false            Allocate a pseudo-TTY
@@ -1245,6 +1245,7 @@ the container exits, Docker will restart it.
 This will run the `redis` container with a restart policy of ** on-failure ** and a
 maximum restart count of 10.  If the `redis` container exits with a non-zero exit
 status more than 10 times in a row Docker will abort trying to restart the container.
+Providing a maximum restart limit is only valid for the ** on-failure ** policy.
 
 ## save
 
