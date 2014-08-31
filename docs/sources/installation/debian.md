@@ -37,26 +37,31 @@ Which should download the `ubuntu` image, and then start `bash` in a container.
 
 ## Debian Wheezy/Stable 7.x (64-bit)
 
-Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details on why 3.8 is required, see discussion on [bug #407](https://github.com/docker/docker/issues/407%20kernel%20versions)).
+Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details
+on why 3.8 is required, see discussion on
+[bug #407](https://github.com/docker/docker/issues/407%20kernel%20versions)).
 
-Fortunately, wheezy-backports currently has [Kernel 3.14](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64), which is officially supported by Docker.
+Fortunately, wheezy-backports currently has [Kernel 3.14
+](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
+which is officially supported by Docker.
 
 ### Installation
 
- 1. Install Kernel 3.14 from wheezy-backports
+1. Install Kernel 3.14 from wheezy-backports
  
- Add the following line to your `/etc/apt/sources.list`
+    Add the following line to your `/etc/apt/sources.list`
 
- `deb http://http.debian.net/debian wheezy-backports main`
+    `deb http://http.debian.net/debian wheezy-backports main`
 
- then install the `linux-image-amd64` package (note the use of `-t wheezy-backports`)
+    then install the `linux-image-amd64` package (note the use of
+    `-t wheezy-backports`)
  
-      $ sudo apt-get update
-      $ sudo apt-get install -t wheezy-backports linux-image-amd64
+        $ sudo apt-get update
+        $ sudo apt-get install -t wheezy-backports linux-image-amd64
 
- 2. Install Docker using the get.docker.io script:
+2. Install Docker using the get.docker.io script:
  
- `curl -sSL https://get.docker.io/ | sh`
+    `curl -sSL https://get.docker.io/ | sh`
 
 ## Giving non-root access
 
