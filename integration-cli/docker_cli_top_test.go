@@ -52,7 +52,7 @@ func TestTopPrivileged(t *testing.T) {
 
 	topCmd = exec.Command(dockerBinary, "top", cleanedContainerID)
 	out2, _, err2 := runCommandWithOutput(topCmd)
-	errorOut(err, t, fmt.Sprintf("failed to run top: %v %v", out2, err2))
+	errorOut(err2, t, fmt.Sprintf("failed to run top: %v %v", out2, err2))
 
 	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
 	_, err = runCommand(killCmd)
