@@ -7,6 +7,25 @@ import (
 	"testing"
 )
 
+func TestTopMultipleArgs(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox", "sleep", "20")
+	out, _, err := runCommandWithOutput(runCmd)
+	errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID, "-o", "pid")
+	out, _, err = runCommandWithOutput(topCmd)
+	errorOut(err, t, fmt.Sprintf("failed to run top: %v %v", out, err))
+
+	if !strings.Contains(out, "PID") {
+		errorOut(nil, t, fmt.Sprintf("did not see PID after top -o pid"))
+	}
+
+	logDone("top - multiple arguments")
+}
+
 func TestTopNonPrivileged(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox", "sleep", "20")
 	out, _, err := runCommandWithOutput(runCmd)
