@@ -283,7 +283,7 @@ func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
 
-	if container.State.Running {
+	if container.Running {
 		return nil
 	}
 
@@ -333,7 +333,7 @@ func (container *Container) Run() error {
 	if err := container.Start(); err != nil {
 		return err
 	}
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	return nil
 }
 
@@ -347,7 +347,7 @@ func (container *Container) Output() (output []byte, err error) {
 		return nil, err
 	}
 	output, err = ioutil.ReadAll(pipe)
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	return output, err
 }
 
@@ -533,11 +533,11 @@ func (container *Container) KillSig(sig int) error {
 	defer container.Unlock()
 
 	// We could unpause the container for them rather than returning this error
-	if container.State.Paused {
+	if container.Paused {
 		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
 	}
 
-	if !container.State.Running {
+	if !container.Running {
 		return nil
 	}
 
@@ -548,7 +548,7 @@ func (container *Container) KillSig(sig int) error {
 	// if the container is currently restarting we do not need to send the signal
 	// to the process.  Telling the monitor that it should exit on it's next event
 	// loop is enough
-	if container.State.Restarting {
+	if container.Restarting {
 		return nil
 	}
 
@@ -556,27 +556,27 @@ func (container *Container) KillSig(sig int) error {
 }
 
 func (container *Container) Pause() error {
-	if container.State.IsPaused() {
+	if container.IsPaused() {
 		return fmt.Errorf("Container %s is already paused", container.ID)
 	}
-	if !container.State.IsRunning() {
+	if !container.IsRunning() {
 		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 	return container.daemon.Pause(container)
 }
 
 func (container *Container) Unpause() error {
-	if !container.State.IsPaused() {
+	if !container.IsPaused() {
 		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
-	if !container.State.IsRunning() {
+	if !container.IsRunning() {
 		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 	return container.daemon.Unpause(container)
 }
 
 func (container *Container) Kill() error {
-	if !container.State.IsRunning() {
+	if !container.IsRunning() {
 		return nil
 	}
 
@@ -586,9 +586,9 @@ func (container *Container) Kill() error {
 	}
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
-	if _, err := container.State.WaitStop(10 * time.Second); err != nil {
+	if _, err := container.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
-		if pid := container.State.GetPid(); pid != 0 {
+		if pid := container.GetPid(); pid != 0 {
 			log.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				return err
@@ -596,12 +596,12 @@ func (container *Container) Kill() error {
 		}
 	}
 
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	return nil
 }
 
 func (container *Container) Stop(seconds int) error {
-	if !container.State.IsRunning() {
+	if !container.IsRunning() {
 		return nil
 	}
 
@@ -614,11 +614,11 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 2. Wait for the process to exit on its own
-	if _, err := container.State.WaitStop(time.Duration(seconds) * time.Second); err != nil {
+	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
 		log.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
-			container.State.WaitStop(-1 * time.Second)
+			container.WaitStop(-1 * time.Second)
 			return err
 		}
 	}
@@ -1006,7 +1006,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		}
 
 		for linkAlias, child := range children {
-			if !child.State.IsRunning() {
+			if !child.IsRunning() {
 				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 			}
 
@@ -1173,7 +1173,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 		if nc == nil {
 			return nil, fmt.Errorf("no such container to join network: %s", parts[1])
 		}
-		if !nc.State.IsRunning() {
+		if !nc.IsRunning() {
 			return nil, fmt.Errorf("cannot join network of a non running container: %s", parts[1])
 		}
 		return nc, nil

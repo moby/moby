@@ -96,12 +96,12 @@ func containerAttach(eng *engine.Engine, id string, t log.Fataler) (io.WriteClos
 }
 
 func containerWait(eng *engine.Engine, id string, t log.Fataler) int {
-	ex, _ := getContainer(eng, id, t).State.WaitStop(-1 * time.Second)
+	ex, _ := getContainer(eng, id, t).WaitStop(-1 * time.Second)
 	return ex
 }
 
 func containerWaitTimeout(eng *engine.Engine, id string, t log.Fataler) error {
-	_, err := getContainer(eng, id, t).State.WaitStop(500 * time.Millisecond)
+	_, err := getContainer(eng, id, t).WaitStop(500 * time.Millisecond)
 	return err
 }
 
@@ -112,7 +112,7 @@ func containerKill(eng *engine.Engine, id string, t log.Fataler) {
 }
 
 func containerRunning(eng *engine.Engine, id string, t log.Fataler) bool {
-	return getContainer(eng, id, t).State.IsRunning()
+	return getContainer(eng, id, t).IsRunning()
 }
 
 func containerAssertExists(eng *engine.Engine, id string, t log.Fataler) {
@@ -303,7 +303,7 @@ func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testin
 		return "", err
 	}
 
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	data, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		return "", err

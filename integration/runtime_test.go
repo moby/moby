@@ -492,13 +492,13 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 	}
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for !container.State.IsRunning() {
+		for !container.IsRunning() {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
 
 	// Even if the state is running, lets give some time to lxc to spawn the process
-	container.State.WaitStop(500 * time.Millisecond)
+	container.WaitStop(500 * time.Millisecond)
 
 	strPort = container.NetworkSettings.Ports[p][0].HostPort
 	return daemon, container, strPort
@@ -606,17 +606,17 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.IsRunning() {
+	if !container2.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
 	cStdin, _ := container2.StdinPipe()
 	cStdin.Close()
-	if _, err := container2.State.WaitStop(2 * time.Second); err != nil {
+	if _, err := container2.WaitStop(2 * time.Second); err != nil {
 		t.Fatal(err)
 	}
-	container2.State.SetRunning(42)
+	container2.SetRunning(42)
 	container2.ToDisk()
 
 	if len(daemon1.List()) != 2 {
@@ -626,7 +626,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.IsRunning() {
+	if !container2.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
@@ -639,7 +639,7 @@ func TestRestore(t *testing.T) {
 	}
 	runningCount := 0
 	for _, c := range daemon2.List() {
-		if c.State.IsRunning() {
+		if c.IsRunning() {
 			t.Errorf("Running container found: %v (%v)", c.ID, c.Path)
 			runningCount++
 		}
@@ -654,7 +654,7 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container2.State.SetStopped(0)
+	container2.SetStopped(0)
 }
 
 func TestDefaultContainerName(t *testing.T) {

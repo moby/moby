@@ -42,7 +42,7 @@ func TestRestartStdin(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestRestartStdin(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	output, err = ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestStdin(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +165,7 @@ func TestTty(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	output, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
@@ -227,7 +227,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				complete <- err
 				return
 			}
-			if _, err := container.State.WaitStop(15 * time.Second); err != nil {
+			if _, err := container.WaitStop(15 * time.Second); err != nil {
 				complete <- err
 				return
 			}

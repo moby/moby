@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 		return job.Errorf("No such container: %s", name)
 	}
 
-	if container.State.IsRunning() {
+	if container.IsRunning() {
 		return job.Errorf("Container already started")
 	}
 

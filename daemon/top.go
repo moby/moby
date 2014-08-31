@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 	}
 
 	if container := daemon.Get(name); container != nil {
-		if !container.State.IsRunning() {
+		if !container.IsRunning() {
 			return job.Errorf("Container %s is not running", name)
 		}
 		pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)

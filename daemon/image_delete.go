@@ -138,7 +138,7 @@ func (daemon *Daemon) canDeleteImage(imgID string, force, untagged bool) error {
 
 		if err := parent.WalkHistory(func(p *image.Image) error {
 			if imgID == p.ID {
-				if container.State.IsRunning() {
+				if container.IsRunning() {
 					if force {
 						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it%s, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
 					}

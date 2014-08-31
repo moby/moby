@@ -106,7 +106,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {
-			container.State.WaitStop(-1 * time.Second)
+			container.WaitStop(-1 * time.Second)
 		}
 	}
 	return engine.StatusOK

@@ -50,7 +50,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	}
 
 	if container != nil {
-		if container.State.IsRunning() {
+		if container.IsRunning() {
 			if forceRemove {
 				if err := container.Kill(); err != nil {
 					return job.Errorf("Could not kill running container, cannot remove - %v", err)

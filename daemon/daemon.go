@@ -213,11 +213,11 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	// FIXME: if the container is supposed to be running but is not, auto restart it?
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
-	if container.State.IsRunning() {
+	if container.IsRunning() {
 		log.Debugf("killing old running container %s", container.ID)
 
-		existingPid := container.State.Pid
-		container.State.SetStopped(0)
+		existingPid := container.Pid
+		container.SetStopped(0)
 
 		// We only have to handle this for lxc because the other drivers will ensure that
 		// no processes are left when docker dies
@@ -249,7 +249,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 			log.Debugf("Marking as stopped")
 
-			container.State.SetStopped(-127)
+			container.SetStopped(-127)
 			if err := container.ToDisk(); err != nil {
 				return err
 			}
@@ -363,7 +363,7 @@ func (daemon *Daemon) restore() error {
 
 		for _, container := range registeredContainers {
 			if container.hostConfig.RestartPolicy.Name == "always" ||
-				(container.hostConfig.RestartPolicy.Name == "on-failure" && container.State.ExitCode != 0) {
+				(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0) {
 				log.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {
@@ -891,7 +891,7 @@ func (daemon *Daemon) shutdown() error {
 	log.Debugf("starting clean shutdown of all containers...")
 	for _, container := range daemon.List() {
 		c := container
-		if c.State.IsRunning() {
+		if c.IsRunning() {
 			log.Debugf("stopping %s", c.ID)
 			group.Add(1)
 
@@ -900,7 +900,7 @@ func (daemon *Daemon) shutdown() error {
 				if err := c.KillSig(15); err != nil {
 					log.Debugf("kill 15 error for %s - %s", c.ID, err)
 				}
-				c.State.WaitStop(-1 * time.Second)
+				c.WaitStop(-1 * time.Second)
 				log.Debugf("container stopped %s", c.ID)
 			}()
 		}
@@ -980,7 +980,7 @@ func (daemon *Daemon) Pause(c *Container) error {
 	if err := daemon.execDriver.Pause(c.command); err != nil {
 		return err
 	}
-	c.State.SetPaused()
+	c.SetPaused()
 	return nil
 }
 
@@ -988,7 +988,7 @@ func (daemon *Daemon) Unpause(c *Container) error {
 	if err := daemon.execDriver.Unpause(c.command); err != nil {
 		return err
 	}
-	c.State.SetUnpaused()
+	c.SetUnpaused()
 	return nil
 }
 
