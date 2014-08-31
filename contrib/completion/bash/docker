@@ -151,7 +151,7 @@ _docker_build()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-t --tag -q --quiet --no-cache --rm" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-t --tag -q --quiet --no-cache --rm --force-rm" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag '-t|--tag')"
