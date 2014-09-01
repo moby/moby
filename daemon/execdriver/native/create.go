@@ -161,7 +161,7 @@ func (d *driver) setupCgroups(container *libcontainer.Config, c *execdriver.Comm
 
 func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Command) error {
 	for _, m := range c.Mounts {
-		container.MountConfig.Mounts = append(container.MountConfig.Mounts, mount.Mount{
+		container.MountConfig.Mounts = append(container.MountConfig.Mounts, &mount.Mount{
 			Type:        "bind",
 			Source:      m.Source,
 			Destination: m.Destination,
