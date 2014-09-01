@@ -9,6 +9,7 @@ package parser
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -43,6 +44,11 @@ func parseEnv(rest string) (*Node, map[string]bool, error) {
 	node := &Node{}
 	rootnode := node
 	strs := TOKEN_WHITESPACE.Split(rest, 2)
+
+	if len(strs) < 2 {
+		return nil, nil, fmt.Errorf("ENV must have two arguments")
+	}
+
 	node.Value = strs[0]
 	node.Next = &Node{}
 	node.Next.Value = strs[1]
