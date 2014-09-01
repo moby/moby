@@ -41,6 +41,13 @@ var (
 	ErrContainerStartTimeout = errors.New("The container failed to start due to timed out.")
 )
 
+type StreamConfig struct {
+	stdout    *broadcastwriter.BroadcastWriter
+	stderr    *broadcastwriter.BroadcastWriter
+	stdin     io.ReadCloser
+	stdinPipe io.WriteCloser
+}
+
 type Container struct {
 	*State
 	root   string // Path to the "home" of the container, including metadata.
@@ -65,11 +72,8 @@ type Container struct {
 	Driver         string
 	ExecDriver     string
 
-	command   *execdriver.Command
-	stdout    *broadcastwriter.BroadcastWriter
-	stderr    *broadcastwriter.BroadcastWriter
-	stdin     io.ReadCloser
-	stdinPipe io.WriteCloser
+	command *execdriver.Command
+	StreamConfig
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
@@ -247,26 +251,31 @@ func populateCommand(c *Container, env []string) error {
 		CpuShares:  c.Config.CpuShares,
 		Cpuset:     c.Config.Cpuset,
 	}
+
+	processConfig := execdriver.ProcessConfig{
+		Privileged: c.hostConfig.Privileged,
+		Entrypoint: c.Path,
+		Arguments:  c.Args,
+		Tty:        c.Config.Tty,
+		User:       c.Config.User,
+	}
+	processConfig.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	processConfig.Env = env
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
-		Privileged:         c.hostConfig.Privileged,
 		Rootfs:             c.RootfsPath(),
 		InitPath:           "/.dockerinit",
-		Entrypoint:         c.Path,
-		Arguments:          c.Args,
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,
-		Tty:                c.Config.Tty,
-		User:               c.Config.User,
 		Config:             context,
 		Resources:          resources,
 		AllowedDevices:     allowedDevices,
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.hostConfig.CapAdd,
 		CapDrop:            c.hostConfig.CapDrop,
+		ProcessConfig:      processConfig,
 	}
-	c.command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	c.command.Env = env
+
 	return nil
 }
 
@@ -342,7 +351,7 @@ func (container *Container) Output() (output []byte, err error) {
 	return output, err
 }
 
-// Container.StdinPipe returns a WriteCloser which can be used to feed data
+// StreamConfig.StdinPipe returns a WriteCloser which can be used to feed data
 // to the standard input of the container's active process.
 // Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
 // which can be used to retrieve the standard output (and error) generated
@@ -350,31 +359,31 @@ func (container *Container) Output() (output []byte, err error) {
 // copied and delivered to all StdoutPipe and StderrPipe consumers, using
 // a kind of "broadcaster".
 
-func (container *Container) StdinPipe() (io.WriteCloser, error) {
-	return container.stdinPipe, nil
+func (streamConfig *StreamConfig) StdinPipe() (io.WriteCloser, error) {
+	return streamConfig.stdinPipe, nil
 }
 
-func (container *Container) StdoutPipe() (io.ReadCloser, error) {
+func (streamConfig *StreamConfig) StdoutPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stdout.AddWriter(writer, "")
+	streamConfig.stdout.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) StderrPipe() (io.ReadCloser, error) {
+func (streamConfig *StreamConfig) StderrPipe() (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
-	container.stderr.AddWriter(writer, "")
+	streamConfig.stderr.AddWriter(writer, "")
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) StdoutLogPipe() io.ReadCloser {
+func (streamConfig *StreamConfig) StdoutLogPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	container.stdout.AddWriter(writer, "stdout")
+	streamConfig.stdout.AddWriter(writer, "stdout")
 	return utils.NewBufReader(reader)
 }
 
-func (container *Container) StderrLogPipe() io.ReadCloser {
+func (streamConfig *StreamConfig) StderrLogPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	container.stderr.AddWriter(writer, "stderr")
+	streamConfig.stderr.AddWriter(writer, "stderr")
 	return utils.NewBufReader(reader)
 }
 
@@ -631,7 +640,7 @@ func (container *Container) Restart(seconds int) error {
 }
 
 func (container *Container) Resize(h, w int) error {
-	return container.command.Terminal.Resize(h, w)
+	return container.command.ProcessConfig.Terminal.Resize(h, w)
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
@@ -815,7 +824,7 @@ func (container *Container) Exposes(p nat.Port) bool {
 }
 
 func (container *Container) GetPtyMaster() (*os.File, error) {
-	ttyConsole, ok := container.command.Terminal.(execdriver.TtyTerminal)
+	ttyConsole, ok := container.command.ProcessConfig.Terminal.(execdriver.TtyTerminal)
 	if !ok {
 		return nil, ErrNoTTY
 	}
