@@ -256,7 +256,7 @@ documentation:
 git checkout -b docs-$PREVIOUS_MAJOR_MINOR docs
 git fetch
 git reset --hard origin/docs
-git push -f origin docs-$PREVIOUS_MAJOR_MINOR
+git push origin docs-$PREVIOUS_MAJOR_MINOR
 ```
 
 You will need the `awsconfig` file added to the `docs/` directory to contain the
@@ -266,15 +266,13 @@ s3 credentials for the bucket you are deploying to.
 git checkout -b docs release || git checkout docs
 git fetch
 git reset --hard origin/release
-git push -f origin docs
+git push origin docs
 make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
 ```
 
 The docs will appear on http://docs.docker.com/ (though there may be cached
 versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
 For more information about documentation releases, see `docs/README.md`.
-
-Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrome applet.
 
 ### 12. Create a new pull request to merge release back into master
 
