@@ -29,7 +29,7 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		output, err := exec.Command("ps", psArgs).Output()
+		output, err := exec.Command("ps", strings.Split(psArgs, " ")...).Output()
 		if err != nil {
 			return job.Errorf("Error running ps: %s", err)
 		}
