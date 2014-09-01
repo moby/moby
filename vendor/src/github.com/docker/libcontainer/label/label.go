@@ -39,3 +39,7 @@ func Init() {
 func ReserveLabel(label string) error {
 	return nil
 }
+
+func UnreserveLabel(label string) error {
+	return nil
+}
