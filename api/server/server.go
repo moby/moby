@@ -1218,7 +1218,7 @@ func ServeFd(addr string, handle http.Handler) error {
 		}()
 	}
 
-	for i := 0; i < len(ls); i += 1 {
+	for i := 0; i < len(ls); i++ {
 		err := <-chErrors
 		if err != nil {
 			return err
@@ -1366,7 +1366,7 @@ func ServeApi(job *engine.Job) engine.Status {
 		}()
 	}
 
-	for i := 0; i < len(protoAddrs); i += 1 {
+	for i := 0; i < len(protoAddrs); i++ {
 		err := <-chErrors
 		if err != nil {
 			return job.Error(err)

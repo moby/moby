@@ -46,7 +46,7 @@ func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
 	}
 	if err != nil && r.failures+1 != r.maxFailures {
 		r.cleanUpResponse()
-		r.failures += 1
+		r.failures++
 		time.Sleep(5 * time.Duration(r.failures) * time.Second)
 		return 0, nil
 	} else if err != nil {
