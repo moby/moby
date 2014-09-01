@@ -1772,3 +1772,26 @@ func TestHostsLinkedContainerUpdate(t *testing.T) {
 
 	logDone("run - /etc/hosts updated in parent when restart")
 }
+
+// Ensure that CIDFile gets deleted if it's empty
+// Perform this test by making `docker run` fail
+func TestRunCidFileCleanupIfEmpty(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpCidFile := path.Join(tmpDir, "cid")
+	cmd := exec.Command(dockerBinary, "run", "--cidfile", tmpCidFile, "scratch")
+	out, _, err := runCommandWithOutput(cmd)
+	t.Log(out)
+	if err == nil {
+		t.Fatal("Run without command must fail")
+	}
+
+	if _, err := os.Stat(tmpCidFile); err == nil {
+		t.Fatalf("empty CIDFile '%s' should've been deleted", tmpCidFile)
+	}
+	deleteAllContainers()
+	logDone("run - cleanup empty cidfile on fail")
+}

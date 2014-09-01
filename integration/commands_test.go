@@ -583,32 +583,3 @@ func TestRunCidFileCheckIDLength(t *testing.T) {
 	})
 
 }
-
-// Ensure that CIDFile gets deleted if it's empty
-// Perform this test by making `docker run` fail
-func TestRunCidFileCleanupIfEmpty(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpCidFile := path.Join(tmpDir, "cid")
-
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("--cidfile", tmpCidFile, unitTestImageID); err == nil {
-			t.Fatal("running without a command should haveve failed")
-		}
-		if _, err := os.Stat(tmpCidFile); err == nil {
-			t.Fatalf("empty CIDFile '%s' should've been deleted", tmpCidFile)
-		}
-	}()
-	defer os.RemoveAll(tmpDir)
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
