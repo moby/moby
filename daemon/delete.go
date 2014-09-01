@@ -27,23 +27,26 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		}
 		name, err := GetFullContainerName(name)
 		if err != nil {
-			job.Error(err)
+			return job.Error(err)
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
 			return job.Errorf("Conflict, cannot remove the default name of the container")
 		}
-		pe := daemon.ContainerGraph().Get(parent)
-		if pe == nil {
-			return job.Errorf("Cannot get parent %s for name %s", parent, name)
+
+		parentContainer, err := daemon.GetByName(parent)
+		if err != nil {
+			return job.Error(err)
 		}
-		parentContainer := daemon.Get(pe.ID())
 
 		if parentContainer != nil {
 			parentContainer.DisableLink(n)
 		}
 
-		if err := daemon.ContainerGraph().Delete(name); err != nil {
+		deleteJob := daemon.eng.Job("delete_name")
+		deleteJob.Setenv("Name", name)
+
+		if err := deleteJob.Run(); err != nil {
 			return job.Error(err)
 		}
 		return engine.StatusOK
@@ -150,7 +153,10 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
+	purgeJob := daemon.eng.Job("purge_link")
+	purgeJob.Setenv("Name", container.ID)
+
+	if err := purgeJob.Run(); err != nil {
 		log.Debugf("Unable to remove container from link graph: %s", err)
 	}
 

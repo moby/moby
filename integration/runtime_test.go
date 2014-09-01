@@ -781,7 +781,7 @@ func TestLinkChildContainer(t *testing.T) {
 
 	childContainer := daemon.Get(createTestContainer(eng, config, t))
 
-	if err := daemon.RegisterLink(webapp, childContainer, "db"); err != nil {
+	if err := daemon.Links().Create(webapp.Name, childContainer.ID, "db"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -823,7 +823,7 @@ func TestGetAllChildren(t *testing.T) {
 
 	childContainer := daemon.Get(createTestContainer(eng, config, t))
 
-	if err := daemon.RegisterLink(webapp, childContainer, "db"); err != nil {
+	if err := daemon.Links().Create(webapp.Name, childContainer.ID, "db"); err != nil {
 		t.Fatal(err)
 	}
 
