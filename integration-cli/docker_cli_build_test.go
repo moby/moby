@@ -791,6 +791,25 @@ func TestBuildEntrypoint(t *testing.T) {
 	if res != expected {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
+
+	deleteImages(name)
+	expected = "[]"
+
+	_, err = buildImage(name,
+		`FROM busybox
+        ENTRYPOINT []`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+
 	logDone("build - entrypoint")
 }
 
