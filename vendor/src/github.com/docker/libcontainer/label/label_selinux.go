@@ -128,3 +128,11 @@ func ReserveLabel(label string) error {
 	selinux.ReserveLabel(label)
 	return nil
 }
+
+// UnreserveLabel will remove the reservation of the MCS label.
+// This will allow InitLabels to use the MCS label in a newly created
+// containers
+func UnreserveLabel(label string) error {
+	selinux.FreeLxcContexts(label)
+	return nil
+}

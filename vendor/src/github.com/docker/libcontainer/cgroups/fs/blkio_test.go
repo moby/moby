@@ -26,9 +26,29 @@ Total 50`
 8:0 Async 3
 8:0 Total 5
 Total 5`
+	throttleServiceBytes = `8:0 Read 11030528
+8:0 Write 23
+8:0 Sync 42
+8:0 Async 11030528
+8:0 Total 11030528
+252:0 Read 11030528
+252:0 Write 23
+252:0 Sync 42
+252:0 Async 11030528
+252:0 Total 11030528
+Total 22061056`
+	throttleServiced = `8:0 Read 164
+8:0 Write 23
+8:0 Sync 42
+8:0 Async 164
+8:0 Total 164
+252:0 Read 164
+252:0 Write 23
+252:0 Sync 42
+252:0 Async 164
+252:0 Total 164
+Total 328`
 )
-
-var actualStats = *cgroups.NewStats()
 
 func appendBlkioStatEntry(blkioStatEntries *[]cgroups.BlkioStatEntry, major, minor, value uint64, op string) {
 	*blkioStatEntries = append(*blkioStatEntries, cgroups.BlkioStatEntry{Major: major, Minor: minor, Value: value, Op: op})
@@ -45,6 +65,7 @@ func TestBlkioStats(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatal(err)
@@ -85,6 +106,7 @@ func TestBlkioStatsNoSectorsFile(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatalf("Failed unexpectedly: %s", err)
@@ -101,6 +123,7 @@ func TestBlkioStatsNoServiceBytesFile(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatalf("Failed unexpectedly: %s", err)
@@ -117,6 +140,7 @@ func TestBlkioStatsNoServicedFile(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatalf("Failed unexpectedly: %s", err)
@@ -133,6 +157,7 @@ func TestBlkioStatsNoQueuedFile(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err != nil {
 		t.Fatalf("Failed unexpectedly: %s", err)
@@ -150,6 +175,7 @@ func TestBlkioStatsUnexpectedNumberOfFields(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
@@ -167,8 +193,56 @@ func TestBlkioStatsUnexpectedFieldType(t *testing.T) {
 	})
 
 	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
 	err := blkio.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected to fail, but did not")
 	}
+}
+
+func TestNonCFQBlkioStats(t *testing.T) {
+	helper := NewCgroupTestUtil("blkio", t)
+	defer helper.cleanup()
+	helper.writeFileContents(map[string]string{
+		"blkio.io_service_bytes_recursive": "",
+		"blkio.io_serviced_recursive":      "",
+		"blkio.io_queued_recursive":        "",
+		"blkio.sectors_recursive":          "",
+		"blkio.throttle.io_service_bytes":  throttleServiceBytes,
+		"blkio.throttle.io_serviced":       throttleServiced,
+	})
+
+	blkio := &BlkioGroup{}
+	actualStats := *cgroups.NewStats()
+	err := blkio.GetStats(helper.CgroupPath, &actualStats)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify expected stats.
+	expectedStats := cgroups.BlkioStats{}
+
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 11030528, "Read")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 23, "Write")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 42, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 11030528, "Async")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 8, 0, 11030528, "Total")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 252, 0, 11030528, "Read")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 252, 0, 23, "Write")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 252, 0, 42, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 252, 0, 11030528, "Async")
+	appendBlkioStatEntry(&expectedStats.IoServiceBytesRecursive, 252, 0, 11030528, "Total")
+
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 164, "Read")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 23, "Write")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 42, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 164, "Async")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 8, 0, 164, "Total")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 252, 0, 164, "Read")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 252, 0, 23, "Write")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 252, 0, 42, "Sync")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 252, 0, 164, "Async")
+	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 252, 0, 164, "Total")
+
+	expectBlkioStatsEquals(t, expectedStats, actualStats.BlkioStats)
 }

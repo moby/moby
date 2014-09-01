@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
 )
@@ -31,24 +30,34 @@ func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountCon
 		err  error
 		flag = syscall.MS_PRIVATE
 	)
+
 	if mountConfig.NoPivotRoot {
 		flag = syscall.MS_SLAVE
 	}
+
 	if err := syscall.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
 		return fmt.Errorf("mounting / with flags %X %s", (flag | syscall.MS_REC), err)
 	}
+
 	if err := syscall.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("mouting %s as bind %s", rootfs, err)
 	}
+
 	if err := mountSystem(rootfs, sysReadonly, mountConfig); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
-	if err := setupBindmounts(rootfs, mountConfig); err != nil {
-		return fmt.Errorf("bind mounts %s", err)
+
+	// apply any user specified mounts within the new mount namespace
+	for _, m := range mountConfig.Mounts {
+		if err := m.Mount(rootfs, mountConfig.MountLabel); err != nil {
+			return err
+		}
 	}
+
 	if err := nodes.CreateDeviceNodes(rootfs, mountConfig.DeviceNodes); err != nil {
 		return fmt.Errorf("create device nodes %s", err)
 	}
+
 	if err := SetupPtmx(rootfs, console, mountConfig.MountLabel); err != nil {
 		return err
 	}
@@ -72,6 +81,7 @@ func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountCon
 	} else {
 		err = PivotRoot(rootfs)
 	}
+
 	if err != nil {
 		return err
 	}
@@ -90,7 +100,7 @@ func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountCon
 // mountSystem sets up linux specific system mounts like sys, proc, shm, and devpts
 // inside the mount namespace
 func mountSystem(rootfs string, sysReadonly bool, mountConfig *MountConfig) error {
-	for _, m := range newSystemMounts(rootfs, mountConfig.MountLabel, sysReadonly, mountConfig.Mounts) {
+	for _, m := range newSystemMounts(rootfs, mountConfig.MountLabel, sysReadonly) {
 		if err := os.MkdirAll(m.path, 0755); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("mkdirall %s %s", m.path, err)
 		}
@@ -151,56 +161,9 @@ func setupDevSymlinks(rootfs string) error {
 	return nil
 }
 
-func setupBindmounts(rootfs string, mountConfig *MountConfig) error {
-	bindMounts := mountConfig.Mounts
-	for _, m := range bindMounts.OfType("bind") {
-		var (
-			flags = syscall.MS_BIND | syscall.MS_REC
-			dest  = filepath.Join(rootfs, m.Destination)
-		)
-		if !m.Writable {
-			flags = flags | syscall.MS_RDONLY
-		}
-
-		stat, err := os.Stat(m.Source)
-		if err != nil {
-			return err
-		}
-
-		dest, err = symlink.FollowSymlinkInScope(dest, rootfs)
-		if err != nil {
-			return err
-		}
-
-		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
-			return fmt.Errorf("Creating new bind-mount target, %s", err)
-		}
-
-		if err := syscall.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
-			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
-		}
-		if !m.Writable {
-			if err := syscall.Mount(m.Source, dest, "bind", uintptr(flags|syscall.MS_REMOUNT), ""); err != nil {
-				return fmt.Errorf("remounting %s into %s %s", m.Source, dest, err)
-			}
-		}
-		if m.Relabel != "" {
-			if err := label.Relabel(m.Source, mountConfig.MountLabel, m.Relabel); err != nil {
-				return fmt.Errorf("relabeling %s to %s %s", m.Source, mountConfig.MountLabel, err)
-			}
-		}
-		if m.Private {
-			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
-				return fmt.Errorf("mounting %s private %s", dest, err)
-			}
-		}
-	}
-	return nil
-}
-
 // TODO: this is crappy right now and should be cleaned up with a better way of handling system and
 // standard bind mounts allowing them to be more dynamic
-func newSystemMounts(rootfs, mountLabel string, sysReadonly bool, mounts Mounts) []mount {
+func newSystemMounts(rootfs, mountLabel string, sysReadonly bool) []mount {
 	systemMounts := []mount{
 		{source: "proc", path: filepath.Join(rootfs, "proc"), device: "proc", flags: defaultMountFlags},
 		{source: "tmpfs", path: filepath.Join(rootfs, "dev"), device: "tmpfs", flags: syscall.MS_NOSUID | syscall.MS_STRICTATIME, data: label.FormatMountLabel("mode=755", mountLabel)},
@@ -212,6 +175,7 @@ func newSystemMounts(rootfs, mountLabel string, sysReadonly bool, mounts Mounts)
 	if sysReadonly {
 		sysMountFlags |= syscall.MS_RDONLY
 	}
+
 	systemMounts = append(systemMounts, mount{source: "sysfs", path: filepath.Join(rootfs, "sys"), device: "sysfs", flags: sysMountFlags})
 
 	return systemMounts
