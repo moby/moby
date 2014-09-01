@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
-	"path"
 	"strings"
 	"testing"
 	"time"
@@ -526,87 +524,6 @@ func TestRunErrorBindNonExistingSource(t *testing.T) {
 			t.Fatal("should have failed to run when using /i/dont/exist as a source for the bind mount")
 		}
 	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
-
-// #2098 - Docker cidFiles only contain short version of the containerId
-//sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
-// TestRunCidFile tests that run --cidfile returns the longid
-func TestRunCidFileCheckIDLength(t *testing.T) {
-	stdout, stdoutPipe := io.Pipe()
-
-	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpCidFile := path.Join(tmpDir, "cid")
-
-	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("--cidfile", tmpCidFile, unitTestImageID, "ls"); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	defer os.RemoveAll(tmpDir)
-	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
-		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(cmdOutput) < 1 {
-			t.Fatalf("'ls' should return something , not '%s'", cmdOutput)
-		}
-		//read the tmpCidFile
-		buffer, err := ioutil.ReadFile(tmpCidFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-		id := string(buffer)
-
-		if len(id) != len("2bf44ea18873287bd9ace8a4cb536a7cbe134bed67e805fdf2f58a57f69b320c") {
-			t.Fatalf("--cidfile should be a long id, not '%s'", id)
-		}
-		//test that its a valid cid? (though the container is gone..)
-		//remove the file and dir.
-	})
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-
-}
-
-// Ensure that CIDFile gets deleted if it's empty
-// Perform this test by making `docker run` fail
-func TestRunCidFileCleanupIfEmpty(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpCidFile := path.Join(tmpDir, "cid")
-
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("--cidfile", tmpCidFile, unitTestImageID); err == nil {
-			t.Fatal("running without a command should haveve failed")
-		}
-		if _, err := os.Stat(tmpCidFile); err == nil {
-			t.Fatalf("empty CIDFile '%s' should've been deleted", tmpCidFile)
-		}
-	}()
-	defer os.RemoveAll(tmpDir)
 
 	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
 		<-c

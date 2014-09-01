@@ -1772,3 +1772,57 @@ func TestHostsLinkedContainerUpdate(t *testing.T) {
 
 	logDone("run - /etc/hosts updated in parent when restart")
 }
+
+// Ensure that CIDFile gets deleted if it's empty
+// Perform this test by making `docker run` fail
+func TestRunCidFileCleanupIfEmpty(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpCidFile := path.Join(tmpDir, "cid")
+	cmd := exec.Command(dockerBinary, "run", "--cidfile", tmpCidFile, "scratch")
+	out, _, err := runCommandWithOutput(cmd)
+	t.Log(out)
+	if err == nil {
+		t.Fatal("Run without command must fail")
+	}
+
+	if _, err := os.Stat(tmpCidFile); err == nil {
+		t.Fatalf("empty CIDFile '%s' should've been deleted", tmpCidFile)
+	}
+	deleteAllContainers()
+	logDone("run - cleanup empty cidfile on fail")
+}
+
+// #2098 - Docker cidFiles only contain short version of the containerId
+//sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
+// TestRunCidFile tests that run --cidfile returns the longid
+func TestRunCidFileCheckIDLength(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpCidFile := path.Join(tmpDir, "cid")
+	defer os.RemoveAll(tmpDir)
+	cmd := exec.Command(dockerBinary, "run", "-d", "--cidfile", tmpCidFile, "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSpace(out)
+	buffer, err := ioutil.ReadFile(tmpCidFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cid := string(buffer)
+	if len(cid) != 64 {
+		t.Fatalf("--cidfile should be a long id, not '%s'", id)
+	}
+	if cid != id {
+		t.Fatalf("cid must be equal to %s, got %s", id, cid)
+	}
+	deleteAllContainers()
+	logDone("run - cidfile contains long id")
+}
