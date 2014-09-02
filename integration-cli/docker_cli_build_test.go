@@ -706,6 +706,31 @@ func TestBuildEnv(t *testing.T) {
 	logDone("build - env")
 }
 
+func TestBuildContextCleanup(t *testing.T) {
+	name := "testbuildcontextcleanup"
+	defer deleteImages(name)
+	entries, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	if err != nil {
+		t.Fatalf("failed to list contents of tmp dir: %s", err)
+	}
+	_, err = buildImage(name,
+		`FROM scratch
+        ENTRYPOINT ["/bin/echo"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entriesFinal, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	if err != nil {
+		t.Fatalf("failed to list contents of tmp dir: %s", err)
+	}
+	if err = compareDirectoryEntries(entries, entriesFinal); err != nil {
+		t.Fatalf("context should have been deleted, but wasn't")
+	}
+
+	logDone("build - verify context cleanup works properly")
+}
+
 func TestBuildCmd(t *testing.T) {
 	name := "testbuildcmd"
 	expected := "[/bin/echo Hello World]"
