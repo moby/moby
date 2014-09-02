@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -173,5 +174,22 @@ func waitRun(contId string) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	return nil
+}
+
+func compareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {
+	var (
+		e1Entries = make(map[string]struct{})
+		e2Entries = make(map[string]struct{})
+	)
+	for _, e := range e1 {
+		e1Entries[e.Name()] = struct{}{}
+	}
+	for _, e := range e2 {
+		e2Entries[e.Name()] = struct{}{}
+	}
+	if !reflect.DeepEqual(e1Entries, e2Entries) {
+		return fmt.Errorf("entries differ")
+	}
 	return nil
 }
