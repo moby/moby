@@ -41,8 +41,10 @@ func TestDockerRunEchoStdoutWithMemoryLimit(t *testing.T) {
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
 
-	if out != "test\n" {
-		t.Errorf("container should've printed 'test'")
+	out = strings.Trim(out, "\r\n")
+
+	if expected := "test"; out != expected {
+		t.Errorf("container should've printed %q but printed %q", expected, out)
 
 	}
 
