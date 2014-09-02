@@ -107,4 +107,4 @@ ENV	DOCKER_BUILDTAGS	apparmor selinux
 ENTRYPOINT	["hack/dind"]
 
 # Upload docker source
-COPY	.	/go/src/github.com/docker/docker
+
