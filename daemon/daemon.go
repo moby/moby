@@ -80,6 +80,56 @@ func (c *contStore) List() []*Container {
 	return *containers
 }
 
+type volStore struct {
+	*graph.Graph
+	s      map[string]*Volume
+	refMap map[string]map[string]struct{}
+	sync.Mutex
+}
+
+func (v *volStore) Add(volume *Volume) {
+	v.Lock()
+	v.s[volume.Id()] = volume
+	v.Unlock()
+}
+
+func (v *volStore) Remove(volume *Volume) {
+	v.Lock()
+	delete(v.s, volume.Id())
+	v.Unlock()
+}
+
+func (v *volStore) AddRef(volume *Volume, container *Container) {
+	v.Lock()
+	defer v.Unlock()
+
+	id := volume.Id()
+	if _, exists := v.refMap[id]; !exists {
+		v.refMap[id] = make(map[string]struct{})
+	}
+
+	v.refMap[id][container.ID] = struct{}{}
+}
+
+func (v *volStore) RemoveRef(volume *Volume, containerId string) {
+	v.Lock()
+	defer v.Unlock()
+
+	id := volume.Id()
+	delete(v.refMap[id], containerId)
+}
+
+func (v *volStore) CanRemove(volume *Volume) error {
+	v.Lock()
+	defer v.Unlock()
+	var id = volume.Id()
+	if len(v.refMap[id]) != 0 {
+		return fmt.Errorf("Volumes %s is in use and cannot be removed", id)
+	}
+
+	return nil
+}
+
 type Daemon struct {
 	repository     string
 	sysInitPath    string
@@ -88,7 +138,7 @@ type Daemon struct {
 	repositories   *graph.TagStore
 	idIndex        *truncindex.TruncIndex
 	sysInfo        *sysinfo.SysInfo
-	volumes        *graph.Graph
+	volumes        *volStore
 	eng            *engine.Engine
 	config         *Config
 	containerGraph *graphdb.Database
@@ -370,6 +420,19 @@ func (daemon *Daemon) restore() error {
 					log.Debugf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
+		}
+	}
+
+	for _, c := range registeredContainers {
+		volumes, err := c.GetVolumes()
+		if err != nil {
+			log.Debugf("Failed to get volumes for container %s", c.ID)
+			continue
+		}
+
+		for _, vol := range volumes {
+			daemon.volumes.Add(vol)
+			daemon.volumes.AddRef(vol, c)
 		}
 	}
 
@@ -785,10 +848,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 	log.Debugf("Creating volumes graph")
-	volumes, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
+	volumeGraph, err := graph.NewGraph(path.Join(config.Root, "volumes"), volumesDriver)
 	if err != nil {
 		return nil, err
 	}
+	volumes := &volStore{Graph: volumeGraph, s: make(map[string]*Volume), refMap: make(map[string]map[string]struct{})}
+
 	log.Debugf("Creating repository list")
 	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
@@ -1048,7 +1113,7 @@ func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
 	return daemon.execDriver
 }
 
-func (daemon *Daemon) Volumes() *graph.Graph {
+func (daemon *Daemon) Volumes() *volStore {
 	return daemon.volumes
 }
 
