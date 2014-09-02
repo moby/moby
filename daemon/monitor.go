@@ -110,7 +110,7 @@ func (m *containerMonitor) Start() error {
 	defer func() {
 		if afterRun {
 			m.container.Lock()
-			m.container.State.setStopped(exitStatus)
+			m.container.setStopped(exitStatus)
 			defer m.container.Unlock()
 		}
 		m.Close()
@@ -152,7 +152,7 @@ func (m *containerMonitor) Start() error {
 		m.resetMonitor(err == nil && exitStatus == 0)
 
 		if m.shouldRestart(exitStatus) {
-			m.container.State.SetRestarting(exitStatus)
+			m.container.SetRestarting(exitStatus)
 			m.container.LogEvent("die")
 			m.resetContainer(true)
 
@@ -243,7 +243,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 		}
 	}
 
-	m.container.State.setRunning(pid)
+	m.container.setRunning(pid)
 
 	// signal that the process has started
 	// close channel only if not closed

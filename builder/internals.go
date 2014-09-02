@@ -413,7 +413,7 @@ func (b *Builder) run(c *daemon.Container) error {
 	}
 
 	// Wait for it to finish
-	if ret, _ := c.State.WaitStop(-1 * time.Second); ret != 0 {
+	if ret, _ := c.WaitStop(-1 * time.Second); ret != 0 {
 		err := &utils.JSONError{
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.Config.Cmd, ret),
 			Code:    ret,

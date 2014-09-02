@@ -12,7 +12,7 @@ func (daemon *Daemon) ContainerWait(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := daemon.Get(name); container != nil {
-		status, _ := container.State.WaitStop(-1 * time.Second)
+		status, _ := container.WaitStop(-1 * time.Second)
 		job.Printf("%d\n", status)
 		return engine.StatusOK
 	}
