@@ -115,7 +115,7 @@ something like this
 If $TESTFLAGS is set in the environment, it is passed as extra arguments
 to `go test`. You can use this to select certain tests to run, e.g.,
 
-    $ TESTFLAGS=`-run \^TestBuild\$` make test
+    $ TESTFLAGS=`-test.run \^TestBuild\$` make test
 
 If the output indicates "FAIL" and you see errors like this:
 
