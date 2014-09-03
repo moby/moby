@@ -773,13 +773,14 @@ func TestBuildExpose(t *testing.T) {
 	logDone("build - expose")
 }
 
-func TestBuildEntrypoint(t *testing.T) {
+func TestBuildEmptyEntrypoint(t *testing.T) {
 	name := "testbuildentrypoint"
-	expected := "[/bin/echo]"
 	defer deleteImages(name)
+	expected := "[]"
+
 	_, err := buildImage(name,
-		`FROM scratch
-        ENTRYPOINT ["/bin/echo"]`,
+		`FROM busybox
+        ENTRYPOINT []`,
 		true)
 	if err != nil {
 		t.Fatal(err)
@@ -792,17 +793,21 @@ func TestBuildEntrypoint(t *testing.T) {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 
-	deleteImages(name)
-	expected = "[]"
+	logDone("build - empty entrypoint")
+}
 
-	_, err = buildImage(name,
-		`FROM busybox
-        ENTRYPOINT []`,
+func TestBuildEntrypoint(t *testing.T) {
+	name := "testbuildentrypoint"
+	expected := "[/bin/echo]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        ENTRYPOINT ["/bin/echo"]`,
 		true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err = inspectField(name, "Config.Entrypoint")
+	res, err := inspectField(name, "Config.Entrypoint")
 	if err != nil {
 		t.Fatal(err)
 	}
