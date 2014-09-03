@@ -48,6 +48,8 @@ RUN	apt-get update && apt-get install -y \
 	ruby1.9.1-dev \
 	s3cmd=1.1.0* \
 	--no-install-recommends
+RUN	curl -o zfsonlinux_2~wheezy_all.deb http://archive.zfsonlinux.org/debian/pool/main/z/zfsonlinux/zfsonlinux_2%7Ewheezy_all.deb && dpkg -i zfsonlinux_2~wheezy_all.deb
+RUN	apt-get update && apt-get install -y libzfs-dev --no-install-recommends
 
 # Get lvm2 source for compiling statically
 RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103
