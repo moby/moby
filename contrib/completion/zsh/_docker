@@ -176,6 +176,7 @@ __docker_subcommand () {
             ;;
         (build)
             _arguments \
+                '--force-rm[Always remove intermediate containers, even after unsuccessful builds]' \
                 '--no-cache[Do not use cache when building the image]' \
                 '-q[Suppress verbose build output]' \
                 '--rm[Remove intermediate containers after a successful build]' \
