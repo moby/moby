@@ -144,13 +144,10 @@ func workdir(b *Builder, args []string, attributes map[string]bool) error {
 
 	workdir := args[0]
 
-	if workdir[0] == '/' {
+	if filepath.IsAbs(workdir) {
 		b.Config.WorkingDir = workdir
 	} else {
-		if b.Config.WorkingDir == "" {
-			b.Config.WorkingDir = "/"
-		}
-		b.Config.WorkingDir = filepath.Join(b.Config.WorkingDir, workdir)
+		b.Config.WorkingDir = filepath.Join("/", b.Config.WorkingDir, workdir)
 	}
 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))

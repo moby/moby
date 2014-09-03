@@ -683,6 +683,44 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 	logDone("build - relative workdir")
 }
 
+func TestBuildRelativeCopy(t *testing.T) {
+	name := "testbuildrelativecopy"
+	defer deleteImages(name)
+	dockerfile := `
+		FROM busybox
+		WORKDIR /test1
+		WORKDIR test2
+		RUN [ "$PWD" = '/test1/test2' ]
+		COPY foo ./
+		RUN [ "$(cat /test1/test2/foo)" = 'hello' ]
+		ADD foo ./bar/baz
+		RUN [ "$(cat /test1/test2/bar/baz)" = 'hello' ]
+		WORKDIR ..
+		COPY foo ./
+		RUN [ "$(cat /test1/foo)" = 'hello' ]
+		COPY foo /test3/
+		RUN [ "$(cat /test3/foo)" = 'hello' ]
+		WORKDIR /test4
+		COPY . .
+		RUN [ "$(cat /test4/foo)" = 'hello' ]
+		WORKDIR /test5/test6
+		COPY foo ../
+		RUN [ "$(cat /test5/foo)" = 'hello' ]
+	`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - relative copy/add")
+}
+
 func TestBuildEnv(t *testing.T) {
 	name := "testbuildenv"
 	expected := "[PATH=/test:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
