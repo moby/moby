@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/runconfig"
@@ -141,7 +142,7 @@ func setupBaseImage() {
 	if err := job.Run(); err != nil || img.Get("Id") != unitTestImageID {
 		// Retrieve the Image
 		job = eng.Job("pull", unitTestImageName)
-		job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
+		job.Stdout.Add(ioutils.NopWriteCloser(os.Stdout))
 		if err := job.Run(); err != nil {
 			log.Fatalf("Unable to pull the test image: %s", err)
 		}

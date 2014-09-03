@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/utils"
 )
 
@@ -123,7 +124,7 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		env:    &Env{},
 	}
 	if eng.Logging {
-		job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
+		job.Stderr.Add(ioutils.NopWriteCloser(eng.Stderr))
 	}
 
 	// Catchall is shadowed by specific Register.

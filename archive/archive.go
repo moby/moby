@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
 )
@@ -80,7 +81,8 @@ func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
 }
 
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	buf := bufio.NewReader(archive)
+	p := pools.BufioReader32KPool
+	buf := p.Get(archive)
 	bs, err := buf.Peek(10)
 	if err != nil {
 		return nil, err
@@ -88,28 +90,44 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	log.Debugf("[tar autodetect] n: %v", bs)
 
 	compression := DetectCompression(bs)
-
 	switch compression {
 	case Uncompressed:
-		return ioutil.NopCloser(buf), nil
+		readBufWrapper := p.NewReadCloserWrapper(buf, buf)
+		return readBufWrapper, nil
 	case Gzip:
-		return gzip.NewReader(buf)
+		gzReader, err := gzip.NewReader(buf)
+		if err != nil {
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, gzReader)
+		return readBufWrapper, nil
 	case Bzip2:
-		return ioutil.NopCloser(bzip2.NewReader(buf)), nil
+		bz2Reader := bzip2.NewReader(buf)
+		readBufWrapper := p.NewReadCloserWrapper(buf, bz2Reader)
+		return readBufWrapper, nil
 	case Xz:
-		return xzDecompress(buf)
+		xzReader, err := xzDecompress(buf)
+		if err != nil {
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
+		return readBufWrapper, nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
 }
 
 func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteCloser, error) {
-
+	p := pools.BufioWriter32KPool
+	buf := p.Get(dest)
 	switch compression {
 	case Uncompressed:
-		return utils.NopWriteCloser(dest), nil
+		writeBufWrapper := p.NewWriteCloserWrapper(buf, buf)
+		return writeBufWrapper, nil
 	case Gzip:
-		return gzip.NewWriter(dest), nil
+		gzWriter := gzip.NewWriter(dest)
+		writeBufWrapper := p.NewWriteCloserWrapper(buf, gzWriter)
+		return writeBufWrapper, nil
 	case Bzip2, Xz:
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
@@ -337,7 +355,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			options.Includes = []string{"."}
 		}
 
-		twBuf := bufio.NewWriterSize(nil, twBufSize)
+		twBuf := pools.BufioWriter32KPool.Get(nil)
+		defer pools.BufioWriter32KPool.Put(twBuf)
 
 		for _, include := range options.Includes {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
@@ -411,7 +430,8 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	defer decompressedArchive.Close()
 
 	tr := tar.NewReader(decompressedArchive)
-	trBuf := bufio.NewReaderSize(nil, trBufSize)
+	trBuf := pools.BufioReader32KPool.Get(nil)
+	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
 
