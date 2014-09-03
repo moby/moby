@@ -153,10 +153,11 @@ func (r *Session) GetRemoteImageJSON(imgID, registry string, token []string) ([]
 
 func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, imgSize int64) (io.ReadCloser, error) {
 	var (
-		retries  = 5
-		client   *http.Client
-		res      *http.Response
-		imageURL = fmt.Sprintf("%simages/%s/layer", registry, imgID)
+		retries    = 5
+		statusCode = 0
+		client     *http.Client
+		res        *http.Response
+		imageURL   = fmt.Sprintf("%simages/%s/layer", registry, imgID)
 	)
 
 	req, err := r.reqFactory.NewRequest("GET", imageURL, nil)
@@ -165,14 +166,19 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	}
 	setTokenAuth(req, token)
 	for i := 1; i <= retries; i++ {
+		statusCode = 0
 		res, client, err = r.doRequest(req)
 		if err != nil {
-			if res.Body != nil {
-				res.Body.Close()
+			log.Debugf("Error contacting registry: %s", err)
+			if res != nil {
+				if res.Body != nil {
+					res.Body.Close()
+				}
+				statusCode = res.StatusCode
 			}
 			if i == retries {
 				return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
-					res.StatusCode, imgID)
+					statusCode, imgID)
 			}
 			time.Sleep(time.Duration(i) * 5 * time.Second)
 			continue
