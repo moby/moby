@@ -151,10 +151,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		defer os.RemoveAll(tmpDirName)
 
 		// Download and dump result to tmp file
-		if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		if _, err := io.Copy(tmpFile, utils.ProgressReader(resp.Body, int(resp.ContentLength), b.OutOld, b.StreamFormatter, true, "", "Downloading")); err != nil {
 			tmpFile.Close()
 			return err
 		}
+		fmt.Fprintf(b.OutStream, "\n")
 		tmpFile.Close()
 
 		// Remove the mtime of the newly created tmp file
