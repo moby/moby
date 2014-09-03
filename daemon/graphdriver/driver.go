@@ -40,6 +40,7 @@ var (
 	priority = []string{
 		"aufs",
 		"btrfs",
+		"zfs",
 		"devicemapper",
 		"overlay",
 		"vfs",
