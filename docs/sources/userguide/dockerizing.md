@@ -81,7 +81,7 @@ of the root directory which shows us what looks like a typical Linux
 file system.
 
 You can play around inside this container and when you're done you can
-use the `exit` command to finish.
+use the `exit` command or enter Ctrl-D to finish.
 
     root@af8bae53bdd3:/# exit
 

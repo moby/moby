@@ -67,7 +67,8 @@ terminal window and run:
         $ boot2docker download
         $ boot2docker start
 
-This will download an .iso containing a fresh VM and start it up.
+This will download an .iso image containing a fresh VM and start it up. Your upgrade is
+complete. You can test it by following the directions below.
 
 ## Running Docker
 
