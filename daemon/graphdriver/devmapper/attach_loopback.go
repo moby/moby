@@ -52,7 +52,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 		// OpenFile adds O_CLOEXEC
 		loopFile, err = os.OpenFile(target, os.O_RDWR, 0644)
 		if err != nil {
-			log.Errorf("Error openning loopback device: %s", err)
+			log.Errorf("Error opening loopback device: %s", err)
 			return nil, ErrAttachLoopbackDevice
 		}
 
@@ -97,7 +97,7 @@ func attachLoopDevice(sparseName string) (loop *os.File, err error) {
 	// OpenFile adds O_CLOEXEC
 	sparseFile, err := os.OpenFile(sparseName, os.O_RDWR, 0644)
 	if err != nil {
-		log.Errorf("Error openning sparse file %s: %s", sparseName, err)
+		log.Errorf("Error opening sparse file %s: %s", sparseName, err)
 		return nil, ErrAttachLoopbackDevice
 	}
 	defer sparseFile.Close()
