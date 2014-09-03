@@ -167,7 +167,9 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	for i := 1; i <= retries; i++ {
 		res, client, err = r.doRequest(req)
 		if err != nil {
-			res.Body.Close()
+			if res.Body != nil {
+				res.Body.Close()
+			}
 			if i == retries {
 				return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
 					res.StatusCode, imgID)
