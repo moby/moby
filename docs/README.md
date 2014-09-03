@@ -85,9 +85,9 @@ work!](../CONTRIBUTING.md#sign-your-work)
 
 ## Publishing Documentation
 
-To publish a copy of the documentation you need a `docs/awsconfig`
-file containing AWS settings to deploy to. The release script will
-create an s3 if needed, and will then push the files to it.
+To publish a copy of the documentation you need to have Docker up and running on your
+machine. You'll also need a `docs/awsconfig` file containing AWS settings to deploy to.
+The release script will create an s3 if needed, and will then push the files to it.
 
     [profile dowideit-docs] aws_access_key_id = IHOIUAHSIDH234rwf....
     aws_secret_access_key = OIUYSADJHLKUHQWIUHE......  region = ap-southeast-2
@@ -96,4 +96,53 @@ The `profile` name must be the same as the name of the bucket you are deploying
 to - which you call from the `docker` directory:
 
     make AWS_S3_BUCKET=dowideit-docs docs-release
+
+This will publish _only_ to the `http://bucket-url/v1.2/` version of the
+documentation.
+
+If you're publishing the current release's documentation, you need to
+also update the root docs pages by running
+
+    make AWS_S3_BUCKET=dowideit-docs BUILD_ROOT=yes docs-release
+
+> **Note:** if you are using Boot2Docker on OSX and the above command returns an error,
+> `Post http:///var/run/docker.sock/build?rm=1&t=docker-docs%3Apost-1.2.0-docs_update-2:
+> dial unix /var/run/docker.sock: no such file or directory', you need to set the Docker
+> host. Run `$(boot2docker shellinit)` to see the correct variable to set. The command
+> will return the full `export` command, so you can just cut and paste.
+
+## Cherry-picking documentation changes to update an existing release.
+
+Whenever the core team makes a release, they publish the documentation based
+on the `release` branch (which is copied into the `docs` branch). The
+documentation team can make updates in the meantime, by cherry-picking changes
+from `master` into any of the docs branches.
+
+For example, to update the current release's docs:
+
+    git fetch upstream
+    git checkout -b post-1.2.0-docs-update-1 upstream/docs
+    # Then go through the Merge commit linked to PR's (making sure they apply
+    to that release)
+    # see https://github.com/docker/docker/commits/master
+    git cherry-pick -x fe845c4
+    # Repeat until you have cherry picked everything you will propose to be merged
+    git push upstream post-1.2.0-docs-update-1
+
+Then make a pull request to merge into the `docs` branch, __NOT__ into master.
+
+Once the PR has the needed `LGTM`s, merge it, then publish to our beta server
+to test:
+
+    git fetch upstream
+    git checkout post-1.2.0-docs-update-1
+    git reset --hard upstream/post-1.2.0-docs-update-1
+    make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
+
+Then go to http://beta-docs.docker.io.s3-website-us-west-2.amazonaws.com/
+to view your results and make sure what you published is what you wanted.
+
+When you're happy with it, publish the docs to our live site:
+
+    make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
 
