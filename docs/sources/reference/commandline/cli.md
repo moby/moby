@@ -250,7 +250,7 @@ precedence over `HTTP_PROXY`.
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage drivers: `aufs`,
-`devicemapper`, `btrfs` and `overlay`.
+`devicemapper`, `btrfs`, `zfs` and `overlay`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
@@ -271,6 +271,12 @@ explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
 share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
+
+The `zfs` driver is probably not fast as `btrfs` but has a longer track record
+on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
+cached only once. Use `docker -d -s zfs`. To select a different zfs filesystem
+as backingstore use the storage option `zfs.fsname`:
+`docker -d -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).

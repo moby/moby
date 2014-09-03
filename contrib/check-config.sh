@@ -83,6 +83,22 @@ check_flags() {
 	done
 }
 
+check_command() {
+	if command -v "$1" >/dev/null 2>&1; then
+		wrap_good "$1 command" 'available'
+	else
+		wrap_bad "$1 command" 'missing'
+	fi
+}
+
+check_device() {
+	if [ -c "$1" ]; then
+		wrap_good "$1" 'present'
+	else
+		wrap_bad "$1" 'missing'
+	fi
+}
+
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config..."
 	for tryConfig in "${possibleConfigs[@]}"; do
@@ -182,6 +198,11 @@ echo '- Storage Drivers:'
 
 	echo '- "'$(wrap_color 'overlay' blue)'":'
 	check_flags OVERLAY_FS EXT4_FS_SECURITY EXT4_FS_POSIX_ACL | sed 's/^/  /'
+
+	echo '- "'$(wrap_color 'zfs' blue)'":'
+	echo "  - $(check_device /dev/zfs)"
+	echo "  - $(check_command zfs)"
+	echo "  - $(check_command zpool)"
 } | sed 's/^/  /'
 echo
 
