@@ -90,13 +90,15 @@ func (d *Daemon) Start(arg ...string) error {
 		return fmt.Errorf("Could not start daemon container: %v", err)
 	}
 
-	d.wait = make(chan error)
+	wait := make(chan error)
 
 	go func() {
-		d.wait <- d.cmd.Wait()
+		wait <- d.cmd.Wait()
 		d.t.Log("exiting daemon")
-		close(d.wait)
+		close(wait)
 	}()
+
+	d.wait = wait
 
 	tick := time.Tick(500 * time.Millisecond)
 	// make sure daemon is ready to receive requests
