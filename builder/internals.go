@@ -90,10 +90,6 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 	autoConfig := *b.Config
 	autoConfig.Cmd = autoCmd
 
-	if autoConfig.Entrypoint == nil {
-		autoConfig.Entrypoint = []string{"/bin/sh", "-c"}
-	}
-
 	// Commit the container
 	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
 	if err != nil {
