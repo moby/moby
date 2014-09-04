@@ -12,15 +12,16 @@ quick access to a test container.
     #
     # VERSION               0.0.1
 
-    FROM     ubuntu:12.04
+    FROM     ubuntu:14.04
     MAINTAINER Thatcher R. Peskens "thatcher@dotcloud.com"
 
     RUN apt-get update && apt-get install -y openssh-server
     RUN mkdir /var/run/sshd
-    RUN echo 'root:screencast' |chpasswd
+    RUN echo 'root:screencast' | chpasswd
+    RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
     EXPOSE 22
-    CMD    ["/usr/sbin/sshd", "-D"]
+    CMD ["/usr/sbin/sshd", "-D"]
 
 Build the image using:
 
@@ -33,8 +34,9 @@ the container's port 22 is mapped to:
     $ sudo docker port test_sshd 22
     0.0.0.0:49154
 
-And now you can ssh to port `49154` on the Docker daemon's host IP
-address (`ip address` or `ifconfig` can tell you that):
+And now you can ssh as `root` on the container's IP address (you can find it
+with `docker inspect`) or on port `49154` of the Docker daemon's host IP address
+(`ip address` or `ifconfig` can tell you that):
 
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.
