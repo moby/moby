@@ -101,6 +101,11 @@ func writeEvent(job *engine.Job, event *utils.JSONMessage) error {
 	// When sending an event JSON serialization errors are ignored, but all
 	// other errors lead to the eviction of the listener.
 	if b, err := json.Marshal(event); err == nil {
+
+		if job.GetenvBool("lineDelim") {
+			b = append(b, []byte("\r\n")...)
+		}
+
 		if _, err = job.Stdout.Write(b); err != nil {
 			return err
 		}

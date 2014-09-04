@@ -278,6 +278,8 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	}
 
 	var job = eng.Job("events")
+	// lineDelimited JSON events was added #7047
+	job.SetenvBool("lineDelim", version.GreaterThanOrEqualTo("1.15"))
 	streamJSON(job, w, true)
 	job.Setenv("since", r.Form.Get("since"))
 	job.Setenv("until", r.Form.Get("until"))
