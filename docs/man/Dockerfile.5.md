@@ -97,7 +97,7 @@ or
   **FROM ubuntu**
   **CMD echo "This is a test." | wc -**
   If you run <command> without a shell, then you must express the command as a
-  JSON arry and give the full path to the executable. This array form is the
+  JSON array and give the full path to the executable. This array form is the
   preferred form of CMD. All additional parameters must be individually expressed
   as strings in the array:
   **FROM ubuntu**
@@ -177,7 +177,7 @@ or
  -- **WORKDIR /path/to/workdir**
  The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, and **ENTRYPOINT** Dockerfile commands that follow it.
  It can be used multiple times in a single Dockerfile. Relative paths are defined relative to the path of the previous **WORKDIR** instruction. For example:
- **WORKDIR /a WORKDIR /b WORKDIR c RUN pwd** 
+ **WORKDIR /a WORKDIR b WORKDIR c RUN pwd** 
  In the above example, the output of the **pwd** command is **a/b/c**.
 
 **ONBUILD**
