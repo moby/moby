@@ -60,7 +60,7 @@ func NewDaemon(t *testing.T) *Daemon {
 }
 
 // Start will start the daemon and return once it is ready to receive requests.
-// You can specify additional daemon flags (e.g. "--restart=false").
+// You can specify additional daemon flags.
 func (d *Daemon) Start(arg ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
 	if err != nil {
@@ -71,10 +71,15 @@ func (d *Daemon) Start(arg ...string) error {
 		"--host", d.sock(),
 		"--daemon", "--debug",
 		"--graph", fmt.Sprintf("%s/graph", d.folder),
-		"--storage-driver", d.storageDriver,
-		"--exec-driver", d.execDriver,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 	}
+	if d.storageDriver != "" {
+		args = append(args, "--storage-driver", d.storageDriver)
+	}
+	if d.execDriver != "" {
+		args = append(args, "--exec-driver", d.execDriver)
+	}
+
 	args = append(args, arg...)
 	d.cmd = exec.Command(dockerBinary, args...)
 
@@ -90,13 +95,15 @@ func (d *Daemon) Start(arg ...string) error {
 		return fmt.Errorf("Could not start daemon container: %v", err)
 	}
 
-	d.wait = make(chan error)
+	wait := make(chan error)
 
 	go func() {
-		d.wait <- d.cmd.Wait()
+		wait <- d.cmd.Wait()
 		d.t.Log("exiting daemon")
-		close(d.wait)
+		close(wait)
 	}()
+
+	d.wait = wait
 
 	tick := time.Tick(500 * time.Millisecond)
 	// make sure daemon is ready to receive requests
