@@ -134,9 +134,21 @@ or
  --**ADD <src> <dest>** The ADD instruction copies new files from <src> and adds them
   to the filesystem of the container at path <dest>.  <src> must be the path to a
   file or directory relative to the source directory that is being built (the
-  context of the build) or a remote file URL.  <dest> is the absolute path to
-  which the source is copied inside the target container.  All new files and
-  directories are created with mode 0755, with uid and gid 0.
+  context of the build) or a remote file URL. If <src> is a a local tar archive
+  in a recognized compression format (identity, gzip, bzip2 or xz), then it is
+  unpacked as a directory. `<dest>` is an absolute path, or
+  path relative to `WORKDIR` into which the source will be copied inside the
+  target container. All new files and directories are created with mode 0755,
+  with uid and gid 0.
+
+**COPY**
+ --**COPY <src> <dest>** The COPY instruction copies new files from <src> and adds them
+  to the filesystem of the container at path <dest>.  <src> must be the path to a
+  file or directory relative to the source directory that is being built (the
+  context of the build) or a remote file URL. `<dest>` is an absolute path, or
+  path relative to `WORKDIR` into which the source will be copied inside the
+  target container. All new files and directories are created with mode 0755,
+  with uid and gid 0.
 
 **ENTRYPOINT**
  --**ENTRYPOINT** has two forms: ENTRYPOINT ["executable", "param1", "param2"]
@@ -204,3 +216,4 @@ or
 
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.
+*Sept 2014 updates by Sven Dowideit <SvenDowideit@home.org.au>

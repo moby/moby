@@ -65,9 +65,9 @@ directory called httpd may be used to store Dockerfiles for Apache web
 server images.
 
 It is also a good practice to add the files required for the image to the
-sub-directory. These files will then be specified with the `ADD` instruction
-in the Dockerfile. Note: If you include a tar file (a good practice!), then
-Docker will automatically extract the contents of the tar file
+sub-directory. These files will then be specified with the `COPY` or `ADD`
+instructions in the Dockerfile. Note: If you include a tar file (a good practice!),
+then Docker will automatically extract the contents of the tar file
 specified within the `ADD` instruction into the specified target.
 
 ## Building an image and naming that image
