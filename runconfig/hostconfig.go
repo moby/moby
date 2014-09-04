@@ -19,6 +19,10 @@ func (n NetworkMode) IsContainer() bool {
 	return len(parts) > 1 && parts[0] == "container"
 }
 
+func (n NetworkMode) IsNone() bool {
+	return n == "none"
+}
+
 type DeviceMapping struct {
 	PathOnHost        string
 	PathInContainer   string

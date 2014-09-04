@@ -1828,3 +1828,21 @@ func TestRunCidFileCheckIDLength(t *testing.T) {
 	deleteAllContainers()
 	logDone("run - cidfile contains long id")
 }
+
+func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--net=none", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSpace(out)
+	res, err := inspectField(id, "NetworkSettings.IPAddress")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != "" {
+		t.Fatal("For 'none' mode network must not be initialized, but container got IP: %s", res)
+	}
+	deleteAllContainers()
+	logDone("run - network must not be initialized in 'none' mode")
+}

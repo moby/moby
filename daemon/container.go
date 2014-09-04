@@ -434,7 +434,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 
 func (container *Container) allocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
-	if container.Config.NetworkDisabled || mode.IsContainer() || mode.IsHost() {
+	if container.Config.NetworkDisabled || mode.IsContainer() || mode.IsHost() || mode.IsNone() {
 		return nil
 	}
 
