@@ -527,3 +527,7 @@ func (t *TtyConsole) Close() error {
 	t.SlavePty.Close()
 	return t.MasterPty.Close()
 }
+
+func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return -1, fmt.Errorf("Unsupported: Exec is not supported by the lxc driver")
+}
