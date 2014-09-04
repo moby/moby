@@ -110,9 +110,12 @@ Create a container
 
         {
              "Hostname":"",
+             "Domainname": "",
              "User":"",
              "Memory":0,
              "MemorySwap":0,
+             "CpuShares": 512,
+             "Cpuset": "0,1",
              "AttachStdin":false,
              "AttachStdout":true,
              "AttachStderr":true,
@@ -129,7 +132,7 @@ Create a container
                      "/tmp": {}
              },
              "WorkingDir":"",
-             "DisableNetwork": false,
+             "NetworkDisabled": false,
              "ExposedPorts":{
                      "22/tcp": {}
              }
@@ -1242,9 +1245,12 @@ Create a new image from a container's changes
 
         {
              "Hostname":"",
+             "Domainname": "",
              "User":"",
              "Memory":0,
              "MemorySwap":0,
+             "CpuShares": 512,
+             "Cpuset": "0,1",
              "AttachStdin":false,
              "AttachStdout":true,
              "AttachStderr":true,
@@ -1260,7 +1266,7 @@ Create a new image from a container's changes
                      "/tmp": {}
              },
              "WorkingDir":"",
-             "DisableNetwork": false,
+             "NetworkDisabled": false,
              "ExposedPorts":{
                      "22/tcp": {}
              }
