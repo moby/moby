@@ -145,4 +145,8 @@ to view your results and make sure what you published is what you wanted.
 When you're happy with it, publish the docs to our live site:
 
     make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+    
+Note that the new docs will not appear live on the site until the cache (a complex,
+distributed CDN system) is flushed. This requires someone with S3 keys. Contact Docker
+(Sven Dowideit or John Costa) for assistance. 
 
