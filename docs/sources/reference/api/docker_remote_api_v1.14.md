@@ -712,7 +712,7 @@ Copy files or folders of container `id`
         HTTP/1.1 200 OK
         Content-Type: application/octet-stream
 
-        {{ STREAM }}
+        {{ TAR STREAM }}
 
     Status Codes:
 
