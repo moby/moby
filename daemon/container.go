@@ -434,7 +434,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 
 func (container *Container) allocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
-	if container.Config.NetworkDisabled || mode.IsContainer() || mode.IsHost() || mode.IsNone() {
+	if container.Config.NetworkDisabled || !mode.IsPrivate() {
 		return nil
 	}
 
@@ -905,7 +905,7 @@ func (container *Container) updateParentsHosts() error {
 		}
 
 		c := container.daemon.Get(cid)
-		if c != nil && !container.daemon.config.DisableNetwork && !container.hostConfig.NetworkMode.IsContainer() && !container.hostConfig.NetworkMode.IsHost() {
+		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
 			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
 				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
 			}
