@@ -9,15 +9,22 @@ import (
 )
 
 type Links struct {
-	dbPath         string
 	containerGraph *graphdb.Database
 }
 
 var ErrDuplicateName = errors.New("Conflict: name already exists.")
 
+func IsDuplicateName(err error) bool {
+	return err.Error() == ErrDuplicateName.Error()
+}
+
 func NewLinks(dbpath string) (*Links, error) {
 	containerGraph, err := graphdb.NewSqliteConn(dbpath)
-	return &Links{dbpath, containerGraph}, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &Links{containerGraph}, nil
 }
 
 func (lm *Links) Close() error {
@@ -48,27 +55,6 @@ func (lm *Links) Purge(name string) error {
 	return err
 }
 
-func (lm *Links) MapChildren(name string, applyFunc func(string, string) error) error {
-	return lm.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
-		return applyFunc(p, e.ID())
-	}, 0)
-}
-
-func (lm *Links) Each(query string, queryFunc func(string, string) error) error {
-	entities := lm.containerGraph.List(query, -1)
-
-	if entities == nil {
-		return nil
-	}
-
-	for _, p := range entities.Paths() {
-		if err := queryFunc(p, entities[p].ID()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 func (lm *Links) GetID(name string) (string, error) {
 	entity := lm.containerGraph.Get(name)
 
@@ -81,17 +67,6 @@ func (lm *Links) GetID(name string) (string, error) {
 
 func (lm *Links) Delete(name string) error {
 	return lm.containerGraph.Delete(name)
-}
-
-func (lm *Links) Children(name string) (map[string]string, error) {
-	children := map[string]string{}
-
-	err := lm.MapChildren(name, func(path, id string) error {
-		children[path] = id
-		return nil
-	})
-
-	return children, err
 }
 
 func (lm *Links) Parents(name string) ([]string, error) {

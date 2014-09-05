@@ -1,16 +1,61 @@
 package links
 
-import "github.com/docker/docker/engine"
+import (
+	"fmt"
 
-func (lm *Links) RegisterJobs(eng *engine.Engine) error {
+	"github.com/docker/docker/engine"
+)
+
+func (lm *Links) Install(eng *engine.Engine) error {
 	return eng.RegisterMap(map[string]engine.Handler{
-		"create_link":  lm.createLink,
-		"purge_link":   lm.purgeLink,
-		"parents_link": lm.listLinks,
-		"create_name":  lm.createName,
-		"get_name":     lm.getName,
-		"delete_name":  lm.deleteName,
+		"create_link":    lm.createLink,
+		"purge_link":     lm.purgeLink,
+		"parents_link":   lm.listLinks,
+		"create_name":    lm.createName,
+		"get_name":       lm.getName,
+		"delete_name":    lm.deleteName,
+		"list_entities":  lm.listEntities,
+		"list_parents":   lm.listParents,
+		"close_links_db": lm.closeDb,
 	})
+}
+
+func (lm *Links) closeDb(job *engine.Job) engine.Status {
+	if err := lm.Close(); err != nil {
+		return job.Error(err)
+	}
+
+	return engine.StatusOK
+}
+
+func (lm *Links) listParents(job *engine.Job) engine.Status {
+	parents, err := lm.Parents(job.Args[0])
+	if err != nil {
+		return job.Error(err)
+	}
+
+	job.SetenvJson("Parents", parents)
+	return engine.StatusOK
+}
+
+func (lm *Links) listEntities(job *engine.Job) engine.Status {
+	var (
+		query    = job.Args[0]
+		entities = lm.containerGraph.List(query, -1)
+		result   = map[string]string{}
+	)
+
+	if entities == nil {
+		return job.Error(fmt.Errorf("No entities for query %s", query))
+	}
+
+	for _, p := range entities.Paths() {
+		result[p] = entities[p].ID()
+	}
+
+	job.SetenvJson("Result", result)
+
+	return engine.StatusOK
 }
 
 func (lm *Links) listLinks(job *engine.Job) engine.Status {

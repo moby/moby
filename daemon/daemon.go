@@ -94,15 +94,10 @@ type Daemon struct {
 	config       *Config
 	driver       graphdriver.Driver
 	execDriver   execdriver.Driver
-	links        *links.Links
 }
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	if err := daemon.links.RegisterJobs(eng); err != nil {
-		return err
-	}
-
 	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"attach":            daemon.ContainerAttach,
@@ -311,6 +306,28 @@ func (daemon *Daemon) deleteName(name string) error {
 	return nil
 }
 
+func (daemon *Daemon) EachEntity(query string, queryFunc func(string, string) error) error {
+	job := daemon.eng.Job("list_entities")
+	job.Args = []string{query}
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	var entities map[string]string
+
+	if err := job.GetenvJson("Result", &entities); err != nil {
+		return err
+	}
+
+	for p, id := range entities {
+		if err := queryFunc(p, id); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (daemon *Daemon) restore() error {
 	var (
 		debug         = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
@@ -349,7 +366,7 @@ func (daemon *Daemon) restore() error {
 
 	registeredContainers := []*Container{}
 
-	daemon.links.Each("/", func(p, id string) error {
+	daemon.EachEntity("/", func(p, id string) error {
 		if !debug {
 			fmt.Print(".")
 		}
@@ -466,7 +483,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	}
 
 	if err := daemon.createName(id, name); err != nil {
-		if err.Error() != links.ErrDuplicateName.Error() {
+		if !links.IsDuplicateName(err) {
 			return "", err
 		}
 
@@ -499,7 +516,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 		}
 
 		if err := daemon.createName(id, name); err != nil {
-			if err.Error() != links.ErrDuplicateName.Error() {
+			if !links.IsDuplicateName(err) {
 				return "", err
 			}
 			continue
@@ -639,7 +656,7 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 	}
 	children := make(map[string]*Container)
 
-	err = daemon.links.MapChildren(name, func(path, id string) error {
+	daemon.EachEntity(name, func(path, id string) error {
 		c := daemon.Get(id)
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", id, path)
@@ -660,7 +677,15 @@ func (daemon *Daemon) Parents(name string) ([]string, error) {
 		return nil, err
 	}
 
-	return daemon.links.Parents(name)
+	job := daemon.eng.Job("list_parents", name)
+	if err := job.Run(); err != nil {
+		return nil, err
+	}
+
+	var parents []string
+	job.GetenvJson("Parents", &parents)
+
+	return parents, nil
 }
 
 func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error {
@@ -853,6 +878,10 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	if err := linksObj.Install(eng); err != nil {
+		return nil, err
+	}
+
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
@@ -892,7 +921,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		sysInitPath:  sysInitPath,
 		execDriver:   ed,
 		eng:          eng,
-		links:        linksObj,
 	}
 
 	if err := daemon.Install(eng); err != nil {
@@ -920,8 +948,10 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		if err := daemon.driver.Cleanup(); err != nil {
 			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
 		}
-		if err := daemon.links.Close(); err != nil {
-			log.Errorf("daemon.links.Close(): %s", err.Error())
+
+		linksJob := daemon.eng.Job("close_links_db")
+		if err := linksJob.Run(); err != nil {
+			log.Errorf("close_links_db: %s", err.Error())
 		}
 	})
 
@@ -1092,10 +1122,6 @@ func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
 
 func (daemon *Daemon) Volumes() *graph.Graph {
 	return daemon.volumes
-}
-
-func (daemon *Daemon) Links() *links.Links {
-	return daemon.links
 }
 
 func (daemon *Daemon) checkLocaldns() error {

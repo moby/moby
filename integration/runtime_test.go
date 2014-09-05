@@ -321,7 +321,7 @@ func TestDaemonCreate(t *testing.T) {
 	)
 
 	if err == nil {
-		t.Fatalf("Name conflict error doesn't include the correct short id. Message was empty.")
+		t.Fatal("Name conflict error doesn't include the correct short id. Message was empty.")
 	}
 
 	if !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
@@ -795,7 +795,12 @@ func TestLinkChildContainer(t *testing.T) {
 
 	childContainer := daemon.Get(createTestContainer(eng, config, t))
 
-	if err := daemon.Links().CreateLink(webapp.Name, childContainer.ID, "db"); err != nil {
+	linksJob := eng.Job("create_link")
+	linksJob.Setenv("ParentName", webapp.Name)
+	linksJob.Setenv("ChildID", childContainer.ID)
+	linksJob.Setenv("Alias", "db")
+
+	if err := linksJob.Run(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -837,7 +842,12 @@ func TestGetAllChildren(t *testing.T) {
 
 	childContainer := daemon.Get(createTestContainer(eng, config, t))
 
-	if err := daemon.Links().CreateLink(webapp.Name, childContainer.ID, "db"); err != nil {
+	linksJob := eng.Job("create_link")
+	linksJob.Setenv("ParentName", webapp.Name)
+	linksJob.Setenv("ChildID", childContainer.ID)
+	linksJob.Setenv("Alias", "db")
+
+	if err := linksJob.Run(); err != nil {
 		t.Fatal(err)
 	}
 

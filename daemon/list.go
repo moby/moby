@@ -44,7 +44,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	}
 
 	names := map[string][]string{}
-	daemon.links.Each("/", func(path, id string) error {
+	daemon.EachEntity("/", func(path, id string) error {
 		names[id] = append(names[id], path)
 		return nil
 	})
