@@ -53,6 +53,11 @@ clone hg code.google.com/p/gosqlite 74691fb6f837
 
 clone git github.com/docker/libtrust d273ef2565ca
 
+rm -rf src/gopkg.in/alexzorin/libvirt-go.v2
+clone git github.com/alexzorin/libvirt-go 64951faabe216f47bb352ce44f72df28c28cb013
+mkdir -p src/gopkg.in/alexzorin
+mv src/github.com/alexzorin/libvirt-go src/gopkg.in/alexzorin/libvirt-go.v2
+
 # get Go tip's archive/tar, for xattr support and improved performance
 # TODO after Go 1.4 drops, bump our minimum supported version and drop this vendored dep
 if [ "$1" = '--go' ]; then
