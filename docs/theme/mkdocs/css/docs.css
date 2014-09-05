@@ -326,3 +326,6 @@ ol li {
 .navbar #usernav .nav li {
   padding-top: 0px !important;
 }
+table.table tr td img {
+    width:100%;
+}
