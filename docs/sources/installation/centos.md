@@ -72,7 +72,11 @@ Next, let's install the `docker-io` package which
 will install Docker on our host.
 
     $ sudo yum install docker-io
-
+    
+In some cases the EPEL repository has to be explicitly declared within the command as follows:
+    
+    $ sudo yum --enablerepo=epel install docker-io
+    
 ## Using Docker
 
 Once Docker is installed, you will need to start the docker daemon.
