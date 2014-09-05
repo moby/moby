@@ -68,15 +68,10 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 			return nil
 		}
 
-		container, warnings, err := b.Daemon.Create(b.Config, "")
+		container, err := b.create()
 		if err != nil {
 			return err
 		}
-		for _, warning := range warnings {
-			fmt.Fprintf(b.OutStream, " ---> [Warning] %s\n", warning)
-		}
-		b.TmpContainers[container.ID] = struct{}{}
-		fmt.Fprintf(b.OutStream, " ---> Running in %s\n", utils.TruncateID(container.ID))
 		id = container.ID
 
 		if err := container.Mount(); err != nil {
@@ -373,18 +368,23 @@ func (b *Builder) create() (*daemon.Container, error) {
 	}
 	b.Config.Image = b.image
 
+	config := *b.Config
+
 	// Create the container
-	c, _, err := b.Daemon.Create(b.Config, "")
+	c, warnings, err := b.Daemon.Create(b.Config, "")
 	if err != nil {
 		return nil, err
+	}
+	for _, warning := range warnings {
+		fmt.Fprintf(b.OutStream, " ---> [Warning] %s\n", warning)
 	}
 
 	b.TmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.OutStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
 	// override the entry point that may have been picked up from the base image
-	c.Path = b.Config.Cmd[0]
-	c.Args = b.Config.Cmd[1:]
+	c.Path = config.Cmd[0]
+	c.Args = config.Cmd[1:]
 
 	return c, nil
 }
