@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+
+DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
+DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
+
+bundle_test_integration_cli() {
+	go_test_dir ./integration-cli
+}
+
+# subshell so that we can export PATH without breaking other things
+exec > >(tee -a $DEST/test.log) 2>&1
+(
+	export PATH="$DEST/../binary:$DEST/../dynbinary:$PATH"
+
+	if ! command -v docker &> /dev/null; then
+		echo >&2 'error: binary or dynbinary must be run before test-integration-cli'
+		false
+	fi
+
+	# intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
+	exec 41>&1 42>&2
+
+	( set -x; exec \
+		docker --daemon --debug \
+		--storage-driver "$DOCKER_GRAPHDRIVER" \
+		--exec-driver "$DOCKER_EXECDRIVER" \
+		--pidfile "$DEST/docker.pid" \
+			&> "$DEST/docker.log"
+	) &
+
+	# pull the busybox image before running the tests
+	sleep 2
+
+	source "$(dirname "$BASH_SOURCE")/.ensure-busybox"
+
+	bundle_test_integration_cli
+
+	for pid in $(find "$DEST" -name docker.pid); do
+		DOCKER_PID=$(set -x; cat "$pid")
+		( set -x; kill $DOCKER_PID )
+		wait $DOCKERD_PID || true
+	done
+)

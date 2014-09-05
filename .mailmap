@@ -1,0 +1,99 @@
+# Generate AUTHORS: hack/generate-authors.sh
+
+# Tip for finding duplicates (besides scanning the output of AUTHORS for name
+# duplicates that aren't also email duplicates): scan the output of:
+#   git log --format='%aE - %aN' | sort -uf
+
+<charles.hooper@dotcloud.com> <chooper@plumata.com>
+<daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
+<daniel.mizyrycki@dotcloud.com> <mzdaniel@glidelink.net>
+Guillaume J. Charmes <guillaume.charmes@docker.com> <charmes.guillaume@gmail.com>
+<guillaume.charmes@docker.com> <guillaume@dotcloud.com>
+<guillaume.charmes@docker.com> <guillaume@docker.com>
+<guillaume.charmes@docker.com> <guillaume.charmes@dotcloud.com>
+<guillaume.charmes@docker.com> <guillaume@charmes.net>
+<kencochrane@gmail.com> <KenCochrane@gmail.com>
+Thatcher Peskens <thatcher@docker.com>
+Thatcher Peskens <thatcher@docker.com> <thatcher@dotcloud.com>
+Thatcher Peskens <thatcher@docker.com> dhrp <thatcher@gmx.net>
+Jérôme Petazzoni <jerome.petazzoni@dotcloud.com> jpetazzo <jerome.petazzoni@dotcloud.com>
+Jérôme Petazzoni <jerome.petazzoni@dotcloud.com> <jp@enix.org>
+Joffrey F <joffrey@docker.com>
+Joffrey F <joffrey@docker.com> <joffrey@dotcloud.com>
+Joffrey F <joffrey@docker.com> <f.joffrey@gmail.com>
+Tim Terhorst <mynamewastaken+git@gmail.com>
+Andy Smith <github@anarkystic.com>
+<kalessin@kalessin.fr> <louis@dotcloud.com>
+<victor.vieux@docker.com> <victor.vieux@dotcloud.com>
+<victor.vieux@docker.com> <victor@dotcloud.com>
+<victor.vieux@docker.com> <dev@vvieux.com>
+<victor.vieux@docker.com> <victor@docker.com>
+<victor.vieux@docker.com> <vieux@docker.com>
+<dominik@honnef.co> <dominikh@fork-bomb.org>
+<ehanchrow@ine.com> <eric.hanchrow@gmail.com>
+Walter Stanish <walter@pratyeka.org>
+<daniel@gasienica.ch> <dgasienica@zynga.com>
+Roberto Hashioka <roberto_hashioka@hotmail.com>
+Konstantin Pelykh <kpelykh@zettaset.com>
+David Sissitka <me@dsissitka.com>
+Nolan Darilek <nolan@thewordnerd.info>
+<mastahyeti@gmail.com> <mastahyeti@users.noreply.github.com>
+Benoit Chesneau <bchesneau@gmail.com>
+Jordan Arentsen <blissdev@gmail.com>
+Daniel Garcia <daniel@danielgarcia.info>
+Miguel Angel Fernández <elmendalerenda@gmail.com>
+Bhiraj Butala <abhiraj.butala@gmail.com>
+Faiz Khan <faizkhan00@gmail.com>
+Victor Lyuboslavsky <victor@victoreda.com>
+Jean-Baptiste Barth <jeanbaptiste.barth@gmail.com>
+Matthew Mueller <mattmuelle@gmail.com>
+<mosoni@ebay.com> <mohitsoni1989@gmail.com>
+Shih-Yuan Lee <fourdollars@gmail.com>
+Daniel Mizyrycki <daniel.mizyrycki@dotcloud.com> root <root@vagrant-ubuntu-12.10.vagrantup.com>
+Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
+<proppy@google.com> <proppy@aminche.com>
+<michael@docker.com> <michael@crosbymichael.com>
+<michael@docker.com> <crosby.michael@gmail.com>
+<github@developersupport.net> <github@metaliveblog.com> 
+<brandon@ifup.org> <brandon@ifup.co>
+<dano@spotify.com> <daniel.norberg@gmail.com>
+<danny@codeaholics.org> <Danny.Yates@mailonline.co.uk>
+<gurjeet@singh.im> <singh.gurjeet@gmail.com>
+<shawn@churchofgit.com> <shawnlandden@gmail.com>
+<sjoerd-github@linuxonly.nl> <sjoerd@byte.nl>
+<solomon@docker.com> <solomon.hykes@dotcloud.com>
+<solomon@docker.com> <solomon@dotcloud.com>
+Sven Dowideit <SvenDowideit@home.org.au>
+Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@fosiki.com>
+Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@docker.com>
+Sven Dowideit <SvenDowideit@home.org.au> <¨SvenDowideit@home.org.au¨>
+unclejack <unclejacksons@gmail.com> <unclejack@users.noreply.github.com>
+<alexl@redhat.com> <alexander.larsson@gmail.com>
+Alexandr Morozov <lk4d4math@gmail.com>
+<git.nivoc@neverbox.com> <kuehnle@online.de>
+O.S. Tezer <ostezer@gmail.com>
+<ostezer@gmail.com> <ostezer@users.noreply.github.com>
+Roberto G. Hashioka <roberto.hashioka@docker.com> <roberto_hashioka@hotmail.com>
+<justin.p.simonelis@gmail.com> <justin.simonelis@PTS-JSIMON2.toronto.exclamation.com>
+<taim@bosboot.org> <maztaim@users.noreply.github.com>
+<viktor.vojnovski@amadeus.com> <vojnovski@gmail.com>
+<vbatts@redhat.com> <vbatts@hashbangbash.com>
+<altsysrq@gmail.com> <iamironbob@gmail.com>
+Sridhar Ratnakumar <sridharr@activestate.com>
+Sridhar Ratnakumar <sridharr@activestate.com> <github@srid.name>
+Liang-Chi Hsieh <viirya@gmail.com>
+Aleksa Sarai <cyphar@cyphar.com>
+Will Weaver <monkey@buildingbananas.com>
+Timothy Hobbs <timothyhobbs@seznam.cz>
+Nathan LeClaire <nathan.leclaire@docker.com> <nathan.leclaire@gmail.com>
+Nathan LeClaire <nathan.leclaire@docker.com> <nathanleclaire@gmail.com>
+<github@hollensbe.org> <erik+github@hollensbe.org>
+<github@albersweb.de> <albers@users.noreply.github.com>
+<lsm5@fedoraproject.org> <lsm5@redhat.com>
+<marc@marc-abramowitz.com> <msabramo@gmail.com>
+Matthew Heon <mheon@redhat.com> <mheon@mheonlaptop.redhat.com>
+<bernat@luffy.cx> <vincent@bernat.im>
+<p@pwaller.net> <peter@scraperwiki.com>
+<andrew.weiss@outlook.com> <andrew.weiss@microsoft.com>
+Francisco Carriedo <fcarriedo@gmail.com>
+<julienbordellier@gmail.com> <git@julienbordellier.com>
