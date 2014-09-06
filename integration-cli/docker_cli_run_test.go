@@ -1729,49 +1729,42 @@ func TestBindMounts(t *testing.T) {
 }
 
 func TestHostsLinkedContainerUpdate(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sleep", "5"))
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "top"))
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
 	// TODO fix docker cp and /etc/hosts
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "sh", "-c", "while true;do cp /etc/hosts /hosts; done"))
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "top"))
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/1"))
+	out, err = execIn("c2", "cat", "/etc/hosts")
 	if err != nil {
 		t.Fatal(err, out)
 	}
+	t.Log("Old /etc/hosts:\n", out)
+	hostre := regexp.MustCompile(`(?m).*\sc1$`)
+	hostline1 := hostre.FindString(out)
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "restart", "-t", "0", "c1"))
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/2"))
+	out, err = execIn("c2", "cat", "/etc/hosts")
 	if err != nil {
 		t.Fatal(err, out)
 	}
+	t.Log("New /etc/hosts:\n", out)
+	hostline2 := hostre.FindString(out)
 
-	out, _, _, err = runCommandWithStdoutStderr(exec.Command("diff", tmpdir+"/1", tmpdir+"/2"))
-	if err == nil {
-		t.Fatalf("Expecting error, got none")
-	}
-	out = stripTrailingCharacters(out)
-	if out == "" {
+	if hostline1 == hostline2 {
 		t.Fatalf("expected /etc/hosts to be updated, but wasn't")
 	}
 
 	deleteAllContainers()
-
 	logDone("run - /etc/hosts updated in parent when restart")
 }
 
