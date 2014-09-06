@@ -9,6 +9,9 @@ import (
 // the docker binary to use
 var dockerBinary = "docker"
 
+// the nsinit binary to use
+var nsinitBinary = "nsinit"
+
 // the private registry image to use for tests involving the registry
 var registryImageName = "registry"
 
