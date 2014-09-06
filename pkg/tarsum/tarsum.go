@@ -16,6 +16,12 @@ import (
 	"github.com/docker/docker/pkg/log"
 )
 
+const (
+	buf8K  = 8 * 1024
+	buf16K = 16 * 1024
+	buf32K = 32 * 1024
+)
+
 type TarSum struct {
 	io.Reader
 	tarR               *tar.Reader
@@ -23,7 +29,7 @@ type TarSum struct {
 	gz                 writeCloseFlusher
 	bufTar             *bytes.Buffer
 	bufGz              *bytes.Buffer
-	bufData            [8192]byte
+	bufData            []byte
 	h                  hash.Hash
 	sums               map[string]string
 	currentFile        string
@@ -93,12 +99,19 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 	if ts.finished {
 		return ts.bufGz.Read(buf)
 	}
-	var buf2 []byte
-	if len(buf) > 8192 {
-		buf2 = make([]byte, len(buf), cap(buf))
-	} else {
-		buf2 = ts.bufData[:len(buf)-1]
+	if ts.bufData == nil {
+		switch {
+		case len(buf) <= buf8K:
+			ts.bufData = make([]byte, buf8K)
+		case len(buf) <= buf16K:
+			ts.bufData = make([]byte, buf16K)
+		case len(buf) <= buf32K:
+			ts.bufData = make([]byte, buf32K)
+		default:
+			ts.bufData = make([]byte, len(buf))
+		}
 	}
+	buf2 := ts.bufData[:len(buf)-1]
 
 	n, err := ts.tarR.Read(buf2)
 	if err != nil {
