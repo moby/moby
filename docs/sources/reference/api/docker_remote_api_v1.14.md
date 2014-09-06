@@ -80,10 +80,14 @@ List containers
 
     -   **all** – 1/True/true or 0/False/false, Show all containers.
         Only running containers are shown by default (i.e., this defaults to false)
-    -   **limit** – Show `limit` last created containers, include non-running ones.
-    -   **since** – Show only containers created since Id, include non-running ones.
-    -   **before** – Show only containers created before Id, include non-running ones.
-    -   **size** – 1/True/true or 0/False/false, Show the containers sizes
+    -   **limit** – Show `limit` last created 
+        containers, include non-running ones.
+    -   **since** – Show only containers created since Id, include 
+        non-running ones.
+    -   **before** – Show only containers created before Id, include 
+        non-running ones.
+    -   **size** – 1/True/true or 0/False/false, Show the containers
+        sizes
 
     Status Codes:
 
@@ -148,7 +152,8 @@ Create a container
 
     Query Parameters:
 
-    -   **name** – Assign the specified name to the container. Must match `/?[a-zA-Z0-9_-]+`.
+    -   **name** – Assign the specified name to the container. Must 
+        match `/?[a-zA-Z0-9_-]+`.
 
     Status Codes:
 
@@ -312,7 +317,8 @@ Get stdout and stderr logs from the container ``id``
     -   **follow** – 1/True/true or 0/False/false, return stream. Default false
     -   **stdout** – 1/True/true or 0/False/false, show stdout log. Default false
     -   **stderr** – 1/True/true or 0/False/false, show stderr log. Default false
-    -   **timestamps** – 1/True/true or 0/False/false, print timestamps for every log line. Default false
+    -   **timestamps** – 1/True/true or 0/False/false, print timestamps for
+        every log line. Default false
     -   **tail** – Output specified number of lines at the end of logs: `all` or `<number>`. Default all
 
     Status Codes:
@@ -553,9 +559,10 @@ Attach to the container `id`
     Query Parameters:
 
     -   **logs** – 1/True/true or 0/False/false, return logs. Default false
-    -   **stream** – 1/True/true or 0/False/false, return stream. Default false
-    -   **stdin** – 1/True/true or 0/False/false, if stream=true, attach to stdin.
+    -   **stream** – 1/True/true or 0/False/false, return stream.
         Default false
+    -   **stdin** – 1/True/true or 0/False/false, if stream=true, attach
+        to stdin. Default false
     -   **stdout** – 1/True/true or 0/False/false, if logs=true, return
         stdout log, if stream=true, attach to stdout. Default false
     -   **stderr** – 1/True/true or 0/False/false, if logs=true, return
@@ -1059,7 +1066,8 @@ Build an image from Dockerfile via stdin
         the resulting image in case of success
     -   **q** – suppress verbose build output
     -   **nocache** – do not use the cache when building the image
-    -   **rm** - remove intermediate containers after a successful build (default behavior)
+    -   **rm** - remove intermediate containers after a successful build
+        (default behavior)
     -   **forcerm - always remove intermediate containers (includes rm)
 
     Request Headers:
@@ -1257,7 +1265,8 @@ Create a new image from a container's changes
 
 `GET /events`
 
-Get events from docker, either in real time via streaming, or via polling (using since)
+Get events from docker, either in real time via streaming, or
+via polling (using since)
 
     **Example request**:
 
