@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -190,4 +193,67 @@ func TestSaveMultipleNames(t *testing.T) {
 	deleteImages(repoName)
 
 	logDone("save - save by multiple names")
+}
+
+// Issue #6722 #5892 ensure directories are included in changes
+func TestSaveDirectoryPermissions(t *testing.T) {
+	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
+
+	name := "save-directory-permissions"
+	tmpDir, err := ioutil.TempDir("", "save-layers-with-directories")
+	extractionDirectory := filepath.Join(tmpDir, "image-extraction-dir")
+	os.Mkdir(extractionDirectory, 0777)
+
+	if err != nil {
+		t.Errorf("failed to create temporary directory: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	defer deleteImages(name)
+	_, err = buildImage(name,
+		`FROM busybox
+	RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
+	RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	saveCmdFinal := fmt.Sprintf("%s save %s | tar -xf - -C %s", dockerBinary, name, extractionDirectory)
+	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
+	out, _, err := runCommandWithOutput(saveCmd)
+	if err != nil {
+		t.Errorf("failed to save and extract image: %s", out)
+	}
+
+	dirs, err := ioutil.ReadDir(extractionDirectory)
+	if err != nil {
+		t.Errorf("failed to get a listing of the layer directories: %s", err)
+	}
+
+	found := false
+	for _, entry := range dirs {
+		if entry.IsDir() {
+			layerPath := filepath.Join(extractionDirectory, entry.Name(), "layer.tar")
+
+			f, err := os.Open(layerPath)
+			if err != nil {
+				t.Fatalf("failed to open %s: %s", layerPath, err)
+			}
+
+			entries, err := ListTar(f)
+			if err != nil {
+				t.Fatalf("encountered error while listing tar entries: %s", err)
+			}
+
+			if reflect.DeepEqual(entries, layerEntries) {
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		t.Fatalf("failed to find the layer with the right content listing")
+	}
+
+	logDone("save - ensure directories exist in exported layers")
 }
