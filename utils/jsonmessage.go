@@ -143,7 +143,9 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			if !ok {
 				line = len(ids)
 				ids[jm.ID] = line
-				fmt.Fprintf(out, "\n")
+				if isTerminal {
+					fmt.Fprintf(out, "\n")
+				}
 				diff = 0
 			} else {
 				diff = len(ids) - line
