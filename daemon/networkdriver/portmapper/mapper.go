@@ -100,11 +100,28 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 	m.userlandProxy = proxy
 	currentMappings[key] = m
 
-	if err := proxy.Start(); err != nil {
+	cleanup := func() error {
 		// need to undo the iptables rules before we return
 		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		proxy.Stop()
+		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		m.userlandProxy = nil
+		delete(currentMappings, key)
+		if err := portallocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+			return err
+		}
 
-		return nil, err
+		return nil
+	}
+
+	if err := proxy.Start(); err != nil {
+		if err := cleanup(); err != nil {
+			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
+		}
+
+		if err == ErrPortMappingFailure {
+			return nil, portallocator.NewErrPortAlreadyAllocated(hostIP.String(), allocatedHostPort)
+		}
 	}
 
 	return m.host, nil

@@ -1,6 +1,7 @@
 package portmapper
 
 import (
+	"errors"
 	"flag"
 	"log"
 	"net"
@@ -9,10 +10,13 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/pkg/proxy"
 	"github.com/docker/docker/reexec"
 )
+
+var ErrPortMappingFailure = errors.New("Failure Mapping Port")
 
 const userlandProxyCommandName = "docker-proxy"
 
@@ -37,8 +41,11 @@ func execProxy() {
 
 	p, err := proxy.NewProxy(host, container)
 	if err != nil {
-		log.Fatal(err)
+		os.Stdout.WriteString("1\n")
+		os.Exit(1)
 	}
+
+	os.Stdout.WriteString("0\n")
 
 	go handleStopSignals(p)
 
@@ -96,10 +103,8 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 
 	return &proxyCommand{
 		cmd: &exec.Cmd{
-			Path:   reexec.Self(),
-			Args:   args,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
+			Path: reexec.Self(),
+			Args: args,
 			SysProcAttr: &syscall.SysProcAttr{
 				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies
 			},
@@ -108,12 +113,44 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 }
 
 func (p *proxyCommand) Start() error {
-	return p.cmd.Start()
+	stdout, err := p.cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := p.cmd.Start(); err != nil {
+		return err
+	}
+
+	errchan := make(chan error)
+	after := time.After(1 * time.Second)
+	go func() {
+		buf := make([]byte, 2)
+		stdout.Read(buf)
+
+		if string(buf) != "0\n" {
+			errchan <- ErrPortMappingFailure
+		} else {
+			errchan <- nil
+		}
+	}()
+
+	var readErr error
+
+	select {
+	case readErr = <-errchan:
+	case <-after:
+		readErr = ErrPortMappingFailure
+	}
+
+	return readErr
 }
 
 func (p *proxyCommand) Stop() error {
-	err := p.cmd.Process.Signal(os.Interrupt)
-	p.cmd.Wait()
+	if p.cmd.Process != nil {
+		err := p.cmd.Process.Signal(os.Interrupt)
+		p.cmd.Wait()
+		return err
+	}
 
-	return err
+	return nil
 }
