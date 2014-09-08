@@ -5,7 +5,7 @@
 # version:  0.3.0
 # github:   https://github.com/felixr/docker-zsh-completion
 #
-# contributers:
+# contributors:
 #   - Felix Riedel
 #   - Vincent Bernat
 #
@@ -37,65 +37,86 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-__parse_docker_list() {
-        awk '
-NR == 1 {
-    idx=1;i=0;f[i]=0
-    header=$0
-    while ( match(header, /  ([A-Z]+|[A-Z]+ [A-Z]+)/) ) {
-        idx += RSTART+1
-        f[++i]=idx
-        header = substr($0,idx)
-    }
-    f[++i]=999
-}
+__docker_get_containers() {
+    local kind expl
+    declare -a running stopped lines args
 
-NR > 1 '"$1"' {
-    for(j=0;j<i;j++) {
-        x[j] = substr($0, f[j], f[j+1]-f[j]-1)
-        gsub(/[ ]+$/, "", x[j])
+    kind=$1
+    shift
+    [[ $kind = (stopped|all) ]] && args=($args -a)
+
+    lines=(${(f)"$(_call_program commands docker ps ${args})"})
+
+    # Parse header line to find columns
+    local i=1 j=1 k header=${lines[1]}
+    declare -A begin end
+    while (( $j < ${#header} - 1 )) {
+        i=$(( $j + ${${header[$j,-1]}[(i)[^ ]]} - 1))
+        j=$(( $i + ${${header[$i,-1]}[(i)  ]} - 1))
+        k=$(( $j + ${${header[$j,-1]}[(i)[^ ]]} - 2))
+        begin[${header[$i,$(($j-1))]}]=$i
+        end[${header[$i,$(($j-1))]}]=$k
     }
-    printf("%s:%7s, %s\n", x[0], x[3], x[1])
-    if (x[6] != "") {
-       split(x[6], names, /,/)
-       for (name in names) printf("%s:%7s, %s\n", names[name], x[3], x[1])
-    }
-}
-'| sed -e 's/ \([hdwm]\)\(inutes\|ays\|ours\|eeks\)/\1/'
+    lines=(${lines[2,-1]})
+
+    # Container ID
+    local line
+    local s
+    for line in $lines; do
+        s="${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}"
+        s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+        s="$s, ${${${line[$begin[IMAGE],$end[IMAGE]]}/:/\\:}%% ##}"
+        if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+            stopped=($stopped $s)
+        else
+            running=($running $s)
+        fi
+    done
+
+    # Names
+    local name
+    local -a names
+    for line in $lines; do
+        names=(${(ps:,:)${${line[${begin[NAMES]},-1]}%% *}})
+        for name in $names; do
+            s="${name}:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+            s="$s, ${${${line[$begin[IMAGE],$end[IMAGE]]}/:/\\:}%% ##}"
+            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+                stopped=($stopped $s)
+            else
+                running=($running $s)
+            fi
+        done
+    done
+
+    [[ $kind = (running|all) ]] && _describe -t containers-running "running containers" running
+    [[ $kind = (stopped|all) ]] && _describe -t containers-stopped "stopped containers" stopped
 }
 
 __docker_stoppedcontainers() {
-    local expl
-    declare -a stoppedcontainers
-    stoppedcontainers=(${(f)"$(_call_program commands docker ps -a |  __parse_docker_list '&& / Exit/')"})
-    _describe -t containers-stopped "Stopped Containers" stoppedcontainers "$@"
+    __docker_get_containers stopped "$@"
 }
 
 __docker_runningcontainers() {
-    local expl
-    declare -a containers
-
-    containers=(${(f)"$(_call_program commands docker ps | __parse_docker_list)"})
-    _describe -t containers-active "Running Containers" containers "$@"
+    __docker_get_containers running "$@"
 }
 
 __docker_containers () {
-    __docker_stoppedcontainers "$@"
-    __docker_runningcontainers "$@"
+    __docker_get_containers all "$@"
 }
 
 __docker_images () {
     local expl
     declare -a images
-    images=(${(f)"$(_call_program commands docker images | awk '(NR > 1 && $1 != "<none>"){printf("%s", $1);if ($2 != "<none>") printf("\\:%s", $2); printf("\n")}')"})
-    images=($images ${(f)"$(_call_program commands docker images | awk '(NR > 1){printf("%s:%-15s in %s\n", $3,$2,$1)}')"})
-    _describe -t docker-images "Images" images
+    images=(${${${${(f)"$(_call_program commands docker images)"}[2,-1]}/ ##/\\:}%% *})
+    images=(${${images%\\:<none>}#<none>} ${${${(f)"$(_call_program commands docker images)"}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
+    _describe -t docker-images "images" images
 }
 
 __docker_tags() {
     local expl
     declare -a tags
-    tags=(${(f)"$(_call_program commands docker images | awk '(NR>1){print $2}'| sort | uniq)"})
+    tags=(${${${${${(f)"$(_call_program commands docker images)"}#* }## #}%% *}[2,-1]})
     _describe -t docker-tags "tags" tags
 }
 
@@ -124,16 +145,15 @@ __docker_search() {
     if ( [[ ${(P)+cachename} -eq 0 ]] || _cache_invalid ${cachename#_} ) \
         && ! _retrieve_cache ${cachename#_}; then
         _message "Searching for ${searchterm}..."
-        result=(${(f)"$(_call_program commands docker search ${searchterm} | awk '(NR>2){print $1}')"})
+        result=(${${${(f)"$(_call_program commands docker search ${searchterm})"}%% *}[2,-1]})
         _store_cache ${cachename#_} result
     fi
-    _wanted dockersearch expl 'Available images' compadd -a result
+    _wanted dockersearch expl 'available images' compadd -a result
 }
 
 __docker_caching_policy()
 {
-  # oldp=( "$1"(Nmh+24) )     # 24 hour
-  oldp=( "$1"(Nmh+1) )     # 24 hour
+  oldp=( "$1"(Nmh+1) )     # 1 hour
   (( $#oldp ))
 }
 
@@ -141,8 +161,8 @@ __docker_caching_policy()
 __docker_repositories () {
     local expl
     declare -a repos
-    repos=(${(f)"$(_call_program commands docker images | sed -e '1d' -e 's/[ ].*//' | sort | uniq)"})
-    _describe -t docker-repos "Repositories" repos "$@"
+    repos=(${${${(f)"$(_call_program commands docker images)"}%% *}[2,-1]})
+    _describe -t docker-repos "repositories" repos "$@"
 }
 
 __docker_commands () {
@@ -157,8 +177,7 @@ __docker_commands () {
     if ( [[ ${+_docker_subcommands} -eq 0 ]] || _cache_invalid docker_subcommands) \
         && ! _retrieve_cache docker_subcommands;
     then
-        _docker_subcommands=(${${(f)"$(_call_program commands
-        docker 2>&1 | sed -e '1,6d' -e '/^[ ]*$/d' -e 's/[ ]*\([^ ]\+\)\s*\([^ ].*\)/\1:\2/' )"}})
+        _docker_subcommands=(${${${${(f)"$(_call_program commands docker 2>&1)"}[5,-1]}## #}/ ##/:})
         _docker_subcommands=($_docker_subcommands 'help:Show help for a command')
         _store_cache docker_subcommands _docker_subcommands
     fi
@@ -180,13 +199,13 @@ __docker_subcommand () {
                 '--no-cache[Do not use cache when building the image]' \
                 '-q[Suppress verbose build output]' \
                 '--rm[Remove intermediate containers after a successful build]' \
-                '-t=-:repository:__docker_repositories_with_tags' \
+                '-t:repository:__docker_repositories_with_tags' \
                 ':path or URL:_directories'
             ;;
         (commit)
             _arguments \
                 '--author=-[Author]:author: ' \
-                '-m=-[Commit message]:message: ' \
+                '-m[Commit message]:message: ' \
                 '--run=-[Configuration automatically applied when the image is run]:configuration: ' \
                 ':container:__docker_containers' \
                 ':repository:__docker_repositories_with_tags'
@@ -252,9 +271,9 @@ __docker_subcommand () {
             ;;
         (login)
             _arguments \
-                '-e=-[Email]:email: ' \
-                '-p=-[Password]:password: ' \
-                '-u=-[Username]:username: ' \
+                '-e[Email]:email: ' \
+                '-p[Password]:password: ' \
+                '-u[Username]:username: ' \
                 ':server: '
             ;;
         (logs)
@@ -284,7 +303,7 @@ __docker_subcommand () {
                 '*:images:__docker_images'
             ;;
         (restart|stop)
-            _arguments '-t=-[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)' \
+            _arguments '-t[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)' \
                 '*:containers:__docker_runningcontainers'
             ;;
         (top)
@@ -303,7 +322,7 @@ __docker_subcommand () {
                 '-a[Show all containers]' \
                 '--before=-[Show only container created before...]:containers:__docker_containers' \
                 '-l[Show only the latest created container]' \
-                '-n=-[Show n last created containers, include non-running one]:n:(1 5 10 25 50)' \
+                '-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)' \
                 '--no-trunc[Do not truncate output]' \
                 '-q[Only show numeric IDs]' \
                 '-s[Display sizes]' \
@@ -319,28 +338,28 @@ __docker_subcommand () {
             _arguments \
                 '-P[Publish all exposed ports to the host]' \
                 '-a[Attach to stdin, stdout or stderr]' \
-                '-c=-[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
+                '-c[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
                 '--cidfile=-[Write the container ID to the file]:CID file:_files' \
                 '-d[Detached mode: leave the container running in the background]' \
                 '*--dns=-[Set custom dns servers]:dns server: ' \
-                '*-e=-[Set environment variables]:environment variable: ' \
+                '*-e[Set environment variables]:environment variable: ' \
                 '--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
                 '*--expose=-[Expose a port from the container without publishing it]: ' \
-                '-h=-[Container host name]:hostname:_hosts' \
+                '-h[Container host name]:hostname:_hosts' \
                 '-i[Keep stdin open even if not attached]' \
                 '--link=-[Add link to another container]:link:->link' \
                 '--lxc-conf=-[Add custom lxc options]:lxc options: ' \
-                '-m=-[Memory limit (in bytes)]:limit: ' \
+                '-m[Memory limit (in bytes)]:limit: ' \
                 '--name=-[Container name]:name: ' \
-                '*-p=-[Expose a container'"'"'s port to the host]:port:_ports' \
+                '*-p[Expose a container'"'"'s port to the host]:port:_ports' \
                 '--privileged[Give extended privileges to this container]' \
                 '--rm[Remove intermediate containers when it exits]' \
                 '--sig-proxy[Proxify all received signal]' \
                 '-t[Allocate a pseudo-tty]' \
-                '-u=-[Username or UID]:user:_users' \
-                '*-v=-[Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)]:volume: '\
+                '-u[Username or UID]:user:_users' \
+                '*-v[Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)]:volume: '\
                 '--volumes-from=-[Mount volumes from the specified container]:volume: ' \
-                '-w=-[Working directory inside the container]:directory:_directories' \
+                '-w[Working directory inside the container]:directory:_directories' \
                 '(-):images:__docker_images' \
                 '(-):command: _command_names -e' \
                 '*::arguments: _normal'
@@ -360,7 +379,7 @@ __docker_subcommand () {
             _arguments ':name:__docker_search'
             ;;
         (push)
-            _arguments ':repository:__docker_repositories_with_tags'
+            _arguments ':images:__docker_images'
             ;;
         (save)
             _arguments \
@@ -390,7 +409,7 @@ _docker () {
     typeset -A opt_args
 
     _arguments -C \
-      '-H=-[tcp://host:port to bind/connect to]:socket: ' \
+      '-H[tcp://host:port to bind/connect to]:socket: ' \
          '(-): :->command' \
          '(-)*:: :->option-or-argument'
 
@@ -409,3 +428,11 @@ _docker () {
 }
 
 _docker "$@"
+
+# Local Variables:
+# mode: Shell-Script
+# sh-indentation: 4
+# indent-tabs-mode: nil
+# sh-basic-offset: 4
+# End:
+# vim: ft=zsh sw=4 ts=4 et
