@@ -75,7 +75,7 @@ func TestDockerRunEchoStdoutWithCPUAndMemoryLimit(t *testing.T) {
 	errorOut(err, t, out)
 
 	if out != "test\n" {
-		t.Errorf("container should've printed 'test'")
+		t.Errorf("container should've printed 'test', got %q instead", out)
 	}
 
 	deleteAllContainers()
