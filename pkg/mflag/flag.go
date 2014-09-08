@@ -427,11 +427,6 @@ func Set(name, value string) error {
 func (f *FlagSet) PrintDefaults() {
 	writer := tabwriter.NewWriter(f.out(), 20, 1, 3, ' ', 0)
 	f.VisitAll(func(flag *Flag) {
-		format := "  -%s=%s"
-		if _, ok := flag.Value.(*stringValue); ok {
-			// put quotes on the value
-			format = "  -%s=%q"
-		}
 		names := []string{}
 		for _, name := range flag.Names {
 			if name[0] != '#' {
@@ -439,11 +434,8 @@ func (f *FlagSet) PrintDefaults() {
 			}
 		}
 		if len(names) > 0 {
-			fmt.Fprintf(writer, format, strings.Join(names, ", -"), flag.DefValue)
-			for i, line := range strings.Split(flag.Usage, "\n") {
-				if i != 0 {
-					line = "  " + line
-				}
+			fmt.Fprintf(writer, "-%s", strings.Join(names, ", -"))
+			for _, line := range strings.Split(flag.Usage, "\n") {
 				fmt.Fprintln(writer, "\t", line)
 			}
 		}
