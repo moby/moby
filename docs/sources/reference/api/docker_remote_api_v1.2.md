@@ -268,7 +268,7 @@ Export the contents of container `id`
         HTTP/1.1 200 OK
         Content-Type: application/octet-stream
 
-        {{ STREAM }}
+        {{ TAR STREAM }}
 
     Status Codes:
 
@@ -815,7 +815,7 @@ Build an image from Dockerfile
 
         POST /build HTTP/1.1
 
-        {{ STREAM }}
+        {{ TAR STREAM }}
 
     **Example response**:
 
