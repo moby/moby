@@ -231,6 +231,7 @@ them via Docker.
     --cap-add: Add Linux capabilities
     --cap-drop: Drop Linux capabilities
     --privileged=false: Give extended privileges to this container
+    --device=[]: Allows you to run devices inside the container without the --privileged flag.
     --lxc-conf=[]: (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 By default, Docker containers are "unprivileged" and cannot, for
@@ -243,10 +244,16 @@ https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
 When the operator executes `docker run --privileged`, Docker will enable
 to access to all devices on the host as well as set some configuration
-in AppArmor to allow the container nearly all the same access to the
+in AppArmor or SELinux to allow the container nearly all the same access to the
 host as processes running outside containers on the host. Additional
 information about running with `--privileged` is available on the
 [Docker Blog](http://blog.docker.com/2013/09/docker-can-now-run-within-docker/).
+
+If you want to limit access to a specific device or devices you can use
+the `--device` flag. It allows you to specify one or more devices that
+will be accessible within the container.
+
+    $ docker run --device=/dev/snd:/dev/snd ...
 
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
