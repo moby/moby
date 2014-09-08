@@ -526,7 +526,7 @@ file is empty.
 
 **Valid**: 
 
-     return HTTP 200
+     return HTTP 201
 
 Errors: HTTP 400 (we should create error codes for possible errors) -
 invalid json - missing field - wrong format (username, password, email,
