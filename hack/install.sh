@@ -101,7 +101,7 @@ case "$lsb_dist" in
 		exit 0
 		;;
 
-	Ubuntu|Debian)
+	Ubuntu|Debian|LinuxMint)
 		export DEBIAN_FRONTEND=noninteractive
 
 		did_apt_get_update=
