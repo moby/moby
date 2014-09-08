@@ -39,8 +39,9 @@ Official Image.
 document](TODO: link). In addition, Docker, Inc. engineer Michael Crosby has a good
 discussion of Dockerfiles in this [blog post](http://crosbymichael.com/dockerfile-best-practices-take-2.html).
 
-While [ONBUILD triggers](https://docs.docker.com/reference/builder/#onbuild) are not
+While `[ONBUILD triggers]`(https://docs.docker.com/reference/builder/#onbuild) are not
 required, if you choose to use them you should:
+
 * Build both `ONBUILD` and non-`ONBUILD` images, with the `ONBUILD` image built `FROM`
 the non-`ONBUILD` image.
 * The `ONBUILD` image should be specifically tagged, for example, `ruby:latest` and
@@ -117,7 +118,7 @@ contacts, additional “how-to” information or other resources.
 
 ## License
 
-Include a file, (`LICENSE`), of any applicable license.  Docker recommends using the
+Include a file, `LICENSE`, of any applicable license.  Docker recommends using the
 license of the software contained in the image, provided it allows Docker, Inc. to
 legally build and distribute the image.  Otherwise Docker recommends adopting the
 [Expat license]((http://directory.fsf.org/wiki/License:Expat).
@@ -129,7 +130,7 @@ Ruby on Rails.
 
 ## Short description
 
-     **README-short.txt**
+     README-short.txt
     
     Ruby on Rails is an open-source application framework written in Ruby. It emphasizes
     best practices such as convention over configuration, active record pattern, and the
@@ -137,7 +138,8 @@ Ruby on Rails.
 
 ## Long description
 
-    **README.md**
+    README.md
+    
     # What is Ruby on Rails
     
      Ruby on Rails, often simply referred to as Rails, is an open source web application
