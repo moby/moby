@@ -60,6 +60,9 @@ func main() {
 		log.Fatal("Please specify only one -H")
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
+	if len(protoAddrParts) < 2 {
+		log.Fatalf("Invalid docker host format: %s", flHosts[0])
+	}
 
 	var (
 		cli       *client.DockerCli
