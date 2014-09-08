@@ -256,7 +256,7 @@ Export the contents of container `id`
         HTTP/1.1 200 OK
         Content-Type: application/octet-stream
 
-        {{ STREAM }}
+        {{ TAR STREAM }}
 
     Status Codes:
 
@@ -564,7 +564,7 @@ Insert a file from `url` in the image `name` at `path`
 
         HTTP/1.1 200 OK
 
-        {{ STREAM }}
+        {{ TAR STREAM }}
 
 	Query Parameters:
 
@@ -777,7 +777,7 @@ Build an image from Dockerfile via stdin
 
         POST /build HTTP/1.1
 
-        {{ STREAM }}
+        {{ TAR STREAM }}
 
     **Example response**:
 
