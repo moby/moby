@@ -1887,10 +1887,12 @@ func TestRunPortInUse(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-p", port+":80", "busybox", "true")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
-		t.Fatalf("Host port %s already in use, has been allocated by docker: %q", port, out)
+		t.Fatalf("Binding on used port must fail")
+	}
+	if !strings.Contains(out, "address already in use") {
+		t.Fatalf("Out must be about \"address already in use\", got %s", out)
 	}
 
 	deleteAllContainers()
-
-	logDone("run - port in use")
+	logDone("run - fail if port already in use")
 }

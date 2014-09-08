@@ -1,8 +1,9 @@
 package portmapper
 
 import (
-	"errors"
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -15,8 +16,6 @@ import (
 	"github.com/docker/docker/pkg/proxy"
 	"github.com/docker/docker/reexec"
 )
-
-var ErrPortMappingFailure = errors.New("Failure Mapping Port")
 
 const userlandProxyCommandName = "docker-proxy"
 
@@ -42,12 +41,11 @@ func execProxy() {
 	p, err := proxy.NewProxy(host, container)
 	if err != nil {
 		os.Stdout.WriteString("1\n")
+		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	os.Stdout.WriteString("0\n")
-
 	go handleStopSignals(p)
+	os.Stdout.WriteString("0\n")
 
 	// Run will block until the proxy stops
 	p.Run()
@@ -117,40 +115,43 @@ func (p *proxyCommand) Start() error {
 	if err != nil {
 		return err
 	}
+	defer stdout.Close()
+	stderr, err := p.cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	defer stderr.Close()
 	if err := p.cmd.Start(); err != nil {
 		return err
 	}
 
-	errchan := make(chan error)
-	after := time.After(1 * time.Second)
+	errchan := make(chan error, 1)
 	go func() {
 		buf := make([]byte, 2)
 		stdout.Read(buf)
 
 		if string(buf) != "0\n" {
-			errchan <- ErrPortMappingFailure
-		} else {
-			errchan <- nil
+			errStr, _ := ioutil.ReadAll(stderr)
+			errchan <- fmt.Errorf("Error starting userland proxy: %s", errStr)
+			return
 		}
+		errchan <- nil
 	}()
 
-	var readErr error
-
 	select {
-	case readErr = <-errchan:
-	case <-after:
-		readErr = ErrPortMappingFailure
+	case err := <-errchan:
+		return err
+	case <-time.After(1 * time.Second):
+		return fmt.Errorf("Timed out proxy starting the userland proxy")
 	}
-
-	return readErr
 }
 
 func (p *proxyCommand) Stop() error {
 	if p.cmd.Process != nil {
-		err := p.cmd.Process.Signal(os.Interrupt)
-		p.cmd.Wait()
-		return err
+		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
+			return err
+		}
+		return p.cmd.Wait()
 	}
-
 	return nil
 }
