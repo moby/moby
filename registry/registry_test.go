@@ -224,12 +224,20 @@ func TestValidRepositoryName(t *testing.T) {
 	if err := validateRepositoryName("docker/docker"); err != nil {
 		t.Fatal(err)
 	}
+	// Support 64-byte non-hexadecimal names (hexadecimal names are forbidden)
+	if err := validateRepositoryName("thisisthesongthatneverendsitgoesonandonandonthisisthesongthatnev"); err != nil {
+		t.Fatal(err)
+	}
 	if err := validateRepositoryName("docker/Docker"); err == nil {
 		t.Log("Repository name should be invalid")
 		t.Fail()
 	}
 	if err := validateRepositoryName("docker///docker"); err == nil {
 		t.Log("Repository name should be invalid")
+		t.Fail()
+	}
+	if err := validateRepositoryName("1a3f5e7d9c1b3a5f7e9d1c3b5a7f9e1d3c5b7a9f1e3d5d7c9b1a3f5e7d9c1b3a"); err == nil {
+		t.Log("Repository name should be invalid, 64-byte hexadecimal names forbidden")
 		t.Fail()
 	}
 }

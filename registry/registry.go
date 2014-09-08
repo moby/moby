@@ -23,6 +23,7 @@ var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	errLoginRequired         = errors.New("Authentication is required.")
+	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
 )
 
 type TimeoutType uint32
@@ -207,6 +208,10 @@ func validateRepositoryName(repositoryName string) error {
 	if len(nameParts) < 2 {
 		namespace = "library"
 		name = nameParts[0]
+
+		if validHex.MatchString(name) {
+			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
+		}
 	} else {
 		namespace = nameParts[0]
 		name = nameParts[1]
