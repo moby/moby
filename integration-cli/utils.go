@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func getExitCode(err error) (int, error) {
@@ -192,4 +194,21 @@ func compareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {
 		return fmt.Errorf("entries differ")
 	}
 	return nil
+}
+
+func ListTar(f io.Reader) ([]string, error) {
+	tr := tar.NewReader(f)
+	var entries []string
+
+	for {
+		th, err := tr.Next()
+		if err == io.EOF {
+			// end of tar archive
+			return entries, nil
+		}
+		if err != nil {
+			return entries, err
+		}
+		entries = append(entries, th.Name)
+	}
 }
