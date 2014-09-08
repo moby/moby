@@ -2,7 +2,7 @@ page_title: Guidelines for Official Repositories on Docker Hub
 page_description: Guidelines for Official Repositories on Docker Hub
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, official, image, documentation
 
-# Introduction
+## Introduction
 
 You’ve been given the job of creating an image for an Official Repository hosted on
 [Docker Hub Registry](https://registry.hub.docker.com/). These are Docker, Inc.’s
@@ -15,9 +15,9 @@ This document consists of three major sections:
 * Examples embodying those practices
 * Instructions for submitting contributions and reporting issues
 
-# Expected Files & Resources
+## Expected Files & Resources
 
-## A Git repository
+### A Git repository
 
 Your image needs to live in a Git repository, preferably on GitHub. (If you’d like to use
 a different provider, please [contact us](TODO: link) directly.) Docker **strongly**
@@ -27,7 +27,7 @@ If the repo is private or has otherwise limited access, you must provide a means
 least “read-only” access for both general users and for the docker-library maintainers,
 who need access for review and building purposes.
 
-## A `Dockerfile`
+### A `Dockerfile`
 
 Complete information on `Dockerfile`s can be found in the [Reference section](https://docs.docker.com/reference/builder/).
 We also have a page discussing best practices for writing `Dockerfile`s (TODO: link).
@@ -47,7 +47,7 @@ the non-`ONBUILD` image.
 * The `ONBUILD` image should be specifically tagged, for example, `ruby:latest` and
 `ruby:onbuild`, or `ruby:2` and  `ruby:2-onbuild`.
 
-## A short description
+### A short description
 
 Include a brief description of your image (in plaintext). Only one description is
 required; you don’t need additional descriptions for each tag. The file should also: 
@@ -56,7 +56,7 @@ required; you don’t need additional descriptions for each tag. The file should
 * Reside in the repo for the “latest” tag
 * Not exceed 200 characters.
 
-## A logo
+### A logo
 
 Include a logo of your company or the product (png format preferred). Only one logo is
 required; you don’t need additional logo files for each tag. The logo file should have
@@ -68,7 +68,7 @@ the following characteristics:
 * Square or wide (landscape) is preferred over tall (portrait), but exceptions can be
 made based on the logo needed.
 
-## A long description
+### A long description
 
 Include a comprehensive description of your image (in markdown format). Only one
 description is required; you don’t need additional descriptions for each tag. The file
@@ -86,49 +86,47 @@ In terms of content, the long description must include the following sections:
 * User Feedback
 * License
 
-### Overview & links
+
+#### Overview & links
 
 A section providing (a) an overview of the software contained in the image, similar to
 the introduction in a Wikipedia entry and (b) a selection of links to outside resources
 that help to describe the software.
 
-### How-to/usage
+This section *must* also include a link to the `Dockerfile`.
+
+#### How-to/usage
 
 A section that describes how to run and use the image, including common use cases and
 example `Dockerfile`s (if applicable). Try to provide clear, step-by-step instructions
 wherever possible.
 
-### User Feedback
-
-This section should have two parts, one explaining how users can contribute to the repo
-and one explaining how to report issues with the repo.
-
-#### Contributing
+##### Contributing
 
 In this part, point users to any resources that can help them contribute to the project.
 Include contribution guidelines and any specific instructions related to your development
 practices. Include a link to [Docker’s resources for contributors](https://docs.docker.com/contributing/contributing/).
 Be sure to include contact info, handles, etc. for official maintainers.
 
-#### Issues
+##### Issues
 
 Include a brief section letting users know where they can go for help and how they can
 file issues with the repo. Point them to any specific IRC channels, issue trackers,
 contacts, additional “how-to” information or other resources.
 
-## License
+### License
 
 Include a file, `LICENSE`, of any applicable license.  Docker recommends using the
 license of the software contained in the image, provided it allows Docker, Inc. to
 legally build and distribute the image.  Otherwise Docker recommends adopting the
 [Expat license]((http://directory.fsf.org/wiki/License:Expat).
 
-# Examples
+## Examples
 
 Below are sample short and long description files for an imaginary image containing
 Ruby on Rails.
 
-## Short description
+### Short description
 
      README-short.txt
     
@@ -136,7 +134,7 @@ Ruby on Rails.
     best practices such as convention over configuration, active record pattern, and the
     model-view-controller pattern.
 
-## Long description
+### Long description
 
     README.md
     
@@ -177,3 +175,4 @@ Ruby on Rails.
     
     Then go to `http://localhost:8080` or `http://host-ip:8080` in a browser.
 
+For more examples, take a look at these repos: <TODO links>
