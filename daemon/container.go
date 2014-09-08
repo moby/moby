@@ -50,9 +50,9 @@ type StreamConfig struct {
 }
 
 type Container struct {
-	*State
-	root   string // Path to the "home" of the container, including metadata.
-	basefs string // Path to the graphdriver mountpoint
+	*State `json:"State"` // Needed for remote api version <= 1.11
+	root   string         // Path to the "home" of the container, including metadata.
+	basefs string         // Path to the graphdriver mountpoint
 
 	ID string
 

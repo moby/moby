@@ -231,6 +231,35 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
+func sockRequest(method, endpoint string) ([]byte, error) {
+	// FIX: the path to sock should not be hardcoded
+	sock := filepath.Join("/", "var", "run", "docker.sock")
+	c, err := net.DialTimeout("unix", sock, time.Duration(10*time.Second))
+	if err != nil {
+		return nil, fmt.Errorf("could not dial docker sock at %s: %v", sock, err)
+	}
+
+	client := httputil.NewClientConn(c, nil)
+	defer client.Close()
+
+	req, err := http.NewRequest(method, endpoint, nil)
+	req.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		return nil, fmt.Errorf("could not create new request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not perform request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received status != 200 OK: %s", resp.Status)
+	}
+
+	return ioutil.ReadAll(resp.Body)
+}
+
 func deleteContainer(container string) error {
 	container = strings.Replace(container, "\n", " ", -1)
 	container = strings.Trim(container, " ")
