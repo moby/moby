@@ -43,7 +43,7 @@ func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
 		if len(hostParts) != 2 {
 			return "", fmt.Errorf("Invalid bind address format: %s", addr)
 		}
-		if hostParts[0] != "" {
+		if hostParts[0] != "" && hostParts[0] != "localhost" {
 			host = hostParts[0]
 		} else {
 			host = defaultHost
