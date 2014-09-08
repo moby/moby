@@ -487,7 +487,7 @@ file is empty.
     regular expression [a-z0-9_].
     - **password**: min 5 characters
 
-    **Valid**: return HTTP 200
+    **Valid**: return HTTP 201
 
 Errors: HTTP 400 (we should create error codes for possible errors) -
 invalid json - missing field - wrong format (username, password, email,
