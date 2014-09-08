@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -1845,4 +1846,22 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 	}
 	deleteAllContainers()
 	logDone("run - network must not be initialized in 'none' mode")
+}
+
+func TestRunPortInUse(t *testing.T) {
+	port := "1234"
+	l, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	cmd := exec.Command(dockerBinary, "run", "-p", port+":80", "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatalf("Host port %s already in use, has been allocated by docker: %q", port, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - port in use")
 }
