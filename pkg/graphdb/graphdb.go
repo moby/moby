@@ -240,7 +240,7 @@ func (db *Database) List(name string, depth int) Entities {
 		return out
 	}
 
-	children, err := db.children(e, name, depth, nil)
+	children, err := db.children(e, name, depth, nil, nil)
 	if err != nil {
 		return out
 	}
@@ -278,7 +278,7 @@ func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
 		return nil, err
 	}
 
-	return db.children(e, name, depth, nil)
+	return db.children(e, name, depth, nil, nil)
 }
 
 // Return the parents of a specified entity
@@ -431,10 +431,20 @@ type WalkMeta struct {
 	Edge     *Edge
 }
 
-func (db *Database) children(e *Entity, name string, depth int, entities []WalkMeta) ([]WalkMeta, error) {
+func (db *Database) children(e *Entity, name string, depth int, seen map[string]struct{}, entities []WalkMeta) ([]WalkMeta, error) {
 	if e == nil {
 		return entities, nil
 	}
+
+	if seen == nil {
+		seen = map[string]struct{}{}
+	}
+
+	if _, ok := seen[e.id]; ok {
+		return entities, nil
+	}
+
+	seen[e.id] = struct{}{}
 
 	rows, err := db.conn.Query("SELECT entity_id, name FROM edge where parent_id = ?;", e.id)
 	if err != nil {
@@ -447,6 +457,11 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 		if err := rows.Scan(&entityId, &entityName); err != nil {
 			return nil, err
 		}
+
+		if _, ok := seen[entityId]; ok {
+			continue
+		}
+
 		child := &Entity{entityId}
 		edge := &Edge{
 			ParentID: e.id,
@@ -468,7 +483,7 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 			if depth != -1 {
 				nDepth -= 1
 			}
-			entities, err = db.children(child, meta.FullPath, nDepth, entities)
+			entities, err = db.children(child, meta.FullPath, nDepth, seen, entities)
 			if err != nil {
 				return nil, err
 			}

@@ -617,3 +617,37 @@ func TestConcurrentWrites(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestCircularLink(t *testing.T) {
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	save := func(name string, id string) {
+		db.Set(fmt.Sprintf("/%s", name), id)
+	}
+
+	save("/one", "1")
+	save("/two", "2")
+	save("/one/two", "2")
+	save("/two/one", "1")
+
+	pathToChild := map[string]string{
+		"/one": "/one/two",
+		"/two": "/two/one",
+	}
+
+	for path, child := range pathToChild {
+		wms, err := db.Children(path, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(wms) != 1 {
+			t.Fatalf("Children did not equal 1: was %d", len(wms))
+		}
+
+		if wms[0].FullPath != child {
+			t.Fatalf("Failed to find child %s", child)
+		}
+	}
+}
