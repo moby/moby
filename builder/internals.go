@@ -266,6 +266,9 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 
 func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	remote, tag := parsers.ParseRepositoryTag(name)
+	if tag == "" {
+		tag = "latest"
+	}
 	pullRegistryAuth := b.AuthConfig
 	if len(b.AuthConfigFile.Configs) > 0 {
 		// The request came with a full auth config file, we prefer to use that

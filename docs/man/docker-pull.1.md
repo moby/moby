@@ -6,6 +6,7 @@ docker-pull - Pull an image or a repository from the registry
 
 # SYNOPSIS
 **docker pull**
+[**-a**|**--all-tags**[=*false*]]
 NAME[:TAG]
 
 # DESCRIPTION
@@ -16,7 +17,8 @@ images for that repository name are pulled down including any tags.
 It is also possible to specify a non-default registry to pull from.
 
 # OPTIONS
-There are no available options.
+**-a**, **--all-tags**=*true*|*false*
+   Download all tagged images in the repository. The default is *false*.
 
 # EXAMPLES
 
@@ -53,3 +55,4 @@ There are no available options.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

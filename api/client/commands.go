@@ -1192,7 +1192,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry")
-	tag := cmd.String([]string{"#t", "#-tag"}, "", "Download tagged image in a repository")
+	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1202,19 +1202,22 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return nil
 	}
 	var (
-		v      = url.Values{}
-		remote = cmd.Arg(0)
+		v         = url.Values{}
+		remote    = cmd.Arg(0)
+		newRemote = remote
 	)
-
-	v.Set("fromImage", remote)
-
-	if *tag == "" {
-		v.Set("tag", *tag)
+	taglessRemote, tag := parsers.ParseRepositoryTag(remote)
+	if tag == "" && !*allTags {
+		newRemote = taglessRemote + ":latest"
+	}
+	if tag != "" && *allTags {
+		return fmt.Errorf("tag can't be used with --all-tags/-a")
 	}
 
-	remote, _ = parsers.ParseRepositoryTag(remote)
+	v.Set("fromImage", newRemote)
+
 	// Resolve the Repository name from fqn to hostname + name
-	hostname, _, err := registry.ResolveRepositoryName(remote)
+	hostname, _, err := registry.ResolveRepositoryName(taglessRemote)
 	if err != nil {
 		return err
 	}
