@@ -152,7 +152,7 @@ Four different options affect container domain name services.
     `--link=` option is discussed in more detail below, in the section
     [Communication between containers](#between-containers). Because
     Docker may assign a different IP address to the linked containers
-    on restart, Docker updates the ALIAS entry in the /etc/hosts file
+    on restart, Docker updates the `ALIAS` entry in the `/etc/hosts` file
     of the recipient containers.
 
  *  `--dns=IP_ADDRESS...` — sets the IP addresses added as `server`
