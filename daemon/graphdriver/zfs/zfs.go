@@ -25,6 +25,7 @@ import (
 	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 )
 
@@ -56,6 +57,8 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		}
 	}
 
+	log.Debugf("Initializing zfs with zpool %s", options.zpoolname)
+
 	g_zfs := C.libzfs_init()
 	if g_zfs == nil {
 		return nil, fmt.Errorf("Could not init zfs")
@@ -85,15 +88,18 @@ type Driver struct {
 
 //
 func (d *Driver) String() string {
+	log.Debugf("d->String()")
 	return "zfs"
 }
 
 func (d *Driver) Cleanup() error {
+	log.Debugf("d->Cleanup()")
 	C.libzfs_fini(d.g_zfs)
 	return nil
 }
 
 func (d *Driver) Status() [][2]string {
+	log.Debugf("d->Status()")
 	return nil
 }
 
@@ -255,10 +261,12 @@ func volumeCloneFrom(zfs *C.libzfs_handle_t, id, parent, mountpoint string) erro
 }
 
 func (d *Driver) ZfsPath(id string) string {
+	log.Debugf("d->ZfsPath(%s)", id)
 	return d.options.zpoolname + "/" + id
 }
 
 func (d *Driver) Create(id string, parent string) error {
+	log.Debugf("d->Create(%s, %s)", id, parent)
 	mountpoint := path.Join(d.options.basepath, "graph", id)
 	if parent == "" {
 		return volumeCreate(d.g_zfs, d.ZfsPath(id), mountpoint)
@@ -329,6 +337,7 @@ func destroy_callback(zhp *C.zfs_handle_t, data unsafe.Pointer) C.int {
 }
 
 func (d *Driver) Remove(id string) error {
+	log.Debugf("d->Remove(%s)", id)
 	// execute:
 	//   zfs destroy -d id
 	// remove head, children will be removed once dereferenced
@@ -401,6 +410,7 @@ func zfs_read_mountpoint(zhp *C.zfs_handle_t) (string, error) {
 }
 
 func (d *Driver) Get(id, mountLabel string) (string, error) {
+	log.Debugf("d->Get(%s, %s)", id, mountLabel)
 	c_fullpath := C.CString(d.ZfsPath(id))
 	defer C.free(unsafe.Pointer(c_fullpath))
 
@@ -420,10 +430,12 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 }
 
 func (d *Driver) Put(id string) {
+	log.Debugf("d->Id(%s)", id)
 	// FS is already mounted
 }
 
 func (d *Driver) Exists(id string) bool {
+	log.Debugf("d->Exists(%s)", id)
 	c_fullpath := C.CString(d.ZfsPath(id))
 	defer C.free(unsafe.Pointer(c_fullpath))
 
