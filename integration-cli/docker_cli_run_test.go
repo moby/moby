@@ -1846,3 +1846,32 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 	deleteAllContainers()
 	logDone("run - network must not be initialized in 'none' mode")
 }
+
+func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSpace(out)
+	ip, err := inspectField(id, "NetworkSettings.IPAddress")
+	if err != nil {
+		t.Fatal(err)
+	}
+	iptCmd := exec.Command("iptables", "-D", "FORWARD", "-d", fmt.Sprintf("%s/32", ip),
+		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
+	out, _, err = runCommandWithOutput(iptCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if err := deleteContainer(id); err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	deleteAllContainers()
+	logDone("run - port should be deallocated even on iptables error")
+}
