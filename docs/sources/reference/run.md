@@ -345,7 +345,7 @@ or override the Dockerfile's exposed defaults:
     -P=false   : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port to the host (format:
                  ip:hostPort:containerPort | ip::containerPort |
-                 hostPort:containerPort)
+                 hostPort:containerPort | containerPort)
                  (use 'docker port' to see the actual mapping)
     --link=""  : Add link to another container (name:alias)
 

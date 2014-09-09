@@ -186,7 +186,7 @@ exposed ports, use **docker port**.
 
 **-p**, **--publish**=[]
    Publish a container's port to the host (format: ip:hostPort:containerPort |
-ip::containerPort | hostPort:containerPort) (use **docker port** to see the
+ip::containerPort | hostPort:containerPort | containerPort) (use **docker port** to see the
 actual mapping)
 
 **--privileged**=*true*|*false*
