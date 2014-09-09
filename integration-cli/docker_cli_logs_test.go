@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -244,4 +246,74 @@ func TestLogsFollowStopped(t *testing.T) {
 
 	deleteContainer(cleanedContainerID)
 	logDone("logs - logs follow stopped container")
+}
+
+func TestLogsFollowRetry(t *testing.T) {
+	msg := "follow_retry"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("echo %s", msg))
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+
+	// TODO: this should be replaced with waitForContainer
+	time.Sleep(500 * time.Millisecond)
+
+	logsCmd := exec.Command(dockerBinary, "logs", "-F", cleanedContainerID)
+	stdout, err := logsCmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderr, err := logsCmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := logsCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	w := make(chan struct{})
+	go func() {
+		s := bufio.NewScanner(stdout)
+		count := 0
+		for s.Scan() {
+			count++
+			if s.Text() != msg {
+				t.Fatalf("Log line should be %q, got %q", msg, s.Text())
+			}
+		}
+		if err := s.Err(); err != nil {
+			t.Fatal(err)
+		}
+		if count != 3 {
+			res, _ := ioutil.ReadAll(stderr)
+			t.Logf("%s", res)
+			t.Fatalf("Should be 3 lines in log, got %d", count)
+		}
+		if err := logsCmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+		close(w)
+	}()
+
+	if err := exec.Command(dockerBinary, "start", cleanedContainerID).Run(); err != nil {
+		t.Fatal(err)
+	}
+	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+	if err := exec.Command(dockerBinary, "start", cleanedContainerID).Run(); err != nil {
+		t.Fatal(err)
+	}
+	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+	if err := exec.Command(dockerBinary, "rm", cleanedContainerID).Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-w:
+	case <-time.After(5 * time.Second):
+		t.Fatal("logs -F didn't exit after container remove")
+	}
+
+	logDone("logs - follow-retry")
 }

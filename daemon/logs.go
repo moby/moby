@@ -22,14 +22,15 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 
 	var (
-		name   = job.Args[0]
-		stdout = job.GetenvBool("stdout")
-		stderr = job.GetenvBool("stderr")
-		tail   = job.Getenv("tail")
-		follow = job.GetenvBool("follow")
-		times  = job.GetenvBool("timestamps")
-		lines  = -1
-		format string
+		name         = job.Args[0]
+		stdout       = job.GetenvBool("stdout")
+		stderr       = job.GetenvBool("stderr")
+		tail         = job.Getenv("tail")
+		follow       = job.GetenvBool("follow")
+		follow_retry = job.GetenvBool("follow_retry")
+		times        = job.GetenvBool("timestamps")
+		lines        = -1
+		format       string
 	)
 	if !(stdout || stderr) {
 		return job.Errorf("You must choose at least one stream")
@@ -111,23 +112,33 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 			}
 		}
 	}
-	if follow && container.IsRunning() {
-		errors := make(chan error, 2)
-		if stdout {
-			stdoutPipe := container.StdoutLogPipe()
-			go func() {
-				errors <- jsonlog.WriteLog(stdoutPipe, job.Stdout, format)
-			}()
-		}
-		if stderr {
-			stderrPipe := container.StderrLogPipe()
-			go func() {
-				errors <- jsonlog.WriteLog(stderrPipe, job.Stderr, format)
-			}()
-		}
-		err := <-errors
-		if err != nil {
-			log.Errorf("%s", err)
+	if (follow && container.IsRunning()) || follow_retry {
+		var stdoutPipe, stderrPipe io.ReadCloser
+		for {
+			errors := make(chan error, 2)
+			if stdout {
+				stdoutPipe = container.StdoutLogPipe()
+				go func() {
+					errors <- jsonlog.WriteLog(stdoutPipe, job.Stdout, format)
+				}()
+			}
+			if stderr {
+				stderrPipe = container.StderrLogPipe()
+				go func() {
+					errors <- jsonlog.WriteLog(stderrPipe, job.Stderr, format)
+				}()
+			}
+			err := <-errors
+			if err != nil {
+				log.Errorf("%s", err)
+			}
+			if follow_retry && daemon.Get(name) != nil {
+				// container still exists, recreate pipes
+				stdoutPipe.Close()
+				stderrPipe.Close()
+				continue
+			}
+			break
 		}
 	}
 	return engine.StatusOK

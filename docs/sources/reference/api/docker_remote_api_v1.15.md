@@ -311,7 +311,7 @@ Get stdout and stderr logs from the container ``id``
 
     **Example request**:
 
-       GET /containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10 HTTP/1.1
+       GET /containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&follow_retry=1 HTTP/1.1
 
     **Example response**:
 
@@ -325,6 +325,8 @@ Get stdout and stderr logs from the container ``id``
      
 
     -   **follow** – 1/True/true or 0/False/false, return stream. Default false
+    -   **follow_retry** – 1/True/true or 0/False/false, return stream, which follows
+        until container destruction. Default false
     -   **stdout** – 1/True/true or 0/False/false, show stdout log. Default false
     -   **stderr** – 1/True/true or 0/False/false, show stderr log. Default false
     -   **timestamps** – 1/True/true or 0/False/false, print timestamps for

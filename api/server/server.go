@@ -382,6 +382,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		return err
 	}
 	logsJob.Setenv("follow", r.Form.Get("follow"))
+	logsJob.Setenv("follow_retry", r.Form.Get("follow_retry"))
 	logsJob.Setenv("tail", r.Form.Get("tail"))
 	logsJob.Setenv("stdout", r.Form.Get("stdout"))
 	logsJob.Setenv("stderr", r.Form.Get("stderr"))
