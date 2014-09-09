@@ -1,6 +1,6 @@
 page_title: Installation on CentOS
 page_description: Instructions for installing Docker on CentOS
-page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, docker.io, docker-io
+page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, docker.io, docker-io, SELinux, btrfs
 
 # CentOS
 
@@ -110,6 +110,20 @@ The CentOS Project provides a number of sample Dockerfiles which you may use
 either as templates or to familiarize yourself with docker. These templates
 are available on github at [https://github.com/CentOS/CentOS-Dockerfiles](
 https://github.com/CentOS/CentOS-Dockerfiles)
+
+## SELinux + btrfs
+
+Btrfs currently [doesn't support](https://bugzilla.redhat.com/show_bug.cgi?id=1128041) Docker when SELinux is in Enforce mode.
+
+You can view your filesystem types with:
+
+    $ df -T
+
+If you're using btrfs, you'll need to put SELinux in Permissive mode:
+
+    $ sudo setenforce 0
+    $ getenforce
+    Permissive
 
 **Done!** You can either continue with the [Docker User
 Guide](/userguide/) or explore and build on the images yourself.
