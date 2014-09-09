@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/reexec"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/namespaces"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/reexec"	
 )
 
 const commandName = "nsenter-exec"
@@ -59,7 +59,7 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 
 	args := append([]string{processConfig.Entrypoint}, processConfig.Arguments...)
 
-	return namespaces.ExecIn(active.container, state, args, os.Args[0], "exec", processConfig.Stdin, processConfig.Stdout, processConfig.Stderr, processConfig.Console, 
+	return namespaces.ExecIn(active.container, state, args, os.Args[0], "exec", processConfig.Stdin, processConfig.Stdout, processConfig.Stderr, processConfig.Console,
 		func(cmd *exec.Cmd) {
 			if startCallback != nil {
 				startCallback(&c.ProcessConfig, cmd.Process.Pid)

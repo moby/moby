@@ -407,7 +407,7 @@ func (b *Builder) run(c *daemon.Container) error {
 			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
 			// but without hijacking for stdin. Also, with attach there can be race
 			// condition because of some output already was printed before it.
-			return <-b.Daemon.Attach(c, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, nil, nil, b.OutStream, b.ErrStream)
+			return <-b.Daemon.Attach(&c.StreamConfig, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, nil, nil, b.OutStream, b.ErrStream)
 		})
 	}
 

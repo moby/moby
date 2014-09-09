@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/log"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/utils"
 )
 
@@ -103,7 +103,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 			cStderr = job.Stderr
 		}
 
-		<-daemon.Attach(container, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, cStdin, cStdinCloser, cStdout, cStderr)
+		<-daemon.Attach(&container.StreamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, cStdin, cStdinCloser, cStdout, cStderr)
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {
@@ -119,7 +119,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 // Attach and ContainerAttach.
 //
 // This method is in use by builder/builder.go.
-func (daemon *Daemon) Attach(container *Container, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
+func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdinCloser io.Closer, stdout io.Writer, stderr io.Writer) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		nJobs            int
@@ -130,7 +130,7 @@ func (daemon *Daemon) Attach(container *Container, openStdin, stdinOnce, tty boo
 	if stdin != nil && openStdin {
 		nJobs += 1
 		// Get the stdin pipe.
-		if cStdin, err := container.StdinPipe(); err != nil {
+		if cStdin, err := streamConfig.StdinPipe(); err != nil {
 			errors <- err
 		} else {
 			go func() {
@@ -168,7 +168,7 @@ func (daemon *Daemon) Attach(container *Container, openStdin, stdinOnce, tty boo
 	if stdout != nil {
 		nJobs += 1
 		// Get a reader end of a pipe that is attached as stdout to the container.
-		if p, err := container.StdoutPipe(); err != nil {
+		if p, err := streamConfig.StdoutPipe(); err != nil {
 			errors <- err
 		} else {
 			cStdout = p
@@ -198,7 +198,7 @@ func (daemon *Daemon) Attach(container *Container, openStdin, stdinOnce, tty boo
 			if stdinCloser != nil {
 				defer stdinCloser.Close()
 			}
-			if cStdout, err := container.StdoutPipe(); err != nil {
+			if cStdout, err := streamConfig.StdoutPipe(); err != nil {
 				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&ioutils.NopWriter{}, cStdout)
@@ -207,7 +207,7 @@ func (daemon *Daemon) Attach(container *Container, openStdin, stdinOnce, tty boo
 	}
 	if stderr != nil {
 		nJobs += 1
-		if p, err := container.StderrPipe(); err != nil {
+		if p, err := streamConfig.StderrPipe(); err != nil {
 			errors <- err
 		} else {
 			cStderr = p
@@ -240,7 +240,7 @@ func (daemon *Daemon) Attach(container *Container, openStdin, stdinOnce, tty boo
 				defer stdinCloser.Close()
 			}
 
-			if cStderr, err := container.StderrPipe(); err != nil {
+			if cStderr, err := streamConfig.StderrPipe(); err != nil {
 				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
 				io.Copy(&ioutils.NopWriter{}, cStderr)

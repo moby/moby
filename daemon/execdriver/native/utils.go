@@ -4,7 +4,7 @@ package native
 
 import (
 	"os"
-	
+
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/syncpipe"
 )
@@ -37,4 +37,3 @@ func loadConfigFromFd() (*libcontainer.Config, error) {
 
 	return config, nil
 }
-
