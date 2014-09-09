@@ -177,11 +177,11 @@ func (ts *TarSum) Sum(extra []byte) string {
 		h.Write(extra)
 	}
 	for _, sum := range sums {
-		log.Infof("-->%s<--", sum)
+		log.Debugf("-->%s<--", sum)
 		h.Write([]byte(sum))
 	}
 	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
-	log.Infof("checksum processed: %s", checksum)
+	log.Debugf("checksum processed: %s", checksum)
 	return checksum
 }
 
