@@ -4,23 +4,21 @@ page_keywords: API, Docker, index, REST, documentation, Docker Hub, registry
 
 # Docker Hub API
 
-## Introduction
-
 - This is the REST API for [Docker Hub](https://hub.docker.com).
 - Authorization is done with basic auth over SSL
 - Not all commands require authentication, only those noted as such.
 
-## Repository
+# Repositories
 
-### Repositories
+## User Repository
 
-#### User Repo
+### Create a user repository
 
 `PUT /v1/repositories/(namespace)/(repo_name)/`
 
 Create a user repository with the given `namespace` and `repo_name`.
 
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/repositories/foo/bar/ HTTP/1.1
         Host: index.docker.io
@@ -31,12 +29,12 @@ Create a user repository with the given `namespace` and `repo_name`.
 
         [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"}]
 
-    Parameters:
+Parameters:
 
-    - **namespace** – the namespace for the repo
-    - **repo_name** – the name for the repo
+- **namespace** – the namespace for the repo
+- **repo_name** – the name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200
         Vary: Accept
@@ -47,18 +45,20 @@ Create a user repository with the given `namespace` and `repo_name`.
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **200** – Created
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active
+- **200** – Created
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active
+
+### Delete a user repository
 
 `DELETE /v1/repositories/(namespace)/(repo_name)/`
 
 Delete a user repository with the given `namespace` and `repo_name`.
 
-    **Example Request**:
+**Example Request**:
 
         DELETE /v1/repositories/foo/bar/ HTTP/1.1
         Host: index.docker.io
@@ -69,12 +69,12 @@ Delete a user repository with the given `namespace` and `repo_name`.
 
         ""
 
-    Parameters:
+Parameters:
 
-    - **namespace** – the namespace for the repo
-    - **repo_name** – the name for the repo
+- **namespace** – the namespace for the repo
+- **repo_name** – the name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 202
         Vary: Accept
@@ -85,25 +85,27 @@ Delete a user repository with the given `namespace` and `repo_name`.
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **200** – Deleted
-    - **202** – Accepted
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active
+- **200** – Deleted
+- **202** – Accepted
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active
 
-#### Library Repo
+## Library Repository
+
+### Create a library repository
 
 `PUT /v1/repositories/(repo_name)/`
 
 Create a library repository with the given `repo_name`.
 This is a restricted feature only available to docker admins.
 
-    When namespace is missing, it is assumed to be `library`
+> When namespace is missing, it is assumed to be `library`
 
 
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/repositories/foobar/ HTTP/1.1
         Host: index.docker.io
@@ -114,11 +116,11 @@ This is a restricted feature only available to docker admins.
 
         [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"}]
 
-    Parameters:
+Parameters:
 
-    - **repo_name** – the library name for the repo
+- **repo_name** – the library name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200
         Vary: Accept
@@ -129,22 +131,24 @@ This is a restricted feature only available to docker admins.
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **200** – Created
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active
+- **200** – Created
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active
+
+### Delete a library repository
 
 `DELETE /v1/repositories/(repo_name)/`
 
 Delete a library repository with the given `repo_name`. 
 This is a restricted feature only available to docker admins.
 
-    When namespace is missing, it is assumed to be `library`
+> When namespace is missing, it is assumed to be `library`
 
 
-    **Example Request**:
+**Example Request**:
 
         DELETE /v1/repositories/foobar/ HTTP/1.1
         Host: index.docker.io
@@ -155,11 +159,11 @@ This is a restricted feature only available to docker admins.
 
         ""
 
-    Parameters:
+Parameters:
 
-    - **repo_name** – the library name for the repo
+- **repo_name** – the library name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 202
         Vary: Accept
@@ -170,23 +174,25 @@ This is a restricted feature only available to docker admins.
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **200** – Deleted
-    - **202** – Accepted
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active
+- **200** – Deleted
+- **202** – Accepted
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active
 
-### Repository Images
+# Repository Images
 
-#### User Repo Images
+## User Repository Images
+
+### Update user repository images
 
 `PUT /v1/repositories/(namespace)/(repo_name)/images`
 
 Update the images for a user repo.
 
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/repositories/foo/bar/images HTTP/1.1
         Host: index.docker.io
@@ -197,12 +203,12 @@ Update the images for a user repo.
         [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
         "checksum": "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"}]
 
-    Parameters:
+Parameters:
 
-    - **namespace** – the namespace for the repo
-    - **repo_name** – the name for the repo
+- **namespace** – the namespace for the repo
+- **repo_name** – the name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 204
         Vary: Accept
@@ -210,29 +216,31 @@ Update the images for a user repo.
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **204** – Created
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active or permission denied
+- **204** – Created
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active or permission denied
+
+### List user repository images
 
 `GET /v1/repositories/(namespace)/(repo_name)/images`
 
 Get the images for a user repo.
 
-    **Example Request**:
+**Example Request**:
 
         GET /v1/repositories/foo/bar/images HTTP/1.1
         Host: index.docker.io
         Accept: application/json
 
-    Parameters:
+Parameters:
 
-    - **namespace** – the namespace for the repo
-    - **repo_name** – the name for the repo
+- **namespace** – the namespace for the repo
+- **repo_name** – the name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200
         Vary: Accept
@@ -243,18 +251,20 @@ Get the images for a user repo.
         {"id": "ertwetewtwe38722009fe6857087b486531f9a779a0c1dfddgfgsdgdsgds",
         "checksum": "34t23f23fc17e3ed29dae8f12c4f9e89cc6f0bsdfgfsdgdsgdsgerwgew"}]
 
-    Status Codes:
+Status Codes:
 
-    - **200** – OK
-    - **404** – Not found
+- **200** – OK
+- **404** – Not found
 
-#### Library Repo Images
+## Library Repository Images
+
+### Update library repository images
 
 `PUT /v1/repositories/(repo_name)/images`
 
 Update the images for a library repo.
 
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/repositories/foobar/images HTTP/1.1
         Host: index.docker.io
@@ -265,11 +275,11 @@ Update the images for a library repo.
         [{"id": "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
         "checksum": "b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087"}]
 
-    Parameters:
+Parameters:
 
-    - **repo_name** – the library name for the repo
+- **repo_name** – the library name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 204
         Vary: Accept
@@ -277,28 +287,30 @@ Update the images for a library repo.
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **204** – Created
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active or permission denied
+- **204** – Created
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active or permission denied
+
+### List library repository images
 
 `GET /v1/repositories/(repo_name)/images`
 
 Get the images for a library repo.
 
-    **Example Request**:
+**Example Request**:
 
         GET /v1/repositories/foobar/images HTTP/1.1
         Host: index.docker.io
         Accept: application/json
 
-    Parameters:
+Parameters:
 
-    - **repo_name** – the library name for the repo
+- **repo_name** – the library name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200
         Vary: Accept
@@ -309,31 +321,33 @@ Get the images for a library repo.
         {"id": "ertwetewtwe38722009fe6857087b486531f9a779a0c1dfddgfgsdgdsgds",
         "checksum": "34t23f23fc17e3ed29dae8f12c4f9e89cc6f0bsdfgfsdgdsgdsgerwgew"}]
 
-    Status Codes:
+Status Codes:
 
-    - **200** – OK
-    - **404** – Not found
+- **200** – OK
+- **404** – Not found
 
-### Repository Authorization
+# Repository Authorization
 
-#### Library Repo
+## Library Repository
+
+### Authorize a toke for a library
 
 `PUT /v1/repositories/(repo_name)/auth`
 
 Authorize a token for a library repo
 
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/repositories/foobar/auth HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Authorization: Token signature=123abc,repository="library/foobar",access=write
 
-    Parameters:
+Parameters:
 
-    - **repo_name** – the library name for the repo
+- **repo_name** – the library name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200
         Vary: Accept
@@ -341,31 +355,33 @@ Authorize a token for a library repo
 
         "OK"
 
-    Status Codes:
+Status Codes:
 
-    - **200** – OK
-    - **403** – Permission denied
-    - **404** – Not found
+- **200** – OK
+- **403** – Permission denied
+- **404** – Not found
 
-#### User Repo
+## User Repository
+
+### Authorize a toke for a user repository
 
 `PUT /v1/repositories/(namespace)/(repo_name)/auth`
 
 Authorize a token for a user repo
 
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/repositories/foo/bar/auth HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Authorization: Token signature=123abc,repository="foo/bar",access=write
 
-    Parameters:
+Parameters:
 
-    - **namespace** – the namespace for the repo
-    - **repo_name** – the name for the repo
+- **namespace** – the namespace for the repo
+- **repo_name** – the name for the repo
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200
         Vary: Accept
@@ -373,28 +389,28 @@ Authorize a token for a user repo
 
         "OK"
 
-    Status Codes:
+Status Codes:
 
-    - **200** – OK
-    - **403** – Permission denied
-    - **404** – Not found
+- **200** – OK
+- **403** – Permission denied
+- **404** – Not found
 
-### Users
+## Users
 
-#### User Login
+### User Login
 
 `GET /v1/users`
 
 If you want to check your login, you can try this endpoint
 
-    **Example Request**:
+**Example Request**:
 
         GET /v1/users HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Authorization: Basic akmklmasadalkm==
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 200 OK
         Vary: Accept
@@ -402,19 +418,19 @@ If you want to check your login, you can try this endpoint
 
         OK
 
-    Status Codes:
+Status Codes:
 
-    - **200** – no error
-    - **401** – Unauthorized
-    - **403** – Account is not Active
+- **200** – no error
+- **401** – Unauthorized
+- **403** – Account is not Active
 
-#### User Register
+### User Register
 
 `POST /v1/users`
 
 Registering a new account.
 
-    **Example request**:
+**Example request**:
 
         POST /v1/users HTTP/1.1
         Host: index.docker.io
@@ -425,16 +441,14 @@ Registering a new account.
          "password": "toto42",
          "username": "foobar"}
 
-    Json Parameters:
+Json Parameters:
 
-     
-
-    - **email** – valid email address, that needs to be confirmed
-    - **username** – min 4 character, max 30 characters, must match
+- **email** – valid email address, that needs to be confirmed
+- **username** – min 4 character, max 30 characters, must match
         the regular expression [a-z0-9_].
-    - **password** – min 5 characters
+- **password** – min 5 characters
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 201 OK
         Vary: Accept
@@ -442,25 +456,24 @@ Registering a new account.
 
         "User Created"
 
-    Status Codes:
+Status Codes:
 
-    - **201** – User Created
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
+- **201** – User Created
+- **400** – Errors (invalid json, missing or invalid fields, etc)
 
-#### Update User
+### Update User
 
 `PUT /v1/users/(username)/`
 
 Change a password or email address for given user. If you pass in an
+email, it will add it to your account, it will not remove the old
+one. Passwords will be updated.
 
-    email, it will add it to your account, it will not remove the old
-    one. Passwords will be updated.
+It is up to the client to verify that that password that is sent is
+the one that they want. Common approach is to have them type it
+twice.
 
-    It is up to the client to verify that that password that is sent is
-    the one that they want. Common approach is to have them type it
-    twice.
-
-    **Example Request**:
+**Example Request**:
 
         PUT /v1/users/fakeuser/ HTTP/1.1
         Host: index.docker.io
@@ -471,11 +484,11 @@ Change a password or email address for given user. If you pass in an
         {"email": "sam@docker.com",
          "password": "toto42"}
 
-    Parameters:
+Parameters:
 
-    - **username** – username for the person you want to update
+- **username** – username for the person you want to update
 
-    **Example Response**:
+**Example Response**:
 
         HTTP/1.1 204
         Vary: Accept
@@ -483,19 +496,17 @@ Change a password or email address for given user. If you pass in an
 
         ""
 
-    Status Codes:
+Status Codes:
 
-    - **204** – User Updated
-    - **400** – Errors (invalid json, missing or invalid fields, etc)
-    - **401** – Unauthorized
-    - **403** – Account is not Active
-    - **404** – User not found
+- **204** – User Updated
+- **400** – Errors (invalid json, missing or invalid fields, etc)
+- **401** – Unauthorized
+- **403** – Account is not Active
+- **404** – User not found
 
 ## Search
 
 If you need to search the index, this is the endpoint you would use.
-
-### Search
 
 `GET /v1/search`
 
@@ -504,13 +515,13 @@ Search the Index given a search term. It accepts
     [GET](http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3)
     only.
 
-    **Example request**:
+**Example request**:
 
         GET /v1/search?q=search_term HTTP/1.1
         Host: example.com
         Accept: application/json
 
-    **Example response**:
+**Example response**:
 
         HTTP/1.1 200 OK
         Vary: Accept
@@ -525,11 +536,11 @@ Search the Index given a search term. It accepts
            ]
          }
 
-    Query Parameters:
+Query Parameters:
 
-    - **q** – what you want to search for
+- **q** – what you want to search for
 
-    Status Codes:
+Status Codes:
 
-    - **200** – no error
-    - **500** – server error
+- **200** – no error
+- **500** – server error
