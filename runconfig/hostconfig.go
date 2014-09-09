@@ -10,6 +10,11 @@ import (
 
 type NetworkMode string
 
+// IsPrivate indicates whether container use it's private network stack
+func (n NetworkMode) IsPrivate() bool {
+	return !(n.IsHost() || n.IsContainer() || n.IsNone())
+}
+
 func (n NetworkMode) IsHost() bool {
 	return n == "host"
 }
