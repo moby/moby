@@ -329,3 +329,9 @@ ol li {
 table.table tr td img {
     width:100%;
 }
+#versionnav ul {
+    list-style: none outside none;
+}
+#versionnav ul ul {
+    padding: 0;
+}
