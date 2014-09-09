@@ -2,6 +2,8 @@ page_title: Guidelines for Official Repositories on Docker Hub
 page_description: Guidelines for Official Repositories on Docker Hub
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, official, image, documentation
 
+# Guidelines for Creating and Documenting Official Repositories
+
 ## Introduction
 
 You’ve been given the job of creating an image for an Official Repository hosted on
