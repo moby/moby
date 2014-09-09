@@ -63,7 +63,7 @@ func TestPingLinkedContainers(t *testing.T) {
 	idA := stripTrailingCharacters(out)
 	out, _, _ = cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
 	idB := stripTrailingCharacters(out)
-	cmd(t, "run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
+	cmd(t, "run", "--rm", "--link", "container1", "--link", "container2", "busybox", "sh", "-c", "ping -c 1 container1 -W 1 && ping -c 1 container2 -W 1")
 	cmd(t, "kill", idA)
 	cmd(t, "kill", idB)
 	deleteAllContainers()
@@ -73,7 +73,7 @@ func TestPingLinkedContainers(t *testing.T) {
 
 func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	cmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
+	cmd(t, "run", "-d", "--name", "parent", "--link", "child", "busybox", "sleep", "10")
 
 	childIp := findContainerIp(t, "child")
 	parentIp := findContainerIp(t, "parent")
@@ -84,7 +84,7 @@ func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 		t.Fatal("Iptables rules not found")
 	}
 
-	cmd(t, "rm", "--link", "parent/http")
+	cmd(t, "rm", "--link", "child")
 	if iptables.Exists(sourceRule...) || iptables.Exists(destinationRule...) {
 		t.Fatal("Iptables rules should be removed when unlink")
 	}
@@ -97,15 +97,12 @@ func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 }
 
 func TestInspectLinksStarted(t *testing.T) {
-	var (
-		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
-		result   []string
-	)
+	var result map[string]string
 	defer deleteAllContainers()
 	cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sleep", "10")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
+	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1", "--link", "container2", "busybox", "sleep", "10")
+	links, err := inspectFieldJSON("testinspectlink", "LinkMap")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,26 +112,22 @@ func TestInspectLinksStarted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	output := convertSliceOfStringsToMap(result)
-
-	equal := deepEqual(expected, output)
-
-	if !equal {
-		t.Fatalf("Links %s, expected %s", result, expected)
+	for _, name := range []string{"container1", "container2"} {
+		if _, ok := result[name]; !ok {
+			t.Fatalf("Failed to find the link for %s", name)
+		}
 	}
+
 	logDone("link - links in started container inspect")
 }
 
 func TestInspectLinksStopped(t *testing.T) {
-	var (
-		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
-		result   []string
-	)
+	var result map[string]string
 	defer deleteAllContainers()
 	cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
+	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1", "--link", "container2", "busybox", "true")
+	links, err := inspectFieldJSON("testinspectlink", "LinkMap")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,12 +137,10 @@ func TestInspectLinksStopped(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	output := convertSliceOfStringsToMap(result)
-
-	equal := deepEqual(expected, output)
-
-	if !equal {
-		t.Fatalf("Links %s, but expected %s", result, expected)
+	for _, name := range []string{"container1", "container2"} {
+		if _, ok := result[name]; !ok {
+			t.Fatalf("Failed to find the link for %s", name)
+		}
 	}
 
 	logDone("link - links in stopped container inspect")

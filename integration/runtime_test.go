@@ -2,12 +2,14 @@ package docker
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"io"
 	std_log "log"
 	"net"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -19,7 +21,9 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/reexec"
@@ -63,6 +67,7 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 		container.Kill()
 		daemon.Destroy(container)
 	}
+
 	job := eng.Job("images")
 	images, err := job.Stdout.AddTable()
 	if err != nil {
@@ -684,14 +689,14 @@ func TestDefaultContainerName(t *testing.T) {
 	container := daemon.Get(createNamedTestContainer(eng, config, t, "some_name"))
 	containerID := container.ID
 
-	if container.Name != "/some_name" {
-		t.Fatalf("Expect /some_name got %s", container.Name)
+	if container.Name != "some_name" {
+		t.Fatalf("Expect some_name got %s", container.Name)
 	}
 
-	if c := daemon.Get("/some_name"); c == nil {
-		t.Fatalf("Couldn't retrieve test container as /some_name")
+	if c := daemon.Get("some_name"); c == nil {
+		t.Fatalf("Couldn't retrieve test container as some_name")
 	} else if c.ID != containerID {
-		t.Fatalf("Container /some_name has ID %s instead of %s", c.ID, containerID)
+		t.Fatalf("Container some_name has ID %s instead of %s", c.ID, containerID)
 	}
 }
 
@@ -754,14 +759,14 @@ func TestContainerNameValidation(t *testing.T) {
 
 		container := daemon.Get(engine.Tail(outputBuffer, 1))
 
-		if container.Name != "/"+test.Name {
-			t.Fatalf("Expect /%s got %s", test.Name, container.Name)
+		if container.Name != test.Name {
+			t.Fatalf("Expect %s got %s", test.Name, container.Name)
 		}
 
-		if c := daemon.Get("/" + test.Name); c == nil {
+		if c := daemon.Get(test.Name); c == nil {
 			t.Fatalf("Couldn't retrieve test container as /%s", test.Name)
 		} else if c.ID != container.ID {
-			t.Fatalf("Container /%s has ID %s instead of %s", test.Name, c.ID, container.ID)
+			t.Fatalf("Container %s has ID %s instead of %s", test.Name, c.ID, container.ID)
 		}
 	}
 
@@ -777,9 +782,9 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	container := daemon.Get(createNamedTestContainer(eng, config, t, "webapp"))
 
-	webapp, err := daemon.GetByName("/webapp")
+	webapp, err := daemon.GetByName("webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -793,24 +798,29 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	childContainer := daemon.Get(createTestContainer(eng, config, t))
+	childContainer := daemon.Get(createNamedTestContainer(eng, config, t, "db"))
+
+	linksObj, err := links.NewLinks(path.Join(daemon.Config().Root, "linkgraph.db"), daemon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	linksObj.Install(eng)
 
 	linksJob := eng.Job("create_link")
 	linksJob.Setenv("ParentName", webapp.Name)
 	linksJob.Setenv("ChildID", childContainer.ID)
-	linksJob.Setenv("Alias", "db")
 
 	if err := linksJob.Run(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Get the child by it's new name
-	db, err := daemon.GetByName("/webapp/db")
+	children, err := daemon.Children("webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if db.ID != childContainer.ID {
-		t.Fatalf("Expect db id to match container id: %s != %s", db.ID, childContainer.ID)
+	if _, ok := children["db"]; ok && children["db"].ID != childContainer.ID {
+		t.Fatalf("Expect db id to match container id: %s != %s", children["db"].ID, childContainer.ID)
 	}
 }
 
@@ -824,9 +834,9 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	container := daemon.Get(createNamedTestContainer(eng, config, t, "webapp"))
 
-	webapp, err := daemon.GetByName("/webapp")
+	webapp, err := daemon.GetByName("webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -840,18 +850,23 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	childContainer := daemon.Get(createTestContainer(eng, config, t))
+	childContainer := daemon.Get(createNamedTestContainer(eng, config, t, "db"))
+
+	linksObj, err := links.NewLinks(path.Join(daemon.Config().Root, "linkgraph.db"), daemon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	linksObj.Install(eng)
 
 	linksJob := eng.Job("create_link")
 	linksJob.Setenv("ParentName", webapp.Name)
 	linksJob.Setenv("ChildID", childContainer.ID)
-	linksJob.Setenv("Alias", "db")
 
 	if err := linksJob.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	children, err := daemon.Children("/webapp")
+	children, err := daemon.Children("webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -864,8 +879,8 @@ func TestGetAllChildren(t *testing.T) {
 	}
 
 	for key, value := range children {
-		if key != "/webapp/db" {
-			t.Fatalf("Expected /webapp/db got %s", key)
+		if key != "db" {
+			t.Fatalf("Expected db got %s", key)
 		}
 		if value.ID != childContainer.ID {
 			t.Fatalf("Expected id %s got %s", childContainer.ID, value.ID)
@@ -910,5 +925,61 @@ func TestDestroyWithInitLayer(t *testing.T) {
 	// Make sure that the init layer is removed from the driver
 	if _, err := driver.Get(fmt.Sprintf("%s-init", container.ID), ""); err == nil {
 		t.Fatal("Container's init layer should not exist in the driver")
+	}
+}
+
+func TestLinksMigrate(t *testing.T) {
+	daemon := mkDaemon(t)
+	defer nuke(daemon)
+
+	container1, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
+		Cmd:   []string{"ls", "-al"},
+	}, "container1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container2, _, err := daemon.Create(&runconfig.Config{
+		Image: GetTestImage(daemon).ID,
+		Cmd:   []string{"ls", "-al"},
+	}, "container2")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dbpath := path.Join(os.TempDir(), "sqlite.db")
+	conn, err := sql.Open("sqlite3", dbpath)
+	db, err := graphdb.NewDatabase(conn, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db.Set("/container1", container1.ID)
+	db.Set("/container2", container2.ID)
+	db.Set("/container1/container2", container2.ID)
+	db.Set("/container1/alias", container2.ID)
+
+	db.Close()
+
+	_, err = links.NewLinks(dbpath, daemon)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c1 := daemon.Get(container1.ID)
+
+	if len(c1.LinkMap) == 0 {
+		t.Fatal("LinkMap for parent container was empty")
+	}
+
+	id, ok := c1.LinkMap["container2"]
+
+	if !ok {
+		t.Fatal("LinkMap for container1 did not contain container2")
+	} else if id != container2.ID {
+		t.Fatal("Container ID for container2 diverged from linked ID")
 	}
 }

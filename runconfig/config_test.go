@@ -34,21 +34,18 @@ func compareRandomizedStrings(a, b, c, d string) error {
 }
 
 func TestParseRunLinks(t *testing.T) {
-	if _, hostConfig := mustParse(t, "--link a:b"); len(hostConfig.Links) == 0 || hostConfig.Links[0] != "a:b" {
-		t.Fatalf("Error parsing links. Expected []string{\"a:b\"}, received: %v", hostConfig.Links)
+	if _, hostConfig := mustParse(t, "--link a"); len(hostConfig.Links) == 0 || hostConfig.Links[0] != "a" {
+		t.Fatalf("Error parsing links. Expected []string{\"a\"}, received: %v", hostConfig.Links)
 	}
-	if _, hostConfig := mustParse(t, "--link a:b --link c:d"); len(hostConfig.Links) < 2 || hostConfig.Links[0] != "a:b" || hostConfig.Links[1] != "c:d" {
-		t.Fatalf("Error parsing links. Expected []string{\"a:b\", \"c:d\"}, received: %v", hostConfig.Links)
+	if _, hostConfig := mustParse(t, "--link a --link c"); len(hostConfig.Links) < 2 || hostConfig.Links[0] != "a" || hostConfig.Links[1] != "c" {
+		t.Fatalf("Error parsing links. Expected []string{\"a\", \"c\"}, received: %v", hostConfig.Links)
 	}
 	if _, hostConfig := mustParse(t, ""); len(hostConfig.Links) != 0 {
 		t.Fatalf("Error parsing links. No link expected, received: %v", hostConfig.Links)
 	}
 
-	if _, _, err := parse(t, "--link a"); err == nil {
-		t.Fatalf("Error parsing links. `--link a` should be an error but is not")
-	}
-	if _, _, err := parse(t, "--link"); err == nil {
-		t.Fatalf("Error parsing links. `--link` should be an error but is not")
+	if _, _, err := parse(t, "--link a:b"); err == nil {
+		t.Fatalf("Error parsing links. `--link a:b` should be an error but is not")
 	}
 }
 

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,13 +27,11 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/links"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
@@ -141,6 +140,7 @@ func (daemon *Daemon) Get(name string) *Container {
 	if id, err := daemon.idIndex.Get(name); err == nil {
 		return daemon.containers.Get(id)
 	}
+
 	if c, _ := daemon.GetByName(name); c != nil {
 		return c
 	}
@@ -260,7 +260,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 func (daemon *Daemon) ensureName(container *Container) error {
 	if container.Name == "" {
-		name, err := daemon.generateNewName(container.ID)
+		name, err := daemon.generateNewName()
 		if err != nil {
 			return err
 		}
@@ -279,52 +279,6 @@ func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, strea
 		return err
 	}
 	src.AddWriter(log, stream)
-	return nil
-}
-
-func (daemon *Daemon) createName(id, name string) error {
-	createJob := daemon.eng.Job("create_name")
-	createJob.Setenv("Name", name)
-	createJob.Setenv("ID", id)
-
-	if err := createJob.Run(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (daemon *Daemon) deleteName(name string) error {
-	deleteJob := daemon.eng.Job("delete_name")
-	deleteJob.Setenv("Name", name)
-
-	// Remove name and continue starting the container
-	if err := deleteJob.Run(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (daemon *Daemon) EachEntity(query string, queryFunc func(string, string) error) error {
-	job := daemon.eng.Job("list_entities")
-	job.Args = []string{query}
-	if err := job.Run(); err != nil {
-		return err
-	}
-
-	var entities map[string]string
-
-	if err := job.GetenvJson("Result", &entities); err != nil {
-		return err
-	}
-
-	for p, id := range entities {
-		if err := queryFunc(p, id); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -366,31 +320,14 @@ func (daemon *Daemon) restore() error {
 
 	registeredContainers := []*Container{}
 
-	daemon.EachEntity("/", func(p, id string) error {
-		if !debug {
-			fmt.Print(".")
-		}
-
-		if container, ok := containers[id]; ok {
-			if err := daemon.register(container, false); err != nil {
-				log.Debugf("Failed to register container %s: %s", container.ID, err)
-			}
-
-			registeredContainers = append(registeredContainers, container)
-
-			// delete from the map so that a new name is not automatically generated
-			delete(containers, id)
-		}
-
-		return nil
-	})
-
 	// Any containers that are left over do not exist in the graph
 	for _, container := range containers {
-		// Try to set the default name for a container if it exists prior to links
-		container.Name, err = daemon.generateNewName(container.ID)
-		if err != nil {
-			log.Debugf("Setting default id - %s", err)
+		if container.Name == "" {
+			// Try to set the default name for a container if it exists prior to links
+			container.Name, err = daemon.generateNewName()
+			if err != nil {
+				log.Debugf("Setting default id - %s", err)
+			}
 		}
 
 		if err := daemon.register(container, false); err != nil {
@@ -460,7 +397,7 @@ func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
 	)
 
 	if name == "" {
-		if name, err = daemon.generateNewName(id); err != nil {
+		if name, err = daemon.generateNewName(); err != nil {
 			return "", "", err
 		}
 		return id, name, nil
@@ -473,28 +410,31 @@ func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
 	return id, name, nil
 }
 
+func (daemon *Daemon) NameExists(name string) bool {
+	for _, container := range daemon.containers.List() {
+		if container.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	if !validContainerNamePattern.MatchString(name) {
 		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 	}
 
-	if name[0] != '/' {
-		name = "/" + name
-	}
-
-	if err := daemon.createName(id, name); err != nil {
-		if !links.IsDuplicateName(err) {
-			return "", err
-		}
-
+	if daemon.NameExists(name) {
 		conflictingContainer, err := daemon.GetByName(name)
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find entity") {
 				return "", err
 			}
 
-			// Remove name and continue starting the container
-			if err := daemon.deleteName(name); err != nil {
+			// Replace name and continue starting the container
+			conflictingContainer.Name, err = daemon.generateNewName()
+			if err != nil {
 				return "", err
 			}
 		} else {
@@ -507,28 +447,19 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	return name, nil
 }
 
-func (daemon *Daemon) generateNewName(id string) (string, error) {
+func (daemon *Daemon) generateNewName() (string, error) {
 	var name string
 	for i := 0; i < 6; i++ {
 		name = namesgenerator.GetRandomName(i)
-		if name[0] != '/' {
-			name = "/" + name
-		}
 
-		if err := daemon.createName(id, name); err != nil {
-			if !links.IsDuplicateName(err) {
-				return "", err
-			}
+		if daemon.NameExists(name) {
 			continue
 		}
+
 		return name, nil
 	}
 
-	name = "/" + utils.TruncateID(id)
-	if err := daemon.createName(id, name); err != nil {
-		return "", err
-	}
-	return name, nil
+	return "", errors.New("Could not generate a new name from random names list")
 }
 
 func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
@@ -616,83 +547,46 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 	return nil
 }
 
-func GetFullContainerName(name string) (string, error) {
-	if name == "" {
-		return "", fmt.Errorf("Container name cannot be empty")
-	}
-	if name[0] != '/' {
-		name = "/" + name
-	}
-	return name, nil
-}
-
 func (daemon *Daemon) GetByName(name string) (*Container, error) {
-	fullName, err := GetFullContainerName(name)
-	if err != nil {
-		return nil, err
+	for _, container := range daemon.containers.List() {
+		if container.Name == name {
+			return container, nil
+		}
 	}
 
-	getJob := daemon.eng.Job("get_name")
-	getJob.Setenv("Name", fullName)
-
-	if err := getJob.Run(); err != nil {
-		return nil, err
-	}
-
-	id := getJob.Getenv("Result")
-
-	e := daemon.containers.Get(id)
-	if e == nil {
-		return nil, fmt.Errorf("Could not find container for entity id %s", id)
-	}
-
-	return e, nil
+	return nil, fmt.Errorf("Could not find container for name %s", name)
 }
 
 func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
-	name, err := GetFullContainerName(name)
+	container, err := daemon.GetByName(name)
 	if err != nil {
 		return nil, err
 	}
 	children := make(map[string]*Container)
-
-	daemon.EachEntity(name, func(path, id string) error {
-		c := daemon.Get(id)
-		if c == nil {
-			return fmt.Errorf("Could not get container for name %s and id %s", id, path)
-		}
-		children[path] = c
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
+	for name, id := range container.LinkMap {
+		children[name] = daemon.Get(id)
 	}
+
 	return children, nil
 }
 
+// FIXME(erikh): This never returns an error
 func (daemon *Daemon) Parents(name string) ([]string, error) {
-	name, err := GetFullContainerName(name)
-	if err != nil {
-		return nil, err
-	}
-
-	job := daemon.eng.Job("list_parents", name)
-	if err := job.Run(); err != nil {
-		return nil, err
-	}
-
 	var parents []string
-	job.GetenvJson("Parents", &parents)
+
+	for _, container := range daemon.containers.List() {
+		if _, ok := container.LinkMap[name]; ok {
+			parents = append(parents, container.ID)
+		}
+	}
 
 	return parents, nil
 }
 
-func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error {
+func (daemon *Daemon) RegisterLink(parent, child *Container) error {
 	createJob := daemon.eng.Job("create_link")
 	createJob.Setenv("ParentName", parent.Name)
 	createJob.Setenv("ChildID", child.ID)
-	createJob.Setenv("Alias", alias)
 	if err := createJob.Run(); err != nil {
 		return err
 	}
@@ -703,27 +597,20 @@ func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
-			parts, err := parsers.PartParser("name:alias", l)
-			if err != nil {
-				return err
+			if strings.Contains(l, ":") {
+				return errors.New("Aliases are no longer valid in links. Please use a container name.")
 			}
-			child, err := daemon.GetByName(parts["name"])
+
+			child, err := daemon.GetByName(l)
 			if err != nil {
 				return err
 			}
 			if child == nil {
-				return fmt.Errorf("Could not get container for %s", parts["name"])
+				return fmt.Errorf("Could not get container for %s", l)
 			}
-			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
+			if err := daemon.RegisterLink(container, child); err != nil {
 				return err
 			}
-		}
-
-		// After we load all the links into the daemon
-		// set them to nil on the hostconfig
-		hostConfig.Links = nil
-		if err := container.WriteHostConfig(); err != nil {
-			return err
 		}
 	}
 	return nil
@@ -872,16 +759,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		}
 	}
 
-	graphdbPath := path.Join(config.Root, "linkgraph.db")
-	linksObj, err := links.NewLinks(graphdbPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := linksObj.Install(eng); err != nil {
-		return nil, err
-	}
-
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
@@ -947,11 +824,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		}
 		if err := daemon.driver.Cleanup(); err != nil {
 			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
-		}
-
-		linksJob := daemon.eng.Job("close_links_db")
-		if err := linksJob.Run(); err != nil {
-			log.Errorf("close_links_db: %s", err.Error())
 		}
 	})
 

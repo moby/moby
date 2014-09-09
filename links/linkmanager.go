@@ -1,93 +1,100 @@
 package links
 
 import (
-	"errors"
-	"fmt"
-	"path"
+	"os"
 
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/graphdb"
 )
 
 type Links struct {
-	containerGraph *graphdb.Database
+	daemon      *daemon.Daemon
+	activeLinks map[string]map[string]*Link
+	engine      *engine.Engine
 }
 
-var ErrDuplicateName = errors.New("Conflict: name already exists.")
-
-func IsDuplicateName(err error) bool {
-	return err.Error() == ErrDuplicateName.Error()
+func combineIP(parent, child string) string {
+	return parent + " " + child
 }
 
-func NewLinks(dbpath string) (*Links, error) {
-	containerGraph, err := graphdb.NewSqliteConn(dbpath)
-	if err != nil {
-		return nil, err
+func linksMigrate(d *daemon.Daemon, containerGraph *graphdb.Database) error {
+	found := map[string]*daemon.Container{}
+	containerGraph.Walk("/", func(p string, e *graphdb.Entity) error {
+		container := d.Get(e.ID())
+		if container != nil {
+			container.Name = p[1:]
+			found[container.Name] = container
+			container.ToDisk()
+		}
+		return nil
+	}, 0)
+
+	for name, container := range found {
+		children, err := containerGraph.Children("/"+name, 1)
+		if err != nil {
+			return err
+		}
+
+		for _, child := range children {
+			if childContainer, ok := found[child.Edge.Name]; ok {
+				if container.LinkMap == nil {
+					container.LinkMap = map[string]string{}
+				}
+				container.LinkMap[child.Edge.Name] = childContainer.ID
+			}
+		}
+
+		container.ToDisk()
 	}
 
-	return &Links{containerGraph}, nil
-}
-
-func (lm *Links) Close() error {
-	return lm.containerGraph.Close()
-}
-
-func (lm *Links) CreateName(name, id string) error {
-	_, err := lm.containerGraph.Set(name, id)
-
-	if err != nil && graphdb.IsNonUniqueNameError(err) {
-		return ErrDuplicateName
-	}
-
-	return err
-}
-
-func (lm *Links) CreateLink(parentPath, childId, alias string) error {
-	fullPath := path.Join(parentPath, alias)
-	if !lm.containerGraph.Exists(fullPath) {
-		_, err := lm.containerGraph.Set(fullPath, childId)
-		return err
-	}
 	return nil
 }
 
-func (lm *Links) Purge(name string) error {
-	_, err := lm.containerGraph.Purge(name)
+func NewLinks(dbpath string, d *daemon.Daemon) (*Links, error) {
+	if _, err := os.Stat(dbpath); err == nil {
+		containerGraph, err := graphdb.NewSqliteConn(dbpath)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := linksMigrate(d, containerGraph); err != nil {
+			containerGraph.Close()
+			return nil, err
+		} else {
+			containerGraph.Close()
+			os.Remove(dbpath) // remove the db now that we've successfully migrated it
+		}
+	}
+
+	return &Links{d, map[string]map[string]*Link{}, nil}, nil
+}
+
+func (lm *Links) CreateLink(name, id string) error {
+	parent, err := lm.daemon.GetByName(name)
+	if err != nil {
+		return err
+	}
+
+	child := lm.daemon.Get(id)
+
+	if child != nil {
+		if parent.LinkMap == nil {
+			parent.LinkMap = map[string]string{}
+		}
+		parent.LinkMap[child.Name] = id
+		parent.ToDisk()
+		return nil
+	}
+
 	return err
 }
 
 func (lm *Links) GetID(name string) (string, error) {
-	entity := lm.containerGraph.Get(name)
-
-	if entity == nil {
-		return "", fmt.Errorf("Could not find entity for %s", name)
+	container, err := lm.daemon.GetByName(name)
+	if err != nil {
+		return "", err
 	}
 
-	return entity.ID(), nil
-}
-
-func (lm *Links) Delete(name string) error {
-	return lm.containerGraph.Delete(name)
-}
-
-func (lm *Links) Parents(name string) ([]string, error) {
-	return lm.containerGraph.Parents(name)
-}
-
-func (lm *Links) Links() (map[string][]string, error) {
-	result := map[string][]string{}
-	entities := lm.containerGraph.List("/", -1)
-
-	if entities == nil {
-		return result, nil
-	}
-
-	for p, e := range entities {
-		if _, ok := result[p]; ok {
-			result[p] = append(result[p], e.ID())
-		} else {
-			result[p] = []string{e.ID()}
-		}
-	}
-
-	return result, nil
+	return container.ID, nil
 }

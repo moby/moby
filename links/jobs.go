@@ -4,67 +4,85 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 )
 
 func (lm *Links) Install(eng *engine.Engine) error {
+	lm.engine = eng
 	return eng.RegisterMap(map[string]engine.Handler{
-		"create_link":    lm.createLink,
-		"purge_link":     lm.purgeLink,
-		"parents_link":   lm.listLinks,
-		"create_name":    lm.createName,
-		"get_name":       lm.getName,
-		"delete_name":    lm.deleteName,
-		"list_entities":  lm.listEntities,
-		"list_parents":   lm.listParents,
-		"close_links_db": lm.closeDb,
+		"get_link_env": lm.getLinkEnv,
+		"enable_link":  lm.enableLink,
+		"disable_link": lm.disableLink,
+		"create_link":  lm.createLink,
+		"get_name":     lm.getName,
 	})
 }
 
-func (lm *Links) closeDb(job *engine.Job) engine.Status {
-	if err := lm.Close(); err != nil {
-		return job.Error(err)
-	}
-
-	return engine.StatusOK
-}
-
-func (lm *Links) listParents(job *engine.Job) engine.Status {
-	parents, err := lm.Parents(job.Args[0])
-	if err != nil {
-		return job.Error(err)
-	}
-
-	job.SetenvJson("Parents", parents)
-	return engine.StatusOK
-}
-
-func (lm *Links) listEntities(job *engine.Job) engine.Status {
+func (lm *Links) getLinkEnv(job *engine.Job) engine.Status {
 	var (
-		query    = job.Args[0]
-		entities = lm.containerGraph.List(query, -1)
-		result   = map[string]string{}
+		parentIP = job.Getenv("ParentIP")
+		childIP  = job.Getenv("ChildIP")
+		name     = job.Getenv("Name")
 	)
 
-	if entities == nil {
-		return job.Error(fmt.Errorf("No entities for query %s", query))
+	if _, ok := lm.activeLinks[name]; ok {
+		if link, ok := lm.activeLinks[name][combineIP(parentIP, childIP)]; ok {
+			env := link.ToEnv()
+			job.SetenvList("Result", env)
+			return engine.StatusOK
+		}
 	}
 
-	for _, p := range entities.Paths() {
-		result[p] = entities[p].ID()
-	}
-
-	job.SetenvJson("Result", result)
-
-	return engine.StatusOK
+	return job.Error(fmt.Errorf("Link %s, addrs %s not found", name, combineIP(parentIP, childIP)))
 }
 
-func (lm *Links) listLinks(job *engine.Job) engine.Status {
-	links, err := lm.Links()
+func (lm *Links) enableLink(job *engine.Job) engine.Status {
+	var (
+		parentIP = job.Getenv("ParentIP")
+		childIP  = job.Getenv("ChildIP")
+		name     = job.Getenv("Name")
+		env      = job.GetenvList("ChildEnvironment")
+		ports    = job.GetenvList("Ports")
+	)
+
+	portMap := map[nat.Port]struct{}{}
+
+	for _, port := range ports {
+		portMap[nat.Port(port)] = struct{}{}
+	}
+
+	link, err := NewLink(parentIP, childIP, name, env, portMap, lm.engine)
+
 	if err != nil {
 		return job.Error(err)
 	}
 
-	job.SetenvJson("Parents", links)
+	if lm.activeLinks[name] == nil {
+		lm.activeLinks[name] = map[string]*Link{}
+	}
+
+	lm.activeLinks[name][parentIP+" "+childIP] = link
+
+	if err := link.Enable(); err != nil {
+		return job.Error(err)
+	}
+
+	return engine.StatusOK
+}
+
+func (lm *Links) disableLink(job *engine.Job) engine.Status {
+	var (
+		parentIP = job.Getenv("ParentIP")
+		childIP  = job.Getenv("ChildIP")
+		name     = job.Getenv("Name")
+	)
+
+	if _, ok := lm.activeLinks[name]; ok {
+		if link, ok := lm.activeLinks[name][combineIP(parentIP, childIP)]; ok {
+			link.Disable()
+			delete(lm.activeLinks[name], combineIP(parentIP, childIP))
+		}
+	}
 
 	return engine.StatusOK
 }
@@ -73,33 +91,9 @@ func (lm *Links) createLink(job *engine.Job) engine.Status {
 	var (
 		parentName = job.Getenv("ParentName")
 		childId    = job.Getenv("ChildID")
-		alias      = job.Getenv("Alias")
 	)
 
-	if err := lm.CreateLink(parentName, childId, alias); err != nil {
-		return job.Error(err)
-	}
-
-	return engine.StatusOK
-}
-
-func (lm *Links) purgeLink(job *engine.Job) engine.Status {
-	name := job.Getenv("Name")
-
-	if err := lm.Purge(name); err != nil {
-		return job.Error(err)
-	}
-
-	return engine.StatusOK
-}
-
-func (lm *Links) createName(job *engine.Job) engine.Status {
-	var (
-		name = job.Getenv("Name")
-		id   = job.Getenv("ID")
-	)
-
-	if err := lm.CreateName(name, id); err != nil {
+	if err := lm.CreateLink(parentName, childId); err != nil {
 		return job.Error(err)
 	}
 
@@ -116,16 +110,6 @@ func (lm *Links) getName(job *engine.Job) engine.Status {
 	}
 
 	job.Setenv("Result", res)
-
-	return engine.StatusOK
-}
-
-func (lm *Links) deleteName(job *engine.Job) engine.Status {
-	name := job.Getenv("Name")
-
-	if err := lm.Delete(name); err != nil {
-		return job.Error(err)
-	}
 
 	return engine.StatusOK
 }

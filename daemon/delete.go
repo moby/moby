@@ -3,24 +3,12 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/log"
 )
-
-func (daemon *Daemon) RemoveLink(name string) error {
-	deleteJob := daemon.eng.Job("delete_name")
-	deleteJob.Setenv("Name", name)
-
-	if err := deleteJob.Run(); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
@@ -36,27 +24,19 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		if container == nil {
 			return job.Errorf("No such link: %s", name)
 		}
-		name, err := GetFullContainerName(name)
-		if err != nil {
-			return job.Error(err)
-		}
-		parent, n := path.Split(name)
-		if parent == "/" {
-			return job.Errorf("Conflict, cannot remove the default name of the container")
-		}
-
-		parentContainer, err := daemon.GetByName(parent)
+		parents, err := daemon.Parents(container.Name)
 		if err != nil {
 			return job.Error(err)
 		}
 
-		if parentContainer != nil {
-			parentContainer.DisableLink(n)
+		for _, id := range parents {
+			parentContainer := daemon.Get(id)
+
+			if parentContainer != nil {
+				parentContainer.DisableLink(container.Name)
+			}
 		}
 
-		if err := daemon.RemoveLink(name); err != nil {
-			return job.Error(err)
-		}
 		return engine.StatusOK
 	}
 
@@ -88,7 +68,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 			}
 
 			// populate bind map so that they can be skipped and not removed
-			for _, bind := range container.HostConfig().Binds {
+			for _, bind := range container.hostConfig.Binds {
 				source := strings.Split(bind, ":")[0]
 				// TODO: refactor all volume stuff, all of it
 				// it is very important that we eval the link or comparing the keys to container.Volumes will not work
@@ -160,13 +140,6 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	// Deregister the container before removing its directory, to avoid race conditions
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
-
-	purgeJob := daemon.eng.Job("purge_link")
-	purgeJob.Setenv("Name", container.ID)
-
-	if err := purgeJob.Run(); err != nil {
-		log.Debugf("Unable to remove container from link graph: %s", err)
-	}
 
 	if err := daemon.driver.Remove(container.ID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
