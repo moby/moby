@@ -1010,7 +1010,7 @@ removed before the image is removed.
                                    'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
       -P, --publish-all=false    Publish all exposed ports to the host interfaces
       -p, --publish=[]           Publish a container's port to the host
-                                   format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
+                                   format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
