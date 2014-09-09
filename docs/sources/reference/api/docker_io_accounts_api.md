@@ -4,43 +4,39 @@ page_keywords: API, Docker, accounts, REST, documentation
 
 # docker.io Accounts API
 
-## 1. Endpoints
-
-### 1.1 Get a single user
+## Get a single user
 
 `GET /api/v1.1/users/:username/`
 
 Get profile info for the specified user.
 
-    Parameters:
+Parameters:
 
-    -   **username** – username of the user whose profile info is being
+-   **username** – username of the user whose profile info is being
         requested.
 
-    Request Headers:
+Request Headers:
 
-     
-
-    -   **Authorization** – required authentication credentials of
+-   **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
 
-    Status Codes:
+Status Codes:
 
-    -   **200** – success, user data returned.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+-   **200** – success, user data returned.
+-   **401** – authentication error.
+-   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `profile_read` scope.
-    -   **404** – the specified username does not exist.
+-   **404** – the specified username does not exist.
 
-    **Example request**:
+**Example request**:
 
         GET /api/v1.1/users/janedoe/ HTTP/1.1
         Host: www.docker.io
         Accept: application/json
         Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
 
-    **Example response**:
+**Example response**:
 
         HTTP/1.1 200 OK
         Content-Type: application/json
@@ -60,48 +56,44 @@ Get profile info for the specified user.
             "is_active": true
         }
 
-### 1.2 Update a single user
+## Update a single user
 
 `PATCH /api/v1.1/users/:username/`
 
 Update profile info for the specified user.
 
-    Parameters:
+Parameters:
 
-    -   **username** – username of the user whose profile info is being
+-   **username** – username of the user whose profile info is being
         updated.
 
-    Json Parameters:
+Json Parameters:
 
-     
-
-    -   **full_name** (*string*) – (optional) the new name of the user.
-    -   **location** (*string*) – (optional) the new location.
-    -   **company** (*string*) – (optional) the new company of the user.
-    -   **profile_url** (*string*) – (optional) the new profile url.
-    -   **gravatar_email** (*string*) – (optional) the new Gravatar
+-   **full_name** (*string*) – (optional) the new name of the user.
+-   **location** (*string*) – (optional) the new location.
+-   **company** (*string*) – (optional) the new company of the user.
+-   **profile_url** (*string*) – (optional) the new profile url.
+-   **gravatar_email** (*string*) – (optional) the new Gravatar
         email address.
 
-    Request Headers:
+Request Headers:
 
-     
-
-    -   **Authorization** – required authentication credentials of
+-   **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+-   **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
-    Status Codes:
+Status Codes:
 
-    -   **200** – success, user data updated.
-    -   **400** – post data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+-   **200** – success, user data updated.
+-   **400** – post data validation error.
+-   **401** – authentication error.
+-   **403** – permission error, authenticated user must be the user
         whose data is being updated, OAuth access tokens must have
         `profile_write` scope.
-    -   **404** – the specified username does not exist.
+-   **404** – the specified username does not exist.
 
-    **Example request**:
+**Example request**:
 
         PATCH /api/v1.1/users/janedoe/ HTTP/1.1
         Host: www.docker.io
@@ -114,7 +106,7 @@ Update profile info for the specified user.
             "company": "Retired",
         }
 
-    **Example response**:
+**Example response**:
 
         HTTP/1.1 200 OK
         Content-Type: application/json
@@ -134,41 +126,39 @@ Update profile info for the specified user.
             "is_active": true
         }
 
-### 1.3 List email addresses for a user
+## List email addresses for a user
 
 `GET /api/v1.1/users/:username/emails/`
 
 List email info for the specified user.
 
-    Parameters:
+Parameters:
 
-    -   **username** – username of the user whose profile info is being
+-   **username** – username of the user whose profile info is being
         updated.
 
-    Request Headers:
+Request Headers:
 
-     
-
-    -   **Authorization** – required authentication credentials of
+-   **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token
 
-    Status Codes:
+Status Codes:
 
-    -   **200** – success, user data updated.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+-   **200** – success, user data updated.
+-   **401** – authentication error.
+-   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `email_read` scope.
-    -   **404** – the specified username does not exist.
+-   **404** – the specified username does not exist.
 
-    **Example request**:
+**Example request**:
 
         GET /api/v1.1/users/janedoe/emails/ HTTP/1.1
         Host: www.docker.io
         Accept: application/json
         Authorization: Bearer zAy0BxC1wDv2EuF3tGs4HrI6qJp6KoL7nM
 
-    **Example response**:
+**Example response**:
 
         HTTP/1.1 200 OK
         Content-Type: application/json
@@ -181,7 +171,7 @@ List email info for the specified user.
             }
         ]
 
-### 1.4 Add email address for a user
+## Add email address for a user
 
 `POST /api/v1.1/users/:username/emails/`
 
@@ -189,32 +179,28 @@ Add a new email address to the specified user's account. The email
 address must be verified separately, a confirmation email is not
 automatically sent.
 
-    Json Parameters:
+Json Parameters:
 
-     
+-   **email** (*string*) – email address to be added.
 
-    -   **email** (*string*) – email address to be added.
+Request Headers:
 
-    Request Headers:
-
-     
-
-    -   **Authorization** – required authentication credentials of
+-   **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+-   **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
-    Status Codes:
+Status Codes:
 
-    -   **201** – success, new email added.
-    -   **400** – data validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+-   **201** – success, new email added.
+-   **400** – data validation error.
+-   **401** – authentication error.
+-   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `email_write` scope.
-    -   **404** – the specified username does not exist.
+-   **404** – the specified username does not exist.
 
-    **Example request**:
+**Example request**:
 
         POST /api/v1.1/users/janedoe/emails/ HTTP/1.1
         Host: www.docker.io
@@ -226,7 +212,7 @@ automatically sent.
             "email": "jane.doe+other@example.com"
         }
 
-    **Example response**:
+**Example response**:
 
         HTTP/1.1 201 Created
         Content-Type: application/json
@@ -237,40 +223,36 @@ automatically sent.
             "primary": false
         }
 
-### 1.5 Delete email address for a user
+## Delete email address for a user
 
 `DELETE /api/v1.1/users/:username/emails/`
 
 Delete an email address from the specified user's account. You
 cannot delete a user's primary email address.
 
-    Json Parameters:
+Json Parameters:
 
-     
+-   **email** (*string*) – email address to be deleted.
 
-    -   **email** (*string*) – email address to be deleted.
+Request Headers:
 
-    Request Headers:
-
-     
-
-    -   **Authorization** – required authentication credentials of
+-   **Authorization** – required authentication credentials of
         either type HTTP Basic or OAuth Bearer Token.
-    -   **Content-Type** – MIME Type of post data. JSON, url-encoded
+-   **Content-Type** – MIME Type of post data. JSON, url-encoded
         form data, etc.
 
-    Status Codes:
+Status Codes:
 
-    -   **204** – success, email address removed.
-    -   **400** – validation error.
-    -   **401** – authentication error.
-    -   **403** – permission error, authenticated user must be the user
+-   **204** – success, email address removed.
+-   **400** – validation error.
+-   **401** – authentication error.
+-   **403** – permission error, authenticated user must be the user
         whose data is being requested, OAuth access tokens must have
         `email_write` scope.
-    -   **404** – the specified username or email address does not
+-   **404** – the specified username or email address does not
         exist.
 
-    **Example request**:
+**Example request**:
 
         DELETE /api/v1.1/users/janedoe/emails/ HTTP/1.1
         Host: www.docker.io
@@ -282,7 +264,7 @@ cannot delete a user's primary email address.
             "email": "jane.doe+other@example.com"
         }
 
-    **Example response**:
+**Example response**:
 
         HTTP/1.1 204 NO CONTENT
         Content-Length: 0
