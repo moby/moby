@@ -22,6 +22,7 @@ import (
 	"github.com/docker/libcontainer/cgroups/systemd"
 	consolepkg "github.com/docker/libcontainer/console"
 	"github.com/docker/libcontainer/namespaces"
+	_ "github.com/docker/libcontainer/namespaces/nsenter"
 	"github.com/docker/libcontainer/system"
 )
 

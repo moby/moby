@@ -37,6 +37,7 @@ func nsenterExec() {
 	}
 }
 
+// TODO(vishh): Add support for running in priviledged mode and running as a different user.
 func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	active := d.activeContainers[c.ID]
 	if active == nil {

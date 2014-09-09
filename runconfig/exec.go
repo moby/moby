@@ -15,7 +15,6 @@ type ExecConfig struct {
 	AttachStdout bool
 	Detach       bool
 	Cmd          []string
-	Hostname     string
 }
 
 func ExecConfigFromJob(job *engine.Job) *ExecConfig {
@@ -37,14 +36,11 @@ func ExecConfigFromJob(job *engine.Job) *ExecConfig {
 
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	var (
-		flPrivileged = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
-		flStdin      = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty        = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flHostname   = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
-		flUser       = cmd.String([]string{"u", "-user"}, "", "Username or UID")
-		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
-		execCmd      []string
-		container    string
+		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
+		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		execCmd   []string
+		container string
 	)
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
@@ -56,12 +52,13 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	}
 
 	execConfig := &ExecConfig{
-		User:       *flUser,
-		Privileged: *flPrivileged,
+		// TODO(vishh): Expose '-u' flag once it is supported.
+		User: "",
+		// TODO(vishh): Expose '-p' flag once it is supported.
+		Privileged: false,
 		Tty:        *flTty,
 		Cmd:        execCmd,
 		Container:  container,
-		Hostname:   *flHostname,
 		Detach:     *flDetach,
 	}
 
