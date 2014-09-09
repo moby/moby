@@ -18,6 +18,9 @@ func TestParseHost(t *testing.T) {
 	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "0.0.0.1:5555"); err != nil || addr != "tcp://0.0.0.1:5555" {
 		t.Errorf("0.0.0.1:5555 -> expected tcp://0.0.0.1:5555, got %s", addr)
 	}
+	if addr, err := ParseHost(defaultHttpHost, defaultUnix, "localhost:5000"); err != nil || addr != "tcp://127.0.0.1:5000" {
+		t.Errorf("localhost:5000 -> expected tcp://127.0.0.1:5000, got %s", addr)
+	}
 	if addr, err := ParseHost(defaultHttpHost, defaultUnix, ":6666"); err != nil || addr != "tcp://127.0.0.1:6666" {
 		t.Errorf(":6666 -> expected tcp://127.0.0.1:6666, got %s", addr)
 	}
