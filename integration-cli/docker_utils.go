@@ -647,3 +647,18 @@ func readFile(src string, t *testing.T) (content string) {
 	}
 	return string(data)
 }
+
+// execIn executes arbitrary command inside container
+func execIn(id string, args ...string) (string, error) {
+	// resolve possibly name
+	id, err := inspectField(id, "Id")
+	if err != nil {
+		return "", err
+	}
+	statePath := filepath.Join("/var/lib/docker/execdriver/native", id)
+	args = append([]string{"exec"}, args...)
+	cmd := exec.Command(nsinitBinary, args...)
+	cmd.Dir = statePath
+	out, _, err := runCommandWithOutput(cmd)
+	return out, err
+}

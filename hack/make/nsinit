@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+
+go get github.com/codegangsta/cli
+
+go build \
+	-o "$DEST/nsinit" \
+	"${BUILDFLAGS[@]}" \
+	-ldflags "
+		$LDFLAGS
+	" \
+	github.com/docker/libcontainer/nsinit
+echo "Created binary: $DEST/nsinit"

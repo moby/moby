@@ -46,6 +46,7 @@ DEFAULT_BUNDLES=(
 	validate-gofmt
 
 	binary
+	nsinit
 
 	test-unit
 	test-integration
