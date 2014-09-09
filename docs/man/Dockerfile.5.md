@@ -136,17 +136,16 @@ or
   file or directory relative to the source directory that is being built (the
   context of the build) or a remote file URL. If <src> is a a local tar archive
   in a recognized compression format (identity, gzip, bzip2 or xz), then it is
-  unpacked as a directory. `<dest>` is an absolute path, or
-  path relative to `WORKDIR` into which the source will be copied inside the
-  target container. All new files and directories are created with mode 0755,
-  with uid and gid 0.
+  unpacked as a directory. `<dest>` is an absolute path, or a path relative to
+  `WORKDIR`, into which the source will be copied inside the target container.
+  All new files and directories are created with mode 0755, with uid and gid 0.
 
 **COPY**
  --**COPY <src> <dest>** The COPY instruction copies new files from <src> and adds them
   to the filesystem of the container at path <dest>.  <src> must be the path to a
   file or directory relative to the source directory that is being built (the
-  context of the build) or a remote file URL. `<dest>` is an absolute path, or
-  path relative to `WORKDIR` into which the source will be copied inside the
+  context of the build) or a remote file URL. `<dest>` is an absolute path, or a
+  path relative to `WORKDIR`, into which the source will be copied inside the
   target container. All new files and directories are created with mode 0755,
   with uid and gid 0.
 
