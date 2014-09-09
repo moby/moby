@@ -60,7 +60,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 }
 
 // WaitRunning waits until state is running. If state already running it returns
-// immediatly. If you want wait forever you must supply negative timeout.
+// immediately. If you want wait forever you must supply negative timeout.
 // Returns pid, that was passed to SetRunning
 func (s *State) WaitRunning(timeout time.Duration) (int, error) {
 	s.Lock()
@@ -78,7 +78,7 @@ func (s *State) WaitRunning(timeout time.Duration) (int, error) {
 }
 
 // WaitStop waits until state is stopped. If state already stopped it returns
-// immediatly. If you want wait forever you must supply negative timeout.
+// immediately. If you want wait forever you must supply negative timeout.
 // Returns exit code, that was passed to SetStopped
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
