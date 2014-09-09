@@ -14,7 +14,7 @@ import (
 
 const (
 	PortSpecTemplate       = "ip:hostPort:containerPort"
-	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort"
+	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort"
 )
 
 type PortBinding struct {
