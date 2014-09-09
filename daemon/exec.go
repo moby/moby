@@ -92,6 +92,7 @@ func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 		attachErr = d.Attach(&execConfig.StreamConfig, config.AttachStdin, false, config.Tty, cStdin, cStdinCloser, cStdout, cStderr)
 	}()
 
+	log.Debugf("Exec Config is %+v\n", execConfig)
 	go func() {
 		err := container.Exec(execConfig)
 		if err != nil {

@@ -1025,6 +1025,65 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
+func postContainersExec(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return nil
+	}
+	var (
+		name = vars["name"]
+		job  = eng.Job("exec", name)
+	)
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
+	var errOut io.Writer = os.Stderr
+
+	if !job.GetenvBool("Detach") {
+		// Setting up the streaming http interface.
+		inStream, outStream, err := hijackServer(w)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			if tcpc, ok := inStream.(*net.TCPConn); ok {
+				tcpc.CloseWrite()
+			} else {
+				inStream.Close()
+			}
+		}()
+		defer func() {
+			if tcpc, ok := outStream.(*net.TCPConn); ok {
+				tcpc.CloseWrite()
+			} else if closer, ok := outStream.(io.Closer); ok {
+				closer.Close()
+			}
+		}()
+
+		var errStream io.Writer
+
+		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+		if !job.GetenvBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
+			errStream = utils.NewStdWriter(outStream, utils.Stderr)
+			outStream = utils.NewStdWriter(outStream, utils.Stdout)
+		} else {
+			errStream = outStream
+		}
+		job.Stdin.Add(inStream)
+		job.Stdout.Add(outStream)
+		job.Stderr.Set(errStream)
+		errOut = outStream
+	}
+	// Now run the user process in container.
+	if err := job.Run(); err != nil {
+		fmt.Fprintf(errOut, "Error running in container %s: %s\n", name, err)
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1147,6 +1206,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/containers/{name:.*}/exec":    postContainersExec,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

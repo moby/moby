@@ -40,24 +40,31 @@ func (cli *DockerCli) HTTPClient() *http.Client {
 	return &http.Client{Transport: tr}
 }
 
-func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {
+func (cli *DockerCli) getUrlBody(data interface{}) (*bytes.Buffer, error) {
 	params := bytes.NewBuffer(nil)
 	if data != nil {
 		if env, ok := data.(engine.Env); ok {
 			if err := env.Encode(params); err != nil {
-				return nil, -1, err
+				return nil, err
 			}
 		} else {
 			buf, err := json.Marshal(data)
 			if err != nil {
-				return nil, -1, err
+				return nil, err
 			}
 			if _, err := params.Write(buf); err != nil {
-				return nil, -1, err
+				return nil, err
 			}
 		}
 	}
+	return params, nil
+}
 
+func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {
+	params, err := cli.getUrlBody(data)
+	if err != nil {
+		return nil, -1, err
+	}
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err

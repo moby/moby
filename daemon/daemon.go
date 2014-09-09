@@ -122,6 +122,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
 		"image_delete":      daemon.ImageDelete, // FIXME: see above
+		"exec":              daemon.ContainerExec,
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err
