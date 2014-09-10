@@ -2003,8 +2003,7 @@ func (cli *DockerCli) pullImage(image string) error {
 }
 
 func (cli *DockerCli) CmdRun(args ...string) error {
-	// FIXME: just use runconfig.Parse already
-	config, hostConfig, cmd, err := runconfig.ParseSubcommand(cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", "Run a command in a new container"), args, nil)
+	config, hostConfig, cmd, err := runconfig.Parse(cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", "Run a command in a new container"), args, nil)
 	if err != nil {
 		return err
 	}
