@@ -16,16 +16,18 @@ import (
 )
 
 type DockerCli struct {
-	proto      string
-	addr       string
-	configFile *registry.ConfigFile
-	in         io.ReadCloser
-	out        io.Writer
-	err        io.Writer
-	isTerminal bool
-	terminalFd uintptr
-	tlsConfig  *tls.Config
-	scheme     string
+	proto         string
+	addr          string
+	configFile    *registry.ConfigFile
+	in            io.ReadCloser
+	out           io.Writer
+	err           io.Writer
+	isTerminal    bool
+	isTerminalOut bool
+	terminalFd    uintptr
+	terminalFdOut uintptr
+	tlsConfig     *tls.Config
+	scheme        string
 }
 
 var funcMap = template.FuncMap{
@@ -84,9 +86,11 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsConfig *tls.Config) *DockerCli {
 	var (
-		isTerminal = false
-		terminalFd uintptr
-		scheme     = "http"
+		isTerminal    = false
+		isTerminalOut = false
+		terminalFd    uintptr
+		terminalFdOut uintptr
+		scheme        = "http"
 	)
 
 	if tlsConfig != nil {
@@ -100,18 +104,28 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 		}
 	}
 
+	if out != nil {
+		if file, ok := out.(*os.File); ok {
+			terminalFdOut = file.Fd()
+			isTerminalOut = term.IsTerminal(terminalFdOut)
+		}
+	}
+
 	if err == nil {
 		err = out
 	}
+
 	return &DockerCli{
-		proto:      proto,
-		addr:       addr,
-		in:         in,
-		out:        out,
-		err:        err,
-		isTerminal: isTerminal,
-		terminalFd: terminalFd,
-		tlsConfig:  tlsConfig,
-		scheme:     scheme,
+		proto:         proto,
+		addr:          addr,
+		in:            in,
+		out:           out,
+		err:           err,
+		isTerminal:    isTerminal,
+		isTerminalOut: isTerminalOut,
+		terminalFd:    terminalFd,
+		terminalFdOut: terminalFdOut,
+		tlsConfig:     tlsConfig,
+		scheme:        scheme,
 	}
 }
