@@ -1916,3 +1916,78 @@ func TestRunPortInUse(t *testing.T) {
 	deleteAllContainers()
 	logDone("run - fail if port already in use")
 }
+
+// "test" should be printed by docker exec
+func TestDockerExec(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, out)
+
+	execCmd := exec.Command(dockerBinary, "exec", "testing", "cat", "/tmp/file")
+
+	out, _, err = runCommandWithOutput(execCmd)
+	errorOut(err, t, out)
+
+	out = strings.Trim(out, "\r\n")
+
+	if expected := "test"; out != expected {
+		t.Errorf("container exec should've printed %q but printed %q", expected, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("exec - basic test")
+}
+
+// "test" should be printed by docker exec
+func TestDockerExecInteractive(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, out)
+
+	execCmd := exec.Command(dockerBinary, "exec", "-i", "testing", "sh")
+	stdin, err := execCmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := execCmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := execCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stdin.Write([]byte("cat /tmp/file\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	r := bufio.NewReader(stdout)
+	line, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	line = strings.TrimSpace(line)
+	if line != "test" {
+		t.Fatalf("Output should be 'test', got '%q'", line)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
+	finish := make(chan struct{})
+	go func() {
+		if err := execCmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+		close(finish)
+	}()
+	select {
+	case <-finish:
+	case <-time.After(1 * time.Second):
+		t.Fatal("docker exec failed to exit on stdin close")
+	}
+
+	deleteAllContainers()
+
+	logDone("exec - Interactive test")
+}
