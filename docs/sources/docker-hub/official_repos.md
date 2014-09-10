@@ -41,7 +41,7 @@ Official Image.
 document](TODO: link). In addition, Docker, Inc. engineer Michael Crosby has a good
 discussion of Dockerfiles in this [blog post](http://crosbymichael.com/dockerfile-best-practices-take-2.html).
 
-While `[ONBUILD triggers]`(https://docs.docker.com/reference/builder/#onbuild) are not
+While [`ONBUILD` triggers](https://docs.docker.com/reference/builder/#onbuild) are not
 required, if you choose to use them you should:
 
 * Build both `ONBUILD` and non-`ONBUILD` images, with the `ONBUILD` image built `FROM`
@@ -119,7 +119,7 @@ contacts, additional “how-to” information or other resources.
 Include a file, `LICENSE`, of any applicable license.  Docker recommends using the
 license of the software contained in the image, provided it allows Docker, Inc. to
 legally build and distribute the image.  Otherwise Docker recommends adopting the
-[Expat license]((http://directory.fsf.org/wiki/License:Expat).
+[Expat license](http://directory.fsf.org/wiki/License:Expat).
 
 ## Examples
 
@@ -128,51 +128,41 @@ Ruby on Rails.
 
 ### Short description
 
-     README-short.txt
-    
-    Ruby on Rails is an open-source application framework written in Ruby. It emphasizes
-    best practices such as convention over configuration, active record pattern, and the
-    model-view-controller pattern.
+`README-short.txt`
+
+`Ruby on Rails is an open-source application framework written in Ruby. It emphasizes best practices such as convention over configuration, active record pattern, and the model-view-controller pattern.`
 
 ### Long description
 
-    README.md
-    
-    # What is Ruby on Rails
-    
-     Ruby on Rails, often simply referred to as Rails, is an open source web application
-    framework which runs via the Ruby programming language. It is a full-stack framework:
-    it allows creating pages and applications that gather information from the web server,
-    talk to or query the database, and render templates out of the box. As a result, Rails
-    features a routing system that is independent of the web server.
-    
-     [wikipedia.org/wiki/Ruby_on_Rails](https://en.wikipedia.org/wiki/Ruby_on_Rails)
-    
-    **How to use this image**
-    
-    1. create a `Dockerfile` in your rails app project
-    
-    FROM rails:onbuild
-    
-    Put this file in the root of your app, next to the `Gemfile`.
+`README.md`
 
-    This image includes multiple `ONBUILD` triggers so that should be all that you need
-    for most applications. The build will `ADD . /usr/src/app`, `RUN bundle install`,
-    `EXPOSE 3000`, and set the default command to `rails server`.
-    
-    2. build the rails app image
-    
+```markdown
+# What is Ruby on Rails
+
+Ruby on Rails, often simply referred to as Rails, is an open source web application framework which runs via the Ruby programming language. It is a full-stack framework: it allows creating pages and applications that gather information from the web server, talk to or query the database, and render templates out of the box. As a result, Rails features a routing system that is independent of the web server.
+
+> [wikipedia.org/wiki/Ruby_on_Rails](https://en.wikipedia.org/wiki/Ruby_on_Rails)
+
+# How to use this image
+
+## Create a `Dockerfile` in your rails app project
+
+    FROM rails:onbuild
+
+Put this file in the root of your app, next to the `Gemfile`.
+
+This image includes multiple `ONBUILD` triggers so that should be all that you need for most applications. The build will `ADD . /usr/src/app`, `RUN bundle install`, `EXPOSE 3000`, and set the default command to `rails server`.
+
+Then build and run the docker image.
+
     docker build -t my-rails-app .
-    
-    3. start the rails app container
-    
     docker run --name some-rails-app -d my-rails-app
-    
-     Then go to `http://container-ip:3000` in a browser. On the other hand, if you need access
-     outside the host on port 8080:
-    
+
+Test it by visiting `http://container-ip:3000` in a browser. On the other hand, if you need access outside the host on port 8080:
+
     docker run --name some-rails-app -p 8080:3000 -d my-rails-app
-    
-    Then go to `http://localhost:8080` or `http://host-ip:8080` in a browser.
+
+Then hit `http://localhost:8080` or `http://host-ip:8080` in a browser.
+```
 
 For more examples, take a look at these repos: <TODO links>
