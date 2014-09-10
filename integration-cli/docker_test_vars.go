@@ -15,6 +15,8 @@ var registryImageName = "registry"
 // the private registry to use for tests
 var privateRegistryURL = "127.0.0.1:5000"
 
+var execDriverPath = "/var/lib/docker/execdriver/native"
+
 var workingDirectory string
 
 func init() {

@@ -2062,3 +2062,103 @@ func TestRunMountOrdering(t *testing.T) {
 	deleteAllContainers()
 	logDone("run - volumes are mounted in the correct order")
 }
+
+func TestRunExecDir(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	execDir := filepath.Join(execDriverPath, id)
+	stateFile := filepath.Join(execDir, "state.json")
+	contFile := filepath.Join(execDir, "container.json")
+
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fi, err = os.Stat(contFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stopCmd := exec.Command(dockerBinary, "stop", id)
+	out, _, err = runCommandWithOutput(stopCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err == nil {
+			t.Fatalf("Statefile %q is exists for stopped container!", stateFile)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+		fi, err = os.Stat(contFile)
+		if err == nil {
+			t.Fatalf("Container file %q is exists for stopped container!", contFile)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+	}
+	startCmd := exec.Command(dockerBinary, "start", id)
+	out, _, err = runCommandWithOutput(startCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fi, err = os.Stat(contFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rmCmd := exec.Command(dockerBinary, "rm", "-f", id)
+	out, _, err = runCommandWithOutput(rmCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		_, err := os.Stat(execDir)
+		if err == nil {
+			t.Fatal(err)
+		}
+		if err == nil {
+			t.Fatalf("Exec directory %q is exists for removed container!", execDir)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+	}
+
+	logDone("run - check execdriver dir behavior")
+}
