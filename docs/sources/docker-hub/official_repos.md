@@ -87,7 +87,6 @@ In terms of content, the long description must include the following sections:
 * How-to/Usage
 * User Feedback
 
-
 #### Overview & links
 
 A section providing (a) an overview of the software contained in the image, similar to
