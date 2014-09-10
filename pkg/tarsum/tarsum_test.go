@@ -18,13 +18,20 @@ type testLayer struct {
 	jsonfile string
 	gzip     bool
 	tarsum   string
+	version  Version
 }
 
 var testLayers = []testLayer{
 	{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
+		version:  Version0,
 		tarsum:   "tarsum+sha256:e58fcf7418d4390dec8e8fb69d88c06ec07039d651fedd3aa72af9972e7d046b"},
+	{
+		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
+		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
+		version:  VersionDev,
+		tarsum:   "tarsum.dev+sha256:486b86e25c4db4551228154848bc4663b15dd95784b1588980f4ba1cb42e83e9"},
 	{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
@@ -118,7 +125,11 @@ func TestTarSums(t *testing.T) {
 		}
 
 		//                                  double negatives!
-		ts := &TarSum{Reader: fh, DisableCompression: !layer.gzip}
+		ts, err := NewTarSum(fh, !layer.gzip, layer.version)
+		if err != nil {
+			t.Errorf("%q :: %q", err, layer.filename)
+			continue
+		}
 		_, err = io.Copy(ioutil.Discard, ts)
 		if err != nil {
 			t.Errorf("failed to copy from %s: %s", layer.filename, err)
@@ -160,7 +171,11 @@ func Benchmark9kTar(b *testing.B) {
 	b.SetBytes(n)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ts := &TarSum{Reader: buf, DisableCompression: true}
+		ts, err := NewTarSum(buf, true, Version0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
 		io.Copy(ioutil.Discard, ts)
 		ts.Sum(nil)
 	}
@@ -179,7 +194,11 @@ func Benchmark9kTarGzip(b *testing.B) {
 	b.SetBytes(n)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ts := &TarSum{Reader: buf, DisableCompression: false}
+		ts, err := NewTarSum(buf, false, Version0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
 		io.Copy(ioutil.Discard, ts)
 		ts.Sum(nil)
 	}
@@ -217,7 +236,11 @@ func benchmarkTar(b *testing.B, opts sizedOptions, isGzip bool) {
 	b.SetBytes(opts.size * opts.num)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ts := &TarSum{Reader: fh, DisableCompression: !isGzip}
+		ts, err := NewTarSum(fh, !isGzip, Version0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
 		io.Copy(ioutil.Discard, ts)
 		ts.Sum(nil)
 		fh.Seek(0, 0)

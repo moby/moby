@@ -407,7 +407,10 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 
 	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
-	tarsumLayer := &tarsum.TarSum{Reader: layer}
+	tarsumLayer, err := tarsum.NewTarSum(layer, false, tarsum.Version0)
+	if err != nil {
+		return "", "", err
+	}
 	h := sha256.New()
 	h.Write(jsonRaw)
 	h.Write([]byte{'\n'})
