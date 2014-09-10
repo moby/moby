@@ -100,7 +100,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return nil
 	}
 	if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(time.RFC3339Nano))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)

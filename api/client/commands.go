@@ -1687,7 +1687,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		loc = time.FixedZone(time.Now().Zone())
 	)
 	var setTime = func(key, value string) {
-		format := time.RFC3339Nano
+		format := utils.RFC3339NanoFixed
 		if len(value) < len(format) {
 			format = format[:len(value)]
 		}
