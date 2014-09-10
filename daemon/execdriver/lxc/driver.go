@@ -457,6 +457,11 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	return ioutil.WriteFile(p, data, 0600)
 }
 
+// Clean not implemented for lxc
+func (d *driver) Clean(id string) error {
+	return nil
+}
+
 type TtyConsole struct {
 	MasterPty *os.File
 	SlavePty  *os.File
