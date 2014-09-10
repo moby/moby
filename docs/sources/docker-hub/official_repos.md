@@ -86,8 +86,6 @@ In terms of content, the long description must include the following sections:
 * Overview & Links
 * How-to/Usage
 * User Feedback
-* License
-
 
 #### Overview & links
 
