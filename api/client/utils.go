@@ -168,7 +168,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	}
 
 	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") || api.MatchesContentType(resp.Header.Get("Content-Type"), "application/x-json-stream") {
-		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.terminalFd, cli.isTerminal)
+		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.outFd, cli.isTerminalOut)
 	}
 	if stdout != nil || stderr != nil {
 		// When TTY is ON, use regular copy
@@ -252,10 +252,10 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 }
 
 func (cli *DockerCli) getTtySize() (int, int) {
-	if !cli.isTerminal {
+	if !cli.isTerminalOut {
 		return 0, 0
 	}
-	ws, err := term.GetWinsize(cli.terminalFd)
+	ws, err := term.GetWinsize(cli.outFd)
 	if err != nil {
 		log.Debugf("Error getting size: %s", err)
 		if ws == nil {

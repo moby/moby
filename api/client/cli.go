@@ -22,10 +22,16 @@ type DockerCli struct {
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
-	isTerminal bool
-	terminalFd uintptr
 	tlsConfig  *tls.Config
 	scheme     string
+	// inFd holds file descriptor of the client's STDIN, if it's a valid file
+	inFd uintptr
+	// outFd holds file descriptor of the client's STDOUT, if it's a valid file
+	outFd uintptr
+	// isTerminalIn describes if client's STDIN is a TTY
+	isTerminalIn bool
+	// isTerminalOut describes if client's STDOUT is a TTY
+	isTerminalOut bool
 }
 
 var funcMap = template.FuncMap{
@@ -94,9 +100,11 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsConfig *tls.Config) *DockerCli {
 	var (
-		isTerminal = false
-		terminalFd uintptr
-		scheme     = "http"
+		inFd          uintptr
+		outFd         uintptr
+		isTerminalIn  = false
+		isTerminalOut = false
+		scheme        = "http"
 	)
 
 	if tlsConfig != nil {
@@ -105,23 +113,33 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 
 	if in != nil {
 		if file, ok := in.(*os.File); ok {
-			terminalFd = file.Fd()
-			isTerminal = term.IsTerminal(terminalFd)
+			inFd = file.Fd()
+			isTerminalIn = term.IsTerminal(inFd)
+		}
+	}
+
+	if out != nil {
+		if file, ok := out.(*os.File); ok {
+			outFd = file.Fd()
+			isTerminalOut = term.IsTerminal(outFd)
 		}
 	}
 
 	if err == nil {
 		err = out
 	}
+
 	return &DockerCli{
-		proto:      proto,
-		addr:       addr,
-		in:         in,
-		out:        out,
-		err:        err,
-		isTerminal: isTerminal,
-		terminalFd: terminalFd,
-		tlsConfig:  tlsConfig,
-		scheme:     scheme,
+		proto:         proto,
+		addr:          addr,
+		in:            in,
+		out:           out,
+		err:           err,
+		inFd:          inFd,
+		outFd:         outFd,
+		isTerminalIn:  isTerminalIn,
+		isTerminalOut: isTerminalOut,
+		tlsConfig:     tlsConfig,
+		scheme:        scheme,
 	}
 }
