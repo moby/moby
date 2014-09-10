@@ -87,22 +87,22 @@ func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 		execConfig.StreamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 
-	var execErr, attachErr chan error
-	go func() {
-		attachErr = d.Attach(&execConfig.StreamConfig, config.AttachStdin, false, config.Tty, cStdin, cStdinCloser, cStdout, cStderr)
-	}()
+	attachErr := d.Attach(&execConfig.StreamConfig, config.AttachStdin, false, config.Tty, cStdin, cStdinCloser, cStdout, cStderr)
 
+	execErr := make(chan error)
 	go func() {
 		err := container.Exec(execConfig)
 		if err != nil {
-			err = fmt.Errorf("Cannot run in container %s: %s", name, err)
+			execErr <- fmt.Errorf("Cannot run in container %s: %s", name, err)
 		}
-		execErr <- err
 	}()
 
 	select {
 	case err := <-attachErr:
-		return job.Errorf("attach failed with error: %s", err)
+		if err != nil {
+			return job.Errorf("attach failed with error: %s", err)
+		}
+		break
 	case err := <-execErr:
 		return job.Error(err)
 	}
