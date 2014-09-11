@@ -4,7 +4,7 @@ package zfs
 
 /*
 #cgo CFLAGS: -I/usr/include/libzfs -I/usr/include/libspl -DHAVE_IOCTL_IN_SYS_IOCTL_H
-#cgo LDFLAGS: -lzfs -lzpool -lnvpair -lzfs_core -lzpool -luutil
+#cgo LDFLAGS: -lzfs -lnvpair -lzfs_core -luutil -lzpool
 #include <locale.h>
 #include <stdlib.h>
 #include <dirent.h>
