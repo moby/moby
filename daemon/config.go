@@ -23,6 +23,7 @@ type Config struct {
 	AutoRestart                 bool
 	Dns                         []string
 	DnsSearch                   []string
+	Mirrors                     []string
 	EnableIptables              bool
 	EnableIpForward             bool
 	DefaultIp                   net.IP
@@ -60,6 +61,7 @@ func (config *Config) InstallFlags() {
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
+	opts.MirrorListVar(&config.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
 }
 
 func GetDefaultNetworkMtu() int {

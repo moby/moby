@@ -25,6 +25,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
 		authConfig  = &registry.AuthConfig{}
 		metaHeaders map[string][]string
+		mirrors     []string
 	)
 	if len(job.Args) > 1 {
 		tag = job.Args[1]
@@ -64,16 +65,19 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if endpoint == registry.IndexServerAddress() {
 		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
 		localName = remoteName
+
+		// Use provided mirrors, if any
+		mirrors = s.mirrors
 	}
 
-	if err = s.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err != nil {
+	if err = s.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel"), mirrors); err != nil {
 		return job.Error(err)
 	}
 
 	return engine.StatusOK
 }
 
-func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool) error {
+func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName, remoteName, askedTag string, sf *utils.StreamFormatter, parallel bool, mirrors []string) error {
 	out.Write(sf.FormatStatus("", "Pulling repository %s", localName))
 
 	repoData, err := r.GetRepositoryData(remoteName)
@@ -153,17 +157,31 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, localName), nil))
 			success := false
 			var lastErr error
-			for _, ep := range repoData.Endpoints {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
-				if err := s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
-					// It's not ideal that only the last error is returned, it would be better to concatenate the errors.
-					// As the error is also given to the output stream the user will see the error.
-					lastErr = err
-					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err), nil))
-					continue
+			if mirrors != nil {
+				for _, ep := range mirrors {
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, mirror: %s", img.Tag, localName, ep), nil))
+					if err := s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
+						// Don't report errors when pulling from mirrors.
+						log.Debugf("Error pulling image (%s) from %s, mirror: %s, %s", img.Tag, localName, ep, err)
+						continue
+					}
+					success = true
+					break
 				}
-				success = true
-				break
+			}
+			if !success {
+				for _, ep := range repoData.Endpoints {
+					out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, localName, ep), nil))
+					if err := s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
+						// It's not ideal that only the last error is returned, it would be better to concatenate the errors.
+						// As the error is also given to the output stream the user will see the error.
+						lastErr = err
+						out.Write(sf.FormatProgress(utils.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, localName, ep, err), nil))
+						continue
+					}
+					success = true
+					break
+				}
 			}
 			if !success {
 				err := fmt.Errorf("Error pulling image (%s) from %s, %v", img.Tag, localName, lastErr)

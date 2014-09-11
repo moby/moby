@@ -20,6 +20,7 @@ const DEFAULTTAG = "latest"
 type TagStore struct {
 	path         string
 	graph        *Graph
+	mirrors      []string
 	Repositories map[string]Repository
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -48,7 +49,7 @@ func (r Repository) Contains(u Repository) bool {
 	return true
 }
 
-func NewTagStore(path string, graph *Graph) (*TagStore, error) {
+func NewTagStore(path string, graph *Graph, mirrors []string) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -56,6 +57,7 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	store := &TagStore{
 		path:         abspath,
 		graph:        graph,
+		mirrors:      mirrors,
 		Repositories: make(map[string]Repository),
 		pullingPool:  make(map[string]chan struct{}),
 		pushingPool:  make(map[string]chan struct{}),
