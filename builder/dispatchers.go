@@ -166,6 +166,10 @@ func workdir(b *Builder, args []string, attributes map[string]bool) error {
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool) error {
+	if b.image == "" {
+		return fmt.Errorf("Please provide a source image with `from` prior to run")
+	}
+
 	args = handleJsonArgs(args, attributes)
 
 	if len(args) == 1 {
@@ -173,10 +177,6 @@ func run(b *Builder, args []string, attributes map[string]bool) error {
 	}
 
 	args = append([]string{b.image}, args...)
-
-	if b.image == "" {
-		return fmt.Errorf("Please provide a source image with `from` prior to run")
-	}
 
 	config, _, _, err := runconfig.Parse(args, nil)
 	if err != nil {
