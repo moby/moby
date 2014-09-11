@@ -310,23 +310,20 @@ func user(b *Builder, args []string, attributes map[string]bool) error {
 
 // VOLUME /foo
 //
-// Expose the volume /foo for use. Will also accept the JSON form, but either
-// way requires exactly one argument.
+// Expose the volume /foo for use. Will also accept the JSON array form.
 //
 func volume(b *Builder, args []string, attributes map[string]bool) error {
-	if len(args) != 1 {
+	if len(args) == 0 {
 		return fmt.Errorf("Volume cannot be empty")
 	}
-
-	volume := args
 
 	if b.Config.Volumes == nil {
 		b.Config.Volumes = map[string]struct{}{}
 	}
-	for _, v := range volume {
+	for _, v := range args {
 		b.Config.Volumes[v] = struct{}{}
 	}
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %s", args)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
 		return err
 	}
 	return nil
