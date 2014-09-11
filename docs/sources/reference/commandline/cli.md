@@ -208,8 +208,8 @@ When a single Dockerfile is given as `URL` or is piped through `STDIN`
 (`docker build - < Dockerfile`), then no context is set.
 
 When a Git repository is set as `URL`, then the repository is used as
-the context. The Git repository is cloned with its submodules (`git
-clone -recursive`). A fresh `git clone` occurs in a temporary directory
+the context. The Git repository is cloned with its submodules
+(`git clone -recursive`). A fresh `git clone` occurs in a temporary directory
 on your local host, and then this is sent to the Docker daemon as the
 context.  This way, your local user credentials and VPN's etc can be
 used to access private repositories.
