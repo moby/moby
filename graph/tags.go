@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -16,6 +17,10 @@ import (
 )
 
 const DEFAULTTAG = "latest"
+
+var (
+	validTagName = regexp.MustCompile(`^[\w][\w.-]{1,29}$`)
+)
 
 type TagStore struct {
 	path         string
@@ -282,8 +287,8 @@ func validateTagName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Tag name can't be empty")
 	}
-	if strings.Contains(name, "/") || strings.Contains(name, ":") {
-		return fmt.Errorf("Illegal tag name: %s", name)
+	if !validTagName.MatchString(name) {
+		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 2, maximum 30 in length", name)
 	}
 	return nil
 }
