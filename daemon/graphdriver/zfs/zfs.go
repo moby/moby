@@ -179,9 +179,9 @@ func (d *Driver) Status() [][2]string {
 func volumeCreate(zfs *C.libzfs_handle_t, id, mountpoint string) error {
 	var props *C.nvlist_t
 	c_id := C.CString(id)
-	defer C.free(unsafe.Pointer(c_id))
+	defer free(c_id)
 	c_mountpoint := C.CString(mountpoint)
-	defer C.free(unsafe.Pointer(c_mountpoint))
+	defer free(c_mountpoint)
 
 	if C.nvlist_alloc(&props, C.NV_UNIQUE_NAME, 0) != 0 {
 		return fmt.Errorf("OOM couldn't allocate memory for props")
@@ -223,7 +223,7 @@ func volumeSnapshot(zfs *C.libzfs_handle_t, id string) (string, string, error) {
 	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
 	snapshotPath := id + "@" + snapshotName
 	c_snapshotPath := C.CString(snapshotPath)
-	defer C.free(unsafe.Pointer(c_snapshotPath))
+	defer free(c_snapshotPath)
 
 	C.fnvlist_add_boolean(nvl, c_snapshotPath)
 
@@ -236,11 +236,11 @@ func volumeSnapshot(zfs *C.libzfs_handle_t, id string) (string, string, error) {
 
 func volumeClone(zfs *C.libzfs_handle_t, snapshot, id, mountpoint string) (*C.zfs_handle_t, error) {
 	c_snapshot := C.CString(snapshot)
-	defer C.free(unsafe.Pointer(c_snapshot))
+	defer free(c_snapshot)
 	c_id := C.CString(id)
-	defer C.free(unsafe.Pointer(c_id))
+	defer free(c_id)
 	c_mountpoint := C.CString(mountpoint)
-	defer C.free(unsafe.Pointer(c_mountpoint))
+	defer free(c_mountpoint)
 
 	var props *C.nvlist_t
 	if C.nvlist_alloc(&props, C.NV_UNIQUE_NAME, 0) != 0 {
@@ -286,9 +286,9 @@ func add_snapshot_to_nvl(zhp *C.zfs_handle_t, data unsafe.Pointer) C.int {
 
 func volumeSnapshotDelete(zfs *C.libzfs_handle_t, parent string, snapshotName string) error {
 	c_parent := C.CString(parent)
-	defer C.free(unsafe.Pointer(c_parent))
+	defer free(c_parent)
 	c_snapshotName := C.CString(snapshotName)
-	defer C.free(unsafe.Pointer(c_snapshotName))
+	defer free(c_snapshotName)
 
 	var nvl *C.nvlist_t
 
@@ -309,7 +309,7 @@ func volumeSnapshotDelete(zfs *C.libzfs_handle_t, parent string, snapshotName st
 	return nil
 }
 
-func volumeCloneFrom(zfs *C.libzfs_handle_t, id, parent, mountpoint string) error {
+func volumeCloneFrom(zfs *C.libzfs_handle_t, id, parent, mountPoint string) error {
 	var err error
 	// Snapshot parent
 	snapshotPath, snapshotName, err := volumeSnapshot(zfs, parent)
@@ -318,7 +318,7 @@ func volumeCloneFrom(zfs *C.libzfs_handle_t, id, parent, mountpoint string) erro
 	}
 
 	// Clone from parent
-	clone, err := volumeClone(zfs, snapshotPath, id, mountpoint)
+	clone, err := volumeClone(zfs, snapshotPath, id, mountPoint)
 	if err != nil {
 		return err
 	}
@@ -340,11 +340,11 @@ func (d *Driver) ZfsPath(id string) string {
 
 func (d *Driver) Create(id string, parent string) error {
 	log.Debugf("d->Create(%s, %s)", id, parent)
-	mountpoint := path.Join(d.options.basepath, "graph", id)
+	mountPoint := path.Join(d.options.mountPath, "graph", id)
 	if parent == "" {
-		return volumeCreate(d.g_zfs, d.ZfsPath(id), mountpoint)
+		return volumeCreate(d.g_zfs, d.ZfsPath(id), mountPoint)
 	} else {
-		return volumeCloneFrom(d.g_zfs, d.ZfsPath(id), d.ZfsPath(parent), mountpoint)
+		return volumeCloneFrom(d.g_zfs, d.ZfsPath(id), d.ZfsPath(parent), mountPoint)
 	}
 }
 
@@ -417,7 +417,7 @@ func (d *Driver) Remove(id string) error {
 
 	var cb destroy_cbdata
 	c_fullpath := C.CString(d.ZfsPath(id))
-	defer C.free(unsafe.Pointer(c_fullpath))
+	defer free(c_fullpath)
 	cb.cb_error = false
 	cb.cb_zfs = d.g_zfs
 
@@ -485,7 +485,7 @@ func zfs_read_mountpoint(zhp *C.zfs_handle_t) (string, error) {
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	log.Debugf("d->Get(%s, %s)", id, mountLabel)
 	c_fullpath := C.CString(d.ZfsPath(id))
-	defer C.free(unsafe.Pointer(c_fullpath))
+	defer free(c_fullpath)
 
 	var zhp = C.zfs_open(d.g_zfs, c_fullpath, C.ZFS_TYPE_DATASET)
 	if zhp == nil {
@@ -493,13 +493,13 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 	defer C.zfs_close(zhp)
 
-	mountpoint, err := zfs_read_mountpoint(zhp)
+	mountPoint, err := zfs_read_mountpoint(zhp)
 	if err != nil {
 		return "", err
 	}
 
 	// Need to get back zfs get -o mountpoint
-	return mountpoint, nil
+	return mountPoint, nil
 }
 
 func (d *Driver) Put(id string) {
@@ -510,7 +510,7 @@ func (d *Driver) Put(id string) {
 func (d *Driver) Exists(id string) bool {
 	log.Debugf("d->Exists(%s)", id)
 	c_fullpath := C.CString(d.ZfsPath(id))
-	defer C.free(unsafe.Pointer(c_fullpath))
+	defer free(c_fullpath)
 
 	var zhp = C.zfs_open(d.g_zfs, c_fullpath, C.ZFS_TYPE_DATASET)
 	if zhp == nil {
