@@ -84,6 +84,18 @@ func TestSplitProtoPort(t *testing.T) {
 	if proto != "tcp" || port != "1234" {
 		t.Fatal("tcp is not the default protocol for portspec '1234'")
 	}
+
+	proto, port = SplitProtoPort("1234/")
+
+	if proto != "tcp" || port != "1234" {
+		t.Fatal("parsing '1234/' yielded:" + port + "/" + proto)
+	}
+
+	proto, port = SplitProtoPort("/tcp")
+
+	if proto != "" || port != "" {
+		t.Fatal("parsing '/tcp' yielded:" + port + "/" + proto)
+	}
 }
 
 func TestParsePortSpecs(t *testing.T) {
