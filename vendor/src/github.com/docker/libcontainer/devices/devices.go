@@ -24,6 +24,8 @@ type Device struct {
 	MinorNumber       int64       `json:"minor_number,omitempty"`       // Use the wildcard constant for wildcards.
 	CgroupPermissions string      `json:"cgroup_permissions,omitempty"` // Typically just "rwm"
 	FileMode          os.FileMode `json:"file_mode,omitempty"`          // The permission bits of the file's mode
+	Uid               uint32      `json:"uid,omitempty"`
+	Gid               uint32      `json:"gid,omitempty"`
 }
 
 func GetDeviceNumberString(deviceNumber int64) string {
@@ -75,6 +77,8 @@ func GetDevice(path, cgroupPermissions string) (*Device, error) {
 		MinorNumber:       Minor(devNumber),
 		CgroupPermissions: cgroupPermissions,
 		FileMode:          fileModePermissionBits,
+		Uid:               stat_t.Uid,
+		Gid:               stat_t.Gid,
 	}, nil
 }
 

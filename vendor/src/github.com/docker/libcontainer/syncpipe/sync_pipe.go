@@ -77,6 +77,10 @@ func (s *SyncPipe) ReadFromParent(v interface{}) error {
 }
 
 func (s *SyncPipe) ReportChildError(err error) {
+	// ensure that any data sent from the parent is consumed so it doesn't
+	// receive ECONNRESET when the child writes to the pipe.
+	ioutil.ReadAll(s.child)
+
 	s.child.Write([]byte(err.Error()))
 	s.CloseChild()
 }

@@ -48,5 +48,10 @@ func CreateDeviceNode(rootfs string, node *devices.Device) error {
 	if err := syscall.Mknod(dest, uint32(fileMode), devices.Mkdev(node.MajorNumber, node.MinorNumber)); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("mknod %s %s", node.Path, err)
 	}
+
+	if err := syscall.Chown(dest, int(node.Uid), int(node.Gid)); err != nil {
+		return fmt.Errorf("chown %s to %d:%d", node.Path, node.Uid, node.Gid)
+	}
+
 	return nil
 }

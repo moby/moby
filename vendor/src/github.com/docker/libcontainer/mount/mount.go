@@ -17,6 +17,7 @@ type Mount struct {
 	Writable    bool   `json:"writable,omitempty"`
 	Relabel     string `json:"relabel,omitempty"` // Relabel source if set, "z" indicates shared, "Z" indicates unshared
 	Private     bool   `json:"private,omitempty"`
+	Slave       bool   `json:"slave,omitempty"`
 }
 
 func (m *Mount) Mount(rootfs, mountLabel string) error {
@@ -38,6 +39,10 @@ func (m *Mount) bindMount(rootfs, mountLabel string) error {
 
 	if !m.Writable {
 		flags = flags | syscall.MS_RDONLY
+	}
+
+	if m.Slave {
+		flags = flags | syscall.MS_SLAVE
 	}
 
 	stat, err := os.Stat(m.Source)
