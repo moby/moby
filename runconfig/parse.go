@@ -17,14 +17,12 @@ import (
 )
 
 var (
-	ErrInvalidWorkingDirectory            = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictContainerNetworkAndLinks   = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
-	ErrConflictContainerNetworkAndDns     = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
-	ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
-	ErrConflictNetworkHostname            = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
-	ErrConflictHostNetworkAndDns          = fmt.Errorf("Conflicting options: --net=host can't be used with --dns. This configuration is invalid.")
-	ErrConflictHostNetworkAndLinks        = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
-	ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
+	ErrInvalidWorkingDirectory          = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
+	ErrConflictContainerNetworkAndDns   = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
+	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	ErrConflictHostNetworkAndDns        = fmt.Errorf("Conflicting options: --net=host can't be used with --dns. This configuration is invalid.")
+	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
 
 // FIXME Only used in tests
@@ -245,10 +243,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	restartPolicy, err := parseRestartPolicy(*flRestartPolicy)
 	if err != nil {
 		return nil, nil, cmd, err
-	}
-
-	if *flAutoRemove && (restartPolicy.Name == "always" || restartPolicy.Name == "on-failure") {
-		return nil, nil, cmd, ErrConflictRestartPolicyAndAutoRemove
 	}
 
 	config := &Config{

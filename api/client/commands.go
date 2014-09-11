@@ -2099,10 +2099,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run the container in the background and print the new container ID")
 		flSigProxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
 		flName       = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
+		flAttach     *opts.ListOpts
 
-		flAttach *opts.ListOpts
-
-		ErrConflictAttachDetach = fmt.Errorf("Conflicting options: -a and -d")
+		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
+		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
+		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
 	config, hostConfig, cmd, err := runconfig.ParseSubcommand(cmd, args, nil)
@@ -2118,11 +2119,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if fl := cmd.Lookup("attach"); fl != nil {
 			flAttach = fl.Value.(*opts.ListOpts)
 			if flAttach.Len() != 0 {
-				return fmt.Errorf("Conflicting options: -a and -d")
+				return ErrConflictAttachDetach
 			}
 		}
 		if *flAutoRemove {
-			return fmt.Errorf("Conflicting options: --rm and -d")
+			return ErrConflictDetachAutoRemove
 		}
 
 		config.AttachStdin = false
@@ -2159,6 +2160,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			defer close(waitDisplayId)
 			fmt.Fprintf(cli.out, "%s\n", runResult.Get("Id"))
 		}()
+	}
+
+	if *flAutoRemove && (hostConfig.RestartPolicy.Name == "always" || hostConfig.RestartPolicy.Name == "on-failure") {
+		return ErrConflictRestartPolicyAndAutoRemove
 	}
 
 	// We need to instanciate the chan because the select needs it. It can
