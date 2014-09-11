@@ -26,7 +26,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		} else {
-			fmt.Print(ast.Dump())
+			fmt.Println(ast.Dump())
 		}
 	}
 }

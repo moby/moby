@@ -773,6 +773,29 @@ func TestBuildExpose(t *testing.T) {
 	logDone("build - expose")
 }
 
+func TestBuildEmptyEntrypoint(t *testing.T) {
+	name := "testbuildentrypoint"
+	defer deleteImages(name)
+	expected := "[]"
+
+	_, err := buildImage(name,
+		`FROM busybox
+        ENTRYPOINT []`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+
+	logDone("build - empty entrypoint")
+}
+
 func TestBuildEntrypoint(t *testing.T) {
 	name := "testbuildentrypoint"
 	expected := "[/bin/echo]"
@@ -791,6 +814,7 @@ func TestBuildEntrypoint(t *testing.T) {
 	if res != expected {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
+
 	logDone("build - entrypoint")
 }
 
@@ -1184,7 +1208,7 @@ func TestContextTarNoCompression(t *testing.T) {
 	testContextTar(t, archive.Uncompressed)
 }
 
-func TestNoContext(t *testing.T) {
+func TestBuildNoContext(t *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "nocontext", "-")
 	buildCmd.Stdin = strings.NewReader("FROM busybox\nCMD echo ok\n")
 
@@ -1898,4 +1922,25 @@ func TestBuildCleanupCmdOnEntrypoint(t *testing.T) {
 		t.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	logDone("build - cleanup cmd on ENTRYPOINT")
+}
+
+func TestBuildClearCmd(t *testing.T) {
+	name := "testbuildclearcmd"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`From scratch
+   ENTRYPOINT ["/bin/bash"]
+   CMD []`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectFieldJSON(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != "[]" {
+		t.Fatalf("Cmd %s, expected %s", res, "[]")
+	}
+	logDone("build - clearcmd")
 }
