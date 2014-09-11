@@ -16,15 +16,16 @@ import (
 	"github.com/docker/libcontainer/namespaces"
 )
 
-const commandName = "nsenter-exec"
+const execCommandName = "nsenter-exec"
 
 func init() {
-	reexec.Register(commandName, nsenterExec)
+	reexec.Register(execCommandName, nsenterExec)
 }
 
 func nsenterExec() {
 	runtime.LockOSThread()
 
+	// User args are passed after '--' in the command line.
 	userArgs := findUserArgs()
 
 	config, err := loadConfigFromFd()

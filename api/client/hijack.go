@@ -25,14 +25,14 @@ func (cli *DockerCli) dial() (net.Conn, error) {
 	return net.Dial(cli.proto, cli.addr)
 }
 
-func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer, body interface{}) error {
+func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer, data interface{}) error {
 	defer func() {
 		if started != nil {
 			close(started)
 		}
 	}()
 
-	params, err := cli.getUrlBody(body)
+	params, err := cli.encodeData(data)
 	if err != nil {
 		return err
 	}

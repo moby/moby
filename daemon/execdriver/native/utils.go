@@ -10,16 +10,12 @@ import (
 )
 
 func findUserArgs() []string {
-	i := 0
-	for _, a := range os.Args {
-		i++
-
+	for i, a := range os.Args {
 		if a == "--" {
-			break
+			return os.Args[i+1:]
 		}
 	}
-
-	return os.Args[i:]
+	return []string{}
 }
 
 // loadConfigFromFd loads a container's config from the sync pipe that is provided by

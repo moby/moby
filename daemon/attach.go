@@ -128,7 +128,7 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 
 	// Connect stdin of container to the http conn.
 	if stdin != nil && openStdin {
-		nJobs += 1
+		nJobs++
 		// Get the stdin pipe.
 		if cStdin, err := streamConfig.StdinPipe(); err != nil {
 			errors <- err
@@ -166,7 +166,7 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		}
 	}
 	if stdout != nil {
-		nJobs += 1
+		nJobs++
 		// Get a reader end of a pipe that is attached as stdout to the container.
 		if p, err := streamConfig.StdoutPipe(); err != nil {
 			errors <- err
@@ -260,7 +260,7 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 
 		// FIXME: how to clean up the stdin goroutine without the unwanted side effect
 		// of closing the passed stdin? Add an intermediary io.Pipe?
-		for i := 0; i < nJobs; i += 1 {
+		for i := 0; i < nJobs; i++ {
 			log.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
 			if err := <-errors; err != nil {
 				log.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)

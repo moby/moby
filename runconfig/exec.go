@@ -27,8 +27,8 @@ func ExecConfigFromJob(job *engine.Job) *ExecConfig {
 		AttachStderr: job.GetenvBool("AttachStderr"),
 		AttachStdout: job.GetenvBool("AttachStdout"),
 	}
-	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
-		execConfig.Cmd = Cmd
+	if cmd := job.GetenvList("Cmd"); cmd != nil {
+		execConfig.Cmd = cmd
 	}
 
 	return execConfig

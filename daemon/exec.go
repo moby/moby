@@ -24,7 +24,7 @@ type ExecConfig struct {
 
 func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s container_id command", job.Name)
+		return job.Errorf("Usage: %s [options] container command [args]", job.Name)
 	}
 
 	var (
@@ -40,7 +40,7 @@ func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 		return job.Errorf("No such container: %s", name)
 	}
 
-	if !container.State.IsRunning() {
+	if !container.IsRunning() {
 		return job.Errorf("Container %s is not not running", name)
 	}
 

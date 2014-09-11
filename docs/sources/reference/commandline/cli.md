@@ -1297,7 +1297,7 @@ It is even useful to cherry-pick particular tags of an image repository
 
 ## exec
 
-    Usage: docker exec CONTAINER COMMAND [ARG...]
+    Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 
     Run a command in an existing container
 
