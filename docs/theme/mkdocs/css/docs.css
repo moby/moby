@@ -326,3 +326,12 @@ ol li {
 .navbar #usernav .nav li {
   padding-top: 0px !important;
 }
+table.table tr td img {
+    width:100%;
+}
+#versionnav ul {
+    list-style: none outside none;
+}
+#versionnav ul ul {
+    padding: 0;
+}
