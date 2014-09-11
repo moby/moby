@@ -1035,6 +1035,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	}
 	job.Stdin.Add(r.Body)
 	job.Setenv("remote", r.FormValue("remote"))
+	job.Setenv("dockerfile", r.FormValue("dockerfile"))
 	job.Setenv("t", r.FormValue("t"))
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
