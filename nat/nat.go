@@ -61,21 +61,25 @@ func (p Port) Int() int {
 	return i
 }
 
-// Splits a port in the format of port/proto
+// Splits a port in the format of proto/port
 func SplitProtoPort(rawPort string) (string, string) {
-	parts := strings.Split(rawPort, "/")
-	l := len(parts)
-	if l == 0 {
-		return "", ""
-	}
-	if l == 1 {
-		if rawPort == "" {
-			return "", "" // ""/tcp is not valid, ever
-		}
+	var port string
+	var proto string
 
-		return "tcp", rawPort
+	parts := strings.Split(rawPort, "/")
+
+	if len(parts) == 0 || parts[0] == "" { // we have "" or ""/
+		port = ""
+		proto = ""
+	} else { // we have # or #/  or #/...
+		port = parts[0]
+		if len(parts) > 1 && parts[1] != "" {
+			proto = parts[1] // we have #/...
+		} else {
+			proto = "tcp" // we have # or #/
+		}
 	}
-	return parts[1], parts[0]
+	return proto, port
 }
 
 func validateProto(proto string) bool {
