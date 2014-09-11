@@ -29,6 +29,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s\n", job.Name)
 	}
 	var (
+		dockerfileName = job.Getenv("d")
 		remoteURL      = job.Getenv("remote")
 		repoName       = job.Getenv("t")
 		suppressOutput = job.GetenvBool("q")
@@ -40,9 +41,14 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		tag            string
 		context        io.ReadCloser
 	)
+
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
 	repoName, tag = parsers.ParseRepositoryTag(repoName)
+
+	if dockerfileName == "" {
+		dockerfileName = "Dockerfile"
+	}
 
 	if remoteURL == "" {
 		context = ioutil.NopCloser(job.Stdin)
@@ -75,7 +81,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		c, err := archive.Generate("Dockerfile", string(dockerFile))
+		c, err := archive.Generate(dockerfileName, string(dockerFile))
 		if err != nil {
 			return job.Error(err)
 		}
@@ -104,6 +110,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
+		dockerfileName:  dockerfileName,
 	}
 
 	id, err := builder.Run(context)
