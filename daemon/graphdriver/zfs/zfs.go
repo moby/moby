@@ -20,9 +20,10 @@ import "C"
 import (
 	"fmt"
 	"path"
-	"strings"
 	"time"
+	"syscall"
 	"unsafe"
+	"strings"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/log"
@@ -30,8 +31,8 @@ import (
 )
 
 type ZfsOptions struct {
-	zpoolname string
-	basepath  string
+	mountPath  string
+	zpoolName string
 }
 
 func init() {
@@ -39,40 +40,42 @@ func init() {
 }
 
 func Init(base string, opt []string) (graphdriver.Driver, error) {
-	var options ZfsOptions
-	options.basepath = base
-	options.zpoolname = "docker"
+	var err error
+	options, err := parseOptions(opt)
+	options.mountPath = base
+	if err != nil {
+		return nil, err
+	}
 
-	for _, option := range opt {
-		key, val, err := parsers.ParseKeyValueOpt(option)
+	rootdir := path.Dir(base)
+
+	if options.zpoolName == "" {
+		err = checkRootdirFs(rootdir)
 		if err != nil {
 			return nil, err
 		}
-		key = strings.ToLower(key)
-		switch key {
-		case "zfs.zpoolname":
-			options.zpoolname = val
-		default:
-			return nil, fmt.Errorf("Unknown option %s\n", key)
-		}
 	}
-
-	log.Debugf("Initializing zfs with zpool %s", options.zpoolname)
 
 	g_zfs := C.libzfs_init()
 	if g_zfs == nil {
-		return nil, fmt.Errorf("Could not init zfs")
+		return nil, fmt.Errorf("Could not init libzfs")
 	}
 	C.libzfs_print_on_error(g_zfs, C.B_TRUE)
 
-	c_zpoolname := C.CString(options.zpoolname)
-	defer C.free(unsafe.Pointer(c_zpoolname))
-
-	var zpool_handle = C.zpool_open(g_zfs, c_zpoolname)
-	if zpool_handle == nil {
-		return nil, fmt.Errorf("Could not open zpool %s", base)
+	if options.zpoolName == "" {
+		options.zpoolName, err = lookupZfsPool(rootdir);
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var CPoolName = C.CString(options.zpoolName)
+		defer free(CPoolName)
+		zhp := C.zfs_open(g_zfs, CPoolName, C.ZFS_TYPE_POOL)
+		if (zhp == nil) {
+			return nil, fmt.Errorf("Could not open provided zfs pool: %s", options.zpoolName)
+		}
+		C.zfs_close(zhp)
 	}
-	C.zpool_close(zpool_handle)
 
 	return &Driver{
 		g_zfs:   g_zfs,
@@ -80,13 +83,83 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	}, nil
 }
 
-//
+func parseOptions(opt []string) (ZfsOptions, error) {
+	var options ZfsOptions
+	options.zpoolName = ""
+	for _, option := range opt {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return options, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "zfs.poolname":
+			options.zpoolName = val
+		default:
+			return options, fmt.Errorf("Unknown option %s\n", key)
+		}
+	}
+	return options, nil
+}
+
+func checkRootdirFs(rootdir string) error {
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(rootdir, &buf); err != nil {
+		fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+	}
+
+	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
+		log.Debugf("[zfs] no zpool found for rootdir '%s'", rootdir)
+		return graphdriver.ErrPrerequisites
+	}
+	log.Debugf("[zfs] no zpool found for rootdir '%s'", rootdir)
+	return nil
+}
+
+var CprocMounts = C.CString("/proc/mounts")
+var CopenMod = C.CString("r")
+
+func lookupZfsPool(rootdir string) (string, error){
+	var stat syscall.Stat_t
+	var Cmnt C.struct_mntent
+	var Cfp *C.FILE
+	buf := string(make([]byte, 256, 256))
+	Cbuf := C.CString(buf)
+	defer free(Cbuf)
+
+	if err := syscall.Stat(rootdir, &stat); err != nil {
+		return "", fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+	}
+	wantedDev := stat.Dev
+
+	if Cfp = C.setmntent(CprocMounts, CopenMod); Cfp == nil {
+		return "", fmt.Errorf("failed to open /proc/mounts")
+	}
+	defer C.endmntent(Cfp)
+
+	for C.getmntent_r(Cfp, &Cmnt, Cbuf, 256) != nil {
+		dir := C.GoString(Cmnt.mnt_dir)
+		if err := syscall.Stat(dir, &stat); err != nil {
+			return "", err
+		}
+
+		if (stat.Dev == wantedDev) {
+			return C.GoString(Cmnt.mnt_fsname), nil
+		}
+	}
+	// should never happen
+	return "", fmt.Errorf("failed to find zfs pool in /proc/mounts")
+}
+
+func free(p *C.char) {
+	C.free(unsafe.Pointer(p))
+}
+
 type Driver struct {
 	g_zfs   *C.libzfs_handle_t
 	options ZfsOptions
 }
 
-//
 func (d *Driver) String() string {
 	log.Debugf("d->String()")
 	return "zfs"
@@ -262,7 +335,7 @@ func volumeCloneFrom(zfs *C.libzfs_handle_t, id, parent, mountpoint string) erro
 
 func (d *Driver) ZfsPath(id string) string {
 	log.Debugf("d->ZfsPath(%s)", id)
-	return d.options.zpoolname + "/" + id
+	return d.options.zpoolName + "/" + id
 }
 
 func (d *Driver) Create(id string, parent string) error {
