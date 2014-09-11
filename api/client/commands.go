@@ -104,6 +104,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"#no-cache", "-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
+	dockerfileName := cmd.String([]string{"d", "-dockerfile"}, "Dockerfile", "Name of the Dockerfile")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -133,7 +134,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			if err != nil {
 				return fmt.Errorf("failed to read Dockerfile from STDIN: %v", err)
 			}
-			context, err = archive.Generate("Dockerfile", string(dockerfile))
+			context, err = archive.Generate(*dockerfileName, string(dockerfile))
 		} else {
 			context = ioutil.NopCloser(buf)
 		}
@@ -160,9 +161,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err := os.Stat(root); err != nil {
 			return err
 		}
-		filename := path.Join(root, "Dockerfile")
+		filename := path.Join(root, *dockerfileName)
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
-			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
+			return fmt.Errorf("no Dockerfile (%s) found in %s", *dockerfileName, cmd.Arg(0))
 		}
 		var excludes []string
 		ignore, err := ioutil.ReadFile(path.Join(root, ".dockerignore"))
@@ -170,12 +171,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
 		}
 		for _, pattern := range strings.Split(string(ignore), "\n") {
-			ok, err := filepath.Match(pattern, "Dockerfile")
+			ok, err := filepath.Match(pattern, *dockerfileName)
 			if err != nil {
 				return fmt.Errorf("Bad .dockerignore pattern: '%s', error: %s", pattern, err)
 			}
 			if ok {
-				return fmt.Errorf("Dockerfile was excluded by .dockerignore pattern '%s'", pattern)
+				return fmt.Errorf("Dockerfile(", *dockerfileName, "was excluded by .dockerignore pattern '%s'", pattern)
 			}
 			excludes = append(excludes, pattern)
 		}
@@ -229,6 +230,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *forceRm {
 		v.Set("forcerm", "1")
 	}
+
+	v.Set("d", *dockerfileName)
 
 	cli.LoadConfigFile()
 

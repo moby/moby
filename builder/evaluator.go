@@ -93,6 +93,8 @@ type Builder struct {
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 
+	dockerfileName string // name of Dockerfile
+
 	dockerfile  *parser.Node           // the syntax tree of the dockerfile
 	image       string                 // image name for commit processing
 	maintainer  string                 // maintainer name. could probably be removed.
@@ -119,7 +121,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		return "", err
 	}
 
-	filename := path.Join(b.contextPath, "Dockerfile")
+	filename := path.Join(b.contextPath, b.dockerfileName)
 
 	fi, err := os.Stat(filename)
 	if os.IsNotExist(err) {
