@@ -100,27 +100,9 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	img.SetGraph(graph)
 
 	if img.Size < 0 {
-		rootfs, err := graph.driver.Get(img.ID, "")
+		size, err := graph.driver.DiffSize(img.ID, img.Parent)
 		if err != nil {
-			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
-		}
-		defer graph.driver.Put(img.ID)
-
-		var size int64
-		if img.Parent == "" {
-			if size, err = utils.TreeSize(rootfs); err != nil {
-				return nil, err
-			}
-		} else {
-			parentFs, err := graph.driver.Get(img.Parent, "")
-			if err != nil {
-				return nil, err
-			}
-			changes, err := archive.ChangesDirs(rootfs, parentFs)
-			if err != nil {
-				return nil, err
-			}
-			size = archive.ChangesSize(rootfs, changes)
+			return nil, fmt.Errorf("unable to calculate size of image id %q: %s", img.ID, err)
 		}
 
 		img.Size = size
@@ -197,14 +179,9 @@ func (graph *Graph) Register(img *image.Image, jsonData []byte, layerData archiv
 	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
-	// Mount the root filesystem so we can apply the diff/layer
-	rootfs, err := graph.driver.Get(img.ID, "")
-	if err != nil {
-		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
-	}
-	defer graph.driver.Put(img.ID)
+	// Apply the diff/layer
 	img.SetGraph(graph)
-	if err := image.StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
+	if err := image.StoreImage(img, jsonData, layerData, tmp); err != nil {
 		return err
 	}
 	// Commit

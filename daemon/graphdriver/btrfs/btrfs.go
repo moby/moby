@@ -44,9 +44,11 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	return &Driver{
+	driver := &Driver{
 		home: home,
-	}, nil
+	}
+
+	return graphdriver.NewGenericDriverWrapper(driver), nil
 }
 
 type Driver struct {

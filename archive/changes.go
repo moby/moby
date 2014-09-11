@@ -313,7 +313,8 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 	return root, nil
 }
 
-// Compare two directories and generate an array of Change objects describing the changes
+// ChangesDirs compares two directories and generates an array of Change objects describing the changes.
+// If oldDir is "", then all files in newDir will be Add-Changes.
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	var (
 		oldRoot, newRoot *FileInfo
@@ -321,7 +322,9 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 		errs             = make(chan error, 2)
 	)
 	go func() {
-		oldRoot, err1 = collectFileInfo(oldDir)
+		if oldDir != "" {
+			oldRoot, err1 = collectFileInfo(oldDir)
+		}
 		errs <- err1
 	}()
 	go func() {

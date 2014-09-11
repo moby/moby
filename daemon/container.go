@@ -18,7 +18,6 @@ import (
 
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
@@ -755,21 +754,13 @@ func (container *Container) GetSize() (int64, int64) {
 	}
 	defer container.Unmount()
 
-	if differ, ok := driver.(graphdriver.Differ); ok {
-		sizeRw, err = differ.DiffSize(container.ID)
-		if err != nil {
-			log.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
-			// FIXME: GetSize should return an error. Not changing it now in case
-			// there is a side-effect.
-			sizeRw = -1
-		}
-	} else {
-		changes, _ := container.changes()
-		if changes != nil {
-			sizeRw = archive.ChangesSize(container.basefs, changes)
-		} else {
-			sizeRw = -1
-		}
+	initID := fmt.Sprintf("%s-init", container.ID)
+	sizeRw, err = driver.DiffSize(container.ID, initID)
+	if err != nil {
+		log.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+		// FIXME: GetSize should return an error. Not changing it now in case
+		// there is a side-effect.
+		sizeRw = -1
 	}
 
 	if _, err = os.Stat(container.basefs); err != nil {
