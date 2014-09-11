@@ -11,8 +11,10 @@ import (
 
 type Env []string
 
+// Get returns the last value associated with the given key. If there are no
+// values associated with the key, Get returns the empty string.
 func (env *Env) Get(key string) (value string) {
-	// FIXME: use Map()
+	// not using Map() because of the extra allocations https://github.com/docker/docker/pull/7488#issuecomment-51638315
 	for _, kv := range *env {
 		if strings.Index(kv, "=") == -1 {
 			continue
