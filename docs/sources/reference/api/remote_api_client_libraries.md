@@ -158,5 +158,11 @@ will add the libraries here.
       <td><a class="reference external" href="https://github.com/jclouds/jclouds-labs/tree/master/docker">https://github.com/jclouds/jclouds-labs/tree/master/docker</a></td>
       <td>Active</td>
     </tr>
+    <tr class="row-odd">
+      <td>Rust</td>
+      <td>docker-rust</td>
+      <td><a class="reference external" href="https://github.com/abh1nav/docker-rust">https://github.com/abh1nav/docker-rust</a></td>
+      <td>Active</td>
+    </tr>
   </tbody>
 </table>
