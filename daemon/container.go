@@ -750,7 +750,7 @@ func (container *Container) GetSize() (int64, int64) {
 	}
 	defer container.Unmount()
 
-	if differ, ok := container.daemon.driver.(graphdriver.Differ); ok {
+	if differ, ok := driver.(graphdriver.Differ); ok {
 		sizeRw, err = differ.DiffSize(container.ID)
 		if err != nil {
 			log.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
