@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -1894,4 +1895,24 @@ func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	}
 	deleteAllContainers()
 	logDone("run - port should be deallocated even on iptables error")
+}
+
+func TestRunPortInUse(t *testing.T) {
+	port := "1234"
+	l, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	cmd := exec.Command(dockerBinary, "run", "-p", port+":80", "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatalf("Binding on used port must fail")
+	}
+	if !strings.Contains(out, "address already in use") {
+		t.Fatalf("Out must be about \"address already in use\", got %s", out)
+	}
+
+	deleteAllContainers()
+	logDone("run - fail if port already in use")
 }

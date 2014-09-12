@@ -2,6 +2,8 @@ package portmapper
 
 import (
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/pkg/proxy"
 	"github.com/docker/docker/reexec"
@@ -37,10 +40,12 @@ func execProxy() {
 
 	p, err := proxy.NewProxy(host, container)
 	if err != nil {
-		log.Fatal(err)
+		os.Stdout.WriteString("1\n")
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
-
 	go handleStopSignals(p)
+	os.Stdout.WriteString("0\n")
 
 	// Run will block until the proxy stops
 	p.Run()
@@ -96,10 +101,8 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 
 	return &proxyCommand{
 		cmd: &exec.Cmd{
-			Path:   reexec.Self(),
-			Args:   args,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
+			Path: reexec.Self(),
+			Args: args,
 			SysProcAttr: &syscall.SysProcAttr{
 				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies
 			},
@@ -108,12 +111,47 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 }
 
 func (p *proxyCommand) Start() error {
-	return p.cmd.Start()
+	stdout, err := p.cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	defer stdout.Close()
+	stderr, err := p.cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	defer stderr.Close()
+	if err := p.cmd.Start(); err != nil {
+		return err
+	}
+
+	errchan := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 2)
+		stdout.Read(buf)
+
+		if string(buf) != "0\n" {
+			errStr, _ := ioutil.ReadAll(stderr)
+			errchan <- fmt.Errorf("Error starting userland proxy: %s", errStr)
+			return
+		}
+		errchan <- nil
+	}()
+
+	select {
+	case err := <-errchan:
+		return err
+	case <-time.After(1 * time.Second):
+		return fmt.Errorf("Timed out proxy starting the userland proxy")
+	}
 }
 
 func (p *proxyCommand) Stop() error {
-	err := p.cmd.Process.Signal(os.Interrupt)
-	p.cmd.Wait()
-
-	return err
+	if p.cmd.Process != nil {
+		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
+			return err
+		}
+		return p.cmd.Wait()
+	}
+	return nil
 }

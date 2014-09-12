@@ -97,16 +97,25 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		return nil, err
 	}
 
-	m.userlandProxy = proxy
-	currentMappings[key] = m
-
-	if err := proxy.Start(); err != nil {
+	cleanup := func() error {
 		// need to undo the iptables rules before we return
+		proxy.Stop()
 		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		if err := portallocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+			return err
+		}
 
-		return nil, err
+		return nil
 	}
 
+	if err := proxy.Start(); err != nil {
+		if err := cleanup(); err != nil {
+			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
+		}
+		return nil, err
+	}
+	m.userlandProxy = proxy
+	currentMappings[key] = m
 	return m.host, nil
 }
 
