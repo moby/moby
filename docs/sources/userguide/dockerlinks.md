@@ -186,10 +186,10 @@ command to list the specified container's environment variables.
     . . .
     DB_NAME=/web2/db
     DB_PORT=tcp://172.17.0.5:5432
-    DB_PORT_5000_TCP=tcp://172.17.0.5:5432
-    DB_PORT_5000_TCP_PROTO=tcp
-    DB_PORT_5000_TCP_PORT=5432
-    DB_PORT_5000_TCP_ADDR=172.17.0.5
+    DB_PORT_5432_TCP=tcp://172.17.0.5:5432
+    DB_PORT_5432_TCP_PROTO=tcp
+    DB_PORT_5432_TCP_PORT=5432
+    DB_PORT_5432_TCP_ADDR=172.17.0.5
     . . .
 ```
 
