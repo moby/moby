@@ -717,7 +717,7 @@ Status Codes:
 -   **201** – no error
 -   **400** – bad parameter
 -   **404** – no such image
--   **409** – conflic
+-   **409** – conflict
 -   **500** – server error
 
 ### Remove an image
