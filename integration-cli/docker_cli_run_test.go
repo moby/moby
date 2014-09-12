@@ -24,7 +24,9 @@ import (
 func TestDockerRunEchoStdout(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "busybox", "echo", "test123")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	if out != "test123\n" {
 		t.Errorf("container should've printed 'test123'")
@@ -39,7 +41,9 @@ func TestDockerRunEchoStdout(t *testing.T) {
 func TestDockerRunEchoStdoutWithMemoryLimit(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-m", "2786432", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	out = strings.Trim(out, "\r\n")
 
@@ -57,7 +61,9 @@ func TestDockerRunEchoStdoutWithMemoryLimit(t *testing.T) {
 func TestDockerRunEchoStdoutWitCPULimit(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	if out != "test\n" {
 		t.Errorf("container should've printed 'test'")
@@ -72,7 +78,9 @@ func TestDockerRunEchoStdoutWitCPULimit(t *testing.T) {
 func TestDockerRunEchoStdoutWithCPUAndMemoryLimit(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "-m", "2786432", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	if out != "test\n" {
 		t.Errorf("container should've printed 'test', got %q instead", out)
@@ -87,7 +95,9 @@ func TestDockerRunEchoStdoutWithCPUAndMemoryLimit(t *testing.T) {
 func TestDockerRunEchoNamedContainer(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--name", "testfoonamedcontainer", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	if out != "test\n" {
 		t.Errorf("container should've printed 'test'")
@@ -106,7 +116,9 @@ func TestDockerRunEchoNamedContainer(t *testing.T) {
 func TestDockerRunLeakyFileDescriptors(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "busybox", "ls", "-C", "/proc/self/fd")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	// normally, we should only get 0, 1, and 2, but 3 gets created by "ls" when it does "opendir" on the "fd" directory
 	if out != "0  1  2  3\n" {
@@ -123,7 +135,9 @@ func TestDockerRunLeakyFileDescriptors(t *testing.T) {
 func TestDockerRunPingGoogle(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "busybox", "ping", "-c", "1", "8.8.8.8")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	errorOut(err, t, "container should've been able to ping 8.8.8.8")
 
@@ -170,7 +184,9 @@ func TestDockerRunExitCodeOne(t *testing.T) {
 func TestRunStdinPipe(t *testing.T) {
 	runCmd := exec.Command("bash", "-c", `echo "blahblah" | docker run -i -a stdin busybox cat`)
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	out = stripTrailingCharacters(out)
 
@@ -205,7 +221,9 @@ func TestRunStdinPipe(t *testing.T) {
 func TestDockerRunDetachedContainerIDPrinting(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	out = stripTrailingCharacters(out)
 
@@ -235,7 +253,9 @@ func TestDockerRunDetachedContainerIDPrinting(t *testing.T) {
 func TestDockerRunWorkingDirectory(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-w", "/root", "busybox", "pwd")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
 
 	out = stripTrailingCharacters(out)
 
