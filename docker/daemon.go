@@ -46,9 +46,6 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := d.Install(eng); err != nil {
-			log.Fatal(err)
-		}
 
 		b := &builder.BuilderJob{eng, d}
 		b.Install()
