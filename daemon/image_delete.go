@@ -33,7 +33,6 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 	var (
 		repoName, tag string
 		tags          = []string{}
-		tagDeleted    bool
 	)
 
 	// FIXME: please respect DRY and centralize repo+tag parsing in a single central place! -- shykes
@@ -60,9 +59,11 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		return err
 	}
 
+	repos := daemon.Repositories().ByID()[img.ID]
+
 	//If delete by id, see if the id belong only to one repository
 	if repoName == "" {
-		for _, repoAndTag := range daemon.Repositories().ByID()[img.ID] {
+		for _, repoAndTag := range repos {
 			parsedRepo, parsedTag := parsers.ParseRepositoryTag(repoAndTag)
 			if repoName == "" || repoName == parsedRepo {
 				repoName = parsedRepo
@@ -83,9 +84,15 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		return nil
 	}
 
-	//Untag the current image
+	if len(repos) <= 1 {
+		if err := daemon.canDeleteImage(img.ID, force); err != nil {
+			return err
+		}
+	}
+
+	// Untag the current image
 	for _, tag := range tags {
-		tagDeleted, err = daemon.Repositories().Delete(repoName, tag)
+		tagDeleted, err := daemon.Repositories().Delete(repoName, tag)
 		if err != nil {
 			return err
 		}
@@ -99,9 +106,6 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 	tags = daemon.Repositories().ByID()[img.ID]
 	if (len(tags) <= 1 && repoName == "") || len(tags) == 0 {
 		if len(byParents[img.ID]) == 0 {
-			if err := daemon.canDeleteImage(img.ID, force, tagDeleted); err != nil {
-				return err
-			}
 			if err := daemon.Repositories().DeleteAll(img.ID); err != nil {
 				return err
 			}
@@ -125,11 +129,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 	return nil
 }
 
-func (daemon *Daemon) canDeleteImage(imgID string, force, untagged bool) error {
-	var message string
-	if untagged {
-		message = " (docker untagged the image)"
-	}
+func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 	for _, container := range daemon.List() {
 		parent, err := daemon.Repositories().LookupImage(container.Image)
 		if err != nil {
@@ -140,11 +140,11 @@ func (daemon *Daemon) canDeleteImage(imgID string, force, untagged bool) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {
-						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it%s, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID))
 					}
-					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it%s, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
 				} else if !force {
-					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it%s, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID), message)
+					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
 				}
 			}
 			return nil
