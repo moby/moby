@@ -28,24 +28,24 @@ const (
 // This is used for calculating checksums of layers of an image, in some cases
 // including the byte payload of the image's json metadata as well, and for
 // calculating the checksums for buildcache.
-func NewTarSum(r io.Reader, dc bool, v Version) (TarSumInterface, error) {
+func NewTarSum(r io.Reader, dc bool, v Version) (TarSum, error) {
 	if _, ok := tarSumVersions[v]; !ok {
 		return nil, ErrVersionNotImplemented
 	}
-	return &TarSum{Reader: r, DisableCompression: dc, tarSumVersion: v}, nil
+	return &tarSum{Reader: r, DisableCompression: dc, tarSumVersion: v}, nil
 }
 
-// TarSumInterface is the generic interface for calculating fixed time
+// TarSum is the generic interface for calculating fixed time
 // checksums of a tar archive
-type TarSumInterface interface {
+type TarSum interface {
 	io.Reader
 	GetSums() map[string]string
 	Sum([]byte) string
 	Version() Version
 }
 
-// TarSum struct is the structure for a Version0 checksum calculation
-type TarSum struct {
+// tarSum struct is the structure for a Version0 checksum calculation
+type tarSum struct {
 	io.Reader
 	tarR               *tar.Reader
 	tarW               *tar.Writer
@@ -62,11 +62,11 @@ type TarSum struct {
 	tarSumVersion      Version // this field is not exported so it can not be mutated during use
 }
 
-func (ts TarSum) Version() Version {
+func (ts tarSum) Version() Version {
 	return ts.tarSumVersion
 }
 
-func (ts TarSum) selectHeaders(h *tar.Header, v Version) (set [][2]string) {
+func (ts tarSum) selectHeaders(h *tar.Header, v Version) (set [][2]string) {
 	for _, elem := range [][2]string{
 		{"name", h.Name},
 		{"mode", strconv.Itoa(int(h.Mode))},
@@ -89,7 +89,7 @@ func (ts TarSum) selectHeaders(h *tar.Header, v Version) (set [][2]string) {
 	return
 }
 
-func (ts *TarSum) encodeHeader(h *tar.Header) error {
+func (ts *tarSum) encodeHeader(h *tar.Header) error {
 	for _, elem := range ts.selectHeaders(h, ts.Version()) {
 		if _, err := ts.h.Write([]byte(elem[0] + elem[1])); err != nil {
 			return err
@@ -98,7 +98,7 @@ func (ts *TarSum) encodeHeader(h *tar.Header) error {
 	return nil
 }
 
-func (ts *TarSum) Read(buf []byte) (int, error) {
+func (ts *tarSum) Read(buf []byte) (int, error) {
 	if ts.gz == nil {
 		ts.bufTar = bytes.NewBuffer([]byte{})
 		ts.bufGz = bytes.NewBuffer([]byte{})
@@ -197,7 +197,7 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 	return ts.bufGz.Read(buf)
 }
 
-func (ts *TarSum) Sum(extra []byte) string {
+func (ts *tarSum) Sum(extra []byte) string {
 	var sums []string
 
 	for _, sum := range ts.sums {
@@ -217,6 +217,6 @@ func (ts *TarSum) Sum(extra []byte) string {
 	return checksum
 }
 
-func (ts *TarSum) GetSums() map[string]string {
+func (ts *tarSum) GetSums() map[string]string {
 	return ts.sums
 }

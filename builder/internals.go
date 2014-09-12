@@ -168,7 +168,10 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		if err != nil {
 			return err
 		}
-		tarSum := &tarsum.TarSum{Reader: r, DisableCompression: true}
+		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
+		if err != nil {
+			return err
+		}
 		if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
 			return err
 		}
