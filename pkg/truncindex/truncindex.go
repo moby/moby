@@ -97,7 +97,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	}
 
 	if err := idx.trie.VisitSubtree(patricia.Prefix(s), subTreeVisitFunc); err != nil {
-		return "", fmt.Errorf("No such id: %s", s)
+		return "", err
 	}
 	if id != "" {
 		return id, nil

@@ -230,7 +230,7 @@ Parameters:
         Content-Type: application/json
         X-Docker-Registry-Version: 0.6.0
         X-Docker-Size: 456789
-        X-Docker-Checksum: b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087
+        X-Docker-Payload-Checksum: b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087
 
         {
             id: "088b4505aa3adc3d35e79c031fa126b403200f02f51920fbd9b7c503e87c7a2c",

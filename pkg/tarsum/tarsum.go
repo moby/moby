@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"hash"
 	"io"
 	"sort"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/docker/docker/pkg/log"
 )
+
+var ErrChecksum = errors.New("Error verifying checksum")
 
 const (
 	buf8K  = 8 * 1024
@@ -60,6 +63,12 @@ type TarSum struct {
 	first              bool
 	DisableCompression bool    // false by default. When false, the output gzip compressed.
 	tarSumVersion      Version // this field is not exported so it can not be mutated during use
+}
+
+type TarSumChkReader struct {
+	Ts        *TarSum
+	Checksums []string
+	Extra     []byte
 }
 
 func (ts TarSum) Version() Version {
@@ -219,4 +228,22 @@ func (ts *TarSum) Sum(extra []byte) string {
 
 func (ts *TarSum) GetSums() map[string]string {
 	return ts.sums
+}
+
+func (tscr *TarSumChkReader) Read(buf []byte) (int, error) {
+	i, err := tscr.Ts.Read(buf)
+	if err == io.EOF {
+		// If not verifying against a checksum
+		if len(tscr.Checksums) == 0 {
+			return i, err
+		}
+		// If there are checksums, match at least one.
+		for _, v := range tscr.Checksums {
+			if v == tscr.Ts.Sum(tscr.Extra) {
+				return i, err
+			}
+		}
+		return i, ErrChecksum
+	}
+	return i, err
 }

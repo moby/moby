@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -250,14 +251,15 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 		if !s.graph.Exists(id) {
 			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
 			var (
-				imgJSON []byte
-				imgSize int
-				err     error
-				img     *image.Image
+				imgJSON    []byte
+				imgSize    int
+				imgChksums []string
+				err        error
+				img        *image.Image
 			)
 			retries := 5
 			for j := 1; j <= retries; j++ {
-				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
+				imgJSON, imgSize, imgChksums, err = r.GetRemoteImageJSON(id, endpoint, token)
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
 					return err
@@ -297,8 +299,11 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				}
 				defer layer.Close()
 
-				err = s.graph.Register(img, imgJSON,
-					utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"))
+				layerpgr := utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading")
+				tarsumLayer := &tarsum.TarSum{Reader: layerpgr}
+				tarsumchkLayer := &tarsum.TarSumChkReader{Ts: tarsumLayer, Checksums: imgChksums, Extra: imgJSON}
+
+				err = s.graph.Register(img, imgJSON, tarsumchkLayer)
 				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
