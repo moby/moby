@@ -884,7 +884,7 @@ Query Parameters:
 
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
--   **q** – suppress verbose build outpu
+-   **q** – suppress verbose build output
 
 Status Codes:
 
