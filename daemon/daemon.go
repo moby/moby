@@ -42,7 +42,7 @@ import (
 
 var (
 	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
-	validContainerNameChars   = `[a-zA-Z0-9_.-]`
+	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
 
