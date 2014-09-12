@@ -4,6 +4,7 @@ package main
 
 import (
 	"log"
+	"path"
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
@@ -12,6 +13,7 @@ import (
 	_ "github.com/docker/docker/daemon/execdriver/native"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/links"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
 )
@@ -46,12 +48,19 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := d.Install(eng); err != nil {
-			log.Fatal(err)
-		}
 
 		b := &builder.BuilderJob{eng, d}
 		b.Install()
+
+		graphdbPath := path.Join(daemonCfg.Root, "linkgraph.db")
+		linksObj, err := links.NewLinks(graphdbPath, d)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := linksObj.Install(eng); err != nil {
+			log.Fatal(err)
+		}
 
 		// after the daemon is done setting up we can tell the api to start
 		// accepting connections

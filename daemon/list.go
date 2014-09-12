@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/graphdb"
-
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
@@ -45,11 +43,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 	}
 
+	// FIXME(erikh): this should be map[string]string now, but preserving for
+	//               compatibility
 	names := map[string][]string{}
-	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, -1)
+
+	for _, container := range daemon.containers.List() {
+		id := container.ID
+		names[id] = append(names[id], container.Name)
+	}
 
 	var beforeCont, sinceCont *Container
 	if before != "" {
@@ -103,6 +104,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		out := &engine.Env{}
 		out.Set("Id", container.ID)
 		out.SetList("Names", names[container.ID])
+		out.SetJson("LinkMap", container.LinkMap)
 		out.Set("Image", daemon.Repositories().ImageName(container.Image))
 		if len(container.Args) > 0 {
 			args := []string{}

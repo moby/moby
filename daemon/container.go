@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
@@ -36,6 +35,7 @@ import (
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 var (
+	ErrDuplicateName         = errors.New("Conflict: name already exists.")
 	ErrNotATTY               = errors.New("The PTY is not a file")
 	ErrNoTTY                 = errors.New("No PTY found")
 	ErrContainerStart        = errors.New("The container failed to start. Unknown error")
@@ -73,6 +73,9 @@ type Container struct {
 	Driver         string
 	ExecDriver     string
 
+	// Map of child name -> id link relationships
+	LinkMap map[string]string
+
 	command *execdriver.Command
 	StreamConfig
 
@@ -86,8 +89,7 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks map[string]*links.Link
-	monitor     *containerMonitor
+	monitor *containerMonitor
 }
 
 func (container *Container) FromDisk() error {
@@ -141,9 +143,9 @@ func (container *Container) ToDisk() error {
 func (container *Container) readHostConfig() error {
 	container.hostConfig = &runconfig.HostConfig{}
 	// If the hostconfig file does not exist, do not read it.
-	// (We still have to initialize container.hostConfig,
+	// (We still have to initialize container.HostConfig,
 	// but that's OK, since we just did that above.)
-	pth, err := container.hostConfigPath()
+	pth, err := container.HostConfigPath()
 	if err != nil {
 		return err
 	}
@@ -166,7 +168,7 @@ func (container *Container) WriteHostConfig() error {
 		return err
 	}
 
-	pth, err := container.hostConfigPath()
+	pth, err := container.HostConfigPath()
 	if err != nil {
 		return err
 	}
@@ -416,9 +418,8 @@ func (container *Container) buildHostsFiles(IP string) error {
 		return err
 	}
 
-	for linkAlias, child := range children {
-		_, alias := path.Split(linkAlias)
-		extraContent[alias] = child.NetworkSettings.IPAddress
+	for name, child := range children {
+		extraContent[name] = child.NetworkSettings.IPAddress
 	}
 
 	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
@@ -517,9 +518,22 @@ func (container *Container) cleanup() {
 	container.releaseNetwork()
 
 	// Disable all active links
-	if container.activeLinks != nil {
-		for _, link := range container.activeLinks {
-			link.Disable()
+	if len(container.LinkMap) != 0 {
+		for name, id := range container.LinkMap {
+			child := container.daemon.Get(id)
+
+			if child == nil {
+				// this link is no longer valid and should be pruned
+				delete(container.LinkMap, name)
+				container.ToDisk()
+			} else {
+				disableJob := container.daemon.eng.Job("disable_link")
+				disableJob.Setenv("ParentIP", container.NetworkSettings.IPAddress)
+				disableJob.Setenv("ChildIP", child.NetworkSettings.IPAddress)
+				disableJob.Setenv("Name", name)
+
+				disableJob.Run()
+			}
 		}
 	}
 
@@ -715,7 +729,7 @@ func (container *Container) ReadLog(name string) (io.Reader, error) {
 	return os.Open(pth)
 }
 
-func (container *Container) hostConfigPath() (string, error) {
+func (container *Container) HostConfigPath() (string, error) {
 	return container.getRootResourcePath("hostconfig.json")
 }
 
@@ -832,23 +846,28 @@ func (container *Container) GetPtyMaster() (*os.File, error) {
 	return ttyConsole.Master(), nil
 }
 
-func (container *Container) HostConfig() *runconfig.HostConfig {
+func (container *Container) SetHostConfig(HostConfig *runconfig.HostConfig) {
 	container.Lock()
-	res := container.hostConfig
-	container.Unlock()
-	return res
-}
-
-func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
-	container.Lock()
-	container.hostConfig = hostConfig
+	container.hostConfig = HostConfig
 	container.Unlock()
 }
 
 func (container *Container) DisableLink(name string) {
-	if container.activeLinks != nil {
-		if link, exists := container.activeLinks[name]; exists {
-			link.Disable()
+	if container.LinkMap != nil {
+		if id, exists := container.LinkMap[name]; exists {
+			child := container.daemon.Get(id)
+
+			if child == nil {
+				// this link is no longer valid and should be pruned
+				delete(container.LinkMap, name)
+			} else {
+				disableJob := container.daemon.eng.Job("disable_link")
+				disableJob.Setenv("ParentIP", container.NetworkSettings.IPAddress)
+				disableJob.Setenv("ChildIP", child.NetworkSettings.IPAddress)
+				disableJob.Setenv("Name", name)
+
+				disableJob.Run()
+			}
 		} else {
 			log.Debugf("Could not find active link for %s", name)
 		}
@@ -899,6 +918,7 @@ func (container *Container) updateParentsHosts() error {
 	if err != nil {
 		return err
 	}
+
 	for _, cid := range parents {
 		if cid == "0" {
 			continue
@@ -906,11 +926,12 @@ func (container *Container) updateParentsHosts() error {
 
 		c := container.daemon.Get(cid)
 		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
-			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
+			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name); err != nil {
 				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -989,48 +1010,65 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		env    []string
 		daemon = container.daemon
 	)
-	children, err := daemon.Children(container.Name)
-	if err != nil {
-		return nil, err
-	}
 
-	if len(children) > 0 {
-		container.activeLinks = make(map[string]*links.Link, len(children))
+	links := container.LinkMap
 
+	if len(links) > 0 {
 		// If we encounter an error make sure that we rollback any network
 		// config and ip table changes
 		rollback := func() {
-			for _, link := range container.activeLinks {
-				link.Disable()
+			for name, id := range links {
+				child := daemon.Get(id)
+
+				if child == nil {
+					// this link is no longer valid and should be pruned
+					delete(links, name)
+				} else {
+					disableJob := daemon.eng.Job("disable_link")
+					disableJob.Setenv("ParentIP", container.NetworkSettings.IPAddress)
+					disableJob.Setenv("ChildIP", child.NetworkSettings.IPAddress)
+					disableJob.Setenv("Name", name)
+
+					disableJob.Run()
+				}
 			}
-			container.activeLinks = nil
 		}
 
-		for linkAlias, child := range children {
+		for name, childId := range links {
+			child := daemon.Get(childId)
+
 			if !child.IsRunning() {
-				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
+				return nil, fmt.Errorf("Cannot link to a non running container: %s", child.Name)
 			}
 
-			link, err := links.NewLink(
-				container.NetworkSettings.IPAddress,
-				child.NetworkSettings.IPAddress,
-				linkAlias,
-				child.Config.Env,
-				child.Config.ExposedPorts,
-				daemon.eng)
+			enableJob := daemon.eng.Job("enable_link")
+			enableJob.Setenv("ParentIP", container.NetworkSettings.IPAddress)
+			enableJob.Setenv("ChildIP", child.NetworkSettings.IPAddress)
+			enableJob.Setenv("Name", name)
+			enableJob.SetenvList("ChildEnvironment", child.Config.Env)
 
-			if err != nil {
+			ports := []string{}
+			for port := range child.Config.ExposedPorts {
+				ports = append(ports, string(port))
+			}
+
+			enableJob.SetenvList("Ports", ports)
+
+			if err := enableJob.Run(); err != nil {
 				rollback()
 				return nil, err
 			}
 
-			container.activeLinks[link.Alias()] = link
-			if err := link.Enable(); err != nil {
-				rollback()
+			envJob := daemon.eng.Job("get_link_env")
+			envJob.Setenv("ParentIP", container.NetworkSettings.IPAddress)
+			envJob.Setenv("ChildIP", child.NetworkSettings.IPAddress)
+			envJob.Setenv("Name", name)
+
+			if err := envJob.Run(); err != nil {
 				return nil, err
 			}
 
-			for _, envVar := range link.ToEnv() {
+			for _, envVar := range envJob.GetenvList("Result") {
 				env = append(env, envVar)
 			}
 		}

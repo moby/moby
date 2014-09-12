@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/log"
 )
 
 func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
@@ -12,6 +13,7 @@ func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	if container := daemon.Get(name); container != nil {
+		log.Debugf("%s %s here", container.ID, name)
 		data, err := container.Export()
 		if err != nil {
 			return job.Errorf("%s: %s", name, err)

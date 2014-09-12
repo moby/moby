@@ -1741,7 +1741,7 @@ func TestHostsLinkedContainerUpdate(t *testing.T) {
 	}
 
 	// TODO fix docker cp and /etc/hosts
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "sh", "-c", "while true;do cp /etc/hosts /hosts; done"))
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1", "--name", "c2", "busybox", "sh", "-c", "while true;do cp /etc/hosts /hosts; done"))
 	if err != nil {
 		t.Fatal(err, out)
 	}
@@ -1755,6 +1755,8 @@ func TestHostsLinkedContainerUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, out)
 	}
+
+	t.Log(out)
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/2"))
 	if err != nil {

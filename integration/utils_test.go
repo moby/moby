@@ -187,11 +187,8 @@ func newTestEngine(t log.Fataler, autorestart bool, root string) *engine.Engine 
 		// otherwise NewDaemon will fail because of conflicting settings.
 		InterContainerCommunication: true,
 	}
-	d, err := daemon.NewDaemon(cfg, eng)
+	_, err := daemon.NewDaemon(cfg, eng)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := d.Install(eng); err != nil {
 		t.Fatal(err)
 	}
 	return eng

@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/docker/docker/api"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 )
 
 func ListVar(values *[]string, names []string, usage string) {
@@ -130,9 +130,14 @@ func ValidateAttach(val string) (string, error) {
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := parsers.PartParser("name:alias", val); err != nil {
-		return val, err
+	if strings.Contains(val, ":") {
+		return val, errors.New("Aliases are no longer used with links. Please use only a container name.")
 	}
+
+	if len(strings.TrimSpace(val)) == 0 {
+		return val, errors.New("--link requires a container name as a parameter")
+	}
+
 	return val, nil
 }
 

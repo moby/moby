@@ -2,10 +2,10 @@ package links
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
-	"path"
-	"strings"
 )
 
 type Link struct {
@@ -43,8 +43,7 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 }
 
 func (l *Link) Alias() string {
-	_, alias := path.Split(l.Name)
-	return alias
+	return l.Name
 }
 
 func (l *Link) ToEnv() []string {
