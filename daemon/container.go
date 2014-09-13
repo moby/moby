@@ -422,6 +422,11 @@ func (container *Container) buildHostsFiles(IP string) error {
 		extraContent[alias] = child.NetworkSettings.IPAddress
 	}
 
+	for _, extraHost := range container.hostConfig.ExtraHosts {
+		parts := strings.Split(extraHost, ":")
+		extraContent[parts[0]] = parts[1]
+	}
+
 	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
 }
 

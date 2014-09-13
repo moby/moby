@@ -49,6 +49,7 @@ type HostConfig struct {
 	PublishAllPorts bool
 	Dns             []string
 	DnsSearch       []string
+	ExtraHosts      []string
 	VolumesFrom     []string
 	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
@@ -80,6 +81,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
 		hostConfig.DnsSearch = DnsSearch
+	}
+	if ExtraHosts := job.GetenvList("ExtraHosts"); ExtraHosts != nil {
+		hostConfig.ExtraHosts = ExtraHosts
 	}
 	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
 		hostConfig.VolumesFrom = VolumesFrom

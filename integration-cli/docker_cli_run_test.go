@@ -1331,6 +1331,23 @@ func TestDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 	logDone("run - dns options based on host resolv.conf")
 }
 
+func TestRunAddHost(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "--add-host=extra:86.75.30.9", "busybox", "grep", "extra", "/etc/hosts")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actual := strings.Trim(out, "\r\n")
+	if actual != "86.75.30.9\textra" {
+		t.Fatalf("expected '86.75.30.9\textra', but says: '%s'", actual)
+	}
+
+	logDone("run - add-host option")
+}
+
 // Regression test for #6983
 func TestAttachStdErrOnlyTTYMode(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-t", "-a", "stderr", "busybox", "true")

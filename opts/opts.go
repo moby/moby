@@ -199,6 +199,17 @@ func validateDomain(val string) (string, error) {
 	return "", fmt.Errorf("%s is not a valid domain", val)
 }
 
+func ValidateExtraHost(val string) (string, error) {
+	arr := strings.Split(val, ":")
+	if len(arr) != 2 || len(arr[0]) == 0 {
+		return "", fmt.Errorf("bad format for add-host: %s", val)
+	}
+	if _, err := ValidateIPAddress(arr[1]); err != nil {
+		return "", fmt.Errorf("bad format for add-host: %s", val)
+	}
+	return val, nil
+}
+
 // Validates an HTTP(S) registry mirror
 func ValidateMirror(val string) (string, error) {
 	uri, err := url.Parse(val)
