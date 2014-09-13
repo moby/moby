@@ -42,7 +42,7 @@ it:
 Next, we have to configure docker so that it's run with the option
 `-r=false`. Run the following command:
 
-    $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' > /etc/default/docker"
+    $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' >> /etc/default/docker"
 
 ## Sample systemd Script
 
