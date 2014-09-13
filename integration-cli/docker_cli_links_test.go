@@ -84,7 +84,7 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 		t.Fatal("Iptables rules not found")
 	}
 
-	cmd(t, "rm", "--link", "parent/http")
+	cmd(t, "rm", "--link", "parent/child/http")
 	if iptables.Exists(sourceRule...) || iptables.Exists(destinationRule...) {
 		t.Fatal("Iptables rules should be removed when unlink")
 	}
@@ -98,7 +98,7 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 
 func TestLinksInspectLinksStarted(t *testing.T) {
 	var (
-		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
+		expected = map[string]struct{}{"container1:alias1": {}, "container2:alias2": {}}
 		result   []string
 	)
 	defer deleteAllContainers()
@@ -127,7 +127,7 @@ func TestLinksInspectLinksStarted(t *testing.T) {
 
 func TestLinksInspectLinksStopped(t *testing.T) {
 	var (
-		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
+		expected = map[string]struct{}{"container1:alias1": {}, "container2:alias2": {}}
 		result   []string
 	)
 	defer deleteAllContainers()
@@ -153,4 +153,41 @@ func TestLinksInspectLinksStopped(t *testing.T) {
 	}
 
 	logDone("link - links in stopped container inspect")
+}
+
+func TestLinkDoubleAlias(t *testing.T) {
+	defer deleteAllContainers()
+	cmd(t, "run", "-d", "--name", "one", "busybox", "top")
+	cmd(t, "run", "-d", "--name", "two", "--link", "one:db", "busybox", "top")
+	cmd(t, "run", "-d", "--name", "three", "--link", "one:db", "busybox", "top")
+	logDone("link - two of the same aliases to the same container")
+}
+
+func TestLinkSameAliasFails(t *testing.T) {
+	defer deleteAllContainers()
+	_, err := runCommand(exec.Command(dockerBinary, "run", "-itd", "--name", "one", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = runCommand(exec.Command(dockerBinary, "run", "-itd", "--name", "two", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = runCommand(exec.Command(dockerBinary, "run", "-itd", "--name", "three", "--link", "two:one", "one:one", "busybox", "top"))
+	if err == nil {
+		t.Fatal("Two of the same alias were allowed")
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "four", "--link", "two:one", "--link", "one:two", "busybox", "sh", "-c", "cat /etc/hosts"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if !strings.Contains(out, "two") || !strings.Contains(out, "one") {
+		t.Fatal("Hosts do not exist in linking container")
+	}
+
+	logDone("link - child/alias collisions")
 }

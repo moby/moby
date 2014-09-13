@@ -1557,11 +1557,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			outID = utils.TruncateID(outID)
 		}
 
-		// Remove the leading / from the names
-		for i := 0; i < len(outNames); i++ {
-			outNames[i] = outNames[i][1:]
-		}
-
 		if !*quiet {
 			var (
 				outCommand   = out.Get("Command")

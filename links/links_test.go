@@ -1,16 +1,17 @@
 package links
 
 import (
-	"github.com/docker/docker/nat"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/nat"
 )
 
 func TestLinkNaming(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "docker-1", nil, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +41,7 @@ func TestLinkNew(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "docker", nil, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +49,7 @@ func TestLinkNew(t *testing.T) {
 	if link == nil {
 		t.FailNow()
 	}
-	if link.Name != "/db/docker" {
+	if link.Name != "docker" {
 		t.Fail()
 	}
 	if link.Alias() != "docker" {
@@ -71,7 +72,7 @@ func TestLinkEnv(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "docker", []string{"PASSWORD=gordon"}, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,8 +101,8 @@ func TestLinkEnv(t *testing.T) {
 	if env["DOCKER_PORT_6379_TCP_PORT"] != "6379" {
 		t.Fatalf("Expected 6379, got %s", env["DOCKER_PORT_6379_TCP_PORT"])
 	}
-	if env["DOCKER_NAME"] != "/db/docker" {
-		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])
+	if env["DOCKER_NAME"] != "docker" {
+		t.Fatalf("Expected docker, got %s", env["DOCKER_NAME"])
 	}
 	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
 		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])
