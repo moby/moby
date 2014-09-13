@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/graphdb"
-
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
@@ -46,10 +44,9 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	}
 
 	names := map[string][]string{}
-	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, -1)
+	for _, container := range daemon.containers.List() {
+		names[container.ID] = append(names[container.ID], container.Name)
+	}
 
 	var beforeCont, sinceCont *Container
 	if before != "" {

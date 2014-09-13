@@ -677,14 +677,14 @@ func TestDefaultContainerName(t *testing.T) {
 	container := daemon.Get(createNamedTestContainer(eng, config, t, "some_name"))
 	containerID := container.ID
 
-	if container.Name != "/some_name" {
-		t.Fatalf("Expect /some_name got %s", container.Name)
+	if container.Name != "some_name" {
+		t.Fatalf("Expect some_name got %s", container.Name)
 	}
 
-	if c := daemon.Get("/some_name"); c == nil {
-		t.Fatalf("Couldn't retrieve test container as /some_name")
+	if c := daemon.Get("some_name"); c == nil {
+		t.Fatalf("Couldn't retrieve test container as some_name")
 	} else if c.ID != containerID {
-		t.Fatalf("Container /some_name has ID %s instead of %s", c.ID, containerID)
+		t.Fatalf("Container some_name has ID %s instead of %s", c.ID, containerID)
 	}
 }
 
@@ -747,59 +747,17 @@ func TestContainerNameValidation(t *testing.T) {
 
 		container := daemon.Get(engine.Tail(outputBuffer, 1))
 
-		if container.Name != "/"+test.Name {
-			t.Fatalf("Expect /%s got %s", test.Name, container.Name)
+		if container.Name != test.Name {
+			t.Fatalf("Expect %s got %s", test.Name, container.Name)
 		}
 
-		if c := daemon.Get("/" + test.Name); c == nil {
-			t.Fatalf("Couldn't retrieve test container as /%s", test.Name)
+		if c := daemon.Get(test.Name); c == nil {
+			t.Fatalf("Couldn't retrieve test container as %s", test.Name)
 		} else if c.ID != container.ID {
-			t.Fatalf("Container /%s has ID %s instead of %s", test.Name, c.ID, container.ID)
+			t.Fatalf("Container %s has ID %s instead of %s", test.Name, c.ID, container.ID)
 		}
 	}
 
-}
-
-func TestLinkChildContainer(t *testing.T) {
-	eng := NewTestEngine(t)
-	daemon := mkDaemonFromEngine(eng, t)
-	defer nuke(daemon)
-
-	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
-
-	webapp, err := daemon.GetByName("/webapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if webapp.ID != container.ID {
-		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
-	}
-
-	config, _, _, err = parseRun([]string{GetTestImage(daemon).ID, "echo test"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	childContainer := daemon.Get(createTestContainer(eng, config, t))
-
-	if err := daemon.RegisterLink(webapp, childContainer, "db"); err != nil {
-		t.Fatal(err)
-	}
-
-	// Get the child by it's new name
-	db, err := daemon.GetByName("/webapp/db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if db.ID != childContainer.ID {
-		t.Fatalf("Expect db id to match container id: %s != %s", db.ID, childContainer.ID)
-	}
 }
 
 func TestGetAllChildren(t *testing.T) {
@@ -812,11 +770,11 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	container := daemon.Get(createNamedTestContainer(eng, config, t, "webapp"))
 
-	webapp, err := daemon.GetByName("/webapp")
-	if err != nil {
-		t.Fatal(err)
+	webapp := daemon.GetByName("webapp")
+	if webapp == nil {
+		t.Fatal("Could not find container named webapp")
 	}
 
 	if webapp.ID != container.ID {
@@ -828,13 +786,13 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	childContainer := daemon.Get(createTestContainer(eng, config, t))
+	childContainer := daemon.Get(createNamedTestContainer(eng, config, t, "mydb"))
 
 	if err := daemon.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)
 	}
 
-	children, err := daemon.Children("/webapp")
+	children := daemon.Children("webapp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -847,8 +805,8 @@ func TestGetAllChildren(t *testing.T) {
 	}
 
 	for key, value := range children {
-		if key != "/webapp/db" {
-			t.Fatalf("Expected /webapp/db got %s", key)
+		if key != "mydb" {
+			t.Fatalf("Expected mydb got %s", key)
 		}
 		if value.ID != childContainer.ID {
 			t.Fatalf("Expected id %s got %s", childContainer.ID, value.ID)

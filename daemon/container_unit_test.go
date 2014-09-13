@@ -1,8 +1,9 @@
 package daemon
 
 import (
-	"github.com/docker/docker/nat"
 	"testing"
+
+	"github.com/docker/docker/nat"
 )
 
 func TestParseNetworkOptsPrivateOnly(t *testing.T) {
@@ -163,19 +164,6 @@ func TestParseNetworkOptsUdp(t *testing.T) {
 		if s.HostIp != "192.168.1.100" {
 			t.Fail()
 		}
-	}
-}
-
-func TestGetFullName(t *testing.T) {
-	name, err := GetFullContainerName("testing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if name != "/testing" {
-		t.Fatalf("Expected /testing got %s", name)
-	}
-	if _, err := GetFullContainerName(""); err == nil {
-		t.Fatal("Error should not be nil")
 	}
 }
 

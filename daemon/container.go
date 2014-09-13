@@ -308,7 +308,7 @@ func (container *Container) Start() (err error) {
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
-	if err := container.updateParentsHosts(); err != nil {
+	if err := container.UpdateParentsHosts(); err != nil {
 		return err
 	}
 	container.verifyDaemonSettings()
@@ -414,14 +414,13 @@ func (container *Container) buildHostsFiles(IP string) error {
 
 	extraContent := make(map[string]string)
 
-	children, err := container.daemon.Children(container.Name)
-	if err != nil {
-		return err
-	}
+	children := container.daemon.Children(container.Name)
 
-	for linkAlias, child := range children {
-		_, alias := path.Split(linkAlias)
-		extraContent[alias] = child.NetworkSettings.IPAddress
+	for _, child := range children {
+		alias := container.daemon.AliasFor(container, child)
+		if alias != "" {
+			extraContent[alias] = child.NetworkSettings.IPAddress
+		}
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
@@ -898,23 +897,17 @@ func (container *Container) setupContainerDns() error {
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
 }
 
-func (container *Container) updateParentsHosts() error {
-	parents, err := container.daemon.Parents(container.Name)
-	if err != nil {
-		return err
-	}
-	for _, cid := range parents {
-		if cid == "0" {
-			continue
-		}
+func (container *Container) UpdateParentsHosts() error {
+	parents := container.daemon.Parents(container.Name)
 
-		c := container.daemon.Get(cid)
-		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
-			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
+	for _, c := range parents {
+		if !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
+			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name); err != nil {
 				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -993,10 +986,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		env    []string
 		daemon = container.daemon
 	)
-	children, err := daemon.Children(container.Name)
-	if err != nil {
-		return nil, err
-	}
+	children := daemon.Children(container.Name)
 
 	if len(children) > 0 {
 		container.activeLinks = make(map[string]*links.Link, len(children))
@@ -1010,15 +1000,20 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 			container.activeLinks = nil
 		}
 
-		for linkAlias, child := range children {
+		for _, child := range children {
+			alias := daemon.AliasFor(container, child)
+			if alias == "" {
+				alias = child.Name
+			}
+
 			if !child.IsRunning() {
-				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
+				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, alias)
 			}
 
 			link, err := links.NewLink(
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,
-				linkAlias,
+				alias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
 				daemon.eng)
