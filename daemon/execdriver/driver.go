@@ -78,6 +78,7 @@ type Mount struct {
 	Destination string `json:"destination"`
 	Writable    bool   `json:"writable"`
 	Private     bool   `json:"private"`
+	Slave       bool   `json:"slave"`
 }
 
 // Describes a process that will be run inside a container.
