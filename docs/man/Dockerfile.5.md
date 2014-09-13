@@ -203,5 +203,15 @@ or
  The solution is to use **ONBUILD** to register instructions in advance, to
  run later, during the next build stage.  
 
+**BUILD**
+ -- **BUILD /path/to/build/context**
+ The BUILD instruction starts building a new image as if `docker build` would
+ have been run in the specified directory of the current image. Rest of the
+ instructions in the Dockerfile are now considered to be part of this new build
+ process. If there are no instructions and the context directory contains a
+ file called Dockerfile then this file is used instead. Files located in build
+ context directory are available as source paths to the ADD and COPY commands.
+ No previously set instruction has any effect to the new build.
+
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.

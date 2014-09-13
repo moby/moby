@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -69,6 +70,7 @@ func init() {
 		"expose":     expose,
 		"volume":     volume,
 		"user":       user,
+		"build":      build,
 		"insert":     insert,
 	}
 }
@@ -103,6 +105,8 @@ type Builder struct {
 
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
+
+	RepoName string // tag added to the image after the build
 
 	dockerfile  *parser.Node  // the syntax tree of the dockerfile
 	image       string        // image name for commit processing
@@ -181,7 +185,15 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
 	}
 
-	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
+	var repoName string
+	if b.RepoName != "" {
+		var tag string
+		repoName, tag = parsers.ParseRepositoryTag(b.RepoName)
+		b.Daemon.Repositories().Set(repoName, tag, b.image, true)
+	}
+
+	fmt.Fprintf(b.OutStream, "Successfully built %s %s\n", utils.TruncateID(b.image), repoName)
+
 	return b.image, nil
 }
 

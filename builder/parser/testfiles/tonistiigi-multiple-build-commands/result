@@ -1,0 +1,7 @@
+(from "busybox")
+(add "." "/")
+(build "/app" "FROM busybox
+
+ADD . /
+
+BUILD /app")

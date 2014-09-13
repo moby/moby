@@ -1,0 +1,9 @@
+(from "crosbymichael/golang")
+(add "." "/go/src/github.com/tonistiigi/dnsdock")
+(env "CGO_ENABLED" "0")
+(run "cd /go/src/github.com/tonistiigi/dnsdock &&     go get -d ./... &&     go install -a ./...")
+(build "/go/bin" "FROM scratch
+
+ADD dnsdock .
+
+ENTRYPOINT [\"/dnsdock\"]")

@@ -57,6 +57,7 @@ func init() {
 		"entrypoint": parseMaybeJSON,
 		"expose":     parseStringsWhitespaceDelimited,
 		"volume":     parseMaybeJSONToList,
+		"build":      parseString,
 		"insert":     parseIgnore,
 	}
 }
@@ -135,6 +136,19 @@ func Parse(rwc io.Reader) (*Node, error) {
 
 		if child != nil {
 			root.Children = append(root.Children, child)
+
+			if child.Value == "build" {
+				rest := ""
+				for scanner.Scan() {
+					rest += scanner.Text() + "\n"
+				}
+				if node, err := Parse(strings.NewReader(rest)); err != nil {
+					return nil, err
+				} else if len(node.Children) > 0 {
+					child.Next.Next = &Node{Value: rest}
+				}
+				break
+			}
 		}
 	}
 

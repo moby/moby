@@ -1,0 +1,4 @@
+(from "busybox")
+(add "." "/")
+(run "/generate-new-dockerfile.sh > Dockerfile")
+(build "/")
