@@ -167,6 +167,7 @@ func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Comma
 			Destination: m.Destination,
 			Writable:    m.Writable,
 			Private:     m.Private,
+			Slave:       m.Slave,
 		})
 	}
 

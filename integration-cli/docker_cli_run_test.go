@@ -1749,27 +1749,103 @@ func TestBindMounts(t *testing.T) {
 	logDone("run - bind mounts")
 }
 
-func TestHostsLinkedContainerUpdate(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+func TestMutableNetworkFiles(t *testing.T) {
+	defer deleteAllContainers()
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sleep", "5"))
+	for _, fn := range []string{"resolv.conf", "hosts"} {
+		deleteAllContainers()
+
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s; while true; do sleep 1; done", fn)))
+		if err != nil {
+			t.Fatal(err, out)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		contID := strings.TrimSpace(out)
+
+		f, err := os.Open(filepath.Join("/var/lib/docker/containers", contID, fn))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		content, err := ioutil.ReadAll(f)
+		f.Close()
+
+		if strings.TrimSpace(string(content)) != "success" {
+			t.Fatal("Content was not what was modified in the container", string(content))
+		}
+
+		out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "sh", "-c", fmt.Sprintf("while true; do cat /etc/%s; sleep 1; done", fn)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		contID = strings.TrimSpace(out)
+
+		resolvConfPath := filepath.Join("/var/lib/docker/containers", contID, fn)
+
+		f, err = os.OpenFile(resolvConfPath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := f.Seek(0, 0); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		if err := f.Truncate(0); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		if _, err := f.Write([]byte("success2\n")); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		f.Close()
+
+		time.Sleep(2 * time.Second) // don't race sleep
+
+		out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "logs", "c2"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		lines := strings.Split(out, "\n")
+		if strings.TrimSpace(lines[len(lines)-2]) != "success2" {
+			t.Fatalf("Did not find the correct output in /etc/%s: %s %#v", fn, out, lines)
+		}
+	}
+}
+
+func TestHostsLinkedContainerUpdate(t *testing.T) {
+	deleteAllContainers()
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", "while true; do sleep 1; done"))
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
 	// TODO fix docker cp and /etc/hosts
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "sh", "-c", "while true;do cp /etc/hosts /hosts; done"))
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--link", "c1:c1", "--name", "c2", "busybox", "sh", "-c", "while true;do sleep 1; done"))
 	if err != nil {
 		t.Fatal(err, out)
 	}
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/1"))
+	contID := strings.TrimSpace(out)
+
+	f, err := os.Open(filepath.Join("/var/lib/docker/containers", contID, "hosts"))
 	if err != nil {
-		t.Fatal(err, out)
+		t.Fatal(err)
+	}
+
+	originalContent, err := ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "restart", "-t", "0", "c1"))
@@ -1777,17 +1853,19 @@ func TestHostsLinkedContainerUpdate(t *testing.T) {
 		t.Fatal(err, out)
 	}
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "cp", "c2:/hosts", tmpdir+"/2"))
+	f, err = os.Open(filepath.Join("/var/lib/docker/containers", contID, "hosts"))
 	if err != nil {
-		t.Fatal(err, out)
+		t.Fatal(err)
 	}
 
-	out, _, _, err = runCommandWithStdoutStderr(exec.Command("diff", tmpdir+"/1", tmpdir+"/2"))
-	if err == nil {
-		t.Fatalf("Expecting error, got none")
+	newContent, err := ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
 	}
-	out = stripTrailingCharacters(out)
-	if out == "" {
+
+	if strings.TrimSpace(string(originalContent)) == strings.TrimSpace(string(newContent)) {
 		t.Fatalf("expected /etc/hosts to be updated, but wasn't")
 	}
 

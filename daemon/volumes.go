@@ -43,15 +43,30 @@ func prepareVolumesForContainer(container *Container) error {
 
 func setupMountsForContainer(container *Container) error {
 	mounts := []execdriver.Mount{
-		{container.ResolvConfPath, "/etc/resolv.conf", true, true},
+		{
+			Source:      container.ResolvConfPath,
+			Destination: "/etc/resolv.conf",
+			Writable:    true,
+			Slave:       true,
+		},
 	}
 
 	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", true, true})
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.HostnamePath,
+			Destination: "/etc/hostname",
+			Writable:    true,
+			Private:     true,
+		})
 	}
 
 	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", true, true})
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.HostsPath,
+			Destination: "/etc/hosts",
+			Writable:    true,
+			Slave:       true,
+		})
 	}
 
 	// Mount user specified volumes
@@ -59,7 +74,11 @@ func setupMountsForContainer(container *Container) error {
 	// volumes. For instance if you use -v /usr:/usr and the host later mounts /usr/share you
 	// want this new mount in the container
 	for r, v := range container.Volumes {
-		mounts = append(mounts, execdriver.Mount{v, r, container.VolumesRW[r], false})
+		mounts = append(mounts, execdriver.Mount{
+			Source:      v,
+			Destination: r,
+			Writable:    container.VolumesRW[r],
+		})
 	}
 
 	container.command.Mounts = mounts
