@@ -81,7 +81,7 @@ func (ts tarSum) selectHeaders(h *tar.Header, v Version) (set [][2]string) {
 		{"devmajor", strconv.Itoa(int(h.Devmajor))},
 		{"devminor", strconv.Itoa(int(h.Devminor))},
 	} {
-		if v == VersionDev && elem[0] == "mtime" {
+		if v >= VersionDev && elem[0] == "mtime" {
 			continue
 		}
 		set = append(set, elem)
@@ -97,14 +97,16 @@ func (ts *tarSum) encodeHeader(h *tar.Header) error {
 	}
 
 	// include the additional pax headers, from an ordered list
-	var keys []string
-	for k := range h.Xattrs {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		if _, err := ts.h.Write([]byte(k + h.Xattrs[k])); err != nil {
-			return err
+	if ts.Version() >= VersionDev {
+		var keys []string
+		for k := range h.Xattrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if _, err := ts.h.Write([]byte(k + h.Xattrs[k])); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
