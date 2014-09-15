@@ -1014,6 +1014,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
 	job.Stdout.Add(w)
+	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
 		log.Errorf("%s", err.Error())
 		if strings.Contains(err.Error(), "No such container") {

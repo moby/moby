@@ -710,7 +710,7 @@ Copy files or folders of container `id`
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/octet-stream
+        Content-Type: application/x-tar
 
         {{ TAR STREAM }}
 
